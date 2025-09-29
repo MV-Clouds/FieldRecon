@@ -1,0 +1,44 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-17-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class = container>
+        <template if:true={isLoading} class="slds-is-relative" >
+            <lightning-spinner
+                alternative-text="Loading..." variant="brand">
+            </lightning-spinner>
+        </template>
+        <template if:false={hasAccess}>
+            <c-lib-message-with-illustration message="Second Level Feature Pack Required! Please Contact Your Admin!"></c-lib-message-with-illustration>
+        </template>
+        <template if:true={hasAccess}>
+            <template if:true={isCustomSetting}>
+                <lightning-tabset variant={tabsetVariant}  >
+                    <template if:true={showCompanySetup}>
+                        <lightning-tab label="Company Information" >
+                            <c-company-setup></c-company-setup>
+                        </lightning-tab>
+                    </template>
+                    <lightning-tab label="Job Setup">
+                        <c-job-default form-factor={formFactor} ></c-job-default>
+                    </lightning-tab>
+                    <template if:true={showColorsSetup}>
+                        <lightning-tab label="Colors Setup" >
+                            <c-mobilization-colors-setup></c-mobilization-colors-setup>
+                        </lightning-tab>
+                    </template>
+                    <lightning-tab label="Employee Setup">
+                        <c-employee-setup></c-employee-setup>
+                    </lightning-tab>
+                </lightning-tabset>
+            </template>
+            <template if:false={isCustomSetting}>
+                <c-setup-app-wizard></c-setup-app-wizard>
+            </template>
+        </template>
+    </div>
+</template>

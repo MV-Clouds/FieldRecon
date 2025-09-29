@@ -1,0 +1,275 @@
+<aura:component
+    access="global"
+    controller="HomepageController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <aura:attribute name="timesheet" type="List" />
+    <aura:attribute name="timesheetData" type="List" />
+    <aura:attribute name="totalTimesheet" type="Integer" />
+    <aura:attribute name="columns" type="List" />
+    <aura:attribute name="isPreviousButtonActive" type="Boolean" default="true" />
+    <aura:attribute name="isNextButtonActive" type="Boolean" default="false" />
+    <aura:attribute name="opensection" type="String" />
+    <aura:attribute name="logentrydata" type="List" />
+    <aura:attribute name="openDay" type="String" />
+
+    <aura:attribute name="secondLevelAccess" type="Boolean" default="false" />
+
+    <aura:if isTrue="{!v.secondLevelAccess}">
+        <aura:if isTrue="{!$Browser.isPhone}">
+        <lightning:card class="background1">
+            <div class="slds-page-header">
+                <div class="slds-media">
+                    <div class="slds-media__figure">
+                        <span
+                            class="slds-icon_container slds-icon-standard-opportunity"
+                            title="Description of icon when needed"
+                        >
+                            <lightning:icon iconName="standard:job_profile" alternativeText="JOB" />
+                        </span>
+                    </div>
+                    <div class="slds-media__body" style="float: left;">
+                        <div class="slds-page-header__name">
+                            <div class="slds-page-header__name-title">
+                                <h1
+                                    class="slds-page-header__title slds-truncate slds-align-middle"
+                                    style="font-size: 15px;"
+                                    title="Rohde Corp - 80,000 Widgets"
+                                >
+                                    Current week’s TimeSheet
+                                </h1>
+                            </div>
+                        </div>
+                        <p class="slds-page-header__name-meta">Total TimeSheet Entry: {!v.totalTimesheet}</p>
+                    </div>
+                    <div style="margin-right: 15px; float: right;">
+                        <lightning:buttonIconStateful
+                            iconName="utility:back"
+                            disabled="{!v.isPreviousButtonActive}"
+                            variant="bare"
+                            iconClass="dark"
+                            onclick="{!c.previousTimeSheet}"
+                            alternativeText="Previous"
+                        />
+                    </div>
+                    <div style="margin-left: 15px; float: left;">
+                        <lightning:buttonIconStateful
+                            iconName="utility:forward"
+                            variant="bare"
+                            iconClass="dark"
+                            disabled="{!v.isNextButtonActive}"
+                            onclick="{!c.nextTimeSheet}"
+                            alternativeText="Next"
+                        />
+                    </div>
+                </div>
+            </div>
+            <br />
+            <aura:if isTrue="{!v.totalTimesheet > 0}">
+                <aura:iteration items="{!v.timesheet}" var="timesheetdetail">
+                    <aura:if isTrue="{!not(empty(timesheetdetail.value))}">
+                        <lightning:card class="slds-card_boundary boxshadow">
+                            <div
+                                class=""
+                                style="margin-left: 1.4%; font-size: 15px;"
+                                data-Id="{!timesheetdetail.key}"
+                                onclick="{!c.expandDay}"
+                            >
+                                <lightning:icon iconName="action:google_news" size="xx-small" /> &nbsp;
+                                <b>{!timesheetdetail.key}</b>
+                                <p class="slds-float_right" style="margin-right: 3%;">
+                                    <b>{!timesheetdetail.TotalLogentryTime} hr</b>
+                                </p>
+                            </div>
+                            <aura:if isTrue="{!v.openDay == timesheetdetail.key}">
+                                <aura:iteration items="{!timesheetdetail.value}" var="timeEntry">
+                                    <aura:if isTrue="{!not(empty(timeEntry.value))}">
+                                        <div
+                                            style="
+                                                margin: 10px;
+                                                border-radius: 5px;
+                                                box-shadow: 1.5px 1.5px 1.5px 1.5px #ccc;
+                                            "
+                                        >
+                                            <div
+                                                class="slds-clearfix"
+                                                data-id="{!timeEntry.Id}"
+                                                style="border-bottom: 1px solid rgb(223, 217, 217);"
+                                            >
+                                                <div class="slds-float_left" style="margin-left: 3%;">
+                                                    <p style="padding-top: 5px;">{!timeEntry.key2}</p>
+                                                    <p>{!timeEntry.createdDate}</p>
+                                                </div>
+                                                <div class="slds-float_right" style="margin-right: 3%;">
+                                                    <p style="padding-top: 5px;">{!timeEntry.totalTime} hr</p>
+                                                </div>
+                                                <br />
+                                            </div>
+
+                                            <aura:if isTrue="{!v.opensection == timeEntry.key2}">
+                                                <br />
+                                                <aura:iteration items="{!timeEntry.value}" var="log">
+                                                    <div>
+                                                        <div class="slds-float_left" style="margin-left: 3%;">
+                                                            <p>
+                                                                <lightning:icon
+                                                                    iconName="utility:forward"
+                                                                    class="forward"
+                                                                    size="xx-small"
+                                                                /><ui:outputDate
+                                                                    value="{!log.clockInTime}"
+                                                                    format="h:mm a"
+                                                                />
+                                                            </p>
+                                                        </div>
+
+                                                        <div class="slds-float_left" style="margin-left: 3%;">
+                                                            <p>
+                                                                <ui:outputDate
+                                                                    value="{!log.clockOutTime}"
+                                                                    format="h:mm a"
+                                                                /><lightning:icon
+                                                                    iconName="utility:forward"
+                                                                    class="back"
+                                                                    size="xx-small"
+                                                                />
+                                                            </p>
+                                                        </div>
+                                                        <div class="slds-float_right" style="margin-right: 3%;">
+                                                            <p>{!log.totalTime} hr</p>
+                                                        </div>
+
+                                                        <br />
+                                                    </div>
+                                                </aura:iteration>
+                                                <div style="margin-left: 45%;">
+                                                    <lightning:buttonIcon
+                                                        iconName="utility:chevronup"
+                                                        variant="bare"
+                                                        value="{!timeEntry.key2}"
+                                                        alternativeText="View More"
+                                                        onclick="{!c.expandDesc}"
+                                                    />
+                                                </div>
+
+                                                <aura:set attribute="else">
+                                                    <div style="margin-left: 45%;">
+                                                        <lightning:buttonIcon
+                                                            iconName="utility:chevrondown"
+                                                            aura:id="time"
+                                                            variant="bare"
+                                                            value="{!timeEntry.key2}"
+                                                            alternativeText="View More"
+                                                            onclick="{!c.expandDesc}"
+                                                        /><br />
+                                                    </div>
+                                                </aura:set>
+                                            </aura:if>
+                                        </div>
+                                    </aura:if>
+                                </aura:iteration>
+                            </aura:if>
+                        </lightning:card>
+                    </aura:if>
+                </aura:iteration>
+                <aura:set attribute="else">
+                    <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                        <img src="/img/chatter/OpenRoad.svg" class="slds-illustration__svg" alt="No Assigned Jobs" />
+                        <div class="slds-text-color_weak">
+                            <h3 class="slds-text-heading_medium">No TimeSheet!</h3>
+                        </div>
+                    </div>
+                </aura:set>
+            </aura:if>
+        </lightning:card>
+
+        <aura:set attribute="else">
+            <aura:if isTrue="{!v.totalTimesheet > 0}">
+                <lightning:card title="Job details">
+                    <aura:set attribute="title">
+                        <div class="slds-media slds-override">
+                            <div class="slds-media__figure">
+                                <span class="slds-icon_container slds-icon-standard-opportunity" title="">
+                                    <lightning:icon iconName="standard:timesheet_entry" alternativeText="TimeSheet" />
+                                </span>
+                            </div>
+                            <div class="slds-media__body">
+                                <div class="slds-page-header__name">
+                                    <div class="slds-page-header__name-title">
+                                        <h1>
+                                            <span
+                                                class="slds-page-header__title slds-truncate"
+                                                title="“Current week’s TimeSheet"
+                                                >Current week’s TimeSheet</span
+                                            >
+                                        </h1>
+                                    </div>
+                                </div>
+                                <p class="slds-page-header__name-meta">Total TimeSheet Entry : {!v.totalTimesheet}</p>
+                            </div>
+                        </div>
+                    </aura:set>
+
+                    <lightning:datatable
+                        class="slds-scrollable_y"
+                        title="TimeSheet"
+                        keyField="id"
+                        data="{!v.timesheetData}"
+                        columns="{!v.columns}"
+                        hideCheckboxColumn="true"
+                    />
+                </lightning:card>
+                <aura:set attribute="else">
+                    <lightning:card>
+                        <aura:set attribute="title">
+                            <div class="slds-media slds-override">
+                                <div class="slds-media__figure">
+                                    <span class="slds-icon_container slds-icon-standard-opportunity" title="">
+                                        <lightning:icon
+                                            iconName="standard:timesheet_entry"
+                                            alternativeText="TimeSheet"
+                                        />
+                                    </span>
+                                </div>
+                                <div class="slds-media__body">
+                                    <div class="slds-page-header__name">
+                                        <div class="slds-page-header__name-title">
+                                            <h1>
+                                                <span
+                                                    class="slds-page-header__title slds-truncate"
+                                                    title="Current week’s TimeSheet"
+                                                    >Current week’s TimeSheet</span
+                                                >
+                                            </h1>
+                                        </div>
+                                    </div>
+                                    <p class="slds-page-header__name-meta">
+                                        Total TimeSheet Entry : {!v.totalTimesheet}
+                                    </p>
+                                </div>
+                            </div>
+                        </aura:set>
+                        <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                            <img
+                                src="/img/chatter/OpenRoad.svg"
+                                class="slds-illustration__svg"
+                                alt="No Assigned Jobs"
+                            />
+                            <div class="slds-text-color_weak">
+                                <h3 class="slds-text-heading_medium">No TimeSheet!</h3>
+                            </div>
+                        </div>
+                    </lightning:card>
+                </aura:set>
+            </aura:if>
+        </aura:set>
+    </aura:if>
+    <aura:set attribute="else">
+        <c:headerSectionCmp title="User Timesheet" /> 
+        <c:libMessageWithIllustration message="Second Level Feature Pack Required! Please Contact Your Admin!" /> 
+    </aura:set>
+    </aura:if>
+
+</aura:component>

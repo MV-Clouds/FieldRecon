@@ -1,0 +1,10 @@
+.pillSize{
+    display: grid;
+}
+ 
+.slds-pill__label{
+     padding-left: 0.48rem;
+ }
+.slds-pill{
+    display: flex;
+ }

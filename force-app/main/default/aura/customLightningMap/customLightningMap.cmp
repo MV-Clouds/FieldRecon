@@ -1,0 +1,48 @@
+<aura:component
+    access="global"
+    controller="CustomLightningMapController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <aura:attribute name="Job" type="List" />
+    <aura:attribute name="mapMarkersData" type="Object" />
+    <aura:attribute name="timesheet" type="List" />
+    <aura:attribute name="columns" type="List" />
+    <aura:attribute name="weekDays" type="String" />
+    <aura:attribute name="mapCenter" type="Object" />
+    <aura:attribute name="zoomlevel" type="Integer" default="14" />
+    <aura:attribute name="markersTitle" type="String" />
+    <aura:attribute name="totalJob" type="decimal" />
+    <aura:attribute name="totalTimesheet" type="Integer" />
+    <aura:attribute name="totalWeeklyJob" type="Integer" />
+    <aura:attribute name="accountlist" type="List" />
+    <aura:attribute name="showFooter" type="Boolean" default="false" />
+    <aura:attribute name="buttonstate" type="Boolean" default="false" />
+    <aura:attribute name="varientcolor" type="String" default="success" />
+    <aura:attribute name="marker" type="Object" />
+    <aura:attribute name="mapCenterData" type="Object" />
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    <aura:attribute name="markersTitleData" type="String" />
+    <aura:attribute name="Weekly" type="List" />
+    <aura:attribute name="crew" type="List" />
+    <aura:attribute name="recordId" type="String" />
+
+    <div class="slds-card slds-box">
+        <aura:if isTrue="{!v.Job.length > 0 }">
+            <lightning:card>
+                <aura:if isTrue="{!v.mapMarkersData.length > 0}">
+                    <lightning:map
+                        mapMarkers="{! v.mapMarkersData}"
+                        center="{!v.mapCenterData}"
+                        markersTitle="{! v.markersTitleData }"
+                        listView="hidden"
+                        zoomLevel="{!v.zoomlevel}"
+                    /><br />
+                </aura:if>
+                <!-- <lightning-button variant="brand" label="Open in Google Maps" title="Primary action" onclick="{!c.openingoogle}" class="slds-m-left_x-small"> </lightning-button> -->
+                <lightning:button label="Open in Google Maps" variant="brand" onclick="{!c.openingoogle}" />
+            </lightning:card>
+        </aura:if>
+    </div>
+</aura:component>

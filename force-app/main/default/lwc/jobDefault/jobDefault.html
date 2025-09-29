@@ -1,0 +1,60 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-21-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class = "container">
+        <div class="slds-align_absolute-center slds-text-heading_large slds-p-around_small slds-border_bottom" ><b>Set Job Defaults </b> </div>
+        <template if:true={isLoading} class="slds-is-relative" >
+            <lightning-spinner
+                alternative-text="Loading..." variant="brand">
+            </lightning-spinner>
+        </template>
+        <div class="slds-grid slds-wrap">
+            <div class="slds-col slds-size_3-of-6">
+                <template if:true={formFactor}>
+                    <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Enter Default Start Time" ></lightning-formatted-text> </span>
+                </template>    
+                <template if:false={formFactor}>
+                    <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_small" value="Enter Default Start Time" ></lightning-formatted-text> </span>
+                </template>
+            </div>
+            <div class="slds-col slds-size_3-of-6 slds-float_left">
+                <span class="form-element-value"><lightning-input style="width: 60%;" type="time" class="slds-p-around_small slds-m-top_medium" name="startTime" value={startTime} onchange={handleChangeForFields}></lightning-input></span>
+            </div>
+            <div class="slds-col slds-size_3-of-6">    
+                <template if:true={formFactor}>               
+                    <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Enter Default End Time" ></lightning-formatted-text> </span>
+                </template>
+                <template if:false={formFactor}>               
+                    <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_small" value="Enter Default End Time" ></lightning-formatted-text> </span>
+                </template>
+
+            </div>
+            <div class="slds-col slds-size_3-of-6">
+                <lightning-input style="width: 60%;" class="slds-p-around_small slds-m-top_medium" type="time" name="endTime" value={endTime} onchange={handleChangeForFields} ></lightning-input>
+            </div>
+            <div class="slds-col slds-size_1-of-6"></div>
+        </div>
+        <div class="slds-align_absolute-center slds-p-around_small">
+            <lightning-input class="slds-p-around_small" id="satData" type="checkbox" variant="label-hidden" label="Include Saturday?" onchange={handleChangeForFields} checked={satData} name="satData"></lightning-input>
+            <label for="satData" class="font">Include Saturday?</label>
+            <lightning-input class="slds-p-around_small" id="sunData" type="checkbox" variant="label-hidden" label="Include Sunday?" onchange={handleChangeForFields} checked={sunData} name="sunData"></lightning-input>
+            <label for="sunData" class="font">Include Sunday?</label>
+        </div>
+        <div class="slds-align_absolute-center slds-p-around_small">
+            <lightning-input class="slds-p-around_small" id="clockIn" type="checkbox" variant="label-hidden" label="Can Clock In After End Time" onchange={handleChangeForFields} checked={clockInDefault} name="clockIn"></lightning-input>
+            <label for="clockIn" class="font">Can Clock In/Out Before/After Start/End Time</label>
+            <lightning-input class="slds-p-around_small" id="location" type="checkbox" variant="label-hidden" label="Can Clock In Without Location" onchange={handleChangeForFields} checked={locationValue} name="location"></lightning-input>
+            <label for="location" class="font">Can Clock In/Out Without Location</label>
+        </div>
+        
+        <div class="slds-align_absolute-center slds-p-around_small">
+            <lightning-button variant="brand" label="Save" icon-name="utility:save" class="slds-m-left_x-small" onclick={saveJobDefaults}></lightning-button>
+            <lightning-button variant="brand-outline" label="Cancel" onclick={cancelChanges} class="slds-m-left_x-small"></lightning-button>
+        </div>
+    </div>
+</template>

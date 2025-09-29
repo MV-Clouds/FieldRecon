@@ -1,0 +1,100 @@
+<!--sObjectLookup.cmp-->
+<aura:component controller="LookupController" description="Lightning component for lookup fields">
+     
+    <!--Declare Attributes-->
+    <aura:attribute name="namespaceLoaded" type="Boolean" default="false" />
+    <aura:attribute name="namespaceWithUnderscore" type="String" />
+
+    <aura:attribute name="objectAPIName" type="String" required="true"
+                    description="Object API name used for searching records"/>
+     
+    <aura:attribute name="fieldAPIName" type="String" required="true"
+                    description="API Name of field to be searched"/>
+    <aura:attribute name="title" type="String" required="true"
+                    description="API Name of field to be searched"/>
+     
+    <aura:attribute name="lookupIcon" type="String" default="standard:contact"
+                    description="Icon for lookup records"/>
+     
+    <aura:attribute name="placeholder" type="String" default="Search..."
+                    description="Placeholder text for input search filed"/>
+     
+    <aura:attribute name="fieldLabel" type="String" required="true"
+                    description="input search field Label"/>
+     
+    <aura:attribute name="selectedRecordId" type="String"
+                    description="Used to store the selected record id.
+                                 While calling this component from other component,
+                                 set this attribute to the lookup field API name"/>
+     
+    <aura:attribute name="selectedRecordName" type="String"
+                    description="This is used to show the selected record Name in search input"/>
+     
+    <aura:attribute name="subHeadingFieldsAPI" type="String[]"
+                    description="Field API for the fields to be shown under the record Name.
+                                 Must be comma separated. Example: Email,Phone"/>
+                                 
+    <aura:attribute name="andBooleanField" type="String" access="public" default=""
+                    description="For making condition field Name for boolean" />
+
+     
+    <aura:attribute name="matchingRecords" type="Object[]" access="private"
+                    description="List of records returned from server side call"/>
+     
+    <aura:attribute name="recordLimit" type="Integer" access="public" default="5"
+                    description="Total number of record to be returned"/>
+    <aura:attribute name="Disabled" type="Boolean" access="public" default="false"
+                    description="Total number of record to be returned"/>
+     <aura:attribute name="andConditionField" type="String" access="public" 
+                    description="For making condition field Name"/>
+    <aura:attribute name="andConditionListField" type="String" access="public" 
+                    description="For making condition field Name"/>
+    <aura:attribute name="andConditionListValue" type="String" access="public" 
+                    description="For making condition field Name"/>
+    <aura:attribute name="andConditionValue" type="String" access="public" 
+                    description="For making condition field value"/>
+    <aura:attribute name="isEqual" type="Boolean" access="public" 
+                    description="For making condition field value" default="true"/> 
+    <aura:attribute name="isNullType" type="Boolean" access="public" 
+                    description="For making condition field value" default="false"/> 
+    <aura:handler name="init" value="{!this}" action="{!c.getNameSpaceWithUnderscore}"
+                description="standard init event to prepare the sub heading mete entity value"/>
+    <!--Declare Handlers-->
+    <aura:handler name="lookupSelect" event="c:LookupHelperEvt" action="{!c.handleLookupSelectEvent}"
+                  description="Event handler to get the selected record Id and Name from LookupItem component"/>
+     
+    <!--Component-->
+    <div class="slds-form-element__control">
+        <div class="slds-combobox_container slds-has-inline-listbox bgColor">
+            <div aura:id="divLookup"
+                 class="slds-combobox slds-dropdown-trigger slds-dropdown-trigger_click slds-combobox-lookup"
+                 aria-expanded="false" aria-haspopup="listbox" role="combobox">
+                 
+                <div class="slds-combobox__form-element">
+                    <lightning:input type="search"
+                                     title = "{!v.title}"
+                                     aura:id="searchinput"
+                                     label="{!v.fieldLabel}"
+                                     name="{!v.fieldLabel}"
+                                     id="{!v.selectedRecordName}"
+                                     value="{!v.selectedRecordName}"
+                                     onchange="{!c.handleSearchRecords}"
+                                     isLoading="false"
+                                     disabled="{!v.Disabled}"
+                                     autocomplete="off"
+                                     placeholder="{!v.placeholder}"
+                                     onfocus="{!c.handleSearchRecords}"
+                                     onblur="{!c.hideList}"
+                                     />
+                </div>
+                <div id="listbox-unique-id" role="listbox">
+                    <ul class="slds-listbox slds-listbox_vertical slds-dropdown slds-dropdown_fluid" role="presentation">
+                        <aura:iteration var="rec" items="{!v.matchingRecords}">
+                            <c:LookupFieldHelper record="{!rec}" namespaceWithUnderscore="{!v.namespaceWithUnderscore}" subHeadingFieldsAPI="{!v.subHeadingFieldsAPI}" iconCategoryName="{!v.lookupIcon}"/>
+                        </aura:iteration>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</aura:component>

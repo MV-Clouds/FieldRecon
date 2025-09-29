@@ -1,0 +1,139 @@
+<aura:component
+    access="global"
+    controller="TimesheetController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+
+    <!--For Calendar Start-->
+    <aura:attribute name="WeekNum" type="Integer" />
+    <aura:attribute name="WeekData" type="List" />
+    <aura:attribute name="mon" type="Integer" />
+    <aura:attribute name="yr" type="Integer" />
+    <aura:attribute name="selectedDate" type="Date" />
+    <aura:attribute name="currentMonth" type="String" />
+    <aura:attribute name="selectedMonth" type="Integer" />
+    <aura:attribute name="selectedDay" type="String" />
+
+    <aura:attribute name="MonthList" type="List" default="Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec" />
+
+    <!--For Calendar Ends-->
+
+    <!--For TimeCards-->
+    <aura:attribute name="timeSheetData" type="List" />
+    <aura:attribute name="totalTime" type="Decimal" default="0.00" />
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+
+    <div class="slds-card" style="padding-bottom: 10px;">
+        <div class="container">
+            <aura:renderIf isTrue="{!v.showSpinner}">
+                <lightning:spinner variant="brand" size="large" alternativeText="Loading, Please Wait..." />
+            </aura:renderIf>
+            <div class="title" style="text-align: center; display: flex; justify-content: center;">
+                <div width="12%" style="margin-top: -15px; margin-bottom: 10px;">
+                    <lightning:select
+                        name="select1"
+                        aura:id="select"
+                        value="{!v.selectedMonth}"
+                        onchange="{!c.getSelectedMonth}"
+                    >
+                        <aura:iteration items="{!v.MonthList}" var="month" indexVar="index">
+                            <option value="{!index}">{!month}</option>
+                        </aura:iteration>
+                    </lightning:select>
+                </div>
+                <div>&nbsp;</div>
+                <div style="margin-top: 25px;">{!v.yr}</div>
+            </div>
+            <div class="title">
+                <ul style="display: flex;" class="ulclass">
+                    <li style="width: 10%;"></li>
+                    <li>M</li>
+                    <li>T</li>
+                    <li>W</li>
+                    <li>T</li>
+                    <li>F</li>
+                    <li>S</li>
+                    <li>S</li>
+                    <li style="width: 10%;"></li>
+                </ul>
+            </div>
+            <div class="weekdays">
+                <ul style="display: flex;">
+                    <li style="width: 10%; padding-top: -10px;">
+                        <lightning:buttonIcon
+                            iconName="utility:chevronleft"
+                            size="large"
+                            variant="bare"
+                            aura:id="large"
+                            onclick="{!c.previousweek}"
+                            title="Previous"
+                        />
+                    </li>
+                    <aura:iteration items="{!v.WeekData}" var="week">
+                        <li
+                            style="width: 13.71%; text-align: center;"
+                            id="{!week.Date}"
+                            data-Id="{!week.DayName}"
+                            onclick="{!c.gettimesheet}"
+                            class="{!v.selectedDate == week.Date ? 'selected':'' }"
+                        >
+                            <div class="day" style="padding-top: 10px;">{!week.DayNumber}</div>
+                            <aura:if isTrue="{!week.hours != 0}">
+                                <div class="day" style="font-size: 10px;">{!week.hours}</div>
+                            </aura:if>
+                        </li>
+                    </aura:iteration>
+                    <li style="width: 10%; padding-top: -10px;">
+                        <lightning:buttonIcon
+                            iconName="utility:chevronright"
+                            size="large"
+                            variant="bare"
+                            aura:id="large"
+                            onclick="{!c.nextweek}"
+                            title="Next"
+                        />
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div>
+        <div style="background-color: #e4eef3; padding: 10px;" class="slds-grid">
+            <div style="font-size: px;" class="slds-col">
+                <b>{!v.selectedDay}</b>
+            </div>
+            <div style="font-size: 17px; text-align: right; margin-right: 0.5%;" class="slds-col">
+                <b>{!v.totalTime} hr</b>
+            </div>
+        </div>
+        <aura:iteration items="{!v.timeSheetData}" var="timedata">
+            <lightning:card>
+                <div class="slds-grid" style="padding-bottom: 15px;">
+                    <div style="margin-left: 3%; font-size: 20px; color: #007bff;" class="slds-col">
+                        <h2><b>{!timedata.jobName}</b></h2>
+                    </div>
+                    <div class="slds-col" style="margin-right: 3%; text-align: right; font-size: 23px;">
+                        <p><b>{!timedata.totalTime} hr</b></p>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: right;" class="slds-grid slds-wrap">
+                    <div class="slds-col slds-size_3-of-12" style="margin-left: 3%;">
+                        <p>
+                            <lightning:icon iconName="utility:forward" class="forward" size="xx-small" />
+                            <ui:outputDate value="{!timedata.clockIn}" format="h:mm a" />
+                        </p>
+                    </div>
+                    <div class="slds-col slds-size_3-of-12" style="margin-left: 3%;">
+                        <p>
+                            <ui:outputDate value="{!timedata.clockOut}" format="h:mm a" />
+                            <lightning:icon iconName="utility:forward" class="back" size="xx-small" />
+                        </p>
+                    </div>
+                    <div classs="slds-col slds-size_6-of-12"></div>
+                </div>
+            </lightning:card>
+        </aura:iteration>
+    </div>
+</aura:component>

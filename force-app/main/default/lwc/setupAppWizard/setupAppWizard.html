@@ -1,0 +1,100 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-23-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class="container slds-p-top_medium">
+        <template if:true={getstarted}>
+            
+            <div class="slds-illustration slds-illustration_small slds-m-around_x-small" aria-hidden="true">
+                <div class="slds-text-color_default slds-text-align_center slds-p-bottom_medium">
+                    <h2 class="slds-text-heading_medium">Configure Field Recon</h2>
+                </div>
+                <img src="/img/chatter/OpenRoad.svg" class="slds-illustration__svg" alt=""/>
+            </div>
+
+            <div class="slds-p-around_xx-large slds-align_absolute-center">
+                <lightning-button variant="brand" size="large" label="Get Started" title="Get started" onclick={handleClick} icon-name="utility:forward" icon-position="right">
+                </lightning-button>
+            </div>
+            <!--<lightning-icon class="slds-p-around_x-medium"  icon-name="utility:forward" alternative-text="Next" title="Next"></lightning-icon>-->
+
+
+        </template>
+
+
+        <template if:true={click}>
+            <lightning-progress-indicator current-step={currentStep} type="path" variant="base">
+                <lightning-progress-step label="Job Setup" value="1" onclick={handleOnStepClick}>
+                </lightning-progress-step>
+                <lightning-progress-step label="Color Setup" value="2" onclick={handleOnStepClick}>
+                </lightning-progress-step>
+                <template if:true={showCostCode}>
+                    <lightning-progress-step label="Cost Code Setup" value="3" onclick={handleOnStepClick}>
+                    </lightning-progress-step>
+                </template>
+                <lightning-progress-step label="Employee Setup" value="4" onclick={handleOnStepClick}>
+                </lightning-progress-step>
+                
+            </lightning-progress-indicator>
+
+
+            <template if:true={IsStep1}>
+                <c-job-default form-factor={formFactor}></c-job-default>
+            </template>
+            <template if:true={IsStep2}>
+                <c-mobilization-colors-setup></c-mobilization-colors-setup>
+            </template>
+            <template if:true={showCostCode}>
+                <template if:true={IsStep3}>
+                    <c-cost-code-setup></c-cost-code-setup>
+                </template>
+            </template>            
+            <template if:true={IsStep4}>
+                <c-employee-setup></c-employee-setup>
+            </template>
+            
+
+            <div class="slds-clearfix">
+                <div class="slds-float_left slds-p-around_small">
+                    <template if:true={isEnablePrev}>
+                        <lightning-button class="slds-m-left_x-small" variant="neutral" label="Back"
+                            onclick={handlePrev}></lightning-button>
+                    </template>
+                </div>
+
+                <div class="slds-float_right slds-p-around_small">
+                    <template if:true={isEnableFinish}>
+                        <lightning-button class="slds-m-left_x-small" label="Finish" variant="brand"
+                            onclick={handleFinish}></lightning-button>
+                    </template>
+                </div>
+
+                <div class="slds-float_right slds-p-around_small">
+                    <template if:true={isEnableNext}>
+                        <lightning-button class="slds-m-left_x-small" label="Next" variant="brand" onclick={handleNext}>
+                        </lightning-button>
+                    </template>
+                </div>
+
+            </div>
+
+        </template>
+
+        <template if:true={completeSetUp}>
+            <div class="slds-align_absolute-center slds-p-around_xx-large"
+                style="display: flex; flex-direction: column;">
+                <div class="slds-m-around_small">
+                    <lightning-icon icon-name="standard:task2" size="large"></lightning-icon>
+                </div>
+
+                <div class="slds-text-color_success slds-m-around_small">
+                    <h1 class="slds-text-heading_medium">YOU ARE ALL SET UP!</h1>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

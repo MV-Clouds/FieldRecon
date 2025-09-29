@@ -1,0 +1,106 @@
+<aura:component controller="ScheduleSetupController" extends="c:lib_base">
+
+    <!-- attributes -->
+    <aura:attribute name="mobilizationStatusColors" type="Object"/>
+    <aura:attribute name="assetColors" type="Object"/>
+    <aura:attribute name="startTime" type="Object"/>
+    <aura:attribute name="endTime" type="Object"/>
+    <aura:attribute name="validInput" type="Boolean" default="true"/>
+
+    <!-- handlers-->
+    <aura:handler name="init" value="{! this }" action="{! c.init }"/>
+
+    <div class="slds-m-vertical_medium">
+        <h1 class="slds-text-heading_medium">Schedule Settings</h1>
+        <p class="slds-text-body_regular">Set colors for statuses</p>
+        
+    </div>
+    <div class="slds-m-vertical_medium">
+        <h1 class="slds-text-heading_medium">Mobilization Status Colors</h1>
+    </div>
+    <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+        <thead>
+          <tr class="slds-line-height_reset">
+            <th class="" scope="col">
+              <div class="slds-truncate" title="Status">Status</div>
+            </th>
+            <th class="" scope="col">
+              <div class="slds-truncate" title="Background Color">Background Color</div>
+            </th>
+            <th class="" scope="col">
+              <div class="slds-truncate" title="Text Color">Text Color</div>
+            </th>
+            </tr>
+            </thead>
+            <tbody>
+                <aura:iteration items="{!v.mobilizationStatusColors}" var="item">
+                    <tr class="slds-hint-parent">
+                        <td data-label="Status">
+                            <div class="slds-truncate" title="{! item.status}">{! item.status}</div>
+                          </td>
+                          <td data-label="Background Color">
+                            <lightning:input aura:id="user-input" type="color" name="Background Color" label="Background Color" value="{!item.backgroundColor}" onchange="{! c.validateInput}"/>
+                          </td>
+                          <td data-label="Text Color">
+                            <lightning:input aura:id="user-input" type="color" name="Text Color" label="Text Color" value="{!item.textColor}" onchange="{! c.validateInput}"/>
+                          </td>
+                        </tr>
+                </aura:iteration>
+            </tbody>
+        </table>
+
+    <div class="slds-m-vertical_medium">
+        <h1 class="slds-text-heading_small">Asset Types Colors</h1>
+    </div>
+    <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+        <thead>
+          <tr class="slds-line-height_reset">
+            <th class="" scope="col">
+              <div class="slds-truncate" title="Status">Status</div>
+            </th>
+            <th class="" scope="col">
+              <div class="slds-truncate" title="Background Color">Background Color</div>
+            </th>
+            <th class="" scope="col">
+              <div class="slds-truncate" title="Text Color">Text Color</div>
+            </th>
+            </tr>
+            </thead>
+            <tbody>
+                <aura:iteration items="{!v.assetColors}" var="item">
+                    <tr class="slds-hint-parent">
+                        <td data-label="Status">
+                            <div class="slds-truncate" title="{! item.status}">{! item.status}</div>
+                          </td>
+                          <td data-label="Background Color">
+                            <lightning:input aura:id="user-input" type="color" name="Background Color" label="Background Color" value="{!item.backgroundColor}" onchange="{! c.validateInput}"/>
+                          </td>
+                          <td data-label="Text Color">
+                            <lightning:input aura:id="user-input" type="color" name="Text Color" label="Text Color" value="{!item.textColor}" onchange="{! !c.validInput}"/>
+                          </td>
+                        </tr>
+                </aura:iteration>
+            </tbody>
+        </table>
+
+        <div class="slds-m-vertical_medium">
+            <h1 class="slds-text-heading_small">Default Times</h1>
+            <p class="slds-text-body_regular">What are these times for?</p>
+        </div>
+        <lightning:layout>
+          <lightning:layoutItem padding="around-small">
+            <lightning:input aura:id="user-input" type="time" name="Default Start Time" label="Default Start Time" value="{!v.startTime}" onchange="{! c.validateInput}" />
+          </lightning:layoutItem>
+          <lightning:layoutItem padding="around-small">
+            <lightning:input aura:id="user-input" type="time" name="Default End Time" label="Default End Time" value="{!v.endTime}" onchange="{! c.validateInput}"/>
+          </lightning:layoutItem>
+          </lightning:layout>
+
+        
+        
+          <div class="slds-align_absolute-center" style="height:5rem">
+        <lightning:button label="Cancel" title="Cancel" onclick="{! c.handleCancel }"/>
+        <lightning:button variant="brand" label="Save" title="Save" onclick="{! c.handleSave }" disabled="{! v.validInput == false}" />
+        </div>
+
+</aura:component>

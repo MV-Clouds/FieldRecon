@@ -1,0 +1,31 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-17-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class="container">
+        <template if:true={secondLevelAccess}>
+            <template if:true={isLoading} >
+                <lightning-spinner
+                  size="x-small"
+                  alternative-text="Loading..."
+                  style = "position: fixed !important;"
+                ></lightning-spinner>
+                </template>
+            <lightning-tabset variant={tabsetVariant} >
+                <lightning-tab label="Timesheet Report">
+                    <c-timesheet-report form-factor={formFactor}></c-timesheet-report>
+                </lightning-tab>
+                <lightning-tab label="Expense Report">
+                    <c-expense-report form-factor={formFactor}></c-expense-report>
+                </lightning-tab>
+            </lightning-tabset>
+        </template>
+        <template if:false={secondLevelAccess}>
+            <c-lib-message-with-illustration message="Second Level Feature Pack Required! Please Contact Your Admin!"></c-lib-message-with-illustration> 
+        </template>
+    </div>
+</template>

@@ -1,0 +1,81 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-22-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <template if:true={isLoading} class="slds-is-relative">
+        <lightning-spinner alternative-text="Loading..." variant="brand">
+        </lightning-spinner>
+    </template>
+    <div class="slds-grid slds-wrap slds-scrollable page " style="overflow: overlay;">
+        <div class="slds-col slds-size_1-of-1 slds-m-top_medium slds-m-bottom_medium slds-align_absolute-center"
+            style="text-align: end;">
+            <lightning-button icon-name="standard:contact" variant="brand" label="Add New Employee"
+                onclick={openContactBox}></lightning-button>
+        </div>
+
+        <div style="height: 2px; background-color: black; width: 100%; margin: 20px ;">
+            <p class="slds-align_absolute-center slds-p-around_medium " style="font-size: 15px;"><b>Convert Contacts to Employee</b></p>
+        </div>
+        <div style="height: 20px; width: 100%"></div>
+
+
+        <div class="slds-col slds-size_6-of-8 slds-m-bottom_medium ">
+            <div style="width: 67%;" class="slds-float_right">
+                <c-lwc-multi-select-lookup label-name="Add Contacts" object-api-name="Contact" field-api-names="Id,Name"
+                    filter-field-api-name="Name" icon-name="standard:contact" onretrieve={selectItemEventHandler}
+                    onremove={deleteItemEventHandler}>
+                </c-lwc-multi-select-lookup>
+            </div>
+        </div>
+
+        <div class="slds-col slds-size_8-of-8 slds-m-bottom_medium slds-align_absolute-center">
+            <template if:true={canClockIn}>
+                <lightning-combobox style="width: 50%;" name="progress" label="Select User Profile"
+                    value={selectedLicense} placeholder="Select License" options={userProfilesOptions}
+                    onchange={handleChangeForFields}></lightning-combobox>
+            </template>
+            <template if:false={canClockIn}>
+                <lightning-combobox style="width: 50%;" name="progress" label="Select User Profile"
+                    value={selectedLicense} placeholder="Select License" disabled options={userProfilesOptions}
+                    onchange={handleChangeForFields}></lightning-combobox>
+            </template>
+        </div>
+        <div class="slds-col slds-size_8-of-8 slds-m-bottom_medium slds-align_absolute-center">
+            <lightning-input style="width: 50%;" name="domainName" value={domain}
+                field-level-help="Enter like recon.com" label="Enter Domain for Users" onchange={handleChangeForFields}>
+            </lightning-input>
+        </div>
+        <div class="slds-col slds-size_8-of-8 slds-m-bottom_medium slds-align_absolute-center">
+            <lightning-combobox style="width: 50%;" name="TimeZone" label="Select Time Zone For Users"
+                onchange={handleChangeForFields} placeholder="Select Time Zone" options={timeZoneOptions}
+                value={selectedTimeZone}></lightning-combobox>
+        </div>
+        <div class="slds-col slds-size_8-of-8 slds-m-bottom_medium slds-align_absolute-center">
+            <lightning-input type="checkbox" checked={canClockIn} label="Can Log-In/Out" class="slds-p-around_xx-small"
+                name="clockIn" onchange={handleChangeForFields}></lightning-input>
+            <lightning-input type="checkbox" checked={onSched} label="Is Visible On Scheduler" name="schd"
+                class="slds-p-around_xx-small" onchange={handleChangeForFields}></lightning-input>
+        </div>
+        <div class="slds-col slds-size_8-of-8 slds-m-bottom_medium slds-align_absolute-center">
+            <div class="slds-align_absolute-center slds-p-around_small">
+                <template if:true={hasUserAddedContacts}>
+                    <lightning-button variant="brand" label="Create Employees" icon-name="utility:adduser"
+                        class="slds-m-left_x-small" onclick={saveContacts}></lightning-button>
+                </template>
+                <template if:false={hasUserAddedContacts}>
+                    <lightning-button variant="brand" label="Create Employees" icon-name="utility:adduser"
+                        class="slds-m-left_x-small" onclick={saveContacts} disabled></lightning-button>
+                </template>
+            </div>
+        </div>
+
+    </div>
+    <c-modal show-modal={showContactBox} onclosedialog={closeContactBox}>
+        <span slot="header">Add New Employee</span>
+        <c-create-contact-cmp onclosebox={closeContactBox}></c-create-contact-cmp>
+    </c-modal>
+</template>

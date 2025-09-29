@@ -1,0 +1,23 @@
+<template>
+    <div class = "container slds-p-around_x-small">
+        <template if:true={isLoading}>
+            <lightning-spinner
+              size="x-small"
+              alternative-text="Loading..."
+            ></lightning-spinner>
+          </template>
+        <lightning-progress-indicator current-step={selectedStepString} type="base" variant="base">
+            <lightning-progress-step label="Step 1" value="1"></lightning-progress-step>
+            <lightning-progress-step label="Step 2" value="2"></lightning-progress-step>
+            <template if:true={allDone}>
+                <lightning-progress-step label="All Done" value="3" class="slds-hide"></lightning-progress-step>
+            </template>
+        </lightning-progress-indicator>
+        <template if:true={isFirstStep}>
+            <c-contact-essentials-cmp contact-obj={newContact} onnextpage={handleNextStep}></c-contact-essentials-cmp>
+        </template>
+        <template if:true={isSecondStep}>
+            <c-select-contact-record-type-cmp contact-obj={newContact} user-profiles={userProfilesOptions} onprevpage={handlePreviousStep} onsavedetails={saveContact}></c-select-contact-record-type-cmp>
+        </template>
+    </div>
+</template>

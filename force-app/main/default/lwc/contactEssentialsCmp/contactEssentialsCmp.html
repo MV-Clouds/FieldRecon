@@ -1,0 +1,38 @@
+<template>
+    <lightning-layout multiple-rows>
+        <lightning-layout-item size="12" padding="around-small">
+            <div class="slds-text-heading_large slds-align_absolute-center">
+                Some Essentials First <br />
+            </div>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="First Name" ></lightning-formatted-text></span>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <lightning-input type="text" onchange={fieldChangeHandler} name="fName"></lightning-input>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Last Name" ></lightning-formatted-text></span>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <lightning-input type="text" onchange={fieldChangeHandler} name="lName"></lightning-input>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Email" ></lightning-formatted-text></span>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <lightning-input type="email" onchange={fieldChangeHandler} name="emailCon"></lightning-input>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Phone" ></lightning-formatted-text></span>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" padding="around-small">
+            <lightning-input type="tel" onchange={fieldChangeHandler} name="telCon"></lightning-input>
+        </lightning-layout-item>
+    </lightning-layout>
+    <div class="slds-clearfix">
+        <div class="slds-float_right slds-p-around_small">
+            <lightning-button label="Next"  onclick={handleNextStep} icon-name="utility:chevronright"></lightning-button>
+        </div>
+    </div>
+</template>

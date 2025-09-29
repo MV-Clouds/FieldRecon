@@ -1,0 +1,100 @@
+<template>
+    <template if:true={isLoading} class="slds-is-relative" >
+        <lightning-spinner
+            alternative-text="Loading..." variant="brand">
+        </lightning-spinner>
+    </template>
+    <div class="">
+        <header class="slds-modal__header">
+            <h2 class="slds-text-heading_medium slds-hyphenate header-string">
+                Shift End Log
+            </h2>
+        </header>
+        <div class="slds-is-relative bodyHeight" id="modal-content-id-1">
+            <lightning-card title="Work Performed">
+                <lightning-layout>
+                    <lightning-layout-item size="12" class="slds-m-top_x-small">
+                        <lightning-input 
+                            type="date"
+                            label="WORK PERFORMED DATE"
+                            class="workPerformedDate"
+                            required>
+                        </lightning-input>
+                    </lightning-layout-item>
+                </lightning-layout>
+                <lightning-layout>
+                    <lightning-layout-item size="12" class="slds-m-top_x-small">
+                        <lightning-textarea 
+                            label="WORK PERFORMED"
+                            class="workPerformed"
+                            required>
+                        </lightning-textarea>
+                    </lightning-layout-item>
+                </lightning-layout>
+                <lightning-layout>
+                    <lightning-layout-item size="12" class="slds-m-top_x-small">
+                        <lightning-textarea 
+                            label="TOMORROW'S PLAN"
+                            class="tomorrowsPlan">
+                        </lightning-textarea>
+                    </lightning-layout-item>
+                </lightning-layout>
+            </lightning-card>
+            <lightning-card title="Daily Requirements">
+                <lightning-layout class="slds-m-top_x-small">
+                    <lightning-layout-item size="12">
+                        <lightning-input 
+                            type="toggle" 
+                            label="PROCESSES UPDATED" 
+                            message-toggle-active=""
+                            message-toggle-inactive=""
+                            name="processUpdated"
+                            onchange={handleToggleChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                </lightning-layout>
+                <lightning-layout class="slds-m-top_x-small">
+                    <lightning-layout-item size="12">
+                        <lightning-input 
+                            type="toggle" 
+                            label="MATERIAL USAGE COMPLETE" 
+                            message-toggle-active=""
+                            message-toggle-inactive=""
+                            name="materialUsage"
+                            onchange={handleToggleChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                </lightning-layout>
+                <lightning-layout class="slds-m-top_x-small">
+                    <lightning-layout-item size="12">
+                        <lightning-input 
+                            type="toggle" 
+                            label="TIME ENTRIES COMPLETE" 
+                            message-toggle-active=""
+                            message-toggle-inactive=""
+                            name="timeEntries"
+                            onchange={handleToggleChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                </lightning-layout>
+                <lightning-layout class="slds-m-top_x-small">
+                    <lightning-layout-item size="12">
+                        <lightning-input 
+                            type="toggle" 
+                            label="TRAVEL LOG COMPLETE" 
+                            message-toggle-active=""
+                            message-toggle-inactive=""
+                            name="travelLog"
+                            onchange={handleToggleChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                </lightning-layout>
+            </lightning-card>
+        </div>
+
+        <footer class="slds-modal__footer modal-hidden">
+            <lightning-button label="Cancel" variant="neutral" onclick={closeAction} class="slds-m-right_small"></lightning-button>
+            <lightning-button label="Save" variant="brand" onclick={saveAction}></lightning-button>
+        </footer>
+    </div>
+</template>

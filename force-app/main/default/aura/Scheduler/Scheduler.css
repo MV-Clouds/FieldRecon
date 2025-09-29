@@ -1,0 +1,264 @@
+.THIS {
+    background-color: white;
+}
+.THIS .header {
+    background-color: #3097d1;
+}
+.THIS .slds-page-header {
+    display: none;
+}
+
+.THIS .slds-accordion__summary {
+    background: white;
+    border-radius: 0.3rem;
+}
+
+.THIS .resizable {
+    border: 2px solid white;
+    border-radius: 0.4rem;
+    width: 300px;
+    min-width: 200px;
+    max-width: 400px;
+    resize: both;
+    overflow: auto;
+}
+
+.THIS .resizableOne {
+    resize: vertical;
+    overflow: auto;
+}
+
+.THIS .qv {
+    margin-bottom: 5px;
+    background-color: #17b;
+    border: 1px solid transparent;
+    border-radius: 0px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+    overflow: hidden !important;
+}
+
+.THIS .rc {
+    border-color: #17b;
+    margin-top: 5px;
+    padding: 1%;
+}
+
+.THIS .filter-div {
+    padding-top: 0.3rem;
+    box-shadow: 0px 0px 5px black;
+}
+
+.THIS .select-div {
+    background: #005fb1;
+    border-color: #014f94;
+    padding-top: 0.3rem;
+    box-shadow: 0px 0px 5px black;
+}
+
+.THIS .filter-list {
+    height: 99px;
+    overflow: auto;
+}
+
+.THIS .job-btn{
+    margin-right: 0.1rem;
+    margin-top: 0.1rem;
+}
+
+.THIS .dragableDiv {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: white;
+    margin-bottom: 2px;
+    width: 98%;
+}
+
+.THIS .dragableDiv:hover {
+    background-color: rgb(230, 241, 255);
+    color: #014f94;
+}
+
+.THIS .dragableJobDiv {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: white;
+    margin-bottom: 2px;
+    width: 104% !important;
+}
+
+.THIS .dragableJobDiv:hover {
+    background-color: rgb(230, 241, 255);
+    color: #014f94;
+}
+
+.THIS .filter-div .slds-form-element__label {
+    font-weight: bold;
+}
+
+.THIS .card-color {
+    background: #3097d1;
+}
+
+.THIS .filter-padding {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.THIS .multisize {
+    height: 6rem;
+}
+
+
+.THIS .float-right {
+    float: right;
+}
+.THIS .slds-clearfix .slds-float_right{
+    border-top-width: 1px !important;
+    margin: -11px !important;
+}
+.THIS .hr-margin {
+    margin: 0px;
+}
+
+.THIS .card-style {
+    width: 99%;
+    box-shadow: 0px 0px 5px black;
+}
+
+.THIS .group-btn-size {
+    width: 100%;
+}
+
+.THIS .arrow-btn-size {
+    width: 20%;
+    background: #868686;
+    color: white;
+}
+
+.THIS .add-btn {
+    background: #d4d4d4;
+    color: black;
+    margin-top: 3px;
+    height: 40px;
+    margin-left: 2px;
+}
+
+.THIS .middle-btn-size {
+    color: black;
+    width: 60%;
+}
+
+.THIS .padding-none {
+    padding: 0px;
+}
+
+.THIS .border-none {
+    border: 0px;
+}
+
+.THIS .height-fourty {
+    height: 40px;
+}
+
+.THIS .height-fourty-three {
+    height: 43px;
+}
+
+.THIS .text-align-center {
+    text-align: center;
+}
+
+.THIS .accordian-crewList {
+    background: #f8941e;
+}
+
+.THIS .accordian-crewList .slds-accordion__summary-action {
+    background: #f8941e;
+    color: white;
+}
+
+.THIS .set-align-right{
+    float: right;
+}
+
+/* Button used to open the contact form - fixed at the bottom of the page */
+
+.THIS .open-button {
+    background-color: #555;
+    color: white;
+    padding: 16px 20px;
+    border: none;
+    cursor: pointer;
+    opacity: 0.8;
+    position: absolute;
+    right: 28px;
+    width: 280px;
+}
+
+.THIS .display {
+    display: block;
+}
+
+.THIS .display-inline {
+    display: flex;
+    justify-content: space-between;
+}
+
+.THIS .wrap-text {
+    white-space: initial;
+    word-break: break-all;
+}
+
+/* The popup form - hidden by default */
+
+.THIS .form-popup {
+    display: none;
+    position: fixed;
+    width: 99%;
+    margin-top: -55px;
+    margin-left: -3px;
+    border: 3px solid #005fb1;
+    z-index: 9;
+}
+
+/* Add styles to the form container */
+
+.THIS .form-container {
+    width: 100%;
+    padding: 10px;
+    background-color: white;
+}
+
+/* When the inputs get focus, do something */
+
+.THIS .form-container input[type=text]:focus,
+.THIS .form-container input[type=password]:focus {
+    background-color: #ddd;
+    outline: none;
+}
+
+/* Set a style for the submit/login button */
+
+.THIS .btn {
+    background-color: #0060b1;
+    color: white;
+    padding: 6px 20px;
+    border: none;
+    cursor: pointer;
+    width: 15%;
+    margin-bottom: 10px;
+    opacity: 0.8;
+}
+
+/* Add a red background color to the cancel button */
+
+.THIS .form-container .cancel {
+    background-color: red;
+}
+
+/* Add some hover effects to buttons */
+
+.THIS .form-container .btn:hover,
+.THIS .open-button:hover {
+    opacity: 1;
+}

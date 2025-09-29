@@ -1,0 +1,275 @@
+<aura:component
+    access="global"
+    controller="TimeSheetDesktopCtrl"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+
+    <aura:attribute name="showSpinner" type="Boolean" default="true" />
+
+    <aura:attribute type="String" name="Month" />
+    <aura:attribute type="Integer" name="Year" />
+    <aura:attribute type="Integer" name="WeekNumber" />
+
+    <aura:attribute type="Object" name="timeSheet" />
+
+    <aura:attribute type="Boolean" name="displayUser" default="true" />
+
+    <aura:attribute type="Object" name="User" default="" />
+    <aura:attribute type="Object" name="UserId" default="" />
+    <aura:attribute type="Object" name="JobId" default="" />
+
+    <aura:attribute type="Integer" name="Date1" />
+    <aura:attribute type="Date" name="Date2" />
+    <aura:attribute type="Date" name="Date3" />
+    <aura:attribute type="Date" name="Date4" />
+    <aura:attribute type="Date" name="Date5" />
+    <aura:attribute type="Date" name="Date6" />
+    <aura:attribute type="Date" name="Date7" />
+    <aura:attribute type="Date" name="SelectedDate" />
+
+    <aura:attribute name="secondLevelAccess" type="Boolean" default="false" />
+
+
+
+    <aura:if isTrue="{!v.secondLevelAccess}">
+        <aura:if isTrue="{!$Browser.isDesktop}">
+        <div class="slds-card slds-box">
+            <div class="Header slds-box" style="margin-bottom: 1%;">
+                <div class="slds-grid slds-gutters" style="text-align: left;">
+                    <div class="slds-col">
+                        <div class="slds-grid slds-gutters">
+                            <div class="slds-col">
+                                <c:LookupField
+                                    fieldLabel="Crew"
+                                    objectAPIName="User"
+                                    fieldAPIName="Name"
+                                    subHeadingFieldsAPI="Email"
+                                    andBooleanField="Crew_User__c"
+                                    selectedRecordName="{!v.User.Name}"
+                                    isEqual="true"
+                                    selectedRecordId="{!v.User.Id}"
+                                    placeholder="Search Crew..."
+                                    aura:id="popupContactLookup"
+                                />
+                            </div>
+                            <div class="slds-col">
+                                <c:LookupField
+                                    fieldLabel="Job"
+                                    objectAPIName="Job__c"
+                                    fieldAPIName="Name"
+                                    subHeadingFieldsAPI="Job_Name__c"
+                                    isEqual="true"
+                                    selectedRecordId="{!v.JobId}"
+                                    placeholder="Search Job..."
+                                    aura:id="popupContactLookup"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slds-col">
+                        <br />
+                        <lightning:buttonIcon
+                            size="large"
+                            iconName="utility:chevronleft"
+                            onclick="{!c.goPrev}"
+                            variant="bare"
+                            alternativeText="Previous"
+                            title="Previous"
+                        />
+                        <lightning:button label="This Week" title="This Week" onclick="{! c.currentWeek }" />
+                        <lightning:buttonIcon
+                            size="large"
+                            iconName="utility:chevronright"
+                            onclick="{!c.goNext}"
+                            variant="bare"
+                            alternativeText="Next"
+                            title="Next"
+                        />
+                    </div>
+                    <div class="slds-col">
+                        <div class="slds-grid slds-gutters">
+                            <div class="slds-col">
+                                <lightning:input
+                                    type="date"
+                                    name="input2"
+                                    label=""
+                                    value="{!v.SelectedDate}"
+                                    onchange="{!c.selectDate}"
+                                />
+                            </div>
+                            <div class="slds-col"></div>
+                            <div class="slds-col">
+                                <br />
+                                WEEK&nbsp;{!v.WeekNumber}
+                            </div>
+                            <div class="slds-col">
+                                <br />
+                                <lightning:button
+                                    label="Generate"
+                                    title="Generate"
+                                    onclick="{! c.generateTimesheet }"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main slds-box">
+                <div style="text-align: center;" class="TableHeader">
+                    <table
+                        style="text-align: center;"
+                        class="slds-table slds-table_cell-buffer slds-table_bordered slds-box slds-card"
+                    >
+                        <thead>
+                            <tr
+                                style="text-align: center; height: 50px;"
+                                class="slds-hint-parent slds-line-height_reset"
+                            >
+                                <td class="slds-border_right" width="20%;" scope="col" style="text-align: center;"></td>
+                                <td class="slds-border_right" width="10%;" scope="col" style="text-align: center;">
+                                    <b>{!v.Date1}&nbsp;Mon</b>
+                                </td>
+                                <td class="slds-border_right" width="10%;" scope="col" style="text-align: center;">
+                                    <b>{!v.Date2}&nbsp;Tue</b>
+                                </td>
+                                <td class="slds-border_right" width="10%;" scope="col" style="text-align: center;">
+                                    <b>{!v.Date3}&nbsp;Wed</b>
+                                </td>
+                                <td class="slds-border_right" width="10%;" scope="col" style="text-align: center;">
+                                    <b>{!v.Date4}&nbsp;Thu</b>
+                                </td>
+                                <td class="slds-border_right" width="10%;" scope="col" style="text-align: center;">
+                                    <b>{!v.Date5}&nbsp;Fri</b>
+                                </td>
+                                <td class="slds-border_right" width="10%;" scope="col" style="text-align: center;">
+                                    <b>{!v.Date6}&nbsp;Sat</b>
+                                </td>
+                                <td class="slds-border_right" width="10%;" scope="col" style="text-align: center;">
+                                    <b>{!v.Date7}&nbsp;Sun</b>
+                                </td>
+                                <td width="10%;" scope="col" style="text-align: center;">
+                                    <b>Total</b>
+                                </td>
+                            </tr>
+                        </thead>
+
+                        <tr style="text-align: center; background: #e0e0e0; height: 50px;" class="slds-hint-parent">
+                            <td class="slds-border_right" scope="col" style="text-align: left;">
+                                <aura:if isTrue="{!v.displayUser}">
+                                    <lightning:icon
+                                        iconName="utility:einstein"
+                                        alternativeText="Utility graph"
+                                        size="medium"
+                                    />
+                                    <aura:set attribute="else">
+                                        <lightning:icon
+                                            iconName="utility:location"
+                                            alternativeText="Utility graph"
+                                            size="medium"
+                                        />
+                                    </aura:set>
+                                </aura:if>
+                            </td>
+                            <td class="slds-border_right" scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Day1}h</b>
+                            </td>
+                            <td class="slds-border_right" scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Day2}h</b>
+                            </td>
+                            <td class="slds-border_right" scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Day3}h</b>
+                            </td>
+                            <td class="slds-border_right" scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Day4}h</b>
+                            </td>
+                            <td class="slds-border_right" scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Day5}h</b>
+                            </td>
+                            <td class="slds-border_right" scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Day6}h</b>
+                            </td>
+                            <td class="slds-border_right" scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Day7}h</b>
+                            </td>
+                            <td scope="col" style="text-align: center;">
+                                <b>{!v.timeSheet.Total}h</b>
+                            </td>
+                        </tr>
+
+                        <aura:iteration items="{!v.timeSheet.timeSheetList}" var="ts">
+                            <tr style="text-align: center; height: 50px;" class="slds-hint-parent">
+                                <td
+                                    class="slds-border_right"
+                                    scope="col"
+                                    style="text-align: left; background: #e6e6e6;"
+                                >
+                                    {!ts.title}
+                                </td>
+                                <td
+                                    scope="col"
+                                    class="{! ts.Day1 == 0 ? 'lightWeight slds-border_right' : 'fullWeight slds-border_right' }"
+                                    style="text-align: center;"
+                                >
+                                    {!ts.Day1}h
+                                </td>
+                                <td
+                                    scope="col"
+                                    class="{! ts.Day2 == 0 ? 'lightWeight slds-border_right' : 'fullWeight slds-border_right' }"
+                                    style="text-align: center;"
+                                >
+                                    {!ts.Day2}h
+                                </td>
+                                <td
+                                    scope="col"
+                                    class="{! ts.Day3 == 0 ? 'lightWeight slds-border_right' : 'fullWeight slds-border_right' }"
+                                    style="text-align: center;"
+                                >
+                                    {!ts.Day3}h
+                                </td>
+                                <td
+                                    scope="col"
+                                    class="{! ts.Day4 == 0 ? 'lightWeight slds-border_right' : 'fullWeight slds-border_right' }"
+                                    style="text-align: center;"
+                                >
+                                    {!ts.Day4}h
+                                </td>
+                                <td
+                                    scope="col"
+                                    class="{! ts.Day5 == 0 ? 'lightWeight slds-border_right' : 'fullWeight slds-border_right' }"
+                                    style="text-align: center;"
+                                >
+                                    {!ts.Day5}h
+                                </td>
+                                <td
+                                    scope="col"
+                                    class="{! ts.Day6 == 0 ? 'lightWeight slds-border_right' : 'fullWeight slds-border_right' }"
+                                    style="text-align: center;"
+                                >
+                                    {!ts.Day6}h
+                                </td>
+                                <td
+                                    scope="col"
+                                    class="{! ts.Day7 == 0 ? 'lightWeight slds-border_right' : 'fullWeight slds-border_right' }"
+                                    style="text-align: center;"
+                                >
+                                    {!ts.Day7}h
+                                </td>
+                                <td scope="col" style="text-align: center;">{!ts.Total}h</td>
+                            </tr>
+                        </aura:iteration>
+                    </table>
+                </div>
+            </div>
+            <aura:renderIf isTrue="{!v.showSpinner}">
+                <lightning:spinner variant="brand" size="large" alternativeText="Loading, Please Wait..." />
+            </aura:renderIf>
+        </div>
+    </aura:if>
+    <aura:set attribute="else">
+        <c:libMessageWithIllustration message="Second Level Feature Pack Required! Please Contact Your Admin!" /> 
+    </aura:set>
+    </aura:if>
+</aura:component>

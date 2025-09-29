@@ -1,0 +1,7 @@
+.THIS .slds-file__crop {
+    height:400px;
+    width:400px;
+}
+.THIS .slds-file--card{
+    border: none!important;
+}

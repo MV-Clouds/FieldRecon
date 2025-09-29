@@ -1,0 +1,167 @@
+<aura:component
+    access="global"
+    controller="CalendarClass"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:attribute name="MobilizationStatuses" type="List" default="" />
+    <aura:attribute name="Objectlist" type="Map[]" />
+    <aura:attribute name="mobilizationGrpObject" type="Map" default="{'status':'Active'}" />
+    <aura:attribute name="newrecord" type="Map" />
+    <aura:attribute name="buttonstate" type="Boolean" default="false" />
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    <aura:attribute name="recordId" type="String" />
+    <aura:attribute name="showCreateRecode" type="String" default="false" />
+    <aura:attribute name="isModalOpen" type="boolean" default="false" />
+    <aura:handler name="change" value="{!v.recordId}" action="{!c.onRecordIdChanged}"/>
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <aura:attribute name="activeSections" type="List" default="" />
+    <aura:attribute name="jobList" type="List" />
+    <aura:attribute name="fromDate" type="Date" default="" />
+    <aura:attribute name="toDate" type="Date" default="" />
+    <aura:attribute name="deviceType" type="String" />
+    <aura:handler event="force:refreshView" action="{!c.isRefreshed}" />
+    <aura:attribute name="mobName" type="String" />
+    <aura:attribute name="AllStatuses" type="String" default="" />
+    <aura:attribute name="status" type="String" />
+
+    <aura:renderIf isTrue="{!v.showSpinner}">
+        <div class="exampleHolder">
+            <lightning:spinner
+                alternativeText="Loading, please wait..."
+                size="large"
+                variant="brand"
+                style="position: fixed !important;"
+            />
+        </div>
+    </aura:renderIf>
+    <aura:if isTrue="{!v.isModalOpen}">
+        <section
+            role="dialog"
+            tabindex="-1"
+            aria-labelledby="modal-heading-01"
+            aria-modal="true"
+            aria-describedby="modal-content-id-1"
+            class="slds-modal slds-fade-in-open"
+        >
+            <div class="slds-modal__container" style="width: 28rem; max-width: 117rem;">
+                <header class="slds-modal__header">
+                    <lightning:buttonIcon
+                        iconName="utility:close"
+                        variant="bare"
+                        class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                        alternativeText="Settings"
+                        onclick="{!c.closeModel}"
+                    />
+                    <aura:if isTrue="{!v.recordId != null}"
+                        >
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            <lightning:layout verticalAlign="end" multipleRows="true" horizontalAlign="center">
+                                <!-- Link to Job -->
+                                <lightning:layoutItem class="slds-var-p-horizontal_small">
+                                    <a href="{!'/'+v.mobilizationGrpObject.jobId}" target="_blank">{!v.mobilizationGrpObject.jobRealName + ' - ' + v.mobilizationGrpObject.jobName}</a>
+                                </lightning:layoutItem>
+
+                                <!-- Delete Button -->
+                                <lightning:layoutItem class="slds-var-p-horizontal_small slds-var-p-bottom_xxx-small">
+                                    <lightning:buttonIcon
+                                        variant="bare"
+                                        iconName="utility:delete"
+                                        onclick="{!c.deleteMob}"
+                                        class="iconcolor"
+                                        alternativeText="icon"
+                                    />
+                                </lightning:layoutItem>
+                            </lightning:layout>
+                        </h2>
+                        <aura:set attribute="else">
+                            <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                                New Job Mobilization
+                            </h2>
+                        </aura:set>
+                    </aura:if>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                    <aura:if isTrue="{!v.recordId == null}">
+                        <div style="width: 392px;">
+                            <c:LookupField
+                                fieldLabel="Job"
+                                objectAPIName="Job__c"
+                                fieldAPIName="Name"
+                                subHeadingFieldsAPI="Job_Name__c"
+                                selectedRecordId=""
+                                placeholder="Search Job"
+                                aura:id="popupJobId"
+                            />
+                        </div>
+                    </aura:if>
+                    <lightning:input
+                        type="datetime"
+                        name="input3"
+                        label="Start Date"
+                        required="true"
+                        value="{!v.mobilizationGrpObject.startDate}"
+                    />
+
+                    <lightning:input
+                        type="datetime"
+                        name="input3"
+                        label="End Date"
+                        required="true"
+                        value="{!v.mobilizationGrpObject.endDate}"
+                    />
+
+                    <lightning:layout multipleRows="true">
+                        <lightning:layoutItem>
+                            <lightning:input 
+                                    aura:id="saturday"
+                                    type="checkbox" 
+                                    label="Include Saturday?" 
+                                    name="input1"
+                                    checked="{!v.mobilizationGrpObject.includeSaturday}"
+                                    class="slds-p-top_x-small slds-p-bottom_xx-small slds-p-right_medium"/>
+                        </lightning:layoutItem>
+                        <lightning:layoutItem>
+                            <lightning:input
+                                    aura:id="sunday" 
+                                    type="checkbox" 
+                                    label="Include Sunday?" 
+                                    name="input2"
+                                    checked="{!v.mobilizationGrpObject.includeSunday}"
+                                    class="slds-p-top_x-small slds-p-bottom_xx-small slds-p-left_xx-large"/>
+                        </lightning:layoutItem>
+                    </lightning:layout>
+
+                    <lightning:select
+                        aura:id="mobilizationStatus"
+                        name="select1"
+                        label="Status"
+                        required="true"
+                        value="{!v.mobilizationGrpObject.status}"
+                    >
+                        <aura:iteration items="{!v.MobilizationStatuses}" var="opt">
+                            <option text="{!opt}" value="{!opt}" selected="{!v.mobilizationGrpObject.status == opt}" />
+                        </aura:iteration>
+                    </lightning:select>
+                    <lightning:textarea  
+                        type="textarea"
+                        label="Description"
+                        placeholder="Enter description here..."
+                        value="{!v.mobilizationGrpObject.description}">
+                    </lightning:textarea >
+
+                </div>
+                <footer class="slds-modal__footer slds-modal__footer_directional">
+                    <lightning:button variant="Neutral" label="Close" onclick="{!c.closeModel}" />
+                    <aura:if isTrue="{!v.recordId != null}">
+                        <lightning:button variant="brand" label="Save" onclick="{!c.SaveJobdata}" />
+                        <aura:set attribute="else">
+                            <lightning:button variant="brand" label="Save" onclick="{!c.SaveJob}" />
+                        </aura:set>
+                    </aura:if>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </aura:if>
+</aura:component>

@@ -1,0 +1,8 @@
+<aura:component
+    access="global"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <c:TimeSheetDesktopCmp />
+    <c:TimesheetComponent />
+</aura:component>

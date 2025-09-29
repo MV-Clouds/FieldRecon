@@ -1,0 +1,250 @@
+<aura:component
+                access="global"
+                controller="ClockInOutController"
+                implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+                extends="c:lib_base"
+                >
+    <!--Handlers-->
+    <aura:handler name="init" value="{!this}" action="{!c.Init}" />
+    
+    <!--Attributes-->
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    
+    <!-- Permission Attributes -->
+    <aura:attribute name="ReadFlag" type="Boolean" default="false" />
+    <aura:attribute name="EditFlag" type="Boolean" default="false" />
+    <aura:attribute name="CreateFlag" type="Boolean" default="false" />
+    <aura:attribute name="DeleteFlag" type="Boolean" default="false" />
+    <aura:attribute name="UserId" type="String" />
+    
+    <aura:attribute name="costCodeSetList" type="List" default="" />
+    <aura:attribute name="codeList" type="List" default="" />
+    <aura:attribute name="codeDisplayList" type="List" default="" />
+    <aura:attribute name="codeMap" type="Map" default="" />
+    
+    <aura:attribute name="extendedCodeList" type="List" default="" />
+    <aura:attribute name="extendedCodeMap" type="Map" default="" />
+    
+    <aura:attribute name="crewWrapperList" type="List" default="" />
+    <aura:attribute name="crewWrapperListDuplicate" type="List" default="" />
+    
+    <aura:attribute name="latitude" type="Double" default="" />
+    <aura:attribute name="longitude" type="Double" default="" />
+    <aura:attribute name="isLocated" type="Boolean" default="false" />
+    
+    <aura:attribute name="costCodeUpdated" type="Boolean" default="false" />
+    <aura:attribute name="secondLevelAccess" type="Boolean" default="true" />
+    <aura:attribute name="withoutLocation" type="Boolean" default="false" />
+    
+    <div>
+        <aura:renderIf isTrue="{!v.showSpinner}">
+            <lightning:spinner variant="brand" size="medium" alternativeText="Loading, Please Wait..." />
+        </aura:renderIf>
+        
+        <aura:if isTrue="{!v.secondLevelAccess}">
+            <div class="slds-card slds-box" style="margin-top: 0rem; padding: 0.4rem; border: 1px solid #d9dbdd;">
+                <aura:if isTrue="{!v.EditFlag}">
+                    <aura:if isTrue="{!$Browser.formFactor == 'PHONE'}">
+                        <div style="text-align: center;">
+                            <aura:if isTrue="{!v.costCodeUpdated}">
+                                <lightning:button
+                                                  label="Change Cost Code"
+                                                  iconName="utility:change_record_type"
+                                                  iconPosition="left"
+                                                  onclick="{!c.CostCodeChangeClick}"
+                                                  />
+                            </aura:if>
+                            <lightning:button
+                                              label="Team In"
+                                              aura:Id="teamIn"
+                                              iconName="utility:download"
+                                              iconPosition="left"
+                                              variant="success"
+                                              onclick="{!c.OnEventClockInTeam}"
+                                              />
+                            <lightning:button
+                                              label="Team Out"
+                                              aura:Id="teamOut"
+                                              iconName="utility:logout"
+                                              iconPosition="left"
+                                              variant="destructive"
+                                              onclick="{!c.OnEventClockOutTeam}"
+                                              />
+                        </div>
+                        
+                        <aura:set attribute="else">
+                            <div style="text-align: center;">
+                                <aura:if isTrue="{!v.costCodeUpdated}">
+                                    <lightning:button
+                                                      label="Change Cost Code"
+                                                      iconName="utility:change_record_type"
+                                                      iconPosition="left"
+                                                      onclick="{!c.CostCodeChangeClick}"
+                                                      />
+                                </aura:if>
+                                <lightning:button
+                                                  label="Clock In Team"
+                                                  aura:Id="teamIn"
+                                                  iconName="utility:download"
+                                                  iconPosition="left"
+                                                  variant="success"
+                                                  onclick="{!c.OnEventClockInTeam}"
+                                                  />
+                                <lightning:button
+                                                  label="Clock Out Team"
+                                                  aura:Id="teamOut"
+                                                  iconName="utility:logout"
+                                                  iconPosition="left"
+                                                  variant="destructive"
+                                                  onclick="{!c.OnEventClockOutTeam}"
+                                                  />
+                            </div>
+                        </aura:set>
+                    </aura:if>
+                </aura:if>
+                <lightning:select
+                                  name="select2"
+                                  aura:id="mainCodesSelect"
+                                  label="CODES"
+                                  value=""
+                                  required="false"
+                                  onchange="{!c.OnCodeChange}"
+                                  disabled="{!v.codeDisplayList.length == 0 || v.codeDisplayList == null}"
+                                  >
+                    <option value="">--Select--</option>
+                    <aura:iteration items="{!v.codeDisplayList}" var="cdl">
+                        <option value="{!cdl.Id}" selected="{!cdl.defaultCostCode}">
+                            {!cdl.code+' : '+cdl.name}
+                        </option>
+                    </aura:iteration>
+                </lightning:select>
+            </div>
+            
+            <div class="slds-card slds-box" style="padding: 0.4rem; background: #dcdcdc; margin-top: 2px;">
+                <aura:iteration items="{!v.crewWrapperList}" var="crew" indexVar="iCrew">
+                    <div class="slds-card crew-list">
+                        <div
+                             class="slds-card crew-title"
+                             style="
+                                    {
+                                    !crew.isclockedin?'background-color: rgb(4, 132, 75);': 'background-color: rgb(194, 57, 52);';
+                                    }
+                                    "
+                             >
+                            {!crew.crewUser.FirstName + ' ' + crew.crewUser.LastName}
+                            
+                            <aura:if isTrue="{!crew.isClockedIn}">
+                                <span class="slds-float_right" style="font-size: 0.8rem !important;">
+                                    Clocked in at
+                                    <lightning:formattedDateTime
+                                                                 value="{!crew.timesheet.timeIn}"
+                                                                 year="numeric"
+                                                                 month="short"
+                                                                 day="numeric"
+                                                                 hour="2-digit"
+                                                                 minute="2-digit"
+                                                                 hour12="true"
+                                                                 timeZone="America/New_York"
+                                                                 />
+                                </span>
+                            </aura:if>
+                        </div>
+                        <div class="slds-grid slds-gutters">
+                            <div class="slds-col slds-size_7-of-12">
+                                <lightning:select disabled="{!v.codeDisplayList.length == 0 || v.codeDisplayList == null}" name="{!iCrew}" value="{!crew.timesheet.costCodeId}" label="Cost Code" onchange="{!c.OnCodeChange}">
+                                    <option value="{!null}">--Select--</option>
+                                    <aura:iteration items="{!crew.costCodeList}" var="code">
+                                        <option  value="{!code.Id}">{!code.code+' : '+code.name}</option>
+                                    </aura:iteration>
+                                </lightning:select>
+                            </div>
+                            
+                            <div class="slds-col slds-size_5-of-12" style="text-align: right;">
+                                <p style="color: #ffffff00;">Button</p>
+                                
+                                <aura:if isTrue="{!$Browser.formFactor == 'PHONE'}"> 
+                                    <aura:if isTrue="{!and(crew.isClockedIn,crew.costCodeChanged)}">
+                                        <lightning:button
+                                                          label=""
+                                                          iconName="utility:change_record_type"
+                                                          iconPosition="left"
+                                                          name="{!iCrew}"
+                                                          value="{!crew.timesheet.Id}"
+                                                          onclick="{!c.CostCodeChangeClick}"
+                                                          />
+                                        
+                                        <aura:set attribute="else">
+                                            <aura:if isTrue="{!crew.isClockedIn}">
+                                                <lightning:button
+                                                                  label="ClockOut"
+                                                                  iconName="utility:logout"
+                                                                  iconPosition="left"
+                                                                  name="{!iCrew}"
+                                                                  value="{!crew.timesheet.Id}"
+                                                                  variant="destructive"
+                                                                  onclick="{!c.ClockOutButtonClick}"
+                                                                  />
+                                                <aura:set attribute="else">
+                                                    <lightning:button
+                                                                      label="Clock In"
+                                                                      iconName="utility:download"
+                                                                      iconPosition="left"
+                                                                      name="{!iCrew}"
+                                                                      value="{!crew.crewUser.Id}"
+                                                                      variant="success"
+                                                                      onclick="{!c.ClockInButtonClick}"
+                                                                      />
+                                                </aura:set>
+                                            </aura:if>
+                                        </aura:set>
+                                    </aura:if>
+                                    
+                                    <aura:set attribute="else">
+                                        <aura:if isTrue="{!and(crew.isClockedIn,crew.costCodeChanged)}">
+                                            <lightning:button
+                                                              label="Change Cost Code"
+                                                              iconName="utility:change_record_type"
+                                                              iconPosition="left"
+                                                              name="{!iCrew}"
+                                                              value="{!crew.timesheet.Id}"
+                                                              onclick="{!c.CostCodeChangeClick}"
+                                                              />
+                                            
+                                            <aura:set attribute="else">
+                                                <aura:if isTrue="{!crew.isClockedIn}">
+                                                    <lightning:button
+                                                                      label="Clock Out"
+                                                                      iconName="utility:logout"
+                                                                      iconPosition="left"
+                                                                      name="{!iCrew}"
+                                                                      value="{!crew.timesheet.Id}"
+                                                                      variant="destructive"
+                                                                      onclick="{!c.ClockOutButtonClick}"
+                                                                      />
+                                                    <aura:set attribute="else">
+                                                        <lightning:button
+                                                                          label="Clock In"
+                                                                          iconName="utility:download"
+                                                                          iconPosition="left"
+                                                                          name="{!iCrew}"
+                                                                          value="{!crew.crewUser.Id}"
+                                                                          variant="success"
+                                                                          onclick="{!c.ClockInButtonClick}"
+                                                                          />
+                                                    </aura:set>
+                                                </aura:if>
+                                            </aura:set>
+                                        </aura:if>
+                                    </aura:set>
+                                </aura:if>
+                            </div>
+                        </div>
+                    </div>
+                </aura:iteration>
+            </div>
+            <aura:set attribute="else">
+                <c:libMessageWithIllustration title="Feature Inaccessible" message="Second Level Feature Pack Required! Please Contact Your Admin!" /> 
+            </aura:set>
+        </aura:if>
+    </div>
+</aura:component>

@@ -1,0 +1,9 @@
+<design:component label="One Main Region">
+    <flexipage:template >
+        <!-- The default width for the "left" region is "MEDIUM". In tablets,
+        the width is "SMALL" -->
+            <flexipage:region name="left" label="Main Region" defaultWidth="MEDIUM">
+                <flexipage:formfactor type="MEDIUM" width="SMALL" />
+            </flexipage:region>
+       </flexipage:template>
+</design:component>

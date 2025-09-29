@@ -1,0 +1,44 @@
+<aura:component
+    access="global"
+    controller="ManageQuantityController"
+    implements="force:lightningQuickActionWithoutHeader,flexipage:availableForRecordHome,force:hasRecordId"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <aura:attribute name="recordId" type="Id" />
+    <aura:attribute name="Quantity" type="Decimal" />
+    <aura:attribute name="StockQuantity" type="Decimal" />
+
+    <form class="slds-form--stacked">
+        <fieldset class="slds-box slds-theme--default">
+            <lightning:layout multipleRows="true">
+                <lightning:layoutItem size="10" padding="around-small">
+                    <lightning:input
+                        type="number"
+                        aura:id="Quantity"
+                        name="Quantity"
+                        value="{!v.Quantity}"
+                        label="Quantity"
+                        placeholder="Enter Quantity"
+                    /><br /><br />
+                </lightning:layoutItem>
+                <lightning:layoutItem size="4" padding="around-small">
+                    <lightning:button
+                        variant="Success"
+                        class="slds-button"
+                        label="Add"
+                        onclick="{!c.AddQuantityAsset}"
+                    />
+                </lightning:layoutItem>
+                <lightning:layoutItem size="4" padding="around-small">
+                    <lightning:button
+                        variant="destructive"
+                        class="slds-button"
+                        label="Remove"
+                        onclick="{!c.RemoveQuantityAsset}"
+                    />
+                </lightning:layoutItem>
+            </lightning:layout>
+        </fieldset>
+    </form>
+</aura:component>

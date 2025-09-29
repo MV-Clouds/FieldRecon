@@ -1,0 +1,24 @@
+.THIS .select-size{
+    width: 100%;
+}
+
+.THIS .crew-title{
+    font-size: initial;
+    color: black;
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+}
+
+.THIS .crew-list{
+    background: white;
+    padding: 0.5rem;
+    margin-top: 2px;
+}
+
+.THIS .btn-width{
+    width: 118px;
+}
+
+.THIS .btn-team-width{
+    width: 15rem;
+}

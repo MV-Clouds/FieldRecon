@@ -1,0 +1,47 @@
+<template>
+    <lightning-layout>
+        <lightning-layout-item size="12" padding="around-small">
+            <div class="slds-text-heading_large slds-align_absolute-center">
+                Just Summing Things Up <br />
+            </div>
+            <lightning-layout multiple-rows>
+                <lightning-layout-item size="6" padding="around-small">
+                    <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Should the Employee be able to Log In/Out?" ></lightning-formatted-text></span>
+                </lightning-layout-item>
+                <lightning-layout-item class="slds-align_absolute-center" size="6" padding="around-small">
+                    <lightning-input type="checkbox" onchange={handleFieldChange} name="logInOut"> </lightning-input>
+                </lightning-layout-item>
+                <lightning-layout-item size="6" padding="around-small">
+                    <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Should the Employee be Visible on Scheduler?" ></lightning-formatted-text></span>
+                </lightning-layout-item>
+                <lightning-layout-item class="slds-align_absolute-center" size="6" padding="around-small">
+                    <lightning-input type="checkbox" onchange={handleFieldChange} name="schd"> </lightning-input>
+                </lightning-layout-item>
+                <template if:true={hasUserLogin}>
+                    <lightning-layout-item size="6" padding="around-small">
+                        <span class="form-element-label"><lightning-formatted-text class="slds-text-heading_medium" value="Select a User Profile" ></lightning-formatted-text></span>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="6" padding="around-small">
+                        <lightning-combobox
+                            name="prof"
+                            label="Status"
+                            value={contactObj.prof}
+                            placeholder="Select Profile"
+                            style="width: 100%;"
+                            options={userProfiles}
+                            variant="label-hidden"
+                            onchange={handleFieldChange} ></lightning-combobox>
+                    </lightning-layout-item>
+                </template>
+            </lightning-layout>
+        </lightning-layout-item>
+    </lightning-layout>
+    <div class="slds-clearfix">
+        <div class="slds-float_left slds-p-around_small">
+            <lightning-button label="Previous"  onclick={handlePreviousStep} icon-name="utility:chevronleft"></lightning-button>
+        </div>
+        <div class="slds-float_right slds-p-around_small">
+            <lightning-button label="Save"  onclick={addContact} icon-name="utility:save"></lightning-button>
+        </div>
+    </div>
+</template>

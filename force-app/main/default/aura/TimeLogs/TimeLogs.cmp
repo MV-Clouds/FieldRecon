@@ -1,0 +1,565 @@
+<aura:component
+    access="global"
+    controller="TimeLogEntriesController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+    <aura:attribute name="Spinner" type="boolean" default="true" />
+
+    <aura:attribute name="deviceType" type="String" />
+
+    <aura:attribute name="PageNumber" type="integer" default="1" />
+    <aura:attribute name="TotalPages" type="integer" default="0" />
+    <aura:attribute name="TotalRecords" type="integer" default="0" />
+    <aura:attribute name="RecordStart" type="integer" default="0" />
+    <aura:attribute name="RecordEnd" type="integer" default="0" />
+    <aura:attribute name="isModalOpen" type="boolean" default="false" />
+    <aura:attribute name="cContainerId" type="String" />
+    <aura:attribute name="recordId" type="String" default="" />
+    <aura:attribute name="isFirst" type="Boolean" default="true" />
+    <aura:attribute name="TotalTimeData" type="decimal" default="" />
+    <aura:attribute name="selectedtab" type="String" default="timesheet" />
+    <aura:attribute name="defaultValues" type="Double" />
+
+    <aura:attribute
+        name="HoursRange"
+        type="List"
+        default="[{'label': '1-10', 'value': '0'},{'label': '10-20', 'value': '10'},
+                                                           {'label': '20-30', 'value': '20'},{'label': '30-40', 'value': '30'},
+                                                           {'label': '40-50', 'value': '40'},{'label': '50-60', 'value': '50'},
+                                                           {'label': '60-70', 'value': '60'},{'label': '70-80', 'value': '70'},
+                                                           {'label': '80-90', 'value': '80'}, {'label': '90-100', 'value': '90'},
+                                                           {'label': '>100', 'value': '100'}]"
+    />
+
+    <aura:attribute
+        name="HoursRangeLogs"
+        type="List"
+        default="[{'label': '0-1', 'value': '0'},{'label': '1-2', 'value': '1'},
+                                                               {'label': '2-3', 'value': '2'},{'label': '3-4', 'value': '3'},
+                                                               {'label': '4-5', 'value': '4'},{'label': '5-6', 'value': '5'},
+                                                               {'label': '6-7', 'value': '6'},{'label': '7-8', 'value': '7'},
+                                                               {'label': '8-9', 'value': '8'}, {'label': '9-10', 'value': '9'},
+                                                               {'label': '>10', 'value': '10'}]"
+    />
+
+    <aura:attribute name="LogtimeList" type="List" />
+    <aura:attribute name="UserIdList" type="List" />
+    <aura:attribute name="JobIdList" type="List" />
+
+    <aura:attribute name="UserId" type="String" />
+    <aura:attribute name="JobId" type="String" />
+
+    <aura:attribute name="StartDatebegin" type="Date" default="" />
+    <aura:attribute name="StartDateend" type="Date" default="" />
+    <aura:attribute name="EndDatebegin" type="Date" default="" />
+    <aura:attribute name="EndDateend" type="Date" default="" />
+
+    <aura:handler
+        name="lookupSelect"
+        event="c:LookupFieldHelperEvent"
+        action="{!c.onFilterChange}"
+        description="Event handler to get the selected record Id and Name from LookupItem component"
+    />
+
+    <aura:if isTrue="{!v.deviceType == 'DESKTOP'}">
+        <div class="slds-card">
+            <lightning:tabset onselect="{! c.handleSelect }" selectedTabId="{!v.selectedtab}">
+                <lightning:tab label="Weekly" id="timesheet"></lightning:tab>
+                <lightning:tab label="Daily" id="timesheetentries"></lightning:tab>
+                <lightning:tab label="Logs" id="timesheetitmes"></lightning:tab>
+            </lightning:tabset>
+            <table width="100%;" style="margin-top: -1.3%; margin-bottom: 1%;">
+                <tr>
+                    <td width="12%; ">
+                        <div style="width: 80%;" class="slds-align_absolute-center">
+                            <c:LookupField
+                                fieldLabel="User"
+                                objectAPIName="User"
+                                fieldAPIName="Name"
+                                subHeadingFieldsAPI="Email"
+                                andBooleanField=""
+                                isEqual="true"
+                                title="Plese click on refresh after removing text from here"
+                                selectedRecordId="{!v.UserId}"
+                                placeholder="Search user..."
+                                aura:id="UserLookup"
+                                andConditionListField="Id"
+                                andConditionListValue="{!v.UserIdList}"
+                            />
+                        </div>
+                    </td>
+                    <aura:if isTrue="{!v.recordId == ''}">
+                        <td width="12%">
+                            <div style="width: 80%;" class="slds-align_absolute-center">
+                                <c:LookupField
+                                    fieldLabel="Job"
+                                    objectAPIName="Job__c"
+                                    fieldAPIName="Name"
+                                    subHeadingFieldsAPI="Job_Name__c"
+                                    andBooleanField=""
+                                    isEqual="true"
+                                    title="Plese click on refresh after removing text from here"
+                                    selectedRecordId="{!v.JobId}"
+                                    placeholder="Search job..."
+                                    aura:id="JobLookup"
+                                    andConditionListField="Id"
+                                    andConditionListValue="{!v.JobIdList}"
+                                />
+                            </div>
+                        </td>
+                    </aura:if>
+                    <td width="25%">
+                        <div style="width: 90%;" class="slds-align_absolute-center">
+                            <table width="100%">
+                                <tr>
+                                    <td width="45%">
+                                        <lightning:input
+                                            type="date"
+                                            format="MM/dd/yyyy"
+                                            name="input5"
+                                            label="Start Date Filter"
+                                            value="{!v.StartDatebegin}"
+                                            onchange="{!c.onStartDateChange}"
+                                        />
+                                    </td>
+                                    <td
+                                        width="10%"
+                                        class="slds-align_absolute-center"
+                                        style="
+                                             {
+                                                !v.selectedtab!='timesheetentries'?'margin-top: 70%;' : 'margin-top: 50%;';
+                                            }
+                                        "
+                                    >
+                                        To
+                                    </td>
+                                    <td width="45%">
+                                        <lightning:input
+                                            type="date"
+                                            format="MM/dd/yyyy"
+                                            name="input5"
+                                            label=""
+                                            value="{!v.StartDateend}"
+                                            onchange="{!c.onStartDateChange}"
+                                            style="margin-top: 5px;"
+                                        />
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                    <aura:if isTrue="{!v.selectedtab != 'timesheetentries'}">
+                        <td width="25%">
+                            <div style="width: 90%;" class="slds-align_absolute-center">
+                                <table width="100%">
+                                    <tr>
+                                        <td width="45%">
+                                            <lightning:input
+                                                type="date"
+                                                format="MM/dd/yyyy"
+                                                name="input5"
+                                                label="End Date Filter"
+                                                value="{!v.EndDatebegin}"
+                                                onchange="{!c.onEndDateChange}"
+                                            />
+                                        </td>
+                                        <td width="10%" class="slds-align_absolute-center" style="margin-top: 70%;">
+                                            To
+                                        </td>
+                                        <td width="45%">
+                                            <lightning:input
+                                                type="date"
+                                                format="MM/dd/yyyy"
+                                                name="input5"
+                                                label=""
+                                                value="{!v.EndDateend}"
+                                                onchange="{!c.onEndDateChange}"
+                                                style="margin-top: 5px;"
+                                            />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </aura:if>
+                    <td width="10%">
+                        <div style="width: 70%;">
+                            <lightning:select
+                                name="select"
+                                label="Total hours"
+                                aura:id="HoursRange"
+                                onchange="{!c.onFilterChange}"
+                            >
+                                <option text="-- None --" value=""></option>
+                                <aura:iteration
+                                    items="{!v.selectedtab != 'timesheet' ? v.HoursRangeLogs : v.HoursRange}"
+                                    var="hour"
+                                >
+                                    <option text="{!hour.label}" value="{!hour.value}"></option>
+                                </aura:iteration>
+                            </lightning:select>
+                        </div>
+                    </td>
+                    <td width="7%">
+                        <br />
+                        <div style="font-size: 100%;" class="slds-align_absolute-center">
+                            <lightning:button
+                                value="{!v.JobId}"
+                                class="slds-m-around_x-small success font"
+                                aura:id="varientbutton"
+                                variant="brand"
+                                label="Payroll"
+                                onclick="{! c.handleClick }"
+                            />
+                        </div>
+                    </td>
+                    <td width="7%" style="">
+                        <br />
+                        <div style="width: 10%;" class="slds-align_absolute-center">
+                            <lightning:buttonIcon
+                                iconName="utility:refresh"
+                                variant="bare"
+                                onclick="{! c.onFilterChange }"
+                                alternativeText="After removing lookup fields click on refresh"
+                                size="large"
+                            />
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            <div class="slds-grid" style="width: 100%;"></div>
+        </div>
+
+        <!-- USER TABLE -->
+        <div class="slds-card slds-scrollable">
+            <table style="text-align: center;" class="slds-table slds-table_cell-buffer slds-table_bordered">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th class="" scope="col" style="text-align: center;">User Name</th>
+                        <th class="{!v.recordId != '' ? 'slds-hide' : '' }" scope="col" style="text-align: center;">
+                            Job Name
+                        </th>
+                        <aura:if isTrue="{!v.selectedtab == 'timesheetitmes'}">
+                            <th class="" scope="col" style="text-align: center;">Time In</th>
+                            <th class="" scope="col" style="text-align: center;">Time Out</th>
+                        </aura:if>
+
+                        <th class="" scope="col" style="text-align: center;">Start Date</th>
+
+                        <aura:if isTrue="{!v.selectedtab != 'timesheetentries' }">
+                            <th class="" scope="col" style="text-align: center;">End Date</th>
+                            <aura:if isTrue="{!v.selectedtab == 'timesheet'}">
+                                <th scope="col" style="text-align: center;">Total time</th>
+                            </aura:if>
+                            <th class="" scope="col" style="text-align: center;">Time In location</th>
+
+                            <th
+                                class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                scope="col"
+                                style="text-align: center;"
+                            >
+                                Time Out location
+                            </th>
+                            <th
+                                class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                scope="col"
+                                style="text-align: center;"
+                            >
+                                Total time
+                            </th>
+                            <th
+                                class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                scope="col"
+                                style="text-align: center;"
+                            >
+                                Time In Distance from Job
+                            </th>
+                            <th
+                                class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                scope="col"
+                                style="text-align: center;"
+                            >
+                                Time Out Distance from Job
+                            </th>
+                        </aura:if>
+                        <aura:if isTrue="{!v.selectedtab == 'timesheetentries'}">
+                            <th class="" scope="col" style="text-align: center;">Total time</th>
+                        </aura:if>
+                    </tr>
+                </thead>
+                <tbody>
+                    <aura:iteration items="{!v.LogtimeList}" var="opp">
+                        <tr
+                            class="slds-hint-parent"
+                            style="{!opp.ClockOutdistance > v.defaultValues || opp.ClockIndistance > v.defaultValues ? 'background-color:yellow;' : ''}"
+                        >
+                            <th class="" scope="col" style="text-align: center;">
+                                <lightning:formattedText value="{!opp.UserName}" />
+                            </th>
+                            <th class="{!v.recordId != '' ? 'slds-hide' : '' }" scope="col" style="text-align: center;">
+                                <lightning:formattedText value="{!opp.JobName}" />
+                            </th>
+                            <aura:if isTrue="{!v.selectedtab == 'timesheetitmes'}">
+                                <th class="" scope="col" style="text-align: center;">
+                                    <lightning:formattedDateTime
+                                        value="{!opp.ClockInTime}"
+                                        hour12="true"
+                                        hour="2-digit"
+                                        minute="2-digit"
+                                    />
+                                </th>
+                                <th class="" scope="col" style="text-align: center;">
+                                    <lightning:formattedDateTime
+                                        value="{!opp.ClockOutTime}"
+                                        hour12="true"
+                                        hour="2-digit"
+                                        minute="2-digit"
+                                    />
+                                </th>
+                            </aura:if>
+
+                            <th class="" scope="col" style="text-align: center;">
+                                <lightning:formattedDateTime
+                                    value="{!opp.StartDate}"
+                                    year="numeric"
+                                    month="numeric"
+                                    day="numeric"
+                                />
+                            </th>
+
+                            <aura:if isTrue="{!v.selectedtab != 'timesheetentries' }">
+                                <th class="" scope="col" style="text-align: center;">
+                                    <lightning:formattedDateTime
+                                        value="{!opp.EndDate}"
+                                        year="numeric"
+                                        month="numeric"
+                                        day="numeric"
+                                    />
+                                </th>
+                                <th
+                                    class="{!v.selectedtab == 'timesheetitmes' ? 'slds-hide' : '' }"
+                                    scope="col"
+                                    style="text-align: center;"
+                                >
+                                    <lightning:formattedNumber value="{!opp.TotalTime}" minimumFractionDigits="2" />
+                                </th>
+                                <th class="" scope="col" style="text-align: center;">
+                                    <a
+                                        href="#"
+                                        onclick="{!c.onLocationOpen}"
+                                        id="{!opp.InLatitude+','+opp.InLongitude}"
+                                        title="click on location to open in map"
+                                    >
+                                        <lightning:formattedNumber
+                                            value="{!opp.InLatitude}"
+                                            minimumFractionDigits="4"
+                                        />,
+                                        <lightning:formattedNumber
+                                            value="{!opp.InLongitude}"
+                                            minimumFractionDigits="4"
+                                        />
+                                    </a>
+                                </th>
+                                <th
+                                    class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                    scope="col"
+                                    style="text-align: center;"
+                                >
+                                    <a
+                                        href="#"
+                                        onclick="{!c.onLocationOpen}"
+                                        id="{!opp.OutLatitude+','+opp.OutLongitude}"
+                                        title="click on location to open in map"
+                                    >
+                                        <lightning:formattedNumber
+                                            value="{!opp.OutLatitude}"
+                                            minimumFractionDigits="4"
+                                        />,
+                                        <lightning:formattedNumber
+                                            value="{!opp.OutLongitude}"
+                                            minimumFractionDigits="4"
+                                        />
+                                    </a>
+                                </th>
+                                <th
+                                    class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                    scope="col"
+                                    style="text-align: center;"
+                                >
+                                    <lightning:formattedNumber value="{!opp.TotalTime}" minimumFractionDigits="2" />
+                                </th>
+                                <th
+                                    class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                    scope="col"
+                                    style="text-align: center;"
+                                >
+                                    <lightning:formattedNumber
+                                        value="{!opp.ClockIndistance}"
+                                        minimumFractionDigits="4"
+                                    />
+                                </th>
+                                <th
+                                    class="{!v.selectedtab == 'timesheet' ? 'slds-hide' : '' }"
+                                    scope="col"
+                                    style="text-align: center;"
+                                >
+                                    <lightning:formattedNumber
+                                        value="{!opp.ClockOutdistance}"
+                                        minimumFractionDigits="4"
+                                    />
+                                </th>
+                            </aura:if>
+                            <aura:if isTrue="{!v.selectedtab == 'timesheetentries'}">
+                                <th class="" scope="col" style="text-align: center;">
+                                    <lightning:formattedNumber value="{!opp.TotalTime}" minimumFractionDigits="2" />
+                                </th>
+                            </aura:if>
+                        </tr>
+                    </aura:iteration>
+                    <aura:if isTrue="{!v.selectedtab == 'timesheetentries'}">
+                        <tr>
+                            <td
+                                class="{!v.recordId != '' ? 'slds-hide' : '' }"
+                                scope="col"
+                                style="text-align: center;"
+                            ></td>
+                            <td scope="col" style="text-align: center;" colspan="2"></td>
+                            <th scope="col" style="text-align: center;">
+                                <b
+                                    >Total:
+                                    <lightning:formattedNumber value="{!v.TotalTimeData}" minimumFractionDigits="2"
+                                /></b>
+                            </th>
+                        </tr>
+                    </aura:if>
+                    <aura:if isTrue="{!v.selectedtab == 'timesheet'}">
+                        <tr>
+                            <td
+                                class="{!v.recordId != '' ? 'slds-hide' : '' }"
+                                scope="col"
+                                style="text-align: center;"
+                            ></td>
+                            <th colspan="3"></th>
+                            <th scope="col" style="text-align: center;">
+                                <b
+                                    >Total:
+                                    <lightning:formattedNumber value="{!v.TotalTimeData}" minimumFractionDigits="2"
+                                /></b>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </aura:if>
+                    <aura:if isTrue="{!v.selectedtab == 'timesheetitmes'}">
+                        <tr>
+                            <td
+                                class="{!v.recordId != '' ? 'slds-hide' : '' }"
+                                scope="col"
+                                style="text-align: center;"
+                            ></td>
+                            <th colspan="7" scope="col" style="text-align: center;"></th>
+                            <th scope="col" style="text-align: center;">
+                                <b
+                                    >Total:
+                                    <lightning:formattedNumber value="{!v.TotalTimeData}" minimumFractionDigits="2"
+                                /></b>
+                            </th>
+                            <th colspan="2" scope="col" style="text-align: center;"></th>
+                        </tr>
+                    </aura:if>
+                </tbody>
+            </table>
+            <aura:if isTrue="{!v.LogtimeList.length == 0}">
+                <div class="slds-text-align--center" style="font-size: 20px;">No jobs found.</div>
+            </aura:if>
+            <footer class="slds-card__footer"></footer>
+        </div>
+        <div class="slds-card slds-box">
+            <div class="slds-clearfix">
+                <div class="slds-float_right" style="margin-top: 1%;">
+                    Records {!v.RecordEnd >= v.TotalRecords ? v.TotalRecords : v.RecordEnd } of {!v.TotalRecords} | Page
+                    {!v.PageNumber} of {!v.TotalPages} &nbsp;&nbsp;&nbsp;&nbsp;
+                    <lightning:button
+                        disabled="{!v.PageNumber == 1}"
+                        variant="brand"
+                        aura:id="prevPage"
+                        label="Prev"
+                        onclick="{!c.handlePrev}"
+                    />
+                    <lightning:button
+                        disabled="{!v.PageNumber == v.TotalPages || v.TotalRecords == 0}"
+                        aura:id="nextPage"
+                        variant="brand"
+                        label="Next"
+                        onclick="{!c.handleNext}"
+                    />
+                </div>
+                <div class="slds-float_left">
+                    <lightning:select
+                        aura:id="pageSize"
+                        name="select1"
+                        label="Records Per Page:"
+                        onchange="{! c.onFilterChange }"
+                    >
+                        <option value="10" selected="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="25">25</option>
+                    </lightning:select>
+                </div>
+
+                <div class="slds-float_right"></div>
+            </div>
+        </div>
+        <aura:if isTrue="{!v.isModalOpen}">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-fade-in-open"
+            >
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            onclick="{! c.closeModel }"
+                            alternativeText="close"
+                            variant="bare-inverse"
+                            class="slds-modal__close"
+                        />
+                        <div class="slds-grid">
+                            <div class="slds-col" style="width: 100%;">
+                                <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                                    Generate Payroll PDF
+                                </h2>
+                            </div>
+                            <div class="slds-col">
+                                <lightning:helptext
+                                    content="All the jobs are by default selected,  if you wish to generate by jobs, go to the job and generate."
+                                />
+                            </div>
+                        </div>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                        <c:TimelogPdfGeneration recordId="{!v.recordId}" />
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </aura:if>
+
+        <aura:set attribute="else">
+            <div style="text-align: center; margin: 4%;">
+                Sorry!!<br />
+                Time logs are not available for the Mobile version yet!
+            </div>
+        </aura:set>
+    </aura:if>
+
+    <aura:renderIf isTrue="{!v.Spinner}">
+        <lightning:spinner alternativeText="Loading" variant="brand" size="medium" />
+    </aura:renderIf>
+</aura:component>

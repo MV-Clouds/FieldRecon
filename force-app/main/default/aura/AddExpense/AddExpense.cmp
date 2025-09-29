@@ -1,0 +1,73 @@
+<aura:component implements="force:hasRecordId,force:lightningQuickActionWithoutHeader" controller="ExpenseController">
+    <aura:attribute name="expense" type="Map" default="{}" />
+    <aura:attribute name="fileList" type="List" />
+
+    <aura:handler name="init" value="{!this}" action="{!c.handleInit}" />
+
+    <div>
+        <!-- Modal Header -->
+        <div class="modal-header slds-modal__header slds-size_1-of-1">
+            <h4 class="title slds-text-heading--medium">Add New Expense</h4>
+        </div>
+
+        <!-- Modal Body -->
+        <div
+            class="slds-modal__content slds-p-around--x-small slds-align_absolute-center slds-size_1-of-1 slds-is-relative"
+        >
+            <lightning:layout multipleRows="true">
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input type="Date" label="TransactionDate" value="{!v.expense.transactionDate}" />
+                </lightning:layoutItem>
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input type="number" label="Amount" step = "0.01" formatter="currency" value="{!v.expense.amount}" />
+                </lightning:layoutItem>
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:select name="paymentType" label="Payment Type" value="{!v.expense.paymentType}">
+                        <option value="">Select Payment Type...</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Credit">Credit</option>
+                        <option value="Check">Check</option>
+                        <option value="Wire">Wire</option>
+                    </lightning:select>
+                </lightning:layoutItem>
+                <lightning:layoutItem size="6" padding="around-small">
+                    <c:LookupField
+                        fieldLabel="Contact"
+                        objectAPIName="Contact"
+                        fieldAPIName="Name"
+                        subHeadingFieldsAPI="Email"
+                        isEqual="true"
+                        selectedRecordId="{!v.expense.contactId}"
+                        placeholder="Select Contact"
+                        aura:id="contactLookup"
+                    />
+                </lightning:layoutItem>
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input type="checkbox" label="Reimbursable?" checked="{!v.expense.reimbursable}" />
+                </lightning:layoutItem>
+                <lightning:layoutItem size="12" padding="around-small">
+                    <lightning:textarea
+                        label="Description"
+                        placeholder="Expense Description..."
+                        value="{!v.expense.description}"
+                    />
+                </lightning:layoutItem>
+                <aura:if isTrue="{!v.expense.id != ''}">
+                    <lightning:layoutItem size="12" padding="around-small">
+                        <c:FileUpload recordId="{!v.expense.id}" fileLists="{!v.fileList}" />
+                    </lightning:layoutItem>
+                </aura:if>
+            </lightning:layout>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer slds-modal__footer slds-size_1-of-1">
+            <aura:if isTrue="{!v.expense.id == ''}">
+                <lightning:button type="submit" label="Submit" variant="Brand" onclick="{!c.handleSaveExpense}" />
+                <aura:set attribute="else">
+                    <lightning:button variant="Neutral" class="slds-button" label="Done" onclick="{!c.handleClose}" />
+                </aura:set>
+            </aura:if>
+        </div>
+    </div>
+</aura:component>

@@ -1,0 +1,136 @@
+<aura:component
+    access="global"
+    implements="force:lightningQuickActionWithoutHeader,flexipage:availableForRecordHome,force:hasRecordId"
+    extends="c:lib_base"
+>
+    <aura:attribute name="expenseRecordId" type="Id" default="" />
+    <aura:attribute name="fileLists" type="list" />
+
+    <!--Custom Styles for Modal Header and Footer-->
+    <aura:html tag="style">
+        .cuf-content { padding: 0 0rem !important; } .slds-p-around--medium { padding: 0rem !important; }
+        .slds-modal__content{ height:unset !important; max-height:unset !important; }
+    </aura:html>
+
+    <aura:if isTrue="{!$Browser.formFactor == 'DESKTOP'}">
+        <div class="modal-header slds-modal__header slds-size_1-of-1">
+            <h4 class="title slds-text-heading--medium">Add Expense</h4>
+        </div>
+        <lightning:recordEditForm
+            aura:id="myRecordForm"
+            recordId="{!v.expenseRecordId}"
+            objectApiName="Expense"
+            onsubmit="{!c.handleSubmit}"
+            onsuccess="{!c.handleSuccess}"
+        >
+            <div
+                class="slds-modal__content slds-p-around--x-small slds-align_absolute-center slds-size_1-of-1 slds-is-relative"
+            >
+                <lightning:messages />
+                <fieldset class="slds-box slds-theme--default">
+                    <lightning:layout multipleRows="true">
+                        <lightning:layoutItem size="12" padding="around-small">
+                            <lightning:inputField fieldName="Reimbursable__c" />
+                        </lightning:layoutItem>
+                        <lightning:layoutItem size="6" padding="around-small">
+                            <lightning:inputField fieldName="Amount" />
+                        </lightning:layoutItem>
+                        <lightning:layoutItem size="6" padding="around-small">
+                            <lightning:inputField fieldName="Payment_Type__c" />
+                        </lightning:layoutItem>
+                        <lightning:layoutItem size="6" padding="around-small">
+                            <lightning:inputField fieldName="Contact__c" />
+                        </lightning:layoutItem>
+                        <lightning:layoutItem size="6" padding="around-small">
+                            <lightning:inputField fieldName="TransactionDate" />
+                        </lightning:layoutItem>
+                        <lightning:layoutItem size="12" padding="around-small">
+                            <lightning:inputField fieldName="Description" />
+                        </lightning:layoutItem>
+                        <aura:if isTrue="{!v.expenseRecordId != ''}">
+                            <lightning:layoutItem size="12" padding="around-small">
+                                <c:FileUpload recordId="{!v.expenseRecordId}" fileLists="{!v.fileLists}" />
+                            </lightning:layoutItem>
+                        </aura:if>
+                    </lightning:layout>
+                </fieldset>
+            </div>
+            <div class="modal-footer slds-modal__footer slds-size_1-of-1">
+                <aura:if isTrue="{!v.expenseRecordId == ''}">
+                    <lightning:button class="slds-m-top_small" type="submit" label="Submit" variant="Brand" />
+                    <aura:set attribute="else">
+                        <lightning:button
+                            variant="Neutral"
+                            class="slds-button"
+                            label="Done"
+                            onclick="{!c.handleClose}"
+                        />
+                    </aura:set>
+                </aura:if>
+            </div>
+        </lightning:recordEditForm>
+    </aura:if>
+
+    <aura:if isTrue="{!$Browser.formFactor == 'PHONE'}">
+        <div class="modal-header slds-modal__header slds-size_1-of-1" style="height: 60px;">
+            <div style="float: left;">
+                <h4 class="title slds-text-heading--medium">Add Expense</h4>
+            </div>
+            <lightning:recordEditForm
+                aura:id="myRecordForm"
+                recordId="{!v.expenseRecordId}"
+                objectApiName="Expense"
+                onsubmit="{!c.handleSubmit}"
+                onsuccess="{!c.handleSuccess}"
+            >
+            </lightning:recordEditForm>
+            <div style="float: right;">
+                <lightning:button variant="Brand" class="slds-button" label="Back" onclick="{!c.BackToRecord}" />
+                <aura:if isTrue="{!v.expenseRecordId == ''}">
+                    <lightning:button class="slds-m-top_small" type="submit" label="Submit" variant="Brand" />
+                    <aura:set attribute="else">
+                        <lightning:button
+                            variant="Neutral"
+                            class="slds-button"
+                            label="Done"
+                            onclick="{!c.handleClose}"
+                        />
+                    </aura:set>
+                </aura:if>
+            </div>
+        </div>
+
+        <div
+            class="slds-modal__content slds-p-around--x-small slds-align_absolute-center slds-size_1-of-1 slds-is-relative"
+        >
+            <lightning:messages />
+            <fieldset class="slds-box slds-theme--defaul slds-form--stackedt">
+                <lightning:layout multipleRows="true">
+                    <lightning:layoutItem size="12" padding="around-small">
+                        <lightning:inputField fieldName="Reimbursable__c" />
+                    </lightning:layoutItem>
+                    <lightning:layoutItem size="6" padding="around-small">
+                        <lightning:inputField fieldName="Amount" />
+                    </lightning:layoutItem>
+                    <lightning:layoutItem size="6" padding="around-small">
+                        <lightning:inputField fieldName="Payment_Type__c" />
+                    </lightning:layoutItem>
+                    <lightning:layoutItem size="6" padding="around-small">
+                        <lightning:inputField fieldName="Contact__c" />
+                    </lightning:layoutItem>
+                    <lightning:layoutItem size="6" padding="around-small">
+                        <lightning:inputField fieldName="TransactionDate" />
+                    </lightning:layoutItem>
+                    <lightning:layoutItem size="12" padding="around-small">
+                        <lightning:inputField fieldName="Description" />
+                    </lightning:layoutItem>
+                    <aura:if isTrue="{!v.expenseRecordId != ''}">
+                        <lightning:layoutItem size="12" padding="around-small">
+                            <c:FileUpload recordId="{!v.expenseRecordId}" fileLists="{!v.fileLists}" />
+                        </lightning:layoutItem>
+                    </aura:if>
+                </lightning:layout>
+            </fieldset>
+        </div>
+    </aura:if>
+</aura:component>

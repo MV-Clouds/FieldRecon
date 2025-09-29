@@ -1,0 +1,36 @@
+<aura:component
+    access="global"
+    controller="AssetAttachmentController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:attribute name="recordId" type="Id" default="" />
+    <aura:attribute name="Chatterfiles" type="List" />
+    <aura:attribute name="Galleryfiles" type="List" />
+    <aura:attribute name="files" type="List" />
+    <aura:attribute name="fatchedRecordNo" type="Integer" default="5" />
+    <aura:attribute name="selectedDocumentId" type="string" />
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+    <div class="slds-card">
+        <div style="float: right;">
+            <lightning:buttonIcon
+                iconName="utility:loop"
+                size="large"
+                alternativeText="Refresh"
+                title="Refresh"
+                onclick="{!c.refresh }"
+            />
+        </div>
+        <br /><br />
+
+        <div class="slds-grid slds-wrap">
+            <aura:iteration items="{!v.Galleryfiles}" var="li" start="0" indexVar="ir">
+                <div class="slds-col slds-size_1-of-3 slds-align_absolute-center">
+                    <div class="slds-box_x-small slds-text-align_center">
+                        <lightning:fileCard fileId="{!li.fileId }" hideDescription="true" />
+                    </div>
+                </div>
+            </aura:iteration>
+        </div>
+    </div>
+</aura:component>

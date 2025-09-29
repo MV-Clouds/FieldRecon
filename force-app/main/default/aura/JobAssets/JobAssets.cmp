@@ -1,0 +1,43 @@
+<aura:component
+    access="global"
+    controller="JobAssetListController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <aura:attribute name="recordId" type="Id" />
+    <aura:attribute name="data" type="List" />
+    <aura:attribute name="thirdLevelAccess" type="Boolean" default="false" />
+
+    <aura:if isTrue="{!v.thirdLevelAccess}">
+        <lightning:card title="Assets" iconName="utility:thunder">
+        <table style="text-align: center;" class="slds-table slds-table_cell-buffer slds-table_bordered">
+            <thead>
+                <tr class="slds-line-height_reset">
+                    <th class="" scope="col" style="text-align: center; width: 33.33%;">Asset Name</th>
+                    <th class="" scope="col" style="text-align: center; width: 33.33%;">Status</th>
+                    <th class="" scope="col" style="text-align: center; width: 33.33%;">Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <aura:iteration items="{!v.data}" var="opp">
+                    <tr class="slds-hint-parent" style="">
+                        <th class="" scope="col" style="text-align: center;">
+                            <lightning:formattedText value="{!opp.Name}" /> <sup> </sup>
+                        </th>
+                        <th class="" scope="col" style="text-align: center;">
+                            <lightning:formattedText value="{!opp.Status}" />
+                        </th>
+                        <th class="" scope="col" style="text-align: center;">
+                            <lightning:formattedText value="{!opp.Type}" />
+                        </th>
+                    </tr>
+                </aura:iteration>
+            </tbody>
+        </table>
+    </lightning:card>
+    <aura:set attribute="else">
+        <c:libMessageWithIllustration message="Third Level Feature Pack Required! Please Contact Your Admin!" /> 
+      </aura:set>
+    </aura:if>
+</aura:component>

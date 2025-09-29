@@ -1,0 +1,1352 @@
+<aura:component
+    access="global"
+    controller="SchedulerController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+    <aura:handler name="change" value="{!v.fromDate}" action="{!c.SearchJobs}" />
+    <aura:handler
+        name="lookupSelect"
+        event="c:LookupFieldHelperEvent"
+        action="{!c.handleLookupSelectEvent}"
+        description="Event handler to get the selected record Id and Name from LookupItem component"
+    />
+    <aura:attribute name="deviceType" type="String" />
+
+    <!-- Default variables -->
+    <aura:attribute name="default" type="Object" default="" />
+    <aura:attribute name="isInitializing" type="Boolean" default="true" />
+    <aura:attribute name="defaultDate" type="DateTime" default="" />
+    <aura:attribute name="defaultEndDate" type="DateTime" default="" />
+    <aura:attribute name="defaultDateTime" type="DateTime" default="" />
+    <aura:attribute name="defaultStartTime" type="String" default="" />
+    <aura:attribute name="defaultEndTime" type="String" default="" />
+    <aura:attribute name="includeSaturday" type="Boolean" default="false" />
+    <aura:attribute name="includeSunday" type="Boolean" default="false" />
+    <aura:attribute name="vehicleBackground" type="String" default="Black" />
+    <aura:attribute name="vehicleColor" type="String" default="White" />
+    <aura:attribute name="currentStatus" type="String" />
+
+    <!--Permission Attributes-->
+    <aura:attribute name="ReadFlag" type="Boolean" default="false" />
+    <aura:attribute name="EditFlag" type="Boolean" default="false" />
+    <aura:attribute name="CreateFlag" type="Boolean" default="false" />
+    <aura:attribute name="DeleteFlag" type="Boolean" default="false" />
+
+    <!-- Filter variables -->
+    <aura:attribute name="fromDate" type="Date" default="" />
+    <aura:attribute name="toDate" type="Date" default="" />
+
+    <!-- Picklist variables -->
+
+    <aura:attribute name="selectedDivisionValue" type="String" default="All" />
+
+    <aura:attribute name="selectedShowValue" type="String" default="All" />
+    <aura:attribute name="selectedPicklistValue" type="String" default="All" />
+    <aura:attribute name="AllStatuses" type="String" default="" />
+    <aura:attribute name="MobilizationStatuses" type="List" />
+
+    <!-- Temporary parse variables -->
+    <aura:attribute name="TempJobId" type="String" default="" />
+    <aura:attribute name="TempMobilizationId" type="String" default="" />
+    <aura:attribute name="TempStatus" type="String" default="" />
+    <aura:attribute name="TempStartDateTime" type="DateTime" default="" />
+    <aura:attribute name="TempEndDateTime" type="DateTime" default="" />
+    <aura:attribute name="TempOldStartDateTime" type="DateTime" default="" />
+    <aura:attribute name="TempOldEndDateTime" type="DateTime" default="" />
+    <aura:attribute name="TempMobGroupId" type="String" default="" />
+
+    <aura:attribute name="TempCrewId" type="String" default="" />
+    <aura:attribute name="TempSubConId" type="String" default="" />
+    <aura:attribute name="TempAssetId" type="String" default="" />
+    <aura:attribute name="TempCrewName" type="String" default="" />
+    <aura:attribute name="TempSubConName" type="String" default="" />
+    <aura:attribute name="TempAssetName" type="String" default="" />
+    <aura:attribute name="TempIsSelected" type="Boolean" default="false" />
+    <aura:attribute name="TempJobList" type="List" default="" />
+    <aura:attribute name="TempOverlapCheck" type="Boolean" default="false" />
+
+    <aura:attribute name="activeSections" type="List" default="" />
+    <aura:attribute name="jobList" type="List" />
+    <aura:attribute
+        name="deleteOptions"
+        type="List"
+        default="[{'label': 'Delete Selected Day', 'value': '1'},{'label': 'Delete All Remaining Mobilizations', 'value': '2'}]"
+    />
+
+    <!-- Booleans for modal display -->
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    <aura:attribute name="JobPopup" type="Boolean" default="false" />
+    <aura:attribute name="UpdatePopup" type="Boolean" default="false" />
+    <aura:attribute name="DeletePopup" type="Boolean" default="false" />
+    <aura:attribute name="CopyCrewPopup" type="Boolean" default="false" />
+    <aura:attribute name="AssignCrewPopup" type="Boolean" default="false" />
+    <aura:attribute name="AssignSubConPopup" type="Boolean" default="false" />
+    <aura:attribute name="AssignAssetPopup" type="Boolean" default="false" />
+    <aura:attribute name="LevelTwoAccess" type="Boolean" default="true" />
+
+    <aura:attribute
+        name="MobilizationObject"
+        type="Map"/>
+
+    <!-- Drag varibles -->
+    <aura:attribute name="dragDate" type="Date" default="" />
+    <aura:attribute name="dragUserId" type="String" default="" />
+    <aura:attribute name="dragAssetId" type="String" default="" />
+    <aura:attribute name="dragSubConId" type="String" default="" />
+    <aura:attribute name="dragIdType" type="String" default="" />
+
+    <!-- End of Attributes -->
+    <!-- Spinner div -->
+    <aura:renderIf isTrue="{!v.showSpinner}">
+        <div class="exampleHolder">
+            <lightning:spinner
+                alternativeText="Loading, please wait..."
+                size="large"
+                variant="brand"
+                style="position: fixed !important;"
+            />
+        </div>
+    </aura:renderIf>
+    
+    <aura:if isTrue="{!v.LevelTwoAccess}">
+        <!-- DESKTOP VERSION -->
+    <aura:if isTrue="{!v.deviceType == 'DESKTOP'}">
+        <!--List of Crew Members and Assets-->
+        <div
+            class=""
+            style="
+                margin: auto;
+                padding-top: 0px;
+                padding-right: 0px;
+                padding-left: 0px;
+                padding-bottom: 0px;
+                overflow: hidden;
+                border: 3px solid #005fb1;
+            "
+        >
+            <div class="form-container" style="height: 52px;">
+                <button class="search-button btn set-align-left" onclick="{!c.openFilters}">FILTERS</button>
+                <button
+                    class="{!v.CreateFlag == true ? 'search-button btn set-align-right' : 'search-button btn set-align-right slds-hide'}"
+                    onclick="{!c.OpenJobPopupGeneral}"
+                    disabled="{!v.CreateFlag == true ? false : true}"
+                >
+                    ADD MOBILIZATION GROUP
+                </button>
+            </div>
+        </div>
+        <div>
+            <div class="form-popup" id="filterBlock" aura:id="filterBlockPopup">
+                <div class="form-container">
+                    <button type="button" class="btn cancel set-align-left" onclick="{!c.closeFilters}">CLOSE</button>
+                    <button
+                        class="{!v.CreateFlag == true ? 'search-button btn set-align-right' : 'search-button btn set-align-right slds-hide'}"
+                        onclick="{!c.OpenJobPopupGeneral}"
+                        disabled="{!v.CreateFlag == true ? false : true}"
+                    >
+                        ADD MOBILIZATION GROUP
+                    </button>
+
+                    <!--Option-->
+                    <div class="slds-grid slds-gutters">
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box filter-div">
+                                <lightning:input
+                                    type="date"
+                                    name="fromDate"
+                                    class="field"
+                                    label="From Date:"
+                                    value="{!v.fromDate}"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box filter-div">
+                                <lightning:input
+                                    type="date"
+                                    name="toDate"
+                                    class="field"
+                                    label="To Date:"
+                                    value="{!v.toDate}"
+                                    onchange="{!c.SearchJobs}"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box filter-div">
+                                <lightning:select name="select1" label="Show:" value="{!v.selectedShowValue}">
+                                    <option text="All" value="All" />
+                                    <option text="Crew Members" value="Crew" />
+                                    <option text="Assets" value="Asset" />
+                                    <option text="Sub Contractors" value="subCons" />
+                                </lightning:select>
+                            </div>
+                        </div>
+
+                        <div class="slds-col slds-size_1-of-4">
+                            <div class="slds-box filter-div">
+                                <b>Status:</b>
+                                <lightning:select
+                                    name="select1"
+                                    variant="label-hidden"
+                                    aura:id="InputSelectMultiple"
+                                    onchange="{!c.SearchJobs}"
+                                    value="{!v.currentStatus}">
+                                <aura:iteration items="{!v.MobilizationStatuses}" var="opt">
+                                    <option text="{!opt.label}" value="{!opt.value}" />
+                                </aura:iteration>
+                            </lightning:select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <aura:iteration items="{!v.jobList}" var="dateWrapper">
+            <div class="slds-card" style="overflow: hidden; background: rgba(247, 247, 247, 0.8196078431372549);">
+                <div class="slds-grid">
+                    <div class="slds-col" style="color: rgb(0, 0, 0); font-size: 125%;">
+                        &nbsp; Date: {!dateWrapper.jobDateString}
+                    </div>
+                <!--div class="slds-col">
+                        <lightning:button
+                            class="{!v.CreateFlag == true ? 'slds-float_right job-btn' : 'slds-float_right job-btn slds-hide'}"
+                            variant="brand"
+                            label="Add Mobilization Group"
+                            value="{!dateWrapper.jobDefaultStartDateTime+'::'+dateWrapper.jobDefaultEndDateTime}"
+                            disabled="{!v.CreateFlag == true ? false : true}"
+                            onclick="{!c.OpenJobPopup}"
+                        />
+                    </div-->
+                </div>
+
+                <div class="slds-grid">
+                    <div class="slds-col slds-size_1-of-5 resizable">
+                        <aura:if isTrue="{!v.selectedShowValue == 'All' || v.selectedShowValue == 'Crew'}">
+                            <div class="slds-box select-div">
+                                <b style="color: white; font-size: 107%;">Crew Members</b>
+                                <lightning:input
+                                    placeholder="Search Crew Member"
+                                    class="slds-m-top_xxx-small"
+                                    variant="label-hidden"
+                                    value=""
+                                    onchange="{!c.SearchCrewMember}"
+                                    id="{!dateWrapper.jobDateString}"
+                                />
+                                <br />
+                                <div class="filter-list">
+                                    <aura:iteration items="{!dateWrapper.crewDisplayList}" var="u">
+                                        <div
+                                            class="slds-box dragableDiv"
+                                            data-drag-id="{!u.userId}"
+                                            data-drag-selected="{!u.isSelected}"
+                                            id="{!dateWrapper.jobDate}"
+                                            ondragstart="{!c.dragstart}"
+                                            style="{!u.isSelected ? 'background:#c0c4c5;' : ''}"
+                                            draggable="{!v.EditFlag == true ? true : false}"
+                                        >
+                                            {!u.userName}
+                                        </div>
+                                    </aura:iteration>
+                                </div>
+                            </div>
+                        </aura:if>
+                        <aura:if isTrue="{!v.selectedShowValue == 'All'}">
+                            <br />
+                        </aura:if>
+
+                        <aura:if isTrue="{!not(empty(dateWrapper.assetDisplayList)) &amp;&amp; v.selectedShowValue == 'All' || v.selectedShowValue == 'Asset'}">
+                            <div class="slds-box select-div">
+                                <b style="color: white; font-size: 107%;">Assets</b>
+                                <lightning:input
+                                    placeholder="Search Asset"
+                                    class="slds-m-top_xxx-small"
+                                    variant="label-hidden"
+                                    value=""
+                                    onchange="{!c.SearchAssetMember}"
+                                    id="{!dateWrapper.jobDateString}"
+                                />
+                                <br />
+                                <div class="filter-list">
+                                    <aura:iteration items="{!dateWrapper.assetDisplayList}" var="a">
+                                        <div
+                                            class="slds-box dragableDiv"
+                                            data-drag-id="{!a.assetId}"
+                                            data-drag-selected="{!a.isSelected}"
+                                            id="{!dateWrapper.jobDate}"
+                                            ondragstart="{!c.dragstartAsset}"
+                                            style="{!a.isSelected ? 'background:#c0c4c5;' : a.assetType == 'Vehicle' ? 'background: '+ v.vehicleBackground +'; color:'+ v.vehicleColor : ''}"
+                                            draggable="{!v.EditFlag == true ? true : false}"
+                                        >
+                                            {!a.assetName}
+                                        </div>
+                                    </aura:iteration>
+                                </div>
+                            </div>
+                        </aura:if>
+                        <aura:if isTrue="{!v.selectedShowValue == 'All'}">
+                            <br />
+                        </aura:if>
+                        <aura:if isTrue="{!v.selectedShowValue == 'All' || v.selectedShowValue == 'subCons'}">
+                            <div class="slds-box select-div">
+                                <b style="color: white; font-size: 107%;">Sub Contractors</b>
+                                <lightning:input
+                                    placeholder="Search Sub Contractor"
+                                    class="slds-m-top_xxx-small"
+                                    variant="label-hidden"
+                                    value=""
+                                    onchange="{!c.SearchSubContractor}"
+                                    id="{!dateWrapper.jobDateString}"
+                                />
+                                <br />
+                                <div class="filter-list">
+                                    <aura:iteration items="{!dateWrapper.subContractorDisplayList}" var="u">
+                                        <div
+                                            class="slds-box dragableDiv"
+                                            data-drag-id="{!u.id}"
+                                            data-drag-selected="{!u.isSelected}"
+                                            id="{!dateWrapper.jobDate}"
+                                            ondragstart="{!c.dragstartSubContractor}"
+                                            style="{!u.isSelected ? 'background:#c0c4c5;' : ''}"
+                                            draggable="{!v.EditFlag == true ? true : false}"
+                                        >
+                                            {!u.name}
+                                        </div>
+                                    </aura:iteration>
+                                </div>
+                            </div>
+                        </aura:if>
+                    </div>
+
+                    &nbsp;&nbsp;
+                    <div class="slds-col slds-grid slds-wrap">
+                        <aura:iteration items="{!dateWrapper.jobWrapperList}" var="jwList">
+                            <aura:if
+                                isTrue="{!v.selectedDivisionValue == jwList.divisionName || v.selectedDivisionValue == 'All'}"
+                            >
+                                <div
+                                    class="slds-grid slds-col slds-size_1-of-4 slds-p-right_x-small"
+                                    style="margin-top: 4px;"
+                                    id="{!jwList.mobilizationId}"
+                                    ondrop="{!c.drop}"
+                                    ondragover="{!c.cancel}"
+                                    ondragenter="{!c.cancel}"
+                                >
+                                    <article
+                                        class="slds-card card-style"
+                                        style="{!'background: '+ jwList.bgColor+'; color: '+ jwList.textColor}"
+                                        id="{!jwList.mobilizationId}"
+                                    >
+                                        <div
+                                            class="slds-card__header slds-grid header-custom"
+                                            id="{!jwList.mobilizationId}"
+                                        >
+                                            <header
+                                                class="slds-media slds-media_center slds-has-flexi-truncate"
+                                                id="{!jwList.mobilizationId}"
+                                            >
+                                                <div class="slds-media__body" id="{!jwList.mobilizationId}">
+                                                    <h4 class="slds-card__header-title display" id="{!jwList.mobilizationId}">
+                                                        <div
+                                                            class="slds-page-header__name  display-inline"
+                                                            id="{!jwList.mobilizationId}"
+                                                        >
+                                                            <div
+                                                                class="slds-page-header__name-title"
+                                                                id="{!jwList.mobilizationId}"
+                                                            >
+                                                                <h3 id="{!jwList.mobilizationId}">
+                                                                    <span
+                                                                        class="slds-page-header__title slds-truncate"
+                                                                        title="{!jwList.notes}"
+                                                                        id="{!jwList.mobilizationId}"
+                                                                    >
+                                                                        <a
+                                                                            href="{!'/'+jwList.jobId}"
+                                                                            target="_blank"
+                                                                            style="{!'color: '+ jwList.textColor}"
+                                                                            >{!jwList.mobilizationName}</a
+                                                                        >
+                                                                    </span>
+                                                                </h3>
+                                                                
+                                                            </div>
+                                                            
+                                                            <div
+                                                                 class="slds-no-flex"
+                                                                 id="{!jwList.mobilizationId}"
+                                                                 ondrop="{!c.drop}"
+                                                            >
+                                                                <aura:if isTrue="{!v.EditFlag}">
+                                                        <lightning:buttonIcon
+                                                            iconName="utility:database"
+                                                            variant="border-filled"
+                                                            size="small"
+                                                            alternativeText="Mass Update"
+                                                            disabled="{!v.EditFlag == true ? false : true}"
+                                                            value="{!jwList.jobId+'::'+jwList.startDateTime+'::'+jwList.endDateTime+'::'+jwList.status+'::'+jwList.mobilizationId+'::'+jwList.mobGroupId}"
+                                                            onclick="{!c.OpenUpdatePopup}"
+                                                        />
+
+                                                        <lightning:buttonIcon
+                                                            iconName="utility:copy"
+                                                            variant="border-filled"
+                                                            alternativeText="Copy"
+                                                            size="small"
+                                                            disabled="{!v.EditFlag == true ? false : true}"
+                                                            value="{!jwList.jobId+'::'+jwList.mobilizationId+'::'+jwList.startDateTime+'::'+jwList.endDateTime+'::'+jwList.mobGroupId}"
+                                                            onclick="{!c.OpenCopyCrewPopup}"
+                                                        />
+
+                                                        <lightning:buttonIcon
+                                                            iconName="utility:delete"
+                                                            variant="border-filled"
+                                                            size="small"
+                                                            disabled="{!v.DeleteFlag == true ? false : true}"
+                                                            alternativeText="Delete"
+                                                            value="{!jwList.jobId+'::'+jwList.mobilizationId+'::'+jwList.mobGroupId}"
+                                                            onclick="{!c.OpenDeletePopup}"
+                                                        />
+                                                        <aura:set attribute="else">
+                                                            <div
+                                                                class="slds-float_right"
+                                                                id="{!jwList.mobilizationId}"
+                                                                style="margin-right: -9px;"
+                                                            >
+                                                                <p>{!jwList.startTime} - {!jwList.endTime}</p>
+                                                            </div>
+                                                        </aura:set>
+                                                    </aura:if>
+                                                            </div>
+                                                        </div>
+
+                                                        <p
+                                                            class="slds-page-header__name-meta wrap-text"
+                                                            id="{!jwList.mobilizationId}"
+                                                            title="{!jwList.jobName}"
+                                                        >
+                                                            {!jwList.jobName}
+                                                        </p>
+                                                    </h4>
+                                                </div>
+                                                
+                                            </header>
+                                        </div>
+
+                                        <div
+                                            class="slds-card__body slds-card__body_inner"
+                                            style="color: black; max-height: 200px; overflow: auto; margin-top: 6px;"
+                                            id="{!jwList.mobilizationId}"
+                                        >
+                                            <aura:if isTrue="{!v.EditFlag}">
+                                                <div
+                                                    class="slds-float_right"
+                                                    id="{!jwList.mobilizationId}"
+                                                    style="margin-right: -9px;"
+                                                >
+                                                    <p>{!jwList.startTime} - {!jwList.endTime}</p>
+                                                </div>
+                                            </aura:if>
+                                            <br />
+
+                                            <aura:if
+                                                isTrue="{!v.selectedShowValue == 'All' || v.selectedShowValue == 'Crew'}"
+                                            >
+                                                <aura:iteration items="{!jwList.jobMemberList}" var="jm">
+                                                    <div
+                                                        class="slds-box dragableDiv"
+                                                        draggable="{!v.EditFlag == true ? true : false}"
+                                                        id="{!jwList.mobilizationId}"
+                                                        data-drag-id="{!jm.userId}"
+                                                        data-drag-date="{!dateWrapper.jobDate}"
+                                                        data-drag-member="{!jm.memberId}"
+                                                        ondragstart="{!c.dragstartMove}"
+                                                    >
+                                                        {!jm.memberName}
+                                                        <aura:if isTrue="{!v.EditFlag}">
+                                                            <lightning:buttonIcon
+                                                                iconName="utility:close"
+                                                                alternativeText="Remove"
+                                                                variant="bare"
+                                                                iconClass="dark"
+                                                                tooltip="Remove Crew"
+                                                                class="slds-float_right"
+                                                                disabled="{!v.EditFlag == true ? false : true}"
+                                                                value="{!jm.memberId}"
+                                                                onclick="{!c.RemoveCrewMember}"
+                                                            />
+                                                        </aura:if>
+                                                    </div>
+                                                </aura:iteration>
+                                            </aura:if>
+                                            <aura:if
+                                                isTrue="{!(v.selectedShowValue == 'All' || v.selectedShowValue == 'Asset')}"
+                                            >
+                                                <aura:iteration items="{!jwList.mobAssetList}" var="a">
+                                                    <div
+                                                        class="slds-box dragableDiv"
+                                                        draggable="{!v.EditFlag == true ? true : false}"
+                                                        data-drag-id="{!a.assetId}"
+                                                        style="{!'background: '+ a.assetBgColor +'; color:'+ a.assetTextColor}"
+                                                        id="{!jwList.mobilizationId}"
+                                                        data-drag-date="{!dateWrapper.jobDate}"
+                                                        data-drag-member="{!a.mobAssetId}"
+                                                        ondragstart="{!c.dragstartAssetMove}"
+                                                    >
+                                                        {!a.assetName}
+                                                        <aura:if isTrue="{!v.EditFlag}">
+                                                            <lightning:buttonIcon
+                                                                iconName="utility:close"
+                                                                alternativeText="Remove"
+                                                                variant="bare"
+                                                                iconClass="dark"
+                                                                tooltip="Remove Asset"
+                                                                class="slds-float_right"
+                                                                disabled="{!v.EditFlag == true ? false : true}"
+                                                                value="{!a.mobAssetId}"
+                                                                onclick="{!c.RemoveAssetMember}"
+                                                            />
+                                                        </aura:if>
+                                                    </div>
+                                                </aura:iteration>
+                                            </aura:if>
+
+                                            <aura:if
+                                                isTrue="{!v.selectedShowValue == 'All' || v.selectedShowValue == 'subCons'}"
+                                            >
+                                                <aura:iteration items="{!jwList.subConMemberList}" var="jm">
+                                                    <div
+                                                        class="slds-box dragableDiv"
+                                                        draggable="{!v.EditFlag == true ? true : false}"
+                                                        id="{!jwList.mobilizationId}"
+                                                        data-drag-id="{!jm.subConId}"
+                                                        data-drag-date="{!dateWrapper.jobDate}"
+                                                        data-drag-member="{!jm.subConId}"
+                                                        ondragstart="{!c.dragstartSubConMove}"
+                                                    >
+                                                        {!jm.memberName}
+                                                        <aura:if isTrue="{!v.EditFlag}">
+                                                            <lightning:buttonIcon
+                                                                iconName="utility:close"
+                                                                alternativeText="Remove"
+                                                                variant="bare"
+                                                                iconClass="dark"
+                                                                tooltip="Remove Sub Contractor"
+                                                                class="slds-float_right"
+                                                                disabled="{!v.EditFlag == true ? false : true}"
+                                                                value="{!jm.subConId}"
+                                                                name="{!jwList.mobilizationId}"
+                                                                onclick="{!c.RemoveSubContractor}"
+                                                            />
+                                                        </aura:if>
+                                                    </div>
+                                                </aura:iteration>
+                                            </aura:if>
+                                        </div>
+                                    </article>
+                                </div>
+                            </aura:if>
+                        </aura:iteration>
+                    </div>
+                </div>
+            </div>
+        </aura:iteration>
+    </aura:if>
+
+    <!-- MOBILE VERSION -->
+    <aura:if isTrue="{!v.deviceType == 'PHONE' || v.deviceType == 'TABLET'}">
+        <div class="slds-grid" style="padding: 3px; background: #0060b1;">
+            <div class="slds-col" style="font-size: x-large; color: white;">SCHEDULER</div>
+            <div class="slds-col slds-float_right">
+                <lightning:button class="slds-float_right" label="Add Group" onclick="{!c.OpenJobPopupGeneral}" />
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <lightning:buttonGroup class="group-btn-size">
+                <lightning:buttonIcon
+                    iconName="utility:left"
+                    class="arrow-btn-size height-fourty-three"
+                    size="large"
+                    onclick="{!c.PreviousDayJobs}"
+                />
+
+                <lightning:button class="middle-btn-size padding-none height-fourty-three">
+                    <ui:inputDate
+                        aura:id="mobileJobDate"
+                        class="field padding-none border-none height-fourty text-align-center"
+                        value="{!v.fromDate}"
+                        displayDatePicker="true"
+                    />
+                </lightning:button>
+                <lightning:buttonIcon
+                    iconName="utility:right"
+                    class="arrow-btn-size height-fourty-three"
+                    size="large"
+                    onclick="{!c.NextDayJobs}"
+                />
+            </lightning:buttonGroup>
+        </div>
+
+        <div>
+            <aura:iteration items="{!v.jobList}" var="dateWrapper">
+                <lightning:accordion allowMultipleSectionsOpen="true" activeSectionName="none">
+                    <aura:iteration items="{!dateWrapper.jobWrapperList}" var="jwList">
+                        <lightning:accordionSection label="{!jwList.mobilizationName +' - '+jwList.jobName}">
+                            <article class="slds-card">
+                                <div class="slds-card__body slds-card__body_inner">
+                                    <div style="overflow: auto; text-align: center;">
+                                        <span
+                                            class="slds-badge"
+                                            id="{!jwList.mobilizationId}"
+                                            style="{!'background: '+ jwList.bgColor+'; color: '+ jwList.textColor}"
+                                        >
+                                            <div class="slds-float_left">
+                                                {!jwList.status} : {!jwList.startTime} - {!jwList.endTime}
+                                            </div>
+                                            <div class="slds-float_right" style="margin-left: 10px;">
+                                                <a href="{!'/'+jwList.jobId}" target="_blank"
+                                                    ><lightning:buttonIcon
+                                                        iconName="utility:share"
+                                                        variant="bare"
+                                                        alternativeText="Share"
+                                                        title="Share"
+                                                /></a>
+                                            </div>
+                                        </span>
+                                    </div>
+                                    <div class="slds-grid" style="margin-bottom: 3px;">
+                                        <aura:if isTrue="{!v.EditFlag}">
+                                            <div class="slds-col">
+                                                <c:LookupField
+                                                    fieldLabel="Crew"
+                                                    objectAPIName="User"
+                                                    fieldAPIName="Name"
+                                                    subHeadingFieldsAPI="Email"
+                                                    andBooleanField="Crew_User__c"
+                                                    isEqual="true"
+                                                    selectedRecordId="{!jwList.newCrewMemberId}"
+                                                    placeholder="Search Crew..."
+                                                    aura:id="popupContactLookup"
+                                                />
+                                            </div>
+
+                                            <div class="slds-col">
+                                                <lightning:buttonIcon
+                                                    iconName="utility:add"
+                                                    variant=""
+                                                    alternativeText="Add User"
+                                                    iconClass="dark"
+                                                    onclick="{!c.AddCrewMobile}"
+                                                    value="{!dateWrapper.jobDateString+'='+jwList.mobilizationId}"
+                                                    class="add-btn slds-float_right"
+                                                />
+                                            </div>
+                                        </aura:if>
+                                    </div>
+                                    <div style="overflow: auto; max-height: 120px;" ontouchmove="{!c.handleTouchMove}">
+                                        <aura:iteration items="{!jwList.jobMemberList}" var="jm">
+                                            <div
+                                                class="slds-box dragableDiv"
+                                                draggable="true"
+                                                data-drag-id="{!jm.userId}"
+                                                id="{!jwList.mobilizationId}"
+                                            >
+                                                <div class="slds-clearfix">
+                                                    {!jm.memberName}
+                                                    <lightning:buttonIcon
+                                                        iconName="utility:close"
+                                                        variant="bare"
+                                                        alternativeText="Remove"
+                                                        iconClass="dark"
+                                                        disabled="{!v.EditFlag == true ? false : true}"
+                                                        tooltip="Remove Crew"
+                                                        class="slds-float_right"
+                                                        value="{!jm.memberId}"
+                                                        onclick="{!c.RemoveCrewMember}"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </aura:iteration>
+                                    </div>
+                                    <br />
+                                    <div class="slds-grid" style="margin-bottom: 3px;">
+                                        <aura:if isTrue="{!v.EditFlag}">
+                                            <div class="slds-col">
+                                                <c:LookupField
+                                                    fieldLabel="Equipment__c"
+                                                    objectAPIName="Equipment__c"
+                                                    fieldAPIName="Name"
+                                                    subHeadingFieldsAPI="Asset_Type__c"
+                                                    andBooleanField="Crew_Asset__c"
+                                                    isEqual="true"
+                                                    selectedRecordId="{!jwList.newAssetMemberId}"
+                                                    placeholder="Search Asset..."
+                                                    aura:id="popupContactLookup"
+                                                />
+                                            </div>
+                                            <div class="slds-col">
+                                                <br />
+                                                <lightning:buttonIcon
+                                                    iconName="utility:add"
+                                                    variant=""
+                                                    alternativeText="Add Asset"
+                                                    iconClass="dark"
+                                                    onclick="{!c.AddAssetMobile}"
+                                                    value="{!dateWrapper.jobDateString+'='+jwList.mobilizationId}"
+                                                    class="add-btn slds-float_right"
+                                                />
+                                            </div>
+                                        </aura:if>
+                                    </div>
+                                    <div style="overflow: auto; max-height: 120px;" ontouchmove="{!c.handleTouchMove}">
+                                        <aura:iteration items="{!jwList.mobAssetList}" var="a">
+                                            <div
+                                                class="slds-box dragableDiv"
+                                                draggable="true"
+                                                data-drag-id="{!a.assetId}"
+                                                id="{!jwList.mobilizationId}"
+                                                style="{!'background: '+ a.assetBgColor +'; color:'+ a.assetTextColor}"
+                                            >
+                                                <div class="slds-clearfix">
+                                                    {!a.assetName}
+                                                    <lightning:buttonIcon
+                                                        iconName="utility:close"
+                                                        variant="bare"
+                                                        alternativeText="Remove"
+                                                        iconClass="dark"
+                                                        tooltip="Remove Asset"
+                                                        class="slds-float_right"
+                                                        value="{!a.mobAssetId}"
+                                                        disabled="{!v.EditFlag == true ? false : true}"
+                                                        onclick="{!c.RemoveAssetMember}"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </aura:iteration>
+                                    </div>
+                                    <!--Sub Contractor-->
+                                    <br/>
+                                    <div class="slds-grid" style="margin-bottom: 3px;">
+                                        <aura:if isTrue="{!v.EditFlag}">
+                                            <div class="slds-col">
+                                                <c:LookupField
+                                                    fieldLabel="Sub Contractor"
+                                                    objectAPIName="Contact"
+                                                    fieldAPIName="Name"
+                                                    subHeadingFieldsAPI="Email"
+                                                    andConditionField="RecordType.DeveloperName"
+                                                    andConditionValue="Sub_Contractor_WF_Recon"
+                                                    isEqual="true"
+                                                    selectedRecordId="{!jwList.newSubConMemberId}"
+                                                    placeholder="Search Sub Contractor..."
+                                                    aura:id="popupContactLookup"
+                                                />
+                                            </div>
+
+                                            <div class="slds-col">
+                                                <lightning:buttonIcon
+                                                    iconName="utility:add"
+                                                    variant=""
+                                                    alternativeText="Add User"
+                                                    iconClass="dark"
+                                                    onclick="{!c.AddSubConMobile}"
+                                                    value="{!dateWrapper.jobDateString+'='+jwList.mobilizationId}"
+                                                    class="add-btn slds-float_right"
+                                                />
+                                            </div>
+                                        </aura:if>
+                                    </div>
+                                    <div style="overflow: auto; max-height: 120px;" ontouchmove="{!c.handleTouchMove}">
+                                        <aura:iteration items="{!jwList.subConMemberList}" var="jm">
+                                            <div
+                                                class="slds-box dragableDiv"
+                                                draggable="true"
+                                                data-drag-id="{!jm.subConId}"
+                                                id="{!jwList.mobilizationId}"
+                                            >
+                                                <div class="slds-clearfix">
+                                                    {!jm.memberName}
+                                                    <lightning:buttonIcon
+                                                        iconName="utility:close"
+                                                        variant="bare"
+                                                        alternativeText="Remove"
+                                                        iconClass="dark"
+                                                        disabled="{!v.EditFlag == true ? false : true}"
+                                                        tooltip="Remove Sub Contractor"
+                                                        class="slds-float_right"
+                                                        value="{!jm.subConId}"
+                                                        name="{!jwList.mobilizationId}"
+                                                        onclick="{!c.RemoveSubContractor}"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </aura:iteration>
+                                    </div>
+                                </div>
+                            </article>
+                        </lightning:accordionSection>
+                    </aura:iteration>
+
+                    <lightning:accordionSection name="Crew List" label="Crew List" class="accordian-crewList">
+                        <div class="filter-list" ontouchmove="{!c.handleTouchMove}">
+                            <aura:iteration items="{!dateWrapper.crewDisplayList}" var="u">
+                                <div
+                                    class="slds-box dragableDiv"
+                                    data-drag-id="{!u.userId}"
+                                    id="{!dateWrapper.jobDate}"
+                                    style="
+                                         {
+                                            !u.isselected?'background:#c0c4c5;': '';
+                                        }
+                                    "
+                                >
+                                    <div class="slds-clearfix">
+                                        {!u.userName}
+                                        <lightning:buttonIcon
+                                            iconName="utility:assignment"
+                                            variant="bare"
+                                            alternativeText="Assign"
+                                            iconClass="dark"
+                                            tooltip="Assign to Job"
+                                            class="slds-float_right"
+                                            value="{!dateWrapper.jobWrapperList}"
+                                            disabled="{!v.EditFlag == true ? false : true}"
+                                            name="{!u.userId+'::'+u.userName+'::'+u.isSelected}"
+                                            onclick="{!c.OpenAssignCrewPopup}"
+                                        />
+                                    </div>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </lightning:accordionSection>
+					
+                    <aura:if isTrue="{!not(empty(dateWrapper.assetDisplayList))}">
+                    	<lightning:accordionSection name="Asset List" label="Asset List" class="accordian-crewList">
+                        <div class="filter-list" ontouchmove="{!c.handleTouchMove}">
+                            <aura:iteration items="{!dateWrapper.assetDisplayList}" var="a">
+                                <div
+                                    class="slds-box dragableDiv"
+                                    data-drag-id="{!a.assetId}"
+                                    id="{!dateWrapper.jobDate}"
+                                    style="{!a.isSelected ? 'background:#c0c4c5;' : a.assetType == 'Vehicle' ? 'background: '+ v.vehicleBackground +'; color:'+ v.vehicleColor : ''}"
+                                >
+                                    <div class="slds-clearfix">
+                                        {!a.assetName}
+                                        <lightning:buttonIcon
+                                            iconName="utility:assignment"
+                                            variant="bare"
+                                            alternativeText="Assign"
+                                            iconClass="dark"
+                                            tooltip="Assign to Job"
+                                            class="slds-float_right"
+                                            value="{!dateWrapper.jobWrapperList}"
+                                            disabled="{!v.EditFlag == true ? false : true}"
+                                            name="{!a.assetId+'::'+a.assetName+'::'+a.isSelected}"
+                                            onclick="{!c.OpenAssignAssetPopup}"
+                                        />
+                                    </div>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </lightning:accordionSection>	
+                    </aura:if>
+                    
+                    <!--Sub Contractors-->
+                    <lightning:accordionSection name="SubContractor List" label="SubContractor List" class="accordian-crewList">
+                        <div class="filter-list" ontouchmove="{!c.handleTouchMove}">
+                            <aura:iteration items="{!dateWrapper.subContractorDisplayList}" var="a">
+                                <div
+                                    class="slds-box dragableDiv"
+                                    data-drag-id="{!a.id}"
+                                    id="{!dateWrapper.jobDate}"
+                                    style="{!a.isSelected ? 'background:#c0c4c5;' : a.assetType == 'Vehicle' ? 'background: '+ v.vehicleBackground +'; color:'+ v.vehicleColor : ''}"
+                                >
+                                    <div class="slds-clearfix">
+                                        {!a.name}
+                                        <lightning:buttonIcon
+                                            iconName="utility:assignment"
+                                            variant="bare"
+                                            alternativeText="Assign"
+                                            iconClass="dark"
+                                            tooltip="Assign to Job"
+                                            class="slds-float_right"
+                                            value="{!dateWrapper.jobWrapperList}"
+                                            disabled="{!v.EditFlag == true ? false : true}"
+                                            name="{!a.id+'::'+a.name+'::'+a.isSelected}"
+                                            onclick="{!c.OpenAssignSubConPopup}"
+                                        />
+                                    </div>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </lightning:accordionSection>
+                </lightning:accordion>
+            </aura:iteration>
+        </div>
+    </aura:if>
+
+    <!-- POPUPS -->
+    <aura:if isTrue="{!v.JobPopup}">
+        <div class="slds-box">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-modal_small slds-fade-in-open"
+            >
+                <aura:if isTrue="{!v.deviceType == 'DESKTOP'}">
+                    <div class="slds-modal__container" style="width: 28rem; max-width: 117rem;">
+                        <header class="slds-modal__header">
+                            <lightning:buttonIcon
+                                iconName="utility:close"
+                                variant="bare"
+                                class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                alternativeText="Settings"
+                                onclick="{!c.CloseJobPopup}"
+                            />
+                            <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                                New Job Mobilization Group
+                            </h2>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                            <div style="width: 392px;">
+                                <c:LookupField
+                                    fieldLabel="Job"
+                                    objectAPIName="Job__c"
+                                    fieldAPIName="Name"
+                                    subHeadingFieldsAPI="Job_Name__c"
+                                    selectedRecordId=""
+                                    placeholder="Search Job"
+                                    aura:id="popupJobId"
+                                />
+                            </div>
+                            <lightning:input
+                                aura:id ="startDate"
+                                type="datetime"
+                                name="input3"
+                                label="Start Date"
+                                required="true"
+                                value="{!v.MobilizationObject.startDate}"
+                            />
+
+                            <lightning:input
+                                aura:id ="endDate"
+                                type="datetime"
+                                name="input3"
+                                label="End Date"
+                                required="true"
+                                value="{!v.MobilizationObject.endDate}"
+                            />
+                            <div style="width: 392px; display:flex;">
+                                <lightning:input 
+                                    aura:id="saturday"
+                                    type="checkbox" 
+                                    label="Include Saturday?" 
+                                    name="input1"
+                                    checked="{!v.includeSaturday}"
+                                    class="slds-p-top_x-small slds-p-bottom_xx-small slds-p-right_medium"/>
+                                <lightning:input
+                                    aura:id="sunday" 
+                                    type="checkbox" 
+                                    label="Include Sunday?" 
+                                    name="input2"
+                                    checked="{!v.includeSunday}"
+                                    class="slds-p-top_x-small slds-p-bottom_xx-small slds-p-left_xx-large"/>
+                            </div>
+                            <div style="width: 410px;">
+                            <lightning:select
+                                name="select1"
+                                label="Status"
+                                required="true"
+                                value="{!v.MobilizationObject.status}">
+                                <aura:iteration items="{!v.MobilizationStatuses}" var="opt">
+                                    <aura:if isTrue="{! opt.label != 'All'}">
+                                        <option text="{!opt.label}" value="{!opt.value}" />
+                                    </aura:if>
+                                </aura:iteration>
+                            </lightning:select>
+                            </div>
+                        </div>
+                        <footer class="slds-modal__footer slds-modal__footer_directional">
+                            <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseJobPopup}" />
+                            <lightning:button variant="brand" label="Save" onclick="{!c.SaveJob}" />
+                        </footer>
+                    </div>
+                </aura:if>
+                <aura:if isTrue="{!v.deviceType == 'PHONE' || v.deviceType == 'TABLET'}">
+                    <div class="slds-modal__container">
+                        <header class="slds-modal__header">
+                            <lightning:buttonIcon
+                                iconName="utility:close"
+                                variant="bare"
+                                class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                alternativeText="Settings"
+                                onclick="{!c.CloseJobPopup}"
+                            />
+                            <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Edit Mobilization Group</h2>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                            <div style="width: 392px;">
+                                <c:LookupField
+                                    fieldLabel="Job"
+                                    objectAPIName="Job__c"
+                                    fieldAPIName="Job_Name__c"
+                                    subHeadingFieldsAPI="Job_Name__c"
+                                    selectedRecordId=""
+                                    placeholder="Search Job"
+                                    aura:id="popupJobId"
+                                />
+                            </div>
+
+                            <lightning:input
+                                aura:id ="startDate"
+                                type="datetime"
+                                name="input3"
+                                label="Start Date"
+                                required="true"
+                                timeZone="America/New_York"
+                                value="{!v.MobilizationObject.startDate}"
+                            />
+
+                            <lightning:input
+                                aura:id ="endDate"
+                                type="datetime"
+                                name="input3"
+                                label="End Date"
+                                required="true"
+                                timeZone="America/New_York"
+                                value="{!v.MobilizationObject.endDate}"
+                            />
+                            <lightning:input 
+                                    aura:id="saturday"
+                                    type="checkbox" 
+                                    label="Include Saturday?" 
+                                    name="input1"
+                                    checked="{!v.includeSaturday}"
+                                    class="slds-p-top_x-small slds-p-bottom_xx-small slds-p-right_medium"/>
+                            <lightning:input
+                                    aura:id="sunday" 
+                                    type="checkbox" 
+                                    label="Include Sunday?" 
+                                    name="input2"
+                                    checked="{!v.includeSunday}"
+                                    class="slds-p-top_x-small slds-p-bottom_xx-small slds-p-right_medium"/>
+                            <lightning:select
+                                name="select1"
+                                label="Status"
+                                required="true"
+                                value="{!v.MobilizationObject.status}"
+                            >
+                                <aura:iteration items="{!v.MobilizationStatuses}" var="opt">
+                                    <aura:if isTrue="{! opt.label != 'All'}">
+                                        <option text="{!opt.label}" value="{!opt.value}" />
+                                    </aura:if>
+                                </aura:iteration>
+                            </lightning:select>
+                        </div>
+                        <footer class="slds-modal__footer slds-modal__footer_directional">
+                            <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseJobPopup}" />
+                            <lightning:button variant="brand" label="Save" onclick="{!c.SaveJob}" />
+                        </footer>
+                    </div>
+                </aura:if>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </div>
+    </aura:if>
+
+    <aura:if isTrue="{!v.UpdatePopup}">
+        <div class="slds-box">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-modal_small slds-fade-in-open"
+            >
+                <div class="slds-modal__container" style="width: 28rem; max-width: 117rem;">
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            variant="bare"
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            alternativeText="Settings"
+                            onclick="{!c.CloseUpdatePopup}"
+                        />
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            Update Mobilization
+                        </h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                        <lightning:input
+                            type="datetime"
+                            name="input3"
+                            label="Start Date"
+                            required="true"
+                            timeZone="{!$Locale.timezone}"
+                            value="{!v.MobilizationObject.startDate}"
+                        />
+                        <lightning:input
+                            type="datetime"
+                            name="input3"
+                            label="End Date"
+                            required="true"
+                            timeZone="{!$Locale.timezone}"
+                            value="{!v.MobilizationObject.endDate}"
+                        />
+                        <lightning:select
+                            name="select1"
+                            label="Status"
+                            required="true"
+                            value="{!v.MobilizationObject.status}"
+                        >
+                            <aura:iteration items="{!v.MobilizationStatuses}" var="opt">
+                                <aura:if isTrue="{! opt.label != 'All'}">
+                                    <option text="{!opt.label}" value="{!opt.value}" />
+                                </aura:if>
+                            </aura:iteration>
+                        </lightning:select>
+                    </div>
+                    <footer class="slds-modal__footer slds-modal__footer_directional">
+                        <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseUpdatePopup}" />
+                        <lightning:button variant="brand" label="Save" onclick="{!c.UpdateSchedule}" />
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </div>
+    </aura:if>
+
+    <aura:if isTrue="{!v.DeletePopup}">
+        <div class="slds-box">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-modal_small slds-fade-in-open"
+            >
+                <div class="slds-modal__container" style="width: 28rem; max-width: 117rem;">
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            variant="bare"
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            alternativeText="Settings"
+                            onclick="{!c.CloseDeletePopup}"
+                        />
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            Delete Mobilization
+                        </h2>
+                    </header>
+
+                    <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                        <lightning:radioGroup
+                            name="radioButtonGroupRequired"
+                            label="Delete Mobilization"
+                            options="{!v.deleteOptions}"
+                            value="1"
+                            type="button"
+                            required="true"
+                            aura:Id="radioGroupButtonId"
+                        />
+                    </div>
+
+                    <footer class="slds-modal__footer slds-modal__footer_directional">
+                        <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseDeletePopup}" />
+                        <lightning:button variant="brand" label="Delete" onclick="{!c.DeleteSchedule}" />
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </div>
+    </aura:if>
+
+    <aura:if isTrue="{!v.CopyCrewPopup}">
+        <div class="slds-box">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-modal_small slds-fade-in-open"
+            >
+                <div class="slds-modal__container" style="width: 28rem; max-width: 117rem;">
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            variant="bare"
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            alternativeText="Settings"
+                            onclick="{!c.CloseCopyCrewPopup}"
+                        />
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            Copy Crew, Sub Contractor &amp; Assets
+                        </h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                        Copy crew, sub contractor and assets for Remaining job schedule/series?
+                    </div>
+                    <footer class="slds-modal__footer slds-modal__footer_directional">
+                        <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseCopyCrewPopup}" />
+                        <lightning:button variant="brand" label="Copy" onclick="{!c.CopyCrew}" />
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </div>
+    </aura:if>
+
+    <aura:if isTrue="{!v.AssignCrewPopup}">
+        <div class="slds-box">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-fade-in-open"
+            >
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            variant="bare"
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            alternativeText="Settings"
+                            onclick="{!c.CloseAssignCrewPopup}"
+                        />
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">{!v.TempCrewName}</h2>
+                    </header>
+
+                    <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                        <div style="overflow: auto; max-height: 17rem;">
+                            <aura:iteration items="{!v.TempJobList}" var="jobs">
+                                <div class="slds-grid" style="margin-top: 2px;">
+                                    <div class="slds-col slds-size_1-of-12">
+                                        <ui:inputCheckbox aura:id="checkbox" label="" value="{!jobs.isSelected}" />
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <ui:outputText value="{!jobs.mobilizationName +' - '+jobs.jobName}" />
+                                    </div>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer slds-modal__footer_directional">
+                        <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseAssignCrewPopup}" />
+                        <lightning:button variant="brand" label="Done" onclick="{!c.AssignCrewMember}" />
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </div>
+    </aura:if>
+
+    <aura:if isTrue="{!v.AssignSubConPopup}">
+        <div class="slds-box">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-fade-in-open"
+            >
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            variant="bare"
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            alternativeText="Settings"
+                            onclick="{!c.CloseAssignSubConPopup}"
+                        />
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">{!v.TempSubConName}</h2>
+                    </header>
+
+                    <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                        <div style="overflow: auto; max-height: 17rem;">
+                            <aura:iteration items="{!v.TempJobList}" var="jobs">
+                                <div class="slds-grid" style="margin-top: 2px;">
+                                    <div class="slds-col slds-size_1-of-12">
+                                        <ui:inputCheckbox aura:id="checkbox" label="" value="{!jobs.isSelected}" />
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <ui:outputText value="{!jobs.mobilizationName +' - '+jobs.jobName}" />
+                                    </div>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer slds-modal__footer_directional">
+                        <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseAssignSubConPopup}" />
+                        <lightning:button variant="brand" label="Done" onclick="{!c.AssignSubConMember}" />
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </div>
+    </aura:if>
+    <aura:if isTrue="{!v.AssignAssetPopup}">
+        <div class="slds-box">
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-fade-in-open"
+            >
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            variant="bare"
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            alternativeText="Settings"
+                            onclick="{!c.CloseAssignAssetPopup}"
+                        />
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            {!v.TempAssetName}
+                        </h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium slds-" id="modal-content-id-1">
+                        <div style="overflow: auto; max-height: 17rem;">
+                            <aura:iteration items="{!v.TempJobList}" var="jobs">
+                                <div class="slds-grid" style="margin-top: 2px;">
+                                    <div class="slds-col slds-size_1-of-12">
+                                        <ui:inputCheckbox aura:id="checkbox" label="" value="{!jobs.isSelected}" />
+                                    </div>
+                                    <div class="slds-col slds-size_11-of-12">
+                                        <ui:outputText value="{!jobs.mobilizationName +' - '+jobs.jobName}" />
+                                    </div>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </div>
+                    <footer class="slds-modal__footer slds-modal__footer_directional">
+                        <lightning:button variant="Neutral" label="Close" onclick="{!c.CloseAssignAssetPopup}" />
+                        <lightning:button variant="brand" label="Done" onclick="{!c.AssignAssetMember}" />
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </div>
+    </aura:if>
+    <aura:set attribute="else">
+        <c:libMessageWithIllustration message="Second Level Feature Pack Required! Please Contact Your Admin!" />
+    </aura:set>
+    </aura:if>
+</aura:component>
