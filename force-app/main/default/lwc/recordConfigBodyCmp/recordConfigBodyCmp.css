@@ -1,0 +1,99 @@
+* {
+    font-family: 'Mulish';
+    user-select: none;
+}
+
+.main-div {
+    height: 100%;
+    width: 100%;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+}
+
+.main-div .header .heading {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.main-div .header .help-text {
+    width: 45%;
+}
+
+.main-div .header .help-text span {
+    color: #0176D3;
+}
+
+.main-div .body-div {
+    display: flex;
+    width: 100%;
+    flex-grow: 1;
+}
+
+.custom-modal-container{
+    height: 40rem;
+    overflow: visible;
+}
+
+
+.main-div .body-div .content-section {
+    width: 100%;
+    height: 100%;
+}
+
+.cmp-cover {
+    width: 100%;
+    height: 100%;
+}
+
+.footerbtns {
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding-bottom: 0;
+}
+
+.blue-header {
+    background-color: #0176D3;
+    color: white;
+    border-bottom-style: unset;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+.closs_icon_css {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    right: -2rem;
+    bottom: 0rem;
+    background: transparent;
+}
+
+.icon-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    line-height: 20px;
+    font-size: 14px;
+    font-weight: 400;
+    text-align: center;
+    border: none;
+    background: #0176D3;
+    color: white;
+    border-radius: 5px;
+}
+
+@media only screen and (max-width: 900px) {
+    .main-div {
+        width: 100% !important;
+        height: 100% !important;
+        margin-left: unset !important;
+        margin-top: unset !important;
+    }
+}

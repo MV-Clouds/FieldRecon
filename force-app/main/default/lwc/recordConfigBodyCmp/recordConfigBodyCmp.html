@@ -1,0 +1,38 @@
+<template>
+    <template if:false={isModalOpen}>
+        <button onclick={openModal} class="icon-button">Configure Settings</button>
+    </template>
+    <template if:true={isModalOpen}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="modal-heading-01"
+            class="slds-modal slds-fade-in-open slds-modal_large">
+            <div class="slds-modal__container">
+                <div class="slds-modal__close closs_icon_css" onclick={handleDialogueClose}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M2.53317 19.3333L0.666504 17.4667L8.13317 9.99999L0.666504 2.53332L2.53317 0.666656L9.99984 8.13332L17.4665 0.666656L19.3332 2.53332L11.8665 9.99999L19.3332 17.4667L17.4665 19.3333L9.99984 11.8667L2.53317 19.3333Z"
+                            fill="white" />
+                    </svg>
+                </div>
+
+                <div class="slds-modal__header blue-header">
+                    <h1 id="modal-heading-01" class="slds-modal__title slds-hyphenate" tabindex="-1">Configure Settings
+                    </h1>
+                </div>
+                <div class="slds-modal__content background_css custom-modal-container"
+                    id="modal-content-id-1">
+                        <div class="main-div">
+                            <div class="body-div">
+                                <div class="content-section">
+                                    <div class="cmp-cover">
+                                        <c-record-config-cmp object-api-name={selectedTabObject} feature-name={featureName}></c-record-config-cmp>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+    </template>
+</template>

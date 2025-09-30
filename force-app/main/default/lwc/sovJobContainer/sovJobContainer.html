@@ -1,0 +1,58 @@
+<template>
+    <div class="sov-container">
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button 
+                class={scopeTabClass} 
+                onclick={handleScopeTab}
+                data-tab="scope">
+                <lightning-icon icon-name="utility:layers" size="x-small" class="tab-icon"></lightning-icon>
+                Scope
+            </button>
+            <button 
+                class={locationsTabClass} 
+                onclick={handleLocationsTab}
+                data-tab="locations">
+                <lightning-icon icon-name="utility:location" size="x-small" class="tab-icon"></lightning-icon>
+                Locations
+            </button>
+            <button 
+                class={processesTabClass} 
+                onclick={handleProcessesTab}
+                data-tab="processes">
+                <lightning-icon icon-name="utility:process" size="x-small" class="tab-icon"></lightning-icon>
+                Location Processes
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <template if:true={isScopeActive}>
+                <div class="tab-panel">
+                    <!-- <c-scope-component></c-scope-component> -->
+                    <div class="content-placeholder">
+                        <div class="placeholder-text">Scope Content</div>
+                    </div>
+                </div>
+            </template>
+
+            <template if:true={isLocationsActive}>
+                <div class="tab-panel">
+                    <!-- <c-locations-component></c-locations-component> -->
+                    <div class="content-placeholder">
+                        <div class="placeholder-text">Location Content</div>
+                    </div>
+                </div>
+            </template>
+
+            <template if:true={isProcessesActive}>
+                <div class="tab-panel">
+                    <!-- <c-location-processes-component></c-location-processes-component> -->
+                    <div class="content-placeholder">
+                        <div class="placeholder-text">Location Processes Content</div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>
