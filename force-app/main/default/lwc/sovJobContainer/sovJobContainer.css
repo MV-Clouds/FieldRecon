@@ -58,6 +58,7 @@
 
 .tab-content {
     padding: 1rem;
+    padding-bottom: 0;
     flex: 1;
     overflow: auto;
     background: #ffffff;
@@ -67,12 +68,6 @@
 .tab-panel {
     animation: fadeIn 0.3s ease-in-out;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #585858;
-    font-size: 16px;
-    font-weight: 500;
 }
 
 @keyframes fadeIn {
@@ -121,6 +116,7 @@
     
     .tab-content {
         padding: 0.8rem;
+        padding-bottom: 0;
     }
 }
 
@@ -139,5 +135,6 @@
     
     .tab-content {
         padding: 0.6rem;
+        padding-bottom: 0;
     }
 }

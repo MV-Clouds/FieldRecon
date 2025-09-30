@@ -1,0 +1,292 @@
+<template>
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading"></lightning-spinner>
+    </template>
+
+    <div class="main-card">
+        <!-- Header Section -->
+        <div class="filter-search-container">
+            <div class="header-actions">
+                <!-- New Action Buttons -->
+                <button class="action-button refresh-btn" onclick={handleRefresh}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4V10H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 20V14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 20L8 16C9 15 10 14 12 14C14 14 15 15 16 16L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 4L16 8C15 9 14 10 12 10C10 10 9 9 8 8L4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Refresh
+                </button>
+                
+                <button class="action-button add-btn" onclick={handleAddScopeEntry}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Add Scope Entry
+                </button>
+                
+                <button class="action-button delete-btn" onclick={handleMassDelete} disabled={isDeleteDisabled}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Delete Selected
+                    <template if:true={showSelectedCount}>
+                        <span class="selected-count-badge">({selectedRecordsCount})</span>
+                    </template>
+                </button>
+
+                <div>
+                    <c-record-config-body-cmp 
+                        feature-name="ScopeEntry">
+                    </c-record-config-body-cmp>
+                </div>
+            </div>
+            <div class="search-bar">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search scope entries..."
+                    value={searchTerm}
+                    onchange={handleSearch}
+                    class="search-bar-input">
+                </lightning-input>
+            </div>
+        </div>
+
+        <!-- Data Table Container with Fixed Height -->
+        <div class="data-table-container">
+            <template if:true={isDataAvailable}>
+                <table class="custom-data-table">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="header-cell center-trancate-head checkbox-column">
+                                <input type="checkbox" 
+                                        checked={isAllSelected}
+                                        onchange={handleSelectAll}
+                                        data-type="select-all">
+                            </th>
+                            <th class="header-cell center-trancate-head actions-column">Actions</th>
+                            <template for:each={tableColumns} for:item="column">
+                                <th key={column.fieldName} class="header-cell center-trancate-head">
+                                    {column.label}
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <template for:each={processedScopeEntries} for:item="entry">
+                            <tr key={entry.Id}>
+                                <td class="center-trancate-text checkbox-column">
+                                    <input type="checkbox" 
+                                            checked={entry.isSelected}
+                                            onchange={handleRowSelection}
+                                            data-row-id={entry.Id}
+                                            data-type="row-checkbox">
+                                </td>
+                                <td class="center-trancate-text actions-column">
+                                    <div class="action-icons">
+                                        <button class="icon-button add-location-btn" 
+                                                title="Add Location" 
+                                                onclick={handleAddLocation}
+                                                data-record-id={entry.Id}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
+                                                <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
+                                                <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
+                                            </svg>
+                                        </button>
+                                        <button class="icon-button edit-btn" 
+                                                title="Edit Record" 
+                                                onclick={handleEditRecord}
+                                                data-record-id={entry.Id}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M18.5 2.50023C18.8978 2.1024 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.1024 21.5 2.50023C21.8978 2.89805 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.1024 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </button>
+                                        <button class="icon-button child-records-btn" 
+                                                title="Open Child Records" 
+                                                onclick={handleOpenChildRecords}
+                                                data-record-id={entry.Id}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
+                                                <path d="M16 8L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                <path d="M16 16L8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <template for:each={entry.displayFields} for:item="field">
+                                    <td key={field.key} class="center-trancate-text">
+                                        <template if:true={field.isCurrency}>
+                                            <lightning-formatted-number 
+                                                value={field.currencyValue} 
+                                                format-style="currency" 
+                                                currency-code="USD">
+                                            </lightning-formatted-number>
+                                        </template>
+                                        <template if:false={field.isCurrency}>
+                                            <template if:true={field.isPercent}>
+                                                <lightning-formatted-number 
+                                                    value={field.rawValue} 
+                                                    format-style="percent" 
+                                                    maximum-fraction-digits="2">
+                                                </lightning-formatted-number>
+                                            </template>
+                                            <template if:false={field.isPercent}>
+                                                <template if:true={field.isNameField}>
+                                                    <a href={entry.recordUrl} target="_blank" class="name-link">
+                                                        {field.value}
+                                                    </a>
+                                                </template>
+                                                <template if:false={field.isNameField}>
+                                                    <template if:true={field.hasValue}>
+                                                        {field.value}
+                                                    </template>
+                                                    <template if:false={field.hasValue}>
+                                                        --
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <template if:false={isDataAvailable}>
+                <div class="no-prop">
+                    <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src={emptyState} alt="" draggable="false">
+                            </div>
+                            <div class="empty-state__message">No scope entries found for this job</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Pagination -->
+        <template if:true={isDataAvailable}>
+            <div class="pagination-container">
+                <button 
+                    class="pagination-button" 
+                    onclick={handlePrevious} 
+                    disabled={isFirstPage}>
+                    <svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 1L2 6L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Previous
+                </button>
+
+                <template for:each={pageNumbers} for:item="page">
+                    <template if:false={page.isEllipsis}>
+                        <button 
+                            key={page.number}
+                            class={page.className} 
+                            onclick={handlePageChange} 
+                            data-id={page.number}>
+                            {page.number}
+                        </button>
+                    </template>
+                    <template if:true={page.isEllipsis}>
+                        <span key={page.number} class="pagination-ellipsis">...</span>
+                    </template>
+                </template>
+
+                <button 
+                    class="pagination-button" 
+                    onclick={handleNext} 
+                    disabled={isLastPage}>
+                    Next
+                    <svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 11L6 6L1 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <!-- Add Scope Entry Modal -->
+    <template if:true={showAddModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <!-- Close Button -->
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+
+                <div class="slds-modal__content pop-up" id="modal-content-id-3">
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Add New Scope Entry
+                    </div>
+
+                    <!-- Body -->
+                    <div class="popUpBody slds-p-around--medium">
+                        <div class="form-container">
+                            <div class="form-group">
+                                <div class="form-label-row">
+                                    <label class="form-label required">Name</label>
+                                    <div class="character-count">{nameCharacterCount}/80</div>
+                                </div>
+                                <input type="text" 
+                                       class="form-input" 
+                                       placeholder="Enter scope entry name"
+                                       value={newScopeEntry.name}
+                                       data-field="name"
+                                       oninput={handleInputChange}
+                                       maxlength="80">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Contract Value</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter contract value"
+                                       step="1"
+                                       min="1"
+                                       value={newScopeEntry.contractValue}
+                                       data-field="contractValue"
+                                       oninput={handleInputChange}>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-label-row">
+                                    <label class="form-label">Description</label>
+                                    <div class="character-count">{descriptionCharacterCount}/255</div>
+                                </div>
+                                <textarea class="form-textarea" 
+                                          placeholder="Enter description"
+                                          value={newScopeEntry.description}
+                                          data-field="description"
+                                          oninput={handleInputChange}
+                                          maxlength="255"
+                                          rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="popUpFooter">
+                            <button class="close-btn" onclick={handleCloseModal}>Cancel</button>
+                            <button class="save-btn" 
+                                    onclick={handleSaveScopeEntry}
+                                    disabled={isSubmitting}>
+                                <template if:true={isSubmitting}>Saving...</template>
+                                <template if:false={isSubmitting}>Save</template>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

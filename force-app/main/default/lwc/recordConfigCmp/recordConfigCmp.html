@@ -127,12 +127,12 @@
                                     <div class="slds-col wrap_css">
                                        <lightning-combobox options={item.picklist} variant="label-hidden" value={item.format} onchange={handleFormatChange} data-id={index} disabled={item.isDisable}></lightning-combobox>
                                     </div>
-                                    <div class="slds-col wrap_css order_btn_grp">
+                                    <!-- <div class="slds-col wrap_css order_btn_grp">
                                         <label class="custom-checkbox">
                                             <input type="checkbox" checked={item.cardView} data-index={index} onchange={handleCardViewChange}>
                                             <span class="checkmark"></span>
                                         </label>
-                                    </div>
+                                    </div> -->
                                     <div class="slds-col wrap_css order_btn_grp">
                                         <div class="delete-div" onclick={handleDelete} data-index={index}>
                                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">

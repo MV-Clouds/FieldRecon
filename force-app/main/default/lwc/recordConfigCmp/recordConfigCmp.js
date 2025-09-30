@@ -3,7 +3,6 @@ import getObjectFields from '@salesforce/apex/RecordManagersCmpController.getObj
 import getListingFieldsParent from '@salesforce/apex/RecordManagersCmpController.getListingFieldsParent';
 import saveMetadata from '@salesforce/apex/RecordManagersCmpController.saveMappings';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { loadStyle } from 'lightning/platformResourceLoader';
 
 export default class RecordConfigCmp extends LightningElement {
     @api objectApiName;
@@ -51,7 +50,6 @@ export default class RecordConfigCmp extends LightningElement {
     * Created By: Vyom Soni
     */
     connectedCallback(){
-        loadStyle(this, MulishFontCss);
         this.fetchMetadata();
     }
 
