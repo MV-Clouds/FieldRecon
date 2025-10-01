@@ -5,7 +5,6 @@ import getScopeEntries from '@salesforce/apex/SovJobScopeController.getScopeEntr
 import getScopeEntryConfiguration from '@salesforce/apex/SovJobScopeController.getScopeEntryConfiguration';
 import createScopeEntry from '@salesforce/apex/SovJobScopeController.createScopeEntry';
 import deleteScopeEntries from '@salesforce/apex/SovJobScopeController.deleteScopeEntries';
-import emptyState from '@salesforce/resourceUrl/emptyState';
 import { CurrentPageReference } from 'lightning/navigation';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
@@ -18,7 +17,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track filteredChangeOrderEntries = [];
     @track searchTerm = '';
     @track scopeEntryColumns = [];
-    @track emptyState = emptyState;
     @track accordionStyleApplied = false;
     @track activeSectionName = ['contractSection', 'changeOrderSection']; // Open both sections by default
     @track typeOptions = [
