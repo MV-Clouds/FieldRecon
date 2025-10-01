@@ -10,7 +10,6 @@ export default class RecordConfigBodyCmp extends NavigationMixin(LightningElemen
     @track isModalOpen = false;
 
     get selectedTabObject() {
-
         switch (this.featureName) {
             case 'ScopeEntry':
                 return 'wfrecon__Scope_Entry__c';

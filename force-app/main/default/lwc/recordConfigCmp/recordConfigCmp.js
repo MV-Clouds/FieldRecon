@@ -357,16 +357,32 @@ export default class RecordConfigCmp extends LightningElement {
             saveMetadata({ itemsData, totalPages, objectApiName: this.objectApiName, featureName: this.featureName })
                 .then(() => {
                     this.toast('Success', 'Configuration updated successfully', 'success');
+                    
+                    // Create custom event with specific detail and stop propagation
+                    const configEvent = new CustomEvent('configurationupdated', {
+                        bubbles: true,
+                        composed: true,
+                        detail: {
+                            featureName: this.featureName,
+                            success: true,
+                            timestamp: Date.now() // Add timestamp to make event unique
+                        }
+                    });
+                    
+                    // Dispatch event and immediately close modal
+                    this.dispatchEvent(configEvent);
+                    
+                    // Close modal after a small delay to ensure event is processed
+                    this.closeModal();
+                    
                 })
                 .catch(error => {
-                    // errordebugger('RecordConfigCmp', 'saveRecords', error, 'warn', 'Error occurred while saving records');
                     this.toast('Error', 'Error while updating records', 'error');
                 });
         } catch (error) {
-            // errordebugger('RecordConfigCmp', 'saveRecords', error, 'warn', 'Error occurred while preparing records records');
+            // Handle error
         }
     }
-
 
     /**
     * Method Name: toast
@@ -617,6 +633,8 @@ export default class RecordConfigCmp extends LightningElement {
 
     closeModal() {
         const parent = this.template.host.closest('c-record-config-body-cmp');
+        console.log('parent', parent);
+        
         if (parent) {
             parent.handleDialogueClose();
         }

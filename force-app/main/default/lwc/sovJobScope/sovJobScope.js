@@ -34,6 +34,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         description: ''
     };
 
+    @track lastConfigUpdateTimestamp = 0; // Add this to track last update
+
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
@@ -190,6 +192,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.fetchScopeEntryConfiguration();
     }
 
+
     /**
      * Method Name: fetchScopeEntryConfiguration
      * @description: Fetch configuration and then load scope entries
@@ -251,6 +254,34 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.filteredScopeEntries = [];
                 this.isLoading = false;
             });
+    }
+
+    /**
+     * Method Name: handleConfigurationUpdated
+     * @description: Handle configuration updated event from record config component
+     */
+    handleConfigurationUpdated(event) {
+        console.log('Configuration updated event received:', event.detail);
+        
+        // Prevent duplicate processing using timestamp
+        if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
+            console.log('Duplicate event ignored');
+            return;
+        }
+        
+        if (event.detail.success && event.detail.featureName === 'ScopeEntry') {
+            // Store timestamp to prevent duplicates
+            this.lastConfigUpdateTimestamp = event.detail.timestamp;
+            
+            console.log('Processing configuration update...');
+            
+            // Stop event propagation
+            event.stopPropagation();
+            
+            // Refresh the configuration and reload data
+            this.isLoading = true;
+            this.fetchScopeEntryConfiguration();
+        }
     }
 
     /**
