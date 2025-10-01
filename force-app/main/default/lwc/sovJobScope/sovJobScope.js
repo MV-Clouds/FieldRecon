@@ -240,6 +240,50 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get totalContractValue
+     * @description: Calculate total contract value across all scope entries
+     */
+    get totalContractValue() {
+        if (!this.scopeEntries || this.scopeEntries.length === 0) return 0;
+        
+        return this.scopeEntries.reduce((total, entry) => {
+            const contractValue = this.getFieldValue(entry, 'wfrecon__Contract_Value__c');
+            return total + (contractValue || 0);
+        }, 0);
+    }
+
+    /**
+     * Method Name: get totalCompletedValue
+     * @description: Calculate total completed value across all scope entries
+     */
+    get totalCompletedValue() {
+        if (!this.scopeEntries || this.scopeEntries.length === 0) return 0;
+        
+        return this.scopeEntries.reduce((total, entry) => {
+            const completedValue = this.getFieldValue(entry, 'wfrecon__Current_Complete_Value__c');
+            return total + (completedValue || 0);
+        }, 0);
+    }
+
+    /**
+     * Method Name: get totalRemainingValue
+     * @description: Calculate total remaining value (contract - completed)
+     */
+    get totalRemainingValue() {
+        return Math.max(0, this.totalContractValue - this.totalCompletedValue);
+    }
+
+    /**
+     * Method Name: get overallCompletionPercentage
+     * @description: Calculate overall completion percentage
+     */
+    get overallCompletionPercentage() {
+        if (this.totalContractValue === 0) return 0;
+        
+        return (this.totalCompletedValue / this.totalContractValue);
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -473,6 +517,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.filteredChangeOrderEntries = filteredEntries.filter(entry => 
                 this.getFieldValue(entry, 'wfrecon__Type__c') === 'Change Order'
             );
+
+            // Force reactivity for summary calculations
+            this.template.querySelector('.summary-cards-container')?.setAttribute('data-update', Date.now().toString());
         } catch (error) {
             console.error('Error applying filters:', error);
             this.filteredContractEntries = [];

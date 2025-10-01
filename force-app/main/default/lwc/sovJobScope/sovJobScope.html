@@ -56,6 +56,60 @@
             </div>
         </div>
 
+        <!-- Summary Cards Section -->
+        <div class="summary-cards-container">
+            <div class="summary-card contract-value">
+                <div class="summary-card-title">Total Contracted Value</div>
+                <div class="summary-card-value">
+                    <lightning-formatted-number 
+                        value={totalContractValue} 
+                        format-style="currency" 
+                        currency-code="USD"
+                        maximum-fraction-digits="0">
+                    </lightning-formatted-number>
+                </div>
+                <div class="summary-card-subtitle">Across all scope entries</div>
+            </div>
+
+            <div class="summary-card completed-value">
+                <div class="summary-card-title">Total Completed Amount</div>
+                <div class="summary-card-value">
+                    <lightning-formatted-number 
+                        value={totalCompletedValue} 
+                        format-style="currency" 
+                        currency-code="USD"
+                        maximum-fraction-digits="0">
+                    </lightning-formatted-number>
+                </div>
+                <div class="summary-card-subtitle">Work completed so far</div>
+            </div>
+
+            <div class="summary-card completed-percentage">
+                <div class="summary-card-title">Total Completed Percentage</div>
+                <div class="summary-card-value">
+                    <lightning-formatted-number 
+                        value={overallCompletionPercentage} 
+                        format-style="percent" 
+                        maximum-fraction-digits="1">
+                    </lightning-formatted-number>
+                </div>
+                <div class="summary-card-subtitle">Project progress</div>
+            </div>
+
+            <div class="summary-card remaining-value">
+                <div class="summary-card-title">Total Amount Remaining</div>
+                <div class="summary-card-value">
+                    <lightning-formatted-number 
+                        value={totalRemainingValue} 
+                        format-style="currency" 
+                        currency-code="USD"
+                        maximum-fraction-digits="0">
+                    </lightning-formatted-number>
+                </div>
+                <div class="summary-card-subtitle">Work left to complete</div>
+            </div>
+        </div>
+
         <!-- Accordion Sections -->
         <div class="accordion-container">
             <lightning-accordion active-section-name={activeSectionName} 
@@ -173,7 +227,7 @@
                                 <div class="empty-state">
                                     <div class="empty-state__content">
                                         <div class="empty-state__icon">
-                                            <img src={emptyState} alt="" draggable="false">
+                                            <img src="/resource/emptyState" alt="" draggable="false">
                                         </div>
                                         <div class="empty-state__message">No contract entries found for this job</div>
                                     </div>
