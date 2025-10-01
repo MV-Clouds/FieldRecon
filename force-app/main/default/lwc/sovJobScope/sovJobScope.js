@@ -432,7 +432,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.isLoading = true;
         this.selectedRows = [];
         this.fetchScopeEntries();
-        this.showToast('Success', 'Table refreshed successfully', 'success');
     }
 
     /**
