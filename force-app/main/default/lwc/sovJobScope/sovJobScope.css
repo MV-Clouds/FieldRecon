@@ -39,7 +39,7 @@
     border-radius: 8px;
     margin-top: 12px;
     min-height: 25rem;
-    max-height: 25rem;
+    max-height: 35rem;
     scrollbar-width: thin;
     scrollbar-color: #0170d27d transparent;
 }
@@ -160,60 +160,6 @@
     margin-top: 1rem;
     display: flex;
     justify-content: center;
-}
-
-.pagination-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 1rem 0;
-    gap: 4px;
-    border-top: 1px solid #e9ecef;
-    background-color: white;
-    margin-top: auto;
-    flex-shrink: 0;
-}
-
-.pagination-button {
-    background-color: #ffffff;
-    border: 1px solid #d8d8d8;
-    color: #333;
-    padding: 6px 12px;
-    margin: 0 2px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    border-radius: 0.3rem;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.pagination-button svg {
-    fill: currentColor;
-    width: 0.7rem;
-    height: 0.7rem;
-}
-
-.pagination-button:hover {
-    background-color: #f0f0f0;
-}
-
-.pagination-button.active {
-    background-color: #0070d2;
-    color: white;
-    border-color: #0070d2;
-}
-
-.pagination-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.pagination-ellipsis {
-    padding: 6px 8px;
-    color: #666;
-    font-size: 12px;
 }
 
 /* Selected Records Count */

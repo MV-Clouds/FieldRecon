@@ -13,11 +13,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track isLoading = true;
     @track scopeEntries = [];
     @track filteredScopeEntries = [];
-    @track pagedScopeEntries = [];
-    @track currentPage = 1;
-    @track pageSize = 10;  // Fixed page size
     @track searchTerm = '';
-    @track visiblePages = 5;
     @track scopeEntryColumns = [];
     @track emptyState = emptyState;
     @track defaultColumns = [
@@ -44,16 +40,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: processTableData
-     * @description: Process scope entries for table display
+     * Method Name: get displayedScopeEntries
+     * @description: Process scope entries for table display without pagination
      */
-    get processedScopeEntries() {
-        if (!this.pagedScopeEntries || this.pagedScopeEntries.length === 0) {
+    get displayedScopeEntries() {
+        if (!this.filteredScopeEntries || this.filteredScopeEntries.length === 0) {
             return [];
         }
 
         const cols = this.tableColumns;
-        return this.pagedScopeEntries.map(entry => {
+        return this.filteredScopeEntries.map(entry => {
             const row = { ...entry };
             row.isSelected = this.selectedRows.includes(entry.Id);
             row.recordUrl = `/lightning/r/${entry.Id}/view`;
@@ -92,79 +88,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return this.scopeEntryColumns.length > 0 ? this.scopeEntryColumns : this.defaultColumns;
     }
 
-    // Pagination getters and methods
-    get totalPages() {
-        return Math.ceil(this.filteredScopeEntries.length / this.pageSize);
-    }
-
-    get isFirstPage() {
-        return this.currentPage === 1;
-    }
-
-    get isLastPage() {
-        return this.currentPage === this.totalPages;
-    }
-
-    get showEllipsis() {
-        return this.totalPages > this.visiblePages;
-    }
-
-    get pageNumbers() {
-        try {
-            const totalPages = this.totalPages;
-            const currentPage = this.currentPage;
-            const visiblePages = this.visiblePages;
-
-            let pages = [];
-
-            if (totalPages <= visiblePages) {
-                for (let i = 1; i <= totalPages; i++) {
-                    pages.push({
-                        number: i,
-                        isEllipsis: false,
-                        className: `pagination-button ${i === currentPage ? 'active' : ''}`
-                    });
-                }
-            } else {
-                pages.push({
-                    number: 1,
-                    isEllipsis: false,
-                    className: `pagination-button ${currentPage === 1 ? 'active' : ''}`
-                });
-
-                if (currentPage > 3) {
-                    pages.push({ isEllipsis: true });
-                }
-
-                let start = Math.max(2, currentPage - 1);
-                let end = Math.min(currentPage + 1, totalPages - 1);
-
-                for (let i = start; i <= end; i++) {
-                    pages.push({
-                        number: i,
-                        isEllipsis: false,
-                        className: `pagination-button ${i === currentPage ? 'active' : ''}`
-                    });
-                }
-
-                if (currentPage < totalPages - 2) {
-                    pages.push({ isEllipsis: true });
-                }
-
-                pages.push({
-                    number: totalPages,
-                    isEllipsis: false,
-                    className: `pagination-button ${currentPage === totalPages ? 'active' : ''}`
-                });
-            }
-
-            return pages;
-        } catch (error) {
-            // errorDebugger('sovJobScope', 'pageNumbers', error, 'warn', 'Error in pageNumbers');
-            return [];
-        }
-    }
-
     /**
      * Method Name: get hasSelectedRows
      * @description: Check if any rows are selected
@@ -178,8 +101,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if all visible rows are selected
      */
     get isAllSelected() {
-        return this.pagedScopeEntries.length > 0 && 
-               this.pagedScopeEntries.every(entry => this.selectedRows.includes(entry.Id));
+        return this.filteredScopeEntries.length > 0 && 
+               this.filteredScopeEntries.every(entry => this.selectedRows.includes(entry.Id));
     }
 
     /**
@@ -223,15 +146,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get selectedRecordsText
-     * @description: Get text for selected records count
-     */
-    get selectedRecordsText() {
-        const count = this.selectedRecordsCount;
-        return count === 1 ? `${count} record selected` : `${count} records selected`;
-    }
-
-    /**
      * Method Name: get showSelectedCount
      * @description: Show selected count when records are selected
      */
@@ -261,7 +175,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                         fieldName: field.fieldName,
                         type: this.getColumnType(field.fieldType)
                     }));
-                    // this.pageSize = result.pageSize || 10;
                 }
             })
             .catch(error => {
@@ -338,21 +251,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     value && value.toString().toLowerCase().includes(searchLower)
                 );
             });
-
-            this.updatePagedData();
         } catch (error) {
-            // errorDebugger('sovJobScope', 'applyFilters', error, 'warn', 'Error applying filters');
+            console.error('Error applying filters:', error);
         }
-    }
-
-    /**
-     * Method Name: updatePagedData
-     * @description: Update paged data based on current page and page size
-     */
-    updatePagedData() {
-        const startIndex = (this.currentPage - 1) * this.pageSize;
-        const endIndex = startIndex + this.pageSize;
-        this.pagedScopeEntries = this.filteredScopeEntries.slice(startIndex, endIndex);
     }
 
     /**
@@ -361,54 +262,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleSearch(event) {
         this.searchTerm = event.target.value;
-        this.currentPage = 1;
         this.applyFilters();
-    }
-
-    /**
-     * Method Name: handlePrevious
-     * @description: Handle previous button click
-     */
-    handlePrevious() {
-        if (this.currentPage > 1) {
-            this.currentPage--;
-            this.updatePagedData();
-        }
-    }
-
-    /**
-     * Method Name: handleNext
-     * @description: Handle next button click
-     */
-    handleNext() {
-        if (this.currentPage < this.totalPages) {
-            this.currentPage++;
-            this.updatePagedData();
-        }
-    }
-
-    /**
-     * Method Name: handlePageChange
-     * @description: Handle page number click
-     */
-    handlePageChange(event) {
-        const selectedPage = parseInt(event.target.getAttribute('data-id'), 10);
-        if (selectedPage !== this.currentPage) {
-            this.currentPage = selectedPage;
-            this.updatePagedData();
-        }
-    }
-
-    /**
-     * Method Name: openConfiguration
-     * @description: Open configuration modal
-     */
-    openConfiguration() {
-        // This will open the configuration modal
-        const configModal = this.template.querySelector('c-record-config-body-cmp');
-        if (configModal) {
-            configModal.openModal();
-        }
     }
 
     /**
@@ -468,7 +322,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const field = event.target.dataset.field;
         let value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;
         
-        // Don't trim during input - only trim when saving
         this.newScopeEntry = { ...this.newScopeEntry, [field]: value };
     }
 
@@ -480,17 +333,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     validateScopeEntry() {
         const { name, contractValue, description } = this.newScopeEntry;
         
-        // Check if name is empty after trim
         if (!name || name.trim() === '') {
             return { isValid: false, message: 'Name is required' };
         }
         
-        // Check if contract value is empty or invalid
         if (!contractValue || contractValue <= 0) {
             return { isValid: false, message: 'Contract Value is required and must be greater than 0' };
         }
         
-        // Check description length (max 255 characters) if provided
         if (description && description.trim().length > 255) {
             return { isValid: false, message: 'Description cannot be longer than 255 characters' };
         }
@@ -503,7 +353,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save new scope entry with validation
      */
     handleSaveScopeEntry() {
-        // Validate form data
         const validation = this.validateScopeEntry();
         if (!validation.isValid) {
             this.showToast('Error', validation.message, 'error');
@@ -524,7 +373,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result === 'Success') {
                     this.showToast('Success', 'Scope entry created successfully', 'success');
                     this.handleCloseModal();
-                    this.fetchScopeEntries(); // Refresh the table
+                    this.fetchScopeEntries();
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -560,12 +409,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const isChecked = event.target.checked;
         
         if (isChecked) {
-            this.selectedRows = this.pagedScopeEntries.map(entry => entry.Id);
+            this.selectedRows = this.filteredScopeEntries.map(entry => entry.Id);
         } else {
             this.selectedRows = [];
         }
 
-        // Update individual checkboxes
         const checkboxes = this.template.querySelectorAll('[data-type="row-checkbox"]');
         checkboxes.forEach(checkbox => {
             checkbox.checked = isChecked;
@@ -589,7 +437,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result === 'Success') {
                     this.showToast('Success', `${this.selectedRows.length} record(s) deleted successfully`, 'success');
                     this.selectedRows = [];
-                    this.fetchScopeEntries(); // Refresh the table
+                    this.fetchScopeEntries();
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -604,38 +452,28 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleAddLocation
-     * @description: Handle add location action
+     * @description: Handle add location action - shows toast message
      */
     handleAddLocation(event) {
         const recordId = event.currentTarget.dataset.recordId;
-        this.showToast('Info', `Add Location functionality for record: ${recordId}`, 'info');
-        // Add your location adding logic here
+        this.showToast('Info', `Add Location action clicked for record: ${recordId}`, 'info');
     }
 
     /**
      * Method Name: handleEditRecord
-     * @description: Handle edit record action
+     * @description: Handle edit record action - shows toast message
      */
     handleEditRecord(event) {
         const recordId = event.currentTarget.dataset.recordId;
-        
-        // Navigate to edit page
-        this[NavigationMixin.Navigate]({
-            type: 'standard__recordPage',
-            attributes: {
-                recordId: recordId,
-                actionName: 'edit'
-            }
-        });
+        this.showToast('Info', `Edit Record action clicked for record: ${recordId}`, 'info');
     }
 
     /**
      * Method Name: handleOpenChildRecords
-     * @description: Handle open child records action
+     * @description: Handle open child records action - shows toast message
      */
     handleOpenChildRecords(event) {
         const recordId = event.currentTarget.dataset.recordId;
-        this.showToast('Info', `Open Child Records functionality for record: ${recordId}`, 'info');
-        // Add your child records navigation logic here
+        this.showToast('Info', `Open Child Records action clicked for record: ${recordId}`, 'info');
     }
 }

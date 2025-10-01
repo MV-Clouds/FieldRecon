@@ -76,7 +76,7 @@
                         </tr>
                     </thead>
                     <tbody class="table-body">
-                        <template for:each={processedScopeEntries} for:item="entry">
+                        <template for:each={displayedScopeEntries} for:item="entry">
                             <tr key={entry.Id}>
                                 <td class="center-trancate-text checkbox-column">
                                     <input type="checkbox" 
@@ -174,46 +174,6 @@
                 </div>
             </template>
         </div>
-
-        <!-- Pagination -->
-        <template if:true={isDataAvailable}>
-            <div class="pagination-container">
-                <button 
-                    class="pagination-button" 
-                    onclick={handlePrevious} 
-                    disabled={isFirstPage}>
-                    <svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M7 1L2 6L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Previous
-                </button>
-
-                <template for:each={pageNumbers} for:item="page">
-                    <template if:false={page.isEllipsis}>
-                        <button 
-                            key={page.number}
-                            class={page.className} 
-                            onclick={handlePageChange} 
-                            data-id={page.number}>
-                            {page.number}
-                        </button>
-                    </template>
-                    <template if:true={page.isEllipsis}>
-                        <span key={page.number} class="pagination-ellipsis">...</span>
-                    </template>
-                </template>
-
-                <button 
-                    class="pagination-button" 
-                    onclick={handleNext} 
-                    disabled={isLastPage}>
-                    Next
-                    <svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 11L6 6L1 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-            </div>
-        </template>
     </div>
 
     <!-- Add Scope Entry Modal -->
