@@ -32,6 +32,51 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         { label: 'Status', fieldName: 'wfrecon__Scope_Entry_Status__c', type: 'text' }
     ];
 
+    // Process table columns configuration
+    @track processTableColumns = [
+        { 
+            label: 'Process', 
+            fieldName: 'Name', 
+            type: 'url',
+            isNameField: true
+        },
+        { 
+            label: 'Sequence', 
+            fieldName: 'wfrecon__Sequence__c', 
+            type: 'text'
+        },
+        { 
+            label: 'Process Name', 
+            fieldName: 'wfrecon__Process_Name__c', 
+            type: 'text'
+        },
+        { 
+            label: 'Step Value', 
+            fieldName: 'wfrecon__Contract_Price__c', 
+            type: 'currency'
+        },
+        { 
+            label: '% Complete', 
+            fieldName: 'wfrecon__Completed_Percentage__c', 
+            type: 'percent'
+        },
+        { 
+            label: 'Current Complete Value', 
+            fieldName: 'wfrecon__Current_Complete_Value__c', 
+            type: 'currency'
+        },
+        { 
+            label: 'Process MH', 
+            fieldName: 'wfrecon__Process_Type__c', 
+            type: 'number'
+        },
+        { 
+            label: 'Weight', 
+            fieldName: 'wfrecon__Weight__c', 
+            type: 'number'
+        }
+    ];
+
     // Modal and form properties
     @track showAddModal = false;
     @track isSubmitting = false;
@@ -786,6 +831,62 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: processProcessDetailsForDisplay
+     * @description: Process process details for nested table display
+     */
+    processProcessDetailsForDisplay(processDetails) {
+        if (!processDetails || processDetails.length === 0) {
+            return [];
+        }
+
+        return processDetails.map(process => {
+            const row = { ...process };
+            row.recordUrl = `/lightning/r/${process.Id}/view`;
+            
+            row.displayFields = this.processTableColumns.map(col => {
+                const key = col.fieldName;
+                let value = this.getFieldValue(process, key);
+                
+                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                
+                // Handle currency fields
+                let currencyValue = 0;
+                if (col.type === 'currency') {
+                    currencyValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                }
+
+                // Handle percentage fields
+                let percentValue = 0;
+                if (col.type === 'percent') {
+                    percentValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                }
+
+                // Handle number fields  
+                let numberValue = 0;
+                if (col.type === 'number') {
+                    numberValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                }
+                
+                return {
+                    key,
+                    value: displayValue,
+                    rawValue: value,
+                    currencyValue: currencyValue,
+                    percentValue: percentValue,
+                    numberValue: numberValue,
+                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    isNameField: col.isNameField || false,
+                    isCurrency: col.type === 'currency',
+                    isPercent: col.type === 'percent',
+                    isNumber: col.type === 'number',
+                    isUrl: col.type === 'url'
+                };
+            });
+            return row;
+        });
+    }
+
+    /**
      * Method Name: handleSectionToggle
      * @description: Handle accordion section toggle - Allow multiple sections to be open
      */
@@ -928,12 +1029,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Update process details for a specific entry
      */
     updateProcessDetails(scopeEntryId, processDetails) {
+        // Process the details for display
+        const processedDetails = this.processProcessDetailsForDisplay(processDetails);
+        
         // Update contract entries
         this.filteredContractEntries = this.filteredContractEntries.map(entry => {
             if (entry.Id === scopeEntryId) {
                 return {
                     ...entry,
-                    processDetails: processDetails,
+                    processDetails: processedDetails,
                     isLoadingProcesses: false
                 };
             }
@@ -945,7 +1049,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             if (entry.Id === scopeEntryId) {
                 return {
                     ...entry,
-                    processDetails: processDetails,
+                    processDetails: processedDetails,
                     isLoadingProcesses: false
                 };
             }
