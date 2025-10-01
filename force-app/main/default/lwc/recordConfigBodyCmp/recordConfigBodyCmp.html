@@ -6,14 +6,11 @@
         <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="modal-heading-01"
             class="slds-modal slds-fade-in-open slds-modal_large">
             <div class="slds-modal__container">
-                <div class="slds-modal__close closs_icon_css" onclick={handleDialogueClose}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M2.53317 19.3333L0.666504 17.4667L8.13317 9.99999L0.666504 2.53332L2.53317 0.666656L9.99984 8.13332L17.4665 0.666656L19.3332 2.53332L11.8665 9.99999L19.3332 17.4667L17.4665 19.3333L9.99984 11.8667L2.53317 19.3333Z"
-                            fill="white" />
-                    </svg>
-                </div>
 
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse close-icon-btn" title="Close" onclick={handleDialogueClose}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+    
                 <div class="slds-modal__header blue-header">
                     <h1 id="modal-heading-01" class="slds-modal__title slds-hyphenate" tabindex="-1">Configure Settings
                     </h1>

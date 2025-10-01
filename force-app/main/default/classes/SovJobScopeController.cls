@@ -14,29 +14,43 @@ public with sharing class SovJobScopeController {
 
     public static final string CLASSNAME = 'SovJobScopeController';
 
-    /*
+   /*
     *********************************************************
-    @description     : Method is used to get Scope Entries for a Job
+    @description     : Method is used to dynamically get Scope Entries for a Job
     @param           : Id jobId - Job Id
-    @return          : List<Scope_Entry__c> - List of Scope Entries
+    @return          : List<SObject> - List of Scope Entries (dynamic fields)
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static List<Scope_Entry__c> getScopeEntries(Id jobId) {
-        List <Scope_Entry__c> scopeEntries = new List<Scope_Entry__c>();
-
-        try {    
-            scopeEntries = [
-                SELECT Id, Name, Contract_Value__c, Type__c, Completed_Percentage__c,
-                       Current_Complete_Value__c, Amount_Remaining__c,
-                       Amount_previously_billed__c, Approved_Date__c,
-                       Job__c, Parent_Scope_Entry__c, Scope_Entry_Status__c, Unit_Price__c
-                FROM Scope_Entry__c
-                WHERE Job__c = :jobId
-                WITH USER_MODE
-                ORDER BY CreatedDate DESC
-            ];
+    public static List<SObject> getScopeEntries(Id jobId) {
+        List<SObject> scopeEntries = new List<SObject>();
+        try {
+            String objectName = 'wfrecon__Scope_Entry__c';
+            
+            // Get all accessible fields dynamically
+            String allScopeEntryFields = getAllFields(objectName);
+            String allJobFields = getAllFields('wfrecon__Job__c');
+            
+            if (String.isNotBlank(allScopeEntryFields)) {
+                // Build dynamic SOQL with Job relationship fields
+                String query = 'SELECT ' + allScopeEntryFields;
+                
+                // Add Job relationship fields if we have them
+                if (String.isNotBlank(allJobFields)) {
+                    // Convert Job fields to relationship notation (Job__r.FieldName)
+                    String jobRelationshipFields = convertToRelationshipFields(allJobFields, 'wfrecon__Job__r');
+                    if (String.isNotBlank(jobRelationshipFields)) {
+                        query += ', ' + jobRelationshipFields;
+                    }
+                }
+                
+                query += ' FROM ' + objectName +
+                        ' WHERE wfrecon__Job__c = :jobId ' +
+                        ' ORDER BY CreatedDate DESC';
+                
+                scopeEntries = Database.query(query, AccessLevel.USER_MODE);
+            }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
@@ -44,13 +58,82 @@ public with sharing class SovJobScopeController {
                 'isApiException' => false,
                 'statusCode' => null,
                 'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Scope Entries.',
+                'moreDetails' => 'Error occurred while fetching Scope Entries dynamically.',
                 'apiResponse' => null
             });
         }
-
         return scopeEntries;
     }
+
+    /*
+    *********************************************************
+    @description     : Method to convert field names to relationship field format
+    @param           : String fieldsList - Comma-separated field names
+    @param           : String relationshipName - Relationship name (e.g., 'Job__r')
+    @return          : String - Comma-separated relationship field names
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    private static String convertToRelationshipFields(String fieldsList, String relationshipName) {
+        if (String.isBlank(fieldsList) || String.isBlank(relationshipName)) {
+            return '';
+        }
+        
+        List<String> fields = fieldsList.split(',');
+        List<String> relationshipFields = new List<String>();
+        
+        for (String field : fields) {
+            String trimmedField = field.trim();
+            if (String.isNotBlank(trimmedField)) {
+                relationshipFields.add(relationshipName + '.' + trimmedField);
+            }
+        }
+        
+        return String.join(relationshipFields, ', ');
+    }
+
+    /*
+    *********************************************************
+    @description     : Method is used to get all fields of an object dynamically
+    @param           : String objectName - API name of the object
+    @return          : String - Comma-separated field names
+    @author          : Rachit Shah
+    ********************************************************
+    */
+
+    private static String getAllFields(String objectName) {
+        try {
+            Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
+            if (globalDescribe.containsKey(objectName)) {
+                Schema.SObjectType sObjectType = globalDescribe.get(objectName);
+                Schema.DescribeSObjectResult describeResult = sObjectType.getDescribe();
+                Map<String, Schema.SObjectField> fieldsMap = describeResult.fields.getMap();
+                
+                List<String> fieldNames = new List<String>();
+                for (String fieldName : fieldsMap.keySet()) {
+                    Schema.DescribeFieldResult fieldDescribe = fieldsMap.get(fieldName).getDescribe();
+                    if (fieldDescribe.isAccessible()) {
+                        fieldNames.add(fieldName);
+                    }
+                }
+                return String.join(fieldNames, ',');
+            } else {
+                return '';
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getAllFields',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while fetching fields dynamically for ' + objectName,
+                'apiResponse' => null
+            });
+            return '';
+        }
+    }
+    
 
     /*
     *********************************************************

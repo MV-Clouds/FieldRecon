@@ -18,10 +18,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track emptyState = emptyState;
     @track defaultColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text' },
-        { label: 'Type', fieldName: 'Type__c', type: 'text' },
-        { label: 'Contract Value', fieldName: 'Contract_Value__c', type: 'currency' },
-        { label: 'Completed %', fieldName: 'Completed_Percentage__c', type: 'percent' },
-        { label: 'Status', fieldName: 'Scope_Entry_Status__c', type: 'text' }
+        { label: 'Type', fieldName: 'wfrecon__Type__c', type: 'text' },
+        { label: 'Contract Value', fieldName: 'wfrecon__Contract_Value__c', type: 'currency' },
+        { label: 'Completed %', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent' },
+        { label: 'Status', fieldName: 'wfrecon__Scope_Entry_Status__c', type: 'text' }
     ];
 
     // Modal and form properties
@@ -55,7 +55,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             row.recordUrl = `/lightning/r/${entry.Id}/view`;
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
-                let value = entry[key];
+                let value = this.getFieldValue(entry, key);
                 
                 const displayValue = value !== null && value !== undefined ? String(value) : '';
                 
@@ -78,6 +78,35 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
             return row;
         });
+    }
+
+    /**
+     * Method Name: getFieldValue
+     * @description: Get field value from nested object structure
+     */
+    getFieldValue(record, fieldName) {
+        if (!record || !fieldName) return null;
+        
+        // Handle standard fields and namespaced fields directly on the record
+        if (record.hasOwnProperty(fieldName)) {
+            return record[fieldName];
+        }
+        
+        // Handle relationship fields (Job__r.SomeField)
+        if (fieldName.includes('.')) {
+            const parts = fieldName.split('.');
+            let current = record;
+            for (let part of parts) {
+                if (current && current[part] !== undefined) {
+                    current = current[part];
+                } else {
+                    return null;
+                }
+            }
+            return current;
+        }
+        
+        return null;
     }
 
     /**
@@ -169,16 +198,28 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         getScopeEntryConfiguration()
             .then(result => {
                 if (result && result.fieldsData) {
-                    const fieldsData = JSON.parse(result.fieldsData);
-                    this.scopeEntryColumns = fieldsData.map(field => ({
-                        label: field.label,
-                        fieldName: field.fieldName,
-                        type: this.getColumnType(field.fieldType)
-                    }));
+                    try {
+                        const fieldsData = JSON.parse(result.fieldsData);
+                        this.scopeEntryColumns = fieldsData.map(field => ({
+                            label: field.label,
+                            fieldName: field.fieldName,
+                            type: this.getColumnType(field.fieldType)
+                        }));
+                    } catch (error) {
+                        console.error('Error parsing fieldsData:', error);
+                        // Use default columns if parsing fails
+                        this.scopeEntryColumns = this.defaultColumns;
+                    }
+                } else {
+                    // Use default columns if no configuration found
+                    this.scopeEntryColumns = this.defaultColumns;
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Error fetching configuration', 'error');
+                console.error('Error fetching configuration:', error);
+                // Use default columns on error
+                this.scopeEntryColumns = this.defaultColumns;
+                this.showToast('Warning', 'Using default configuration due to error', 'warning');
             }).finally(() => {
                 this.fetchScopeEntries();
             });
@@ -195,15 +236,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.isLoading = false;
             return;
         }
-
+    
         getScopeEntries({ jobId: this.recordId })
             .then(result => {
+                console.log('Raw Scope Entries Result:', result);
                 this.scopeEntries = result || [];
                 this.applyFilters();
                 this.isLoading = false;
             })
             .catch(error => {
-                this.showToast('Error', 'Error fetching scope entries', 'error');
+                console.error('Error fetching scope entries:', error);
+                this.showToast('Error', 'Error fetching scope entries: ' + (error.body?.message || error.message), 'error');
+                this.scopeEntries = [];
+                this.filteredScopeEntries = [];
                 this.isLoading = false;
             });
     }
@@ -247,12 +292,38 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (!this.searchTerm) return true;
                 
                 const searchLower = this.searchTerm.toLowerCase();
-                return Object.values(entry).some(value => 
-                    value && value.toString().toLowerCase().includes(searchLower)
-                );
+                
+                // Search through all string fields in the entry
+                const searchInObject = (obj, visited = new Set()) => {
+                    if (!obj || typeof obj !== 'object' || visited.has(obj)) {
+                        return false;
+                    }
+                    visited.add(obj);
+                    
+                    for (let key in obj) {
+                        if (obj.hasOwnProperty(key)) {
+                            const value = obj[key];
+                            if (value !== null && value !== undefined) {
+                                if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
+                                    return true;
+                                }
+                                if (typeof value === 'number' && value.toString().includes(searchLower)) {
+                                    return true;
+                                }
+                                if (typeof value === 'object' && searchInObject(value, visited)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                };
+                
+                return searchInObject(entry);
             });
         } catch (error) {
             console.error('Error applying filters:', error);
+            this.filteredScopeEntries = this.scopeEntries;
         }
     }
 
@@ -379,7 +450,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to create scope entry: ' + error.body?.message || error.message, 'error');
+                this.showToast('Error', 'Failed to create scope entry: ' + (error.body?.message || error.message), 'error');
             })
             .finally(() => {
                 this.isSubmitting = false;
@@ -443,7 +514,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to delete records: ' + error.body?.message || error.message, 'error');
+                this.showToast('Error', 'Failed to delete records: ' + (error.body?.message || error.message), 'error');
             })
             .finally(() => {
                 this.isLoading = false;

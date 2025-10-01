@@ -63,14 +63,33 @@
     border-top-right-radius: 8px !important;
 }
 
-.closs_icon_css {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    right: -2rem;
-    bottom: 0rem;
+.close-icon-btn {
+    position: absolute;
+    top: 60px;
+    right: 4px;
+    z-index: 100;
     background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.close-icon {
+    background-color: white;
+    padding: 2px;
+    border-radius: 2px;
+}
+
+.close-icon-btn lightning-icon {
+    color: #0176D3;
 }
 
 .icon-button {
