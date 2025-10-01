@@ -189,12 +189,12 @@ public with sharing class SovJobScopeController {
     @AuraEnabled
     public static String createScopeEntry(Map<String, Object> scopeEntryData) {
         try {
-            wfrecon__Scope_Entry__c newScopeEntry = new wfrecon__Scope_Entry__c();
+            Scope_Entry__c newScopeEntry = new Scope_Entry__c();
             newScopeEntry.Name = (String) scopeEntryData.get('name');
-            newScopeEntry.wfrecon__Contract_Value__c = (Decimal) scopeEntryData.get('contractValue');
-            newScopeEntry.wfrecon__Description__c = (String) scopeEntryData.get('description');
-            newScopeEntry.wfrecon__Job__c = (Id) scopeEntryData.get('jobId');
-            newScopeEntry.wfrecon__Type__c = (String) scopeEntryData.get('type'); // Add type field
+            newScopeEntry.Contract_Value__c = (Decimal) scopeEntryData.get('contractValue');
+            newScopeEntry.Description__c = (String) scopeEntryData.get('description');
+            newScopeEntry.Job__c = (Id) scopeEntryData.get('jobId');
+            newScopeEntry.Type__c = (String) scopeEntryData.get('type'); // Add type field
             
             insert as user newScopeEntry;
             return 'Success';
@@ -254,27 +254,21 @@ public with sharing class SovJobScopeController {
     *********************************************************
     @description     : Method is used to get Scope Entry Process details
     @param           : Id scopeEntryId - Scope Entry Id
-    @return          : List<wfrecon__Scope_Entry_Process__c> - List of Process records
+    @return          : List<Scope_Entry_Process__c> - List of Process records
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static List<wfrecon__Scope_Entry_Process__c> getScopeEntryProcesses(Id scopeEntryId) {
-        List<wfrecon__Scope_Entry_Process__c> processes = new List<wfrecon__Scope_Entry_Process__c>();
+    public static List<Scope_Entry_Process__c> getScopeEntryProcesses(Id scopeEntryId) {
+        List<Scope_Entry_Process__c> processes = new List<Scope_Entry_Process__c>();
         try {
             processes = [
                 SELECT Id, 
-                       wfrecon__Sequence__c,
-                       wfrecon__Process_Name__c,
-                       wfrecon__Contract_Price__c,
-                       wfrecon__Completed_Percentage__c,
-                       wfrecon__Process_Type__c,
-                       wfrecon__Weight__c,
-                       wfrecon__Current_Complete_Value__c,
-                       wfrecon__Scope_Entry__c
-                FROM wfrecon__Scope_Entry_Process__c
-                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
-                ORDER BY wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
+                       Sequence__c, Process_Name__c, Contract_Price__c, Completed_Percentage__c, Process_Type__c, Weight__c, Current_Complete_Value__c, Scope_Entry__c
+                FROM Scope_Entry_Process__c
+                WHERE Scope_Entry__c = :scopeEntryId
+                WITH USER_MODE
+                ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
