@@ -6,6 +6,7 @@ import getScopeEntryConfiguration from '@salesforce/apex/SovJobScopeController.g
 import createScopeEntry from '@salesforce/apex/SovJobScopeController.createScopeEntry';
 import deleteScopeEntries from '@salesforce/apex/SovJobScopeController.deleteScopeEntries';
 import { CurrentPageReference } from 'lightning/navigation';
+import getScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.getScopeEntryProcesses';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -743,17 +744,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: handleOpenChildRecords
-     * @description: Handle open child records action - shows toast message
-     */
-    handleOpenChildRecords(event) {
-        const recordId = event.currentTarget.dataset.recordId;
-        this.showToast('Info', `Open Child Records action clicked for record: ${recordId}`, 'info');
-    }
-
-    /**
      * Method Name: processEntriesForDisplay
-     * @description: Common method to process entries for display
+     * @description: Common method to process entries for display with nested table support
      */
     processEntriesForDisplay(entries) {
         const cols = this.tableColumns;
@@ -761,6 +753,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             const row = { ...entry };
             row.isSelected = this.selectedRows.includes(entry.Id);
             row.recordUrl = `/lightning/r/${entry.Id}/view`;
+            
+            // Preserve nested table state
+            row.showProcessDetails = entry.showProcessDetails || false;
+            row.processDetails = entry.processDetails || null;
+            row.isLoadingProcesses = entry.isLoadingProcesses || false;
+            
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
                 let value = this.getFieldValue(entry, key);
@@ -851,5 +849,110 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleTypeChange(event) {
         this.newScopeEntry = { ...this.newScopeEntry, type: event.target.value };
+    }
+
+    /**
+     * Method Name: handleToggleProcessDetails
+     * @description: Toggle process details display and load data if needed
+     */
+    handleToggleProcessDetails(event) {
+        const recordId = event.currentTarget.dataset.recordId;
+        
+        // Update contract entries
+        this.filteredContractEntries = this.filteredContractEntries.map(entry => {
+            if (entry.Id === recordId) {
+                const updatedEntry = { ...entry };
+                updatedEntry.showProcessDetails = !entry.showProcessDetails;
+                
+                // Load process details if expanding and not already loaded
+                if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
+                    updatedEntry.isLoadingProcesses = true;
+                    this.loadProcessDetails(recordId);
+                }
+                
+                return updatedEntry;
+            }
+            return entry;
+        });
+        
+        // Update change order entries
+        this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
+            if (entry.Id === recordId) {
+                const updatedEntry = { ...entry };
+                updatedEntry.showProcessDetails = !entry.showProcessDetails;
+                
+                // Load process details if expanding and not already loaded
+                if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
+                    updatedEntry.isLoadingProcesses = true;
+                    this.loadProcessDetails(recordId);
+                }
+                
+                return updatedEntry;
+            }
+            return entry;
+        });
+        
+        // Force re-render
+        this.template.querySelector('.accordion-container')?.setAttribute('data-update', Date.now().toString());
+    }
+
+    /**
+     * Method Name: loadProcessDetails
+     * @description: Load process details for a specific scope entry
+     */
+    loadProcessDetails(scopeEntryId) {
+        getScopeEntryProcesses({ scopeEntryId: scopeEntryId })
+            .then(result => {
+                this.updateProcessDetails(scopeEntryId, result || []);
+            })
+            .catch(error => {
+                console.error('Error loading process details:', error);
+                this.updateProcessDetails(scopeEntryId, []);
+                this.showToast('Error', 'Failed to load process details: ' + (error.body?.message || error.message), 'error');
+            });
+    }
+
+    /**
+     * Method Name: handleAddProcess
+     * @description: Handle add process button click
+     */
+    handleAddProcess(event) {
+        const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        const scopeEntryName = event.currentTarget.dataset.scopeEntryName;
+        this.showToast('Info', `Add Process clicked for ${scopeEntryName} (ID: ${scopeEntryId})`, 'info');
+        // TODO: Implement add process modal/navigation
+    }
+
+    /**
+     * Method Name: updateProcessDetails
+     * @description: Update process details for a specific entry
+     */
+    updateProcessDetails(scopeEntryId, processDetails) {
+        // Update contract entries
+        this.filteredContractEntries = this.filteredContractEntries.map(entry => {
+            if (entry.Id === scopeEntryId) {
+                return {
+                    ...entry,
+                    processDetails: processDetails,
+                    isLoadingProcesses: false
+                };
+            }
+            return entry;
+        });
+        
+        // Update change order entries
+        this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
+            if (entry.Id === scopeEntryId) {
+                return {
+                    ...entry,
+                    processDetails: processDetails,
+                    isLoadingProcesses: false
+                };
+            }
+            return entry;
+        });
+        
+        // Force re-render
+        this.template.querySelector('.accordion-container')?.setAttribute('data-update', Date.now().toString());
     }
 }

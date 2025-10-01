@@ -34,17 +34,6 @@
 
 /* Data Table Wrapper with Fixed Height */
 
-.data-table-container {
-    flex: 1;
-    overflow: auto;
-    border-radius: 8px;
-    margin-top: 12px;
-    min-height: 25rem;
-    max-height: 35rem;
-    scrollbar-width: thin;
-    scrollbar-color: #0170d27d transparent;
-}
-
 .data-table-container::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -150,13 +139,13 @@
 }
 
 .empty-state__content .empty-state__icon {
-    width: 25%;
+    width: 10%;
     height: 100%;
 }
 
 .empty-state__content .empty-state__message {
     color: #3a9bea;
-    font-size: 25px;
+    font-size: 16px;
     font-weight: 500;
     margin-top: 1rem;
     display: flex;
@@ -591,11 +580,10 @@
     overflow: auto;
     border-radius: 8px;
     margin: 16px 0;
-    min-height: 20rem;
-    max-height: 30rem;
     background-color: white;
     scrollbar-width: thin;
     scrollbar-color: #0170d27d transparent;
+    
 }
 
 /* Summary Cards Styling */
@@ -756,4 +744,217 @@
         flex-direction: column;
         gap: 1rem;
     }
+}
+
+/* Nested Table Styles */
+.nested-row {
+    background-color: transparent;
+}
+
+.nested-table-container {
+    padding: 0 !important;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e5e5e5;
+}
+
+.nested-table-wrapper {
+    padding: 16px;
+    border-left: 4px solid #0176d3;
+    background-color: #ffffff;
+    margin: 8px 16px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nested-table-header {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.nested-table-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+/* Nested Table Header Row */
+.nested-table-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+/* Add Process Button */
+.add-process-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    background-color: #28a745;
+    color: white;
+    border: 1px solid #28a745;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-process-btn:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.add-process-btn svg {
+    flex-shrink: 0;
+}
+
+/* Process Checkbox Column */
+.process-checkbox-column {
+    width: 40px;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* Enhanced Empty State for Process Details */
+.no-process-data {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.no-process-data .empty-state__icon {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.no-process-data .empty-state__message {
+    color: #333;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.no-process-data .empty-state__subtitle {
+    color: #666;
+    font-size: 14px;
+    font-style: italic;
+}
+
+/* Nested Table Row Hover Effect */
+.nested-table-row:hover {
+    background-color: #e8f4fd !important;
+    cursor: pointer;
+}
+
+/* Responsive adjustments for nested table */
+@media only screen and (max-width: 768px) {
+    .nested-table-title-row {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+    
+    .add-process-btn {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .nested-table {
+        font-size: 11px;
+    }
+    
+    .nested-table .header-cell,
+    .nested-table-row td {
+        padding: 6px 8px;
+    }
+}
+
+.nested-table {
+    background-color: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.nested-table .table-header {
+    background-color: #f4f6f9;
+}
+
+.nested-table .header-cell {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e5e5;
+    background-color: #4a90e2 !important;
+    color: white !important;
+}
+
+.nested-table-row {
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.nested-table-row:last-child {
+    border-bottom: none;
+}
+
+.nested-table-row td {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #555;
+}
+
+.nested-table-row:nth-child(odd) {
+    background-color: #f9f9f9;
+}
+
+.nested-table-row:nth-child(even) {
+    background-color: #ffffff;
+}
+
+.no-process-data {
+    padding: 20px;
+    text-align: center;
+}
+
+.no-process-data .empty-state__message {
+    color: #666;
+    font-style: italic;
+    font-size: 13px;
+}
+
+.process-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Icon button states for nested table toggle */
+.child-records-btn[data-expanded="true"] {
+    background-color: #0176d3 !important;
+    color: white !important;
+    border-color: #0176d3 !important;
+}
+
+.child-records-btn[data-expanded="true"]:hover {
+    background-color: #014486 !important;
+    border-color: #014486 !important;
+}
+
+.child-records-btn[data-expanded="false"] {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.child-records-btn[data-expanded="false"]:hover {
+    background-color: #17a2b8;
+    color: white;
 }

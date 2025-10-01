@@ -249,4 +249,44 @@ public with sharing class SovJobScopeController {
             return 'Error: ' + e.getMessage();
         }
     }
+
+    /*
+    *********************************************************
+    @description     : Method is used to get Scope Entry Process details
+    @param           : Id scopeEntryId - Scope Entry Id
+    @return          : List<wfrecon__Scope_Entry_Process__c> - List of Process records
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static List<wfrecon__Scope_Entry_Process__c> getScopeEntryProcesses(Id scopeEntryId) {
+        List<wfrecon__Scope_Entry_Process__c> processes = new List<wfrecon__Scope_Entry_Process__c>();
+        try {
+            processes = [
+                SELECT Id, 
+                       wfrecon__Sequence__c,
+                       wfrecon__Process_Name__c,
+                       wfrecon__Contract_Price__c,
+                       wfrecon__Completed_Percentage__c,
+                       wfrecon__Process_Type__c,
+                       wfrecon__Weight__c,
+                       wfrecon__Current_Complete_Value__c,
+                       wfrecon__Scope_Entry__c
+                FROM wfrecon__Scope_Entry_Process__c
+                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
+                ORDER BY wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
+            ];
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getScopeEntryProcesses',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while fetching Scope Entry Processes for Scope Entry ID: ' + scopeEntryId,
+                'apiResponse' => null
+            });
+        }
+        return processes;
+    }
 }
