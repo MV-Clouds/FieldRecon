@@ -189,11 +189,12 @@ public with sharing class SovJobScopeController {
     @AuraEnabled
     public static String createScopeEntry(Map<String, Object> scopeEntryData) {
         try {
-            Scope_Entry__c newScopeEntry = new Scope_Entry__c();
+            wfrecon__Scope_Entry__c newScopeEntry = new wfrecon__Scope_Entry__c();
             newScopeEntry.Name = (String) scopeEntryData.get('name');
-            newScopeEntry.Contract_Value__c = (Decimal) scopeEntryData.get('contractValue');
-            newScopeEntry.Description__c = (String) scopeEntryData.get('description');
-            newScopeEntry.Job__c = (Id) scopeEntryData.get('jobId');
+            newScopeEntry.wfrecon__Contract_Value__c = (Decimal) scopeEntryData.get('contractValue');
+            newScopeEntry.wfrecon__Description__c = (String) scopeEntryData.get('description');
+            newScopeEntry.wfrecon__Job__c = (Id) scopeEntryData.get('jobId');
+            newScopeEntry.wfrecon__Type__c = (String) scopeEntryData.get('type'); // Add type field
             
             insert as user newScopeEntry;
             return 'Success';

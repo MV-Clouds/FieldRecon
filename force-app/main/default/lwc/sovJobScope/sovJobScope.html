@@ -56,145 +56,283 @@
             </div>
         </div>
 
-        <!-- Data Table Container with Fixed Height -->
-        <div class="data-table-container">
-            <template if:true={isDataAvailable}>
-                <table class="custom-data-table">
-                    <thead class="table-header">
-                        <tr>
-                            <th class="header-cell center-trancate-head checkbox-column">
-                                <input type="checkbox" 
-                                        checked={isAllSelected}
-                                        onchange={handleSelectAll}
-                                        data-type="select-all">
-                            </th>
-                            <th class="header-cell center-trancate-head actions-column">Actions</th>
-                            <template for:each={tableColumns} for:item="column">
-                                <th key={column.fieldName} class="header-cell center-trancate-head">
-                                    {column.label}
-                                </th>
-                            </template>
-                        </tr>
-                    </thead>
-                    <tbody class="table-body">
-                        <template for:each={displayedScopeEntries} for:item="entry">
-                            <tr key={entry.Id}>
-                                <td class="center-trancate-text checkbox-column">
-                                    <input type="checkbox" 
-                                            checked={entry.isSelected}
-                                            onchange={handleRowSelection}
-                                            data-row-id={entry.Id}
-                                            data-type="row-checkbox">
-                                </td>
-                                <td class="center-trancate-text actions-column">
-                                    <div class="action-icons">
-                                        <button class="icon-button add-location-btn" 
-                                                title="Add Location" 
-                                                onclick={handleAddLocation}
-                                                data-record-id={entry.Id}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
-                                                <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
-                                                <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
-                                                <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
-                                            </svg>
-                                        </button>
-                                        <button class="icon-button edit-btn" 
-                                                title="Edit Record" 
-                                                onclick={handleEditRecord}
-                                                data-record-id={entry.Id}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                <path d="M18.5 2.50023C18.8978 2.1024 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.1024 21.5 2.50023C21.8978 2.89805 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.1024 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                            </svg>
-                                        </button>
-                                        <button class="icon-button child-records-btn" 
-                                                title="Open Child Records" 
-                                                onclick={handleOpenChildRecords}
-                                                data-record-id={entry.Id}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
-                                                <path d="M16 8L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                                <path d="M16 16L8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </td>
-                                <template for:each={entry.displayFields} for:item="field">
-                                    <td key={field.key} class="center-trancate-text">
-                                        <template if:true={field.isCurrency}>
-                                            <lightning-formatted-number 
-                                                value={field.currencyValue} 
-                                                format-style="currency" 
-                                                currency-code="USD">
-                                            </lightning-formatted-number>
+        <!-- Accordion Sections -->
+        <div class="accordion-container">
+            <lightning-accordion active-section-name={activeSectionName} 
+                                allow-multiple-sections-open="true"
+                                onsectiontoggle={handleSectionToggle}>
+                <!-- Contract Section -->
+                <lightning-accordion-section name="contractSection" label={contractSectionLabel}>
+                    <div class="data-table-container">
+                        <template if:true={isContractDataAvailable}>
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell center-trancate-head checkbox-column">
+                                            <input type="checkbox" 
+                                                    checked={isAllContractSelected}
+                                                    onchange={handleSelectAllContract}
+                                                    data-type="select-all-contract">
+                                        </th>
+                                        <th class="header-cell center-trancate-head actions-column">Actions</th>
+                                        <template for:each={tableColumns} for:item="column">
+                                            <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                {column.label}
+                                            </th>
                                         </template>
-                                        <template if:false={field.isCurrency}>
-                                            <template if:true={field.isPercent}>
-                                                <lightning-formatted-number 
-                                                    value={field.rawValue} 
-                                                    format-style="percent" 
-                                                    maximum-fraction-digits="2">
-                                                </lightning-formatted-number>
-                                            </template>
-                                            <template if:false={field.isPercent}>
-                                                <template if:true={field.isNameField}>
-                                                    <a href={entry.recordUrl} target="_blank" class="name-link">
-                                                        {field.value}
-                                                    </a>
-                                                </template>
-                                                <template if:false={field.isNameField}>
-                                                    <template if:true={field.hasValue}>
-                                                        {field.value}
+                                    </tr>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={displayedContractEntries} for:item="entry">
+                                        <tr key={entry.Id}>
+                                            <td class="center-trancate-text checkbox-column">
+                                                <input type="checkbox" 
+                                                        checked={entry.isSelected}
+                                                        onchange={handleRowSelection}
+                                                        data-row-id={entry.Id}
+                                                        data-type="row-checkbox">
+                                            </td>
+                                            <td class="center-trancate-text actions-column">
+                                                <div class="action-icons">
+                                                    <button class="icon-button add-location-btn" 
+                                                            title="Add Location" 
+                                                            onclick={handleAddLocation}
+                                                            data-record-id={entry.Id}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
+                                                            <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                            <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
+                                                            <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button class="icon-button edit-btn" 
+                                                            title="Edit Record" 
+                                                            onclick={handleEditRecord}
+                                                            data-record-id={entry.Id}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M18.5 2.50023C18.8978 2.1024 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.1024 21.5 2.50023C21.8978 2.89805 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.1024 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button class="icon-button child-records-btn" 
+                                                            title="Open Child Records" 
+                                                            onclick={handleOpenChildRecords}
+                                                            data-record-id={entry.Id}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
+                                                            <path d="M16 8L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                            <path d="M16 16L8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <template for:each={entry.displayFields} for:item="field">
+                                                <td key={field.key} class="center-trancate-text">
+                                                    <template if:true={field.isCurrency}>
+                                                        <lightning-formatted-number 
+                                                            value={field.currencyValue} 
+                                                            format-style="currency" 
+                                                            currency-code="USD">
+                                                        </lightning-formatted-number>
                                                     </template>
-                                                    <template if:false={field.hasValue}>
-                                                        --
+                                                    <template if:false={field.isCurrency}>
+                                                        <template if:true={field.isPercent}>
+                                                            <lightning-formatted-number 
+                                                                value={field.rawValue} 
+                                                                format-style="percent" 
+                                                                maximum-fraction-digits="2">
+                                                            </lightning-formatted-number>
+                                                        </template>
+                                                        <template if:false={field.isPercent}>
+                                                            <template if:true={field.isNameField}>
+                                                                <a href={entry.recordUrl} target="_blank" class="name-link">
+                                                                    {field.value}
+                                                                </a>
+                                                            </template>
+                                                            <template if:false={field.isNameField}>
+                                                                <template if:true={field.hasValue}>
+                                                                    {field.value}
+                                                                </template>
+                                                                <template if:false={field.hasValue}>
+                                                                    --
+                                                                </template>
+                                                            </template>
+                                                        </template>
                                                     </template>
-                                                </template>
+                                                </td>
                                             </template>
-                                        </template>
-                                    </td>
-                                </template>
-                            </tr>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
                         </template>
-                    </tbody>
-                </table>
-            </template>
 
-            <template if:false={isDataAvailable}>
-                <div class="no-prop">
-                    <div class="empty-state">
-                        <div class="empty-state__content">
-                            <div class="empty-state__icon">
-                                <img src={emptyState} alt="" draggable="false">
+                        <template if:false={isContractDataAvailable}>
+                            <div class="no-prop">
+                                <div class="empty-state">
+                                    <div class="empty-state__content">
+                                        <div class="empty-state__icon">
+                                            <img src={emptyState} alt="" draggable="false">
+                                        </div>
+                                        <div class="empty-state__message">No contract entries found for this job</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="empty-state__message">No scope entries found for this job</div>
-                        </div>
+                        </template>
                     </div>
-                </div>
-            </template>
+                </lightning-accordion-section>
+
+                <!-- Change Order Section -->
+                <lightning-accordion-section name="changeOrderSection" label={changeOrderSectionLabel}>
+                    <div class="data-table-container">
+                        <template if:true={isChangeOrderDataAvailable}>
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell center-trancate-head checkbox-column">
+                                            <input type="checkbox" 
+                                                    checked={isAllChangeOrderSelected}
+                                                    onchange={handleSelectAllChangeOrder}
+                                                    data-type="select-all-changeorder">
+                                        </th>
+                                        <th class="header-cell center-trancate-head actions-column">Actions</th>
+                                        <template for:each={tableColumns} for:item="column">
+                                            <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                {column.label}
+                                            </th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={displayedChangeOrderEntries} for:item="entry">
+                                        <tr key={entry.Id}>
+                                            <td class="center-trancate-text checkbox-column">
+                                                <input type="checkbox" 
+                                                        checked={entry.isSelected}
+                                                        onchange={handleRowSelection}
+                                                        data-row-id={entry.Id}
+                                                        data-type="row-checkbox">
+                                            </td>
+                                            <td class="center-trancate-text actions-column">
+                                                <div class="action-icons">
+                                                    <button class="icon-button add-location-btn" 
+                                                            title="Add Location" 
+                                                            onclick={handleAddLocation}
+                                                            data-record-id={entry.Id}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
+                                                            <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                            <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
+                                                            <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button class="icon-button edit-btn" 
+                                                            title="Edit Record" 
+                                                            onclick={handleEditRecord}
+                                                            data-record-id={entry.Id}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M18.5 2.50023C18.8978 2.1024 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.1024 21.5 2.50023C21.8978 2.89805 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.1024 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button class="icon-button child-records-btn" 
+                                                            title="Open Child Records" 
+                                                            onclick={handleOpenChildRecords}
+                                                            data-record-id={entry.Id}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
+                                                            <path d="M16 8L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                            <path d="M16 16L8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <template for:each={entry.displayFields} for:item="field">
+                                                <td key={field.key} class="center-trancate-text">
+                                                    <template if:true={field.isCurrency}>
+                                                        <lightning-formatted-number 
+                                                            value={field.currencyValue} 
+                                                            format-style="currency" 
+                                                            currency-code="USD">
+                                                        </lightning-formatted-number>
+                                                    </template>
+                                                    <template if:false={field.isCurrency}>
+                                                        <template if:true={field.isPercent}>
+                                                            <lightning-formatted-number 
+                                                                value={field.rawValue} 
+                                                                format-style="percent" 
+                                                                maximum-fraction-digits="2">
+                                                            </lightning-formatted-number>
+                                                        </template>
+                                                        <template if:false={field.isPercent}>
+                                                            <template if:true={field.isNameField}>
+                                                                <a href={entry.recordUrl} target="_blank" class="name-link">
+                                                                    {field.value}
+                                                                </a>
+                                                            </template>
+                                                            <template if:false={field.isNameField}>
+                                                                <template if:true={field.hasValue}>
+                                                                    {field.value}
+                                                                </template>
+                                                                <template if:false={field.hasValue}>
+                                                                    --
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                    </template>
+                                                </td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </template>
+
+                        <template if:false={isChangeOrderDataAvailable}>
+                            <div class="no-prop">
+                                <div class="empty-state">
+                                    <div class="empty-state__content">
+                                        <div class="empty-state__icon">
+                                            <img src={emptyState} alt="" draggable="false">
+                                        </div>
+                                        <div class="empty-state__message">No change order entries found for this job</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </lightning-accordion-section>
+            </lightning-accordion>
         </div>
     </div>
 
-    <!-- Add Scope Entry Modal -->
+    <!-- Add Scope Entry Modal - Type Selector Added -->
     <template if:true={showAddModal}>
         <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
             <div class="slds-modal__container">
-                <!-- Close Button -->
                 <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
                     <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                 </button>
 
                 <div class="slds-modal__content pop-up" id="modal-content-id-3">
-                    <!-- Heading -->
                     <div class="pop-heading">
                         Add New Scope Entry
                     </div>
 
-                    <!-- Body -->
                     <div class="popUpBody slds-p-around--medium">
                         <div class="form-container">
+                            <div class="form-group">
+                                <label class="form-label required">Type</label>
+                                <lightning-combobox
+                                    value={newScopeEntry.type}
+                                    options={typeOptions}
+                                    onchange={handleTypeChange}
+                                    placeholder="Select Type"
+                                    variant="label-hidden">
+                                </lightning-combobox>
+                            </div>
                             <div class="form-group">
                                 <div class="form-label-row">
                                     <label class="form-label required">Name</label>
@@ -234,7 +372,6 @@
                             </div>
                         </div>
 
-                        <!-- Footer -->
                         <div class="popUpFooter">
                             <button class="close-btn" onclick={handleCloseModal}>Cancel</button>
                             <button class="save-btn" 

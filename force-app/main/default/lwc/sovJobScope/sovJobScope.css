@@ -25,10 +25,11 @@
     background-color: white;
     transition: margin-left 0.3s ease;
     border-radius: 6px;
-    min-height: 25vh;
+    /* min-height: 25vh; */
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    padding-bottom: 14px;
 }
 
 /* Data Table Wrapper with Fixed Height */
@@ -447,6 +448,12 @@
 }
 
 /* Form Styles */
+
+.form-container{
+    --lwc-borderWidthThin: 1px;   
+    --slds-c-input-color-border: #d8d8d8;
+
+}
 .form-group {
     margin-bottom: 1.5rem;
 }
@@ -546,6 +553,51 @@
     background-color: #f8f9fa;
     border-color: #6c757d;
 }
+
+/* Accordion Container - Updated to match object config */
+.accordion-container {
+    flex: 1;
+    overflow: hidden;
+    margin-top: 12px;
+    background-color: aliceblue;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: unset;
+    background-image: url('/resource/newImageandMediaBg/');
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: #0170d27d transparent;
+}
+
+/* Override SLDS accordion styles to match object config style */
+.accordion-container lightning-accordion {
+    background: transparent;
+    border-radius: 8px;
+}
+
+.accordion-container lightning-accordion-section {
+    border: none;
+    background: transparent;
+}
+
+/* Data Table Container within Accordion - Updated styling */
+.accordion-container .data-table-container {
+    flex: 1;
+    overflow: auto;
+    border-radius: 8px;
+    margin: 16px 0;
+    min-height: 20rem;
+    max-height: 30rem;
+    background-color: white;
+    scrollbar-width: thin;
+    scrollbar-color: #0170d27d transparent;
+}
+
 
 /* Responsive adjustments */
 @media only screen and (max-width: 900px) {

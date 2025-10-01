@@ -12,10 +12,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
     @track isLoading = true;
     @track scopeEntries = [];
-    @track filteredScopeEntries = [];
+    @track contractEntries = [];
+    @track changeOrderEntries = [];
+    @track filteredContractEntries = [];
+    @track filteredChangeOrderEntries = [];
     @track searchTerm = '';
     @track scopeEntryColumns = [];
     @track emptyState = emptyState;
+    @track accordionStyleApplied = false;
+    @track activeSectionName = ['contractSection', 'changeOrderSection']; // Open both sections by default
+    @track typeOptions = [
+        { label: 'Contract', value: 'Contract' },
+        { label: 'Change Order', value: 'Change Order' }
+    ];
     @track defaultColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text' },
         { label: 'Type', fieldName: 'wfrecon__Type__c', type: 'text' },
@@ -31,7 +40,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track newScopeEntry = {
         name: '',
         contractValue: null,
-        description: ''
+        description: '',
+        type: 'Contract' // Default type
     };
 
     @track lastConfigUpdateTimestamp = 0; // Add this to track last update
@@ -83,32 +93,55 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: getFieldValue
-     * @description: Get field value from nested object structure
+     * Method Name: get contractSectionLabel
+     * @description: Get contract section label with count
      */
-    getFieldValue(record, fieldName) {
-        if (!record || !fieldName) return null;
-        
-        // Handle standard fields and namespaced fields directly on the record
-        if (record.hasOwnProperty(fieldName)) {
-            return record[fieldName];
-        }
-        
-        // Handle relationship fields (Job__r.SomeField)
-        if (fieldName.includes('.')) {
-            const parts = fieldName.split('.');
-            let current = record;
-            for (let part of parts) {
-                if (current && current[part] !== undefined) {
-                    current = current[part];
-                } else {
-                    return null;
-                }
-            }
-            return current;
-        }
-        
-        return null;
+    get contractSectionLabel() {
+        const count = this.filteredContractEntries ? this.filteredContractEntries.length : 0;
+        return `Contract (${count})`;
+    }
+
+    /**
+     * Method Name: get changeOrderSectionLabel
+     * @description: Get change order section label with count
+     */
+    get changeOrderSectionLabel() {
+        const count = this.filteredChangeOrderEntries ? this.filteredChangeOrderEntries.length : 0;
+        return `Change Order (${count})`;
+    }
+
+    /**
+     * Method Name: get isContractDataAvailable
+     * @description: Check if contract data is available
+     */
+    get isContractDataAvailable() {
+        return this.filteredContractEntries && this.filteredContractEntries.length > 0;
+    }
+
+    /**
+     * Method Name: get isChangeOrderDataAvailable
+     * @description: Check if change order data is available
+     */
+    get isChangeOrderDataAvailable() {
+        return this.filteredChangeOrderEntries && this.filteredChangeOrderEntries.length > 0;
+    }
+
+    /**
+     * Method Name: get isAllContractSelected
+     * @description: Check if all contract entries are selected
+     */
+    get isAllContractSelected() {
+        return this.filteredContractEntries.length > 0 && 
+                this.filteredContractEntries.every(entry => this.selectedRows.includes(entry.Id));
+    }
+
+    /**
+     * Method Name: get isAllChangeOrderSelected
+     * @description: Check if all change order entries are selected
+     */
+    get isAllChangeOrderSelected() {
+        return this.filteredChangeOrderEntries.length > 0 && 
+                this.filteredChangeOrderEntries.every(entry => this.selectedRows.includes(entry.Id));
     }
 
     /**
@@ -185,6 +218,28 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get displayedContractEntries
+     * @description: Process contract entries for table display
+     */
+    get displayedContractEntries() {
+        if (!this.filteredContractEntries || this.filteredContractEntries.length === 0) {
+            return [];
+        }
+        return this.processEntriesForDisplay(this.filteredContractEntries);
+    }
+
+    /**
+     * Method Name: get displayedChangeOrderEntries
+     * @description: Process change order entries for table display
+     */
+    get displayedChangeOrderEntries() {
+        if (!this.filteredChangeOrderEntries || this.filteredChangeOrderEntries.length === 0) {
+            return [];
+        }
+        return this.processEntriesForDisplay(this.filteredChangeOrderEntries);
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -192,6 +247,64 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.fetchScopeEntryConfiguration();
     }
 
+    renderedCallback() {
+        if(!this.accordionStyleApplied){
+            this.applyAccordionStyling();
+        }
+    }
+
+    applyAccordionStyling() {
+        try {
+            // Create style element if it doesn't exist
+            const style = document.createElement('style');
+            style.textContent = `
+                .accordion-container .section-control {
+                    background: #3396e5 !important;
+                    color: white !important;
+                    --slds-c-icon-color-foreground-default: #ffffff !important;
+                }
+            `;
+            
+            // Append to component's template
+            const accordionContainer = this.template.querySelector('.accordion-container');
+            if (accordionContainer) {
+                accordionContainer.appendChild(style);
+                this.accordionStyleApplied = true;
+            }
+            
+        } catch (error) {
+            console.error('Error applying accordion styling:', error);
+        }
+    }
+
+    /**
+     * Method Name: getColumnType
+     * @description: Convert field type to column type
+     */
+    getColumnType(fieldType) {
+        switch ((fieldType || '').toUpperCase()) {
+            case 'CURRENCY':
+                return 'currency';
+            case 'PERCENT':
+                return 'percent';
+            case 'NUMBER':
+                return 'number';
+            case 'DATE':
+                return 'date';
+            case 'DATETIME':
+                return 'date';
+            case 'EMAIL':
+                return 'email';
+            case 'PHONE':
+                return 'phone';
+            case 'URL':
+                return 'url';
+            case 'BOOLEAN':
+                return 'boolean';
+            default:
+                return 'text';
+        }
+    }
 
     /**
      * Method Name: fetchScopeEntryConfiguration
@@ -285,46 +398,45 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: getColumnType
-     * @description: Convert field type to column type
-     */
-    getColumnType(fieldType) {
-        switch ((fieldType || '').toUpperCase()) {
-            case 'CURRENCY':
-                return 'currency';
-            case 'PERCENT':
-                return 'percent';
-            case 'NUMBER':
-                return 'number';
-            case 'DATE':
-                return 'date';
-            case 'DATETIME':
-                return 'date';
-            case 'EMAIL':
-                return 'email';
-            case 'PHONE':
-                return 'phone';
-            case 'URL':
-                return 'url';
-            case 'BOOLEAN':
-                return 'boolean';
-            default:
-                return 'text';
+     * Method Name: getFieldValue
+     * @description: Get field value from nested object structure
+    */
+    getFieldValue(record, fieldName) {
+        if (!record || !fieldName) return null;
+        
+        // Handle standard fields and namespaced fields directly on the record
+        if (record.hasOwnProperty(fieldName)) {
+            return record[fieldName];
         }
+        
+        // Handle relationship fields (Job__r.SomeField)
+        if (fieldName.includes('.')) {
+            const parts = fieldName.split('.');
+            let current = record;
+            for (let part of parts) {
+                if (current && current[part] !== undefined) {
+                    current = current[part];
+                } else {
+                    return null;
+                }
+            }
+            return current;
+        }
+        
+        return null;
     }
 
     /**
      * Method Name: applyFilters
-     * @description: Apply search filters to scope entries
+     * @description: Apply search filters and separate by type
      */
     applyFilters() {
         try {
-            this.filteredScopeEntries = this.scopeEntries.filter(entry => {
+            let filteredEntries = this.scopeEntries.filter(entry => {
                 if (!this.searchTerm) return true;
                 
                 const searchLower = this.searchTerm.toLowerCase();
                 
-                // Search through all string fields in the entry
                 const searchInObject = (obj, visited = new Set()) => {
                     if (!obj || typeof obj !== 'object' || visited.has(obj)) {
                         return false;
@@ -352,9 +464,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 return searchInObject(entry);
             });
+
+            // Separate entries by type
+            this.filteredContractEntries = filteredEntries.filter(entry => 
+                this.getFieldValue(entry, 'wfrecon__Type__c') === 'Contract'
+            );
+            
+            this.filteredChangeOrderEntries = filteredEntries.filter(entry => 
+                this.getFieldValue(entry, 'wfrecon__Type__c') === 'Change Order'
+            );
         } catch (error) {
             console.error('Error applying filters:', error);
-            this.filteredScopeEntries = this.scopeEntries;
+            this.filteredContractEntries = [];
+            this.filteredChangeOrderEntries = [];
         }
     }
 
@@ -398,7 +520,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.newScopeEntry = {
             name: '',
             contractValue: null,
-            description: ''
+            description: '',
+            type: 'Contract'
         };
         this.showAddModal = true;
     }
@@ -429,11 +552,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: validateScopeEntry
-     * @description: Validate scope entry form data
+     * @description: Validate scope entry form data including type
      * @return: Object with isValid boolean and error message
      */
     validateScopeEntry() {
-        const { name, contractValue, description } = this.newScopeEntry;
+        const { name, contractValue, description, type } = this.newScopeEntry;
+        
+        if (!type || type.trim() === '') {
+            return { isValid: false, message: 'Type is required' };
+        }
         
         if (!name || name.trim() === '') {
             return { isValid: false, message: 'Name is required' };
@@ -577,5 +704,107 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     handleOpenChildRecords(event) {
         const recordId = event.currentTarget.dataset.recordId;
         this.showToast('Info', `Open Child Records action clicked for record: ${recordId}`, 'info');
+    }
+
+    /**
+     * Method Name: processEntriesForDisplay
+     * @description: Common method to process entries for display
+     */
+    processEntriesForDisplay(entries) {
+        const cols = this.tableColumns;
+        return entries.map(entry => {
+            const row = { ...entry };
+            row.isSelected = this.selectedRows.includes(entry.Id);
+            row.recordUrl = `/lightning/r/${entry.Id}/view`;
+            row.displayFields = cols.map(col => {
+                const key = col.fieldName;
+                let value = this.getFieldValue(entry, key);
+                
+                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                
+                let currencyValue = 0;
+                if (col.type === 'currency') {
+                    currencyValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                }
+                
+                return {
+                    key,
+                    value: displayValue,
+                    rawValue: value,
+                    currencyValue: currencyValue,
+                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    isNameField: key === 'Name',
+                    isCurrency: col.type === 'currency',
+                    isPercent: col.type === 'percent'
+                };
+            });
+            return row;
+        });
+    }
+
+    /**
+     * Method Name: handleSectionToggle
+     * @description: Handle accordion section toggle - Allow multiple sections to be open
+     */
+    handleSectionToggle(event) {
+        this.activeSectionName = event.detail.openSections;
+    }
+
+    /**
+     * Method Name: handleSelectAllContract
+     * @description: Handle select all for contract entries
+     */
+    handleSelectAllContract(event) {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+            const contractIds = this.filteredContractEntries.map(entry => entry.Id);
+            this.selectedRows = [...new Set([...this.selectedRows, ...contractIds])];
+        } else {
+            const contractIds = this.filteredContractEntries.map(entry => entry.Id);
+            this.selectedRows = this.selectedRows.filter(id => !contractIds.includes(id));
+        }
+
+        this.updateCheckboxes();
+    }
+
+    /**
+     * Method Name: handleSelectAllChangeOrder
+     * @description: Handle select all for change order entries
+     */
+    handleSelectAllChangeOrder(event) {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+            const changeOrderIds = this.filteredChangeOrderEntries.map(entry => entry.Id);
+            this.selectedRows = [...new Set([...this.selectedRows, ...changeOrderIds])];
+        } else {
+            const changeOrderIds = this.filteredChangeOrderEntries.map(entry => entry.Id);
+            this.selectedRows = this.selectedRows.filter(id => !changeOrderIds.includes(id));
+        }
+
+        this.updateCheckboxes();
+    }
+
+    /**
+     * Method Name: updateCheckboxes
+     * @description: Update individual checkboxes after select all
+     */
+    updateCheckboxes() {
+        setTimeout(() => {
+            const checkboxes = this.template.querySelectorAll('[data-type="row-checkbox"]');
+            checkboxes.forEach(checkbox => {
+                const rowId = checkbox.dataset.rowId;
+                checkbox.checked = this.selectedRows.includes(rowId);
+            });
+        }, 0);
+    }
+
+    /**
+     * Method Name: handleTypeChange
+     * @description: Handle type selection in modal
+     */
+    handleTypeChange(event) {
+        this.newScopeEntry = { ...this.newScopeEntry, type: event.target.value };
     }
 }
