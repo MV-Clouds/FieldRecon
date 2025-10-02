@@ -82,6 +82,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track showAddModal = false;
     @track isSubmitting = false;
     @track selectedRows = [];
+    @track selectedProcesses = []; // Simplified process selection
     @track newScopeEntry = {
         name: '',
         contractValue: null,
@@ -369,6 +370,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         if (this.totalContractValue === 0) return 0;
         
         return (this.totalCompletedValue / this.totalContractValue);
+    }
+
+    /**
+     * Method Name: get isAllProcessesSelectedForEntry
+     * @description: Check if all processes are selected for current entry (used in template)
+     */
+    get isAllProcessesSelectedForEntry() {
+        // This will be evaluated for each entry in the template
+        return (scopeEntryId) => this.isAllProcessesSelectedForEntry(scopeEntryId);
     }
 
     /**
@@ -869,7 +879,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
             row.isLoadingProcesses = entry.isLoadingProcesses || false;
-            row.allProcessesSelected = this.isAllProcessesSelected(entry.Id); // Simplified check
             
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
@@ -901,7 +910,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * Method Name: processProcessDetailsForDisplay
      * @description: Process process details for nested table display
      */
-    processProcessDetailsForDisplay(processDetails, scopeEntryId) {
+    processProcessDetailsForDisplay(processDetails) {
         if (!processDetails || processDetails.length === 0) {
             return [];
         }
@@ -909,7 +918,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return processDetails.map(process => {
             const row = { ...process };
             row.recordUrl = `/lightning/r/${process.Id}/view`;
-            // Make sure to check the current selected state
             row.isSelected = this.selectedProcesses.includes(process.Id);
             
             row.displayFields = this.processTableColumns.map(col => {
@@ -1195,8 +1203,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Update process details for a specific entry
      */
     updateProcessDetails(scopeEntryId, processDetails) {
-        // Process the details for display - pass scopeEntryId
-        const processedDetails = this.processProcessDetailsForDisplay(processDetails, scopeEntryId);
+        // Process the details for display
+        const processedDetails = this.processProcessDetailsForDisplay(processDetails);
         
         // Update contract entries
         this.filteredContractEntries = this.filteredContractEntries.map(entry => {
@@ -1204,8 +1212,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return {
                     ...entry,
                     processDetails: processedDetails,
-                    isLoadingProcesses: false,
-                    allProcessesSelected: this.isAllProcessesSelected(scopeEntryId)
+                    isLoadingProcesses: false
                 };
             }
             return entry;
@@ -1217,18 +1224,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return {
                     ...entry,
                     processDetails: processedDetails,
-                    isLoadingProcesses: false,
-                    allProcessesSelected: this.isAllProcessesSelected(scopeEntryId)
+                    isLoadingProcesses: false
                 };
             }
             return entry;
         });
-        
-        // Force re-render by updating a timestamp
-        this.processTableUpdateTime = Date.now();
     }
-
-    @track selectedProcesses = [];
 
     /**
      * Method Name: handleProcessRowSelection
@@ -1236,7 +1237,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleProcessRowSelection(event) {
         const processId = event.target.dataset.processId;
-        const scopeEntryId = event.target.dataset.scopeEntryId;
         const isChecked = event.target.checked;
 
         if (isChecked) {
@@ -1245,29 +1245,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.selectedProcesses = this.selectedProcesses.filter(id => id !== processId);
         }
 
-        // Update the select all checkbox state for this scope entry
-        this.updateSelectAllProcessCheckbox(scopeEntryId);
-    }
-
-    /**
-     * Method Name: updateSelectAllProcessCheckbox
-     * @description: Update the select all checkbox state based on individual selections
-     */
-    updateSelectAllProcessCheckbox(scopeEntryId) {
-        setTimeout(() => {
-            const selectAllCheckbox = this.template.querySelector(`[data-type="select-all-processes"][data-scope-entry-id="${scopeEntryId}"]`);
-            if (selectAllCheckbox) {
-                const entry = this.getEntryById(scopeEntryId);
-                if (entry && entry.processDetails && entry.processDetails.length > 0) {
-                    const processIds = entry.processDetails.map(process => process.Id);
-                    const selectedCount = processIds.filter(id => this.selectedProcesses.includes(id)).length;
-                    const totalCount = processIds.length;
-                    
-                    selectAllCheckbox.checked = selectedCount === totalCount;
-                    selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < totalCount;
-                }
-            }
-        }, 0);
+        // Force re-render to update select all checkboxes
+        this.updateDisplayedEntries();
     }
 
     /**
@@ -1293,23 +1272,34 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.selectedProcesses = this.selectedProcesses.filter(id => !processIds.includes(id));
         }
 
-        // Update individual checkboxes
-        this.updateProcessCheckboxes(scopeEntryId);
+        // Force re-render
+        this.updateDisplayedEntries();
     }
 
     /**
-     * Method Name: updateProcessCheckboxes
-     * @description: Update individual process checkboxes after select all
+     * Method Name: updateDisplayedEntries
+     * @description: Force update of displayed entries to reflect selection changes
      */
-    updateProcessCheckboxes(scopeEntryId) {
-        setTimeout(() => {
-            const processCheckboxes = this.template.querySelectorAll(`[data-type="process-checkbox"][data-scope-entry-id="${scopeEntryId}"]`);
-            
-            processCheckboxes.forEach(checkbox => {
-                const processId = checkbox.dataset.processId;
-                checkbox.checked = this.selectedProcesses.includes(processId);
+    updateDisplayedEntries() {
+        // Re-process contract entries to update selection states
+        if (this.filteredContractEntries.length > 0) {
+            this.filteredContractEntries = this.filteredContractEntries.map(entry => {
+                if (entry.processDetails) {
+                    entry.processDetails = this.processProcessDetailsForDisplay(entry.processDetails);
+                }
+                return entry;
             });
-        }, 0);
+        }
+
+        // Re-process change order entries to update selection states
+        if (this.filteredChangeOrderEntries.length > 0) {
+            this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
+                if (entry.processDetails) {
+                    entry.processDetails = this.processProcessDetailsForDisplay(entry.processDetails);
+                }
+                return entry;
+            });
+        }
     }
 
     /**
@@ -1324,24 +1314,4 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return changeOrderEntry;
     }
 
-    /**
-     * Method Name: isProcessSelected
-     * @description: Check if a process is selected
-     */
-    isProcessSelected(processId) {
-        return this.selectedProcesses.includes(processId);
-    }
-
-    /**
-     * Method Name: isAllProcessesSelected
-     * @description: Check if all processes are selected for a scope entry
-     */
-    isAllProcessesSelected(scopeEntryId) {
-        const entry = this.getEntryById(scopeEntryId);
-        if (!entry || !entry.processDetails || entry.processDetails.length === 0) {
-            return false;
-        }
-        
-        return entry.processDetails.every(process => this.selectedProcesses.includes(process.Id));
-    }
 }
