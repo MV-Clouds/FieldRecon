@@ -930,11 +930,11 @@
                                                         data-type="select-all-process-library"
                                                         title="Select All">
                                             </th>
-                                            <th class="header-cell center-trancate-head">Name</th>
-                                            <th class="header-cell center-trancate-head">Category</th>
-                                            <th class="header-cell center-trancate-head">Sequence</th>
-                                            <th class="header-cell center-trancate-head">Measurement Type</th>
-                                            <th class="header-cell center-trancate-head">Weight</th>
+                                            <template for:each={processLibraryTableColumns} for:item="column">
+                                                <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                    {column.label}
+                                                </th>
+                                            </template>
                                         </tr>
                                     </thead>
                                     <tbody class="table-body">
@@ -947,44 +947,63 @@
                                                             checked={process.isSelected}
                                                             onchange={handleProcessLibrarySelection}>
                                                 </td>
-                                                <td class="center-trancate-text process-name-cell">
-                                                    <div class="process-name-container">
-                                                        <div class="process-name">{process.Name}</div>
-                                                        <template if:true={process.wfrecon__Process_Name__c}>
-                                                            <div class="process-display-name">{process.wfrecon__Process_Name__c}</div>
+                                                <template for:each={process.displayFields} for:item="field">
+                                                    <td key={field.key} class="center-trancate-text">
+                                                        <template if:true={field.isCurrency}>
+                                                            <template if:true={field.hasValue}>
+                                                                <lightning-formatted-number 
+                                                                    value={field.currencyValue} 
+                                                                    format-style="currency" 
+                                                                    currency-code="USD"
+                                                                    maximum-fraction-digits="2">
+                                                                </lightning-formatted-number>
+                                                            </template>
+                                                            <template if:false={field.hasValue}>--</template>
                                                         </template>
-                                                    </div>
-                                                </td>
-                                                <td class="center-trancate-text">
-                                                    <template if:true={process.wfrecon__Process_Type__c}>
-                                                        {process.wfrecon__Process_Type__c}
-                                                    </template>
-                                                    <template if:false={process.wfrecon__Process_Type__c}>--</template>
-                                                </td>
-                                                <td class="center-trancate-text">
-                                                    <template if:true={process.wfrecon__Sequence__c}>
-                                                        <lightning-formatted-number 
-                                                            value={process.wfrecon__Sequence__c} 
-                                                            maximum-fraction-digits="0">
-                                                        </lightning-formatted-number>
-                                                    </template>
-                                                    <template if:false={process.wfrecon__Sequence__c}>--</template>
-                                                </td>
-                                                <td class="center-trancate-text">
-                                                    <template if:true={process.wfrecon__Measurement_Type__c}>
-                                                        {process.wfrecon__Measurement_Type__c}
-                                                    </template>
-                                                    <template if:false={process.wfrecon__Measurement_Type__c}>--</template>
-                                                </td>
-                                                <td class="center-trancate-text">
-                                                    <template if:true={process.wfrecon__Value__c}>
-                                                        <lightning-formatted-number 
-                                                            value={process.wfrecon__Value__c} 
-                                                            maximum-fraction-digits="2">
-                                                        </lightning-formatted-number>
-                                                    </template>
-                                                    <template if:false={process.wfrecon__Value__c}>--</template>
-                                                </td>
+                                                        <template if:false={field.isCurrency}>
+                                                            <template if:true={field.isPercent}>
+                                                                <template if:true={field.hasValue}>
+                                                                    <lightning-formatted-number 
+                                                                        value={field.percentValue} 
+                                                                        format-style="percent" 
+                                                                        maximum-fraction-digits="2">
+                                                                    </lightning-formatted-number>
+                                                                </template>
+                                                                <template if:false={field.hasValue}>0.00%</template>
+                                                            </template>
+                                                            <template if:false={field.isPercent}>
+                                                                <template if:true={field.isNumber}>
+                                                                    <template if:true={field.hasValue}>
+                                                                        <lightning-formatted-number 
+                                                                            value={field.numberValue} 
+                                                                            maximum-fraction-digits="2">
+                                                                        </lightning-formatted-number>
+                                                                    </template>
+                                                                    <template if:false={field.hasValue}>--</template>
+                                                                </template>
+                                                                <template if:false={field.isNumber}>
+                                                                    <template if:true={field.isNameField}>
+                                                                        <template if:true={field.hasValue}>
+                                                                            <div class="process-name-container">
+                                                                                <div class="process-name">{field.value}</div>
+                                                                                <template if:true={field.displayName}>
+                                                                                    <div class="process-display-name">{field.displayName}</div>
+                                                                                </template>
+                                                                            </div>
+                                                                        </template>
+                                                                        <template if:false={field.hasValue}>--</template>
+                                                                    </template>
+                                                                    <template if:false={field.isNameField}>
+                                                                        <template if:true={field.hasValue}>
+                                                                            {field.value}
+                                                                        </template>
+                                                                        <template if:false={field.hasValue}>--</template>
+                                                                    </template>
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                    </td>
+                                                </template>
                                             </tr>
                                         </template>
                                     </tbody>
@@ -1017,7 +1036,7 @@
                         <!-- Selected Count Display -->
                         <template if:true={hasSelectedProcessLibrary}>
                             <div class="selected-processes-count">
-                                <span class="count-text">{selectedProcessLibraryIds.length} process(es) selected</span>
+                                <span class="count-text">{selectedProcessLibraryIds.length} processes selected</span>
                             </div>
                         </template>
 

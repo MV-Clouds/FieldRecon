@@ -302,6 +302,7 @@ public with sharing class SovJobScopeController {
             newProcess.Weight__c = (Decimal) processData.get('weightage');
             newProcess.Measurement_Type__c = (String) processData.get('measurementType');
             newProcess.Scope_Entry__c = (Id) processData.get('scopeEntryId');
+            newProcess.Job__c = (Id) processData.get('jobId');
             
             insert as user newProcess;
             return 'Success';
@@ -322,21 +323,21 @@ public with sharing class SovJobScopeController {
     /*
     *********************************************************
     @description     : Method is used to get Process Library records for selection
-    @return          : List<wfrecon__Process__c> - List of Process Library records
+    @return          : List<Process__c> - List of Process Library records
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static List<wfrecon__Process__c> getProcessLibraryRecords() {
-        List<wfrecon__Process__c> processes = new List<wfrecon__Process__c>();
+    public static List<Process__c> getProcessLibraryRecords() {
+        List<Process__c> processes = new List<Process__c>();
         try {
             processes = [
-                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Process_Type__c, 
-                       wfrecon__Measurement_Type__c, wfrecon__Sequence__c, wfrecon__Value__c,
-                       wfrecon__Process_Description__c
-                FROM wfrecon__Process__c
+                SELECT Id, Name, Process_Name__c, Process_Type__c, 
+                       Measurement_Type__c, Sequence__c, Value__c,
+                       Process_Description__c
+                FROM Process__c
                 WITH USER_MODE
-                ORDER BY wfrecon__Process_Type__c ASC, wfrecon__Sequence__c ASC NULLS LAST, Name ASC
+                ORDER BY Process_Type__c ASC, Sequence__c ASC NULLS LAST, Name ASC
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
@@ -364,50 +365,50 @@ public with sharing class SovJobScopeController {
     public static String createScopeEntryProcessesFromLibrary(Map<String, Object> processData) {
         try {
             Id scopeEntryId = (Id) processData.get('scopeEntryId');
-            List<String> selectedProcessIds = (List<String>) processData.get('selectedProcessIds');
+            Id jobId = (Id) processData.get('jobId');
+            
+            // Fix: Handle List<Object> conversion to List<String>
+            List<Object> selectedProcessIdsObj = (List<Object>) processData.get('selectedProcessIds');
+            List<String> selectedProcessIds = new List<String>();
+            
+            if (selectedProcessIdsObj != null) {
+                for (Object obj : selectedProcessIdsObj) {
+                    selectedProcessIds.add(String.valueOf(obj));
+                }
+            }
             
             if (selectedProcessIds == null || selectedProcessIds.isEmpty()) {
                 return 'Error: No processes selected';
             }
             
             // Get Process Library records
-            List<wfrecon__Process__c> processLibraryRecords = [
-                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Process_Type__c, 
-                       wfrecon__Measurement_Type__c, wfrecon__Sequence__c, wfrecon__Value__c,
-                       wfrecon__Process_Description__c
-                FROM wfrecon__Process__c
+            List<Process__c> processLibraryRecords = [
+                SELECT Id, Name, Process_Name__c, Process_Type__c, 
+                       Measurement_Type__c, Sequence__c, Weight__c   
+                FROM Process__c
                 WHERE Id IN :selectedProcessIds
                 WITH USER_MODE
             ];
             
-            // Get the highest sequence number for this scope entry
-            List<AggregateResult> maxSequenceResult = [
-                SELECT MAX(wfrecon__Sequence__c) maxSeq
-                FROM wfrecon__Scope_Entry_Process__c
-                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
-                WITH USER_MODE
-            ];
+            // Create Scope Entry Process records with exact same values
+            List<Scope_Entry_Process__c> scopeEntryProcesses = new List<Scope_Entry_Process__c>();
             
-            Decimal nextSequence = 1;
-            if (!maxSequenceResult.isEmpty() && maxSequenceResult[0].get('maxSeq') != null) {
-                nextSequence = (Decimal) maxSequenceResult[0].get('maxSeq') + 1;
-            }
-            
-            // Create Scope Entry Process records
-            List<wfrecon__Scope_Entry_Process__c> scopeEntryProcesses = new List<wfrecon__Scope_Entry_Process__c>();
-            
-            for (wfrecon__Process__c process : processLibraryRecords) {
-                wfrecon__Scope_Entry_Process__c newScopeProcess = new wfrecon__Scope_Entry_Process__c();
-                newScopeProcess.wfrecon__Scope_Entry__c = scopeEntryId;
-                newScopeProcess.wfrecon__Process_Library__c = process.Id;
-                newScopeProcess.wfrecon__Process_Name__c = process.wfrecon__Process_Name__c;
-                newScopeProcess.wfrecon__Process_Type__c = process.wfrecon__Process_Type__c;
-                newScopeProcess.wfrecon__Measurement_Type__c = process.wfrecon__Measurement_Type__c;
-                newScopeProcess.wfrecon__Sequence__c = nextSequence;
-                newScopeProcess.wfrecon__Weight__c = process.wfrecon__Value__c; // Using Value as Weight
+            for (Process__c process : processLibraryRecords) {
+                Scope_Entry_Process__c newScopeProcess = new Scope_Entry_Process__c();
+                
+                // Required relationship fields
+                newScopeProcess.Scope_Entry__c = scopeEntryId;
+                newScopeProcess.Process_Library__c = process.Id;
+                
+                // Copy exact same values from Process Library
+                newScopeProcess.Process_Name__c = process.Process_Name__c;
+                newScopeProcess.Process_Type__c = process.Process_Type__c;
+                newScopeProcess.Measurement_Type__c = process.Measurement_Type__c;
+                newScopeProcess.Sequence__c = process.Sequence__c;
+                newScopeProcess.Weight__c = process.Weight__c;
+                newScopeProcess.Job__c = jobId; // Associate with Job            
                 
                 scopeEntryProcesses.add(newScopeProcess);
-                nextSequence++;
             }
             
             insert as user scopeEntryProcesses;
@@ -439,12 +440,12 @@ public with sharing class SovJobScopeController {
         List<String> processTypes = new List<String>();
         try {
             List<AggregateResult> results = [
-                SELECT wfrecon__Process_Type__c
-                FROM wfrecon__Process__c
-                WHERE wfrecon__Process_Type__c != null
+                SELECT Process_Type__c
+                FROM Process__c
+                WHERE Process_Type__c != null
                 WITH USER_MODE
-                GROUP BY wfrecon__Process_Type__c
-                ORDER BY wfrecon__Process_Type__c ASC
+                GROUP BY Process_Type__c
+                ORDER BY Process_Type__c ASC
                
             ];
             

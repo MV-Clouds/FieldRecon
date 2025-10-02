@@ -81,6 +81,36 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     ];
 
+    // Process Library Table Columns Configuration
+    @track processLibraryTableColumns = [
+        { 
+            label: 'Name', 
+            fieldName: 'Name', 
+            type: 'text',
+            isNameField: true
+        },
+        { 
+            label: 'Category', 
+            fieldName: 'wfrecon__Process_Type__c', 
+            type: 'text'
+        },
+        { 
+            label: 'Sequence', 
+            fieldName: 'wfrecon__Sequence__c', 
+            type: 'number'
+        },
+        { 
+            label: 'Measurement Type', 
+            fieldName: 'wfrecon__Measurement_Type__c', 
+            type: 'text'
+        },
+        { 
+            label: 'Weight', 
+            fieldName: 'wfrecon__Value__c', 
+            type: 'number'
+        }
+    ];
+
     // Modal and form properties
     @track showAddModal = false;
     @track isSubmitting = false;
@@ -136,6 +166,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track selectedProcessLibraryIds = [];
     @track processLibrarySearchTerm = '';
     @track selectedProcessCategory = '';
+    @track processTypeFilterOptions = []; // For filter dropdown
 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
@@ -408,6 +439,22 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     get isAllProcessLibrarySelected() {
         return this.processLibraryDisplayRecords.length > 0 && 
                this.processLibraryDisplayRecords.every(process => process.isSelected);
+    }
+
+    /**
+     * Method Name: get processTypeFilterOptions
+     * @description: Get process type options for filter dropdown
+     */
+    get processTypeFilterOptions() {
+        const options = [{ label: 'All Categories', value: '' }];
+        
+        if (this.processTypeOptions && this.processTypeOptions.length > 0) {
+            this.processTypeOptions.forEach(option => {
+                options.push({ label: option.label, value: option.value });
+            });
+        }
+        
+        return options;
     }
 
     /**
@@ -1235,7 +1282,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             processType: this.newProcess.processType,
             weightage: this.newProcess.weightage,
             measurementType: this.newProcess.measurementType,
-            scopeEntryId: this.selectedScopeEntryId
+            scopeEntryId: this.selectedScopeEntryId,
+            jobId: this.recordId
         };
 
         createScopeEntryProcess({ processData })
@@ -1402,7 +1450,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Load process types for filter
         getProcessTypes()
             .then(result => {
-                this.processTypeOptions = result || [];
+                this.processTypeOptions = (result || []).map(type => ({
+                    label: type,
+                    value: type
+                }));
             })
             .catch(error => {
                 console.error('Error loading process types:', error);
@@ -1453,45 +1504,49 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
         }
 
-        // Create display records with selection state
-        this.processLibraryDisplayRecords = filtered.map(process => ({
-            ...process,
-            isSelected: this.selectedProcessLibraryIds.includes(process.Id)
-        }));
-    }
+        // Create display records with selection state and processed fields
+        this.processLibraryDisplayRecords = filtered.map(process => {
+            const processRecord = {
+                ...process,
+                isSelected: this.selectedProcessLibraryIds.includes(process.Id)
+            };
 
-    /**
-     * Method Name: handleCloseProcessLibraryModal
-     * @description: Close process library modal
-     */
-    handleCloseProcessLibraryModal() {
-        this.showProcessLibraryModal = false;
-        this.selectedScopeEntryId = '';
-        this.selectedScopeEntryName = '';
-        this.selectedProcessLibraryIds = [];
-        this.processLibrarySearchTerm = '';
-        this.selectedProcessCategory = '';
-        this.processLibraryRecords = [];
-        this.processLibraryDisplayRecords = []; // Clear display records
-        this.processTypeOptions = [];
-    }
+            // Process display fields similar to other tables
+            processRecord.displayFields = this.processLibraryTableColumns.map(col => {
+                const key = col.fieldName;
+                let value = this.getFieldValue(process, key);
+                
+                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                
+                // Handle number fields
+                let numberValue = 0;
+                if (col.type === 'number') {
+                    numberValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                }
 
-    /**
-     * Method Name: handleProcessLibrarySearch
-     * @description: Handle search in process library modal
-     */
-    handleProcessLibrarySearch(event) {
-        this.processLibrarySearchTerm = event.target.value;
-        this.applyProcessLibraryFilters(); // Re-apply filters
-    }
+                // Handle special display for name field with Process_Name__c - FIX: Use getFieldValue
+                let displayName = '';
+                if (col.isNameField) {
+                    const processNameValue = this.getFieldValue(process, 'wfrecon__Process_Name__c');
+                    displayName = processNameValue || '';
+                }
+                
+                return {
+                    key,
+                    value: displayValue,
+                    displayName: displayName, // Fixed: Use the properly accessed displayName
+                    rawValue: value,
+                    numberValue: numberValue,
+                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    isNameField: col.isNameField || false,
+                    isNumber: col.type === 'number',
+                    isCurrency: col.type === 'currency',
+                    isPercent: col.type === 'percent'
+                };
+            });
 
-    /**
-     * Method Name: handleProcessCategoryFilter
-     * @description: Handle category filter change
-     */
-    handleProcessCategoryFilter(event) {
-        this.selectedProcessCategory = event.target.value;
-        this.applyProcessLibraryFilters(); // Re-apply filters
+            return processRecord;
+        });
     }
 
     /**
@@ -1543,6 +1598,39 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: handleProcessCategoryFilter
+     * @description: Handle category filter change
+     */
+    handleProcessCategoryFilter(event) {
+        this.selectedProcessCategory = event.target.value;
+        this.applyProcessLibraryFilters();
+    }
+
+    /**
+     * Method Name: handleProcessLibrarySearch
+     * @description: Handle search in process library modal
+     */
+    handleProcessLibrarySearch(event) {
+        this.processLibrarySearchTerm = event.target.value;
+        this.applyProcessLibraryFilters();
+    }
+
+    /**
+     * Method Name: handleCloseProcessLibraryModal
+     * @description: Close process library modal
+     */
+    handleCloseProcessLibraryModal() {
+        this.showProcessLibraryModal = false;
+        this.selectedScopeEntryName = '';
+        this.selectedProcessLibraryIds = [];
+        this.processLibrarySearchTerm = '';
+        this.selectedProcessCategory = '';
+        this.processLibraryRecords = [];
+        this.processLibraryDisplayRecords = [];
+        this.processTypeOptions = [];
+    }
+
+    /**
      * Method Name: handleSaveProcessesFromLibrary
      * @description: Save selected processes from library
      */
@@ -1554,9 +1642,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
         this.isProcessLibrarySubmitting = true;
         
+        
         const processData = {
             scopeEntryId: this.selectedScopeEntryId,
-            selectedProcessIds: this.selectedProcessLibraryIds
+            selectedProcessIds: this.selectedProcessLibraryIds,
+            jobId: this.recordId
         };
 
         createScopeEntryProcessesFromLibrary({ processData })
@@ -1576,6 +1666,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             })
             .finally(() => {
                 this.isProcessLibrarySubmitting = false;
+                this.selectedScopeEntryId = '';
             });
     }
 
