@@ -240,7 +240,7 @@
                                                                         <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                         <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                     </svg>
-                                                                    Add Process
+                                                                    Add Manual Process
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -259,7 +259,11 @@
                                                                             <tr>
                                                                                 <th class="header-cell center-trancate-head process-checkbox-column">
                                                                                     <input type="checkbox" 
-                                                                                            title="Select All Processes">
+                                                                                            title="Select All Processes"
+                                                                                            data-type="select-all-processes"
+                                                                                            data-scope-entry-id={entry.Id}
+                                                                                            checked={entry.allProcessesSelected}
+                                                                                            onchange={handleSelectAllProcesses}>
                                                                                 </th>
                                                                                 <template for:each={processTableColumns} for:item="column">
                                                                                     <th key={column.fieldName} class="header-cell center-trancate-head">
@@ -273,7 +277,11 @@
                                                                                 <tr key={process.Id} class="nested-table-row">
                                                                                     <td class="center-trancate-text process-checkbox-column">
                                                                                         <input type="checkbox" 
-                                                                                                data-process-id={process.Id}>
+                                                                                                data-process-id={process.Id}
+                                                                                                data-scope-entry-id={entry.Id}
+                                                                                                data-type="process-checkbox"
+                                                                                                checked={process.isSelected}
+                                                                                                onchange={handleProcessRowSelection}>
                                                                                     </td>
                                                                                     <template for:each={process.displayFields} for:item="field">
                                                                                         <td key={field.key} class="center-trancate-text">
@@ -343,7 +351,7 @@
                                                                                 <div class="empty-state__icon">
                                                                                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                                         <path d="M9 12L11 14L15 10" stroke="#0176D3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                        <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12 C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#0176D3" stroke-width="2"/>
+                                                                                        <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#0176D3" stroke-width="2"/>
                                                                                     </svg>
                                                                                 </div>
                                                                                 <div class="empty-state__message">No process details found for this scope entry</div>
@@ -522,7 +530,11 @@
                                                                             <tr>
                                                                                 <th class="header-cell center-trancate-head process-checkbox-column">
                                                                                     <input type="checkbox" 
-                                                                                            title="Select All Processes">
+                                                                                            title="Select All Processes"
+                                                                                            data-type="select-all-processes"
+                                                                                            data-scope-entry-id={entry.Id}
+                                                                                            checked={entry.allProcessesSelected}
+                                                                                            onchange={handleSelectAllProcesses}>
                                                                                 </th>
                                                                                 <template for:each={processTableColumns} for:item="column">
                                                                                     <th key={column.fieldName} class="header-cell center-trancate-head">
@@ -536,7 +548,11 @@
                                                                                 <tr key={process.Id} class="nested-table-row">
                                                                                     <td class="center-trancate-text process-checkbox-column">
                                                                                         <input type="checkbox" 
-                                                                                                data-process-id={process.Id}>
+                                                                                                data-process-id={process.Id}
+                                                                                                data-scope-entry-id={entry.Id}
+                                                                                                data-type="process-checkbox"
+                                                                                                checked={process.isSelected}
+                                                                                                onchange={handleProcessRowSelection}>
                                                                                     </td>
                                                                                     <template for:each={process.displayFields} for:item="field">
                                                                                         <td key={field.key} class="center-trancate-text">
@@ -644,7 +660,7 @@
         </div>
     </div>
 
-    <!-- Add Scope Entry Modal - Type Selector Added -->
+    <!-- Add Scope Entry Modal - Updated with consolidated handlers -->
     <template if:true={showAddModal}>
         <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
             <div class="slds-modal__container">
@@ -664,7 +680,9 @@
                                 <lightning-combobox
                                     value={newScopeEntry.type}
                                     options={typeOptions}
-                                    onchange={handleTypeChange}
+                                    onchange={handleSelectChange}
+                                    data-field="type"
+                                    data-type="scopeEntry"
                                     placeholder="Select Type"
                                     variant="label-hidden">
                                 </lightning-combobox>
@@ -679,6 +697,7 @@
                                        placeholder="Enter scope entry name"
                                        value={newScopeEntry.name}
                                        data-field="name"
+                                       data-type="scopeEntry"
                                        oninput={handleInputChange}
                                        maxlength="80">
                             </div>
@@ -691,6 +710,7 @@
                                        min="1"
                                        value={newScopeEntry.contractValue}
                                        data-field="contractValue"
+                                       data-type="scopeEntry"
                                        oninput={handleInputChange}>
                             </div>
                             <div class="form-group">
@@ -702,6 +722,7 @@
                                           placeholder="Enter description"
                                           value={newScopeEntry.description}
                                           data-field="description"
+                                          data-type="scopeEntry"
                                           oninput={handleInputChange}
                                           maxlength="255"
                                           rows="3"></textarea>
@@ -715,6 +736,107 @@
                                     disabled={isSubmitting}>
                                 <template if:true={isSubmitting}>Saving...</template>
                                 <template if:false={isSubmitting}>Save</template>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Add Manual Process Modal - Updated with consolidated handlers and character count -->
+    <template if:true={showAddProcessModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-02" aria-modal="true" aria-describedby="modal-content-id-2" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseProcessModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+
+                <div class="slds-modal__content pop-up" id="modal-content-id-2">
+                    <div class="pop-heading">
+                        Add Manual Process - {selectedScopeEntryName}
+                    </div>
+
+                    <div class="popUpBody slds-p-around--medium">
+                        <div class="form-container">
+                            <div class="form-group">
+                                <div class="form-label-row">
+                                    <label class="form-label required">Process Name</label>
+                                    <div class="character-count">{processNameCharacterCount}/80</div>
+                                </div>
+                                <input type="text" 
+                                       class="form-input" 
+                                       placeholder="Enter process name"
+                                       value={newProcess.processName}
+                                       data-field="processName"
+                                       data-type="process"
+                                       oninput={handleInputChange}
+                                       maxlength="80">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label required">Sequence</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter sequence number"
+                                       step="1"
+                                       min="1"
+                                       max="9999"
+                                       value={newProcess.sequence}
+                                       data-field="sequence"
+                                       data-type="process"
+                                       oninput={handleInputChange}>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label required">Process Type</label>
+                                <lightning-combobox
+                                    value={newProcess.processType}
+                                    options={processTypeOptions}
+                                    onchange={handleSelectChange}
+                                    data-field="processType"
+                                    data-type="process"
+                                    placeholder="Select Process Type"
+                                    variant="label-hidden">
+                                </lightning-combobox>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label required">Weightage</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter weightage"
+                                       step="0.01"
+                                       min="0"
+                                       max="9999"
+                                       value={newProcess.weightage}
+                                       data-field="weightage"
+                                       data-type="process"
+                                       oninput={handleInputChange}>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label required">Measurement Type</label>
+                                <lightning-combobox
+                                    value={newProcess.measurementType}
+                                    options={measurementTypeOptions}
+                                    onchange={handleSelectChange}
+                                    data-field="measurementType"
+                                    data-type="process"
+                                    placeholder="Select Measurement Type"
+                                    variant="label-hidden">
+                                </lightning-combobox>
+                            </div>
+                        </div>
+
+                        <div class="popUpFooter">
+                            <button class="close-btn process-btn" onclick={handleCloseProcessModal}>Cancel</button>
+                            <button class="save-btn process-btn" 
+                                    onclick={handleSaveProcess}
+                                    disabled={isProcessSubmitting}>
+                                <template if:true={isProcessSubmitting}>Saving...</template>
+                                <template if:false={isProcessSubmitting}>Save Process</template>
                             </button>
                         </div>
                     </div>

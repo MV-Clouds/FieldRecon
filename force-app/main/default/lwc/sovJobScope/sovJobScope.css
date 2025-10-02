@@ -433,7 +433,40 @@
     background: #FFFFFF;
     border: 1px solid #0176D3;
     color: #0176D3;
-    border-radius: 5px;
+}
+
+/* Process Modal Button Styles - Smaller buttons */
+.process-btn {
+    font-size: 0.875rem !important;
+    font-weight: 400;
+    line-height: 32px !important;
+    text-align: center;
+    padding: 0px 16px !important;
+    border-radius: 4px;
+    min-width: 80px;
+}
+
+.save-btn.process-btn {
+    background: #0176D3;
+    color: white;
+    border: 1px solid #0176D3;
+}
+
+.save-btn.process-btn:disabled {
+    border: 1px solid lightgray;
+    background: lightgray;
+    cursor: not-allowed;
+}
+
+.close-btn.process-btn {
+    background: #FFFFFF;
+    border: 1px solid #0176D3;
+    color: #0176D3;
+}
+
+.close-btn.process-btn:hover {
+    background: #f8f9fa;
+    border-color: #014486;
 }
 
 /* Form Styles */

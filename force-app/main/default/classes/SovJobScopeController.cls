@@ -283,4 +283,39 @@ public with sharing class SovJobScopeController {
         }
         return processes;
     }
+
+    /*
+    *********************************************************
+    @description     : Method is used to create a new Scope Entry Process
+    @param           : Map<String, Object> processData - Process data
+    @return          : String - Success or error message
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String createScopeEntryProcess(Map<String, Object> processData) {
+        try {
+            Scope_Entry_Process__c newProcess = new Scope_Entry_Process__c();
+            newProcess.Process_Name__c = (String) processData.get('processName');
+            newProcess.Sequence__c = (Decimal) processData.get('sequence');
+            newProcess.Process_Type__c = (String) processData.get('processType');
+            newProcess.Weight__c = (Decimal) processData.get('weightage');
+            newProcess.Measurement_Type__c = (String) processData.get('measurementType');
+            newProcess.Scope_Entry__c = (Id) processData.get('scopeEntryId');
+            
+            insert as user newProcess;
+            return 'Success';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'createScopeEntryProcess',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while creating Scope Entry Process.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
 }

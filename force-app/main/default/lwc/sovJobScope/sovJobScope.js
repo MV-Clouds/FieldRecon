@@ -7,6 +7,7 @@ import createScopeEntry from '@salesforce/apex/SovJobScopeController.createScope
 import deleteScopeEntries from '@salesforce/apex/SovJobScopeController.deleteScopeEntries';
 import { CurrentPageReference } from 'lightning/navigation';
 import getScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.getScopeEntryProcesses';
+import createScopeEntryProcess from '@salesforce/apex/SovJobScopeController.createScopeEntryProcess';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -90,10 +91,45 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     @track lastConfigUpdateTimestamp = 0; // Add this to track last update
 
+    // Process Modal Properties
+    @track showAddProcessModal = false;
+    @track isProcessSubmitting = false;
+    @track selectedScopeEntryId = '';
+    @track selectedScopeEntryName = '';
+    @track newProcess = {
+        processName: '',
+        sequence: null,
+        processType: '',
+        weightage: null,
+        measurementType: ''
+    };
+
+    // Process Type Options
+    @track processTypeOptions = [
+        { label: 'Overlay', value: 'Overlay' },
+        { label: 'Grinding', value: 'Grinding' },
+        { label: 'Surface Prep', value: 'Surface Prep' },
+        { label: 'Coatings', value: 'Coatings' },
+        { label: 'Joints', value: 'Joints' },
+        { label: 'Polishing', value: 'Polishing' },
+        { label: 'Generic', value: 'Generic' }
+    ];
+
+    // Measurement Type Options
+    @track measurementTypeOptions = [
+        { label: 'Crack Count', value: 'Crack Count' },
+        { label: 'Square Feet', value: 'Square Feet' },
+        { label: 'Distressed Edge', value: 'Distressed Edge' },
+        { label: 'Distressed Joint', value: 'Distressed Joint' },
+        { label: 'Misc. Defect Count', value: 'Misc. Defect Count' }
+    ];
+
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
     }
+
+    @track processTableUpdateTime = 0;
 
     /**
      * Method Name: get displayedScopeEntries
@@ -243,6 +279,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     get descriptionCharacterCount() {
         return this.newScopeEntry.description ? this.newScopeEntry.description.length : 0;
+    }
+
+    /**
+     * Method Name: get processNameCharacterCount
+     * @description: Get current character count for process name field
+     */
+    get processNameCharacterCount() {
+        return this.newProcess.processName ? this.newProcess.processName.length : 0;
     }
 
     /**
@@ -600,6 +644,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     handleRefresh() {
         this.isLoading = true;
         this.selectedRows = [];
+        this.selectedProcesses = []; // Clear selected processes too
         this.fetchScopeEntries();
     }
 
@@ -632,13 +677,34 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleInputChange
-     * @description: Handle input changes in the modal form
+     * @description: Handle all input changes using data-field and data-type attributes
      */
     handleInputChange(event) {
         const field = event.target.dataset.field;
+        const type = event.target.dataset.type || 'scopeEntry'; // default to scopeEntry
         let value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;
         
-        this.newScopeEntry = { ...this.newScopeEntry, [field]: value };
+        if (type === 'scopeEntry') {
+            this.newScopeEntry = { ...this.newScopeEntry, [field]: value };
+        } else if (type === 'process') {
+            this.newProcess = { ...this.newProcess, [field]: value };
+        }
+    }
+
+    /**
+     * Method Name: handleSelectChange
+     * @description: Handle all select/combobox changes using data-field and data-type attributes
+     */
+    handleSelectChange(event) {
+        const field = event.target.dataset.field;
+        const type = event.target.dataset.type || 'scopeEntry'; // default to scopeEntry
+        const value = event.target.value;
+        
+        if (type === 'scopeEntry') {
+            this.newScopeEntry = { ...this.newScopeEntry, [field]: value };
+        } else if (type === 'process') {
+            this.newProcess = { ...this.newProcess, [field]: value };
+        }
     }
 
     /**
@@ -803,6 +869,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
             row.isLoadingProcesses = entry.isLoadingProcesses || false;
+            row.allProcessesSelected = this.isAllProcessesSelected(entry.Id); // Simplified check
             
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
@@ -834,7 +901,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * Method Name: processProcessDetailsForDisplay
      * @description: Process process details for nested table display
      */
-    processProcessDetailsForDisplay(processDetails) {
+    processProcessDetailsForDisplay(processDetails, scopeEntryId) {
         if (!processDetails || processDetails.length === 0) {
             return [];
         }
@@ -842,6 +909,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return processDetails.map(process => {
             const row = { ...process };
             row.recordUrl = `/lightning/r/${process.Id}/view`;
+            // Make sure to check the current selected state
+            row.isSelected = this.selectedProcesses.includes(process.Id);
             
             row.displayFields = this.processTableColumns.map(col => {
                 const key = col.fieldName;
@@ -945,14 +1014,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: handleTypeChange
-     * @description: Handle type selection in modal
-     */
-    handleTypeChange(event) {
-        this.newScopeEntry = { ...this.newScopeEntry, type: event.target.value };
-    }
-
-    /**
      * Method Name: handleToggleProcessDetails
      * @description: Toggle process details display and load data if needed
      */
@@ -1015,13 +1076,118 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleAddProcess
-     * @description: Handle add process button click
+     * @description: Handle add manual process button click
      */
     handleAddProcess(event) {
-        const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
-        const scopeEntryName = event.currentTarget.dataset.scopeEntryName;
-        this.showToast('Info', `Add Process clicked for ${scopeEntryName} (ID: ${scopeEntryId})`, 'info');
-        // TODO: Implement add process modal/navigation
+        this.selectedScopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        console.log('Selected Scope Entry ID for adding process:', this.selectedScopeEntryId);  
+        
+        this.selectedScopeEntryName = event.currentTarget.dataset.scopeEntryName;
+        
+        // Reset form
+        this.newProcess = {
+            processName: '',
+            sequence: null,
+            processType: '',
+            weightage: null,
+            measurementType: ''
+        };
+        
+        this.showAddProcessModal = true;
+    }
+
+    /**
+     * Method Name: handleCloseProcessModal
+     * @description: Close add process modal
+     */
+    handleCloseProcessModal() {
+        this.showAddProcessModal = false;
+        this.selectedScopeEntryName = '';
+        this.newProcess = {
+            processName: '',
+            sequence: null,
+            processType: '',
+            weightage: null,
+            measurementType: ''
+        };
+    }
+
+    /**
+     * Method Name: validateProcess
+     * @description: Validate process form data
+     * @return: Object with isValid boolean and error message
+     */
+    validateProcess() {
+        const { processName, sequence, processType, weightage, measurementType } = this.newProcess;
+        
+        if (!processName || processName.trim() === '') {
+            return { isValid: false, message: 'Process Name is required' };
+        }
+        
+        if (processName.trim().length > 80) {
+            return { isValid: false, message: 'Process Name cannot be longer than 80 characters' };
+        }
+        
+        if (!sequence || sequence <= 0 || sequence > 9999) {
+            return { isValid: false, message: 'Sequence is required and must be between 1 and 9999' };
+        }
+        
+        if (!processType || processType.trim() === '') {
+            return { isValid: false, message: 'Process Type is required' };
+        }
+        
+        if (!weightage || weightage <= 0 || weightage > 9999) {
+            return { isValid: false, message: 'Weightage is required and must be between 0 and 9999' };
+        }
+        
+        if (!measurementType || measurementType.trim() === '') {
+            return { isValid: false, message: 'Measurement Type is required' };
+        }
+        
+        return { isValid: true, message: '' };
+    }
+
+    /**
+     * Method Name: handleSaveProcess
+     * @description: Save new process with validation
+     */
+    handleSaveProcess() {
+        const validation = this.validateProcess();
+        if (!validation.isValid) {
+            this.showToast('Error', validation.message, 'error');
+            return;
+        }
+
+        this.isProcessSubmitting = true;
+        
+        const processData = {
+            processName: this.newProcess.processName.trim(),
+            sequence: this.newProcess.sequence,
+            processType: this.newProcess.processType,
+            weightage: this.newProcess.weightage,
+            measurementType: this.newProcess.measurementType,
+            scopeEntryId: this.selectedScopeEntryId
+        };
+
+        createScopeEntryProcess({ processData })
+            .then(result => {
+                if (result === 'Success') {
+                    this.showToast('Success', 'Manual process created successfully', 'success');
+                    this.handleCloseProcessModal();
+                    
+                    // Refresh the process details for this scope entry
+                    this.loadProcessDetails(this.selectedScopeEntryId);
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to create process: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isProcessSubmitting = false;
+                this.selectedScopeEntryId = '';
+            });
     }
 
     /**
@@ -1029,8 +1195,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Update process details for a specific entry
      */
     updateProcessDetails(scopeEntryId, processDetails) {
-        // Process the details for display
-        const processedDetails = this.processProcessDetailsForDisplay(processDetails);
+        // Process the details for display - pass scopeEntryId
+        const processedDetails = this.processProcessDetailsForDisplay(processDetails, scopeEntryId);
         
         // Update contract entries
         this.filteredContractEntries = this.filteredContractEntries.map(entry => {
@@ -1038,7 +1204,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return {
                     ...entry,
                     processDetails: processedDetails,
-                    isLoadingProcesses: false
+                    isLoadingProcesses: false,
+                    allProcessesSelected: this.isAllProcessesSelected(scopeEntryId)
                 };
             }
             return entry;
@@ -1050,13 +1217,131 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return {
                     ...entry,
                     processDetails: processedDetails,
-                    isLoadingProcesses: false
+                    isLoadingProcesses: false,
+                    allProcessesSelected: this.isAllProcessesSelected(scopeEntryId)
                 };
             }
             return entry;
         });
         
-        // Force re-render
-        this.template.querySelector('.accordion-container')?.setAttribute('data-update', Date.now().toString());
+        // Force re-render by updating a timestamp
+        this.processTableUpdateTime = Date.now();
+    }
+
+    @track selectedProcesses = [];
+
+    /**
+     * Method Name: handleProcessRowSelection
+     * @description: Handle individual process row selection
+     */
+    handleProcessRowSelection(event) {
+        const processId = event.target.dataset.processId;
+        const scopeEntryId = event.target.dataset.scopeEntryId;
+        const isChecked = event.target.checked;
+
+        if (isChecked) {
+            this.selectedProcesses = [...this.selectedProcesses, processId];
+        } else {
+            this.selectedProcesses = this.selectedProcesses.filter(id => id !== processId);
+        }
+
+        // Update the select all checkbox state for this scope entry
+        this.updateSelectAllProcessCheckbox(scopeEntryId);
+    }
+
+    /**
+     * Method Name: updateSelectAllProcessCheckbox
+     * @description: Update the select all checkbox state based on individual selections
+     */
+    updateSelectAllProcessCheckbox(scopeEntryId) {
+        setTimeout(() => {
+            const selectAllCheckbox = this.template.querySelector(`[data-type="select-all-processes"][data-scope-entry-id="${scopeEntryId}"]`);
+            if (selectAllCheckbox) {
+                const entry = this.getEntryById(scopeEntryId);
+                if (entry && entry.processDetails && entry.processDetails.length > 0) {
+                    const processIds = entry.processDetails.map(process => process.Id);
+                    const selectedCount = processIds.filter(id => this.selectedProcesses.includes(id)).length;
+                    const totalCount = processIds.length;
+                    
+                    selectAllCheckbox.checked = selectedCount === totalCount;
+                    selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+                }
+            }
+        }, 0);
+    }
+
+    /**
+     * Method Name: handleSelectAllProcesses
+     * @description: Handle select all processes for a specific scope entry
+     */
+    handleSelectAllProcesses(event) {
+        const scopeEntryId = event.target.dataset.scopeEntryId;
+        const isChecked = event.target.checked;
+        
+        // Get all process IDs for this scope entry
+        const entry = this.getEntryById(scopeEntryId);
+        if (!entry || !entry.processDetails) return;
+        
+        const processIds = entry.processDetails.map(process => process.Id);
+        
+        if (isChecked) {
+            // Add all process IDs that aren't already selected
+            const newSelections = processIds.filter(id => !this.selectedProcesses.includes(id));
+            this.selectedProcesses = [...this.selectedProcesses, ...newSelections];
+        } else {
+            // Remove all process IDs for this scope entry
+            this.selectedProcesses = this.selectedProcesses.filter(id => !processIds.includes(id));
+        }
+
+        // Update individual checkboxes
+        this.updateProcessCheckboxes(scopeEntryId);
+    }
+
+    /**
+     * Method Name: updateProcessCheckboxes
+     * @description: Update individual process checkboxes after select all
+     */
+    updateProcessCheckboxes(scopeEntryId) {
+        setTimeout(() => {
+            const processCheckboxes = this.template.querySelectorAll(`[data-type="process-checkbox"][data-scope-entry-id="${scopeEntryId}"]`);
+            
+            processCheckboxes.forEach(checkbox => {
+                const processId = checkbox.dataset.processId;
+                checkbox.checked = this.selectedProcesses.includes(processId);
+            });
+        }, 0);
+    }
+
+    /**
+     * Method Name: getEntryById
+     * @description: Get entry by ID from both contract and change order entries
+     */
+    getEntryById(scopeEntryId) {
+        const contractEntry = this.filteredContractEntries.find(entry => entry.Id === scopeEntryId);
+        if (contractEntry) return contractEntry;
+        
+        const changeOrderEntry = this.filteredChangeOrderEntries.find(entry => entry.Id === scopeEntryId);
+        return changeOrderEntry;
+    }
+
+    /**
+     * Method Name: isProcessSelected
+     * @description: Check if a process is selected
+     */
+    isProcessSelected(processId) {
+        return this.selectedProcesses.includes(processId);
+    }
+
+    /**
+     * Method Name: isAllProcessesSelected
+     * @description: Check if all processes are selected for a scope entry
+     */
+    isAllProcessesSelected(scopeEntryId) {
+        const entry = this.getEntryById(scopeEntryId);
+        if (!entry || !entry.processDetails || entry.processDetails.length === 0) {
+            return false;
+        }
+        
+        return entry.processDetails.every(process => this.selectedProcesses.includes(process.Id));
     }
 }
