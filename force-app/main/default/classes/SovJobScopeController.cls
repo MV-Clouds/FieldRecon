@@ -318,4 +318,153 @@ public with sharing class SovJobScopeController {
             return 'Error: ' + e.getMessage();
         }
     }
+
+    /*
+    *********************************************************
+    @description     : Method is used to get Process Library records for selection
+    @return          : List<wfrecon__Process__c> - List of Process Library records
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static List<wfrecon__Process__c> getProcessLibraryRecords() {
+        List<wfrecon__Process__c> processes = new List<wfrecon__Process__c>();
+        try {
+            processes = [
+                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Process_Type__c, 
+                       wfrecon__Measurement_Type__c, wfrecon__Sequence__c, wfrecon__Value__c,
+                       wfrecon__Process_Description__c
+                FROM wfrecon__Process__c
+                WITH USER_MODE
+                ORDER BY wfrecon__Process_Type__c ASC, wfrecon__Sequence__c ASC NULLS LAST, Name ASC
+            ];
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getProcessLibraryRecords',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while fetching Process Library records.',
+                'apiResponse' => null
+            });
+        }
+        return processes;
+    }
+
+    /*
+    *********************************************************
+    @description     : Method is used to create multiple Scope Entry Process records from Process Library
+    @param           : Map<String, Object> processData - Contains scopeEntryId and selectedProcessIds
+    @return          : String - Success or error message
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String createScopeEntryProcessesFromLibrary(Map<String, Object> processData) {
+        try {
+            Id scopeEntryId = (Id) processData.get('scopeEntryId');
+            List<String> selectedProcessIds = (List<String>) processData.get('selectedProcessIds');
+            
+            if (selectedProcessIds == null || selectedProcessIds.isEmpty()) {
+                return 'Error: No processes selected';
+            }
+            
+            // Get Process Library records
+            List<wfrecon__Process__c> processLibraryRecords = [
+                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Process_Type__c, 
+                       wfrecon__Measurement_Type__c, wfrecon__Sequence__c, wfrecon__Value__c,
+                       wfrecon__Process_Description__c
+                FROM wfrecon__Process__c
+                WHERE Id IN :selectedProcessIds
+                WITH USER_MODE
+            ];
+            
+            // Get the highest sequence number for this scope entry
+            List<AggregateResult> maxSequenceResult = [
+                SELECT MAX(wfrecon__Sequence__c) maxSeq
+                FROM wfrecon__Scope_Entry_Process__c
+                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
+                WITH USER_MODE
+            ];
+            
+            Decimal nextSequence = 1;
+            if (!maxSequenceResult.isEmpty() && maxSequenceResult[0].get('maxSeq') != null) {
+                nextSequence = (Decimal) maxSequenceResult[0].get('maxSeq') + 1;
+            }
+            
+            // Create Scope Entry Process records
+            List<wfrecon__Scope_Entry_Process__c> scopeEntryProcesses = new List<wfrecon__Scope_Entry_Process__c>();
+            
+            for (wfrecon__Process__c process : processLibraryRecords) {
+                wfrecon__Scope_Entry_Process__c newScopeProcess = new wfrecon__Scope_Entry_Process__c();
+                newScopeProcess.wfrecon__Scope_Entry__c = scopeEntryId;
+                newScopeProcess.wfrecon__Process_Library__c = process.Id;
+                newScopeProcess.wfrecon__Process_Name__c = process.wfrecon__Process_Name__c;
+                newScopeProcess.wfrecon__Process_Type__c = process.wfrecon__Process_Type__c;
+                newScopeProcess.wfrecon__Measurement_Type__c = process.wfrecon__Measurement_Type__c;
+                newScopeProcess.wfrecon__Sequence__c = nextSequence;
+                newScopeProcess.wfrecon__Weight__c = process.wfrecon__Value__c; // Using Value as Weight
+                
+                scopeEntryProcesses.add(newScopeProcess);
+                nextSequence++;
+            }
+            
+            insert as user scopeEntryProcesses;
+            
+            return 'Success';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'createScopeEntryProcessesFromLibrary',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while creating Scope Entry Processes from Library.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+    /*
+    *********************************************************
+    @description     : Method is used to get unique Process Types for filter
+    @return          : List<String> - List of unique Process Types
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static List<String> getProcessTypes() {
+        List<String> processTypes = new List<String>();
+        try {
+            List<AggregateResult> results = [
+                SELECT wfrecon__Process_Type__c
+                FROM wfrecon__Process__c
+                WHERE wfrecon__Process_Type__c != null
+                WITH USER_MODE
+                GROUP BY wfrecon__Process_Type__c
+                ORDER BY wfrecon__Process_Type__c ASC
+               
+            ];
+            
+            for (AggregateResult result : results) {
+                String processType = (String) result.get('wfrecon__Process_Type__c');
+                if (String.isNotBlank(processType)) {
+                    processTypes.add(processType);
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getProcessTypes',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while fetching Process Types.',
+                'apiResponse' => null
+            });
+        }
+        return processTypes;
+    }
 }

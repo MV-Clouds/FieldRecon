@@ -231,17 +231,33 @@
                                                         <div class="nested-table-header">
                                                             <div class="nested-table-title-row">
                                                                 <h4 class="nested-table-title">Process Details for {entry.Name}</h4>
-                                                                <button class="add-process-btn" 
-                                                                        title="Add Process"
-                                                                        onclick={handleAddProcess}
-                                                                        data-scope-entry-id={entry.Id}
-                                                                        data-scope-entry-name={entry.Name}>
-                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                        <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                        <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                    </svg>
-                                                                    Add Manual Process
-                                                                </button>
+                                                                <div class="process-action-buttons">
+                                                                    <button class="add-process-btn library-btn" 
+                                                                            title="Add Process from Library"
+                                                                            onclick={handleAddProcessFromLibrary}
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            data-scope-entry-name={entry.Name}>
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                            <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                        </svg>
+                                                                        Add Process
+                                                                    </button>
+                                                                    <button class="add-process-btn manual-btn" 
+                                                                            title="Add Manual Process"
+                                                                            onclick={handleAddProcess}
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            data-scope-entry-name={entry.Name}>
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                            <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                        </svg>
+                                                                        Add Manual Process
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         
@@ -501,17 +517,33 @@
                                                         <div class="nested-table-header">
                                                             <div class="nested-table-title-row">
                                                                 <h4 class="nested-table-title">Process Details for {entry.Name}</h4>
-                                                                <button class="add-process-btn" 
-                                                                        title="Add Process"
-                                                                        onclick={handleAddProcess}
-                                                                        data-scope-entry-id={entry.Id}
-                                                                        data-scope-entry-name={entry.Name}>
-                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                        <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                        <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                    </svg>
-                                                                    Add Process
-                                                                </button>
+                                                                <div class="process-action-buttons">
+                                                                    <button class="add-process-btn library-btn" 
+                                                                            title="Add Process from Library"
+                                                                            onclick={handleAddProcessFromLibrary}
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            data-scope-entry-name={entry.Name}>
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                            <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                        </svg>
+                                                                        Add Process
+                                                                    </button>
+                                                                    <button class="add-process-btn manual-btn" 
+                                                                            title="Add Manual Process"
+                                                                            onclick={handleAddProcess}
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            data-scope-entry-name={entry.Name}>
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                            <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                        </svg>
+                                                                        Add Manual Process
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         
@@ -835,6 +867,167 @@
                                     disabled={isProcessSubmitting}>
                                 <template if:true={isProcessSubmitting}>Saving...</template>
                                 <template if:false={isProcessSubmitting}>Save Process</template>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Add Process Library Modal -->
+    <template if:true={showProcessLibraryModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-04" aria-modal="true" aria-describedby="modal-content-id-4" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container process-library-modal">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseProcessLibraryModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+
+                <div class="slds-modal__content pop-up" id="modal-content-id-4">
+                    <div class="pop-heading">
+                        Add Processes from Library - {selectedScopeEntryName}
+                    </div>
+
+                    <div class="popUpBody slds-p-around--medium">
+                        <!-- Filter and Search Section -->
+                        <div class="filter-search-section">
+                            <div class="filter-row">
+                                <div class="filter-group">
+                                    <label class="filter-label">Category Filter</label>
+                                    <lightning-combobox
+                                        value={selectedProcessCategory}
+                                        options={processTypeFilterOptions}
+                                        onchange={handleProcessCategoryFilter}
+                                        placeholder="Select Category"
+                                        variant="label-hidden">
+                                    </lightning-combobox>
+                                </div>
+                                <div class="search-group">
+                                    <label class="filter-label">Search</label>
+                                    <lightning-input
+                                        type="search"
+                                        variant="label-hidden"
+                                        placeholder="Search processes..."
+                                        value={processLibrarySearchTerm}
+                                        onchange={handleProcessLibrarySearch}
+                                        class="search-bar-input">
+                                    </lightning-input>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Process Selection Table -->
+                        <div class="process-library-container">
+                            <template if:true={processLibraryDisplayRecords.length}>
+                                <table class="custom-data-table process-library-table">
+                                    <thead class="table-header">
+                                        <tr>
+                                            <th class="header-cell center-trancate-head checkbox-column">
+                                                <input type="checkbox" 
+                                                        checked={isAllProcessLibrarySelected}
+                                                        onchange={handleSelectAllProcessLibrary}
+                                                        data-type="select-all-process-library"
+                                                        title="Select All">
+                                            </th>
+                                            <th class="header-cell center-trancate-head">Name</th>
+                                            <th class="header-cell center-trancate-head">Category</th>
+                                            <th class="header-cell center-trancate-head">Sequence</th>
+                                            <th class="header-cell center-trancate-head">Measurement Type</th>
+                                            <th class="header-cell center-trancate-head">Weight</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="table-body">
+                                        <template for:each={processLibraryDisplayRecords} for:item="process">
+                                            <tr key={process.Id} class="process-library-row">
+                                                <td class="center-trancate-text checkbox-column">
+                                                    <input type="checkbox" 
+                                                            data-process-id={process.Id}
+                                                            data-type="process-library-checkbox"
+                                                            checked={process.isSelected}
+                                                            onchange={handleProcessLibrarySelection}>
+                                                </td>
+                                                <td class="center-trancate-text process-name-cell">
+                                                    <div class="process-name-container">
+                                                        <div class="process-name">{process.Name}</div>
+                                                        <template if:true={process.wfrecon__Process_Name__c}>
+                                                            <div class="process-display-name">{process.wfrecon__Process_Name__c}</div>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                                <td class="center-trancate-text">
+                                                    <template if:true={process.wfrecon__Process_Type__c}>
+                                                        {process.wfrecon__Process_Type__c}
+                                                    </template>
+                                                    <template if:false={process.wfrecon__Process_Type__c}>--</template>
+                                                </td>
+                                                <td class="center-trancate-text">
+                                                    <template if:true={process.wfrecon__Sequence__c}>
+                                                        <lightning-formatted-number 
+                                                            value={process.wfrecon__Sequence__c} 
+                                                            maximum-fraction-digits="0">
+                                                        </lightning-formatted-number>
+                                                    </template>
+                                                    <template if:false={process.wfrecon__Sequence__c}>--</template>
+                                                </td>
+                                                <td class="center-trancate-text">
+                                                    <template if:true={process.wfrecon__Measurement_Type__c}>
+                                                        {process.wfrecon__Measurement_Type__c}
+                                                    </template>
+                                                    <template if:false={process.wfrecon__Measurement_Type__c}>--</template>
+                                                </td>
+                                                <td class="center-trancate-text">
+                                                    <template if:true={process.wfrecon__Value__c}>
+                                                        <lightning-formatted-number 
+                                                            value={process.wfrecon__Value__c} 
+                                                            maximum-fraction-digits="2">
+                                                        </lightning-formatted-number>
+                                                    </template>
+                                                    <template if:false={process.wfrecon__Value__c}>--</template>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </template>
+
+                            <template if:false={processLibraryDisplayRecords.length}>
+                                <div class="no-process-library-data">
+                                    <div class="empty-state">
+                                        <div class="empty-state__content">
+                                            <div class="empty-state__icon">
+                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M9 12L11 14L15 10" stroke="#0176D3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#0176D3" stroke-width="2"/>
+                                                </svg>
+                                            </div>
+                                            <div class="empty-state__message">No processes found</div>
+                                            <template if:true={processLibrarySearchTerm}>
+                                                <div class="empty-state__subtitle">Try adjusting your search criteria</div>
+                                            </template>
+                                            <template if:true={selectedProcessCategory}>
+                                                <div class="empty-state__subtitle">Try selecting a different category</div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Selected Count Display -->
+                        <template if:true={hasSelectedProcessLibrary}>
+                            <div class="selected-processes-count">
+                                <span class="count-text">{selectedProcessLibraryIds.length} process(es) selected</span>
+                            </div>
+                        </template>
+
+                        <div class="popUpFooter">
+                            <button class="close-btn process-btn" onclick={handleCloseProcessLibraryModal}>Cancel</button>
+                            <button class="save-btn process-btn" 
+                                    onclick={handleSaveProcessesFromLibrary}
+                                    disabled={isProcessLibrarySubmitting}>
+                                <template if:true={isProcessLibrarySubmitting}>Adding...</template>
+                                <template if:false={isProcessLibrarySubmitting}>Add Selected Processes</template>
                             </button>
                         </div>
                     </div>

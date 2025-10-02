@@ -8,6 +8,9 @@ import deleteScopeEntries from '@salesforce/apex/SovJobScopeController.deleteSco
 import { CurrentPageReference } from 'lightning/navigation';
 import getScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.getScopeEntryProcesses';
 import createScopeEntryProcess from '@salesforce/apex/SovJobScopeController.createScopeEntryProcess';
+import getProcessLibraryRecords from '@salesforce/apex/SovJobScopeController.getProcessLibraryRecords';
+import createScopeEntryProcessesFromLibrary from '@salesforce/apex/SovJobScopeController.createScopeEntryProcessesFromLibrary';
+import getProcessTypes from '@salesforce/apex/SovJobScopeController.getProcessTypes';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -124,6 +127,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         { label: 'Distressed Joint', value: 'Distressed Joint' },
         { label: 'Misc. Defect Count', value: 'Misc. Defect Count' }
     ];
+
+    // Process Library Modal Properties - Simplified
+    @track showProcessLibraryModal = false;
+    @track isProcessLibrarySubmitting = false;
+    @track processLibraryRecords = [];
+    @track processLibraryDisplayRecords = []; // New: This will hold the display data with selection states
+    @track selectedProcessLibraryIds = [];
+    @track processLibrarySearchTerm = '';
+    @track selectedProcessCategory = '';
 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
@@ -382,6 +394,23 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get hasSelectedProcessLibrary
+     * @description: Check if any process library records are selected
+     */
+    get hasSelectedProcessLibrary() {
+        return this.selectedProcessLibraryIds.length > 0;
+    }
+
+    /**
+     * Method Name: get isAllProcessLibrarySelected
+     * @description: Check if all visible process library records are selected
+     */
+    get isAllProcessLibrarySelected() {
+        return this.processLibraryDisplayRecords.length > 0 && 
+               this.processLibraryDisplayRecords.every(process => process.isSelected);
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -403,6 +432,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 .accordion-container .section-control {
                     background: #3396e5 !important;
                     color: white !important;
+                    margin-bottom: 4px;
                     --slds-c-icon-color-foreground-default: #ffffff !important;
                 }
             `;
@@ -570,7 +600,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: applyFilters
-     * @description: Apply search filters and separate by type
+     * @description: Apply search filters and separate by type while preserving selections
      */
     applyFilters() {
         try {
@@ -607,6 +637,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return searchInObject(entry);
             });
 
+            // Store current process details and states before updating
+            const currentProcessStates = new Map();
+            
+            // Collect current states from both contract and change order entries
+            [...(this.filteredContractEntries || []), ...(this.filteredChangeOrderEntries || [])].forEach(entry => {
+                if (entry.processDetails || entry.showProcessDetails !== undefined) {
+                    currentProcessStates.set(entry.Id, {
+                        processDetails: entry.processDetails,
+                        showProcessDetails: entry.showProcessDetails,
+                        isLoadingProcesses: entry.isLoadingProcesses
+                    });
+                }
+            });
+
             // Separate entries by type
             this.filteredContractEntries = filteredEntries.filter(entry => 
                 this.getFieldValue(entry, 'wfrecon__Type__c') === 'Contract'
@@ -615,6 +659,22 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.filteredChangeOrderEntries = filteredEntries.filter(entry => 
                 this.getFieldValue(entry, 'wfrecon__Type__c') === 'Change Order'
             );
+
+            // Restore process states and update selections
+            [...this.filteredContractEntries, ...this.filteredChangeOrderEntries].forEach(entry => {
+                const savedState = currentProcessStates.get(entry.Id);
+                if (savedState) {
+                    entry.showProcessDetails = savedState.showProcessDetails;
+                    entry.isLoadingProcesses = savedState.isLoadingProcesses;
+                    
+                    if (savedState.processDetails) {
+                        // Reprocess to maintain current selections
+                        entry.processDetails = this.processProcessDetailsForDisplay(
+                            savedState.processDetails.map(p => ({ ...p, isSelected: undefined }))
+                        );
+                    }
+                }
+            });
 
             // Force reactivity for summary calculations
             this.template.querySelector('.summary-cards-container')?.setAttribute('data-update', Date.now().toString());
@@ -918,6 +978,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return processDetails.map(process => {
             const row = { ...process };
             row.recordUrl = `/lightning/r/${process.Id}/view`;
+            // Preserve selection state from selectedProcesses array
             row.isSelected = this.selectedProcesses.includes(process.Id);
             
             row.displayFields = this.processTableColumns.map(col => {
@@ -1183,8 +1244,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.showToast('Success', 'Manual process created successfully', 'success');
                     this.handleCloseProcessModal();
                     
-                    // Refresh the process details for this scope entry
-                    this.loadProcessDetails(this.selectedScopeEntryId);
+                    // Refresh the process details for this scope entry while preserving selections
+                    this.refreshProcessDetails(this.selectedScopeEntryId);
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -1200,10 +1261,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: updateProcessDetails
-     * @description: Update process details for a specific entry
+     * @description: Update process details for a specific entry while preserving selections
      */
     updateProcessDetails(scopeEntryId, processDetails) {
-        // Process the details for display
+        // Process the details for display while preserving selections
         const processedDetails = this.processProcessDetailsForDisplay(processDetails);
         
         // Update contract entries
@@ -1312,6 +1373,226 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         const changeOrderEntry = this.filteredChangeOrderEntries.find(entry => entry.Id === scopeEntryId);
         return changeOrderEntry;
+    }
+
+    /**
+     * Method Name: handleAddProcessFromLibrary
+     * @description: Handle add process from library button click
+     */
+    handleAddProcessFromLibrary(event) {
+        this.selectedScopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        this.selectedScopeEntryName = event.currentTarget.dataset.scopeEntryName;
+        
+        // Reset selections
+        this.selectedProcessLibraryIds = [];
+        this.processLibrarySearchTerm = '';
+        this.selectedProcessCategory = '';
+        
+        // Load process library records and types
+        this.loadProcessLibraryData();
+        
+        this.showProcessLibraryModal = true;
+    }
+
+    /**
+     * Method Name: loadProcessLibraryData
+     * @description: Load process library records and process types
+     */
+    loadProcessLibraryData() {
+        // Load process types for filter
+        getProcessTypes()
+            .then(result => {
+                this.processTypeOptions = result || [];
+            })
+            .catch(error => {
+                console.error('Error loading process types:', error);
+                this.processTypeOptions = [];
+            });
+
+        // Load process library records
+        getProcessLibraryRecords()
+            .then(result => {
+                this.processLibraryRecords = result || [];
+                this.applyProcessLibraryFilters(); // Apply filters after loading
+            })
+            .catch(error => {
+                console.error('Error loading process library records:', error);
+                this.showToast('Error', 'Failed to load process library: ' + (error.body?.message || error.message), 'error');
+                this.processLibraryRecords = [];
+                this.processLibraryDisplayRecords = [];
+            });
+    }
+
+    /**
+     * Method Name: applyProcessLibraryFilters
+     * @description: Apply filters and maintain selection states
+     */
+    applyProcessLibraryFilters() {
+        if (!this.processLibraryRecords || this.processLibraryRecords.length === 0) {
+            this.processLibraryDisplayRecords = [];
+            return;
+        }
+
+        let filtered = [...this.processLibraryRecords];
+
+        // Filter by category if selected
+        if (this.selectedProcessCategory) {
+            filtered = filtered.filter(process => 
+                process.wfrecon__Process_Type__c === this.selectedProcessCategory
+            );
+        }
+
+        // Filter by search term
+        if (this.processLibrarySearchTerm) {
+            const searchLower = this.processLibrarySearchTerm.toLowerCase();
+            filtered = filtered.filter(process => {
+                return (process.Name && process.Name.toLowerCase().includes(searchLower)) ||
+                       (process.wfrecon__Process_Name__c && process.wfrecon__Process_Name__c.toLowerCase().includes(searchLower)) ||
+                       (process.wfrecon__Process_Type__c && process.wfrecon__Process_Type__c.toLowerCase().includes(searchLower)) ||
+                       (process.wfrecon__Measurement_Type__c && process.wfrecon__Measurement_Type__c.toLowerCase().includes(searchLower));
+            });
+        }
+
+        // Create display records with selection state
+        this.processLibraryDisplayRecords = filtered.map(process => ({
+            ...process,
+            isSelected: this.selectedProcessLibraryIds.includes(process.Id)
+        }));
+    }
+
+    /**
+     * Method Name: handleCloseProcessLibraryModal
+     * @description: Close process library modal
+     */
+    handleCloseProcessLibraryModal() {
+        this.showProcessLibraryModal = false;
+        this.selectedScopeEntryId = '';
+        this.selectedScopeEntryName = '';
+        this.selectedProcessLibraryIds = [];
+        this.processLibrarySearchTerm = '';
+        this.selectedProcessCategory = '';
+        this.processLibraryRecords = [];
+        this.processLibraryDisplayRecords = []; // Clear display records
+        this.processTypeOptions = [];
+    }
+
+    /**
+     * Method Name: handleProcessLibrarySearch
+     * @description: Handle search in process library modal
+     */
+    handleProcessLibrarySearch(event) {
+        this.processLibrarySearchTerm = event.target.value;
+        this.applyProcessLibraryFilters(); // Re-apply filters
+    }
+
+    /**
+     * Method Name: handleProcessCategoryFilter
+     * @description: Handle category filter change
+     */
+    handleProcessCategoryFilter(event) {
+        this.selectedProcessCategory = event.target.value;
+        this.applyProcessLibraryFilters(); // Re-apply filters
+    }
+
+    /**
+     * Method Name: handleProcessLibrarySelection
+     * @description: Handle individual process library record selection
+     */
+    handleProcessLibrarySelection(event) {
+        const processId = event.target.dataset.processId;
+        const isChecked = event.target.checked;
+
+        if (isChecked) {
+            if (!this.selectedProcessLibraryIds.includes(processId)) {
+                this.selectedProcessLibraryIds = [...this.selectedProcessLibraryIds, processId];
+            }
+        } else {
+            this.selectedProcessLibraryIds = this.selectedProcessLibraryIds.filter(id => id !== processId);
+        }
+
+        // Update the display record's selection state
+        this.processLibraryDisplayRecords = this.processLibraryDisplayRecords.map(process => ({
+            ...process,
+            isSelected: this.selectedProcessLibraryIds.includes(process.Id)
+        }));
+    }
+
+    /**
+     * Method Name: handleSelectAllProcessLibrary
+     * @description: Handle select all process library records
+     */
+    handleSelectAllProcessLibrary(event) {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+            // Add all visible process IDs to selection
+            const visibleIds = this.processLibraryDisplayRecords.map(process => process.Id);
+            const newSelections = visibleIds.filter(id => !this.selectedProcessLibraryIds.includes(id));
+            this.selectedProcessLibraryIds = [...this.selectedProcessLibraryIds, ...newSelections];
+        } else {
+            // Remove all visible process IDs from selection
+            const visibleIds = this.processLibraryDisplayRecords.map(process => process.Id);
+            this.selectedProcessLibraryIds = this.selectedProcessLibraryIds.filter(id => !visibleIds.includes(id));
+        }
+
+        // Update display records
+        this.processLibraryDisplayRecords = this.processLibraryDisplayRecords.map(process => ({
+            ...process,
+            isSelected: this.selectedProcessLibraryIds.includes(process.Id)
+        }));
+    }
+
+    /**
+     * Method Name: handleSaveProcessesFromLibrary
+     * @description: Save selected processes from library
+     */
+    handleSaveProcessesFromLibrary() {
+        if (this.selectedProcessLibraryIds.length === 0) {
+            this.showToast('Warning', 'Please select at least one process', 'warning');
+            return;
+        }
+
+        this.isProcessLibrarySubmitting = true;
+        
+        const processData = {
+            scopeEntryId: this.selectedScopeEntryId,
+            selectedProcessIds: this.selectedProcessLibraryIds
+        };
+
+        createScopeEntryProcessesFromLibrary({ processData })
+            .then(result => {
+                if (result === 'Success') {
+                    this.showToast('Success', `${this.selectedProcessLibraryIds.length} processes added successfully`, 'success');
+                    this.handleCloseProcessLibraryModal();
+                    
+                    // Refresh the process details for this scope entry while preserving selections
+                    this.refreshProcessDetails(this.selectedScopeEntryId);
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to add processes: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isProcessLibrarySubmitting = false;
+            });
+    }
+
+    /**
+     * Method Name: refreshProcessDetails
+     * @description: Refresh process details while preserving selections
+     */
+    refreshProcessDetails(scopeEntryId) {
+        getScopeEntryProcesses({ scopeEntryId: scopeEntryId })
+            .then(result => {
+                this.updateProcessDetails(scopeEntryId, result || []);
+            })
+            .catch(error => {
+                console.error('Error refreshing process details:', error);
+                this.updateProcessDetails(scopeEntryId, []);
+                this.showToast('Error', 'Failed to refresh process details: ' + (error.body?.message || error.message), 'error');
+            });
     }
 
 }

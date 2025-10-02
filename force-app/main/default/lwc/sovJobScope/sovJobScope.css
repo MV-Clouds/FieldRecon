@@ -991,3 +991,170 @@
     background-color: #17a2b8;
     color: white;
 }
+
+/* Process Action Buttons Container */
+.process-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Process Library Modal Styles */
+.process-library-modal {
+    max-width: 900px;
+    width: 90%;
+}
+
+.filter-search-section {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+    border: 1px solid #e5e5e5;
+}
+
+.filter-row {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+}
+
+.filter-group,
+.search-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+    font-size: 0.875rem;
+}
+
+.process-library-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.process-library-table {
+    margin: 0;
+}
+
+.process-library-row:hover {
+    background-color: #f8f9fa !important;
+    cursor: pointer;
+}
+
+.process-name-cell {
+    text-align: left !important;
+    padding: 12px;
+}
+
+.process-name-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.process-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.875rem;
+}
+
+.process-display-name {
+    font-size: 0.75rem;
+    color: #666;
+    font-style: italic;
+}
+
+.no-process-library-data {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.selected-processes-count {
+    background-color: #e8f4fd;
+    border: 1px solid #0176D3;
+    border-radius: 0.25rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.count-text {
+    color: #0176D3;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* Library Button Styles */
+.library-btn {
+    background-color: #17a2b8;
+    color: white;
+    border-color: #17a2b8;
+}
+
+.library-btn:hover {
+    background-color: #138496;
+    border-color: #117a8b;
+}
+
+.manual-btn {
+    background-color: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.manual-btn:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+/* Responsive adjustments for process action buttons */
+@media only screen and (max-width: 768px) {
+    .process-action-buttons {
+        flex-direction: column;
+        gap: 0.375rem;
+        width: 100%;
+    }
+    
+    .add-process-btn {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .process-library-modal {
+        width: 95%;
+        margin: 1rem;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .filter-group,
+    .search-group {
+        min-width: unset;
+    }
+    
+    .process-name-cell {
+        padding: 8px;
+    }
+    
+    .process-name {
+        font-size: 0.8rem;
+    }
+    
+    .process-display-name {
+        font-size: 0.7rem;
+    }
+}
