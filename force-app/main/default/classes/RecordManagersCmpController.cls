@@ -55,7 +55,9 @@ public with sharing class RecordManagersCmpController {
             if (featureName == 'ScopeEntry') {
                 metadataType = 'wfrecon__ScopeEntryConfigration__mdt';
             }
-            // Will Add More Features Here
+            else if (featureName == 'LocationEntry') {
+                metadataType = 'wfrecon__LocationConfigration__mdt';
+            }
             else {
                 return null;
             }
@@ -65,8 +67,16 @@ public with sharing class RecordManagersCmpController {
 
             if (!metadataRecords.isEmpty()) {
                 SObject metadataRecord = metadataRecords[0];
-                metadataValues.add((String)metadataRecord.get('wfrecon__FieldsData__c'));
-                metadataValues.add(String.valueOf(metadataRecord.get('wfrecon__PageSize__c')));
+                String fieldsData = (String)metadataRecord.get('wfrecon__FieldsData__c');
+                String pageSize = String.valueOf(metadataRecord.get('wfrecon__PageSize__c'));
+                
+                // Handle null values from metadata
+                metadataValues.add(fieldsData != null ? fieldsData : '[]');
+                metadataValues.add(pageSize != null ? pageSize : '30');
+            
+            } else {
+                metadataValues.add('[]'); 
+                metadataValues.add('30'); 
             }
 
             recordData.metadataRecords = metadataValues;
@@ -101,6 +111,9 @@ public with sharing class RecordManagersCmpController {
             if (featureName == 'ScopeEntry') {
                 metadataType = 'wfrecon__ScopeEntryConfigration__mdt';
             }
+            else if (featureName == 'LocationEntry') {
+                metadataType = 'wfrecon__LocationConfigration__mdt';
+            }
             // Will Add More Features Here
             else {
                 return;
@@ -115,6 +128,15 @@ public with sharing class RecordManagersCmpController {
                 wfrecon__ScopeEntryConfigration__mdt config;
                 if (!metaList.isEmpty()) {
                     config = (wfrecon__ScopeEntryConfigration__mdt) metaList[0];
+                    developerName = config.DeveloperName;
+                    masterLabel = config.MasterLabel;
+                }
+            }
+
+            else if (featureName == 'LocationEntry') {
+                wfrecon__LocationConfigration__mdt config;
+                if (!metaList.isEmpty()) {
+                    config = (wfrecon__LocationConfigration__mdt) metaList[0];
                     developerName = config.DeveloperName;
                     masterLabel = config.MasterLabel;
                 }
@@ -154,12 +176,12 @@ public with sharing class RecordManagersCmpController {
 
 
     /**
-     * Method Name : getListingFieldsParent
+     * Method Name : getObjectFieldsParent
      * @description : get listing fields parent.
      * @param objectApiName String value.
      */
     @AuraEnabled
-    public static List<FieldDetails> getListingFieldsParent(String objectApiName) {
+    public static List<FieldDetails> getObjectFieldsParent(String objectApiName) {
 
         try {
             List<FieldDetails> fieldDetailsList = new List<FieldDetails>();
@@ -203,7 +225,7 @@ public with sharing class RecordManagersCmpController {
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
-                'methodName' => 'getListingFieldsParent',
+                'methodName' => 'getObjectFieldsParent',
                 'isApiException' => false,
                 'statusCode' => null,
                 'exceptionObj' => e,

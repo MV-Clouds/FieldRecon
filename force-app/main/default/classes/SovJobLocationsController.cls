@@ -279,4 +279,46 @@ public with sharing class SovJobLocationsController {
             return 'Error: ' + e.getMessage();
         }
     }
+
+    /*
+    *********************************************************
+    @description     : Method is used to get Location Configuration
+    @return          : Map<String, Object> - Configuration data
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static Map<String, Object> getLocationConfiguration() {
+        Map<String, Object> configData = new Map<String, Object>();
+        
+        try {
+            List<wfrecon__LocationConfigration__mdt> configs = [
+                SELECT FieldsData__c, PageSize__c 
+                FROM wfrecon__LocationConfigration__mdt 
+                WITH USER_MODE 
+                LIMIT 1
+            ];
+
+            if (!configs.isEmpty()) {
+                wfrecon__LocationConfigration__mdt config = configs[0];
+                configData.put('fieldsData', config.FieldsData__c);
+                configData.put('pageSize', config.PageSize__c);
+            } else {
+                configData.put('fieldsData', '');
+                configData.put('pageSize', 10);
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getLocationConfiguration',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while fetching Location Configuration.',
+                'apiResponse' => null
+            });
+        }
+
+        return configData;
+    }
 }

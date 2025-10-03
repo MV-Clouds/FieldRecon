@@ -1,6 +1,6 @@
 import { LightningElement, track, api } from 'lwc';
 import getObjectFields from '@salesforce/apex/RecordManagersCmpController.getObjectFields';
-import getListingFieldsParent from '@salesforce/apex/RecordManagersCmpController.getListingFieldsParent';
+import getObjectFieldsParent from '@salesforce/apex/RecordManagersCmpController.getObjectFieldsParent';
 import saveMetadata from '@salesforce/apex/RecordManagersCmpController.saveMappings';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
@@ -79,8 +79,19 @@ export default class RecordConfigCmp extends LightningElement {
     */
     fetchMetadata() {
         this.isLoading = true;
+
+        console.log('featureName', this.featureName);
+        console.log('objectApiName', this.objectApiName);
+        
+        
         getObjectFields({ objectApiName: this.objectApiName , featureName: this.featureName})
             .then((result) => {
+                if (!result) {
+                    console.error('getObjectFields returned null');
+                    this.isLoading = false;
+                    return;
+                }
+
                 this.fieldOptions = result.fieldDetailsList;
                 this.fieldOptions = this.fieldOptions.map(option => ({
                     ...option,
@@ -106,7 +117,9 @@ export default class RecordConfigCmp extends LightningElement {
                 this.filteredFieldOptions = this.fieldOptions;
             })
             .catch((error) => {
-                // errordebugger('RecordConfigCmp', 'fetchMetadata', error, 'warn', 'Error occurred while fetching metadata');
+                console.log('Error in fetchMetadata:', error);
+                console.log('Error Stack Trace:', error.stack);
+                this.isLoading = false;
             });
     }
 
@@ -599,7 +612,7 @@ export default class RecordConfigCmp extends LightningElement {
     * Created By: Vyom Soni
     */
     fetchObjectFieldsWithoutReference(objectApiName) {
-        getListingFieldsParent({ objectApiName })
+        getObjectFieldsParent({ objectApiName })
             .then(fields => {
                 let filteredFields = fields.filter(field => field.fieldType !== 'REFERENCE');
                 if (fields) {

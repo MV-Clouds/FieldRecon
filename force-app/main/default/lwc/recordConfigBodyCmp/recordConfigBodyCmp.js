@@ -13,6 +13,8 @@ export default class RecordConfigBodyCmp extends NavigationMixin(LightningElemen
         switch (this.featureName) {
             case 'ScopeEntry':
                 return 'wfrecon__Scope_Entry__c';
+            case 'LocationEntry':
+                return 'wfrecon__Location__c';
             default:
                 return '';
         }

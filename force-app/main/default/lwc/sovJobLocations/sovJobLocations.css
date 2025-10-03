@@ -275,3 +275,152 @@
 .icon-button.child-records-btn {
     border-color: #17a2b8;
 }
+
+/* Form Styles */
+.form-container {
+    --lwc-borderWidthThin: 1px;   
+    --slds-c-input-color-border: #d8d8d8;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+    font-size: 0.875rem;
+}
+
+.form-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0px 2px;
+}
+
+.form-label.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d8d8d8;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: #0176D3;
+    box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.1);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.character-count {
+    font-size: 0.75rem;
+    color: #666;
+    text-align: right;
+    margin-top: 0.25rem;
+}
+
+.character-count.warning {
+    color: #ff9500;
+}
+
+.character-count.error {
+    color: #dc3545;
+}
+
+/* Modal Styles */
+.pop-up {
+    border-radius: 5px;
+    scrollbar-width: none;
+    overflow: hidden;
+}
+
+.pop-heading {
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    height: 50px;
+    font-weight: 400;
+    color: white;
+    padding: 0.4rem 1rem;
+    background: #0176D3;
+}
+
+.popUpBody {
+    height: 100%;
+}
+
+.close-icon {
+    background-color: white;
+    padding: 2px;
+}
+
+.popUpFooter {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    position: sticky;
+    bottom: 1rem;
+}
+
+.save-btn {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 35px;
+    text-align: center;
+    border: 1px solid #0176D3;
+    padding: 0px 20px;
+    background: #0176D3;
+    color: white;
+    border-radius: 5px;
+}
+
+.save-btn:disabled {
+    border: 1px solid lightgray;
+    background: lightgray;
+    cursor: not-allowed;
+}
+
+.close-btn {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 35px;
+    text-align: center;
+    padding: 0px 20px;
+    background: #FFFFFF;
+    border: 1px solid #0176D3;
+    color: #0176D3;
+    border-radius: 5px;
+}
+
+.close-btn:hover {
+    background: #f8f9fa;
+    border-color: #014486;
+}
+
+/* Nested Table Styling - Match Scope Component */
+.nested-table .header-cell {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e5e5;
+    background-color: #4a90e2 !important;
+    color: white !important;
+}

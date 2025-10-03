@@ -7,6 +7,7 @@ import createLocationEntry from '@salesforce/apex/SovJobLocationsController.crea
 import deleteLocationEntries from '@salesforce/apex/SovJobLocationsController.deleteLocationEntries';
 import getLocationProcesses from '@salesforce/apex/SovJobLocationsController.getLocationProcesses';
 import updateProcessCompletion from '@salesforce/apex/SovJobLocationsController.updateProcessCompletion';
+import getLocationConfiguration from '@salesforce/apex/SovJobLocationsController.getLocationConfiguration';
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -15,7 +16,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track filteredLocationEntries = [];
     @track searchTerm = '';
     @track selectedRows = [];
-    @track accordionStyleApplied = false;
+    @track locationColumns = [];
+    @track lastConfigUpdateTimestamp = 0; // Add this to track last update
 
     // Default table columns
     @track defaultColumns = [
@@ -59,7 +61,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Get table columns configuration
      */
     get tableColumns() {
-        return this.defaultColumns;
+        return this.locationColumns.length > 0 ? this.locationColumns : this.defaultColumns;
     }
 
     /**
@@ -157,34 +159,103 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Load location entries
      */
     connectedCallback() {
-        this.fetchLocationEntries();
+        this.fetchLocationConfiguration();
     }
 
-    renderedCallback() {
-        if (!this.accordionStyleApplied) {
-            this.applyAccordionStyling();
+    /**
+     * Method Name: fetchLocationConfiguration
+     * @description: Fetch configuration and then load location entries
+     */
+    fetchLocationConfiguration() {
+        getLocationConfiguration()
+            .then(result => {
+                if (result && result.fieldsData) {
+                    try {
+                        const parsedFields = JSON.parse(result.fieldsData);
+                        
+                        if (Array.isArray(parsedFields) && parsedFields.length > 0) {
+                            this.locationColumns = parsedFields.map(field => ({
+                                label: field.label,
+                                fieldName: field.fieldName,
+                                type: this.getColumnType(field.fieldType)
+                            }));
+                        } else {
+                            this.locationColumns = this.defaultColumns;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing location configuration:', error);
+                        this.locationColumns = this.defaultColumns;
+                    }
+                } else {
+                    // Use default columns if no configuration found
+                    this.locationColumns = this.defaultColumns;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching configuration:', error);
+                // Use default columns on error
+                this.locationColumns = this.defaultColumns;
+                this.showToast('Warning', 'Using default configuration due to error', 'warning');
+            })
+            .finally(() => {
+                this.fetchLocationEntries();
+            });
+    }
+
+    /**
+     * Method Name: getColumnType
+     * @description: Convert field type to column type
+     */
+    getColumnType(fieldType) {
+        switch ((fieldType || '').toUpperCase()) {
+            case 'CURRENCY':
+                return 'currency';
+            case 'PERCENT':
+                return 'percent';
+            case 'NUMBER':
+                return 'number';
+            case 'DATE':
+                return 'date';
+            case 'DATETIME':
+                return 'date';
+            case 'EMAIL':
+                return 'email';
+            case 'PHONE':
+                return 'phone';
+            case 'URL':
+                return 'url';
+            case 'BOOLEAN':
+                return 'boolean';
+            default:
+                return 'text';
         }
     }
 
-    applyAccordionStyling() {
-        try {
-            const style = document.createElement('style');
-            style.textContent = `
-                .accordion-container .section-control {
-                    background: #3396e5 !important;
-                    color: white !important;
-                    margin-bottom: 4px;
-                    --slds-c-icon-color-foreground-default: #ffffff !important;
-                }
-            `;
+    /**
+     * Method Name: handleConfigurationUpdated
+     * @description: Handle configuration updated event from record config component
+     */
+    handleConfigurationUpdated(event) {
+        console.log('Configuration updated event received:', event.detail);
+        
+        // Prevent duplicate processing using timestamp
+        if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
+            console.log('Duplicate event ignored');
+            return;
+        }
+        
+        if (event.detail.success && event.detail.featureName === 'LocationEntry') {
+            // Store timestamp to prevent duplicates
+            this.lastConfigUpdateTimestamp = event.detail.timestamp;
             
-            const accordionContainer = this.template.querySelector('.accordion-container');
-            if (accordionContainer) {
-                accordionContainer.appendChild(style);
-                this.accordionStyleApplied = true;
-            }
-        } catch (error) {
-            console.error('Error applying accordion styling:', error);
+            console.log('Processing configuration update...');
+            
+            // Stop event propagation
+            event.stopPropagation();
+            
+            // Refresh the configuration and reload data
+            this.isLoading = true;
+            this.fetchLocationConfiguration();
         }
     }
 
@@ -636,4 +707,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         });
         this.dispatchEvent(event);
     }
+
+
 }

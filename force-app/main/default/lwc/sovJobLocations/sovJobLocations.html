@@ -35,6 +35,13 @@
                         <span class="selected-count-badge">({selectedRecordsCount})</span>
                     </template>
                 </button>
+
+                <div>
+                    <c-record-config-body-cmp 
+                        feature-name="LocationEntry"
+                        onconfigurationupdated={handleConfigurationUpdated}>
+                    </c-record-config-body-cmp>
+                </div>
             </div>
             
             <div class="search-bar">
