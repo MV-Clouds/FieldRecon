@@ -6,6 +6,17 @@
     <div class="main-card">
         <!-- Header Section -->
         <div class="filter-search-container">
+            <div class="search-bar">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search scope entries..."
+                    value={searchTerm}
+                    onchange={handleSearch}
+                    class="search-bar-input">
+                </lightning-input>
+            </div>
+            
             <div class="header-actions">
                 <!-- New Action Buttons -->
                 <button class="action-button refresh-btn" onclick={handleRefresh}>
@@ -43,16 +54,6 @@
                         onconfigurationupdated={handleConfigurationUpdated}>
                     </c-record-config-body-cmp>
                 </div>
-            </div>
-            <div class="search-bar">
-                <lightning-input
-                    type="search"
-                    variant="label-hidden"
-                    placeholder="Search scope entries..."
-                    value={searchTerm}
-                    onchange={handleSearch}
-                    class="search-bar-input">
-                </lightning-input>
             </div>
         </div>
 

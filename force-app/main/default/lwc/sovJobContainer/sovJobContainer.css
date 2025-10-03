@@ -14,7 +14,7 @@
 
 .tab-navigation {
     display: flex;
-    border-bottom: 2px solid #0176D3;
+    border-bottom: 2px solid rgba(94, 90, 219, 1);
     background: #ffffff;
     border-radius: 8px 8px 0 0;
     overflow-x: auto;
@@ -41,14 +41,14 @@
 }
 
 .tab-navigation button:hover {
-    background: #ebf3f6;
-    color: #0176D3;
+    background: rgb(244, 244, 255);
+    color: rgba(94, 90, 219, 1);
 }
 
 .tab-navigation button.active {
-    color: #0176D3;
-    border-bottom-color: #0176D3;
-    background: aliceblue;
+    color: rgba(94, 90, 219, 1);
+    border-bottom-color: rgba(94, 90, 219, 1);
+    background: rgb(244, 244, 255);
     font-weight: 700;
 }
 
@@ -81,7 +81,7 @@
     }
 }
 
-/* Scrollbar styling to match jobDetailsPage */
+/* Scrollbar styling to match sovJobScope */
 .tab-navigation::-webkit-scrollbar,
 .tab-content::-webkit-scrollbar {
     width: 8px;
@@ -95,8 +95,20 @@
 
 .tab-navigation::-webkit-scrollbar-thumb,
 .tab-content::-webkit-scrollbar-thumb {
-    background-color: #0170d27d;
+    background-color: rgba(94, 90, 219, 0.5);
     border-radius: 4px;
+}
+
+.tab-navigation::-webkit-scrollbar-thumb:hover,
+.tab-content::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(94, 90, 219, 1);
+}
+
+/* Firefox scrollbar */
+.tab-navigation,
+.tab-content {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(94, 90, 219, 1) transparent;
 }
 
 /* Mobile Responsive */
@@ -105,7 +117,7 @@
         overflow-x: scroll;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
-        scrollbar-color: #0170d27d transparent;
+        scrollbar-color: rgba(94, 90, 219, 1) transparent;
     }
     
     .tab-navigation button {

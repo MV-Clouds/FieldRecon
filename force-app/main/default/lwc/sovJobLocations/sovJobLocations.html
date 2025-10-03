@@ -4,8 +4,19 @@
     </template>
 
     <div class="main-card">
-        <!-- Header Section -->
+        <!-- Header Section - Updated Layout -->
         <div class="filter-search-container">
+            <div class="search-bar">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search locations..."
+                    value={searchTerm}
+                    onchange={handleSearch}
+                    class="search-bar-input">
+                </lightning-input>
+            </div>
+            
             <div class="header-actions">
                 <button class="action-button refresh-btn" onclick={handleRefresh}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -42,17 +53,6 @@
                         onconfigurationupdated={handleConfigurationUpdated}>
                     </c-record-config-body-cmp>
                 </div>
-            </div>
-            
-            <div class="search-bar">
-                <lightning-input
-                    type="search"
-                    variant="label-hidden"
-                    placeholder="Search locations..."
-                    value={searchTerm}
-                    onchange={handleSearch}
-                    class="search-bar-input">
-                </lightning-input>
             </div>
         </div>
 

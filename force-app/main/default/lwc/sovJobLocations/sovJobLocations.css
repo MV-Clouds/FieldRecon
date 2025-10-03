@@ -11,6 +11,10 @@
     border-radius: 8px;
 }
 
+.search-bar {
+    flex: 0 0 auto;
+}
+
 .search-bar lightning-input {
     width: 300px;
 }
@@ -19,6 +23,8 @@
     display: flex;
     gap: 16px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .main-card {
@@ -39,7 +45,7 @@
     margin: 16px 0;
     background-color: white;
     scrollbar-width: thin;
-    scrollbar-color: #0170d27d transparent;
+    scrollbar-color: rgba(94, 90, 219, 1) transparent;
 }
 
 .data-table-container::-webkit-scrollbar {
@@ -52,12 +58,12 @@
 }
 
 .data-table-container::-webkit-scrollbar-thumb {
-    background: #0170d27d;
+    background: rgba(94, 90, 219, 0.5);
     border-radius: 4px;
 }
 
 .data-table-container::-webkit-scrollbar-thumb:hover {
-    background: #0170d2;
+    background: rgba(94, 90, 219, 1);
 }
 
 .custom-data-table {
@@ -75,10 +81,10 @@
 
 .header-cell {
     padding: 10px;
-    background-color: #0176D3;
+    background-color: rgba(94, 90, 219, 1);
     color: white;
     text-align: center;
-    font-weight: 500;
+    font-weight: 600;
     font-size: 14px;
     position: sticky;
     top: 0;
@@ -95,7 +101,7 @@
 }
 
 .custom-data-table tr:nth-child(odd) {
-    background-color: aliceblue;
+    background-color: rgb(244, 244, 255);
 }
 
 .custom-data-table tr:last-child td {
@@ -113,7 +119,7 @@
 }
 
 .name-link {
-    color: #0176D3;
+    color: rgba(94, 90, 219, 1);
     text-decoration: none;
 }
 
@@ -152,12 +158,19 @@
 }
 
 .empty-state__content .empty-state__message {
-    color: #3a9bea;
+    color: rgba(94, 90, 219, 1);
     font-size: 16px;
     font-weight: 500;
     margin-top: 1rem;
     display: flex;
     justify-content: center;
+}
+
+.empty-state__subtitle {
+    color: #666;
+    font-size: 14px;
+    font-style: italic;
+    margin-top: 0.5rem;
 }
 
 /* Selected Records Count Badge */
@@ -174,19 +187,21 @@
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     border: 1px solid #d8d8d8;
-    border-radius: 0.25rem;
+    border-radius: 4px;
     background-color: #ffffff;
     color: #333;
     cursor: pointer;
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all 0.2s ease;
     position: relative;
+    white-space: nowrap;
+    height: 36px;
 }
 
 .action-button:hover {
-    background-color: #f8f9fa;
-    border-color: #6c757d;
+    background-color: rgb(244, 244, 255);
+    border-color: rgba(94, 90, 219, 0.5);
 }
 
 .action-button:disabled {
@@ -196,14 +211,14 @@
 }
 
 .action-button.add-btn {
-    background-color: #28a745;
+    background-color: rgba(94, 90, 219, 1);
     color: white;
-    border-color: #28a745;
+    border-color: rgba(94, 90, 219, 1);
 }
 
 .action-button.add-btn:hover {
-    background-color: #218838;
-    border-color: #1e7e34;
+    background-color: rgba(94, 90, 219, 0.9);
+    border-color: rgba(94, 90, 219, 0.9);
 }
 
 .action-button.delete-btn {
@@ -226,6 +241,17 @@
 .action-button.delete-btn:disabled .selected-count-badge {
     background-color: transparent;
     color: #6c757d;
+}
+
+.action-button.refresh-btn {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.action-button.refresh-btn:hover {
+    background-color: rgba(94, 90, 219, 0.9);
+    border-color: rgba(94, 90, 219, 0.9);
 }
 
 .action-button svg {
@@ -268,12 +294,40 @@
 }
 
 .icon-button:hover {
-    background-color: #f8f9fa;
-    border-color: #6c757d;
+    background-color: rgb(244, 244, 255);
+    border-color: rgba(94, 90, 219, 0.5);
 }
 
 .icon-button.child-records-btn {
     border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.icon-button.child-records-btn:hover {
+    background-color: #17a2b8;
+    color: white;
+}
+
+/* Icon button states for nested table toggle */
+.child-records-btn[data-expanded="true"] {
+    background-color: rgba(94, 90, 219, 1) !important;
+    color: white !important;
+    border-color: rgba(94, 90, 219, 1) !important;
+}
+
+.child-records-btn[data-expanded="true"]:hover {
+    background-color: rgba(94, 90, 219, 0.9) !important;
+    border-color: rgba(94, 90, 219, 0.9) !important;
+}
+
+.child-records-btn[data-expanded="false"] {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.child-records-btn[data-expanded="false"]:hover {
+    background-color: #17a2b8;
+    color: white;
 }
 
 /* Form Styles */
@@ -320,8 +374,8 @@
 .form-input:focus,
 .form-textarea:focus {
     outline: none;
-    border-color: #0176D3;
-    box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.1);
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
 }
 
 .form-textarea {
@@ -368,6 +422,9 @@
     border-radius: 5px;
     scrollbar-width: none;
     overflow: hidden;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
 }
 
 .pop-heading {
@@ -378,7 +435,7 @@
     font-weight: 400;
     color: white;
     padding: 0.4rem 1rem;
-    background: #0176D3;
+    background: rgba(94, 90, 219, 1);
 }
 
 .popUpBody {
@@ -403,9 +460,9 @@
     font-weight: 400;
     line-height: 35px;
     text-align: center;
-    border: 1px solid #0176D3;
+    border: 1px solid rgba(94, 90, 219, 1);
     padding: 0px 20px;
-    background: #0176D3;
+    background: rgba(94, 90, 219, 1);
     color: white;
     border-radius: 5px;
 }
@@ -423,23 +480,253 @@
     text-align: center;
     padding: 0px 20px;
     background: #FFFFFF;
-    border: 1px solid #0176D3;
-    color: #0176D3;
+    border: 1px solid rgba(94, 90, 219, 1);
+    color: rgba(94, 90, 219, 1);
     border-radius: 5px;
 }
 
 .close-btn:hover {
-    background: #f8f9fa;
-    border-color: #014486;
+    background: rgb(244, 244, 255);
+    border-color: rgba(94, 90, 219, 0.8);
 }
 
-/* Nested Table Styling - Match Scope Component */
+/* Nested Table Styles */
+.nested-row {
+    background-color: transparent;
+}
+
+.nested-table-container {
+    padding: 0 !important;
+    background-color: rgb(244, 244, 255);
+    border-top: 1px solid #e5e5e5;
+}
+
+.nested-table-wrapper {
+    padding: 16px;
+    border-left: 4px solid rgba(94, 90, 219, 1);
+    background-color: #ffffff;
+    margin: 8px 16px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nested-table-header {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.nested-table-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+    margin: 0;
+}
+
+.nested-table {
+    background-color: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.nested-table .table-header {
+    background-color: rgb(244, 244, 255);
+}
+
 .nested-table .header-cell {
     font-size: 12px;
     font-weight: 600;
-    color: #333;
+    color: white;
     padding: 8px 12px;
     border-bottom: 1px solid #e5e5e5;
-    background-color: #4a90e2 !important;
-    color: white !important;
+    background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+.nested-table-row {
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.nested-table-row:last-child {
+    border-bottom: none;
+}
+
+.nested-table-row td {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #555;
+}
+
+.nested-table-row:nth-child(odd) {
+    background-color: rgb(249, 249, 255);
+}
+
+.nested-table-row:nth-child(even) {
+    background-color: #ffffff;
+}
+
+.nested-table-row:hover {
+    background-color: rgb(244, 244, 255) !important;
+    cursor: pointer;
+}
+
+.no-process-data {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.no-process-data .empty-state__icon {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.no-process-data .empty-state__message {
+    color: #333;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.no-process-data .empty-state__subtitle {
+    color: #666;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.process-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Slider Styles */
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.completion-slider {
+    width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, rgba(94, 90, 219, 0.2) 0%, rgba(94, 90, 219, 0.2) 100%);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.completion-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(94, 90, 219, 1);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.completion-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(94, 90, 219, 1);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.completion-slider::-webkit-slider-thumb:hover {
+    background: rgba(94, 90, 219, 0.9);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.completion-slider::-moz-range-thumb:hover {
+    background: rgba(94, 90, 219, 0.9);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.slider-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Search bar input styling */
+.search-bar-input {
+    --slds-c-input-color-border: rgba(94, 90, 219, 0.3);
+    --slds-c-input-color-border-focus: rgba(94, 90, 219, 1);
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 900px) {
+    .filter-search-container {
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+    }
+
+    .search-bar {
+        width: 100%;
+        order: 1;
+    }
+
+    .search-bar lightning-input {
+        width: 100%;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+        order: 2;
+    }
+    
+    .action-button {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        height: 34px;
+    }
+    
+    .action-button svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .selected-count-badge {
+        font-size: 0.65rem;
+        padding: 1px 4px;
+    }
+    
+    .nested-table {
+        font-size: 11px;
+    }
+    
+    .nested-table .header-cell,
+    .nested-table-row td {
+        padding: 6px 8px;
+    }
+}
+
+@media only screen and (max-width: 600px) {
+    .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .action-button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Additional polish for button states */
+.action-button:active:not(:disabled) {
+    transform: translateY(1px);
 }
