@@ -477,11 +477,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             const style = document.createElement('style');
             style.textContent = `
                 .accordion-container .section-control {
-                    background: #3396e5 !important;
+                    background: rgba(94, 90, 219, 0.9) !important;
                     color: white !important;
                     margin-bottom: 4px;
                     --slds-c-icon-color-foreground-default: #ffffff !important;
+                    font-weight: 600 !important;
+                    border-radius: 4px;
                 }
+                
             `;
             
             // Append to component's template
