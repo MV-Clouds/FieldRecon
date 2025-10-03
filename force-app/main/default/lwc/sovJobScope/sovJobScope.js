@@ -139,15 +139,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     };
 
     // Process Type Options
-    @track processTypeOptions = [
-        { label: 'Overlay', value: 'Overlay' },
-        { label: 'Grinding', value: 'Grinding' },
-        { label: 'Surface Prep', value: 'Surface Prep' },
-        { label: 'Coatings', value: 'Coatings' },
-        { label: 'Joints', value: 'Joints' },
-        { label: 'Polishing', value: 'Polishing' },
-        { label: 'Generic', value: 'Generic' }
-    ];
+    @track processTypeOptions = [];
 
     // Measurement Type Options
     @track measurementTypeOptions = [
@@ -439,22 +431,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     get isAllProcessLibrarySelected() {
         return this.processLibraryDisplayRecords.length > 0 && 
                this.processLibraryDisplayRecords.every(process => process.isSelected);
-    }
-
-    /**
-     * Method Name: get processTypeFilterOptions
-     * @description: Get process type options for filter dropdown
-     */
-    get processTypeFilterOptions() {
-        const options = [{ label: 'All Categories', value: '' }];
-        
-        if (this.processTypeOptions && this.processTypeOptions.length > 0) {
-            this.processTypeOptions.forEach(option => {
-                options.push({ label: option.label, value: option.value });
-            });
-        }
-        
-        return options;
     }
 
     /**
@@ -1453,10 +1429,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Load process types for filter
         getProcessTypes()
             .then(result => {
+
+                console.log('Process types:', result);
+                
                 this.processTypeOptions = (result || []).map(type => ({
                     label: type,
                     value: type
                 }));
+
+                console.log('Process types loaded:', this.processTypeOptions);
+                
             })
             .catch(error => {
                 console.error('Error loading process types:', error);
