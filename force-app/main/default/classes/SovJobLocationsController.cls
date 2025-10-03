@@ -151,6 +151,7 @@ public with sharing class SovJobLocationsController {
             newLocation.wfrecon__Distressed_Edge__c = (Decimal) locationData.get('distressedEdge');
             newLocation.wfrecon__Distressed_Joint_LF__c = (Decimal) locationData.get('distressedJoint');
             newLocation.wfrecon__Misc_Defect_Count__c = (Decimal) locationData.get('miscDefectCount');
+            newLocation.wfrecon__Cure_Time_Days__c = (Decimal) locationData.get('cureTimeDays');
             newLocation.wfrecon__Job__c = (Id) locationData.get('jobId');
             
             insert as user newLocation;

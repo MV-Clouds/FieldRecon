@@ -344,6 +344,25 @@
     color: #dc3545;
 }
 
+/* Add these styles after the existing form styles */
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group.full-width {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Modal Styles */
 .pop-up {
     border-radius: 5px;

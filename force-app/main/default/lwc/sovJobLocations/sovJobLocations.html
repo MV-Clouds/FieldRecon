@@ -288,7 +288,8 @@
 
                     <div class="popUpBody slds-p-around--medium">
                         <div class="form-container">
-                            <div class="form-group">
+                            <!-- Name field -->
+                            <div class="form-group full-width">
                                 <div class="form-label-row">
                                     <label class="form-label required">Name</label>
                                     <div class="character-count">{nameCharacterCount}/80</div>
@@ -301,65 +302,84 @@
                                        oninput={handleInputChange}
                                        maxlength="80">
                             </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label required">Square Feet</label>
-                                <input type="number" 
-                                       class="form-input" 
-                                       placeholder="Enter square feet"
-                                       step="0.01"
-                                       min="0"
-                                       value={newLocation.squareFeet}
-                                       data-field="squareFeet"
-                                       oninput={handleInputChange}>
+
+                            <!-- Two column layout -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label required">Square Feet</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter square feet"
+                                           step="0.01"
+                                           min="0"
+                                           value={newLocation.squareFeet}
+                                           data-field="squareFeet"
+                                           oninput={handleInputChange}>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Crack Count</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter crack count"
+                                           step="1"
+                                           min="0"
+                                           value={newLocation.crackCount}
+                                           data-field="crackCount"
+                                           oninput={handleInputChange}>
+                                </div>
                             </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Crack Count</label>
-                                <input type="number" 
-                                       class="form-input" 
-                                       placeholder="Enter crack count"
-                                       step="1"
-                                       min="0"
-                                       value={newLocation.crackCount}
-                                       data-field="crackCount"
-                                       oninput={handleInputChange}>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Distressed Edge</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter distressed edge"
+                                           step="0.01"
+                                           min="0"
+                                           value={newLocation.distressedEdge}
+                                           data-field="distressedEdge"
+                                           oninput={handleInputChange}>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Distressed Joint LF</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter distressed joint LF"
+                                           step="0.01"
+                                           min="0"
+                                           value={newLocation.distressedJoint}
+                                           data-field="distressedJoint"
+                                           oninput={handleInputChange}>
+                                </div>
                             </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Distressed Edge</label>
-                                <input type="number" 
-                                       class="form-input" 
-                                       placeholder="Enter distressed edge"
-                                       step="0.01"
-                                       min="0"
-                                       value={newLocation.distressedEdge}
-                                       data-field="distressedEdge"
-                                       oninput={handleInputChange}>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Distressed Joint LF</label>
-                                <input type="number" 
-                                       class="form-input" 
-                                       placeholder="Enter distressed joint LF"
-                                       step="0.01"
-                                       min="0"
-                                       value={newLocation.distressedJoint}
-                                       data-field="distressedJoint"
-                                       oninput={handleInputChange}>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Misc Defect Count</label>
-                                <input type="number" 
-                                       class="form-input" 
-                                       placeholder="Enter misc defect count"
-                                       step="1"
-                                       min="0"
-                                       value={newLocation.miscDefectCount}
-                                       data-field="miscDefectCount"
-                                       oninput={handleInputChange}>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Misc Defect Count</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter misc defect count"
+                                           step="1"
+                                           min="0"
+                                           value={newLocation.miscDefectCount}
+                                           data-field="miscDefectCount"
+                                           oninput={handleInputChange}>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Days</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter days"
+                                           step="1"
+                                           min="0"
+                                           value={newLocation.cureTimeDays}
+                                           data-field="cureTimeDays"
+                                           oninput={handleInputChange}>
+                                </div>
                             </div>
                         </div>
 

@@ -48,7 +48,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         crackCount: null,
         distressedEdge: null,
         distressedJoint: null,
-        miscDefectCount: null
+        miscDefectCount: null,
+        cureTimeDays: null
     };
 
     @wire(CurrentPageReference)
@@ -405,7 +406,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             crackCount: null,
             distressedEdge: null,
             distressedJoint: null,
-            miscDefectCount: null
+            miscDefectCount: null,
+            cureTimeDays: null
         };
         this.showAddModal = true;
     }
@@ -422,7 +424,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             crackCount: null,
             distressedEdge: null,
             distressedJoint: null,
-            miscDefectCount: null
+            miscDefectCount: null,
+            cureTimeDays: null
         };
     }
 
@@ -475,6 +478,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             distressedEdge: this.newLocation.distressedEdge || 0,
             distressedJoint: this.newLocation.distressedJoint || 0,
             miscDefectCount: this.newLocation.miscDefectCount || 0,
+            cureTimeDays: this.newLocation.cureTimeDays || 0,
             jobId: this.recordId
         };
 
