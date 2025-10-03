@@ -14,6 +14,13 @@
     border-radius: 8px;
 }
 
+.mainDiv input:focus,
+.mainDiv select:focus {
+    outline: none;
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
+}
+
 .main-cover {
     width: 100%;
     height: 100%;
@@ -83,30 +90,32 @@
 
 .popup__header-row {
     display: grid;
-    grid-template-columns: 0.15fr 1.5fr 1fr 1fr 0.6fr;
+    grid-template-columns: 0.15fr 1.5fr 1fr 0.6fr;
     gap: 0.5rem;
-    padding: 0.7rem 0rem;
+    padding: 0.8rem 0rem;
     border-radius: 0.25rem 0.25rem 0rem 0rem;
-    background: #0176D3;
+    background: rgba(94, 90, 219, 1);
     color: white;
-    font-weight: 400;
+    font-weight: 600;
     font-size: 14px;
     position: sticky;
     top: 0rem;
     z-index: 100;
 }
 
+/* Update popup__data-row to match header grid */
 .popup__data-row {
     display: grid;
-    grid-template-columns: 0.2fr 1.5fr 1fr 1fr 0.6fr;
+    grid-template-columns: 0.15fr 1.5fr 1fr 0.6fr;
     gap: 0.5rem;
     align-items: center;
-    padding-left: 10px;
+    padding: 0.5rem 0rem;
+    padding-left: 0px;
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .popup__data-row:nth-child(odd) {
-    background-color: aliceblue;
+    background-color: rgb(244, 244, 255);
 }
 
 /* Row being dragged from (source) */
@@ -119,8 +128,8 @@
 
 /* Row being dragged over (target) */
 .popup__data-row.drop-over {
-    box-shadow: 0 0 0 2px #0176D3;
-    background: #e8f1fc;
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 1);
+    background: rgb(244, 244, 255);
     position: relative;
     z-index: 20;
     transition: all 0.2s ease;
@@ -136,7 +145,6 @@
     z-index: 50; /* Lower than header */
 }
 
-
 .tableContainer {
     flex-grow: 1;
     overflow: auto;
@@ -144,8 +152,26 @@
     border-radius: 0.5rem;
     scroll-behavior: smooth;
     scrollbar-width: thin;
-    scrollbar-color: #0170d27d transparent;
+    scrollbar-color: rgba(94, 90, 219, 1) transparent;
     position: relative;
+}
+
+.tableContainer::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+    background-color: rgba(94, 90, 219, 1);
+    border-radius: 4px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(94, 90, 219, 0.8);
 }
 
 .order_btn {
@@ -166,33 +192,52 @@
 
 .order_btn_grp {
     display: flex;
-    justify-content: center;
+    justify-content: start;
     flex-direction: row;
     gap: 10px;
 }
 
 .cancel_btn_css {
     font-size: 14px;
-    font-weight: 400;
+    font-weight: 600;
     line-height: 34px;
     text-align: center;
     padding: 0px 20px;
     background: #FFFFFF;
-    border: 1px solid #0176D3;
-    color: #0176D3;
+    border: 1px solid rgba(94, 90, 219, 1);
+    color: rgba(94, 90, 219, 1);
     border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cancel_btn_css:hover {
+    background: rgb(244, 244, 255);
+    border-color: rgba(94, 90, 219, 0.8);
 }
 
 .save_btn_css {
     font-size: 14px;
-    font-weight: 400;
+    font-weight: 600;
     line-height: 34px;
     text-align: center;
-    border: 1px solid #0176D3;
+    border: 1px solid rgba(94, 90, 219, 1);
     padding: 0px 20px;
-    background: #0176D3;
+    background: rgba(94, 90, 219, 1);
     color: white;
     border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.save_btn_css:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.save_btn_css:active {
+    transform: translateY(0);
 }
 
 .editchecklistcss {
@@ -211,14 +256,26 @@
     align-items: center;
     gap: 8px;
     font-size: 14px;
-    font-weight: 400;
+    font-weight: 600;
     line-height: 34px;
     text-align: center;
     padding: 0px 20px;
-    background: #0176D3;
-    border: 1px solid #0176D3;
+    background: rgba(94, 90, 219, 1);
+    border: 1px solid rgba(94, 90, 219, 1);
     color: #FFFFFF;
     border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-new-btn:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.add-new-btn:active {
+    transform: translateY(0);
 }
 
 .add-new-btn svg {
@@ -248,6 +305,12 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     padding: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.wrap_css lightning-combobox{
+    width: 100%;
 }
 
 .padding_css {
@@ -262,10 +325,18 @@
 }
 
 .display_css {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    font-size: 16px;
+    align-items: center;
+    font-size: 14px;
+    padding: 0 0.5rem;
+}
+
+.display_css .header-text {
+    margin: 0;
+    font-weight: 600;
+}
+
+.combobox-cover{
+    width: 100%;
 }
 
 .combobox-cover .chev-down {
@@ -279,32 +350,45 @@
     justify-content: space-between;
     display: flex;
     position: relative;
-    height: 32px;
+    height: 36px;
     align-items: center;
-    border: 1px solid grey;
+    border: 1px solid #d8d8d8;
     border-radius: 4px;
     cursor: pointer;
     background-color: white;
+    transition: all 0.2s ease;
+}
+
+.combobox-cover .combobox-input:hover {
+    border-color: rgba(94, 90, 219, 0.5);
+}
+
+.combobox-cover .combobox-input:focus-within {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
 }
 
 .combobox-cover .combobox-input .input-show {
-    margin-left: 8px;
+    margin-left: 12px;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .combobox-cover .combobox-input .add-btn-class {
     border-radius: 4px;
     margin: 0.2rem 0.5rem;
-    padding: 0.1rem;
+    padding: 0.2rem;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.combobox-cover .combobox-input .add-btn-class svg {
-    fill: white;
-    width: 1rem;
-    height: 1rem;
+.combobox-cover .combobox-input .add-btn-class:hover {
+    background-color: rgba(94, 90, 219, 0.1);
 }
 
 .operator-div {
@@ -366,7 +450,7 @@
 }
 
 .options-box ul li:hover {
-    background-color: #b9b9ca22;
+    background-color: rgb(244, 244, 255);
 }
 
 .options-box ul .selected-item {
@@ -440,7 +524,7 @@
     width: 1.1rem;
     height: 1.1rem;
     background-color: transparent;
-    border: 2px solid #0176D3;
+    border: 2px solid rgba(94, 90, 219, 1);
     display: inline-block;
     position: relative;
     cursor: pointer;
@@ -454,8 +538,8 @@
 }
 
 .custom-checkbox input[type="checkbox"]:checked + .checkmark {
-    background-color: #0376D3;
-    border-color: #0176D3;
+    background-color: rgba(94, 90, 219, 1);
+    border-color: rgba(94, 90, 219, 1);
     transition: 0.3s;
 }
 
@@ -487,7 +571,7 @@ input[type="range"] {
 }
 
 input[type="range"] {
-    color: #0176D3;
+    color: rgba(94, 90, 219, 1);
     --thumb-height: 0.6em;
     --track-height: 0.08em;
     --track-color: rgba(0, 0, 0, 0.2);
@@ -513,7 +597,7 @@ input[type="range"].win10-thumb {
     }
 
     input[type="range"] {
-        color: #0176D3;
+        color: rgba(94, 90, 219, 1);
         --track-color: #828181;
     }
 
@@ -667,23 +751,30 @@ input[type="range"]:disabled::-moz-range-thumb {
     gap: 8px;
 }
 
+/* Update delete-div styles */
 .delete-div {
-    height: 1.5rem;
-    width: 1.5rem;
-    border: 1px solid;
+    height: 28px;
+    width: 28px;
+    border: 1px solid #dc3545;
     border-radius: 4px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    transition: all 0.2s ease;
+    color: #dc3545;
 }
 
-.delete-div:hover svg {
-    fill: #ff0707a8;
+.delete-div:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
 }
 
-.delete-div:hover svg path {
-    fill: #ff0707a8;
+.delete-div svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 
 @media only screen and (max-width: 900px) {
@@ -694,9 +785,16 @@ input[type="range"]:disabled::-moz-range-thumb {
     }
 }
 
-.drag-icon{
+/* Update drag icon to match header alignment */
+.drag-icon {
     cursor: grab;
     display: flex;
     justify-content: center;
     align-items: center;
+    color: rgba(94, 90, 219, 1);
+    padding-left: 0.5rem;
+}
+
+.drag-icon:active {
+    cursor: grabbing;
 }
