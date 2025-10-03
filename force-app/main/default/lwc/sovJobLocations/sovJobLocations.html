@@ -119,7 +119,7 @@
                                             <template if:true={field.isPercent}>
                                                 <lightning-formatted-number 
                                                     value={field.rawValue} 
-                                                    format-style="percent" 
+                                                    format-style="percent-fixed" 
                                                     maximum-fraction-digits="2">
                                                 </lightning-formatted-number>
                                             </template>
@@ -207,7 +207,7 @@
                                                                                             <template if:true={field.hasValue}>
                                                                                                 <lightning-formatted-number 
                                                                                                     value={field.percentValue} 
-                                                                                                    format-style="percent" 
+                                                                                                    format-style="percent-fixed"
                                                                                                     maximum-fraction-digits="2">
                                                                                                 </lightning-formatted-number>
                                                                                             </template>

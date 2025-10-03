@@ -468,4 +468,193 @@ public with sharing class SovJobScopeController {
         }
         return processTypes;
     }
+
+    /*
+    *********************************************************
+    @description     : Method to get all locations for a job
+    @param           : Id jobId - Job Id
+    @return          : List<Location__c> - List of Location records
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static List<Location__c> getJobLocations(Id jobId) {
+        List<Location__c> locations = new List<Location__c>();
+        try {
+            locations = [
+                SELECT Id, Name, Square_Feet__c, Crack_Count__c, 
+                       Distressed_Edge__c, Distressed_Joint_LF__c, 
+                       Misc_Defect_Count__c
+                FROM Location__c
+                WHERE Job__c = :jobId
+                WITH USER_MODE
+                ORDER BY Name ASC
+            ];
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getJobLocations',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while fetching Job Locations.',
+                'apiResponse' => null
+            });
+        }
+        return locations;
+    }
+
+    /*
+    *********************************************************
+    @description     : Method to get existing location processes for a scope entry
+    @param           : Id scopeEntryId - Scope Entry Id
+    @return          : List<Id> - List of Location IDs that have existing processes
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static List<Id> getExistingLocationProcesses(Id scopeEntryId) {
+        List<Id> existingLocationIds = new List<Id>();
+        try {
+            // Get all processes for this scope entry
+            List<Scope_Entry_Process__c> processes = [
+                SELECT Id
+                FROM Scope_Entry_Process__c
+                WHERE Scope_Entry__c = :scopeEntryId
+                WITH USER_MODE
+            ];
+            
+            if (processes.isEmpty()) {
+                return existingLocationIds;
+            }
+            
+            // Get location IDs from location processes
+            Set<Id> processIds = new Set<Id>();
+            for (Scope_Entry_Process__c process : processes) {
+                processIds.add(process.Id);
+            }
+            
+            List<Location_Process__c> locationProcesses = [
+                SELECT Location__c
+                FROM Location_Process__c
+                WHERE Scope_Entry_Process__c IN :processIds
+                WITH USER_MODE
+            ];
+            
+            for (Location_Process__c lp : locationProcesses) {
+                if (lp.Location__c != null && !existingLocationIds.contains(lp.Location__c)) {
+                    existingLocationIds.add(lp.Location__c);
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getExistingLocationProcesses',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while fetching existing location processes.',
+                'apiResponse' => null
+            });
+        }
+        return existingLocationIds;
+    }
+
+    /*
+    *********************************************************
+    @description     : Method to create location process records for selected locations
+    @param           : Map<String, Object> locationData - Contains scopeEntryId and selectedLocationIds
+    @return          : String - Success or error message
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String createLocationProcesses(Map<String, Object> locationData) {
+        try {
+            Id scopeEntryId = (Id) locationData.get('scopeEntryId');
+            
+            // Convert List<Object> to List<String> for location IDs
+            List<Object> selectedLocationIdsObj = (List<Object>) locationData.get('selectedLocationIds');
+            List<String> selectedLocationIds = new List<String>();
+            
+            if (selectedLocationIdsObj != null) {
+                for (Object obj : selectedLocationIdsObj) {
+                    selectedLocationIds.add(String.valueOf(obj));
+                }
+            }
+            
+            if (selectedLocationIds == null || selectedLocationIds.isEmpty()) {
+                return 'Error: No locations selected';
+            }
+            
+            // Get scope entry to retrieve contract value
+            Scope_Entry__c scopeEntry = [
+                SELECT Id, Contract_Value__c
+                FROM Scope_Entry__c
+                WHERE Id = :scopeEntryId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            
+            // Get all processes for this scope entry with their weights
+            List<Scope_Entry_Process__c> processes = [
+                SELECT Id, Weight__c, Sequence__c, Process_Library__c
+                FROM Scope_Entry_Process__c
+                WHERE Scope_Entry__c = :scopeEntryId
+                WITH USER_MODE
+                ORDER BY Sequence__c ASC NULLS LAST
+            ];
+            
+            if (processes.isEmpty()) {
+                return 'Error: No processes found for this scope entry';
+            }
+            
+            // Calculate total weight
+            Decimal totalWeight = 0;
+            for (Scope_Entry_Process__c process : processes) {
+                totalWeight += (process.Weight__c != null ? process.Weight__c : 0);
+            }
+            
+            if (totalWeight == 0) {
+                return 'Error: Total process weight cannot be zero';
+            }
+            
+            // Create location process records
+            List<Location_Process__c> locationProcessesToInsert = new List<Location_Process__c>();
+            
+            for (String locationId : selectedLocationIds) {
+                for (Scope_Entry_Process__c process : processes) {
+                    // Calculate contract price based on weight
+                    Decimal processWeight = (process.Weight__c != null ? process.Weight__c : 0);
+                    Decimal contractPrice = (scopeEntry.Contract_Value__c * processWeight) / totalWeight;
+                    
+                    Location_Process__c locationProcess = new Location_Process__c();
+                    locationProcess.Location__c = locationId;
+                    locationProcess.Scope_Entry_Process__c = process.Id;
+                    locationProcess.Process_Library__c = process.Process_Library__c;
+                    locationProcess.Sequence__c = process.Sequence__c;
+                    locationProcess.Contract_Price__c = contractPrice;
+                    
+                    locationProcessesToInsert.add(locationProcess);
+                }
+            }
+            
+            if (!locationProcessesToInsert.isEmpty()) {
+                insert as user locationProcessesToInsert;
+            }
+            
+            return 'Success';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'createLocationProcesses',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while creating location processes.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
 }

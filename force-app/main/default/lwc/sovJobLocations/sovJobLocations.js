@@ -675,27 +675,32 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     handleSliderChange(event) {
         const processId = event.target.dataset.processId;
+        const locationId = event.target.dataset.locationId;
+        const originalValue = event.target.dataset.originalValue;
         const newValue = parseFloat(event.target.value);
+        const sliderElement = event.target; 
         
         updateProcessCompletion({ processId: processId, completionPercentage: newValue })
             .then(result => {
                 if (result === 'Success') {
                     this.showToast('Success', 'Process completion updated successfully', 'success');
-                    // Optionally refresh the specific location's process details
-                    const locationId = event.target.dataset.locationId;
                     if (locationId) {
                         this.loadProcessDetails(locationId);
                     }
                 } else {
                     this.showToast('Error', result, 'error');
                     // Revert the slider value on error
-                    event.target.value = event.target.dataset.originalValue;
+                    if (sliderElement) {
+                        sliderElement.value = originalValue;
+                    }
                 }
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to update process completion: ' + (error.body?.message || error.message), 'error');
                 // Revert the slider value on error
-                event.target.value = event.target.dataset.originalValue;
+                if (sliderElement) {
+                    sliderElement.value = originalValue;
+                }
             });
     }
 

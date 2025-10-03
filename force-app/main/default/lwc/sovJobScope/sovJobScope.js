@@ -11,6 +11,9 @@ import createScopeEntryProcess from '@salesforce/apex/SovJobScopeController.crea
 import getProcessLibraryRecords from '@salesforce/apex/SovJobScopeController.getProcessLibraryRecords';
 import createScopeEntryProcessesFromLibrary from '@salesforce/apex/SovJobScopeController.createScopeEntryProcessesFromLibrary';
 import getProcessTypes from '@salesforce/apex/SovJobScopeController.getProcessTypes';
+import getJobLocations from '@salesforce/apex/SovJobScopeController.getJobLocations';
+import getExistingLocationProcesses from '@salesforce/apex/SovJobScopeController.getExistingLocationProcesses';
+import createLocationProcesses from '@salesforce/apex/SovJobScopeController.createLocationProcesses';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -32,7 +35,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         { label: 'Name', fieldName: 'Name', type: 'text' },
         { label: 'Type', fieldName: 'wfrecon__Type__c', type: 'text' },
         { label: 'Contract Value', fieldName: 'wfrecon__Contract_Value__c', type: 'currency' },
-        { label: 'Completed %', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent' },
+        { label: 'Completed Percentage', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent' },
         { label: 'Status', fieldName: 'wfrecon__Scope_Entry_Status__c', type: 'text' }
     ];
 
@@ -159,6 +162,48 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track processLibrarySearchTerm = '';
     @track selectedProcessCategory = '';
     @track processTypeFilterOptions = []; // For filter dropdown
+
+    @track showAddLocationModal = false;
+    @track isLocationSubmitting = false;
+    @track locationRecords = [];
+    @track locationDisplayRecords = [];
+    @track selectedLocationIds = [];
+    @track locationSearchTerm = '';
+    @track selectedLocationScopeEntryId = '';
+
+    // Location Table Columns Configuration
+    @track locationTableColumns = [
+        { 
+            label: 'Name', 
+            fieldName: 'Name', 
+            type: 'text'
+        },
+        { 
+            label: 'Square Feet', 
+            fieldName: 'wfrecon__Square_Feet__c', 
+            type: 'number'
+        },
+        { 
+            label: 'Crack Count', 
+            fieldName: 'wfrecon__Crack_Count__c', 
+            type: 'number'
+        },
+        { 
+            label: 'Distressed Edge', 
+            fieldName: 'wfrecon__Distressed_Edge__c', 
+            type: 'number'
+        },
+        { 
+            label: 'Distressed Joint', 
+            fieldName: 'wfrecon__Distressed_Joint_LF__c', 
+            type: 'number'
+        },
+        { 
+            label: 'Misc Defect Count', 
+            fieldName: 'wfrecon__Misc_Defect_Count__c', 
+            type: 'number'
+        }
+    ];
 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
@@ -431,6 +476,23 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     get isAllProcessLibrarySelected() {
         return this.processLibraryDisplayRecords.length > 0 && 
                this.processLibraryDisplayRecords.every(process => process.isSelected);
+    }
+
+    /**
+     * Method Name: get hasSelectedLocations
+     * @description: Check if any locations are selected
+     */
+    get hasSelectedLocations() {
+        return this.selectedLocationIds.length > 0;
+    }
+
+    /**
+     * Method Name: get isAllLocationsSelected
+     * @description: Check if all visible locations are selected
+     */
+    get isAllLocationsSelected() {
+        return this.locationDisplayRecords.length > 0 && 
+               this.locationDisplayRecords.every(location => location.isSelected);
     }
 
     /**
@@ -934,11 +996,25 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleAddLocation
-     * @description: Handle add location action - shows toast message
+     * @description: Open location modal and load locations
      */
     handleAddLocation(event) {
-        const recordId = event.currentTarget.dataset.recordId;
-        this.showToast('Info', `Add Location action clicked for record: ${recordId}`, 'info');
+        const scopeEntryId = event.currentTarget.dataset.recordId;
+        
+        // Find the scope entry name
+        const entry = this.getEntryById(scopeEntryId);
+        this.selectedScopeEntryName = entry ? entry.Name : '';
+        this.selectedLocationScopeEntryId = scopeEntryId;
+        
+        // Reset selections
+        this.selectedLocationIds = [];
+        this.locationSearchTerm = '';
+        
+        // Load location data
+        this.loadLocationData(scopeEntryId);
+        
+        this.showAddLocationModal = true;
+        
     }
 
     /**
@@ -1417,7 +1493,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         // Load process library records and types
         this.loadProcessLibraryData();
-        
         this.showProcessLibraryModal = true;
     }
 
@@ -1668,6 +1743,189 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 console.error('Error refreshing process details:', error);
                 this.updateProcessDetails(scopeEntryId, []);
                 this.showToast('Error', 'Failed to refresh process details: ' + (error.body?.message || error.message), 'error');
+            });
+    }
+
+    /**
+     * Method Name: loadLocationData
+     * @description: Load locations and existing location processes
+     */
+    loadLocationData(scopeEntryId) {
+        Promise.all([
+            getJobLocations({ jobId: this.recordId }),
+            getExistingLocationProcesses({ scopeEntryId: scopeEntryId })
+        ])
+        .then(([locations, existingLocationIds]) => {
+            this.locationRecords = locations || [];
+            this.selectedLocationIds = existingLocationIds || [];
+            this.applyLocationFilters();
+        })
+        .catch(error => {
+            console.error('Error loading location data:', error);
+            this.showToast('Error', 'Failed to load locations: ' + (error.body?.message || error.message), 'error');
+            this.locationRecords = [];
+            this.locationDisplayRecords = [];
+        });
+    }
+
+    /**
+     * Method Name: applyLocationFilters
+     * @description: Apply filters and maintain selection states for locations
+     */
+    applyLocationFilters() {
+        if (!this.locationRecords || this.locationRecords.length === 0) {
+            this.locationDisplayRecords = [];
+            return;
+        }
+
+        let filtered = [...this.locationRecords];
+
+        // Filter by search term
+        if (this.locationSearchTerm) {
+            const searchLower = this.locationSearchTerm.toLowerCase();
+            filtered = filtered.filter(location => {
+                return (location.Name && location.Name.toLowerCase().includes(searchLower)) ||
+                       (location.wfrecon__Square_Feet__c && location.wfrecon__Square_Feet__c.toString().includes(searchLower)) ||
+                       (location.wfrecon__Crack_Count__c && location.wfrecon__Crack_Count__c.toString().includes(searchLower));
+            });
+        }
+
+        // Create display records with selection state
+        this.locationDisplayRecords = filtered.map(location => {
+            const locationRecord = {
+                ...location,
+                isSelected: this.selectedLocationIds.includes(location.Id)
+            };
+
+            // Process display fields
+            locationRecord.displayFields = this.locationTableColumns.map(col => {
+                const key = col.fieldName;
+                let value = this.getFieldValue(location, key);
+                
+                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                
+                // Handle number fields
+                let numberValue = 0;
+                if (col.type === 'number') {
+                    numberValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                }
+                
+                return {
+                    key,
+                    value: displayValue,
+                    rawValue: value,
+                    numberValue: numberValue,
+                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    isNumber: col.type === 'number'
+                };
+            });
+
+            return locationRecord;
+        });
+    }
+
+    /**
+     * Method Name: handleLocationSelection
+     * @description: Handle individual location selection
+     */
+    handleLocationSelection(event) {
+        const locationId = event.target.dataset.locationId;
+        const isChecked = event.target.checked;
+
+        if (isChecked) {
+            if (!this.selectedLocationIds.includes(locationId)) {
+                this.selectedLocationIds = [...this.selectedLocationIds, locationId];
+            }
+        } else {
+            this.selectedLocationIds = this.selectedLocationIds.filter(id => id !== locationId);
+        }
+
+        // Update the display record's selection state
+        this.locationDisplayRecords = this.locationDisplayRecords.map(location => ({
+            ...location,
+            isSelected: this.selectedLocationIds.includes(location.Id)
+        }));
+    }
+
+    /**
+     * Method Name: handleSelectAllLocations
+     * @description: Handle select all locations
+     */
+    handleSelectAllLocations(event) {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+            // Add all visible location IDs to selection
+            const visibleIds = this.locationDisplayRecords.map(location => location.Id);
+            const newSelections = visibleIds.filter(id => !this.selectedLocationIds.includes(id));
+            this.selectedLocationIds = [...this.selectedLocationIds, ...newSelections];
+        } else {
+            // Remove all visible location IDs from selection
+            const visibleIds = this.locationDisplayRecords.map(location => location.Id);
+            this.selectedLocationIds = this.selectedLocationIds.filter(id => !visibleIds.includes(id));
+        }
+
+        // Update display records
+        this.locationDisplayRecords = this.locationDisplayRecords.map(location => ({
+            ...location,
+            isSelected: this.selectedLocationIds.includes(location.Id)
+        }));
+    }
+
+    /**
+     * Method Name: handleLocationSearch
+     * @description: Handle search in location modal
+     */
+    handleLocationSearch(event) {
+        this.locationSearchTerm = event.target.value;
+        this.applyLocationFilters();
+    }
+
+    /**
+     * Method Name: handleCloseLocationModal
+     * @description: Close location modal
+     */
+    handleCloseLocationModal() {
+        this.showAddLocationModal = false;
+        this.selectedScopeEntryName = '';
+        this.selectedLocationScopeEntryId = '';
+        this.selectedLocationIds = [];
+        this.locationSearchTerm = '';
+        this.locationRecords = [];
+        this.locationDisplayRecords = [];
+    }
+
+    /**
+     * Method Name: handleSaveLocations
+     * @description: Save selected locations and create location processes
+     */
+    handleSaveLocations() {
+        if (this.selectedLocationIds.length === 0) {
+            this.showToast('Warning', 'Please select at least one location', 'warning');
+            return;
+        }
+
+        this.isLocationSubmitting = true;
+        
+        const locationData = {
+            scopeEntryId: this.selectedLocationScopeEntryId,
+            selectedLocationIds: this.selectedLocationIds
+        };
+
+        createLocationProcesses({ locationData })
+            .then(result => {
+                if (result === 'Success') {
+                    this.showToast('Success', `${this.selectedLocationIds.length} location(s) added successfully`, 'success');
+                    this.handleCloseLocationModal();
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to add locations: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isLocationSubmitting = false;
             });
     }
 

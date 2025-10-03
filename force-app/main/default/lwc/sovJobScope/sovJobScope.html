@@ -200,7 +200,7 @@
                                                         <template if:true={field.isPercent}>
                                                             <lightning-formatted-number 
                                                                 value={field.rawValue} 
-                                                                format-style="percent" 
+                                                                format-style="percent-fixed"
                                                                 maximum-fraction-digits="2">
                                                             </lightning-formatted-number>
                                                         </template>
@@ -317,8 +317,7 @@
                                                                                                     <template if:true={field.hasValue}>
                                                                                                         <lightning-formatted-number 
                                                                                                             value={field.percentValue} 
-                                                                                                            format-style="percent" 
-                                                                                                            maximum-fraction-digits="2">
+                                                                                                            format-style="percent-fixed"                                                                                                            maximum-fraction-digits="2">
                                                                                                         </lightning-formatted-number>
                                                                                                     </template>
                                                                                                     <template if:false={field.hasValue}>0.00%</template>
@@ -486,7 +485,7 @@
                                                         <template if:true={field.isPercent}>
                                                             <lightning-formatted-number 
                                                                 value={field.rawValue} 
-                                                                format-style="percent" 
+                                                                format-style="percent-fixed"
                                                                 maximum-fraction-digits="2">
                                                             </lightning-formatted-number>
                                                         </template>
@@ -603,7 +602,7 @@
                                                                                                     <template if:true={field.hasValue}>
                                                                                                         <lightning-formatted-number 
                                                                                                             value={field.percentValue} 
-                                                                                                            format-style="percent" 
+                                                                                                            format-style="percent-fixed"
                                                                                                             maximum-fraction-digits="2">
                                                                                                         </lightning-formatted-number>
                                                                                                     </template>
@@ -834,10 +833,10 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label required">Weightage</label>
+                                <label class="form-label required">Weight</label>
                                 <input type="number" 
                                        class="form-input" 
-                                       placeholder="Enter weightage"
+                                       placeholder="Enter weight"
                                        step="0.01"
                                        min="0"
                                        max="9999"
@@ -966,7 +965,7 @@
                                                                 <template if:true={field.hasValue}>
                                                                     <lightning-formatted-number 
                                                                         value={field.percentValue} 
-                                                                        format-style="percent" 
+                                                                        format-style="percent-fixed"
                                                                         maximum-fraction-digits="2">
                                                                     </lightning-formatted-number>
                                                                 </template>
@@ -1048,6 +1047,132 @@
                                     disabled={isProcessLibrarySubmitting}>
                                 <template if:true={isProcessLibrarySubmitting}>Adding...</template>
                                 <template if:false={isProcessLibrarySubmitting}>Add Selected Processes</template>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <template if:true={showAddLocationModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-05" aria-modal="true" aria-describedby="modal-content-id-5" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container location-modal">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseLocationModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+    
+                <div class="slds-modal__content pop-up" id="modal-content-id-5">
+                    <div class="pop-heading">
+                        Add Locations - {selectedScopeEntryName}
+                    </div>
+    
+                    <div class="popUpBody slds-p-around--medium">
+                        <!-- Search Section -->
+                        <div class="filter-search-section">
+                            <div class="search-group location-search">
+                                <label class="filter-label">Search Locations</label>
+                                <lightning-input
+                                    type="search"
+                                    variant="label-hidden"
+                                    placeholder="Search locations..."
+                                    value={locationSearchTerm}
+                                    onchange={handleLocationSearch}
+                                    class="search-bar-input">
+                                </lightning-input>
+                            </div>
+                        </div>
+    
+                        <!-- Location Selection Table -->
+                        <div class="location-container">
+                            <template if:true={locationDisplayRecords.length}>
+                                <table class="custom-data-table location-table">
+                                    <thead class="table-header">
+                                        <tr>
+                                            <th class="header-cell center-trancate-head checkbox-column">
+                                                <input type="checkbox" 
+                                                        checked={isAllLocationsSelected}
+                                                        onchange={handleSelectAllLocations}
+                                                        data-type="select-all-locations"
+                                                        title="Select All">
+                                            </th>
+                                            <template for:each={locationTableColumns} for:item="column">
+                                                <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                    {column.label}
+                                                </th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="table-body">
+                                        <template for:each={locationDisplayRecords} for:item="location">
+                                            <tr key={location.Id} class="location-row">
+                                                <td class="center-trancate-text checkbox-column">
+                                                    <input type="checkbox" 
+                                                            data-location-id={location.Id}
+                                                            data-type="location-checkbox"
+                                                            checked={location.isSelected}
+                                                            onchange={handleLocationSelection}>
+                                                </td>
+                                                <template for:each={location.displayFields} for:item="field">
+                                                    <td key={field.key} class="center-trancate-text">
+                                                        <template if:true={field.isNumber}>
+                                                            <template if:true={field.hasValue}>
+                                                                <lightning-formatted-number 
+                                                                    value={field.numberValue} 
+                                                                    maximum-fraction-digits="2">
+                                                                </lightning-formatted-number>
+                                                            </template>
+                                                            <template if:false={field.hasValue}>--</template>
+                                                        </template>
+                                                        <template if:false={field.isNumber}>
+                                                            <template if:true={field.hasValue}>
+                                                                {field.value}
+                                                            </template>
+                                                            <template if:false={field.hasValue}>--</template>
+                                                        </template>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </template>
+    
+                            <template if:false={locationDisplayRecords.length}>
+                                <div class="no-location-data">
+                                    <div class="empty-state">
+                                        <div class="empty-state__content">
+                                            <div class="empty-state__icon">
+                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="#0176D3" stroke-width="2"/>
+                                                    <circle cx="12" cy="10" r="3" stroke="#0176D3" stroke-width="2"/>
+                                                </svg>
+                                            </div>
+                                            <div class="empty-state__message">No locations found</div>
+                                            <template if:true={locationSearchTerm}>
+                                                <div class="empty-state__subtitle">Try adjusting your search criteria</div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+    
+                        <!-- Selected Count Display -->
+                        <template if:true={hasSelectedLocations}>
+                            <div class="selected-locations-count">
+                                <span class="count-text">{selectedLocationIds.length} locations selected</span>
+                            </div>
+                        </template>
+    
+                        <div class="popUpFooter">
+                            <button class="close-btn process-btn" onclick={handleCloseLocationModal}>Cancel</button>
+                            <button class="save-btn process-btn" 
+                                    onclick={handleSaveLocations}
+                                    disabled={isLocationSubmitting}>
+                                <template if:true={isLocationSubmitting}>Adding...</template>
+                                <template if:false={isLocationSubmitting}>Add Selected Locations</template>
                             </button>
                         </div>
                     </div>
