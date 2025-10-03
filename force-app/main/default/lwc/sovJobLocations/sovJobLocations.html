@@ -1,0 +1,374 @@
+<template>
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading"></lightning-spinner>
+    </template>
+
+    <div class="main-card">
+        <!-- Header Section -->
+        <div class="filter-search-container">
+            <div class="header-actions">
+                <button class="action-button refresh-btn" onclick={handleRefresh}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4V10H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 20V14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 20L8 16C9 15 10 14 12 14C14 14 15 15 16 16L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 4L16 8C15 9 14 10 12 10C10 10 9 9 8 8L4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Refresh
+                </button>
+                
+                <button class="action-button add-btn" onclick={handleAddLocation}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Add Location
+                </button>
+                
+                <button class="action-button delete-btn" onclick={handleMassDelete} disabled={isDeleteDisabled}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Delete Selected
+                    <template if:true={showSelectedCount}>
+                        <span class="selected-count-badge">({selectedRecordsCount})</span>
+                    </template>
+                </button>
+            </div>
+            
+            <div class="search-bar">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search locations..."
+                    value={searchTerm}
+                    onchange={handleSearch}
+                    class="search-bar-input">
+                </lightning-input>
+            </div>
+        </div>
+
+        <!-- Data Table Container -->
+        <div class="data-table-container">
+            <template if:true={isDataAvailable}>
+                <table class="custom-data-table">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="header-cell center-trancate-head checkbox-column">
+                                <input type="checkbox" 
+                                        checked={isAllSelected}
+                                        onchange={handleSelectAll}
+                                        data-type="select-all">
+                            </th>
+                            <th class="header-cell center-trancate-head actions-column">Actions</th>
+                            <template for:each={tableColumns} for:item="column">
+                                <th key={column.fieldName} class="header-cell center-trancate-head">
+                                    {column.label}
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <template for:each={displayedLocationEntries} for:item="entry">
+                            <tr key={entry.Id}>
+                                <td class="center-trancate-text checkbox-column">
+                                    <input type="checkbox" 
+                                            checked={entry.isSelected}
+                                            onchange={handleRowSelection}
+                                            data-row-id={entry.Id}
+                                            data-type="row-checkbox">
+                                </td>
+                                <td class="center-trancate-text actions-column">
+                                    <div class="action-icons">
+                                        <button class="icon-button child-records-btn" 
+                                                title="View Process Details" 
+                                                onclick={handleToggleProcessDetails}
+                                                data-record-id={entry.Id}
+                                                data-expanded={entry.showProcessDetails}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <template if:true={entry.showProcessDetails}>
+                                                    <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </template>
+                                                <template if:false={entry.showProcessDetails}>
+                                                    <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
+                                                </template>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <template for:each={entry.displayFields} for:item="field">
+                                    <td key={field.key} class="center-trancate-text">
+                                        <template if:true={field.isCurrency}>
+                                            <lightning-formatted-number 
+                                                value={field.currencyValue} 
+                                                format-style="currency" 
+                                                currency-code="USD">
+                                            </lightning-formatted-number>
+                                        </template>
+                                        <template if:false={field.isCurrency}>
+                                            <template if:true={field.isPercent}>
+                                                <lightning-formatted-number 
+                                                    value={field.rawValue} 
+                                                    format-style="percent" 
+                                                    maximum-fraction-digits="2">
+                                                </lightning-formatted-number>
+                                            </template>
+                                            <template if:false={field.isPercent}>
+                                                <template if:true={field.isNameField}>
+                                                    <a href={entry.recordUrl} target="_blank" class="name-link">
+                                                        {field.value}
+                                                    </a>
+                                                </template>
+                                                <template if:false={field.isNameField}>
+                                                    <template if:true={field.hasValue}>
+                                                        {field.value}
+                                                    </template>
+                                                    <template if:false={field.hasValue}>
+                                                        --
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+                            
+                            <!-- Nested Process Details Table -->
+                            <template if:true={entry.showProcessDetails}>
+                                <tr key={entry.Id} class="nested-row">
+                                    <td colspan="100%" class="nested-table-container">
+                                        <div class="nested-table-wrapper">
+                                            <div class="nested-table-header">
+                                                <h4 class="nested-table-title">Process Details for {entry.Name}</h4>
+                                            </div>
+                                            
+                                            <template if:true={entry.isLoadingProcesses}>
+                                                <div class="process-loading">
+                                                    <lightning-spinner alternative-text="Loading process details" size="small"></lightning-spinner>
+                                                </div>
+                                            </template>
+                                            
+                                            <template if:false={entry.isLoadingProcesses}>
+                                                <template if:true={entry.processDetails}>
+                                                    <template if:true={entry.processDetails.length}>
+                                                        <table class="custom-data-table nested-table">
+                                                            <thead class="table-header">
+                                                                <tr>
+                                                                    <template for:each={processTableColumns} for:item="column">
+                                                                        <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                                            {column.label}
+                                                                        </th>
+                                                                    </template>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="table-body">
+                                                                <template for:each={entry.processDetails} for:item="process">
+                                                                    <tr key={process.Id} class="nested-table-row">
+                                                                        <template for:each={process.displayFields} for:item="field">
+                                                                            <td key={field.key} class="center-trancate-text">
+                                                                                <template if:true={field.isCurrency}>
+                                                                                    <template if:true={field.hasValue}>
+                                                                                        <lightning-formatted-number 
+                                                                                            value={field.currencyValue} 
+                                                                                            format-style="currency" 
+                                                                                            currency-code="USD">
+                                                                                        </lightning-formatted-number>
+                                                                                    </template>
+                                                                                    <template if:false={field.hasValue}>--</template>
+                                                                                </template>
+                                                                                <template if:false={field.isCurrency}>
+                                                                                    <template if:true={field.isSlider}>
+                                                                                        <div class="slider-container">
+                                                                                            <input type="range" 
+                                                                                                   min="0" 
+                                                                                                   max="100" 
+                                                                                                   step="1"
+                                                                                                   value={field.rawValue}
+                                                                                                   data-process-id={process.Id}
+                                                                                                   data-location-id={entry.Id}
+                                                                                                   data-original-value={field.rawValue}
+                                                                                                   onchange={handleSliderChange}
+                                                                                                   class="completion-slider">
+                                                                                            <div class="slider-value">{field.rawValue}%</div>
+                                                                                        </div>
+                                                                                    </template>
+                                                                                    <template if:false={field.isSlider}>
+                                                                                        <template if:true={field.isPercent}>
+                                                                                            <template if:true={field.hasValue}>
+                                                                                                <lightning-formatted-number 
+                                                                                                    value={field.percentValue} 
+                                                                                                    format-style="percent" 
+                                                                                                    maximum-fraction-digits="2">
+                                                                                                </lightning-formatted-number>
+                                                                                            </template>
+                                                                                            <template if:false={field.hasValue}>0%</template>
+                                                                                        </template>
+                                                                                        <template if:false={field.isPercent}>
+                                                                                            <template if:true={field.isNameField}>
+                                                                                                <a href={process.recordUrl} target="_blank" class="name-link">
+                                                                                                    {field.value}
+                                                                                                </a>
+                                                                                            </template>
+                                                                                            <template if:false={field.isNameField}>
+                                                                                                <template if:true={field.hasValue}>
+                                                                                                    {field.value}
+                                                                                                </template>
+                                                                                                <template if:false={field.hasValue}>
+                                                                                                    --
+                                                                                                </template>
+                                                                                            </template>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </template>
+                                                                            </td>
+                                                                        </template>
+                                                                    </tr>
+                                                                </template>
+                                                            </tbody>
+                                                        </table>
+                                                    </template>
+                                                    <template if:false={entry.processDetails.length}>
+                                                        <div class="no-process-data">
+                                                            <div class="empty-state">
+                                                                <div class="empty-state__content">
+                                                                    <div class="empty-state__message">No process details found for this location</div>
+                                                                    <div class="empty-state__subtitle">Process details will appear here when available</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <template if:false={isDataAvailable}>
+                <div class="no-prop">
+                    <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            </div>
+                            <div class="empty-state__message">No locations found for this job</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Add Location Modal -->
+    <template if:true={showAddModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+
+                <div class="slds-modal__content pop-up" id="modal-content-id-1">
+                    <div class="pop-heading">
+                        Add New Location
+                    </div>
+
+                    <div class="popUpBody slds-p-around--medium">
+                        <div class="form-container">
+                            <div class="form-group">
+                                <div class="form-label-row">
+                                    <label class="form-label required">Name</label>
+                                    <div class="character-count">{nameCharacterCount}/80</div>
+                                </div>
+                                <input type="text" 
+                                       class="form-input" 
+                                       placeholder="Enter location name"
+                                       value={newLocation.name}
+                                       data-field="name"
+                                       oninput={handleInputChange}
+                                       maxlength="80">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label required">Square Feet</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter square feet"
+                                       step="0.01"
+                                       min="0"
+                                       value={newLocation.squareFeet}
+                                       data-field="squareFeet"
+                                       oninput={handleInputChange}>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Crack Count</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter crack count"
+                                       step="1"
+                                       min="0"
+                                       value={newLocation.crackCount}
+                                       data-field="crackCount"
+                                       oninput={handleInputChange}>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Distressed Edge</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter distressed edge"
+                                       step="0.01"
+                                       min="0"
+                                       value={newLocation.distressedEdge}
+                                       data-field="distressedEdge"
+                                       oninput={handleInputChange}>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Distressed Joint LF</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter distressed joint LF"
+                                       step="0.01"
+                                       min="0"
+                                       value={newLocation.distressedJoint}
+                                       data-field="distressedJoint"
+                                       oninput={handleInputChange}>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Misc Defect Count</label>
+                                <input type="number" 
+                                       class="form-input" 
+                                       placeholder="Enter misc defect count"
+                                       step="1"
+                                       min="0"
+                                       value={newLocation.miscDefectCount}
+                                       data-field="miscDefectCount"
+                                       oninput={handleInputChange}>
+                            </div>
+                        </div>
+
+                        <div class="popUpFooter">
+                            <button class="close-btn" onclick={handleCloseModal}>Cancel</button>
+                            <button class="save-btn" 
+                                    onclick={handleSaveLocation}
+                                    disabled={isSubmitting}>
+                                <template if:true={isSubmitting}>Saving...</template>
+                                <template if:false={isSubmitting}>Save</template>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>
