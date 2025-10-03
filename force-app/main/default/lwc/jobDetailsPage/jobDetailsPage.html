@@ -1,0 +1,423 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <div class="header-container">
+            <h1 class="title">Time Log Manager</h1>
+        </div>
+
+        <div class="filter-bar">
+            <div class="date-filter">
+                <button class="arrow-button" onclick={handlePreviousDate}>&lt;</button>
+                <span class="filter-date">{formattedSelectedDate}</span>
+                <button class="arrow-button" onclick={handleNextDate}>&gt;</button>
+            </div>
+
+            <div class="view-toggle">
+                <lightning-button-group>
+                    <lightning-button label="Day"  onclick={switchToDayView}></lightning-button>
+                    <lightning-button label="Week"  onclick={switchToWeekView}></lightning-button>
+                </lightning-button-group>
+            </div>
+    
+            <div class="search-button-container">
+                <div class="search-container">
+                    <div class="search-icon">
+                        <lightning-icon icon-name="utility:search" size="x-small"></lightning-icon>
+                    </div>
+                    <input type="search" class="slds-input" placeholder="Search Jobs by Name or Number" onkeyup={handleSearch} />
+                </div>
+            </div>
+        </div>
+
+        <template if:true={jobDetails.length}>
+            <div class="table-content">
+                <table class="slds-table">
+                    <thead>
+                        <tr>
+                            <template for:each={jobColumns} for:item="col">
+                                <th key={col.fieldName} scope="col" style={col.style}>
+                                    <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={jobDetails} for:item="job" for:index="index">
+                            <tr key={job.Id}>
+                                <template for:each={job.values} for:item="val">
+                                    <td key={val} style={val.style}>
+                                        <template if:true={val.isActions}>
+                                            <!-- Two action buttons in one column -->
+                                             
+                                            <div class="action-button-container">
+                                                <div class="clock-icon">
+                                                    <lightning-button-icon icon-name="utility:clock" alternative-text="Clock Action" variant="bare" data-job={job.jobId} data-mobid={job.key} data-action="clock" title="Clock In/Out" onclick={handleActionClick}></lightning-button-icon>
+                                                </div>
+                                                
+                                                <div class="timesheet-icon">
+                                                    <lightning-button-icon icon-name="utility:list" alternative-text="List Action" variant="bare" data-job={job.jobId} data-mobid={job.key} data-action="list" title="Timesheet" onclick={handleActionClick}></lightning-button-icon>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <template if:false={val.isActions}>
+                                            <template if:true={val.recordLink}>
+                                                <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
+                                                    <div class="cell-content" title={val.value}>
+                                                        {val.value}
+                                                    </div>
+                                                </a>
+                                            </template>
+                                            <template if:false={val.recordLink}>
+                                                <div class="cell-content" title={val.value}>
+                                                    {val.value}
+                                                </div>
+                                            </template>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+        <template if:false={jobDetails.length}>
+            <div class="no-records-message">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">No data available to show for selected date/filter</div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template if:true={showClockInOutModal}>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                <div class={clockInOutModalClass}>
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeClockInOutModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <div class="slds-modal__content pop-up" id="modal-content-id-2">
+                        <!-- Heading -->
+                        <div class="pop-heading">
+                            Manage Crew Clock In/Out
+                        </div>
+
+                        <!-- Body -->
+                        <div class="popUpBody slds-p-around--medium">
+                            <div>
+                                <!-- Tab Navigation -->
+                                <div class="tab-navigation">
+                                    <button class={clockInTabClass} onclick={handleClockInTab} data-tab="clockin">
+                                        Clock In
+                                    </button>
+                                    <button class={clockOutTabClass} onclick={handleClockOutTab} data-tab="clockout">
+                                        Clock Out
+                                    </button>
+                                </div>
+
+                                <!-- Tab Content -->
+                                <div class="tab-content">
+                                    <template if:true={isClockInActive}>
+                                        <div class="tab-panel">
+                                            <template if:true={clockInList.length}>
+                                                <div class="clock-in-container">
+                                                    <div class="clock-in-title">Clock In Employee</div>
+                                                    
+                                                    <div class="form-wrapper">
+                                                        <div class="input-column">
+                                                            <div class="select-person-container">
+                                                                <label class="select-label">Select Person</label>
+                                                                <div class="select-wrapper">
+                                                                    <select class="custom-select" onchange={handlePersonChange}>
+                                                                        <option value="">-- Select a person --</option>
+                                                                        <template for:each={clockInOptions} for:item="option">
+                                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                                        </template>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="input-column">
+                                                            <div class="select-person-container">
+                                                                <label class="select-label">Select Cost Code</label>
+                                                                <div class="select-wrapper">
+                                                                    <select class="custom-select-costcode" onchange={handleCostCodeChange}>
+                                                                        <option value="">-- Select a cost code --</option>
+                                                                        <template for:each={costCodeOptions} for:item="option">
+                                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                                        </template>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="input-column">
+                                                            <div class="datetime-container">
+                                                                <label class="datetime-label">Clock In DateTime</label>
+                                                                <div class="datetime-wrapper">
+                                                                    <input type="datetime-local" class="custom-datetime" value={clockInTime} onchange={handleManualClockInDateChange}/>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="info-message">
+                                                            User already clocked in for the day, continue to clock in for this job again.
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="button-container">
+                                                        <button class="clock-in-button" onclick={handleClockIn}>Clock In</button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template if:false={clockInList.length}>
+                                                <div class="empty-state-container">
+                                                    <div class="empty-state-content">
+                                                        <div class="empty-state-title">No Pending Clock Ins</div>
+                                                        <div class="empty-state-message">All assigned people have already clocked in for this job.</div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template if:true={isClockOutActive}>
+                                        <div class="tab-panel">
+                                            <template if:true={clockOutList.length}>
+                                                <div class="clock-in-container">
+                                                    <div class="clock-in-title">Clock Out Employee</div>
+                                                    
+                                                    <div class="form-wrapper">
+                                                        <div class="input-column">
+                                                            <div class="select-person-container">
+                                                                <label class="select-label">Select Person</label>
+                                                                <div class="select-wrapper">
+                                                                    <select class="custom-select" onchange={handlePersonChange}>
+                                                                        <option value="">-- Select a person --</option>
+                                                                        <template for:each={clockOutOptions} for:item="option">
+                                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                                        </template>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="input-column">
+                                                            <div class="datetime-container">
+                                                                <label class="datetime-label">Clock Out DateTime</label>
+                                                                <div class="datetime-wrapper">
+                                                                    <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleManualClockOutDateChange}/>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="button-container">
+                                                        <button class="clock-in-button" onclick={handleClockOut}>Clock Out</button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template if:false={clockOutList.length}>
+                                                <div class="empty-state-container">
+                                                    <div class="empty-state-content">
+                                                        <div class="empty-state-title">No Pending Clock Outs</div>
+                                                        <div class="empty-state-message">No employees are currently clocked in for this job.</div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <template if:true={showTimesheetModal}>
+            <div class="slds-backdrop slds-backdrop_open main-backdrop"></div>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open main-modal">
+                <div class="slds-modal__container timesheet-popup">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeTimesheetModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <div class="slds-modal__content pop-up" id="modal-content-id">
+                        <!-- Heading -->
+                        <div class="pop-heading">
+                            Timesheet Information
+                        </div>
+
+                        <div class="btnContainer">
+                            <button class="addTimesheetBtn" onclick={handleAddTimesheet}>
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
+                                </svg>
+                                Add Timesheet
+                            </button>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="popUpBody slds-p-around--medium">
+                            <div>
+                                <template if:true={timesheetDetailsRaw.length}>
+                                    <div class="table-content timesheet-table">
+                                        <table class="slds-table">
+                                            <thead>
+                                                <tr>
+                                                    <template for:each={timesheetColumns} for:item="col">
+                                                        <th key={col.fieldName} scope="col" style={col.style}>
+                                                            <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                                        </th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={timesheetDetails} for:item="timesheet" for:index="index">
+                                                    <tr key={timesheet.Id}>
+                                                        <template for:each={timesheet.values} for:item="val">
+                                                            <td key={val} style={val.style}>
+                                                                <div class="slds-truncate cell-wrapper" title={val.value}>
+                                                                    <!-- Travel Time column -->
+                                                                    <template if:true={val.isTravelTime}>
+                                                                        <template if:true={val.isEditing}>
+                                                                            <lightning-input type="number" step="0.01"  value={val.value} data-id={timesheet.Id} variant="label-hidden" onchange={handleTravelTimeChange}></lightning-input>
+                                                                        </template>
+                                                                        <template if:false={val.isEditing}>
+                                                                            {val.value}
+                                                                            <lightning-icon icon-name="utility:edit" size="x-small" class="edit-icon" data-id={timesheet.Id} onclick={handleEditClick}></lightning-icon>
+                                                                        </template>
+                                                                    </template>
+
+                                                                    <!-- Other columns -->
+                                                                    <template if:false={val.isTravelTime}>
+                                                                        <div class="cell-content" title={val.value}>
+                                                                            {val.value}
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+                                <template if:false={timesheetDetailsRaw.length}>
+                                    <div class="empty-state-container">
+                                        <div class="empty-state-content">
+                                            <div class="empty-state-title">No Timesheet Entries</div>
+                                            <div class="empty-state-message">No completed timesheet entries found for this job.</div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Footer -->
+                            <template if:true={isTravelTimeEdited}>
+                                <div class="popUpFooter">
+                                    <button class="clock-in-button" onclick={saveTravelTimeInTimesheet}>Save</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <template if:true={manualTimesheetEntry}>
+            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
+                <div class="slds-modal__container">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeManualTimesheetModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <div class="slds-modal__content pop-up" id="modal-content-id-3">
+                        <!-- Heading -->
+                        <div class="pop-heading">
+                            New Timesheet Entry
+                        </div>
+
+                        <!-- Body -->
+                        <div class="popUpBody slds-p-around--medium">
+                            <div>
+                                <div class="form-container">
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="select-person-container">
+                                                <label class="select-label">Select Person</label>
+                                                <lightning-combobox value={selectedManualPerson} options={allContacts} onchange={handleManualPersonChange} placeholder="Select Person" variant="label-hidden"></lightning-combobox>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="datetime-container">
+                                                <label class="datetime-label">Clock In DateTime</label>
+                                                <div class="datetime-wrapper">
+                                                    <input type="datetime-local" class="custom-datetime" value={clockInTime} onchange={handleManualClockInDateChange}/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="datetime-container">
+                                                <label class="datetime-label">Clock Out DateTime</label>
+                                                <div class="datetime-wrapper">
+                                                    <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleManualClockOutDateChange}/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="select-person-container">
+                                                <label class="select-label">Select Cost Code</label>
+                                                <div class="select-wrapper">
+                                                    <select class="custom-select-costcode" onchange={handleCostCodeChange}>
+                                                        <option value="">-- Select a cost code --</option>
+                                                        <template for:each={costCodeOptions} for:item="option">
+                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="popUpFooter">
+                                <button class="clock-in-button" onclick={createManualTimesheet}>Create</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </template>
+    </div>
+</template>
