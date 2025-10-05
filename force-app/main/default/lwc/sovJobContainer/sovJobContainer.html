@@ -29,22 +29,19 @@
         <div class="tab-content">
             <template if:true={isScopeActive}>
                 <div class="tab-panel">
-                    <c-sov-job-scope ></c-sov-job-scope>
+                    <c-sov-job-scope></c-sov-job-scope>
                 </div>
             </template>
 
             <template if:true={isLocationsActive}>
                 <div class="tab-panel">
-                    <c-sov-job-locations ></c-sov-job-locations>
+                    <c-sov-job-locations></c-sov-job-locations>
                 </div>
             </template>
 
             <template if:true={isProcessesActive}>
                 <div class="tab-panel">
-                    <!-- <c-location-processes-component></c-location-processes-component> -->
-                    <div class="content-placeholder">
-                        <div class="placeholder-text">Location Processes Content</div>
-                    </div>
+                    <c-sov-job-location-processes></c-sov-job-location-processes>
                 </div>
             </template>
         </div>
