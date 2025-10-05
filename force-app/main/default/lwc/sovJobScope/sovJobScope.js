@@ -24,6 +24,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track filteredContractEntries = [];
     @track filteredChangeOrderEntries = [];
     @track searchTerm = '';
+    // Sorting properties
+    @track sortField = '';
+    @track sortOrder = 'asc';
     @track scopeEntryColumns = [];
     @track accordionStyleApplied = false;
     @track activeSectionName = ['contractSection', 'changeOrderSection']; // Open both sections by default
@@ -496,6 +499,31 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get sortDescription
+     * @description: Set the header sort description
+     */
+    get sortDescription() {
+        try {
+            if (this.sortField !== '') {
+                const orderDisplayName = this.sortOrder === 'asc' ? 'Ascending' : 'Descending';
+                
+                let field = this.tableColumns.find(item => item.fieldName === this.sortField);
+                if (!field) {
+                    return '';
+                }
+
+                const fieldDisplayName = field.label;
+                return `Sorted by: ${fieldDisplayName} (${orderDisplayName})`;
+            } else {
+                return '';
+            }
+        } catch (error) {
+            console.error('Error in sortDescription:', error);
+            return '';
+        }
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -692,28 +720,32 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     applyFilters() {
         try {
+            // Reset sorting when applying new filters
+            this.sortField = '';
+            this.sortOrder = 'asc';
+            
+            // Clear sort icons
+            setTimeout(() => {
+                const allHeaders = this.template.querySelectorAll('.sort-icon svg');
+                allHeaders.forEach(icon => icon.classList.remove('rotate-asc', 'rotate-desc'));
+            }, 0);
+
             let filteredEntries = this.scopeEntries.filter(entry => {
                 if (!this.searchTerm) return true;
                 
                 const searchLower = this.searchTerm.toLowerCase();
                 
                 const searchInObject = (obj, visited = new Set()) => {
-                    if (!obj || typeof obj !== 'object' || visited.has(obj)) {
-                        return false;
-                    }
+                    if (!obj || visited.has(obj)) return false;
                     visited.add(obj);
                     
                     for (let key in obj) {
                         if (obj.hasOwnProperty(key)) {
-                            const value = obj[key];
+                            let value = obj[key];
                             if (value !== null && value !== undefined) {
                                 if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
                                     return true;
-                                }
-                                if (typeof value === 'number' && value.toString().includes(searchLower)) {
-                                    return true;
-                                }
-                                if (typeof value === 'object' && searchInObject(value, visited)) {
+                                } else if (typeof value === 'object' && searchInObject(value, visited)) {
                                     return true;
                                 }
                             }
@@ -752,15 +784,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             [...this.filteredContractEntries, ...this.filteredChangeOrderEntries].forEach(entry => {
                 const savedState = currentProcessStates.get(entry.Id);
                 if (savedState) {
+                    entry.processDetails = savedState.processDetails;
                     entry.showProcessDetails = savedState.showProcessDetails;
                     entry.isLoadingProcesses = savedState.isLoadingProcesses;
-                    
-                    if (savedState.processDetails) {
-                        // Reprocess to maintain current selections
-                        entry.processDetails = this.processProcessDetailsForDisplay(
-                            savedState.processDetails.map(p => ({ ...p, isSelected: undefined }))
-                        );
-                    }
                 }
             });
 
@@ -802,7 +828,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     handleRefresh() {
         this.isLoading = true;
         this.selectedRows = [];
-        this.selectedProcesses = []; // Clear selected processes too
+        this.selectedProcesses = [];
+        // Reset sorting
+        this.sortField = '';
+        this.sortOrder = 'asc';
         this.fetchScopeEntries();
     }
 
@@ -1929,4 +1958,103 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
+    /**
+     * Method Name: handleSortClick
+     * @description: Handle column header click for sorting
+     */
+    handleSortClick(event) {
+        try {
+            const fieldName = event.currentTarget.dataset.id;
+            if (this.sortField === fieldName) {
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = fieldName;
+                this.sortOrder = 'asc';
+            }
+            this.sortData();
+            this.updateSortIcons();
+        } catch (error) {
+            console.error('Error in handleSortClick:', error);
+        }
+    }
+
+    /**
+     * Method Name: sortData
+     * @description: Sort the data based on current sort field and order
+     */
+    sortData() {
+        try {
+            // Sort contract entries
+            this.filteredContractEntries = [...this.filteredContractEntries].sort((a, b) => {
+                let aValue = this.getFieldValue(a, this.sortField);
+                let bValue = this.getFieldValue(b, this.sortField);
+
+                // Handle null/undefined values
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                // Convert to strings for comparison if they're not numbers
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+
+                let compare = 0;
+                if (aValue > bValue) {
+                    compare = 1;
+                } else if (aValue < bValue) {
+                    compare = -1;
+                }
+
+                return this.sortOrder === 'asc' ? compare : -compare;
+            });
+
+            // Sort change order entries
+            this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries].sort((a, b) => {
+                let aValue = this.getFieldValue(a, this.sortField);
+                let bValue = this.getFieldValue(b, this.sortField);
+
+                // Handle null/undefined values
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                // Convert to strings for comparison if they're not numbers
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+
+                let compare = 0;
+                if (aValue > bValue) {
+                    compare = 1;
+                } else if (aValue < bValue) {
+                    compare = -1;
+                }
+
+                return this.sortOrder === 'asc' ? compare : -compare;
+            });
+        } catch (error) {
+            console.error('Error in sortData:', error);
+        }
+    }
+
+    /**
+     * Method Name: updateSortIcons
+     * @description: Update sort icons in the table headers
+     */
+    updateSortIcons() {
+        try {
+            const allHeaders = this.template.querySelectorAll('.sort-icon svg');
+            allHeaders.forEach(icon => {
+                icon.classList.remove('rotate-asc', 'rotate-desc');
+            });
+
+            const currentHeader = this.template.querySelector(`[data-sort-field="${this.sortField}"] .sort-icon svg`);
+            if (currentHeader) {
+                currentHeader.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+            }
+        } catch (error) {
+            console.error('Error in updateSortIcons:', error);
+        }
+    }
 }
