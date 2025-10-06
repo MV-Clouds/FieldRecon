@@ -1520,3 +1520,58 @@
         height: 10px;
     }
 }
+
+/* Process Table Sortable Header Styles */
+.process-sortable-header {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.process-sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.9) !important;
+}
+
+.process-sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Show process sort icon on hover */
+.process-sortable-header:hover .process-sort-icon {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Always show process sort icon for active sorted column */
+.process-sortable-header.active-sort .process-sort-icon {
+    opacity: 1;
+    visibility: visible;
+}
+
+.process-sort-icon svg {
+    width: 10px;
+    height: 10px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+/* Responsive adjustments for process sorting */
+@media only screen and (max-width: 768px) {
+    .process-sort-icon svg {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .process-sortable-header .sort-header-content {
+        gap: 0.25rem;
+    }
+    
+    .process-sortable-header .column-label {
+        font-size: 0.7rem;
+    }
+}

@@ -24,9 +24,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track filteredContractEntries = [];
     @track filteredChangeOrderEntries = [];
     @track searchTerm = '';
+
     // Sorting properties
     @track sortField = '';
-    @track sortOrder = 'asc';
+    @track sortOrder = '';
+    @track processSortField = '';
+    @track processSortOrder = '';
+    
     @track scopeEntryColumns = [];
     @track accordionStyleApplied = false;
     @track activeSectionName = ['contractSection', 'changeOrderSection']; // Open both sections by default
@@ -46,7 +50,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track processTableColumns = [
         { 
             label: 'Process', 
-            fieldName: 'Name', 
+            fieldName: 'wfrecon__Process_Library__r.Name', 
             type: 'url',
             isNameField: true
         },
@@ -526,11 +530,22 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     /**
      * Method Name: get getSortableHeaderClass
      * @description: Get CSS class for sortable headers with active state
-    */
+     */
     get getSortableHeaderClass() {
         return (fieldName) => {
             const baseClass = 'header-cell center-trancate-head sortable-header';
             return this.sortField === fieldName ? `${baseClass} active-sort` : baseClass;
+        };
+    }
+
+    /**
+     * Method Name: get getProcessSortableHeaderClass
+     * @description: Get CSS class for process table sortable headers with active state
+     */
+    get getProcessSortableHeaderClass() {
+        return (fieldName) => {
+            const baseClass = 'header-cell center-trancate-head sortable-header';
+            return this.processSortField === fieldName ? `${baseClass} active-sort` : baseClass;
         };
     }
 
@@ -629,11 +644,22 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     // Use default columns if no configuration found
                     this.scopeEntryColumns = this.defaultColumns;
                 }
+
+                // Set default sorting to first column
+                if (this.scopeEntryColumns.length > 0) {
+                    this.sortField = this.scopeEntryColumns[0].fieldName;
+                    this.sortOrder = 'asc';
+                }
             })
             .catch(error => {
                 console.error('Error fetching configuration:', error);
                 // Use default columns on error
                 this.scopeEntryColumns = this.defaultColumns;
+                // Set default sorting
+                if (this.scopeEntryColumns.length > 0) {
+                    this.sortField = this.scopeEntryColumns[0].fieldName;
+                    this.sortOrder = 'asc';
+                }
                 this.showToast('Warning', 'Using default configuration due to error', 'warning');
             }).finally(() => {
                 this.fetchScopeEntries();
@@ -731,14 +757,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     applyFilters() {
         try {
-            // Reset sorting when applying new filters
-            this.sortField = '';
-            this.sortOrder = 'asc';
-            
-            // Clear sort icons when filtering
-            setTimeout(() => {
-                this.clearSortIcons();
-            }, 0);
+            // Don't reset sorting when applying filters, only when there's no default
+            if (!this.sortField && this.tableColumns.length > 0) {
+                // Set default sorting to first column
+                this.sortField = this.tableColumns[0].fieldName;
+                this.sortOrder = 'asc';
+            }
 
             let filteredEntries = this.scopeEntries.filter(entry => {
                 if (!this.searchTerm) return true;
@@ -800,6 +824,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             });
 
+            // Apply sorting if we have data
+            if (this.sortField) {
+                this.sortData();
+                // Update sort icons after a brief delay to ensure DOM is ready
+                setTimeout(() => {
+                    this.updateSortIcons();
+                }, 0);
+            }
+
             // Force reactivity for summary calculations
             this.template.querySelector('.summary-cards-container')?.setAttribute('data-update', Date.now().toString());
         } catch (error) {
@@ -833,18 +866,26 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleRefresh
-     * @description: Refresh table data - Updated
+     * @description: Refresh table data - Updated to maintain default sorting
      */
     handleRefresh() {
         this.isLoading = true;
         this.selectedRows = [];
         this.selectedProcesses = [];
-        // Reset sorting
-        this.sortField = '';
-        this.sortOrder = 'asc';
+        // Reset to default sorting (first column)
+        if (this.tableColumns.length > 0) {
+            this.sortField = this.tableColumns[0].fieldName;
+            this.sortOrder = 'asc';
+        }
+        // Reset process sorting
+        if (this.processTableColumns.length > 0) {
+            this.processSortField = this.processTableColumns[0].fieldName;
+            this.processSortOrder = 'asc';
+        }
         // Clear sort icons
         setTimeout(() => {
             this.clearSortIcons();
+            this.clearProcessSortIcons();
         }, 100);
         this.fetchScopeEntries();
     }
@@ -1119,10 +1160,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         if (!processDetails || processDetails.length === 0) {
             return [];
         }
-
+    
         return processDetails.map(process => {
             const row = { ...process };
-            row.recordUrl = `/lightning/r/${process.Id}/view`;
+            // Fix: Link to Process Library record instead of Scope Entry Process
+            row.recordUrl = process.wfrecon__Process_Library__c ? 
+                `/lightning/r/${process.wfrecon__Process_Library__c}/view` : 
+                `/lightning/r/${process.Id}/view`;
             // Preserve selection state from selectedProcesses array
             row.isSelected = this.selectedProcesses.includes(process.Id);
             
@@ -1137,13 +1181,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (col.type === 'currency') {
                     currencyValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
                 }
-
+    
                 // Handle percentage fields
                 let percentValue = 0;
                 if (col.type === 'percent') {
                     percentValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
                 }
-
+    
                 // Handle number fields  
                 let numberValue = 0;
                 if (col.type === 'number') {
@@ -1405,20 +1449,54 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
-    /**
+     /**
      * Method Name: updateProcessDetails
-     * @description: Update process details for a specific entry while preserving selections
+     * @description: Update process details for a specific entry while preserving selections - Updated with default sorting
      */
-    updateProcessDetails(scopeEntryId, processDetails) {
+     updateProcessDetails(scopeEntryId, processDetails) {
+        // Set default process sorting to first column if not already set
+        if (!this.processSortField && this.processTableColumns.length > 0) {
+            this.processSortField = this.processTableColumns[0].fieldName;
+            this.processSortOrder = 'asc';
+        }
+
         // Process the details for display while preserving selections
         const processedDetails = this.processProcessDetailsForDisplay(processDetails);
+        
+        // Sort the processed details if we have a sort field
+        let sortedDetails = processedDetails;
+        if (this.processSortField) {
+            sortedDetails = [...processedDetails].sort((a, b) => {
+                let aValue = this.getFieldValue(a, this.processSortField);
+                let bValue = this.getFieldValue(b, this.processSortField);
+
+                // Handle null/undefined values
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                // Convert to strings for comparison if they're not numbers
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+
+                let compare = 0;
+                if (aValue > bValue) {
+                    compare = 1;
+                } else if (aValue < bValue) {
+                    compare = -1;
+                }
+
+                return this.processSortOrder === 'asc' ? compare : -compare;
+            });
+        }
         
         // Update contract entries
         this.filteredContractEntries = this.filteredContractEntries.map(entry => {
             if (entry.Id === scopeEntryId) {
                 return {
                     ...entry,
-                    processDetails: processedDetails,
+                    processDetails: sortedDetails,
                     isLoadingProcesses: false
                 };
             }
@@ -1430,13 +1508,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             if (entry.Id === scopeEntryId) {
                 return {
                     ...entry,
-                    processDetails: processedDetails,
+                    processDetails: sortedDetails,
                     isLoadingProcesses: false
                 };
             }
             return entry;
         });
+
+        // Update sort icons for process table
+        setTimeout(() => {
+            this.updateProcessSortIcons();
+        }, 0);
     }
+
 
     /**
      * Method Name: handleProcessRowSelection
@@ -1998,6 +2082,109 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: handleProcessSortClick
+     * @description: Handle column header click for sorting in process table
+     */
+    handleProcessSortClick(event) {
+        try {
+            const fieldName = event.currentTarget.dataset.id;
+            const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
+            
+            // Clear all existing active states first for this specific scope entry only
+            this.clearProcessSortIcons(scopeEntryId);
+            
+            if (this.processSortField === fieldName) {
+                this.processSortOrder = this.processSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.processSortField = fieldName;
+                this.processSortOrder = 'asc';
+            }
+            
+            this.sortProcessData(scopeEntryId);
+            this.updateProcessSortIcons(scopeEntryId);
+        } catch (error) {
+            console.error('Error in handleProcessSortClick:', error);
+        }
+    }
+
+    /**
+     * Method Name: updateProcessSortIcons
+     * @description: Update process table sort icons and active states
+     */
+    updateProcessSortIcons(scopeEntryId = null) {
+        try {
+            // If scopeEntryId is provided, only update icons for that specific table
+            if (scopeEntryId) {
+                // Clear all first for this specific scope entry
+                this.clearProcessSortIcons(scopeEntryId);
+                
+                // Add active class to current sorted header for this specific scope entry
+                const currentHeaders = this.template.querySelectorAll(`[data-process-sort-field="${this.processSortField}"][data-scope-entry-id="${scopeEntryId}"]`);
+                currentHeaders.forEach(header => {
+                    header.classList.add('active-sort');
+                    
+                    // Add rotation to the icon
+                    const icon = header.querySelector('.process-sort-icon svg');
+                    if (icon) {
+                        icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                    }
+                });
+            } else {
+                // Original behavior for backward compatibility
+                this.clearProcessSortIcons();
+                
+                const currentHeaders = this.template.querySelectorAll(`[data-process-sort-field="${this.processSortField}"]`);
+                currentHeaders.forEach(header => {
+                    header.classList.add('active-sort');
+                    
+                    const icon = header.querySelector('.process-sort-icon svg');
+                    if (icon) {
+                        icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error in updateProcessSortIcons:', error);
+        }
+    }
+    
+
+    /**
+     * Method Name: clearProcessSortIcons
+     * @description: Clear all process table sort icons and active states
+     */
+    clearProcessSortIcons(scopeEntryId = null) {
+        try {
+            if (scopeEntryId) {
+                // Remove active classes from process headers for specific scope entry only
+                const allHeaders = this.template.querySelectorAll(`[data-scope-entry-id="${scopeEntryId}"] .process-sortable-header`);
+                allHeaders.forEach(header => {
+                    header.classList.remove('active-sort');
+                });
+                
+                // Remove rotation classes from process icons for specific scope entry only
+                const allIcons = this.template.querySelectorAll(`[data-scope-entry-id="${scopeEntryId}"] .process-sort-icon svg`);
+                allIcons.forEach(icon => {
+                    icon.classList.remove('rotate-asc', 'rotate-desc');
+                });
+            } else {
+                // Original behavior - clear all
+                const allHeaders = this.template.querySelectorAll('.process-sortable-header');
+                allHeaders.forEach(header => {
+                    header.classList.remove('active-sort');
+                });
+                
+                const allIcons = this.template.querySelectorAll('.process-sort-icon svg');
+                allIcons.forEach(icon => {
+                    icon.classList.remove('rotate-asc', 'rotate-desc');
+                });
+            }
+        } catch (error) {
+            console.error('Error in clearProcessSortIcons:', error);
+        }
+    }
+
+    /**
      * Method Name: clearSortIcons
      * @description: Clear all sort icons and active states
      */
@@ -2041,6 +2228,86 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
         } catch (error) {
             console.error('Error in updateSortIcons:', error);
+        }
+    }
+
+    /**
+     * Method Name: sortProcessData
+     * @description: Sort the process data for a specific scope entry
+     */
+    sortProcessData(scopeEntryId) {
+        try {
+            // Update contract entries
+            this.filteredContractEntries = this.filteredContractEntries.map(entry => {
+                if (entry.Id === scopeEntryId && entry.processDetails) {
+                    const sortedProcessDetails = [...entry.processDetails].sort((a, b) => {
+                        let aValue = this.getFieldValue(a, this.processSortField);
+                        let bValue = this.getFieldValue(b, this.processSortField);
+
+                        // Handle null/undefined values
+                        if (aValue === null || aValue === undefined) aValue = '';
+                        if (bValue === null || bValue === undefined) bValue = '';
+
+                        // Convert to strings for comparison if they're not numbers
+                        if (typeof aValue === 'string' && typeof bValue === 'string') {
+                            aValue = aValue.toLowerCase();
+                            bValue = bValue.toLowerCase();
+                        }
+
+                        let compare = 0;
+                        if (aValue > bValue) {
+                            compare = 1;
+                        } else if (aValue < bValue) {
+                            compare = -1;
+                        }
+
+                        return this.processSortOrder === 'asc' ? compare : -compare;
+                    });
+
+                    return {
+                        ...entry,
+                        processDetails: sortedProcessDetails
+                    };
+                }
+                return entry;
+            });
+
+            // Update change order entries
+            this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
+                if (entry.Id === scopeEntryId && entry.processDetails) {
+                    const sortedProcessDetails = [...entry.processDetails].sort((a, b) => {
+                        let aValue = this.getFieldValue(a, this.processSortField);
+                        let bValue = this.getFieldValue(b, this.processSortField);
+
+                        // Handle null/undefined values
+                        if (aValue === null || aValue === undefined) aValue = '';
+                        if (bValue === null || bValue === undefined) bValue = '';
+
+                        // Convert to strings for comparison if they're not numbers
+                        if (typeof aValue === 'string' && typeof bValue === 'string') {
+                            aValue = aValue.toLowerCase();
+                            bValue = bValue.toLowerCase();
+                        }
+
+                        let compare = 0;
+                        if (aValue > bValue) {
+                            compare = 1;
+                        } else if (aValue < bValue) {
+                            compare = -1;
+                        }
+
+                        return this.processSortOrder === 'asc' ? compare : -compare;
+                    });
+
+                    return {
+                        ...entry,
+                        processDetails: sortedProcessDetails
+                    };
+                }
+                return entry;
+            });
+        } catch (error) {
+            console.error('Error in sortProcessData:', error);
         }
     }
 
