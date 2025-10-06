@@ -17,9 +17,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track searchTerm = '';
     @track selectedRows = [];
     @track locationColumns = [];
-    @track lastConfigUpdateTimestamp = 0; // Add this to track last update
+    @track lastConfigUpdateTimestamp = 0;
 
-    // Add sorting properties
+    // Sorting properties
     @track sortField = '';
     @track sortOrder = '';
     @track processSortField = '';
@@ -354,7 +354,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: applyFilters
-     * @description: Apply search filters while preserving selections - Updated with sorting
+     * @description: Apply search filters while preserving selections
      */
     applyFilters() {
         try {
@@ -453,7 +453,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             }
         }
     }
-    
 
     /**
      * Method Name: handleSearch
@@ -466,7 +465,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleRefresh
-     * @description: Refresh table data - Updated to maintain default sorting
+     * @description: Refresh table data
      */
     handleRefresh() {
         this.isLoading = true;
@@ -481,11 +480,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             this.processSortField = this.processTableColumns[0].fieldName;
             this.processSortOrder = 'asc';
         }
-        // Clear sort icons
-        setTimeout(() => {
-            this.clearSortIcons();
-            this.clearProcessSortIcons();
-        }, 100);
         this.fetchLocationEntries();
     }
 
@@ -699,7 +693,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: updateProcessDetails
-     * @description: Update process details for a specific entry while preserving selections - Updated with default sorting
+     * @description: Update process details for a specific entry
      */
     updateProcessDetails(locationId, processDetails) {
         // Set default process sorting to first column if not already set
@@ -881,14 +875,11 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleSortClick
-     * @description: Handle column header click for sorting - Updated to match sovJobScope
+     * @description: Handle column header click for sorting - FIXED VERSION
      */
     handleSortClick(event) {
         try {
             const fieldName = event.currentTarget.dataset.id;
-            
-            // Clear all existing active states first
-            this.clearSortIcons();
             
             if (this.sortField === fieldName) {
                 this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -906,15 +897,12 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleProcessSortClick
-     * @description: Handle column header click for sorting in process table - Updated to match sovJobScope
+     * @description: Handle column header click for sorting in process table - FIXED VERSION
      */
     handleProcessSortClick(event) {
         try {
             const fieldName = event.currentTarget.dataset.id;
             const locationId = event.currentTarget.dataset.locationId;
-            
-            // Clear all existing active states first for this specific location only
-            this.clearProcessSortIcons(locationId);
             
             if (this.processSortField === fieldName) {
                 this.processSortOrder = this.processSortOrder === 'asc' ? 'desc' : 'asc';
@@ -1009,42 +997,28 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: clearSortIcons
-     * @description: Clear all sort icons and active states - Updated to match sovJobScope
+     * Method Name: updateSortIcons
+     * @description: Update sort icons and active states - FIXED VERSION
      */
-    clearSortIcons() {
+    updateSortIcons() {
         try {
-            // Remove all active classes
+            // First clear ALL icons
             const allHeaders = this.template.querySelectorAll('.sortable-header');
+            const allIcons = this.template.querySelectorAll('.sort-icon svg');
+            
             allHeaders.forEach(header => {
                 header.classList.remove('active-sort');
             });
             
-            // Remove all rotation classes
-            const allIcons = this.template.querySelectorAll('.sort-icon svg');
             allIcons.forEach(icon => {
                 icon.classList.remove('rotate-asc', 'rotate-desc');
             });
-        } catch (error) {
-            console.error('Error in clearSortIcons:', error);
-        }
-    }
-
-    /**
-     * Method Name: updateSortIcons
-     * @description: Update sort icons and active states - Updated to match sovJobScope
-     */
-    updateSortIcons() {
-        try {
-            // Clear all first
-            this.clearSortIcons();
             
-            // Add active class to current sorted header
+            // Then set the active one
             const currentHeaders = this.template.querySelectorAll(`[data-sort-field="${this.sortField}"]`);
             currentHeaders.forEach(header => {
                 header.classList.add('active-sort');
                 
-                // Add rotation to the icon
                 const icon = header.querySelector('.sort-icon svg');
                 if (icon) {
                     icon.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
@@ -1056,75 +1030,42 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: clearProcessSortIcons
-     * @description: Clear all process table sort icons and active states - Updated to match sovJobScope
-     */
-    clearProcessSortIcons(locationId = null) {
-        try {
-            if (locationId) {
-                // Remove active classes from process headers for specific location only
-                const allHeaders = this.template.querySelectorAll(`[data-location-id="${locationId}"] .process-sortable-header`);
-                allHeaders.forEach(header => {
-                    header.classList.remove('active-sort');
-                });
-                
-                // Remove rotation classes from process icons for specific location only
-                const allIcons = this.template.querySelectorAll(`[data-location-id="${locationId}"] .process-sort-icon svg`);
-                allIcons.forEach(icon => {
-                    icon.classList.remove('rotate-asc', 'rotate-desc');
-                });
-            } else {
-                // Clear all
-                const allHeaders = this.template.querySelectorAll('.process-sortable-header');
-                allHeaders.forEach(header => {
-                    header.classList.remove('active-sort');
-                });
-                
-                const allIcons = this.template.querySelectorAll('.process-sort-icon svg');
-                allIcons.forEach(icon => {
-                    icon.classList.remove('rotate-asc', 'rotate-desc');
-                });
-            }
-        } catch (error) {
-            console.error('Error in clearProcessSortIcons:', error);
-        }
-    }
-
-    /**
      * Method Name: updateProcessSortIcons
-     * @description: Update process table sort icons and active states - Updated to match sovJobScope
+     * @description: Update process table sort icons and active states - FIXED VERSION
      */
     updateProcessSortIcons(locationId) {
         try {
-            // If locationId is provided, only update icons for that specific table
             if (locationId) {
-                // Clear all first for this specific location
-                this.clearProcessSortIcons(locationId);
+                // Clear icons for this specific location
+                const locationHeaders = this.template.querySelectorAll(`th[data-location-id="${locationId}"].process-sortable-header`);
+                const locationIcons = this.template.querySelectorAll(`th[data-location-id="${locationId}"] .process-sort-icon svg`);
+
+                console.log('locationHeaders:', locationHeaders);
+                console.log('locationIcons:', locationIcons);
                 
-                // Add active class to current sorted header for this specific location
+                
+                locationHeaders.forEach(header => {
+                    header.classList.remove('active-sort');
+                });
+                
+                locationIcons.forEach(icon => {
+                    icon.classList.remove('rotate-asc', 'rotate-desc');
+                });
+                
+                // Set active for this location
                 const currentHeaders = this.template.querySelectorAll(`[data-process-sort-field="${this.processSortField}"][data-location-id="${locationId}"]`);
                 currentHeaders.forEach(header => {
                     header.classList.add('active-sort');
                     
-                    // Add rotation to the icon
                     const icon = header.querySelector('.process-sort-icon svg');
                     if (icon) {
                         icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
                     }
                 });
-            } else {
-                // Clear all first
-                this.clearProcessSortIcons();
+            }
+            else{
+                console.log('NO locationId provided to updateProcessSortIcons');
                 
-                const currentHeaders = this.template.querySelectorAll(`[data-process-sort-field="${this.processSortField}"]`);
-                currentHeaders.forEach(header => {
-                    header.classList.add('active-sort');
-                    
-                    const icon = header.querySelector('.process-sort-icon svg');
-                    if (icon) {
-                        icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
-                    }
-                });
             }
         } catch (error) {
             console.error('Error in updateProcessSortIcons:', error);
