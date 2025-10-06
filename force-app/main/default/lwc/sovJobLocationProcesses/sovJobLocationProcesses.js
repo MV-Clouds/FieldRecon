@@ -11,6 +11,8 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     @track locationProcesses = [];
     @track filteredProcesses = [];
     @track searchTerm = '';
+    @track sortField = '';
+    @track sortOrder = '';
 
     // Process table columns configuration
     @track processTableColumns = [
@@ -54,16 +56,22 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 }
 
                 let percentValue = 0;
+                let rawValue = 0;
+                let progressStyle = '';
                 if (col.type === 'percent') {
-                    percentValue = value !== null && value !== undefined ? parseFloat(value) / 100 : 0;
+                    rawValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+                    percentValue = rawValue / 100;
+                    // Add progress style for slider visual
+                    progressStyle = `--progress-width: ${rawValue}%`;
                 }
                 
                 return {
                     key,
                     value: displayValue,
-                    rawValue: value,
+                    rawValue: rawValue,
                     currencyValue: currencyValue,
                     percentValue: percentValue,
+                    progressStyle: progressStyle,
                     hasValue: value !== null && value !== undefined && String(value).trim() !== '',
                     isNameField: col.isNameField || false,
                     isLocationField: col.isLocationField || false,
@@ -86,10 +94,40 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     }
 
     /**
+     * Method Name: get sortDescription
+     * @description: Set the header sort description
+     */
+    get sortDescription() {
+        try {
+            if (this.sortField !== '') {
+                const orderDisplayName = this.sortOrder === 'asc' ? 'Ascending' : 'Descending';
+                
+                let field = this.processTableColumns.find(item => item.fieldName === this.sortField);
+                if (!field) {
+                    return '';
+                }
+
+                const fieldDisplayName = field.label;
+                return `Sorted by: ${fieldDisplayName} (${orderDisplayName})`;
+            } else {
+                return '';
+            }
+        } catch (error) {
+            console.error('Error in sortDescription:', error);
+            return '';
+        }
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load location processes on component load
      */
     connectedCallback() {
+        // Set default sorting to first column
+        if (this.processTableColumns.length > 0) {
+            this.sortField = this.processTableColumns[0].fieldName;
+            this.sortOrder = 'asc';
+        }
         this.fetchLocationProcesses();
     }
 
@@ -181,6 +219,15 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
             });
 
             this.filteredProcesses = filteredData;
+
+            // Apply sorting if we have data
+            if (this.sortField) {
+                this.sortData();
+                // Update sort icons after a brief delay to ensure DOM is ready
+                setTimeout(() => {
+                    this.updateSortIcons();
+                }, 0);
+            }
         } catch (error) {
             console.error('Error applying filters:', error);
             this.filteredProcesses = [];
@@ -197,6 +244,29 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     }
 
     /**
+     * Method Name: handleSliderInput
+     * @description: Handle real-time slider input for visual feedback
+     */
+    handleSliderInput(event) {
+        const newValue = parseFloat(event.target.value);
+        const sliderElement = event.target;
+        
+        // Update visual progress in real-time
+        if (sliderElement) {
+            sliderElement.style.setProperty('--progress-width', `${newValue}%`);
+            
+            // Update the displayed percentage
+            const sliderContainer = sliderElement.closest('.slider-container');
+            if (sliderContainer) {
+                const valueDisplay = sliderContainer.querySelector('.slider-value');
+                if (valueDisplay) {
+                    valueDisplay.textContent = `${newValue}%`;
+                }
+            }
+        }
+    }
+
+    /**
      * Method Name: handleSliderChange
      * @description: Handle completion percentage slider change
      */
@@ -206,24 +276,151 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
         const newValue = parseFloat(event.target.value);
         const sliderElement = event.target;
         
+        // Update visual progress immediately
+        if (sliderElement) {
+            sliderElement.style.setProperty('--progress-width', `${newValue}%`);
+            
+            // Update the displayed percentage
+            const sliderContainer = sliderElement.closest('.slider-container');
+            if (sliderContainer) {
+                const valueDisplay = sliderContainer.querySelector('.slider-value');
+                if (valueDisplay) {
+                    valueDisplay.textContent = `${newValue}%`;
+                }
+            }
+        }
+        
         updateProcessCompletion({ processId: processId, completionPercentage: newValue })
             .then(result => {
                 if (result === 'Success') {
                     this.showToast('Success', 'Process completion updated successfully', 'success');
+                    // Update the original value for future reference
+                    if (sliderElement) {
+                        sliderElement.dataset.originalValue = newValue;
+                    }
                     this.fetchLocationProcesses();
                 } else {
                     this.showToast('Error', result, 'error');
+                    // Revert the slider value and visual progress on error
                     if (sliderElement) {
                         sliderElement.value = originalValue;
+                        sliderElement.style.setProperty('--progress-width', `${originalValue}%`);
+                        
+                        const sliderContainer = sliderElement.closest('.slider-container');
+                        if (sliderContainer) {
+                            const valueDisplay = sliderContainer.querySelector('.slider-value');
+                            if (valueDisplay) {
+                                valueDisplay.textContent = `${originalValue}%`;
+                            }
+                        }
                     }
                 }
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to update process completion: ' + (error.body?.message || error.message), 'error');
+                // Revert the slider value and visual progress on error
                 if (sliderElement) {
                     sliderElement.value = originalValue;
+                    sliderElement.style.setProperty('--progress-width', `${originalValue}%`);
+                    
+                    const sliderContainer = sliderElement.closest('.slider-container');
+                    if (sliderContainer) {
+                        const valueDisplay = sliderContainer.querySelector('.slider-value');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = `${originalValue}%`;
+                        }
+                    }
                 }
             });
+    }
+
+    /**
+     * Method Name: handleSortClick
+     * @description: Handle column header click for sorting
+     */
+    handleSortClick(event) {
+        try {
+            const fieldName = event.currentTarget.dataset.id;
+            
+            if (this.sortField === fieldName) {
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = fieldName;
+                this.sortOrder = 'asc';
+            }
+            
+            this.sortData();
+            this.updateSortIcons();
+        } catch (error) {
+            console.error('Error in handleSortClick:', error);
+        }
+    }
+
+    /**
+     * Method Name: sortData
+     * @description: Sort the process data based on current sort field and order
+     */
+    sortData() {
+        try {
+            this.filteredProcesses = [...this.filteredProcesses].sort((a, b) => {
+                let aValue = this.getFieldValue(a, this.sortField);
+                let bValue = this.getFieldValue(b, this.sortField);
+
+                // Handle null/undefined values
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                // Convert to strings for comparison if they're not numbers
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+
+                let compare = 0;
+                if (aValue > bValue) {
+                    compare = 1;
+                } else if (aValue < bValue) {
+                    compare = -1;
+                }
+
+                return this.sortOrder === 'asc' ? compare : -compare;
+            });
+        } catch (error) {
+            console.error('Error in sortData:', error);
+        }
+    }
+
+    /**
+     * Method Name: updateSortIcons
+     * @description: Update sort icons and active states
+     */
+    updateSortIcons() {
+        try {
+            // First clear ALL icons
+            const allHeaders = this.template.querySelectorAll('.sortable-header');
+            const allIcons = this.template.querySelectorAll('.sort-icon svg');
+            
+            allHeaders.forEach(header => {
+                header.classList.remove('active-sort');
+            });
+            
+            allIcons.forEach(icon => {
+                icon.classList.remove('rotate-asc', 'rotate-desc');
+            });
+            
+            // Then set the active one
+            const currentHeaders = this.template.querySelectorAll(`[data-sort-field="${this.sortField}"]`);
+            currentHeaders.forEach(header => {
+                header.classList.add('active-sort');
+                
+                const icon = header.querySelector('.sort-icon svg');
+                if (icon) {
+                    icon.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                }
+            });
+        } catch (error) {
+            console.error('Error in updateSortIcons:', error);
+        }
     }
 
     /**
