@@ -11,6 +11,8 @@
 **/
 public with sharing class JobDetailsPageController {
     
+    public static TimeZone userTz = UserInfo.getTimeZone();
+
     /*
     *********************************************************
     @description     : Method is used to get the job related mobilization details
@@ -20,43 +22,96 @@ public with sharing class JobDetailsPageController {
     ********************************************************
     */
     @AuraEnabled
-    public static List<Mobilization__c> getJobRelatedMoblizationDetails(Date filterDate, String mode) {
+    public static List<MobilizationWrapper> getJobRelatedMoblizationDetails(Date filterDate, String mode) {
         try {
+            System.debug('filterDate in apex: ' + filterDate);
             DateTime startOfDay;
             DateTime endOfDay;
-    
+
             if (mode == 'week') {
-                // Convert to DateTime to get day of week
                 DateTime dt = DateTime.newInstance(filterDate, Time.newInstance(0, 0, 0, 0));
-    
-                // Apex: DateTime.format('u') → 1=Monday ... 7=Sunday
-                Integer dow = Integer.valueOf(dt.format('u'));
-    
-                // We want weeks Sunday–Saturday
-                // If dow=7, it's already Sunday → startOfWeek = filterDate
-                // Else subtract dow days to go back to Sunday
+                Integer dow = Integer.valueOf(dt.format('u')); // 1=Mon … 7=Sun
                 Date startOfWeek = dow == 7 ? filterDate : filterDate.addDays(-dow);
                 Date endOfWeek   = startOfWeek.addDays(6);
-    
+
                 startOfDay = DateTime.newInstance(startOfWeek, Time.newInstance(0,0,0,0));
                 endOfDay   = DateTime.newInstance(endOfWeek,   Time.newInstance(23,59,59,999));
             } else {
-                // Default = single day
                 startOfDay = DateTime.newInstance(filterDate, Time.newInstance(0,0,0,0));
                 endOfDay   = DateTime.newInstance(filterDate, Time.newInstance(23,59,59,999));
             }
-    
-            return [
-                SELECT Id, Job__c, Job__r.Id, Start_Date__c, End_Date__c, Mobilization_Status__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Address__c, Job__r.Description__c
+
+            // 1. Fetch mobilizations
+            List<Mobilization__c> mobs = [
+                SELECT Id, Job__c, Job__r.Id, Start_Date__c, End_Date__c, Mobilization_Status__c, 
+                    Job__r.Name, Job__r.Job_Name__c, Job__r.Address__c, Job__r.Description__c
                 FROM Mobilization__c
                 WHERE Start_Date__c >= :startOfDay 
                 AND Start_Date__c <= :endOfDay 
                 WITH SECURITY_ENFORCED
                 ORDER BY Start_Date__c ASC
             ];
+
+            if (mobs.isEmpty()) return new List<MobilizationWrapper>();
+
+            // 1. Build a Map of JobId → List of mobilization start dates
+            Map<Id, Set<Date>> jobDateMap = new Map<Id, Set<Date>>();
+            for(Mobilization__c m : mobs) {
+                if(m.Job__c != null && m.Start_Date__c != null) {
+                    if(!jobDateMap.containsKey(m.Job__c)) {
+                        jobDateMap.put(m.Job__c, new Set<Date>());
+                    }
+                    jobDateMap.get(m.Job__c).add(m.Start_Date__c.date());
+                }
+            }
+
+            // 2. Aggregate total hours for relevant Job + Dates
+            Map<String, Decimal> mobManHoursMap = new Map<String, Decimal>();
+            for (AggregateResult ar : [
+                SELECT Timesheet_Entry__r.TimeSheet__r.Job__c jobId,
+                    Clock_In_Date__c workDate,
+                    SUM(Total_Time__c) totalHours
+                FROM Timesheet_Entry_Item__c
+                WHERE Timesheet_Entry__r.TimeSheet__r.Job__c IN :jobDateMap.keySet()
+                AND Clock_In_Date__c != null
+                GROUP BY Timesheet_Entry__r.TimeSheet__r.Job__c, Clock_In_Date__c
+            ]) {
+                Id jobId = (Id)ar.get('jobId');
+                Date workDate = (Date)ar.get('workDate');
+                
+                // Only include if the workDate matches a mobilization start date for that job
+                if(jobDateMap.containsKey(jobId) && jobDateMap.get(jobId).contains(workDate)) {
+                    String key = jobId + '_' + String.valueOf(workDate);
+                    mobManHoursMap.put(key, (Decimal)ar.get('totalHours'));
+                }
+            }
+
+            // 3. Build wrappers
+            List<MobilizationWrapper> result = new List<MobilizationWrapper>();
+            for (Mobilization__c m : mobs) {
+                MobilizationWrapper w = new MobilizationWrapper();
+                w.mobId = m.Id;
+                w.jobId = m.Job__c;
+                w.jobNumber = m.Job__r.Name;
+                w.jobName = m.Job__r.Job_Name__c;
+                w.jobAddress = m.Job__r.Address__c;
+                w.jobDescription = m.Job__r.Description__c;
+                w.startDate = m.Start_Date__c.addSeconds(userTz.getOffset(m.Start_Date__c)/1000);
+                w.endDate = m.End_Date__c.addSeconds(userTz.getOffset(m.End_Date__c)/1000);
+                // w.startDate = m.Start_Date__c;
+                // w.endDate = m.End_Date__c;
+                w.status = m.Mobilization_Status__c;
+
+                // Lookup hours
+                String key = m.Job__c + '_' + String.valueOf(m.Start_Date__c.date());
+                w.totalManHours = mobManHoursMap.containsKey(key) ? mobManHoursMap.get(key) : 0.00;
+
+                result.add(w);
+            }
+
+            return result;
         } catch (Exception e) {
-            System.debug('Exception in getJobRelatedMoblizationDetails: ' + e.getMessage());
-            return null;
+            throw new AuraHandledException('Error in getJobRelatedMoblizationDetails: ' + e.getMessage());
         }
     }
 
@@ -65,23 +120,36 @@ public with sharing class JobDetailsPageController {
     @description     : Method is used to get the job related timesheet details
     @param           : jobId - {String} - Job Id to filter the timesheet details
     @param           : jobStartDate - {String} - Job Start Date to filter the timesheet details
-    @return          : List<Timesheet_Entry_Item__c> - List of timesheet entry items
+    @return          : List<TimesheetEntryItemWrapper> - List of timesheet entry items
     ********************************************************
     */
     @AuraEnabled
-    public static List<Timesheet_Entry_Item__c> getTimeSheetEntryItems(String jobId, String jobStartDate){
+    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String jobStartDate){
         try {
             System.debug('jobId: ' + jobId);
             System.debug('jobStartDate: ' + jobStartDate);
-            System.debug('Date.valueOf(jobStartDate): ' + Date.valueOf(jobStartDate));
-            return [
-                SELECT Id, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Total_Time__c, Cost_Code__r.Name, Clock_In_Date__c 
+            
+            Date startDate = Date.valueOf(jobStartDate);
+
+            List<Timesheet_Entry_Item__c> items = [
+                SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
+                       Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
+                       Cost_Code__r.Name, Clock_In_Date__c
                 FROM Timesheet_Entry_Item__c 
-                WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId 
-                AND Clock_In_Date__c = :Date.valueOf(jobStartDate) 
+                WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId
+                  AND Clock_In_Date__c = :startDate
                 WITH SECURITY_ENFORCED
             ];
+
+            List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
+            for(Timesheet_Entry_Item__c item : items) {
+                result.add(new TimesheetEntryItemWrapper(item));
+            }
+
+            return result;
+
         } catch (Exception e) {
+            System.debug('Exception in getTimeSheetEntryItems: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
     }
@@ -161,55 +229,94 @@ public with sharing class JobDetailsPageController {
         ];
         System.debug('entries: ' + entries.size());
         
-        // Instead of just overwriting, handle properly
-        Map<Id, Timesheet_Entry__c> tsEntryMap = new Map<Id, Timesheet_Entry__c>();
+        // Group entries by Contact
+        Map<Id, List<Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<Timesheet_Entry__c>>();
         for (Timesheet_Entry__c e : entries) {
-            // Only take the first matching entry for that contact for now
-            if (!tsEntryMap.containsKey(e.Timesheet__r.Contact__c)) {
-                tsEntryMap.put(e.Timesheet__r.Contact__c, e);
+            if (!contactEntriesMap.containsKey(e.Timesheet__r.Contact__c)) {
+                contactEntriesMap.put(e.Timesheet__r.Contact__c, new List<Timesheet_Entry__c>());
             }
+            contactEntriesMap.get(e.Timesheet__r.Contact__c).add(e);
         }
 
         // 4. Build wrapper list
         for (Mobilization_Member__c m : members) {
             WrapperMember wrap = new WrapperMember();
-            wrap.jobStartTime = mobilizationRecord[0].Start_Date__c.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss');
-            wrap.jobEndTime = mobilizationRecord[0].End_Date__c.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss');
+            wrap.jobStartTime = mobilizationRecord[0].Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].Start_Date__c)/1000);
+            wrap.jobEndTime = mobilizationRecord[0].End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].End_Date__c)/1000);
             wrap.contactId = m.Contact__c;
             wrap.contactName = m.Contact__r.Name;
             wrap.mobMemberId = m.Id;
 
-            Timesheet__c ts = contactTimesheetMap.get(m.Contact__c); // check if Timesheet exists
-            Timesheet_Entry__c entry = tsEntryMap.get(m.Contact__c);
+            Timesheet__c ts = contactTimesheetMap.get(m.Contact__c);
+            List<Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.Contact__c);
 
             if (ts == null) {
-                // No Timesheet exists → assign to clockIn
                 wrap.isTimesheetNull = true;
                 wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = false;
                 result.get('clockIn').add(wrap);
-            } else if (entry == null) {
-                // No entry today at all → eligible to Clock In
+                continue;
+            }
+
+            if (userEntries == null || userEntries.isEmpty()) {
                 wrap.timesheetId = ts.Id;
                 wrap.isTimeSheetNull = false;
                 wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = false;
                 result.get('clockIn').add(wrap);
-            } else if (entry.Clock_In_Time__c == null && entry.Clock_Out_Time__c == null) {
-                // Edge case: entry exists but both fields are null → treat as not clocked in yet
-                wrap.timesheetId = ts.Id;
-                wrap.isTimeSheetNull = false;
-                wrap.timesheetEntryId = entry.Id;
-                wrap.isTimeSheetEntryNull = false;
-                result.get('clockIn').add(wrap);
-            } else if (entry.Clock_In_Time__c != null && entry.Clock_Out_Time__c == null) {
-                // Clocked in but not clocked out → show Clock Out
-                wrap.timesheetId = ts.Id;
-                wrap.isTimeSheetNull = false;
-                wrap.timesheetEntryId = entry.Id;
-                wrap.isTimeSheetEntryNull = false;
-                wrap.clockInTime = entry.Clock_In_Time__c.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss');
-                result.get('clockOut').add(wrap);
+                continue;
             }
-            // else: already completed (both in/out filled), don’t show
+
+            // Sort entries by ClockInTime for consistency
+            // userEntries.sort(new List<Timesheet_Entry__c>{
+            //     new Timesheet_Entry__c(Clock_In_Time__c = DateTime.newInstance(1900,1,1,0,0,0)) // ensures comparator field
+            // });
+
+            Boolean hasOpenEntry = false;
+            Boolean hasCompletedEntry = false;
+            Timesheet_Entry__c latestOpen;
+            Timesheet_Entry__c latestCompleted;
+
+            for (Timesheet_Entry__c e : userEntries) {
+                if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
+                    hasOpenEntry = true;
+                    latestOpen = e;
+                } else if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c != null) {
+                    hasCompletedEntry = true;
+                    latestCompleted = e;
+                } else if (e.Clock_In_Time__c == null && e.Clock_Out_Time__c != null) {
+                    // Edge case → treat as open
+                    hasOpenEntry = true;
+                    latestOpen = e;
+                }
+            }
+
+            if (hasOpenEntry) {
+                // ClockOut case → must pass the ClockIn time
+                wrap.timesheetId = ts.Id;
+                wrap.isTimeSheetNull = false;
+                wrap.isTimeSheetEntryNull = false;
+                wrap.timesheetEntryId = latestOpen.Id;
+                wrap.clockInTime = (latestOpen.Clock_In_Time__c != null)
+                    ? latestOpen.Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.Clock_In_Time__c)/1000)
+                    : null;
+                wrap.isAgain = false; // Not a new shift yet, finishing current one
+                result.get('clockOut').add(wrap);
+            } else if (hasCompletedEntry) {
+                // Only completed entries → eligible for ClockIn again
+                wrap.timesheetId = ts.Id;
+                wrap.isTimeSheetNull = false;
+                wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = true;  // ✅ Contact is clocking in AGAIN
+                result.get('clockIn').add(wrap);
+            } else {
+                // Default → treat as new ClockIn
+                wrap.timesheetId = ts.Id;
+                wrap.isTimeSheetNull = false;
+                wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = false;
+                result.get('clockIn').add(wrap);
+            }
         }
 
         // 5. Build cost code details
@@ -242,13 +349,9 @@ public with sharing class JobDetailsPageController {
 
             if((String) paramsMap.get('actionType') == 'clockIn') {
                 
-                // Convert clockInTime to UTC
+                // Convert clockInTime to UTC to user timezone
                 String clockInTimeString = (String)paramsMap.get('clockInTime');
-                clockInTimeString = clockInTimeString.replace('T', ' ').replace('Z', '');
-                DateTime utcDateTime = DateTime.valueOf(clockInTimeString);
-                // Convert UTC to user's timezone
-                TimeZone userTz = UserInfo.getTimeZone();
-                Datetime clkInUserTz = utcDateTime.addSeconds(userTz.getOffset(utcDateTime)/1000);
+                Datetime clkInUserTz = convertUtc(clockInTimeString);
 
                 // If first clockin for moblization group for contact > Create Timesheet and Timesheet Entry
                 if(paramsMap.get('isTimeSheetNull') == true) {
@@ -280,20 +383,12 @@ public with sharing class JobDetailsPageController {
 
             if((String) paramsMap.get('actionType') == 'clockOut') {
 
-                // Convert clockOutTime to UTC
+                // Convert clockOutTime to UTC to user timezone
                 String clockOutTimeString = (String)paramsMap.get('clockOutTime');
-                clockOutTimeString = clockOutTimeString.replace('T', ' ').replace('Z', '');
-                DateTime utcDateTime = DateTime.valueOf(clockOutTimeString);
-                // Convert UTC to user's timezone
-                TimeZone userTz = UserInfo.getTimeZone();
-                Datetime clkOutUserTz = utcDateTime.addSeconds(userTz.getOffset(utcDateTime)/1000);
+                Datetime clkOutUserTz = convertUtc(clockOutTimeString);
 
-                // Convert clockInTime to UTC
+                // Convert clockInTime to UTC to user timezone
                 String clockInTimeString = (String)paramsMap.get('clockInTime');
-                clockInTimeString = clockInTimeString.replace('T', ' ').replace('Z', '');
-                DateTime utcDateTimeCI = DateTime.valueOf(clockInTimeString);
-                // Convert UTC to user's timezone
-                Datetime clkInUserTz = utcDateTime.addSeconds(userTz.getOffset(utcDateTimeCI)/1000);
 
                 if(paramsMap.get('isTimeSheetEntryNull') == true) {
                     if(paramsMap.get('isTimeSheetNull') == false) {
@@ -301,7 +396,7 @@ public with sharing class JobDetailsPageController {
 
                         Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
                         timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
-                        timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
+                        timesheetEntryRec.Clock_In_Time__c = Datetime.valueOfGmt(clockInTimeString.replace('T',' ').replace('Z',''));
                         timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
                         timesheetEntryRec.Do_Not_Execute__c = true;
                         insert as user timesheetEntryRec;
@@ -378,20 +473,13 @@ public with sharing class JobDetailsPageController {
             Map<String, Object> paramsMap = (Map<String, Object>) JSON.deserializeUntyped(params);
             System.debug(paramsMap);
 
-            // Convert clockOutTime to UTC
+            // Convert clockOutTime to UTC to user timezone
             String clockOutTimeString = (String)paramsMap.get('clockOutTime');
-            clockOutTimeString = clockOutTimeString.replace('T', ' ').replace('Z', '') + ':00';
-            DateTime utcDateTime = DateTime.valueOf(clockOutTimeString);
-            // Convert UTC to user's timezone
-            TimeZone userTz = UserInfo.getTimeZone();
-            Datetime clkOutUserTz = utcDateTime.addSeconds(userTz.getOffset(utcDateTime)/1000);
+            Datetime clkOutUserTz = convertUtc(clockOutTimeString);
 
-            // Convert clockInTime to UTC
+            // Convert clockInTime to UTC to user timezone
             String clockInTimeString = (String)paramsMap.get('clockInTime');
-            clockInTimeString = clockInTimeString.replace('T', ' ').replace('Z', '') + ':00';
-            DateTime utcDateTimeCI = DateTime.valueOf(clockInTimeString);
-            // Convert UTC to user's timezone
-            Datetime clkInUserTz = utcDateTime.addSeconds(userTz.getOffset(utcDateTimeCI)/1000);
+            Datetime clkInUserTz = convertUtc(clockInTimeString);
 
             String contactId = (String)paramsMap.get('contactId');
             String jobId = (String)paramsMap.get('jobId');
@@ -399,6 +487,8 @@ public with sharing class JobDetailsPageController {
             String costCodeId = (String)paramsMap.get('costCodeId');
             Date jobStartDate = Date.valueOf((String)paramsMap.get('jobStartDate'));
             Date jobEndDate = Date.valueOf((String)paramsMap.get('jobEndDate'));
+            Double travelTime = Double.valueOf((String)paramsMap.get('travelTime'));
+            Integer perDiem = Integer.valueOf((String)paramsMap.get('perDiem'));
 
             List<Timesheet__c> tsList = [
                 SELECT Id, Contact__c, Timesheet_Start_Date__c, Timesheet_End_Date__c
@@ -446,80 +536,163 @@ public with sharing class JobDetailsPageController {
             timesheetEntryItemRec.Clock_In_Time__c = clkInUserTz;
             timesheetEntryItemRec.Clock_Out_Time__c = clkOutUserTz;
             timesheetEntryItemRec.Cost_Code__c = costCodeId;
+            timesheetEntryItemRec.Travel_Time__c = travelTime;
+            timesheetEntryItemRec.Per_Diem__c = perDiem;
             timesheetEntryItemRec.Do_Not_Execute__c = true;
             insert as user timesheetEntryItemRec;
 
             return true;
         } catch (Exception e) {
+            System.debug('Exception in createTimesheetRecords: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
     }
 
     /*
     *********************************************************
-    @description     : Method is used to save travel time on timesheet records
+    @description     : Method is used to update timesheet records
     @param           : params - {String} - Parameters to create timesheet records
     @return          : Boolean - Success or failure of the operation
     ********************************************************
     */
     @AuraEnabled
-    public static Boolean saveTravelTimeOnTimesheets(String params){
+    public static Boolean updateTimesheets(String params){
         try {
-            List<Object> jsonList = (List<Object>) JSON.deserializeUntyped(params);
-
-            // Prepare Ids to query
-            List<Id> recordIds = new List<Id>();
-            Map<Id, Decimal> travelTimeMap = new Map<Id, Decimal>();
-
-            for (Object obj : jsonList) {
-                Map<String, Object> rec = (Map<String, Object>) obj;
-                Id recId = (Id) rec.get('Id');
-                Decimal travelTime = rec.get('wfrecon__Travel_Time__c') != null 
-                    ? Decimal.valueOf(String.valueOf(rec.get('wfrecon__Travel_Time__c'))) 
-                    : 0;
-                recordIds.add(recId);
-                travelTimeMap.put(recId, travelTime);
-            }
-
+            System.debug(params);
+            Map<String, Object> jsonList = (Map<String, Object>) JSON.deserializeUntyped(params);
+            System.debug(jsonList);
             // Query records
             List<Timesheet_Entry_Item__c> tsItems = [
-                SELECT Id, wfrecon__Travel_Time__c 
+                SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c 
                 FROM Timesheet_Entry_Item__c 
-                WHERE Id IN :recordIds
+                WHERE Id = :(String)jsonList.get('Id')
                 WITH SECURITY_ENFORCED
             ];
 
+            List<Timesheet_Entry__c> tsEntry = [
+                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c 
+                FROM Timesheet_Entry__c 
+                WHERE Id = :(String)jsonList.get('TSEId')
+                WITH SECURITY_ENFORCED
+            ];
+
+            String clockInTimeString = (String)jsonList.get('ClockIn');
+            Datetime clkInUserTz = convertUtc(clockInTimeString);
+
+            String clockOutTimeString = (String)jsonList.get('ClockOut');
+            Datetime clkOutUserTz = convertUtc(clockOutTimeString);
+
             // Update travel time
             for (Timesheet_Entry_Item__c item : tsItems) {
-                if (travelTimeMap.containsKey(item.Id)) {
-                    item.wfrecon__Travel_Time__c = travelTimeMap.get(item.Id);
-                }
+                item.Clock_In_Time__c = clkInUserTz;
+                item.Clock_Out_Time__c = clkOutUserTz;
+                item.Travel_Time__c = (Decimal.valueOf((String)jsonList.get('TravelTime')));
+                item.Per_Diem__c = (Integer.valueOf((String)jsonList.get('PerDiem')));
+            }
+
+            for (Timesheet_Entry__c entry : tsEntry) {
+                entry.Clock_In_Time__c = clkInUserTz;
+                entry.Clock_Out_Time__c = clkOutUserTz;
             }
 
             update as user tsItems;
+            update as user tsEntry;
 
             return true;
         } catch (Exception e) {
+            System.debug('Exception in updateTimesheets: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    /*
+    *********************************************************
+    @description     : Method is used to convert datetime string in UTC format to Datetime
+    @param           : utcDateTimeStr - {String} - Datetime string in UTC format (e.g., '2023-10-05T14:30:00Z')
+    @return          : Datetime - Converted Datetime object
+    ********************************************************
+    */
+    public static Datetime convertUtc(String utcDateTimeStr) {
+        try {
+            if(String.isBlank(utcDateTimeStr)) return null;
+    
+            // Normalize string: if seconds missing, add ':00'
+            if(!Pattern.matches('\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}', utcDateTimeStr)) {
+                if(Pattern.matches('\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}', utcDateTimeStr)) {
+                    utcDateTimeStr += ':00';
+                } else {
+                    // Invalid format
+                    throw new AuraHandledException('Invalid datetime format: ' + utcDateTimeStr);
+                }
+            }
+    
+            // Replace T with space for DateTime.valueOf
+            utcDateTimeStr = utcDateTimeStr.replace('T',' ');
+    
+            // Convert to Datetime (interpreted as GMT/UTC)
+            Datetime utcDT = Datetime.valueOf(utcDateTimeStr);
+
+            return utcDT;
+        } catch (Exception e) {
+            System.debug('Error in convertUtc: ' + e.getMessage());
+            throw new AuraHandledException('Error in convertUtc: ' + e.getMessage());
+        }
+    }
+
+    public class MobilizationWrapper {
+        @AuraEnabled public Id mobId { get; set; }
+        @AuraEnabled public Id jobId { get; set; }
+        @AuraEnabled public String jobNumber { get; set; }
+        @AuraEnabled public String jobName { get; set; }
+        @AuraEnabled public String jobAddress { get; set; }
+        @AuraEnabled public String jobDescription { get; set; }
+        @AuraEnabled public DateTime startDate { get; set; }
+        @AuraEnabled public DateTime endDate { get; set; }
+        @AuraEnabled public String status { get; set; }
+        @AuraEnabled public Decimal totalManHours { get; set; }
+    }
+
+    public class TimesheetEntryItemWrapper {
+        @AuraEnabled public Id id;
+        @AuraEnabled public Id TSEId;
+        @AuraEnabled public String contactName;
+        @AuraEnabled public Datetime clockInTime;
+        @AuraEnabled public Datetime clockOutTime;
+        @AuraEnabled public Decimal travelTime;
+        @AuraEnabled public Decimal perDiem;
+        @AuraEnabled public Decimal totalTime;
+        @AuraEnabled public String costCodeName;
+        @AuraEnabled public Date clockInDate;
+
+        public TimesheetEntryItemWrapper(Timesheet_Entry_Item__c item) {
+            this.id = item.Id;
+            this.TSEId = item.Timesheet_Entry__c;
+            this.contactName = item.Timesheet_Entry__r.TimeSheet__r.Contact__r.Name;
+            
+            // Convert to user timezone
+            this.clockInTime  = item.Clock_In_Time__c  != null ? item.Clock_In_Time__c.addSeconds(userTz.getOffset(item.Clock_In_Time__c)/1000)  : null;
+            this.clockOutTime = item.Clock_Out_Time__c != null ? item.Clock_Out_Time__c.addSeconds(userTz.getOffset(item.Clock_Out_Time__c)/1000) : null;
+
+            this.travelTime = item.Travel_Time__c != null ? item.Travel_Time__c : 0.00;
+            this.perDiem = item.Per_Diem__c != null ? item.Per_Diem__c : 0;
+            this.totalTime = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
+            this.costCodeName = item.Cost_Code__r != null ? item.Cost_Code__r.Name : '-';
+            this.clockInDate = item.Clock_In_Date__c;
         }
     }
 
     public class WrapperMember {
         @AuraEnabled public Id contactId;
         @AuraEnabled public String contactName;
-        @AuraEnabled public String jobStartTime;
-        @AuraEnabled public String jobEndTime;
-        @AuraEnabled public String clockInTime;
+        @AuraEnabled public DateTime jobStartTime;
+        @AuraEnabled public DateTime jobEndTime;
+        @AuraEnabled public DateTime clockInTime;
         @AuraEnabled public Boolean isTimesheetNull;
         @AuraEnabled public String timesheetId;
         @AuraEnabled public Boolean isTimesheetEntryNull;
         @AuraEnabled public String timesheetEntryId;
         @AuraEnabled public String mobMemberId;
         @AuraEnabled public Map<Id, String> costCodeDetails;
-        @AuraEnabled public String displayName {
-            get {
-                return contactName;
-            }
-        }
+        @AuraEnabled public Boolean isAgain;
     }
 }

@@ -136,11 +136,10 @@
     align-items: center;
     background: white;
     border-radius: 5px;
-    border: 1px solid grey;
+    border: 1px solid #d5d4f7;
     padding: 4px;
     width: 320px;
     height: 35px;
-    box-shadow: 0 0px 0px 0 rgba(0, 0, 0, 0.2), 0 1px 8px 0 rgba(0, 0, 0, 0.18);
 }
 
 .search-container input.slds-input {
@@ -235,6 +234,7 @@
     justify-content: center;
     align-items: center;
     gap: 1rem;
+    margin-right: 5rem;
 }
 
 .arrow-button {
@@ -652,4 +652,34 @@
 }
 .sub-modal {
   z-index: 203; /* top-most */
+}
+
+.info-message {
+    background-color: #5f5adb;
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+lightning-combobox {
+    width: 100%;
+}
+
+.dayViewBtn {
+    width: 80px;
+    border-right: unset !important;
+    border-radius: 3px 0px 0px 3px !important;
+}
+
+.weekViewBtn {
+    width: 80px;
+    border-right: unset !important;
+    border-radius: unset !important;
+}
+
+.customViewBtn {
+    width: 80px;
+    border-radius: 0px 3px 3px 0px !important;
 }
