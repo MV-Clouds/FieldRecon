@@ -1434,6 +1434,66 @@
     transform: rotate(180deg);
 }
 
+/* Sortable Header Styles - Updated for single arrow visibility */
+.sortable-header {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+.sort-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+}
+
+.column-label {
+    font-weight: 600;
+}
+
+.sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Show sort icon on hover */
+.sortable-header:hover .sort-icon {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Always show sort icon for active sorted column */
+.sortable-header.active-sort .sort-icon {
+    opacity: 1;
+    visibility: visible;
+}
+
+.sort-icon svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+/* Sort Icon Rotation */
+.rotate-asc {
+    transform: rotate(0deg);
+}
+
+.rotate-desc {
+    transform: rotate(180deg);
+}
+
 /* Ensure text doesn't overflow in fixed columns */
 .center-trancate-text {
     overflow: hidden;

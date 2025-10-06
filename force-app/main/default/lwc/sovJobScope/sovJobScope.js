@@ -524,6 +524,17 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get getSortableHeaderClass
+     * @description: Get CSS class for sortable headers with active state
+    */
+    get getSortableHeaderClass() {
+        return (fieldName) => {
+            const baseClass = 'header-cell center-trancate-head sortable-header';
+            return this.sortField === fieldName ? `${baseClass} active-sort` : baseClass;
+        };
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -716,7 +727,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: applyFilters
-     * @description: Apply search filters and separate by type while preserving selections
+     * @description: Apply search filters and separate by type while preserving selections - Updated
      */
     applyFilters() {
         try {
@@ -724,10 +735,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.sortField = '';
             this.sortOrder = 'asc';
             
-            // Clear sort icons
+            // Clear sort icons when filtering
             setTimeout(() => {
-                const allHeaders = this.template.querySelectorAll('.sort-icon svg');
-                allHeaders.forEach(icon => icon.classList.remove('rotate-asc', 'rotate-desc'));
+                this.clearSortIcons();
             }, 0);
 
             let filteredEntries = this.scopeEntries.filter(entry => {
@@ -823,7 +833,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleRefresh
-     * @description: Refresh table data
+     * @description: Refresh table data - Updated
      */
     handleRefresh() {
         this.isLoading = true;
@@ -832,6 +842,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Reset sorting
         this.sortField = '';
         this.sortOrder = 'asc';
+        // Clear sort icons
+        setTimeout(() => {
+            this.clearSortIcons();
+        }, 100);
         this.fetchScopeEntries();
     }
 
@@ -1960,21 +1974,73 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleSortClick
-     * @description: Handle column header click for sorting
+     * @description: Handle column header click for sorting - Updated
      */
     handleSortClick(event) {
         try {
             const fieldName = event.currentTarget.dataset.id;
+            
+            // Clear all existing active states first
+            this.clearSortIcons();
+            
             if (this.sortField === fieldName) {
                 this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
             } else {
                 this.sortField = fieldName;
                 this.sortOrder = 'asc';
             }
+            
             this.sortData();
             this.updateSortIcons();
         } catch (error) {
             console.error('Error in handleSortClick:', error);
+        }
+    }
+
+    /**
+     * Method Name: clearSortIcons
+     * @description: Clear all sort icons and active states
+     */
+    clearSortIcons() {
+        try {
+            // Remove all active classes
+            const allHeaders = this.template.querySelectorAll('.sortable-header');
+            allHeaders.forEach(header => {
+                header.classList.remove('active-sort');
+            });
+            
+            // Remove all rotation classes
+            const allIcons = this.template.querySelectorAll('.sort-icon svg');
+            allIcons.forEach(icon => {
+                icon.classList.remove('rotate-asc', 'rotate-desc');
+            });
+        } catch (error) {
+            console.error('Error in clearSortIcons:', error);
+        }
+    }
+
+    /**
+     * Method Name: updateSortIcons
+     * @description: Update sort icons and active states - Updated
+     */
+    updateSortIcons() {
+        try {
+            // Clear all first
+            this.clearSortIcons();
+            
+            // Add active class to current sorted header
+            const currentHeaders = this.template.querySelectorAll(`[data-sort-field="${this.sortField}"]`);
+            currentHeaders.forEach(header => {
+                header.classList.add('active-sort');
+                
+                // Add rotation to the icon
+                const icon = header.querySelector('.sort-icon svg');
+                if (icon) {
+                    icon.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                }
+            });
+        } catch (error) {
+            console.error('Error in updateSortIcons:', error);
         }
     }
 
@@ -2038,23 +2104,4 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
-    /**
-     * Method Name: updateSortIcons
-     * @description: Update sort icons in the table headers
-     */
-    updateSortIcons() {
-        try {
-            const allHeaders = this.template.querySelectorAll('.sort-icon svg');
-            allHeaders.forEach(icon => {
-                icon.classList.remove('rotate-asc', 'rotate-desc');
-            });
-
-            const currentHeader = this.template.querySelector(`[data-sort-field="${this.sortField}"] .sort-icon svg`);
-            if (currentHeader) {
-                currentHeader.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
-            }
-        } catch (error) {
-            console.error('Error in updateSortIcons:', error);
-        }
-    }
 }
