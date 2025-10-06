@@ -56,6 +56,22 @@
             </div>
         </div>
 
+        <!-- Sort Description Section - ADD THIS -->
+        <div class="sort-description-container">
+            <template if:true={sortDescription}>
+                <div class="sort-description">
+                    <div class="sort-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 14H2M8 10H2M6 6H2M12 18H2M19 20V4M19 20L22 17M19 20L16 17M19 4L22 7M19 4L16 7" 
+                                  stroke="#5e5adb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" 
+                                  fill="none"/>
+                        </svg>
+                    </div>
+                    <div class="sort-text">{sortDescription}</div>
+                </div>
+            </template>
+        </div>
+
         <!-- Data Table Container -->
         <div class="data-table-container">
             <template if:true={isDataAvailable}>
@@ -70,8 +86,19 @@
                             </th>
                             <th class="header-cell center-trancate-head actions-column">Actions</th>
                             <template for:each={tableColumns} for:item="column">
-                                <th key={column.fieldName} class="header-cell center-trancate-head">
-                                    {column.label}
+                                <th key={column.fieldName} 
+                                    class="header-cell center-trancate-head sortable-header" 
+                                    data-id={column.fieldName}
+                                    data-sort-field={column.fieldName}
+                                    onclick={handleSortClick}>
+                                    <div class="sort-header-content">
+                                        <span class="column-label">{column.label}</span>
+                                        <div class="sort-icon">
+                                            <svg width="16" height="16" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M374.6 246.6C368.4 252.9 360.2 256 352 256s-16.38-3.125-22.62-9.375L224 141.3V448c0 17.69-14.33 31.1-31.1 31.1S160 465.7 160 448V141.3L54.63 246.6c-12.5 12.5-32.75 12.5-45.25 0s-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0l160 160C387.1 213.9 387.1 234.1 374.6 246.6z" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                 </th>
                             </template>
                         </tr>
@@ -165,8 +192,20 @@
                                                             <thead class="table-header">
                                                                 <tr>
                                                                     <template for:each={processTableColumns} for:item="column">
-                                                                        <th key={column.fieldName} class="header-cell center-trancate-head">
-                                                                            {column.label}
+                                                                        <th key={column.fieldName} 
+                                                                            class="header-cell center-trancate-head process-sortable-header" 
+                                                                            data-id={column.fieldName}
+                                                                            data-process-sort-field={column.fieldName}
+                                                                            data-location-id={entry.Id}
+                                                                            onclick={handleProcessSortClick}>
+                                                                            <div class="sort-header-content">
+                                                                                <span class="column-label">{column.label}</span>
+                                                                                <div class="process-sort-icon">
+                                                                                    <svg width="16" height="16" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
+                                                                                        <path d="M374.6 246.6C368.4 252.9 360.2 256 352 256s-16.38-3.125-22.62-9.375L224 141.3V448c0 17.69-14.33 31.1-31.1 31.1S160 465.7 160 448V141.3L54.63 246.6c-12.5 12.5-32.75 12.5-45.25 0s-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0l160 160C387.1 213.9 387.1 234.1 374.6 246.6z" />
+                                                                                    </svg>
+                                                                                </div>
+                                                                            </div>
                                                                         </th>
                                                                     </template>
                                                                 </tr>
@@ -198,6 +237,8 @@
                                                                                                    data-location-id={entry.Id}
                                                                                                    data-original-value={field.rawValue}
                                                                                                    onchange={handleSliderChange}
+                                                                                                   oninput={handleSliderInput}
+                                                                                                   style={field.progressStyle}
                                                                                                    class="completion-slider">
                                                                                             <div class="slider-value">{field.rawValue}%</div>
                                                                                         </div>

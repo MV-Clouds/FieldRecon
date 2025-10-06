@@ -608,16 +608,26 @@
     align-items: center;
     gap: 8px;
     justify-content: center;
+    min-width: 160px;
 }
 
 .completion-slider {
     width: 120px;
     height: 6px;
     border-radius: 3px;
-    background: linear-gradient(to right, rgba(94, 90, 219, 0.2) 0%, rgba(94, 90, 219, 0.2) 100%);
+    background: #e5e5e5;
     outline: none;
     -webkit-appearance: none;
     appearance: none;
+    position: relative;
+}
+
+/* Create progress track effect */
+.completion-slider::-webkit-slider-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e5e5e5;
 }
 
 .completion-slider::-webkit-slider-thumb {
@@ -629,6 +639,16 @@
     background: rgba(94, 90, 219, 1);
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 2;
+}
+
+.completion-slider::-moz-range-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e5e5e5;
+    border: none;
 }
 
 .completion-slider::-moz-range-thumb {
@@ -657,6 +677,19 @@
     color: rgba(94, 90, 219, 1);
     min-width: 40px;
     text-align: right;
+}
+
+/* Progress bar visual effect using pseudo-element */
+.completion-slider::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, rgba(94, 90, 219, 1), rgba(94, 90, 219, 0.7));
+    width: var(--progress-width, 0%);
+    z-index: 1;
 }
 
 /* Search bar input styling */
@@ -729,4 +762,173 @@
 /* Additional polish for button states */
 .action-button:active:not(:disabled) {
     transform: translateY(1px);
+}
+
+/* Sort Description Container */
+.sort-description-container {
+    padding: 8px 2px;
+    margin-bottom: 8px;
+}
+
+.sort-description {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    border: 1px solid rgba(94, 90, 219, 0.3);
+    border-radius: 0.3rem;
+    padding: 0.5rem 0.75rem;
+    background-color: rgb(244, 244, 255);
+    width: fit-content;
+}
+
+.sort-description .sort-icon {
+    width: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sort-description .sort-icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+    flex-shrink: 0;
+}
+
+.sort-description .sort-text {
+    font-size: 0.875rem;
+    color: rgba(94, 90, 219, 1);
+    font-weight: 500;
+}
+
+/* Sortable Header Styles - Updated to match sovJobScope */
+.sortable-header {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+.sort-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+}
+
+.column-label {
+    font-weight: 600;
+}
+
+.sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    width: 12px;
+    height: 12px;
+}
+
+/* Show sort icon ONLY on hover for non-active columns */
+.sortable-header:not(.active-sort):hover .sort-icon {
+    opacity: 0.7;
+    visibility: visible;
+}
+
+/* Always show sort icon for active sorted column with full opacity */
+.sortable-header.active-sort .sort-icon {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.sort-icon svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+/* Sort Icon Rotation */
+.rotate-asc {
+    transform: rotate(0deg);
+}
+
+.rotate-desc {
+    transform: rotate(180deg);
+}
+
+/* Process Table Sortable Header Styles */
+.process-sortable-header {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.process-sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.9) !important;
+}
+
+.process-sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    width: 10px;
+    height: 10px;
+}
+
+/* Show process sort icon ONLY on hover for non-active columns */
+.process-sortable-header:not(.active-sort):hover .process-sort-icon {
+    opacity: 0.7;
+    visibility: visible;
+}
+
+/* Always show process sort icon for active sorted column with full opacity */
+.process-sortable-header.active-sort .process-sort-icon {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.process-sort-icon svg {
+    width: 10px;
+    height: 10px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+/* Responsive adjustments for sorting */
+@media only screen and (max-width: 768px) {
+    .sort-header-content {
+        gap: 0.25rem;
+    }
+    
+    .column-label {
+        font-size: 0.75rem;
+    }
+    
+    .sort-icon svg {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .process-sort-icon svg {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .process-sortable-header .sort-header-content {
+        gap: 0.25rem;
+    }
+    
+    .process-sortable-header .column-label {
+        font-size: 0.7rem;
+    }
 }

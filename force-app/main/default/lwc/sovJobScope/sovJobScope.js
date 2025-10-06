@@ -2111,7 +2111,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * Method Name: updateProcessSortIcons
      * @description: Update process table sort icons and active states
      */
-    updateProcessSortIcons(scopeEntryId = null) {
+    updateProcessSortIcons(scopeEntryId) {
         try {
             // If scopeEntryId is provided, only update icons for that specific table
             if (scopeEntryId) {
@@ -2119,7 +2119,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.clearProcessSortIcons(scopeEntryId);
                 
                 // Add active class to current sorted header for this specific scope entry
-                const currentHeaders = this.template.querySelectorAll(`[data-process-sort-field="${this.processSortField}"][data-scope-entry-id="${scopeEntryId}"]`);
+                // Fix: Target headers directly with both field name and scope entry ID
+                const currentHeaders = this.template.querySelectorAll(`.process-sortable-header[data-process-sort-field="${this.processSortField}"][data-scope-entry-id="${scopeEntryId}"]`);
                 currentHeaders.forEach(header => {
                     header.classList.add('active-sort');
                     
@@ -2147,23 +2148,24 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             console.error('Error in updateProcessSortIcons:', error);
         }
     }
-    
 
     /**
      * Method Name: clearProcessSortIcons
      * @description: Clear all process table sort icons and active states
      */
-    clearProcessSortIcons(scopeEntryId = null) {
+    clearProcessSortIcons(scopeEntryId) {
         try {
             if (scopeEntryId) {
                 // Remove active classes from process headers for specific scope entry only
-                const allHeaders = this.template.querySelectorAll(`[data-scope-entry-id="${scopeEntryId}"] .process-sortable-header`);
+                // Fix: Target headers directly with the scope entry ID, not as descendants
+                const allHeaders = this.template.querySelectorAll(`.process-sortable-header[data-scope-entry-id="${scopeEntryId}"]`);
                 allHeaders.forEach(header => {
                     header.classList.remove('active-sort');
                 });
                 
                 // Remove rotation classes from process icons for specific scope entry only
-                const allIcons = this.template.querySelectorAll(`[data-scope-entry-id="${scopeEntryId}"] .process-sort-icon svg`);
+                // Fix: Target icons within headers that have the specific scope entry ID
+                const allIcons = this.template.querySelectorAll(`.process-sortable-header[data-scope-entry-id="${scopeEntryId}"] .process-sort-icon svg`);
                 allIcons.forEach(icon => {
                     icon.classList.remove('rotate-asc', 'rotate-desc');
                 });

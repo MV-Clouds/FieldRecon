@@ -19,6 +19,12 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track locationColumns = [];
     @track lastConfigUpdateTimestamp = 0; // Add this to track last update
 
+    // Add sorting properties
+    @track sortField = '';
+    @track sortOrder = '';
+    @track processSortField = '';
+    @track processSortOrder = '';
+
     // Default table columns
     @track defaultColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text' },
@@ -156,8 +162,33 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get sortDescription
+     * @description: Set the header sort description
+     */
+    get sortDescription() {
+        try {
+            if (this.sortField !== '') {
+                const orderDisplayName = this.sortOrder === 'asc' ? 'Ascending' : 'Descending';
+                
+                let field = this.tableColumns.find(item => item.fieldName === this.sortField);
+                if (!field) {
+                    return '';
+                }
+
+                const fieldDisplayName = field.label;
+                return `Sorted by: ${fieldDisplayName} (${orderDisplayName})`;
+            } else {
+                return '';
+            }
+        } catch (error) {
+            console.error('Error in sortDescription:', error);
+            return '';
+        }
+    }
+
+    /**
      * Method Name: connectedCallback
-     * @description: Load location entries
+     * @description: Load location entries with default sorting
      */
     connectedCallback() {
         this.fetchLocationConfiguration();
@@ -188,14 +219,23 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                         this.locationColumns = this.defaultColumns;
                     }
                 } else {
-                    // Use default columns if no configuration found
                     this.locationColumns = this.defaultColumns;
+                }
+
+                // Set default sorting to first column
+                if (this.locationColumns.length > 0) {
+                    this.sortField = this.locationColumns[0].fieldName;
+                    this.sortOrder = 'asc';
                 }
             })
             .catch(error => {
                 console.error('Error fetching configuration:', error);
-                // Use default columns on error
                 this.locationColumns = this.defaultColumns;
+                // Set default sorting
+                if (this.locationColumns.length > 0) {
+                    this.sortField = this.locationColumns[0].fieldName;
+                    this.sortOrder = 'asc';
+                }
                 this.showToast('Warning', 'Using default configuration due to error', 'warning');
             })
             .finally(() => {
@@ -314,10 +354,16 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: applyFilters
-     * @description: Apply search filters while preserving selections
+     * @description: Apply search filters while preserving selections - Updated with sorting
      */
     applyFilters() {
         try {
+            // Don't reset sorting when applying filters, only when there's no default
+            if (!this.sortField && this.tableColumns.length > 0) {
+                this.sortField = this.tableColumns[0].fieldName;
+                this.sortOrder = 'asc';
+            }
+
             let filteredEntries = this.locationEntries.filter(entry => {
                 if (!this.searchTerm) return true;
                 
@@ -370,11 +416,44 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     entry.isLoadingProcesses = savedState.isLoadingProcesses;
                 }
             });
+
+            // Apply sorting if we have data
+            if (this.sortField) {
+                this.sortData();
+                // Update sort icons after a brief delay to ensure DOM is ready
+                setTimeout(() => {
+                    this.updateSortIcons();
+                }, 0);
+            }
         } catch (error) {
             console.error('Error applying filters:', error);
             this.filteredLocationEntries = [];
         }
     }
+
+    /**
+     * Method Name: handleSliderInput
+     * @description: Handle real-time slider input for visual feedback
+     */
+    handleSliderInput(event) {
+        const newValue = parseFloat(event.target.value);
+        const sliderElement = event.target;
+        
+        // Update visual progress in real-time
+        if (sliderElement) {
+            sliderElement.style.setProperty('--progress-width', `${newValue}%`);
+            
+            // Update the displayed percentage
+            const sliderContainer = sliderElement.closest('.slider-container');
+            if (sliderContainer) {
+                const valueDisplay = sliderContainer.querySelector('.slider-value');
+                if (valueDisplay) {
+                    valueDisplay.textContent = `${newValue}%`;
+                }
+            }
+        }
+    }
+    
 
     /**
      * Method Name: handleSearch
@@ -387,11 +466,26 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleRefresh
-     * @description: Refresh table data
+     * @description: Refresh table data - Updated to maintain default sorting
      */
     handleRefresh() {
         this.isLoading = true;
         this.selectedRows = [];
+        // Reset to default sorting (first column)
+        if (this.tableColumns.length > 0) {
+            this.sortField = this.tableColumns[0].fieldName;
+            this.sortOrder = 'asc';
+        }
+        // Reset process sorting
+        if (this.processTableColumns.length > 0) {
+            this.processSortField = this.processTableColumns[0].fieldName;
+            this.processSortOrder = 'asc';
+        }
+        // Clear sort icons
+        setTimeout(() => {
+            this.clearSortIcons();
+            this.clearProcessSortIcons();
+        }, 100);
         this.fetchLocationEntries();
     }
 
@@ -605,21 +699,60 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: updateProcessDetails
-     * @description: Update process details for a specific entry
+     * @description: Update process details for a specific entry while preserving selections - Updated with default sorting
      */
     updateProcessDetails(locationId, processDetails) {
+        // Set default process sorting to first column if not already set
+        if (!this.processSortField && this.processTableColumns.length > 0) {
+            this.processSortField = this.processTableColumns[0].fieldName;
+            this.processSortOrder = 'asc';
+        }
+
         const processedDetails = this.processProcessDetailsForDisplay(processDetails);
+        
+        // Sort the processed details if we have a sort field
+        let sortedDetails = processedDetails;
+        if (this.processSortField) {
+            sortedDetails = [...processedDetails].sort((a, b) => {
+                let aValue = this.getFieldValue(a, this.processSortField);
+                let bValue = this.getFieldValue(b, this.processSortField);
+
+                // Handle null/undefined values
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                // Convert to strings for comparison if they're not numbers
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+
+                let compare = 0;
+                if (aValue > bValue) {
+                    compare = 1;
+                } else if (aValue < bValue) {
+                    compare = -1;
+                }
+
+                return this.processSortOrder === 'asc' ? compare : -compare;
+            });
+        }
         
         this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
             if (entry.Id === locationId) {
                 return {
                     ...entry,
-                    processDetails: processedDetails,
+                    processDetails: sortedDetails,
                     isLoadingProcesses: false
                 };
             }
             return entry;
         });
+
+        // Update sort icons for process table
+        setTimeout(() => {
+            this.updateProcessSortIcons(locationId);
+        }, 0);
     }
 
     /**
@@ -630,7 +763,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         if (!processDetails || processDetails.length === 0) {
             return [];
         }
-
+    
         return processDetails.map(process => {
             const row = { ...process };
             row.recordUrl = `/lightning/r/${process.Id}/view`;
@@ -645,18 +778,24 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 if (col.type === 'currency') {
                     currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
                 }
-
+    
                 let percentValue = 0;
+                let rawValue = 0;
+                let progressStyle = '';
                 if (col.type === 'percent') {
-                    percentValue = value !== null && value !== undefined ? parseFloat(value) / 100 : 0;
+                    rawValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+                    percentValue = rawValue / 100;
+                    // Add progress style for slider visual
+                    progressStyle = `--progress-width: ${rawValue}%`;
                 }
                 
                 return {
                     key,
                     value: displayValue,
-                    rawValue: value,
+                    rawValue: rawValue,
                     currencyValue: currencyValue,
                     percentValue: percentValue,
+                    progressStyle: progressStyle,
                     hasValue: value !== null && value !== undefined && String(value).trim() !== '',
                     isNameField: col.isNameField || false,
                     isCurrency: col.type === 'currency',
@@ -667,41 +806,329 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             });
             return row;
         });
-    }
+    }    
 
     /**
      * Method Name: handleSliderChange
-     * @description: Handle completion percentage slider change
+     * @description: Handle completion percentage slider change with visual progress update
      */
     handleSliderChange(event) {
         const processId = event.target.dataset.processId;
         const locationId = event.target.dataset.locationId;
         const originalValue = event.target.dataset.originalValue;
         const newValue = parseFloat(event.target.value);
-        const sliderElement = event.target; 
+        const sliderElement = event.target;
+        
+        // Update visual progress immediately
+        if (sliderElement) {
+            sliderElement.style.setProperty('--progress-width', `${newValue}%`);
+            
+            // Update the displayed percentage
+            const sliderContainer = sliderElement.closest('.slider-container');
+            if (sliderContainer) {
+                const valueDisplay = sliderContainer.querySelector('.slider-value');
+                if (valueDisplay) {
+                    valueDisplay.textContent = `${newValue}%`;
+                }
+            }
+        }
         
         updateProcessCompletion({ processId: processId, completionPercentage: newValue })
             .then(result => {
                 if (result === 'Success') {
                     this.showToast('Success', 'Process completion updated successfully', 'success');
+                    // Update the original value for future reference
+                    if (sliderElement) {
+                        sliderElement.dataset.originalValue = newValue;
+                    }
                     if (locationId) {
                         this.loadProcessDetails(locationId);
                     }
                 } else {
                     this.showToast('Error', result, 'error');
-                    // Revert the slider value on error
+                    // Revert the slider value and visual progress on error
                     if (sliderElement) {
                         sliderElement.value = originalValue;
+                        sliderElement.style.setProperty('--progress-width', `${originalValue}%`);
+                        
+                        const sliderContainer = sliderElement.closest('.slider-container');
+                        if (sliderContainer) {
+                            const valueDisplay = sliderContainer.querySelector('.slider-value');
+                            if (valueDisplay) {
+                                valueDisplay.textContent = `${originalValue}%`;
+                            }
+                        }
                     }
                 }
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to update process completion: ' + (error.body?.message || error.message), 'error');
-                // Revert the slider value on error
+                // Revert the slider value and visual progress on error
                 if (sliderElement) {
                     sliderElement.value = originalValue;
+                    sliderElement.style.setProperty('--progress-width', `${originalValue}%`);
+                    
+                    const sliderContainer = sliderElement.closest('.slider-container');
+                    if (sliderContainer) {
+                        const valueDisplay = sliderContainer.querySelector('.slider-value');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = `${originalValue}%`;
+                        }
+                    }
                 }
             });
+    }
+
+    /**
+     * Method Name: handleSortClick
+     * @description: Handle column header click for sorting - Updated to match sovJobScope
+     */
+    handleSortClick(event) {
+        try {
+            const fieldName = event.currentTarget.dataset.id;
+            
+            // Clear all existing active states first
+            this.clearSortIcons();
+            
+            if (this.sortField === fieldName) {
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = fieldName;
+                this.sortOrder = 'asc';
+            }
+            
+            this.sortData();
+            this.updateSortIcons();
+        } catch (error) {
+            console.error('Error in handleSortClick:', error);
+        }
+    }
+
+    /**
+     * Method Name: handleProcessSortClick
+     * @description: Handle column header click for sorting in process table - Updated to match sovJobScope
+     */
+    handleProcessSortClick(event) {
+        try {
+            const fieldName = event.currentTarget.dataset.id;
+            const locationId = event.currentTarget.dataset.locationId;
+            
+            // Clear all existing active states first for this specific location only
+            this.clearProcessSortIcons(locationId);
+            
+            if (this.processSortField === fieldName) {
+                this.processSortOrder = this.processSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.processSortField = fieldName;
+                this.processSortOrder = 'asc';
+            }
+            
+            this.sortProcessData(locationId);
+            this.updateProcessSortIcons(locationId);
+        } catch (error) {
+            console.error('Error in handleProcessSortClick:', error);
+        }
+    }
+
+    /**
+     * Method Name: sortData
+     * @description: Sort the location data based on current sort field and order
+     */
+    sortData() {
+        try {
+            this.filteredLocationEntries = [...this.filteredLocationEntries].sort((a, b) => {
+                let aValue = this.getFieldValue(a, this.sortField);
+                let bValue = this.getFieldValue(b, this.sortField);
+
+                // Handle null/undefined values
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                // Convert to strings for comparison if they're not numbers
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+
+                let compare = 0;
+                if (aValue > bValue) {
+                    compare = 1;
+                } else if (aValue < bValue) {
+                    compare = -1;
+                }
+
+                return this.sortOrder === 'asc' ? compare : -compare;
+            });
+        } catch (error) {
+            console.error('Error in sortData:', error);
+        }
+    }
+
+    /**
+     * Method Name: sortProcessData
+     * @description: Sort the process data for a specific location
+     */
+    sortProcessData(locationId) {
+        try {
+            this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
+                if (entry.Id === locationId && entry.processDetails) {
+                    const sortedProcessDetails = [...entry.processDetails].sort((a, b) => {
+                        let aValue = this.getFieldValue(a, this.processSortField);
+                        let bValue = this.getFieldValue(b, this.processSortField);
+
+                        // Handle null/undefined values
+                        if (aValue === null || aValue === undefined) aValue = '';
+                        if (bValue === null || bValue === undefined) bValue = '';
+
+                        // Convert to strings for comparison if they're not numbers
+                        if (typeof aValue === 'string' && typeof bValue === 'string') {
+                            aValue = aValue.toLowerCase();
+                            bValue = bValue.toLowerCase();
+                        }
+
+                        let compare = 0;
+                        if (aValue > bValue) {
+                            compare = 1;
+                        } else if (aValue < bValue) {
+                            compare = -1;
+                        }
+
+                        return this.processSortOrder === 'asc' ? compare : -compare;
+                    });
+
+                    return {
+                        ...entry,
+                        processDetails: sortedProcessDetails
+                    };
+                }
+                return entry;
+            });
+        } catch (error) {
+            console.error('Error in sortProcessData:', error);
+        }
+    }
+
+    /**
+     * Method Name: clearSortIcons
+     * @description: Clear all sort icons and active states - Updated to match sovJobScope
+     */
+    clearSortIcons() {
+        try {
+            // Remove all active classes
+            const allHeaders = this.template.querySelectorAll('.sortable-header');
+            allHeaders.forEach(header => {
+                header.classList.remove('active-sort');
+            });
+            
+            // Remove all rotation classes
+            const allIcons = this.template.querySelectorAll('.sort-icon svg');
+            allIcons.forEach(icon => {
+                icon.classList.remove('rotate-asc', 'rotate-desc');
+            });
+        } catch (error) {
+            console.error('Error in clearSortIcons:', error);
+        }
+    }
+
+    /**
+     * Method Name: updateSortIcons
+     * @description: Update sort icons and active states - Updated to match sovJobScope
+     */
+    updateSortIcons() {
+        try {
+            // Clear all first
+            this.clearSortIcons();
+            
+            // Add active class to current sorted header
+            const currentHeaders = this.template.querySelectorAll(`[data-sort-field="${this.sortField}"]`);
+            currentHeaders.forEach(header => {
+                header.classList.add('active-sort');
+                
+                // Add rotation to the icon
+                const icon = header.querySelector('.sort-icon svg');
+                if (icon) {
+                    icon.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                }
+            });
+        } catch (error) {
+            console.error('Error in updateSortIcons:', error);
+        }
+    }
+
+    /**
+     * Method Name: clearProcessSortIcons
+     * @description: Clear all process table sort icons and active states - Updated to match sovJobScope
+     */
+    clearProcessSortIcons(locationId = null) {
+        try {
+            if (locationId) {
+                // Remove active classes from process headers for specific location only
+                const allHeaders = this.template.querySelectorAll(`[data-location-id="${locationId}"] .process-sortable-header`);
+                allHeaders.forEach(header => {
+                    header.classList.remove('active-sort');
+                });
+                
+                // Remove rotation classes from process icons for specific location only
+                const allIcons = this.template.querySelectorAll(`[data-location-id="${locationId}"] .process-sort-icon svg`);
+                allIcons.forEach(icon => {
+                    icon.classList.remove('rotate-asc', 'rotate-desc');
+                });
+            } else {
+                // Clear all
+                const allHeaders = this.template.querySelectorAll('.process-sortable-header');
+                allHeaders.forEach(header => {
+                    header.classList.remove('active-sort');
+                });
+                
+                const allIcons = this.template.querySelectorAll('.process-sort-icon svg');
+                allIcons.forEach(icon => {
+                    icon.classList.remove('rotate-asc', 'rotate-desc');
+                });
+            }
+        } catch (error) {
+            console.error('Error in clearProcessSortIcons:', error);
+        }
+    }
+
+    /**
+     * Method Name: updateProcessSortIcons
+     * @description: Update process table sort icons and active states - Updated to match sovJobScope
+     */
+    updateProcessSortIcons(locationId) {
+        try {
+            // If locationId is provided, only update icons for that specific table
+            if (locationId) {
+                // Clear all first for this specific location
+                this.clearProcessSortIcons(locationId);
+                
+                // Add active class to current sorted header for this specific location
+                const currentHeaders = this.template.querySelectorAll(`[data-process-sort-field="${this.processSortField}"][data-location-id="${locationId}"]`);
+                currentHeaders.forEach(header => {
+                    header.classList.add('active-sort');
+                    
+                    // Add rotation to the icon
+                    const icon = header.querySelector('.process-sort-icon svg');
+                    if (icon) {
+                        icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                    }
+                });
+            } else {
+                // Clear all first
+                this.clearProcessSortIcons();
+                
+                const currentHeaders = this.template.querySelectorAll(`[data-process-sort-field="${this.processSortField}"]`);
+                currentHeaders.forEach(header => {
+                    header.classList.add('active-sort');
+                    
+                    const icon = header.querySelector('.process-sort-icon svg');
+                    if (icon) {
+                        icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error in updateProcessSortIcons:', error);
+        }
     }
 
     /**
@@ -716,6 +1143,4 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         });
         this.dispatchEvent(event);
     }
-
-
 }
