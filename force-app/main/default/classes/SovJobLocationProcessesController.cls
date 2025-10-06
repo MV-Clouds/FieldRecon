@@ -57,39 +57,113 @@ public with sharing class SovJobLocationProcessesController {
 
     /*
     *********************************************************
-    @description     : Method is used to update Location Process completion percentage
-    @param           : Id processId - Location Process Id
-    @param           : Decimal completionPercentage - New completion percentage
-    @return          : String - Success or error message
+    @description     : Method is used to batch update Location Process completion percentages
+    @param           : List<ProcessUpdateWrapper> processUpdates - List of process updates
+    @return          : BatchUpdateResult - Result containing success status and error details
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static String updateProcessCompletion(Id processId, Decimal completionPercentage) {
+    public static BatchUpdateResult batchUpdateProcessCompletion(List<ProcessUpdateWrapper> processUpdates) {
+        BatchUpdateResult result = new BatchUpdateResult();
+        result.isSuccess = true;
+        result.successCount = 0;
+        result.errorCount = 0;
+        result.errorDetails = new List<String>();
+        
+        if (processUpdates == null || processUpdates.isEmpty()) {
+            result.isSuccess = false;
+            result.errorDetails.add('No processes provided for update');
+            return result;
+        }
+        
         try {
-            Location_Process__c processToUpdate = [
+            // Get all process IDs
+            Set<Id> processIds = new Set<Id>();
+            for (ProcessUpdateWrapper updateInstance : processUpdates) {
+                processIds.add(updateInstance.processId);
+            }
+            
+            // Query existing processes
+            Map<Id, Location_Process__c> processMap = new Map<Id, Location_Process__c>([
                 SELECT Id, Completed_Percentage__c 
                 FROM Location_Process__c 
-                WHERE Id = :processId 
+                WHERE Id IN :processIds 
                 WITH USER_MODE
-                LIMIT 1
-            ];
+            ]);
             
-            processToUpdate.Completed_Percentage__c = completionPercentage;
-            update as user processToUpdate;
+            // Prepare processes for update
+            List<Location_Process__c> processesToUpdate = new List<Location_Process__c>();
             
-            return 'Success';
+            for (ProcessUpdateWrapper updateInstance : processUpdates) {
+                if (processMap.containsKey(updateInstance.processId)) {
+                    Location_Process__c processToUpdate = processMap.get(updateInstance.processId);
+                    processToUpdate.Completed_Percentage__c = updateInstance.completionPercentage;
+                    processesToUpdate.add(processToUpdate);
+                } else {
+                    result.errorCount++;
+                    result.errorDetails.add('Process not found: ' + updateInstance.processId);
+                }
+            }
+            
+            // Perform batch update
+            if (!processesToUpdate.isEmpty()) {
+                List<Database.SaveResult> saveResults = Database.update(processesToUpdate, false);
+                
+                // Process results
+                for (Integer i = 0; i < saveResults.size(); i++) {
+                    Database.SaveResult saveResult = saveResults[i];
+                    if (saveResult.isSuccess()) {
+                        result.successCount++;
+                    } else {
+                        result.errorCount++;
+                        String errorMsg = 'Process ID: ' + processesToUpdate[i].Id + ' - ';
+                        for (Database.Error error : saveResult.getErrors()) {
+                            errorMsg += error.getMessage() + '; ';
+                        }
+                        result.errorDetails.add(errorMsg);
+                    }
+                }
+            }
+            
+            // Set overall success status
+            result.isSuccess = (result.errorCount == 0);
+            result.message = result.isSuccess ? 
+                'All processes updated successfully' : 
+                'Some processes failed to update';
+                
         } catch (Exception e) {
+            result.isSuccess = false;
+            result.errorCount = processUpdates.size();
+            result.message = 'Batch update failed: ' + e.getMessage();
+            result.errorDetails.add(e.getMessage());
+            
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
-                'methodName' => 'updateProcessCompletion',
+                'methodName' => 'batchUpdateProcessCompletion',
                 'isApiException' => false,
                 'statusCode' => null,
                 'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while updating process completion for Process ID: ' + processId,
+                'moreDetails' => 'Error occurred during batch update of Location Processes',
                 'apiResponse' => null
             });
-            return 'Error: ' + e.getMessage();
         }
+        
+        return result;
+    }
+    
+    // Wrapper class for process updates
+    public class ProcessUpdateWrapper {
+        @AuraEnabled public Id processId { get; set; }
+        @AuraEnabled public Decimal completionPercentage { get; set; }
+    }
+    
+    // Result wrapper for batch update
+    public class BatchUpdateResult {
+        @AuraEnabled public Boolean isSuccess { get; set; }
+        @AuraEnabled public String message { get; set; }
+        @AuraEnabled public Integer successCount { get; set; }
+        @AuraEnabled public Integer errorCount { get; set; }
+        @AuraEnabled public List<String> errorDetails { get; set; }
     }
 }

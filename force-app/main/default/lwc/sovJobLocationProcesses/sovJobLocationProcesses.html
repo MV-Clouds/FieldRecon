@@ -17,28 +17,69 @@
                 </lightning-input>
             </div>
 
-            <div class="sort-description-container">
-                <template if:true={sortDescription}>
-                    <div class="sort-description">
-                        <div>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M10 14H2M8 10H2M6 6H2M12 18H2M19 20V4M19 20L22 17M19 20L16 17M19 4L22 7M19 4L16 7" 
-                                      stroke="#5e5adb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" 
-                                      fill="none"/>
+
+            <div class="right-contols">
+                <!-- Save/Discard Actions -->
+                <div class="action-buttons">
+                    <button 
+                        class="action-button"
+                        onclick={handleDiscardChanges}
+                        disabled={isButtonsDisabled}
+                        title={discardButtonTitle}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Discard Changes
+                    </button>
+                    <button 
+                        class="action-button save-button"
+                        onclick={handleSaveChanges}
+                        disabled={isSaveDisabled}>
+                        <template if:true={isSaving}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
+                        </template>
+                        <template if:false={isSaving}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </template>
+                        {saveButtonLabel}
+                    </button>
+                </div>
+
+                <div class="sort-description-container">
+                    <template if:true={sortDescription}>
+                        <div class="sort-description">
+                            <div>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M10 14H2M8 10H2M6 6H2M12 18H2M19 20V4M19 20L22 17M19 20L16 17M19 4L22 7M19 4L16 7" 
+                                        stroke="#5e5adb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" 
+                                        fill="none"/>
+                                </svg>
+                            </div>
+                            <div class="sort-text">{sortDescription}</div>
                         </div>
-                        <div class="sort-text">{sortDescription}</div>
-                    </div>
-                </template>
+                    </template>
+                </div>
+
             </div>
+
         </div>
 
+        <!-- Remove Modifications Summary Section -->
 
         <!-- Data Table Container -->
         <div class="data-table-container">
             <template if:true={isDataAvailable}>
                 <table class="custom-data-table">
-                    <!-- Update the table header to make it sortable -->
                     <thead class="table-header">
                         <tr>
                             <template for:each={processTableColumns} for:item="column">
@@ -63,7 +104,7 @@
                         <template for:each={displayedProcesses} for:item="process">
                             <tr key={process.Id}>
                                 <template for:each={process.displayFields} for:item="field">
-                                    <td key={field.key} class="center-trancate-text">
+                                    <td key={field.key}>
                                         <template if:true={field.isCurrency}>
                                             <template if:true={field.hasValue}>
                                                 <lightning-formatted-number 
@@ -75,21 +116,20 @@
                                             <template if:false={field.hasValue}>--</template>
                                         </template>
                                         <template if:false={field.isCurrency}>
-                                            <!-- Update slider container to include progress style -->
                                             <template if:true={field.isSlider}>
-                                                <div class="slider-container">
+                                                <div class="slider-container" style={field.isModified} data-slider-modified={field.isModified}>
                                                     <input type="range" 
                                                            min="0" 
                                                            max="100" 
                                                            step="1"
-                                                           value={field.rawValue}
+                                                           value={field.displayValue}
                                                            data-process-id={process.Id}
-                                                           data-original-value={field.rawValue}
+                                                           data-original-value={field.originalValue}
                                                            onchange={handleSliderChange}
                                                            oninput={handleSliderInput}
                                                            style={field.progressStyle}
                                                            class="completion-slider">
-                                                    <div class="slider-value">{field.rawValue}%</div>
+                                                    <div class="slider-value">{field.displayValue}%</div>
                                                 </div>
                                             </template>
                                             <template if:false={field.isSlider}>

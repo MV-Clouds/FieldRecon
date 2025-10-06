@@ -3,7 +3,7 @@ import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import getJobLocationProcesses from '@salesforce/apex/SovJobLocationProcessesController.getJobLocationProcesses';
-import updateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.updateProcessCompletion';
+import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 
 export default class SovJobLocationProcesses extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -13,6 +13,9 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     @track searchTerm = '';
     @track sortField = '';
     @track sortOrder = '';
+    @track modifiedProcesses = new Map(); // Track modified processes
+    @track hasModifications = false; // Track if there are unsaved changes
+    @track isSaving = false; // Track save operation
 
     // Process table columns configuration
     @track processTableColumns = [
@@ -39,46 +42,69 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
             return [];
         }
 
-        return this.filteredProcesses.map(process => {
-            const row = { ...process };
-            row.recordUrl = `/lightning/r/${process.Id}/view`;
-            row.locationUrl = `/lightning/r/${process.wfrecon__Location__c}/view`;
+        return this.filteredProcesses.map(locationProcess => {
+            const row = { ...locationProcess };
+            row.recordUrl = `/lightning/r/${locationProcess.Id}/view`;
+            row.locationUrl = `/lightning/r/${locationProcess.wfrecon__Location__c}/view`;
+            row.isModified = this.modifiedProcesses.has(locationProcess.Id);
             
             row.displayFields = this.processTableColumns.map(col => {
                 const key = col.fieldName;
-                let value = this.getFieldValue(process, key);
+                let value = this.getFieldValue(locationProcess, key);
                 
-                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                // Check if this field is modified (only for completion percentage)
+                const isModified = this.modifiedProcesses.has(locationProcess.Id) && 
+                                col.fieldName === 'wfrecon__Completed_Percentage__c';
+                
+                // Store original value for sliders
+                const originalValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+                
+                // Use modified value if available
+                let displayValue = value;
+                if (isModified && col.isSlider) {
+                    displayValue = this.modifiedProcesses.get(locationProcess.Id).newValue;
+                }
+                
+                // Handle different data types for display
+                let displayText = '';
+                if (col.type === 'text' || col.isNameField || col.isLocationField) {
+                    displayText = displayValue || 'N/A';
+                } else if (col.type === 'number' || col.type === 'percent' || col.type === 'currency') {
+                    displayText = displayValue !== null && displayValue !== undefined ? String(displayValue) : '0';
+                } else {
+                    displayText = displayValue !== null && displayValue !== undefined ? String(displayValue) : '';
+                }
                 
                 let currencyValue = 0;
                 if (col.type === 'currency') {
-                    currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+                    currencyValue = displayValue !== null && displayValue !== undefined ? parseFloat(displayValue) : 0;
                 }
 
                 let percentValue = 0;
-                let rawValue = 0;
                 let progressStyle = '';
-                if (col.type === 'percent') {
-                    rawValue = value !== null && value !== undefined ? parseFloat(value) : 0;
-                    percentValue = rawValue / 100;
-                    // Add progress style for slider visual
-                    progressStyle = `--progress-width: ${rawValue}%`;
+                if (col.type === 'percent' || col.isSlider) {
+                    const percentVal = displayValue !== null && displayValue !== undefined ? parseFloat(displayValue) : 0;
+                    percentValue = percentVal / 100;
+                    progressStyle = `--progress-width: ${percentVal}%;`;
                 }
                 
                 return {
                     key,
-                    value: displayValue,
-                    rawValue: rawValue,
+                    value: displayText,
+                    displayValue: col.isSlider ? (displayValue || 0) : displayText,
+                    originalValue: col.isSlider ? originalValue : displayValue,
+                    rawValue: originalValue,
                     currencyValue: currencyValue,
                     percentValue: percentValue,
                     progressStyle: progressStyle,
-                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    hasValue: value !== null && value !== undefined && String(value).trim() !== '' && String(value) !== 'N/A',
                     isNameField: col.isNameField || false,
                     isLocationField: col.isLocationField || false,
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
                     isNumber: col.type === 'number',
-                    isSlider: col.isSlider || false
+                    isSlider: col.isSlider || false,
+                    isModified: isModified
                 };
             });
             return row;
@@ -189,7 +215,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      */
     applyFilters() {
         try {
-            let filteredData = this.locationProcesses.filter(process => {
+            let filteredData = this.locationProcesses.filter(locationProcess => {
                 if (!this.searchTerm) return true;
                 
                 const searchLower = this.searchTerm.toLowerCase();
@@ -215,11 +241,11 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                     return false;
                 };
                 
-                return searchInObject(process);
+                return searchInObject(locationProcess);
             });
-
+    
             this.filteredProcesses = filteredData;
-
+    
             // Apply sorting if we have data
             if (this.sortField) {
                 this.sortData();
@@ -268,11 +294,11 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
 
     /**
      * Method Name: handleSliderChange
-     * @description: Handle completion percentage slider change
+     * @description: Handle completion percentage slider change - now tracks changes instead of saving immediately
      */
     handleSliderChange(event) {
         const processId = event.target.dataset.processId;
-        const originalValue = event.target.dataset.originalValue;
+        const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(event.target.value);
         const sliderElement = event.target;
         
@@ -290,48 +316,163 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
             }
         }
         
-        updateProcessCompletion({ processId: processId, completionPercentage: newValue })
-            .then(result => {
-                if (result === 'Success') {
-                    this.showToast('Success', 'Process completion updated successfully', 'success');
-                    // Update the original value for future reference
-                    if (sliderElement) {
-                        sliderElement.dataset.originalValue = newValue;
+        // Track the modification
+        if (newValue !== originalValue) {
+            this.modifiedProcesses.set(processId, {
+                originalValue: originalValue,
+                newValue: newValue
+            });
+        } else {
+            // Remove from modified if value is back to original
+            this.modifiedProcesses.delete(processId);
+        }
+        
+        // Update hasModifications flag
+        this.hasModifications = this.modifiedProcesses.size > 0;
+        
+        // Apply highlighting immediately
+        this.applySliderHighlighting(processId, newValue !== originalValue);
+    }
+
+    /**
+     * Method Name: applySliderHighlighting
+     * @description: Apply highlighting to modified slider containers
+     */
+    applySliderHighlighting(processId, isModified) {
+        setTimeout(() => {
+            const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
+            if (slider) {
+                const sliderContainer = slider.closest('.slider-container');
+                const tableCell = slider.closest('td');
+                
+                if (isModified) {
+                    if (sliderContainer) {
+                        sliderContainer.classList.add('modified-field');
                     }
+                    if (tableCell) {
+                        tableCell.classList.add('modified-cell');
+                    }
+                } else {
+                    if (sliderContainer) {
+                        sliderContainer.classList.remove('modified-field');
+                    }
+                    if (tableCell) {
+                        tableCell.classList.remove('modified-cell');
+                    }
+                }
+            }
+        }, 0);
+    }
+
+    /**
+     * Method Name: updateRowHighlighting
+     * @description: Update visual highlighting for all modified rows
+     */
+    updateRowHighlighting() {
+        setTimeout(() => {
+            // Clear all previous highlighting
+            const allSliderContainers = this.template.querySelectorAll('.slider-container');
+            const allTableCells = this.template.querySelectorAll('td');
+            
+            allSliderContainers.forEach(container => {
+                container.classList.remove('modified-field');
+            });
+            
+            allTableCells.forEach(cell => {
+                cell.classList.remove('modified-cell');
+            });
+            
+            // Apply highlighting to currently modified processes
+            this.modifiedProcesses.forEach((modification, processId) => {
+                this.applySliderHighlighting(processId, true);
+            });
+        }, 0);
+    }
+
+    /**
+     * Method Name: handleSaveChanges
+     * @description: Save all modified processes in a single batch
+     */
+    handleSaveChanges() {
+        if (this.modifiedProcesses.size === 0) {
+            return;
+        }
+
+        this.isSaving = true;
+        
+        // Prepare data for batch update
+        const processUpdates = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
+            processId: processId,
+            completionPercentage: modification.newValue
+        }));
+
+        // Call single batch update method
+        batchUpdateProcessCompletion({ processUpdates: processUpdates })
+            .then(result => {
+                if (result.isSuccess) {
+                    this.showToast('Success', `${result.successCount} process(es) updated successfully`, 'success');
+                    
+                    // Clear modifications and refresh data
+                    this.modifiedProcesses.clear();
+                    this.hasModifications = false;
                     this.fetchLocationProcesses();
                 } else {
-                    this.showToast('Error', result, 'error');
-                    // Revert the slider value and visual progress on error
-                    if (sliderElement) {
-                        sliderElement.value = originalValue;
-                        sliderElement.style.setProperty('--progress-width', `${originalValue}%`);
-                        
-                        const sliderContainer = sliderElement.closest('.slider-container');
-                        if (sliderContainer) {
-                            const valueDisplay = sliderContainer.querySelector('.slider-value');
-                            if (valueDisplay) {
-                                valueDisplay.textContent = `${originalValue}%`;
-                            }
-                        }
+                    let errorMessage = result.message;
+                    if (result.errorDetails && result.errorDetails.length > 0) {
+                        errorMessage += '\nDetails: ' + result.errorDetails.join(', ');
+                    }
+                    this.showToast('Error', errorMessage, 'error');
+                    
+                    // If some succeeded, refresh to show current state
+                    if (result.successCount > 0) {
+                        this.fetchLocationProcesses();
                     }
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to update process completion: ' + (error.body?.message || error.message), 'error');
-                // Revert the slider value and visual progress on error
-                if (sliderElement) {
-                    sliderElement.value = originalValue;
-                    sliderElement.style.setProperty('--progress-width', `${originalValue}%`);
-                    
-                    const sliderContainer = sliderElement.closest('.slider-container');
-                    if (sliderContainer) {
-                        const valueDisplay = sliderContainer.querySelector('.slider-value');
-                        if (valueDisplay) {
-                            valueDisplay.textContent = `${originalValue}%`;
-                        }
-                    }
-                }
+                console.error('Error in batch update:', error);
+                this.showToast('Error', 'Failed to update processes: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isSaving = false;
             });
+    }
+
+    /**
+     * Method Name: handleDiscardChanges
+     * @description: Discard all unsaved changes
+     */
+    handleDiscardChanges() {
+        // Reset all sliders to original values and remove highlighting
+        this.modifiedProcesses.forEach((modification, processId) => {
+            const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
+            if (slider) {
+                slider.value = modification.originalValue;
+                slider.style.setProperty('--progress-width', `${modification.originalValue}%`);
+                
+                const sliderContainer = slider.closest('.slider-container');
+                const tableCell = slider.closest('td');
+                
+                if (sliderContainer) {
+                    const valueDisplay = sliderContainer.querySelector('.slider-value');
+                    if (valueDisplay) {
+                        valueDisplay.textContent = `${modification.originalValue}%`;
+                    }
+                    // Remove highlighting
+                    sliderContainer.classList.remove('modified-field');
+                }
+                
+                if (tableCell) {
+                    tableCell.classList.remove('modified-cell');
+                }
+            }
+        });
+
+        // Clear modifications
+        this.modifiedProcesses.clear();
+        this.hasModifications = false;
+        
+        this.showToast('Info', 'Changes discarded', 'info');
     }
 
     /**
@@ -434,5 +575,46 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
             variant
         });
         this.dispatchEvent(event);
+    }
+
+    /**
+     * Method Name: get isButtonsDisabled
+     * @description: Check if action buttons should be disabled
+     */
+    get isButtonsDisabled() {
+        return !this.hasModifications || this.isSaving;
+    }
+
+    /**
+     * Method Name: get isSaveDisabled
+     * @description: Check if save button should be disabled
+     */
+    get isSaveDisabled() {
+        return !this.hasModifications || this.isSaving;
+    }
+
+    /**
+     * Method Name: get saveButtonLabel
+     * @description: Get dynamic save button label
+     */
+    get saveButtonLabel() {
+        if (this.isSaving) {
+            return 'Saving...';
+        }
+        if (this.hasModifications) {
+            return `Save Changes (${this.modifiedProcesses.size})`;
+        }
+        return 'Save Changes';
+    }
+
+    /**
+     * Method Name: get discardButtonTitle
+     * @description: Get dynamic discard button title
+     */
+    get discardButtonTitle() {
+        if (!this.hasModifications) {
+            return 'No changes to discard';
+        }
+        return `Discard ${this.modifiedProcesses.size} unsaved change(s)`;
     }
 }
