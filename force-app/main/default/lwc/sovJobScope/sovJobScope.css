@@ -295,32 +295,32 @@
 }
 
 .icon-button.add-location-btn {
-    border-color: #28a745;
-    color: #28a745;
+    border-color: rgba(94, 90, 219, 1);
+    color: rgba(94, 90, 219, 1);
 }
 
 .icon-button.add-location-btn:hover {
-    background-color: #28a745;
+    background-color: rgba(94, 90, 219, 1);
     color: white;
 }
 
 .icon-button.edit-btn {
-    border-color: #ffc107;
-    color: #ffc107;
+    border-color: rgba(94, 90, 219, 0.7);
+    color: rgba(94, 90, 219, 0.7);
 }
 
 .icon-button.edit-btn:hover {
-    background-color: #ffc107;
+    background-color: rgba(94, 90, 219, 0.7);
     color: white;
 }
 
 .icon-button.child-records-btn {
-    border-color: #17a2b8;
-    color: #17a2b8;
+    border-color: rgba(94, 90, 219, 0.6);
+    color: rgba(94, 90, 219, 0.6);
 }
 
 .icon-button.child-records-btn:hover {
-    background-color: #17a2b8;
+    background-color: rgba(94, 90, 219, 0.6);
     color: white;
 }
 
@@ -1375,11 +1375,14 @@
     width: 1rem;
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
 .sort-description .sort-icon svg {
-    width: 1rem;
-    height: 1rem;
+    width: 20px;
+    height: 20px;
+    display: block;
+    flex-shrink: 0;
 }
 
 .sort-description .sort-text {
@@ -1421,7 +1424,6 @@
 .sort-icon svg {
     width: 12px;
     height: 12px;
-    fill: currentColor;
     transition: transform 0.3s ease;
 }
 
@@ -1574,4 +1576,13 @@
     .process-sortable-header .column-label {
         font-size: 0.7rem;
     }
+}
+
+/* Process Modal Loading Spinner */
+.process-modal-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 20px;
+    min-height: 200px;
 }

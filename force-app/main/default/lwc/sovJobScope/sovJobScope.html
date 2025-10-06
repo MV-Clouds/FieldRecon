@@ -115,10 +115,11 @@
         <div class="sort-description-container">
             <template if:true={sortDescription}>
                 <div class="sort-description">
-                    <div class="sort-icon">
+                    <div>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M10 14H2M8 10H2M6 6H2M12 18H2M19 20V4M19 20L22 17M19 20L16 17M19 4L22 7M19 4L16 7" 
-                                  stroke="#5e5adb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                  stroke="#5e5adb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" 
+                                  fill="none"/>
                         </svg>
                     </div>
                     <div class="sort-text">{sortDescription}</div>
@@ -768,18 +769,6 @@
                     <div class="popUpBody slds-p-around--medium">
                         <div class="form-container">
                             <div class="form-group">
-                                <label class="form-label required">Type</label>
-                                <lightning-combobox
-                                    value={newScopeEntry.type}
-                                    options={typeOptions}
-                                    onchange={handleSelectChange}
-                                    data-field="type"
-                                    data-type="scopeEntry"
-                                    placeholder="Select Type"
-                                    variant="label-hidden">
-                                </lightning-combobox>
-                            </div>
-                            <div class="form-group">
                                 <div class="form-label-row">
                                     <label class="form-label required">Name</label>
                                     <div class="character-count">{nameCharacterCount}/80</div>
@@ -851,86 +840,87 @@
                     </div>
 
                     <div class="popUpBody slds-p-around--medium">
-                        <div class="form-container">
-                            <div class="form-group">
-                                <div class="form-label-row">
-                                    <label class="form-label required">Process Name</label>
-                                    <div class="character-count">{processNameCharacterCount}/80</div>
+                        
+                            <div class="form-container">
+                                <div class="form-group">
+                                    <div class="form-label-row">
+                                        <label class="form-label required">Process Name</label>
+                                        <div class="character-count">{processNameCharacterCount}/80</div>
+                                    </div>
+                                    <input type="text" 
+                                           class="form-input" 
+                                           placeholder="Enter process name"
+                                           value={newProcess.processName}
+                                           data-field="processName"
+                                           data-type="process"
+                                           oninput={handleInputChange}
+                                           maxlength="80">
                                 </div>
-                                <input type="text" 
-                                       class="form-input" 
-                                       placeholder="Enter process name"
-                                       value={newProcess.processName}
-                                       data-field="processName"
-                                       data-type="process"
-                                       oninput={handleInputChange}
-                                       maxlength="80">
+
+                                <div class="form-group">
+                                    <label class="form-label required">Sequence</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter sequence number"
+                                           step="1"
+                                           min="1"
+                                           max="9999"
+                                           value={newProcess.sequence}
+                                           data-field="sequence"
+                                           data-type="process"
+                                           oninput={handleInputChange}>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label required">Process Type</label>
+                                    <lightning-combobox
+                                        value={newProcess.processType}
+                                        options={processTypeOptions}
+                                        onchange={handleSelectChange}
+                                        data-field="processType"
+                                        data-type="process"
+                                        placeholder="Select Process Type"
+                                        variant="label-hidden">
+                                    </lightning-combobox>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label required">Weight</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter weight"
+                                           step="0.01"
+                                           min="0"
+                                           max="9999"
+                                           value={newProcess.weightage}
+                                           data-field="weightage"
+                                           data-type="process"
+                                           oninput={handleInputChange}>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label required">Measurement Type</label>
+                                    <lightning-combobox
+                                        value={newProcess.measurementType}
+                                        options={measurementTypeOptions}
+                                        onchange={handleSelectChange}
+                                        data-field="measurementType"
+                                        data-type="process"
+                                        placeholder="Select Measurement Type"
+                                        variant="label-hidden">
+                                    </lightning-combobox>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label class="form-label required">Sequence</label>
-                                <input type="number" 
-                                       class="form-input" 
-                                       placeholder="Enter sequence number"
-                                       step="1"
-                                       min="1"
-                                       max="9999"
-                                       value={newProcess.sequence}
-                                       data-field="sequence"
-                                       data-type="process"
-                                       oninput={handleInputChange}>
+                            <div class="popUpFooter">
+                                <button class="close-btn process-btn" onclick={handleCloseProcessModal}>Cancel</button>
+                                <button class="save-btn process-btn" 
+                                        onclick={handleSaveProcess}
+                                        disabled={isProcessSubmitting}>
+                                    <template if:true={isProcessSubmitting}>Saving...</template>
+                                    <template if:false={isProcessSubmitting}>Save Process</template>
+                                </button>
                             </div>
-
-                            <div class="form-group">
-                                <label class="form-label required">Process Type</label>
-                                <lightning-combobox
-                                    value={newProcess.processType}
-                                    options={processTypeOptions}
-                                    onchange={handleSelectChange}
-                                    data-field="processType"
-                                    data-type="process"
-                                    placeholder="Select Process Type"
-                                    variant="label-hidden">
-                                </lightning-combobox>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label required">Weight</label>
-                                <input type="number" 
-                                       class="form-input" 
-                                       placeholder="Enter weight"
-                                       step="0.01"
-                                       min="0"
-                                       max="9999"
-                                       value={newProcess.weightage}
-                                       data-field="weightage"
-                                       data-type="process"
-                                       oninput={handleInputChange}>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label required">Measurement Type</label>
-                                <lightning-combobox
-                                    value={newProcess.measurementType}
-                                    options={measurementTypeOptions}
-                                    onchange={handleSelectChange}
-                                    data-field="measurementType"
-                                    data-type="process"
-                                    placeholder="Select Measurement Type"
-                                    variant="label-hidden">
-                                </lightning-combobox>
-                            </div>
-                        </div>
-
-                        <div class="popUpFooter">
-                            <button class="close-btn process-btn" onclick={handleCloseProcessModal}>Cancel</button>
-                            <button class="save-btn process-btn" 
-                                    onclick={handleSaveProcess}
-                                    disabled={isProcessSubmitting}>
-                                <template if:true={isProcessSubmitting}>Saving...</template>
-                                <template if:false={isProcessSubmitting}>Save Process</template>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>

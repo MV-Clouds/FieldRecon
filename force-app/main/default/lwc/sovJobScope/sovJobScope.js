@@ -899,7 +899,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             name: '',
             contractValue: null,
             description: '',
-            type: 'Contract'
+            type: 'Contract' // Default to Contract
         };
         this.showAddModal = true;
     }
@@ -913,7 +913,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.newScopeEntry = {
             name: '',
             contractValue: null,
-            description: ''
+            description: '',
+            type: 'Contract' // Default to Contract
         };
     }
 
@@ -955,11 +956,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @return: Object with isValid boolean and error message
      */
     validateScopeEntry() {
-        const { name, contractValue, description, type } = this.newScopeEntry;
-        
-        if (!type || type.trim() === '') {
-            return { isValid: false, message: 'Type is required' };
-        }
+        const { name, contractValue, description } = this.newScopeEntry;
         
         if (!name || name.trim() === '') {
             return { isValid: false, message: 'Name is required' };
@@ -975,6 +972,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         return { isValid: true, message: '' };
     }
+
 
     /**
      * Method Name: handleSaveScopeEntry
@@ -993,7 +991,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             name: this.newScopeEntry.name.trim(),
             contractValue: this.newScopeEntry.contractValue,
             description: this.newScopeEntry.description ? this.newScopeEntry.description.trim() : '',
-            jobId: this.recordId
+            jobId: this.recordId,
+            type: 'Contract' // Always set to Contract
         };
 
         createScopeEntry({ scopeEntryData })
@@ -1659,6 +1658,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.processLibraryRecords = [];
                 this.processLibraryDisplayRecords = [];
             });
+
     }
 
     /**
