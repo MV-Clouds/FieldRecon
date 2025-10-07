@@ -1,0 +1,237 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <!-- Accordion Sections -->
+        <div class="accordion-container">
+            <lightning-accordion active-section-name={activeSectionName} allow-multiple-sections-open="true" onsectiontoggle={handleSectionToggle}>
+                <lightning-accordion-section name="jobDetails" label="Assigned Job Details">
+                    <div class="job-details">
+                        <!-- Tab Navigation -->
+                        <div class="tab-navigation">
+                            <button class={todayTabClass} onclick={handleTodayTab} data-tab="today">
+                                Today's Job
+                            </button>
+                            <button class={weekTabClass} onclick={handleWeekTab} data-tab="week">
+                                Weekly Jobs
+                            </button>
+                        </div>
+    
+                        <!-- Tab Content -->
+                        <div class="tab-content">
+                            <template if:true={isTodayTabActive}>
+                                <div class="tab-panel">
+                                    <template if:true={isTodayJobAvailable}>
+                                        <div class="job-card">
+                                            <template for:each={todayJobList} for:item="job" for:index="index">
+                                                <div key={job.Id} class="job-entry">
+                                                    <!-- Left Side -->
+                                                    <div class="job-left">
+                                                        <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                        <p class="job-description">{job.jobDescription}</p>
+
+                                                        <div class="job-time">
+                                                            <p class="job-start-time">
+                                                                <span class="label">Start:</span> {job.jobStartTime} 
+                                                            </p>
+                                                            <p class="job-end-time">
+                                                                <span class="label">End:</span> {job.jobEndTime}
+                                                            </p>
+                                                        </div>
+
+                                                        <p><span class="label">Location:</span> {job.jobAddress}</p>
+
+                                                        <div class="job-actions">
+                                                            <template if:true={job.isClockedIn}>
+                                                                <button class="clock-in-button" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
+                                                            </template>
+                                                            <template if:false={job.isClockedIn}>
+                                                                <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="separator"></div>
+                                                        
+                                                    <!-- Right Side -->
+                                                    <div class="job-right">
+                                                        <p class="location-title">Location</p>
+                                                        <lightning-map map-markers={job.mapMarkers} zoom-level="15" class="map-container"></lightning-map>
+                                                        <button class="clock-in-button" data-id={job.mobId} onclick={handleOpenInMaps}>Open in Maps</button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <div class="no-jobs-message" if:false={isTodayJobAvailable}>
+                                        No Jobs Assigned for Today
+                                    </div>
+                                </div>
+                            </template>
+    
+                            <template if:true={isWeekTabActive}>
+                                <div class="tab-panel">
+                                    <div class="week-accordian-container">
+                                        <lightning-accordion allow-multiple-sections-open>
+                                            <template for:each={weekJobList} for:item="daySection">
+                                                <lightning-accordion-section key={daySection.id} label={daySection.label}>
+                                                    <template if:true={daySection.jobs.length}>
+                                                        <div class="weekly-job-cards">
+                                                            <div class="job-card">
+                                                                <template for:each={daySection.jobs} for:item="job">
+                                                                    <div key={job.mobId} class="job-entry">
+                                                                        <!-- Left Side -->
+                                                                        <div class="job-left">
+                                                                            <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                                            <p class="job-description">{job.jobDescription}</p>
+        
+                                                                            <div class="job-time">
+                                                                                <p class="job-start-time">
+                                                                                    <span class="label">Start:</span> {job.jobStartTime} 
+                                                                                </p>
+                                                                                <p class="job-end-time">
+                                                                                    <span class="label">End:</span> {job.jobEndTime}
+                                                                                </p>
+                                                                            </div>
+        
+                                                                            <p><span class="label">Location:</span> {job.jobAddress}</p>
+                                                                        </div>
+        
+                                                                        <div class="separator"></div>
+        
+                                                                        <!-- Right Side -->
+                                                                        <div class="job-right">
+                                                                            <p class="location-title">Location</p>
+                                                                            <lightning-map map-markers={job.mapMarkers} zoom-level="15" class="map-container"></lightning-map>
+                                                                            <button class="clock-in-button" data-id={job.mobId} onclick={handleOpenInMaps}>Open in Maps</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template if:false={daySection.jobs.length}>
+                                                        <p class="no-jobs">No jobs scheduled for this day.</p>
+                                                    </template>
+                                                </lightning-accordion-section>
+                                            </template>
+                                        </lightning-accordion>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </lightning-accordion-section>
+                <lightning-accordion-section name="timesheetDetails" label="Timesheet Details">
+                    <div class="timesheet-details">
+                        Timesheet Content
+                    </div>
+                </lightning-accordion-section>
+            </lightning-accordion>
+        </div>
+
+        <template if:true={showClockInModal}>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeClockInModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <div class="slds-modal__content pop-up" id="modal-content-id-2">
+                        <!-- Heading -->
+                        <div class="pop-heading">
+                            Clock In Time
+                        </div>
+
+                        <!-- Body -->
+                        <div class="popUpBody slds-p-around--medium">
+                            <div>
+                                <div class="clock-in-container">
+                                    <div class="input-column">
+                                        <div class="select-person-container">
+                                            <label class="select-label">Select Cost Code</label>
+                                            <div class="select-wrapper">
+                                                <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
+                                                    <option value="">-- Select a cost code --</option>
+                                                    <template for:each={costCodeOptions} for:item="option">
+                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="input-column">
+                                        <div class="datetime-container">
+                                            <label class="datetime-label">Clock In DateTime</label>
+                                            <div class="datetime-wrapper">
+                                                <input type="datetime-local" class="custom-datetime" data-field="clockIn" value={clockInTime} onchange={handleInputChange}/>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="button-container">
+                                        <button class="clock-in-button" onclick={saveClockIn}>Clock In</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <template if:true={showClockOutModal}>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeClockOutModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <div class="slds-modal__content pop-up" id="modal-content-id">
+                        <!-- Heading -->
+                        <div class="pop-heading">
+                            Clock Out Time
+                        </div>
+
+                        <!-- Body -->
+                        <div class="popUpBody slds-p-around--medium">
+                            <div>
+                                <div class="clock-in-container">
+                                    <div class="form-wrapper">
+                                        <div class="input-column">
+                                            <div class="datetime-container">
+                                                <label class="datetime-label">Clock Out DateTime</label>
+                                                <div class="datetime-wrapper">
+                                                    <input type="datetime-local" class="custom-datetime" data-field="clockOut" value={clockOutTime} onchange={handleInputChange}/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <template if:true={previousClockInTime}>
+                                        <div class="info-message">
+                                            Clock In Time : {previousClockInTime}
+                                        </div>
+                                    </template>
+
+                                    <div class="button-container">
+                                        <button class="clock-in-button" onclick={saveClockOut}>Clock Out</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </div>
+</template>

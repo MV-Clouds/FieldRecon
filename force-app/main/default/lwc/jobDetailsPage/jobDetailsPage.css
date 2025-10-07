@@ -109,7 +109,7 @@
 }
 
 .empty-state__content .empty-state__icon {
-    width: 25%;
+    width: 70%;
     height: 100%;
 }
 
@@ -292,7 +292,7 @@
 
 .tab-navigation button.active {
     color: rgba(94, 90, 219, 1);
-    border-bottom-color: rgb(227 227 251);;
+    border-top: 3px solid rgba(94, 90, 219, 1);
     background: rgb(227 227 251);;
     font-weight: 700;
 }
@@ -407,14 +407,8 @@
     color: #1e3a8a;
 }
 
-.form-wrapper {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
 .input-column {
-    flex: 1;
+    margin-bottom: 1rem;
 }
 
 .select-label, .datetime-label {
@@ -430,7 +424,7 @@
 }
 
 .custom-select {
-    width: 200px;
+    width: 100%;
     padding: 8px 12px;
     border: 1px solid #dddbda;
     border-radius: 4px;
@@ -441,7 +435,7 @@
 }
 
 .custom-select-costcode {
-    width: 200px;
+    width: 100%;
     padding: 8px 12px;
     border: 1px solid #dddbda;
     border-radius: 4px;
@@ -478,14 +472,16 @@
     border: none;
     border-radius: 4px;
     padding: 10px 20px;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 0.875rem;
+    font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .clock-in-button:hover {
-    cursor: pointer;
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .clock-in-button:active {

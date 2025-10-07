@@ -136,44 +136,41 @@
                                                 <div class="clock-in-container">
                                                     <div class="clock-in-title">Clock In Employee</div>
                                                     
-                                                    <div class="form-wrapper">
-                                                        <div class="input-column">
-                                                            <div class="select-person-container">
-                                                                <label class="select-label">Select Person</label>
-                                                                <div class="select-wrapper">
-                                                                    <select class="custom-select" data-field="clockIn" onchange={handlePersonChange}>
-                                                                        <option value="">-- Select a person --</option>
-                                                                        <template for:each={clockInOptions} for:item="option">
-                                                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                                                        </template>
-                                                                    </select>
-                                                                </div>
+                                                    <div class="input-column">
+                                                        <div class="select-person-container">
+                                                            <label class="select-label">Select Person</label>
+                                                            <div class="select-wrapper">
+                                                                <select class="custom-select" data-field="clockIn" onchange={handlePersonChange}>
+                                                                    <option value="">-- Select a person --</option>
+                                                                    <template for:each={clockInOptions} for:item="option">
+                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                    </template>
+                                                                </select>
                                                             </div>
                                                         </div>
+                                                    </div>
 
-                                                        <div class="input-column">
-                                                            <div class="select-person-container">
-                                                                <label class="select-label">Select Cost Code</label>
-                                                                <div class="select-wrapper">
-                                                                    <select class="custom-select-costcode" onchange={handleCostCodeChange}>
-                                                                        <option value="">-- Select a cost code --</option>
-                                                                        <template for:each={costCodeOptions} for:item="option">
-                                                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                                                        </template>
-                                                                    </select>
-                                                                </div>
+                                                    <div class="input-column">
+                                                        <div class="select-person-container">
+                                                            <label class="select-label">Select Cost Code</label>
+                                                            <div class="select-wrapper">
+                                                                <select class="custom-select-costcode" onchange={handleCostCodeChange}>
+                                                                    <option value="">-- Select a cost code --</option>
+                                                                    <template for:each={costCodeOptions} for:item="option">
+                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                    </template>
+                                                                </select>
                                                             </div>
                                                         </div>
-                                                        
-                                                        <div class="input-column">
-                                                            <div class="datetime-container">
-                                                                <label class="datetime-label">Clock In DateTime</label>
-                                                                <div class="datetime-wrapper">
-                                                                    <input type="datetime-local" class="custom-datetime" value={clockInTime} onchange={handleManualClockInDateChange}/>
-                                                                </div>
+                                                    </div>
+                                                    
+                                                    <div class="input-column">
+                                                        <div class="datetime-container">
+                                                            <label class="datetime-label">Clock In DateTime</label>
+                                                            <div class="datetime-wrapper">
+                                                                <input type="datetime-local" class="custom-datetime" value={clockInTime} onchange={handleManualClockInDateChange}/>
                                                             </div>
                                                         </div>
-
                                                     </div>
                                                     
                                                     <template if:true={isSelectedContactClockedIn}>
@@ -204,27 +201,25 @@
                                                 <div class="clock-in-container">
                                                     <div class="clock-in-title">Clock Out Employee</div>
                                                     
-                                                    <div class="form-wrapper">
-                                                        <div class="input-column">
-                                                            <div class="select-person-container">
-                                                                <label class="select-label">Select Person</label>
-                                                                <div class="select-wrapper">
-                                                                    <select class="custom-select" data-field="clockOut" onchange={handlePersonChange}>
-                                                                        <option value="">-- Select a person --</option>
-                                                                        <template for:each={clockOutOptions} for:item="option">
-                                                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                                                        </template>
-                                                                    </select>
-                                                                </div>
+                                                    <div class="input-column">
+                                                        <div class="select-person-container">
+                                                            <label class="select-label">Select Person</label>
+                                                            <div class="select-wrapper">
+                                                                <select class="custom-select" data-field="clockOut" onchange={handlePersonChange}>
+                                                                    <option value="">-- Select a person --</option>
+                                                                    <template for:each={clockOutOptions} for:item="option">
+                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                    </template>
+                                                                </select>
                                                             </div>
                                                         </div>
-                                                        
-                                                        <div class="input-column">
-                                                            <div class="datetime-container">
-                                                                <label class="datetime-label">Clock Out DateTime</label>
-                                                                <div class="datetime-wrapper">
-                                                                    <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleManualClockOutDateChange}/>
-                                                                </div>
+                                                    </div>
+                                                    
+                                                    <div class="input-column">
+                                                        <div class="datetime-container">
+                                                            <label class="datetime-label">Clock Out DateTime</label>
+                                                            <div class="datetime-wrapper">
+                                                                <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleManualClockOutDateChange}/>
                                                             </div>
                                                         </div>
                                                     </div>
