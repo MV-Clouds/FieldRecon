@@ -284,4 +284,67 @@ public with sharing class SovJobLocationsController {
 
         return configData;
     }
+
+    /*
+    *********************************************************
+    @description     : Method is used to save inline edits for multiple Location Entries
+    @param           : String updatedLocationsJson - JSON string of updated location records
+    @return          : String - Success or error message
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String saveInlineEdits(String updatedLocationsJson) {
+        try {
+            if (String.isBlank(updatedLocationsJson)) {
+                return 'Error: No location data provided for update.';
+            }
+
+            // Deserialize JSON string into a list of Location records
+            List<Location__c> updatedLocations = 
+                (List<Location__c>) JSON.deserialize(updatedLocationsJson, List<Location__c>.class);
+
+            if (updatedLocations == null || updatedLocations.isEmpty()) {
+                return 'Error: No location records provided for update.';
+            }
+
+            // Perform the DML update with partial success handling
+            Database.SaveResult[] results = Database.update(updatedLocations, false, AccessLevel.USER_MODE);
+
+            // Collect any errors and successes
+            List<String> failedRecords = new List<String>();
+            Integer successCount = 0;
+            
+            for (Integer i = 0; i < results.size(); i++) {
+                if (results[i].isSuccess()) {
+                    successCount++;
+                } else {
+                    String errorMsg = '';
+                    for (Database.Error error : results[i].getErrors()) {
+                        errorMsg += error.getMessage() + '; ';
+                    }
+                    failedRecords.add(updatedLocations[i].Id + ': ' + errorMsg);
+                }
+            }
+
+            if (!failedRecords.isEmpty()) {
+                String errorMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
+                return 'Partial Success: ' + errorMessage;
+            }
+
+            return 'Success: ' + successCount + ' location(s) updated successfully';
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'saveInlineEdits',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while saving inline edits.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
 }

@@ -1030,3 +1030,153 @@
         justify-content: center;
     }
 }
+
+/* Inline Editing Styles */
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.editable-cell:hover {
+    background-color: rgba(94, 90, 219, 0.05) !important;
+}
+
+.editable-cell:hover .edit-indicator {
+    opacity: 1;
+}
+
+.inline-edit-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 2px solid rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    font-size: inherit;
+    background-color: white;
+    outline: none;
+    box-sizing: border-box;
+    /* Auto-focus when created */
+    animation: focusInput 0.1s ease;
+}
+
+.inline-edit-input:focus {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
+}
+
+@keyframes focusInput {
+    from { border-color: #d8d8d8; }
+    to { border-color: rgba(94, 90, 219, 1); }
+}
+
+/* Modified cell highlighting for locations */
+.modified-location-cell {
+    background-color: #FFF3CD !important;
+    border-left: 4px solid #F0AD4E !important;
+    position: relative;
+}
+
+.modified-location-cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #F0AD4E;
+}
+
+/* Location edit actions */
+.location-edit-actions {
+    border-left: 2px solid #e5e5e5;
+    padding-left: 16px;
+    margin-left: 8px;
+}
+
+/* Update existing editable field classes */
+[data-editable="true"] {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+[data-editable="true"]:hover {
+    background-color: rgba(94, 90, 219, 0.05) !important;
+}
+
+[data-editable="true"]:hover .edit-indicator {
+    opacity: 1;
+}
+
+/* Update modified cell highlighting */
+td[class*="true"] {
+    background-color: #FFF3CD !important;
+    border-left: 4px solid #F0AD4E !important;
+    position: relative;
+}
+
+/* Always show edit indicator for modified fields */
+td[class*="true"] .edit-indicator {
+    opacity: 1;
+    color: #F0AD4E;
+}
+
+/* Style for cells that are currently being edited */
+.editing-cell {
+    background-color: #E8F4FD !important;
+    border: 2px solid rgba(94, 90, 219, 0.5) !important;
+}
+
+/* Responsive adjustments for inline editing */
+@media only screen and (max-width: 768px) {
+    .inline-edit-input {
+        font-size: 14px;
+        padding: 6px;
+    }
+    
+    .edit-indicator {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .location-edit-actions {
+        border-left: none;
+        padding-left: 0;
+        margin-left: 0;
+        border-top: 2px solid #e5e5e5;
+        padding-top: 8px;
+        margin-top: 8px;
+        width: 100%;
+    }
+}
+
+/* Add these additional styles */
+.editable-content {
+    position: relative;
+    cursor: pointer;
+}
+
+.editable-content:hover {
+    background-color: rgba(94, 90, 219, 0.05);
+    border-radius: 3px;
+}
+
+/* Improve edit indicator visibility */
+.edit-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    color: rgba(94, 90, 219, 0.7);
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 3px;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 5;
+}
+
+/* Hide when editing */
+.editing-cell .edit-indicator {
+    display: none !important;
+}

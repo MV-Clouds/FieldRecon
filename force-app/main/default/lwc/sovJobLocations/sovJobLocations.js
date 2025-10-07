@@ -7,6 +7,7 @@ import createLocationEntry from '@salesforce/apex/SovJobLocationsController.crea
 import deleteLocationEntries from '@salesforce/apex/SovJobLocationsController.deleteLocationEntries';
 import getLocationProcesses from '@salesforce/apex/SovJobLocationsController.getLocationProcesses';
 import getLocationConfiguration from '@salesforce/apex/SovJobLocationsController.getLocationConfiguration';
+import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInlineEdits';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
@@ -25,14 +26,20 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track processSortField = '';
     @track processSortOrder = '';
 
+    // Inline editing properties
+    @track modifiedLocations = new Map(); // Track modified location entries
+    @track hasLocationModifications = false; // Track if there are unsaved location changes
+    @track isSavingLocations = false; // Track save operation for locations
+    @track editingCells = new Set(); // Track which cells are currently being edited
+
     // Default table columns
     @track defaultColumns = [
-        { label: 'Name', fieldName: 'Name', type: 'text' },
-        { label: 'Square Feet', fieldName: 'wfrecon__Square_Feet__c', type: 'number' },
-        { label: 'Crack Count', fieldName: 'wfrecon__Crack_Count__c', type: 'number' },
-        { label: 'Distressed Edge', fieldName: 'wfrecon__Distressed_Edge__c', type: 'number' },
-        { label: 'Distressed Joint LF', fieldName: 'wfrecon__Distressed_Joint_LF__c', type: 'number' },
-        { label: 'Misc Defect Count', fieldName: 'wfrecon__Misc_Defect_Count__c', type: 'number' }
+        { label: 'Name', fieldName: 'Name', type: 'text', editable: true },
+        { label: 'Square Feet', fieldName: 'wfrecon__Square_Feet__c', type: 'number', editable: true },
+        { label: 'Crack Count', fieldName: 'wfrecon__Crack_Count__c', type: 'number', editable: true },
+        { label: 'Distressed Edge', fieldName: 'wfrecon__Distressed_Edge__c', type: 'number', editable: true },
+        { label: 'Distressed Joint LF', fieldName: 'wfrecon__Distressed_Joint_LF__c', type: 'number', editable: true },
+        { label: 'Misc Defect Count', fieldName: 'wfrecon__Misc_Defect_Count__c', type: 'number', editable: true }
     ];
 
     // Process table columns configuration
@@ -83,10 +90,11 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         if (!this.filteredLocationEntries || this.filteredLocationEntries.length === 0) {
             return [];
         }
-
+    
         const cols = this.tableColumns;
         return this.filteredLocationEntries.map(entry => {
             const row = { ...entry };
+            
             row.isSelected = this.selectedRows.includes(entry.Id);
             row.recordUrl = `/lightning/r/${entry.Id}/view`;
             
@@ -99,6 +107,12 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 const key = col.fieldName;
                 let value = this.getFieldValue(entry, key);
                 
+                // Check if this field has been modified
+                const modifiedValue = this.getModifiedValue(entry.Id, key);
+                if (modifiedValue !== null && modifiedValue !== undefined) {
+                    value = modifiedValue;
+                }
+                
                 const displayValue = value !== null && value !== undefined ? String(value) : '';
                 
                 return {
@@ -109,9 +123,13 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     isNameField: key === 'Name',
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
-                    isNumber: col.type === 'number'
+                    isNumber: col.type === 'number', // FIX: This should match the column type
+                    isEditable: col.editable || false, // FIX: This should use the column's editable property
+                    isModified: this.isFieldModified(entry.Id, key) ? 'true' : 'false',
+                    isBeingEdited: this.editingCells.has(`${entry.Id}-${key}`)
                 };
             });
+            
             return row;
         });
     }
@@ -230,7 +248,66 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         }
         return `Discard ${this.modifiedProcesses.size} unsaved change(s)`;
     }
-    
+
+    // New getters for location inline editing
+    /**
+     * Method Name: get isLocationButtonsDisabled
+     * @description: Check if location action buttons should be disabled
+     */
+    get isLocationButtonsDisabled() {
+        return !this.hasLocationModifications || this.isSavingLocations;
+    }
+
+    /**
+     * Method Name: get isLocationSaveDisabled
+     * @description: Check if location save button should be disabled
+     */
+    get isLocationSaveDisabled() {
+        return !this.hasLocationModifications || this.isSavingLocations;
+    }
+
+    /**
+     * Method Name: get locationSaveButtonLabel
+     * @description: Get dynamic location save button label
+     */
+    get locationSaveButtonLabel() {
+        if (this.isSavingLocations) {
+            return 'Saving...';
+        }
+        if (this.hasLocationModifications) {
+            return `Save Location Changes (${this.modifiedLocations.size})`;
+        }
+        return 'Save Location Changes';
+    }
+
+    /**
+     * Method Name: get locationDiscardButtonTitle
+     * @description: Get dynamic location discard button title
+     */
+    get locationDiscardButtonTitle() {
+        if (!this.hasLocationModifications) {
+            return 'No location changes to discard';
+        }
+        return `Discard ${this.modifiedLocations.size} unsaved location change(s)`;
+    }
+
+    /**
+     * Method Name: getModifiedValue
+     * @description: Get modified value for a specific field
+     */
+    getModifiedValue(recordId, fieldName) {
+        const modifications = this.modifiedLocations.get(recordId);
+        return modifications ? modifications[fieldName] : null;
+    }
+
+    /**
+     * Method Name: isFieldModified
+     * @description: Check if a specific field has been modified
+     */
+    isFieldModified(recordId, fieldName) {
+        const modifications = this.modifiedLocations.get(recordId);
+        return modifications && modifications.hasOwnProperty(fieldName);
+    }
 
     /**
      * Method Name: connectedCallback
@@ -250,12 +327,16 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 if (result && result.fieldsData) {
                     try {
                         const parsedFields = JSON.parse(result.fieldsData);
+
+                        console.log('Parsed location configuration:', parsedFields);
+                        
                         
                         if (Array.isArray(parsedFields) && parsedFields.length > 0) {
                             this.locationColumns = parsedFields.map(field => ({
                                 label: field.label,
                                 fieldName: field.fieldName,
-                                type: this.getColumnType(field.fieldType)
+                                type: this.getColumnType(field.fieldType),
+                                editable: field.isEditable || false // ADD THIS LINE
                             }));
                         } else {
                             this.locationColumns = this.defaultColumns;
@@ -267,7 +348,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 } else {
                     this.locationColumns = this.defaultColumns;
                 }
-
+    
                 // Set default sorting to first column
                 if (this.locationColumns.length > 0) {
                     this.sortField = this.locationColumns[0].fieldName;
@@ -1274,5 +1355,171 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             variant
         });
         this.dispatchEvent(event);
+    }
+
+    /**
+     * Method Name: handleCellClick
+     * @description: Handle cell click for inline editing
+     */
+    handleCellClick(event) {
+        const recordId = event.currentTarget.dataset.recordId;
+        const fieldName = event.currentTarget.dataset.fieldName;
+        const isEditable = event.currentTarget.dataset.editable === 'true';
+        
+        if (!isEditable) return;
+        
+        const cellKey = `${recordId}-${fieldName}`;
+        
+        // Don't open editor if already editing this cell
+        if (this.editingCells.has(cellKey)) return;
+        
+        this.editingCells.add(cellKey);
+        
+        // Trigger reactivity
+        this.filteredLocationEntries = [...this.filteredLocationEntries];
+        
+        // Auto-focus the input after DOM update
+        setTimeout(() => {
+            const input = this.template.querySelector(`input[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+            if (input) {
+                input.focus();
+                input.select(); // Select all text for easy editing
+            }
+        }, 50);
+    }
+
+    /**
+     * Method Name: handleCellInputChange
+     * @description: Handle input change in inline editing
+     */
+    handleCellInputChange(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const fieldType = event.target.dataset.fieldType;
+        let newValue = event.target.value;
+        
+        // Type conversion based on field type
+        if (fieldType === 'number' && newValue !== '') {
+            newValue = parseFloat(newValue);
+            if (isNaN(newValue)) {
+                newValue = 0;
+            }
+        }
+        
+        // Get original value to compare
+        const originalEntry = this.locationEntries.find(entry => entry.Id === recordId);
+        const originalValue = this.getFieldValue(originalEntry, fieldName);
+        
+        // Track modifications
+        if (!this.modifiedLocations.has(recordId)) {
+            this.modifiedLocations.set(recordId, {});
+        }
+        
+        const modifications = this.modifiedLocations.get(recordId);
+        
+        if (newValue !== originalValue) {
+            modifications[fieldName] = newValue;
+        } else {
+            // Remove modification if value is back to original
+            delete modifications[fieldName];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedLocations.delete(recordId);
+            }
+        }
+        
+        // Update hasLocationModifications flag
+        this.hasLocationModifications = this.modifiedLocations.size > 0;
+    }
+
+    /**
+     * Method Name: handleCellInputBlur
+     * @description: Handle blur event on inline edit input
+     */
+    handleCellInputBlur(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const cellKey = `${recordId}-${fieldName}`;
+        
+        // Remove from editing set
+        this.editingCells.delete(cellKey);
+        
+        // Trigger reactivity to show normal cell
+        this.filteredLocationEntries = [...this.filteredLocationEntries];
+    }
+
+    /**
+     * Method Name: handleSaveLocationChanges
+     * @description: Save all modified location entries in a single batch
+     */
+    handleSaveLocationChanges() {
+        if (this.modifiedLocations.size === 0) {
+            return;
+        }
+
+        this.isSavingLocations = true;
+        
+        // Prepare data for batch update
+        const updatedLocations = [];
+        
+        this.modifiedLocations.forEach((modifications, recordId) => {
+            const locationUpdate = { Id: recordId };
+            Object.keys(modifications).forEach(fieldName => {
+                locationUpdate[fieldName] = modifications[fieldName];
+            });
+            updatedLocations.push(locationUpdate);
+        });
+
+        // Call batch update method
+        const updatedLocationsJson = JSON.stringify(updatedLocations);
+        
+        saveInlineEdits({ updatedLocationsJson: updatedLocationsJson })
+            .then(result => {
+                if (result.startsWith('Success')) {
+                    this.showToast('Success', result, 'success');
+                    
+                    // Clear modifications and refresh data
+                    this.modifiedLocations.clear();
+                    this.hasLocationModifications = false;
+                    this.editingCells.clear();
+                    
+                    // Refresh location entries
+                    this.fetchLocationEntries();
+                    
+                } else if (result.startsWith('Partial Success')) {
+                    this.showToast('Warning', result, 'warning');
+                    
+                    // Partial success - still clear and refresh
+                    this.modifiedLocations.clear();
+                    this.hasLocationModifications = false;
+                    this.editingCells.clear();
+                    this.fetchLocationEntries();
+                    
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error in location batch update:', error);
+                this.showToast('Error', 'Failed to update locations: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isSavingLocations = false;
+            });
+    }
+
+    /**
+     * Method Name: handleDiscardLocationChanges
+     * @description: Discard all unsaved location changes
+     */
+    handleDiscardLocationChanges() {
+        // Clear all modifications
+        this.modifiedLocations.clear();
+        this.hasLocationModifications = false;
+        this.editingCells.clear();
+        
+        // Trigger reactivity to remove highlighting and reset values
+        this.filteredLocationEntries = [...this.filteredLocationEntries];
+        
+        this.showToast('Success', 'Location changes discarded', 'success');
     }
 }
