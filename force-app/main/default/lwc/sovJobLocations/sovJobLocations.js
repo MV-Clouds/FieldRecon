@@ -102,7 +102,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             // Preserve nested table state
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
-            row.isLoadingProcesses = entry.isLoadingProcesses || false;
+            row.isLoadingProcesses = entry.isLoadingProcesses || false;            
             
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
@@ -149,7 +149,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     contentClass: contentClass
                 };
             });
-            
+
             return row;
         });
     }
@@ -349,20 +349,23 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 if (result && result.fieldsData) {
                     try {
                         const parsedFields = JSON.parse(result.fieldsData);
-
+    
                         console.log('Parsed location configuration:', parsedFields);
                         
-                        
                         if (Array.isArray(parsedFields) && parsedFields.length > 0) {
-                            this.locationColumns = parsedFields.map(field => ({
-                                label: field.label,
-                                fieldName: field.fieldName,
-                                type: this.getColumnType(field.fieldType),
-                                editable: field.isEditable || false // ADD THIS LINE
-                            }));
+                            this.locationColumns = parsedFields.map(field => {
+                                const columnType = this.getColumnType(field.fieldType);
+                                
+                                return {
+                                    label: field.label,
+                                    fieldName: field.fieldName,
+                                    type: columnType,
+                                    editable: field.isEditable || false
+                                };
+                            });
                         } else {
                             this.locationColumns = this.defaultColumns;
-                        }
+                        }                        
                     } catch (error) {
                         console.error('Error parsing location configuration:', error);
                         this.locationColumns = this.defaultColumns;
@@ -390,7 +393,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             .finally(() => {
                 this.fetchLocationEntries();
             });
-    }
+    }    
 
     /**
      * Method Name: getColumnType
@@ -403,6 +406,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             case 'PERCENT':
                 return 'percent';
             case 'NUMBER':
+            case 'DOUBLE':           
+            case 'INTEGER':          
+            case 'LONG':             
+            case 'DECIMAL':          
                 return 'number';
             case 'DATE':
                 return 'date';
