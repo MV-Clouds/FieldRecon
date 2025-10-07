@@ -265,10 +265,10 @@
     text-align: center;
 }
 
-/* Actions Column */
+/* Actions Column - Update width to accommodate both buttons */
 .actions-column {
-    width: 120px;
-    min-width: 120px;
+    width: 80px;
+    min-width: 80px;
     text-align: center;
 }
 
@@ -305,6 +305,16 @@
 
 .icon-button.child-records-btn:hover {
     background-color: #17a2b8;
+    color: white;
+}
+
+.icon-button.edit-btn {
+    border-color: rgba(94, 90, 219, 0.7);
+    color: rgba(94, 90, 219, 0.7);
+}
+
+.icon-button.edit-btn:hover {
+    background-color: rgba(94, 90, 219, 0.7);
     color: white;
 }
 
@@ -514,6 +524,10 @@
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: row-reverse;
 }
 
 .nested-table-title {
@@ -930,5 +944,89 @@
     
     .process-sortable-header .column-label {
         font-size: 0.7rem;
+    }
+}
+
+/* Add these new styles after the existing CSS */
+
+/* Action Buttons for Save/Discard */
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-shrink: 0;
+    order: -1; /* Put save/discard buttons first */
+}
+
+.save-button {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.save-button:hover:not(:disabled) {
+    background-color: rgba(94, 90, 219, 0.9);
+    border-color: rgba(94, 90, 219, 0.9);
+}
+
+.save-button:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+}
+
+/* Modified Cell Highlighting */
+.modified-cell {
+    background-color: #FBF8EF !important;
+    border-radius: 0.25rem;
+    position: relative;
+}
+
+.modified-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: rgba(94, 90, 219, 1);
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.slider-container.modified-field {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Update the header-actions to accommodate new buttons */
+.header-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* Responsive adjustments for new buttons */
+@media only screen and (max-width: 900px) {
+    .action-buttons {
+        order: 0;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media only screen and (max-width: 600px) {
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+    }
+    
+    .action-button {
+        width: 100%;
+        justify-content: center;
     }
 }

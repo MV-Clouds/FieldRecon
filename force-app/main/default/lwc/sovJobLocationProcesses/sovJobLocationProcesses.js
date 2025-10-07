@@ -21,11 +21,11 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     @track processTableColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true },
         { label: 'Location Name', fieldName: 'wfrecon__Location__r.Name', type: 'text', isLocationField: true },
+        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number' },
         { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency' },
         { label: 'Completed Percentage', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true },
         { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency' },
-        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text' },
-        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number' }
+        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text' }
     ];
 
     @wire(CurrentPageReference)
@@ -415,6 +415,10 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                     // Clear modifications and refresh data
                     this.modifiedProcesses.clear();
                     this.hasModifications = false;
+                    
+                    // Remove all highlighting immediately after clearing modifications
+                    this.clearAllHighlighting();
+                    
                     this.fetchLocationProcesses();
                 } else {
                     let errorMessage = result.message;
@@ -425,6 +429,10 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                     
                     // If some succeeded, refresh to show current state
                     if (result.successCount > 0) {
+                        // Clear modifications for successful updates and refresh
+                        this.modifiedProcesses.clear();
+                        this.hasModifications = false;
+                        this.clearAllHighlighting();
                         this.fetchLocationProcesses();
                     }
                 }
@@ -436,6 +444,26 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
             .finally(() => {
                 this.isSaving = false;
             });
+    }
+
+    /**
+     * Method Name: clearAllHighlighting
+     * @description: Remove all highlighting from slider containers and table cells
+     */
+    clearAllHighlighting() {
+        setTimeout(() => {
+            // Remove all highlighting classes
+            const allSliderContainers = this.template.querySelectorAll('.slider-container.modified-field');
+            const allTableCells = this.template.querySelectorAll('td.modified-cell');
+            
+            allSliderContainers.forEach(container => {
+                container.classList.remove('modified-field');
+            });
+            
+            allTableCells.forEach(cell => {
+                cell.classList.remove('modified-cell');
+            });
+        }, 0);
     }
 
     /**

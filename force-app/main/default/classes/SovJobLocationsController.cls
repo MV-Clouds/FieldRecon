@@ -245,44 +245,6 @@ public with sharing class SovJobLocationsController {
 
     /*
     *********************************************************
-    @description     : Method is used to update Location Process completion percentage
-    @param           : Id processId - Location Process Id
-    @param           : Decimal completionPercentage - New completion percentage
-    @return          : String - Success or error message
-    @author          : Rachit Shah
-    ********************************************************
-    */
-    @AuraEnabled
-    public static String updateProcessCompletion(Id processId, Decimal completionPercentage) {
-        try {
-            wfrecon__Location_Process__c processToUpdate = [
-                SELECT Id, wfrecon__Completed_Percentage__c 
-                FROM wfrecon__Location_Process__c 
-                WHERE Id = :processId 
-                WITH USER_MODE
-                LIMIT 1
-            ];
-            
-            processToUpdate.wfrecon__Completed_Percentage__c = completionPercentage;
-            update as user processToUpdate;
-            
-            return 'Success';
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'updateProcessCompletion',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while updating process completion for Process ID: ' + processId,
-                'apiResponse' => null
-            });
-            return 'Error: ' + e.getMessage();
-        }
-    }
-
-    /*
-    *********************************************************
     @description     : Method is used to get Location Configuration
     @return          : Map<String, Object> - Configuration data
     @author          : Rachit Shah
