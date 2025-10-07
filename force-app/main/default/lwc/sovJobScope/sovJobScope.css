@@ -63,6 +63,16 @@
     border-radius: 4px;
 }
 
+.location-container{
+    margin-bottom: 1rem;
+}
+
+.process-library-container{
+    height: 20rem;
+    overflow: scroll;
+    margin-bottom: 1rem;
+}
+
 .data-table-container::-webkit-scrollbar-thumb:hover {
     background: rgba(94, 90, 219, 1);
 }
