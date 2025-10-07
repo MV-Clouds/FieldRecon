@@ -16,41 +16,104 @@ public with sharing class SovJobScopeController {
 
     /*
     *********************************************************
-    @description     : Method is used to dynamically get Scope Entries for a Job
+    @description     : Method is used to dynamically get Scope Entries for a Job with complete process setup flags
     @param           : Id jobId - Job Id
-    @return          : List<SObject> - List of Scope Entries (dynamic fields)
+    @return          : Map<String, Object> - Map containing scope entries and their process setup flags
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static List<SObject> getScopeEntries(Id jobId) {
+    public static Map<String, Object> getScopeEntries(Id jobId) {
+        Map<String, Object> result = new Map<String, Object>();
         List<SObject> scopeEntries = new List<SObject>();
+        Map<Id, Boolean> processSetupFlags = new Map<Id, Boolean>();
+    
         try {
             String objectName = 'wfrecon__Scope_Entry__c';
-            
-            // Get all accessible fields dynamically
             String allScopeEntryFields = getAllFields(objectName);
             String allJobFields = getAllFields('wfrecon__Job__c');
-            
+    
             if (String.isNotBlank(allScopeEntryFields)) {
-                // Build dynamic SOQL with Job relationship fields
+                // --- Dynamic SOQL for Scope Entries ---
                 String query = 'SELECT ' + allScopeEntryFields;
-                
-                // Add Job relationship fields if we have them
                 if (String.isNotBlank(allJobFields)) {
-                    // Convert Job fields to relationship notation (Job__r.FieldName)
                     String jobRelationshipFields = convertToRelationshipFields(allJobFields, 'wfrecon__Job__r');
                     if (String.isNotBlank(jobRelationshipFields)) {
                         query += ', ' + jobRelationshipFields;
                     }
                 }
-                
                 query += ' FROM ' + objectName +
-                        ' WHERE wfrecon__Job__c = :jobId ' +
-                        ' ORDER BY CreatedDate DESC';
-                
-                scopeEntries = Database.query(query, AccessLevel.USER_MODE);
+                         ' WHERE wfrecon__Job__c = :jobId' +
+                         ' ORDER BY CreatedDate DESC';
+    
+                List<SObject> rawScopeEntries = Database.query(query, AccessLevel.USER_MODE);
+                scopeEntries.addAll(rawScopeEntries);
+    
+                if (!rawScopeEntries.isEmpty()) {
+                    // --- Collect all Scope Entry IDs ---
+                    Set<Id> scopeEntryIds = new Set<Id>();
+                    for (SObject entry : rawScopeEntries) {
+                        scopeEntryIds.add(entry.Id);
+                    }
+    
+                    // --- Fetch all related Processes in bulk ---
+                    Map<Id, Set<Id>> scopeEntryToProcessIds = new Map<Id, Set<Id>>();
+                    for (Scope_Entry_Process__c proc : [
+                        SELECT Id, Scope_Entry__c
+                        FROM Scope_Entry_Process__c
+                        WHERE Scope_Entry__c IN :scopeEntryIds
+                        WITH USER_MODE
+                    ]) {
+                        if (!scopeEntryToProcessIds.containsKey(proc.Scope_Entry__c)) {
+                            scopeEntryToProcessIds.put(proc.Scope_Entry__c, new Set<Id>());
+                        }
+                        scopeEntryToProcessIds.get(proc.Scope_Entry__c).add(proc.Id);
+                    }
+    
+                    // --- Fetch all related Location Processes in bulk ---
+                    Set<Id> allProcessIds = new Set<Id>();
+                    for (Set<Id> pIds : scopeEntryToProcessIds.values()) {
+                        allProcessIds.addAll(pIds);
+                    }
+    
+                    Set<Id> locationProcessIds = new Set<Id>();
+                    if (!allProcessIds.isEmpty()) {
+                        for (Location_Process__c locProc : [
+                            SELECT Id, Scope_Entry_Process__c
+                            FROM Location_Process__c
+                            WHERE Scope_Entry_Process__c IN :allProcessIds
+                            WITH USER_MODE
+                        ]) {
+                            locationProcessIds.add(locProc.Scope_Entry_Process__c);
+                        }
+                    }
+    
+                    // --- Build setup flag map for each Scope Entry ---
+                    for (SObject entry : rawScopeEntries) {
+                        Id scopeEntryId = entry.Id;
+                        Set<Id> processIds = scopeEntryToProcessIds.get(scopeEntryId);
+                        Boolean hasCompleteSetup = (processIds != null && !processIds.isEmpty());
+    
+                        if (hasCompleteSetup) {
+                            // Check if at least one process has a location process
+                            Boolean hasLocationProcess = false;
+                            for (Id pid : processIds) {
+                                if (locationProcessIds.contains(pid)) {
+                                    hasLocationProcess = true;
+                                    break;
+                                }
+                            }
+                            hasCompleteSetup = hasLocationProcess;
+                        }
+                        processSetupFlags.put(scopeEntryId, hasCompleteSetup);
+                    }
+                }
             }
+    
+            result.put('scopeEntries', scopeEntries);
+            result.put('processSetupFlags', processSetupFlags);
+            result.put('success', true);
+    
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
@@ -58,11 +121,17 @@ public with sharing class SovJobScopeController {
                 'isApiException' => false,
                 'statusCode' => null,
                 'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Scope Entries dynamically.',
+                'moreDetails' => 'Error occurred while fetching Scope Entries dynamically (bulk-safe version).',
                 'apiResponse' => null
             });
+    
+            result.put('scopeEntries', new List<SObject>());
+            result.put('processSetupFlags', new Map<Id, Boolean>());
+            result.put('success', false);
+            result.put('error', e.getMessage());
         }
-        return scopeEntries;
+    
+        return result;
     }
 
     /*
@@ -333,7 +402,7 @@ public with sharing class SovJobScopeController {
         try {
             processes = [
                 SELECT Id, Name, Process_Name__c, Process_Type__c, 
-                       Measurement_Type__c, Sequence__c, Value__c,
+                       Measurement_Type__c, Sequence__c, Weight__c,
                        Process_Description__c
                 FROM Process__c
                 WITH USER_MODE
@@ -720,4 +789,151 @@ public with sharing class SovJobScopeController {
             return 'Error: ' + e.getMessage();
         }
     }
+
+
+    /*
+    *********************************************************
+    @description     : Method to create a change order from an existing scope entry
+    @param           : Map<String, Object> changeOrderData - Change order creation data
+    @return          : String - Success or error message
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String createChangeOrder(Map<String, Object> changeOrderData) {
+        try {
+            Id originalScopeEntryId = (Id) changeOrderData.get('originalScopeEntryId');
+            String changeOrderName = (String) changeOrderData.get('changeOrderName');
+            Decimal contractValue = (Decimal) changeOrderData.get('contractValue');
+            String processOption = (String) changeOrderData.get('processOption');
+            Id jobId = (Id) changeOrderData.get('jobId');
+            
+            if (String.isBlank(originalScopeEntryId) || String.isBlank(changeOrderName) || 
+                contractValue == null || contractValue <= 0 || String.isBlank(processOption)) {
+                return 'Error: Missing required fields for change order creation';
+            }
+
+            // Get the original scope entry to copy from
+            Scope_Entry__c originalScopeEntry = [
+                SELECT Id, Name, Description__c, Job__c
+                FROM Scope_Entry__c
+                WHERE Id = :originalScopeEntryId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+
+            // Create the new change order scope entry
+            Scope_Entry__c changeOrderScopeEntry = new Scope_Entry__c();
+            changeOrderScopeEntry.Name = changeOrderName;
+            changeOrderScopeEntry.Contract_Value__c = contractValue;
+            changeOrderScopeEntry.Type__c = 'Change Order';
+            changeOrderScopeEntry.Job__c = jobId;
+            changeOrderScopeEntry.Description__c = 'Change order created from: ' + originalScopeEntry.Name;
+            
+            insert as user changeOrderScopeEntry;
+
+            // Handle process creation based on selected option
+            if (processOption == 'manual') {
+                // Create manual process
+                Map<String, Object> manualProcessData = (Map<String, Object>) changeOrderData.get('manualProcess');
+                if (manualProcessData != null) {
+                    createManualProcessForChangeOrder(changeOrderScopeEntry.Id, manualProcessData, jobId);
+                }
+            } else if (processOption == 'library') {
+                // Create processes from library
+                List<Object> selectedProcessIdsObj = (List<Object>) changeOrderData.get('selectedProcessIds');
+                if (selectedProcessIdsObj != null && !selectedProcessIdsObj.isEmpty()) {
+                    List<String> selectedProcessIds = new List<String>();
+                    for (Object obj : selectedProcessIdsObj) {
+                        selectedProcessIds.add(String.valueOf(obj));
+                    }
+                    createProcessesFromLibraryForChangeOrder(changeOrderScopeEntry.Id, selectedProcessIds, jobId);
+                }
+            }
+
+            return 'Success';
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'createChangeOrder',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while creating change order.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+    /*
+    *********************************************************
+    @description     : Helper method to create manual process for change order
+    @param           : Id scopeEntryId - Scope Entry Id
+    @param           : Map<String, Object> processData - Process data
+    @param           : Id jobId - Job Id
+    @return          : void
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    private static void createManualProcessForChangeOrder(Id scopeEntryId, Map<String, Object> processData, Id jobId) {
+        Scope_Entry_Process__c newProcess = new Scope_Entry_Process__c();
+        newProcess.Process_Name__c = (String) processData.get('processName');
+        newProcess.Sequence__c = (Decimal) processData.get('sequence');
+        newProcess.Process_Type__c = (String) processData.get('processType');
+        newProcess.Weight__c = (Decimal) processData.get('weightage');
+        newProcess.Measurement_Type__c = (String) processData.get('measurementType');
+        newProcess.Scope_Entry__c = scopeEntryId;
+        newProcess.Job__c = jobId;
+        
+        insert as user newProcess;
+    }
+
+    /*
+    *********************************************************
+    @description     : Helper method to create processes from library for change order
+    @param           : Id scopeEntryId - Scope Entry Id
+    @param           : List<String> selectedProcessIds - List of Process Library IDs
+    @param           : Id jobId - Job Id
+    @return          : void
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    private static void createProcessesFromLibraryForChangeOrder(Id scopeEntryId, List<String> selectedProcessIds, Id jobId) {
+        // Get Process Library records
+        List<Process__c> processLibraryRecords = [
+            SELECT Id, Name, Process_Name__c, Process_Type__c, 
+                Measurement_Type__c, Sequence__c, Weight__c   
+            FROM Process__c
+            WHERE Id IN :selectedProcessIds
+            WITH USER_MODE
+        ];
+        
+        // Create Scope Entry Process records
+        List<Scope_Entry_Process__c> scopeEntryProcesses = new List<Scope_Entry_Process__c>();
+        
+        for (Process__c process : processLibraryRecords) {
+            Scope_Entry_Process__c newScopeProcess = new Scope_Entry_Process__c();
+            
+            // Required relationship fields
+            newScopeProcess.Scope_Entry__c = scopeEntryId;
+            newScopeProcess.Process_Library__c = process.Id;
+            
+            // Copy values from Process Library
+            newScopeProcess.Process_Name__c = process.Process_Name__c;
+            newScopeProcess.Process_Type__c = process.Process_Type__c;
+            newScopeProcess.Measurement_Type__c = process.Measurement_Type__c;
+            newScopeProcess.Sequence__c = process.Sequence__c;
+            newScopeProcess.Weight__c = process.Weight__c;
+            newScopeProcess.Job__c = jobId;
+            
+            scopeEntryProcesses.add(newScopeProcess);
+        }
+        
+        if (!scopeEntryProcesses.isEmpty()) {
+            insert as user scopeEntryProcesses;
+        }
+    }
+
 }

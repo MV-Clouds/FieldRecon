@@ -341,31 +341,49 @@
                                                             <div class="nested-table-title-row">
                                                                 <h4 class="nested-table-title">Process Details for {entry.Name}</h4>
                                                                 <div class="process-action-buttons">
-                                                                    <button class="add-process-btn library-btn" 
-                                                                            title="Add Process from Library"
-                                                                            onclick={handleAddProcessFromLibrary}
-                                                                            data-scope-entry-id={entry.Id}
-                                                                            data-scope-entry-name={entry.Name}>
-                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                            <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                            <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                            <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                            <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                            <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                        </svg>
-                                                                        Add Process
-                                                                    </button>
-                                                                    <button class="add-process-btn manual-btn" 
-                                                                            title="Add Manual Process"
-                                                                            onclick={handleAddProcess}
-                                                                            data-scope-entry-id={entry.Id}
-                                                                            data-scope-entry-name={entry.Name}>
-                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                            <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                            <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                        </svg>
-                                                                        Add Manual Process
-                                                                    </button>
+
+                                                                    <template if:true={entry.hasCompleteProcessSetup}>
+                                                                        <button class="add-process-btn change-order-btn" 
+                                                                                title="Create Change Order"
+                                                                                onclick={handleCreateChangeOrder}
+                                                                                data-record-id={entry.Id}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="9" y1="14" x2="15" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            </svg>
+                                                                            Create Change Order
+                                                                        </button>
+                                                                    </template>
+
+                                                                    <template if:false={entry.hasCompleteProcessSetup}>
+                                                                        <button class="add-process-btn manual-btn" 
+                                                                                title="Add Process from Library"
+                                                                                onclick={handleAddProcessFromLibrary}
+                                                                                data-scope-entry-id={entry.Id}
+                                                                                data-scope-entry-name={entry.Name}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            </svg>
+                                                                            Add Process
+                                                                        </button>
+                                                                        <button class="add-process-btn manual-btn" 
+                                                                                title="Add Manual Process"
+                                                                                onclick={handleAddProcess}
+                                                                                data-scope-entry-id={entry.Id}
+                                                                                data-scope-entry-name={entry.Name}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            </svg>
+                                                                            Add Manual Process
+                                                                        </button>
+                                                                    </template>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -694,8 +712,8 @@
                                                         <div class="nested-table-header">
                                                             <div class="nested-table-title-row">
                                                                 <h4 class="nested-table-title">Process Details for {entry.Name}</h4>
-                                                                <div class="process-action-buttons">
-                                                                    <button class="add-process-btn library-btn" 
+                                                                <!-- <div class="process-action-buttons">
+                                                                    <button class="add-process-btn manual-btn" 
                                                                             title="Add Process from Library"
                                                                             onclick={handleAddProcessFromLibrary}
                                                                             data-scope-entry-id={entry.Id}
@@ -720,7 +738,7 @@
                                                                         </svg>
                                                                         Add Manual Process
                                                                     </button>
-                                                                </div>
+                                                                </div> -->
                                                             </div>
                                                         </div>
                                                         
@@ -1359,4 +1377,330 @@
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
+
+
+    <template if:true={showCreateChangeOrderModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-06" aria-modal="true" aria-describedby="modal-content-id-6" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container change-order-modal">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseChangeOrderModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+    
+                <div class="slds-modal__content pop-up" id="modal-content-id-6">
+                    <div class="pop-heading">
+                        {changeOrderModalTitle}
+                    </div>
+    
+                    <div class="popUpBody slds-p-around--medium">
+                        <!-- Step 1: Basic Information -->
+                        <template if:true={isChangeOrderStep1}>
+                            <div class="form-container">
+                                <div class="form-group">
+                                    <div class="form-label-row">
+                                        <label class="form-label required">Change Order Name</label>
+                                        <div class="character-count">{changeOrderNameCharacterCount}/80</div>
+                                    </div>
+                                    <input type="text" 
+                                           class="form-input" 
+                                           placeholder="Enter change order name"
+                                           value={changeOrderData.name}
+                                           data-field="name"
+                                           oninput={handleChangeOrderInputChange}
+                                           maxlength="80"
+                                           >
+                                    <div class="form-help-text">Based on: {selectedScopeEntryForChangeOrder.Name}</div>
+                                </div>
+    
+                                <div class="form-group">
+                                    <label class="form-label required">Contract Value</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter contract value"
+                                           step="1"
+                                           min="1"
+                                           value={changeOrderData.contractValue}
+                                           data-field="contractValue"
+                                           oninput={handleChangeOrderInputChange}>
+                                </div>
+    
+                                <div class="form-group">
+                                    <label class="form-label required">Process Option</label>
+                                    <lightning-combobox
+                                        value={changeOrderData.processOption}
+                                        options={processSelectionOptions}
+                                        onchange={handleChangeOrderSelectChange}
+                                        data-field="processOption"
+                                        placeholder="Select process option"
+                                        variant="label-hidden">
+                                    </lightning-combobox>
+                                </div>
+                            </div>
+    
+                            <div class="popUpFooter">
+                                <button class="close-btn" onclick={handleCloseChangeOrderModal}>Cancel</button>
+                                <button class="save-btn" 
+                                        onclick={handleChangeOrderNextStep}
+                                    >
+                                    Next Step
+                                </button>
+                            </div>
+                        </template>
+    
+                        <!-- Step 2: Process Selection -->
+                        <template if:true={isChangeOrderStep2}>
+                            <!-- Manual Process Option -->
+                            <template if:true={isMannualProcessSelected}>
+                                <div class="form-container">
+                                    <div class="step-header">
+                                        <h3>Add Manual Process</h3>
+                                        <p>Enter process details for the change order</p>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="form-label-row">
+                                            <label class="form-label required">Process Name</label>
+                                            <div class="character-count">{processNameCharacterCount}/80</div>
+                                        </div>
+                                        <input type="text" 
+                                               class="form-input" 
+                                               placeholder="Enter process name"
+                                               value={newProcess.processName}
+                                               data-field="processName"
+                                               data-type="process"
+                                               oninput={handleInputChange}
+                                               maxlength="80">
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <label class="form-label required">Sequence</label>
+                                        <input type="number" 
+                                               class="form-input" 
+                                               placeholder="Enter sequence number"
+                                               step="1"
+                                               min="1"
+                                               max="9999"
+                                               value={newProcess.sequence}
+                                               data-field="sequence"
+                                               data-type="process"
+                                               oninput={handleInputChange}>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <label class="form-label required">Process Type</label>
+                                        <lightning-combobox
+                                            value={newProcess.processType}
+                                            options={processTypeOptions}
+                                            onchange={handleSelectChange}
+                                            data-field="processType"
+                                            data-type="process"
+                                            placeholder="Select Process Type"
+                                            variant="label-hidden">
+                                        </lightning-combobox>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <label class="form-label required">Weight</label>
+                                        <input type="number" 
+                                               class="form-input" 
+                                               placeholder="Enter weight"
+                                               step="0.01"
+                                               min="0"
+                                               max="9999"
+                                               value={newProcess.weightage}
+                                               data-field="weightage"
+                                               data-type="process"
+                                               oninput={handleInputChange}>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <label class="form-label required">Measurement Type</label>
+                                        <lightning-combobox
+                                            value={newProcess.measurementType}
+                                            options={measurementTypeOptions}
+                                            onchange={handleSelectChange}
+                                            data-field="measurementType"
+                                            data-type="process"
+                                            placeholder="Select Measurement Type"
+                                            variant="label-hidden">
+                                        </lightning-combobox>
+                                    </div>
+                                </div>
+                            </template>
+    
+                            <!-- Process Library Option -->
+                            <template if:true={isLibraryProcessSelected}>
+                                <div class="step-header">
+                                    <h3>Select Processes from Library</h3>
+                                    <p>Choose processes to include in the change order</p>
+                                </div>
+    
+                                <!-- Filter and Search Section -->
+                                <div class="filter-search-section">
+                                    <div class="filter-row">
+                                        <div class="filter-group">
+                                            <label class="filter-label">Category Filter</label>
+                                            <lightning-combobox
+                                                value={selectedProcessCategory}
+                                                options={processTypeOptions}
+                                                onchange={handleProcessCategoryFilter}
+                                                placeholder="Select Category"
+                                                variant="label-hidden">
+                                            </lightning-combobox>
+                                        </div>
+                                        <div class="search-group">
+                                            <label class="filter-label">Search</label>
+                                            <lightning-input
+                                                type="search"
+                                                variant="label-hidden"
+                                                placeholder="Search processes..."
+                                                value={processLibrarySearchTerm}
+                                                onchange={handleProcessLibrarySearch}
+                                                class="search-bar-input">
+                                            </lightning-input>
+                                        </div>
+                                    </div>
+                                </div>
+    
+                                <!-- Process Selection Table -->
+                                <div class="process-library-container">
+                                    <template if:true={processLibraryDisplayRecords.length}>
+                                        <table class="custom-data-table process-library-table">
+                                            <thead class="table-header">
+                                                <tr>
+                                                    <th class="header-cell center-trancate-head checkbox-column">
+                                                        <input type="checkbox" 
+                                                                checked={isAllProcessLibrarySelected}
+                                                                onchange={handleSelectAllChangeOrderProcesses}
+                                                                data-type="select-all-change-order-processes"
+                                                                title="Select All">
+                                                    </th>
+                                                    <template for:each={processLibraryTableColumns} for:item="column">
+                                                        <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                            {column.label}
+                                                        </th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="table-body">
+                                                <template for:each={processLibraryDisplayRecords} for:item="process">
+                                                    <tr key={process.Id} class="process-library-row">
+                                                        <td class="center-trancate-text checkbox-column">
+                                                            <input type="checkbox" 
+                                                                    data-process-id={process.Id}
+                                                                    data-type="change-order-process-checkbox"
+                                                                    checked={process.isSelected}
+                                                                    onchange={handleChangeOrderProcessSelection}>
+                                                        </td>
+                                                        <template for:each={process.displayFields} for:item="field">
+                                                            <td key={field.key} class="center-trancate-text">
+                                                                <template if:true={field.isCurrency}>
+                                                                    <template if:true={field.hasValue}>
+                                                                        <lightning-formatted-number 
+                                                                            value={field.currencyValue} 
+                                                                            format-style="currency" 
+                                                                            currency-code="USD"
+                                                                            maximum-fraction-digits="2">
+                                                                        </lightning-formatted-number>
+                                                                    </template>
+                                                                    <template if:false={field.hasValue}>--</template>
+                                                                </template>
+                                                                <template if:false={field.isCurrency}>
+                                                                    <template if:true={field.isPercent}>
+                                                                        <template if:true={field.hasValue}>
+                                                                            <lightning-formatted-number 
+                                                                                value={field.percentValue} 
+                                                                                format-style="percent-fixed"
+                                                                                maximum-fraction-digits="2">
+                                                                            </lightning-formatted-number>
+                                                                        </template>
+                                                                        <template if:false={field.hasValue}>0.00%</template>
+                                                                    </template>
+                                                                    <template if:false={field.isPercent}>
+                                                                        <template if:true={field.isNumber}>
+                                                                            <template if:true={field.hasValue}>
+                                                                                <lightning-formatted-number 
+                                                                                    value={field.numberValue} 
+                                                                                    maximum-fraction-digits="2">
+                                                                                </lightning-formatted-number>
+                                                                            </template>
+                                                                            <template if:false={field.hasValue}>--</template>
+                                                                        </template>
+                                                                        <template if:false={field.isNumber}>
+                                                                            <template if:true={field.isNameField}>
+                                                                                <template if:true={field.hasValue}>
+                                                                                    <div class="process-name-container">
+                                                                                        <div class="process-name">{field.value}</div>
+                                                                                        <template if:true={field.displayName}>
+                                                                                            <div class="process-display-name">{field.displayName}</div>
+                                                                                        </template>
+                                                                                    </div>
+                                                                                </template>
+                                                                                <template if:false={field.hasValue}>--</template>
+                                                                            </template>
+                                                                            <template if:false={field.isNameField}>
+                                                                                <template if:true={field.hasValue}>
+                                                                                    {field.value}
+                                                                                </template>
+                                                                                <template if:false={field.hasValue}>--</template>
+                                                                            </template>
+                                                                        </template>
+                                                                    </template>
+                                                                </template>
+                                                            </td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </template>
+    
+                                    <template if:false={processLibraryDisplayRecords.length}>
+                                        <div class="no-process-library-data">
+                                            <div class="empty-state">
+                                                <div class="empty-state__content">
+                                                    <div class="empty-state__icon">
+                                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M9 12L11 14L15 10" stroke="#0176D3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#0176D3" stroke-width="2"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="empty-state__message">No processes found</div>
+                                                    <template if:true={processLibrarySearchTerm}>
+                                                        <div class="empty-state__subtitle">Try adjusting your search criteria</div>
+                                                    </template>
+                                                    <template if:true={selectedProcessCategory}>
+                                                        <div class="empty-state__subtitle">Try selecting a different category</div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+    
+                                <!-- Selected Count Display -->
+                                <template if:true={hasSelectedChangeOrderProcesses}>
+                                    <div class="selected-processes-count">
+                                        <span class="count-text">{selectedChangeOrderProcessIds.length} processes selected</span>
+                                    </div>
+                                </template>
+                            </template>
+    
+                            <div class="popUpFooter">
+                                <button class="close-btn process-btn" onclick={handleChangeOrderPreviousStep}>Previous</button>
+                                <button class="close-btn process-btn" onclick={handleCloseChangeOrderModal}>Cancel</button>
+                                <button class="save-btn process-btn" 
+                                        onclick={handleSaveChangeOrder}
+                                        disabled={isChangeOrderSubmitting}>
+                                    <template if:true={isChangeOrderSubmitting}>Creating...</template>
+                                    <template if:false={isChangeOrderSubmitting}>Create Change Order</template>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
 </template>

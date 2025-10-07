@@ -15,6 +15,7 @@ import getJobLocations from '@salesforce/apex/SovJobScopeController.getJobLocati
 import getExistingLocationProcesses from '@salesforce/apex/SovJobScopeController.getExistingLocationProcesses';
 import createLocationProcesses from '@salesforce/apex/SovJobScopeController.createLocationProcesses';
 import saveScopeEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveScopeEntryInlineEdits';
+import createChangeOrder from '@salesforce/apex/SovJobScopeController.createChangeOrder';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -32,6 +33,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track sortOrder = '';
     @track processSortField = '';
     @track processSortOrder = '';
+    @track processSetupFlags = {}; // Store process setup flags from Apex
     
     @track scopeEntryColumns = [];
     @track accordionStyleApplied = false;
@@ -118,7 +120,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         },
         { 
             label: 'Weight', 
-            fieldName: 'wfrecon__Value__c', 
+            fieldName: 'wfrecon__Weight__c', 
             type: 'number'
         }
     ];
@@ -218,6 +220,25 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track hasScopeModifications = false; // Track if there are unsaved scope changes
     @track isSavingScopeEntries = false; // Track save operation for scope entries
     @track editingScopeCells = new Set(); // Track which cells are currently being edited
+
+    // Change Order Modal Properties
+    @track showCreateChangeOrderModal = false;
+    @track isChangeOrderSubmitting = false;
+    @track selectedScopeEntryForChangeOrder = null;
+    @track changeOrderStep = 1; // 1 for initial form, 2 for process selection
+    @track changeOrderData = {
+        name: '',
+        contractValue: null,
+        processOption: '' // 'manual' or 'library'
+    };
+    @track changeOrderProcesses = [];
+    @track selectedChangeOrderProcessIds = [];
+
+    // Change Order Process Options
+    @track processSelectionOptions = [
+        { label: 'Add Manual Process', value: 'manual' },
+        { label: 'Add from Process Library', value: 'library' }
+    ];
 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
@@ -555,6 +576,91 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get showChangeOrderButtons
+     * @description: Check if change order buttons should be shown (when entry has locations and processes)
+     */
+    get showChangeOrderButtons() {
+        return (scopeEntryId) => {
+            const entry = this.getEntryById(scopeEntryId);
+            return entry && entry.processDetails && entry.processDetails.length > 0;
+        };
+    }
+
+    /**
+     * Method Name: get hideProcessButtons
+     * @description: Check if process buttons should be hidden (when entry has locations and processes)
+     */
+    get hideProcessButtons() {
+        return (scopeEntryId) => {
+            const entry = this.getEntryById(scopeEntryId);
+            return entry && entry.processDetails && entry.processDetails.length > 0;
+        };
+    }
+
+    /**
+     * Method Name: get changeOrderNameCharacterCount
+     * @description: Get current character count for change order name field
+     */
+    get changeOrderNameCharacterCount() {
+        return this.changeOrderData.name ? this.changeOrderData.name.length : 0;
+    }
+
+    /**
+     * Method Name: get isChangeOrderStep1
+     * @description: Check if we're on step 1 of change order creation
+     */
+    get isChangeOrderStep1() {
+        return this.changeOrderStep === 1;
+    }
+
+    /**
+     * Method Name: get isChangeOrderStep2
+     * @description: Check if we're on step 2 of change order creation
+     */
+    get isChangeOrderStep2() {
+        return this.changeOrderStep === 2;
+    }
+
+    /**
+     * Method Name: get canProceedToStep2
+     * @description: Check if user can proceed to step 2
+     */
+    get canProceedToStep2() {
+        return this.changeOrderData.name && 
+               this.changeOrderData.contractValue && 
+               this.changeOrderData.contractValue > 0 &&
+               this.changeOrderData.processOption;
+    }
+
+    /**
+     * Method Name: get changeOrderModalTitle
+     * @description: Get dynamic modal title based on step
+     */
+    get changeOrderModalTitle() {
+        if (this.changeOrderStep === 1) {
+            return 'Create Change Order - Step 1 of 2';
+        } else {
+            return 'Create Change Order - Step 2 of 2';
+        }
+    }
+
+    /**
+     * Method Name: get hasSelectedChangeOrderProcesses
+     * @description: Check if any processes are selected for change order
+     */
+    get hasSelectedChangeOrderProcesses() {
+        return this.selectedChangeOrderProcessIds.length > 0;
+    }
+
+    get isMannualProcessSelected() {
+        return this.changeOrderData.processOption === 'manual';
+    }
+
+    get isLibraryProcessSelected() {
+        return this.changeOrderData.processOption === 'library';
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -688,7 +794,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Fetch scope entries for the job
      */
     fetchScopeEntries() {
-        
+    
         if (!this.recordId) {
             this.isLoading = false;
             return;
@@ -696,18 +802,28 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     
         getScopeEntries({ jobId: this.recordId })
             .then(result => {
-                this.scopeEntries = result || [];
-                
-                console.log('Fetched scope entries:', this.scopeEntries);
-                
-                this.applyFilters();
+                // Handle the new Map response structure
+                if (result && result.success) {
+                    this.scopeEntries = result.scopeEntries || [];
+                    this.processSetupFlags = result.processSetupFlags || {};
+                    
+                    console.log('Fetched scope entries:', this.scopeEntries);
+                    console.log('Process setup flags:', this.processSetupFlags);
+                    
+                    this.applyFilters();
+                } else {
+                    // Handle error case
+                    this.showToast('Error', result.error || 'Failed to fetch scope entries', 'error');
+                    this.scopeEntries = [];
+                    this.processSetupFlags = {};
+                }
                 this.isLoading = false;
             })
             .catch(error => {
                 console.error('Error fetching scope entries:', error);
                 this.showToast('Error', 'Error fetching scope entries: ' + (error.body?.message || error.message), 'error');
                 this.scopeEntries = [];
-                this.filteredScopeEntries = [];
+                this.processSetupFlags = {};
                 this.isLoading = false;
             });
     }
@@ -804,6 +920,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 };
                 
                 return searchInObject(entry);
+            });
+
+            filteredEntries = filteredEntries.map(entry => {
+                return {
+                    ...entry,
+                    hasCompleteProcessSetup: this.processSetupFlags[entry.Id] === true
+                };
             });
 
             // Store current process details and states before updating
@@ -1121,7 +1244,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleEditRecord(event) {
         const recordId = event.currentTarget.dataset.recordId;
-        this.showToast('Info', `Edit Record action clicked for record: ${recordId}`, 'info');
+        this.showToast('Success', `Edit Record action clicked for record: ${recordId}`, 'success');
     }
 
    /**
@@ -1338,44 +1461,51 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Toggle process details display and load data if needed
      */
     handleToggleProcessDetails(event) {
-        const recordId = event.currentTarget.dataset.recordId;
+
+        try{
+            const recordId = event.currentTarget.dataset.recordId;
         
-        // Update contract entries
-        this.filteredContractEntries = this.filteredContractEntries.map(entry => {
-            if (entry.Id === recordId) {
-                const updatedEntry = { ...entry };
-                updatedEntry.showProcessDetails = !entry.showProcessDetails;
-                
-                // Load process details if expanding and not already loaded
-                if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
-                    updatedEntry.isLoadingProcesses = true;
-                    this.loadProcessDetails(recordId);
+            // Update contract entries
+            this.filteredContractEntries = this.filteredContractEntries.map(entry => {
+                if (entry.Id === recordId) {
+                    const updatedEntry = { ...entry };
+                    updatedEntry.showProcessDetails = !entry.showProcessDetails;
+                    
+                    // Load process details if expanding and not already loaded
+                    if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
+                        updatedEntry.isLoadingProcesses = true;
+                        this.loadProcessDetails(recordId);
+                    }
+                    
+                    return updatedEntry;
                 }
-                
-                return updatedEntry;
-            }
-            return entry;
-        });
-        
-        // Update change order entries
-        this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
-            if (entry.Id === recordId) {
-                const updatedEntry = { ...entry };
-                updatedEntry.showProcessDetails = !entry.showProcessDetails;
-                
-                // Load process details if expanding and not already loaded
-                if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
-                    updatedEntry.isLoadingProcesses = true;
-                    this.loadProcessDetails(recordId);
+                return entry;
+            });
+            
+            // Update change order entries
+            this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
+                if (entry.Id === recordId) {
+                    const updatedEntry = { ...entry };
+                    updatedEntry.showProcessDetails = !entry.showProcessDetails;
+                    
+                    // Load process details if expanding and not already loaded
+                    if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
+                        updatedEntry.isLoadingProcesses = true;
+                        this.loadProcessDetails(recordId);
+                    }
+                    
+                    return updatedEntry;
                 }
-                
-                return updatedEntry;
-            }
-            return entry;
-        });
+                return entry;
+            });
+            
+            // Force re-render
+            this.template.querySelector('.accordion-container')?.setAttribute('data-update', Date.now().toString());
+        }
+        catch(error){
+            console.error('Error toggling process details:', error.stack);
+        }
         
-        // Force re-render
-        this.template.querySelector('.accordion-container')?.setAttribute('data-update', Date.now().toString());
     }
 
     /**
@@ -2620,4 +2750,215 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return modifications && modifications.hasOwnProperty(fieldName);
     }
 
+    /**
+     * Method Name: handleCreateChangeOrder
+     * @description: Open change order creation modal
+     */
+    handleCreateChangeOrder(event) {
+        const scopeEntryId = event.currentTarget.dataset.recordId;
+        const entry = this.getEntryById(scopeEntryId);
+        
+        if (!entry) {
+            this.showToast('Error', 'Scope entry not found', 'error');
+            return;
+        }
+
+        this.selectedScopeEntryForChangeOrder = entry;
+        this.changeOrderStep = 1;
+        this.changeOrderData = {
+            name: `${entry.Name} - CO`,
+            contractValue: null,
+            processOption: ''
+        };
+        this.selectedChangeOrderProcessIds = [];
+        this.changeOrderProcesses = [];
+        
+        this.showCreateChangeOrderModal = true;
+    }
+
+    /**
+     * Method Name: handleCloseChangeOrderModal
+     * @description: Close change order modal and reset data
+     */
+    handleCloseChangeOrderModal() {
+        this.showCreateChangeOrderModal = false;
+        this.selectedScopeEntryForChangeOrder = null;
+        this.changeOrderStep = 1;
+        this.changeOrderData = {
+            name: '',
+            contractValue: null,
+            processOption: ''
+        };
+        this.selectedChangeOrderProcessIds = [];
+        this.changeOrderProcesses = [];
+    }
+
+    /**
+     * Method Name: handleChangeOrderInputChange
+     * @description: Handle input changes in change order form
+     */
+    handleChangeOrderInputChange(event) {
+        const field = event.target.dataset.field;
+        let value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;
+        
+        this.changeOrderData = { ...this.changeOrderData, [field]: value };
+    }
+
+    /**
+     * Method Name: handleChangeOrderSelectChange
+     * @description: Handle select changes in change order form
+     */
+    handleChangeOrderSelectChange(event) {
+        const field = event.target.dataset.field;
+        const value = event.target.value;
+        
+        this.changeOrderData = { ...this.changeOrderData, [field]: value };
+    }
+
+    /**
+     * Method Name: handleChangeOrderNextStep
+     * @description: Proceed to step 2 of change order creation
+     */
+    handleChangeOrderNextStep() {
+        if (!this.canProceedToStep2) {
+            this.showToast('Error', 'Please fill all required fields', 'error');
+            return;
+        }
+
+        this.changeOrderStep = 2;
+        
+        // Load data based on selected option
+        if (this.changeOrderData.processOption === 'library') {
+            this.loadProcessLibraryData();
+        } else if (this.changeOrderData.processOption === 'manual') {
+            // Reset manual process form
+            this.newProcess = {
+                processName: '',
+                sequence: null,
+                processType: '',
+                weightage: null,
+                measurementType: ''
+            };
+        }
+    }
+
+    /**
+     * Method Name: handleChangeOrderPreviousStep
+     * @description: Go back to step 1 of change order creation
+     */
+    handleChangeOrderPreviousStep() {
+        this.changeOrderStep = 1;
+    }
+
+    /**
+     * Method Name: handleChangeOrderProcessSelection
+     * @description: Handle process selection in change order modal
+     */
+    handleChangeOrderProcessSelection(event) {
+        const processId = event.target.dataset.processId;
+        const isChecked = event.target.checked;
+
+        if (isChecked) {
+            if (!this.selectedChangeOrderProcessIds.includes(processId)) {
+                this.selectedChangeOrderProcessIds = [...this.selectedChangeOrderProcessIds, processId];
+            }
+        } else {
+            this.selectedChangeOrderProcessIds = this.selectedChangeOrderProcessIds.filter(id => id !== processId);
+        }
+
+        // Update display records
+        this.processLibraryDisplayRecords = this.processLibraryDisplayRecords.map(process => ({
+            ...process,
+            isSelected: this.selectedChangeOrderProcessIds.includes(process.Id)
+        }));
+    }
+
+    /**
+     * Method Name: handleSelectAllChangeOrderProcesses
+     * @description: Handle select all for change order processes
+     */
+    handleSelectAllChangeOrderProcesses(event) {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+            const visibleIds = this.processLibraryDisplayRecords.map(process => process.Id);
+            const newSelections = visibleIds.filter(id => !this.selectedChangeOrderProcessIds.includes(id));
+            this.selectedChangeOrderProcessIds = [...this.selectedChangeOrderProcessIds, ...newSelections];
+        } else {
+            const visibleIds = this.processLibraryDisplayRecords.map(process => process.Id);
+            this.selectedChangeOrderProcessIds = this.selectedChangeOrderProcessIds.filter(id => !visibleIds.includes(id));
+        }
+
+        this.processLibraryDisplayRecords = this.processLibraryDisplayRecords.map(process => ({
+            ...process,
+            isSelected: this.selectedChangeOrderProcessIds.includes(process.Id)
+        }));
+    }
+
+    /**
+     * Method Name: validateChangeOrderStep2
+     * @description: Validate step 2 data
+     */
+    validateChangeOrderStep2() {
+        if (this.changeOrderData.processOption === 'manual') {
+            return this.validateProcess();
+        } else if (this.changeOrderData.processOption === 'library') {
+            if (this.selectedChangeOrderProcessIds.length === 0) {
+                return { isValid: false, message: 'Please select at least one process from library' };
+            }
+        }
+        return { isValid: true, message: '' };
+    }
+
+    /**
+     * Method Name: handleSaveChangeOrder
+     * @description: Save the change order
+     */
+    handleSaveChangeOrder() {
+        const step2Validation = this.validateChangeOrderStep2();
+        if (!step2Validation.isValid) {
+            this.showToast('Error', step2Validation.message, 'error');
+            return;
+        }
+
+        this.isChangeOrderSubmitting = true;
+
+        const changeOrderRequestData = {
+            originalScopeEntryId: this.selectedScopeEntryForChangeOrder.Id,
+            changeOrderName: this.changeOrderData.name,
+            contractValue: this.changeOrderData.contractValue,
+            processOption: this.changeOrderData.processOption,
+            jobId: this.recordId
+        };
+
+        if (this.changeOrderData.processOption === 'manual') {
+            changeOrderRequestData.manualProcess = {
+                processName: this.newProcess.processName,
+                sequence: this.newProcess.sequence,
+                processType: this.newProcess.processType,
+                weightage: this.newProcess.weightage,
+                measurementType: this.newProcess.measurementType
+            };
+        } else if (this.changeOrderData.processOption === 'library') {
+            changeOrderRequestData.selectedProcessIds = this.selectedChangeOrderProcessIds;
+        }
+
+        // Call Apex method
+        createChangeOrder({ changeOrderData: changeOrderRequestData })
+            .then(result => {
+                if (result === 'Success') {
+                    this.showToast('Success', 'Change order created successfully', 'success');
+                    this.handleCloseChangeOrderModal();
+                    this.fetchScopeEntries(); // Refresh the data
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to create change order: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isChangeOrderSubmitting = false;
+            });
+    }
 }
