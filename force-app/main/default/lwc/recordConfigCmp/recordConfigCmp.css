@@ -90,7 +90,7 @@
 
 .popup__header-row {
     display: grid;
-    grid-template-columns: 0.15fr 1.5fr 1fr 0.6fr;
+    grid-template-columns: 0.15fr 1.5fr 1fr 0.8fr 0.6fr;
     gap: 0.5rem;
     padding: 0.8rem 0rem;
     border-radius: 0.25rem 0.25rem 0rem 0rem;
@@ -106,7 +106,7 @@
 /* Update popup__data-row to match header grid */
 .popup__data-row {
     display: grid;
-    grid-template-columns: 0.15fr 1.5fr 1fr 0.6fr;
+    grid-template-columns: 0.15fr 1.5fr 1fr 0.8fr 0.6fr;
     gap: 0.5rem;
     align-items: center;
     padding: 0.5rem 0rem;
@@ -565,6 +565,29 @@
     display: block;
 }
 
+/* Add styles for disabled checkbox and tooltip */
+.custom-checkbox input[type="checkbox"]:disabled + .checkmark {
+    background-color: #f0f0f0;
+    border-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.custom-checkbox .checkmark.disabled {
+    position: relative;
+}
+
+.disabled-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+}
+
+.disabled-tooltip svg {
+    cursor: help;
+}
+
 input[type="range"] {
     font-size: 1.5rem;
     width: 8.5em;
@@ -797,4 +820,12 @@ input[type="range"]:disabled::-moz-range-thumb {
 
 .drag-icon:active {
     cursor: grabbing;
+}
+
+/* Ensure checkbox alignment in the new column */
+.order_btn_grp .custom-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }

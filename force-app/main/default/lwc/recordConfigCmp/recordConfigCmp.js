@@ -33,7 +33,6 @@ export default class RecordConfigCmp extends LightningElement {
     @track dragStartIndex = null;
     scrollInterval = null;
 
-
     get showParentDropDown() {
         return this.parentFieldsOption.length > 0;
     }
@@ -41,7 +40,6 @@ export default class RecordConfigCmp extends LightningElement {
     get isDataAvailable() {
         return this.items && this.items.length > 0;
     }
-    
 
     /**
     * Method Name: connectedCallback
@@ -83,7 +81,6 @@ export default class RecordConfigCmp extends LightningElement {
         console.log('featureName', this.featureName);
         console.log('objectApiName', this.objectApiName);
         
-        
         getObjectFields({ objectApiName: this.objectApiName , featureName: this.featureName})
             .then((result) => {
                 if (!result) {
@@ -95,8 +92,10 @@ export default class RecordConfigCmp extends LightningElement {
                 this.fieldOptions = result.fieldDetailsList;
                 this.fieldOptions = this.fieldOptions.map(option => ({
                     ...option,
-                    showRightRef: this.isLookupField(option.fieldType)
+                    showRightRef: this.isLookupField(option.fieldType),
+                    isEditableDisabled: option.isCalculated
                 })).filter(option => option.value !== 'OwnerId');
+                
                 if (result.metadataRecords.length > 0) {
                     const fieldsData = JSON.parse(result.metadataRecords[0]);
                     this.items = fieldsData.map((item, index) => ({
@@ -108,6 +107,8 @@ export default class RecordConfigCmp extends LightningElement {
                         fieldType: item.fieldType,
                         format: item.format,
                         isDisable: item.format === '' || item.format == null,
+                        isEditable: item.isEditable !== undefined ? item.isEditable : true,
+                        isEditableDisabled: this.getParentFieldEditableStatus(item.fieldName), // Use new method
                         picklist: item.fieldType === 'DATE' ? this.dateOptions :
                             item.fieldType === 'DATETIME' ? this.dateTimeOptions : null
                     }));
@@ -121,6 +122,35 @@ export default class RecordConfigCmp extends LightningElement {
                 console.log('Error Stack Trace:', error.stack);
                 this.isLoading = false;
             });
+    }
+
+    /**
+    * Method Name: getFieldEditableStatus
+    * @description: Check if field is formula or rollup summary and should be disabled
+    * Date: 10/09/2024
+    * Created By: GitHub Copilot
+    */
+    getFieldEditableStatus(fieldName) {
+        const field = this.fieldOptions.find(option => option.value === fieldName);
+        return field ? (field.isCalculated) : false;
+    }
+
+    /**
+    * Method Name: handleEditableChange
+    * @description: Handle editable checkbox change
+    * Date: 10/09/2024
+    * Created By: GitHub Copilot
+    */
+    handleEditableChange(event) {
+        const index = parseInt(event.target.dataset.index, 10);
+        const isEditable = event.target.checked;
+        
+        this.items = this.items.map((item, i) => {
+            if (i === index) {
+                return { ...item, isEditable: isEditable };
+            }
+            return item;
+        });
     }
 
     /**
@@ -308,7 +338,9 @@ export default class RecordConfigCmp extends LightningElement {
                 value: '',
                 searchTerm: '',
                 label: '',
-                isDisable: true
+                isDisable: true,
+                isEditable: true,
+                isEditableDisabled: false
             };
             this.items = [...this.items, newItem];
             this.setScroll = true;
@@ -363,7 +395,8 @@ export default class RecordConfigCmp extends LightningElement {
                 value: item.fieldName,
                 label: item.label,
                 fieldType: item.fieldType,
-                format: item.format
+                format: item.format,
+                isEditable: item.isEditable
             }));
             const itemsData = JSON.stringify(itemsToSave);
             const totalPages = this.pageSize;
@@ -500,10 +533,22 @@ export default class RecordConfigCmp extends LightningElement {
         const label = event.currentTarget.dataset.label;
         const index = event.currentTarget.dataset.index;
         const type = event.currentTarget.dataset.type;
+        
+        // Find the selected field to check if it's calculated or formula
+        const selectedField = this.fieldOptions.find(option => option.value === selectedOptionValue);
+        const isEditableDisabled = selectedField ? (selectedField.isCalculated) : false;
+        
         this.items[index].fieldName = selectedOptionValue;
         this.items[index].value = selectedOptionValue;
         this.items[index].label = label;
         this.items[index].fieldType = type;
+        this.items[index].isEditableDisabled = isEditableDisabled;
+        
+        // If field is formula/rollup, set isEditable to false and disable checkbox
+        if (isEditableDisabled) {
+            this.items[index].isEditable = false;
+        }
+        
         if (type == 'DATE') {
             this.items[index].isDisable = false;
             this.items[index].picklist = this.dateOptions;
@@ -547,10 +592,22 @@ export default class RecordConfigCmp extends LightningElement {
         const label = event.currentTarget.dataset.label;
         const type = event.currentTarget.dataset.type;
         const index = event.currentTarget.dataset.index;
+        
+        // Find the selected parent field to check if it's calculated or formula
+        const selectedField = this.parentFieldsOption.find(option => option.value === selectedOptionValue);
+        const isEditableDisabled = selectedField ? (selectedField.isCalculated) : false;
+        
         this.items[index].fieldName = this.items[index].relationshipName + '.' + selectedOptionValue;
         this.items[index].value = this.items[index].relationshipName + '.' + selectedOptionValue;
         this.items[index].label = label;
         this.items[index].fieldType = type;
+        this.items[index].isEditableDisabled = isEditableDisabled;
+        
+        // If field is formula/rollup, set isEditable to false and disable checkbox
+        if (isEditableDisabled) {
+            this.items[index].isEditable = false;
+        }
+        
         if (type == 'DATE') {
             this.items[index].isDisable = false;
             this.items[index].picklist = this.dateOptions;
@@ -621,6 +678,7 @@ export default class RecordConfigCmp extends LightningElement {
                             label: field.label,
                             value: field.value,
                             fieldType: field.fieldType,
+                            isCalculated: field.isCalculated, // Add this line
                             referenceObjectName: field.referenceFields || [],
                             objectApiName: field.referenceObjectName || ''
                         };
@@ -651,5 +709,24 @@ export default class RecordConfigCmp extends LightningElement {
         if (parent) {
             parent.handleDialogueClose();
         }
+    }
+
+    /**
+    * Method Name: getParentFieldEditableStatus
+    * @description: Check if parent field is formula or rollup summary and should be disabled
+    * Date: 10/09/2024
+    * Created By: GitHub Copilot
+    */
+    getParentFieldEditableStatus(fieldName) {
+        // Check if it's a parent field (contains dot notation)
+        if (fieldName && fieldName.includes('.')) {
+            const fieldNameOnly = fieldName.split('.')[1];
+            const field = this.parentFieldsOption.find(option => option.value === fieldNameOnly);
+            return field ? (field.isCalculated) : false;
+        }
+        
+        // Regular field check
+        const field = this.fieldOptions.find(option => option.value === fieldName);
+        return field ? (field.isCalculated) : false;
     }
 }

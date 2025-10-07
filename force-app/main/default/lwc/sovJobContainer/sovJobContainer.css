@@ -47,7 +47,7 @@
 
 .tab-navigation button.active {
     color: rgba(94, 90, 219, 1);
-    border-bottom-color: rgba(94, 90, 219, 1);
+    border-top: 3px solid rgba(94, 90, 219, 1);
     background: rgb(244, 244, 255);
     font-weight: 700;
 }

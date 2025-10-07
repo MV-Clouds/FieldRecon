@@ -24,6 +24,7 @@ public with sharing class RecordManagersCmpController {
                 fieldDetails.label = fieldDescribe.getLabel();
                 fieldDetails.value = fieldDescribe.getName();
                 fieldDetails.fieldType = String.valueOf(fieldDescribe.getType());
+                fieldDetails.isCalculated = fieldDescribe.isCalculated();
 
                 if (fieldDescribe.getType() == Schema.DisplayType.Reference) {
                     List<Schema.SObjectType> referenceTo = fieldDescribe.getReferenceTo();
@@ -199,6 +200,7 @@ public with sharing class RecordManagersCmpController {
                 fieldDetails.label = fieldDescribe.getLabel();
                 fieldDetails.value = fieldDescribe.getName();
                 fieldDetails.fieldType = String.valueOf(fieldDescribe.getType());
+                fieldDetails.isCalculated = fieldDescribe.isCalculated(); // Add this line
 
                 if (fieldDescribe.getType() == Schema.DisplayType.Reference) {
                     List<Schema.SObjectType> referenceTo = fieldDescribe.getReferenceTo();
@@ -253,6 +255,9 @@ public with sharing class RecordManagersCmpController {
         public String relationshipName { get; set; }
         @AuraEnabled
         public List<PicklistValue> picklistValues { get; set; }
+        @AuraEnabled
+        public Boolean isCalculated { get; set; }
+        
     }
 
     /**

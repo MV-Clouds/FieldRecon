@@ -1041,7 +1041,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         this.modifiedProcesses.clear();
         this.hasModifications = false;
         
-        this.showToast('Info', 'Changes discarded', 'info');
+        this.showToast('Success', 'Changes discarded', 'success');
     }
 
     /**

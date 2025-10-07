@@ -23,17 +23,15 @@
                     <template if:true={isDataAvailable}>
                         <div class="popup__header-row">
                             <div class="slds-col display_css"></div>
-
                             <div class="slds-col display_css">
                                 <p class="header-text">Field</p>
                             </div>
                             <div class="slds-col display_css">
                                 <p class="header-text">Display Format</p>
                             </div>
-                            <!-- <div class="slds-col display_css">
-                                <p class="header-text">Card view</p>
-                            </div> -->
-
+                            <div class="slds-col display_css">
+                                <p class="header-text">Editable</p>
+                            </div>
                             <div class="slds-col display_css">
                                 <!-- <p class="header-text">Delete</p> -->
                             </div>
@@ -128,12 +126,24 @@
                                     <div class="slds-col wrap_css">
                                        <lightning-combobox options={item.picklist} variant="label-hidden" value={item.format} onchange={handleFormatChange} data-id={index} disabled={item.isDisable}></lightning-combobox>
                                     </div>
-                                    <!-- <div class="slds-col wrap_css order_btn_grp">
+                                    <div class="slds-col wrap_css order_btn_grp">
                                         <label class="custom-checkbox">
-                                            <input type="checkbox" checked={item.cardView} data-index={index} onchange={handleCardViewChange}>
-                                            <span class="checkmark"></span>
+                                            <input type="checkbox" 
+                                                   checked={item.isEditable} 
+                                                   data-index={index} 
+                                                   onchange={handleEditableChange}
+                                                   disabled={item.isEditableDisabled}>
+                                            <span class="checkmark" style={item.isEditableDisabled}>
+                                                <template if:true={item.isEditableDisabled}>
+                                                    <span class="disabled-tooltip" title="Formula and rollup summary fields cannot be edited">
+                                                        <svg width="12" height="12" viewBox="0 0 20 20" fill="#ccc">
+                                                            <path d="M10,1 C15,1 19,5 19,10 C19,15 15,19 10,19 C5,19 1,15 1,10 C1,5 5,1 10,1 Z M10,13 C10.6,13 11,13.4 11,14 C11,14.6 10.6,15 10,15 C9.4,15 9,14.6 9,14 C9,13.4 9.4,13 10,13 Z M10,5 C10.6,5 11,5.4 11,6 L11,11 C11,11.6 10.6,12 10,12 C9.4,12 9,11.6 9,11 L9,6 C9,5.4 9.4,5 10,5 Z"/>
+                                                        </svg>
+                                                    </span>
+                                                </template>
+                                            </span>
                                         </label>
-                                    </div> -->
+                                    </div>
                                     <div class="slds-col wrap_css order_btn_grp">
                                         <div class="delete-div" onclick={handleDelete} data-index={index}>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 25 24" fill="none">
