@@ -14,6 +14,7 @@ import getProcessTypes from '@salesforce/apex/SovJobScopeController.getProcessTy
 import getJobLocations from '@salesforce/apex/SovJobScopeController.getJobLocations';
 import getExistingLocationProcesses from '@salesforce/apex/SovJobScopeController.getExistingLocationProcesses';
 import createLocationProcesses from '@salesforce/apex/SovJobScopeController.createLocationProcesses';
+import saveScopeEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveScopeEntryInlineEdits';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -24,6 +25,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track filteredContractEntries = [];
     @track filteredChangeOrderEntries = [];
     @track searchTerm = '';
+    @track processTableUpdateTime = 0;
 
     // Sorting properties
     @track sortField = '';
@@ -39,11 +41,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         { label: 'Change Order', value: 'Change Order' }
     ];
     @track defaultColumns = [
-        { label: 'Name', fieldName: 'Name', type: 'text' },
-        { label: 'Type', fieldName: 'wfrecon__Type__c', type: 'text' },
-        { label: 'Contract Value', fieldName: 'wfrecon__Contract_Value__c', type: 'currency' },
-        { label: 'Completed Percentage', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent' },
-        { label: 'Status', fieldName: 'wfrecon__Scope_Entry_Status__c', type: 'text' }
+        { label: 'Name', fieldName: 'Name', type: 'text', editable: true },
+        { label: 'Type', fieldName: 'wfrecon__Type__c', type: 'text', editable: false },
+        { label: 'Contract Value', fieldName: 'wfrecon__Contract_Value__c', type: 'currency', editable: true },
+        { label: 'Completed Percentage', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', editable: false },
+        { label: 'Status', fieldName: 'wfrecon__Scope_Entry_Status__c', type: 'text', editable: false }
     ];
 
     // Process table columns configuration
@@ -212,52 +214,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     ];
 
+    @track modifiedScopeEntries = new Map(); // Track modified scope entries
+    @track hasScopeModifications = false; // Track if there are unsaved scope changes
+    @track isSavingScopeEntries = false; // Track save operation for scope entries
+    @track editingScopeCells = new Set(); // Track which cells are currently being edited
+
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
-    }
-
-    @track processTableUpdateTime = 0;
-
-    /**
-     * Method Name: get displayedScopeEntries
-     * @description: Process scope entries for table display without pagination
-     */
-    get displayedScopeEntries() {
-        if (!this.filteredScopeEntries || this.filteredScopeEntries.length === 0) {
-            return [];
-        }
-
-        const cols = this.tableColumns;
-        return this.filteredScopeEntries.map(entry => {
-            const row = { ...entry };
-            row.isSelected = this.selectedRows.includes(entry.Id);
-            row.recordUrl = `/lightning/r/${entry.Id}/view`;
-            row.displayFields = cols.map(col => {
-                const key = col.fieldName;
-                let value = this.getFieldValue(entry, key);
-                
-                const displayValue = value !== null && value !== undefined ? String(value) : '';
-                
-                // Handle currency fields - show $0.00 for empty currency fields
-                let currencyValue = 0;
-                if (col.type === 'currency') {
-                    currencyValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
-                }
-                
-                return {
-                    key,
-                    value: displayValue,
-                    rawValue: value,
-                    currencyValue: currencyValue,
-                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
-                    isNameField: key === 'Name',
-                    isCurrency: col.type === 'currency',
-                    isPercent: col.type === 'percent'
-                };
-            });
-            return row;
-        });
     }
 
     /**
@@ -550,6 +514,47 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get isScopeButtonsDisabled
+     * @description: Check if scope action buttons should be disabled
+     */
+    get isScopeButtonsDisabled() {
+        return !this.hasScopeModifications || this.isSavingScopeEntries;
+    }
+
+    /**
+     * Method Name: get isScopeSaveDisabled
+     * @description: Check if scope save button should be disabled
+     */
+    get isScopeSaveDisabled() {
+        return !this.hasScopeModifications || this.isSavingScopeEntries;
+    }
+
+    /**
+     * Method Name: get scopeSaveButtonLabel
+     * @description: Get dynamic scope save button label
+     */
+    get scopeSaveButtonLabel() {
+        if (this.isSavingScopeEntries) {
+            return 'Saving...';
+        }
+        if (this.hasScopeModifications) {
+            return `Save Scope Changes (${this.modifiedScopeEntries.size})`;
+        }
+        return 'Save Scope Changes';
+    }
+
+    /**
+     * Method Name: get scopeDiscardButtonTitle
+     * @description: Get dynamic scope discard button title
+     */
+    get scopeDiscardButtonTitle() {
+        if (!this.hasScopeModifications) {
+            return 'No scope changes to discard';
+        }
+        return `Discard ${this.modifiedScopeEntries.size} unsaved scope change(s)`;
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -602,6 +607,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             case 'PERCENT':
                 return 'percent';
             case 'NUMBER':
+            case 'DOUBLE':           
+            case 'INTEGER':          
+            case 'LONG':             
+            case 'DECIMAL':          
                 return 'number';
             case 'DATE':
                 return 'date';
@@ -633,7 +642,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                         this.scopeEntryColumns = fieldsData.map(field => ({
                             label: field.label,
                             fieldName: field.fieldName,
-                            type: this.getColumnType(field.fieldType)
+                            type: this.getColumnType(field.fieldType),
+                            editable: field.isEditable || false 
                         }));
                     } catch (error) {
                         console.error('Error parsing fieldsData:', error);
@@ -650,6 +660,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.sortField = this.scopeEntryColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
+
+                
             })
             .catch(error => {
                 console.error('Error fetching configuration:', error);
@@ -660,6 +672,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.sortField = this.scopeEntryColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
+
+                
                 this.showToast('Warning', 'Using default configuration due to error', 'warning');
             }).finally(() => {
                 this.fetchScopeEntries();
@@ -671,7 +685,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Fetch scope entries for the job
      */
     fetchScopeEntries() {
-        console.log('Record ID:', this.recordId);
         
         if (!this.recordId) {
             this.isLoading = false;
@@ -680,7 +693,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     
         getScopeEntries({ jobId: this.recordId })
             .then(result => {
-                console.log('Raw Scope Entries Result:', result);
                 this.scopeEntries = result || [];
                 this.applyFilters();
                 this.isLoading = false;
@@ -699,7 +711,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle configuration updated event from record config component
      */
     handleConfigurationUpdated(event) {
-        console.log('Configuration updated event received:', event.detail);
         
         // Prevent duplicate processing using timestamp
         if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
@@ -710,9 +721,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         if (event.detail.success && event.detail.featureName === 'ScopeEntry') {
             // Store timestamp to prevent duplicates
             this.lastConfigUpdateTimestamp = event.detail.timestamp;
-            
-            console.log('Processing configuration update...');
-            
+                        
             // Stop event propagation
             event.stopPropagation();
             
@@ -1109,12 +1118,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.showToast('Info', `Edit Record action clicked for record: ${recordId}`, 'info');
     }
 
-    /**
+   /**
      * Method Name: processEntriesForDisplay
-     * @description: Common method to process entries for display with nested table support
+     * @description: Common method to process entries for display with nested table support and inline editing
      */
     processEntriesForDisplay(entries) {
-        const cols = this.tableColumns;
+        const cols = this.tableColumns;        
+        
         return entries.map(entry => {
             const row = { ...entry };
             row.isSelected = this.selectedRows.includes(entry.Id);
@@ -1123,17 +1133,47 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Preserve nested table state
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
-            row.isLoadingProcesses = entry.isLoadingProcesses || false;
+            row.isLoadingProcesses = entry.isLoadingProcesses || false;            
             
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
                 let value = this.getFieldValue(entry, key);
                 
-                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                // Check if this field has been modified
+                const modifiedValue = this.getModifiedScopeValue(entry.Id, key);
+                if (modifiedValue !== null && modifiedValue !== undefined) {
+                    value = modifiedValue;
+                }
                 
+                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                const isModified = this.isScopeFieldModified(entry.Id, key);
+                const isBeingEdited = this.editingScopeCells.has(`${entry.Id}-${key}`);
+                
+                // Build cell classes
+                let cellClass = 'center-trancate-text';
+                if (col.editable) {
+                    cellClass += ' editable-cell';
+                }
+                if (isModified && !isBeingEdited) {
+                    cellClass += ' modified-scope-cell';
+                }
+                if (isBeingEdited) {
+                    cellClass += ' editing-cell';
+                }
+                
+                // Build content classes
+                let contentClass = 'editable-content';
+                
+                // Handle currency fields - show $0.00 for empty currency fields
                 let currencyValue = 0;
                 if (col.type === 'currency') {
-                    currencyValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                    currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+                }
+                
+                // Handle percent fields
+                let percentValue = 0;
+                if (col.type === 'percent') {
+                    percentValue = value !== null && value !== undefined ? parseFloat(value) / 100 : 0;
                 }
                 
                 return {
@@ -1141,12 +1181,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     value: displayValue,
                     rawValue: value,
                     currencyValue: currencyValue,
+                    percentValue: percentValue,
                     hasValue: value !== null && value !== undefined && String(value).trim() !== '',
                     isNameField: key === 'Name',
                     isCurrency: col.type === 'currency',
-                    isPercent: col.type === 'percent'
+                    isPercent: col.type === 'percent',
+                    isNumber: col.type === 'number',
+                    isEditable: col.editable || false,
+                    isModified: isModified,
+                    isBeingEdited: isBeingEdited,
+                    cellClass: cellClass,
+                    contentClass: contentClass
                 };
             });
+            
             return row;
         });
     }
@@ -1337,7 +1385,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleAddProcess(event) {
         this.selectedScopeEntryId = event.currentTarget.dataset.scopeEntryId;
-        console.log('Selected Scope Entry ID for adding process:', this.selectedScopeEntryId);  
         
         this.selectedScopeEntryName = event.currentTarget.dataset.scopeEntryName;
         
@@ -1631,15 +1678,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         getProcessTypes()
             .then(result => {
 
-                console.log('Process types:', result);
-                
                 this.processTypeOptions = (result || []).map(type => ({
                     label: type,
                     value: type
                 }));
 
-                console.log('Process types loaded:', this.processTypeOptions);
-                
             })
             .catch(error => {
                 console.error('Error loading process types:', error);
@@ -2371,6 +2414,190 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         } catch (error) {
             console.error('Error in sortData:', error);
         }
+    }
+
+    /**
+     * Method Name: handleScopeCellClick
+     * @description: Handle cell click for inline editing of scope entries
+     */
+    handleScopeCellClick(event) {
+        const recordId = event.currentTarget.dataset.recordId;
+        const fieldName = event.currentTarget.dataset.fieldName;
+        const isEditable = event.currentTarget.dataset.editable === 'true';
+        
+        if (!isEditable) return;
+        
+        const cellKey = `${recordId}-${fieldName}`;
+        
+        // Don't open editor if already editing this cell
+        if (this.editingScopeCells.has(cellKey)) return;
+        
+        this.editingScopeCells.add(cellKey);
+        
+        // Trigger reactivity
+        this.applyFilters();
+        
+        // Auto-focus the input after DOM update
+        setTimeout(() => {
+            const input = this.template.querySelector(`input[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+            if (input) {
+                input.focus();
+                input.select(); // Select all text for easy editing
+            }
+        }, 50);
+    }
+
+    /**
+     * Method Name: handleScopeCellInputChange
+     * @description: Handle input change in scope inline editing
+     */
+    handleScopeCellInputChange(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const fieldType = event.target.dataset.fieldType;
+        let newValue = event.target.value;
+        
+        // Type conversion based on field type
+        if (fieldType === 'number' && newValue !== '') {
+            newValue = parseFloat(newValue);
+            if (isNaN(newValue)) {
+                newValue = 0;
+            }
+        }
+        
+        // Get original value to compare
+        const originalEntry = [...this.filteredContractEntries, ...this.filteredChangeOrderEntries].find(entry => entry.Id === recordId);
+        const originalValue = this.getFieldValue(originalEntry, fieldName);
+        
+        // Track modifications
+        if (!this.modifiedScopeEntries.has(recordId)) {
+            this.modifiedScopeEntries.set(recordId, {});
+        }
+        
+        const modifications = this.modifiedScopeEntries.get(recordId);
+        
+        if (newValue !== originalValue) {
+            modifications[fieldName] = newValue;
+        } else {
+            // Remove modification if value is back to original
+            delete modifications[fieldName];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedScopeEntries.delete(recordId);
+            }
+        }
+        
+        // Update hasScopeModifications flag
+        this.hasScopeModifications = this.modifiedScopeEntries.size > 0;
+    }
+
+    /**
+     * Method Name: handleScopeCellInputBlur
+     * @description: Handle blur event on scope inline edit input
+     */
+    handleScopeCellInputBlur(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const cellKey = `${recordId}-${fieldName}`;
+        
+        // Remove from editing set
+        this.editingScopeCells.delete(cellKey);
+        
+        // Trigger reactivity to show normal cell
+        this.applyFilters();
+    }
+
+    /**
+     * Method Name: handleSaveScopeChanges
+     * @description: Save all modified scope entries in a single batch
+     */
+    handleSaveScopeChanges() {
+        if (this.modifiedScopeEntries.size === 0) {
+            return;
+        }
+
+        this.isSavingScopeEntries = true;
+        
+        // Prepare data for batch update
+        const updatedScopeEntries = [];
+        
+        this.modifiedScopeEntries.forEach((modifications, recordId) => {
+            const scopeUpdate = { Id: recordId };
+            Object.keys(modifications).forEach(fieldName => {
+                scopeUpdate[fieldName] = modifications[fieldName];
+            });
+            updatedScopeEntries.push(scopeUpdate);
+        });
+
+        // Call batch update method
+        const updatedScopeEntriesJson = JSON.stringify(updatedScopeEntries);
+        
+        saveScopeEntryInlineEdits({ updatedScopeEntriesJson: updatedScopeEntriesJson })
+            .then(result => {
+                if (result.startsWith('Success')) {
+                    this.showToast('Success', result, 'success');
+                    
+                    // Clear modifications and refresh data
+                    this.modifiedScopeEntries.clear();
+                    this.hasScopeModifications = false;
+                    this.editingScopeCells.clear();
+                    
+                    // Refresh scope entries
+                    this.fetchScopeEntries();
+                    
+                } else if (result.startsWith('Partial Success')) {
+                    this.showToast('Warning', result, 'warning');
+                    
+                    // Partially clear modifications and refresh
+                    this.modifiedScopeEntries.clear();
+                    this.hasScopeModifications = false;
+                    this.editingScopeCells.clear();
+                    this.fetchScopeEntries();
+                    
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error in scope batch update:', error);
+                this.showToast('Error', 'Failed to update scope entries: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isSavingScopeEntries = false;
+            });
+    }
+
+    /**
+     * Method Name: handleDiscardScopeChanges
+     * @description: Discard all unsaved scope changes
+     */
+    handleDiscardScopeChanges() {
+        // Clear all modifications
+        this.modifiedScopeEntries.clear();
+        this.hasScopeModifications = false;
+        this.editingScopeCells.clear();
+        
+        // Trigger reactivity to remove highlighting and reset values
+        this.applyFilters();
+        
+        this.showToast('Success', 'Scope changes discarded', 'success');
+    }
+
+    /**
+     * Method Name: getModifiedScopeValue
+     * @description: Get modified value for a specific scope field
+     */
+    getModifiedScopeValue(recordId, fieldName) {
+        const modifications = this.modifiedScopeEntries.get(recordId);
+        return modifications ? modifications[fieldName] : null;
+    }
+
+    /**
+     * Method Name: isScopeFieldModified
+     * @description: Check if a specific scope field has been modified
+     */
+    isScopeFieldModified(recordId, fieldName) {
+        const modifications = this.modifiedScopeEntries.get(recordId);
+        return modifications && modifications.hasOwnProperty(fieldName);
     }
 
 }

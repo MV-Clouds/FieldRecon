@@ -132,7 +132,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 
                 // Build content classes
                 let contentClass = 'editable-content';
-                
+                                
                 return {
                     key,
                     value: displayValue,
@@ -153,8 +153,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             return row;
         });
     }
-
-// ...existing code...
 
     /**
      * Method Name: get isDataAvailable
@@ -379,6 +377,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     this.sortField = this.locationColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
+
+                console.log('Final location columns:', this.locationColumns);
+                
             })
             .catch(error => {
                 console.error('Error fetching configuration:', error);

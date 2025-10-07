@@ -14,7 +14,7 @@ public with sharing class SovJobScopeController {
 
     public static final string CLASSNAME = 'SovJobScopeController';
 
-   /*
+    /*
     *********************************************************
     @description     : Method is used to dynamically get Scope Entries for a Job
     @param           : Id jobId - Job Id
@@ -652,6 +652,69 @@ public with sharing class SovJobScopeController {
                 'statusCode' => null,
                 'exceptionObj' => e,
                 'moreDetails' => 'Error occurred while creating location processes.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+    /*
+    *********************************************************
+    @description     : Method is used to save inline edits for multiple Scope Entries
+    @param           : String updatedScopeEntriesJson - JSON string of updated scope entry records
+    @return          : String - Success or error message
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String saveScopeEntryInlineEdits(String updatedScopeEntriesJson) {
+        try {
+            if (String.isBlank(updatedScopeEntriesJson)) {
+                return 'Error: No scope entry data provided for update.';
+            }
+
+            // Deserialize JSON string into a list of Scope Entry records
+            List<Scope_Entry__c> updatedScopeEntries = 
+                (List<Scope_Entry__c>) JSON.deserialize(updatedScopeEntriesJson, List<Scope_Entry__c>.class);
+
+            if (updatedScopeEntries == null || updatedScopeEntries.isEmpty()) {
+                return 'Error: No scope entry records provided for update.';
+            }
+
+            // Perform the DML update with partial success handling
+            Database.SaveResult[] results = Database.update(updatedScopeEntries, false, AccessLevel.USER_MODE);
+
+            // Collect any errors and successes
+            List<String> failedRecords = new List<String>();
+            Integer successCount = 0;
+            
+            for (Integer i = 0; i < results.size(); i++) {
+                if (results[i].isSuccess()) {
+                    successCount++;
+                } else {
+                    String errorMsg = '';
+                    for (Database.Error error : results[i].getErrors()) {
+                        errorMsg += error.getMessage() + '; ';
+                    }
+                    failedRecords.add(updatedScopeEntries[i].Id + ': ' + errorMsg);
+                }
+            }
+
+            if (!failedRecords.isEmpty()) {
+                String errorMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
+                return 'Partial Success: ' + errorMessage;
+            }
+
+            return 'Success: ' + successCount + ' scope entry(s) updated successfully';
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'saveScopeEntryInlineEdits',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while saving scope entry inline edits.',
                 'apiResponse' => null
             });
             return 'Error: ' + e.getMessage();
