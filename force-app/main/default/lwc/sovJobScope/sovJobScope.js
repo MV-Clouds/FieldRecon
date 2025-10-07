@@ -152,6 +152,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         measurementType: ''
     };
 
+    @track changeOrderManualProcess = {
+        processName: '',
+        sequence: null,
+        processType: '',
+        weightage: null,
+        measurementType: ''
+    };
+
     // Process Type Options
     @track processTypeOptions = [];
 
@@ -231,7 +239,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         contractValue: null,
         processOption: '' // 'manual' or 'library'
     };
-    @track changeOrderProcesses = [];
     @track selectedChangeOrderProcessIds = [];
 
     // Change Order Process Options
@@ -633,18 +640,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get changeOrderModalTitle
-     * @description: Get dynamic modal title based on step
-     */
-    get changeOrderModalTitle() {
-        if (this.changeOrderStep === 1) {
-            return 'Create Change Order - Step 1 of 2';
-        } else {
-            return 'Create Change Order - Step 2 of 2';
-        }
-    }
-
-    /**
      * Method Name: get hasSelectedChangeOrderProcesses
      * @description: Check if any processes are selected for change order
      */
@@ -661,11 +656,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get changeOrderProcessNameCharacterCount
+     * @description: Get current character count for change order process name field
+     */
+    get changeOrderProcessNameCharacterCount() {
+        return this.changeOrderManualProcess.processName ? this.changeOrderManualProcess.processName.length : 0;
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
     connectedCallback() {        
         this.fetchScopeEntryConfiguration();
+        this.loadProcessLibraryData();
     }
 
     renderedCallback() {
@@ -745,8 +749,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result && result.fieldsData) {
                     try {
                         const fieldsData = JSON.parse(result.fieldsData);
-
-                        console.log('Fetched fieldsData:', fieldsData);
                         
                         this.scopeEntryColumns = fieldsData.map(field => ({
                             label: field.label,
@@ -806,10 +808,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result && result.success) {
                     this.scopeEntries = result.scopeEntries || [];
                     this.processSetupFlags = result.processSetupFlags || {};
-                    
-                    console.log('Fetched scope entries:', this.scopeEntries);
-                    console.log('Process setup flags:', this.processSetupFlags);
-                    
+                                        
                     this.applyFilters();
                 } else {
                     // Handle error case
@@ -1069,6 +1068,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.newScopeEntry = { ...this.newScopeEntry, [field]: value };
         } else if (type === 'process') {
             this.newProcess = { ...this.newProcess, [field]: value };
+        } else if (type === 'changeOrderProcess') {
+            this.changeOrderManualProcess = { ...this.changeOrderManualProcess, [field]: value };
         }
     }
 
@@ -1085,6 +1086,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.newScopeEntry = { ...this.newScopeEntry, [field]: value };
         } else if (type === 'process') {
             this.newProcess = { ...this.newProcess, [field]: value };
+        } else if (type === 'changeOrderProcess') {
+            this.changeOrderManualProcess = { ...this.changeOrderManualProcess, [field]: value };
         }
     }
 
@@ -1252,8 +1255,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Common method to process entries for display with nested table support and inline editing
      */
     processEntriesForDisplay(entries) {
-
-        console.log('Processing entries for display:', entries);
         
         const cols = this.tableColumns;        
         
@@ -1325,10 +1326,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     cellClass: cellClass,
                     contentClass: contentClass
                 };
-            });
-
-            console.log('Processed row:', row);
-            
+            });            
             
             return row;
         });
@@ -1368,8 +1366,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 let percentValue = 0;
                 if (col.type === 'percent') {
                     percentValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
-
-                    console.log('percentValue for', key, ':', percentValue);
                     
                 }
     
@@ -1645,8 +1641,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Update process details for a specific entry while preserving selections - Updated with default sorting
      */
      updateProcessDetails(scopeEntryId, processDetails) {
-
-        console.log('Updating process details for entry:', scopeEntryId, processDetails);
         
         // Set default process sorting to first column if not already set
         if (!this.processSortField && this.processTableColumns.length > 0) {
@@ -1813,7 +1807,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedProcessCategory = '';
         
         // Load process library records and types
-        this.loadProcessLibraryData();
         this.showProcessLibraryModal = true;
     }
 
@@ -2771,7 +2764,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             processOption: ''
         };
         this.selectedChangeOrderProcessIds = [];
-        this.changeOrderProcesses = [];
         
         this.showCreateChangeOrderModal = true;
     }
@@ -2790,7 +2782,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             processOption: ''
         };
         this.selectedChangeOrderProcessIds = [];
-        this.changeOrderProcesses = [];
     }
 
     /**
@@ -2825,14 +2816,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             return;
         }
 
-        this.changeOrderStep = 2;
-        
-        // Load data based on selected option
-        if (this.changeOrderData.processOption === 'library') {
-            this.loadProcessLibraryData();
-        } else if (this.changeOrderData.processOption === 'manual') {
-            // Reset manual process form
-            this.newProcess = {
+        // Reset manual process data when entering step 2
+        if (this.changeOrderData.processOption === 'manual') {
+            this.changeOrderManualProcess = {
                 processName: '',
                 sequence: null,
                 processType: '',
@@ -2840,6 +2826,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 measurementType: ''
             };
         }
+
+        this.changeOrderStep = 2;
     }
 
     /**
@@ -2901,10 +2889,36 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     validateChangeOrderStep2() {
         if (this.changeOrderData.processOption === 'manual') {
-            return this.validateProcess();
+            const { processName, sequence, processType, weightage, measurementType } = this.changeOrderManualProcess;
+            
+            if (!processName || processName.trim() === '') {
+                return { isValid: false, message: 'Process Name is required' };
+            }
+            
+            if (processName.trim().length > 80) {
+                return { isValid: false, message: 'Process Name cannot be longer than 80 characters' };
+            }
+            
+            if (!sequence || sequence <= 0 || sequence > 9999) {
+                return { isValid: false, message: 'Sequence is required and must be between 1 and 9999' };
+            }
+            
+            if (!processType || processType.trim() === '') {
+                return { isValid: false, message: 'Process Type is required' };
+            }
+            
+            if (!weightage || weightage <= 0 || weightage > 9999) {
+                return { isValid: false, message: 'Weightage is required and must be between 0 and 9999' };
+            }
+            
+            if (!measurementType || measurementType.trim() === '') {
+                return { isValid: false, message: 'Measurement Type is required' };
+            }
+            
+            return { isValid: true, message: '' };
         } else if (this.changeOrderData.processOption === 'library') {
             if (this.selectedChangeOrderProcessIds.length === 0) {
-                return { isValid: false, message: 'Please select at least one process from library' };
+                return { isValid: false, message: 'Please select at least one process from the library' };
             }
         }
         return { isValid: true, message: '' };
@@ -2933,15 +2947,17 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
         if (this.changeOrderData.processOption === 'manual') {
             changeOrderRequestData.manualProcess = {
-                processName: this.newProcess.processName,
-                sequence: this.newProcess.sequence,
-                processType: this.newProcess.processType,
-                weightage: this.newProcess.weightage,
-                measurementType: this.newProcess.measurementType
+                processName: this.changeOrderManualProcess.processName.trim(),
+                sequence: this.changeOrderManualProcess.sequence,
+                processType: this.changeOrderManualProcess.processType,
+                weightage: this.changeOrderManualProcess.weightage,
+                measurementType: this.changeOrderManualProcess.measurementType
             };
         } else if (this.changeOrderData.processOption === 'library') {
             changeOrderRequestData.selectedProcessIds = this.selectedChangeOrderProcessIds;
         }
+
+        console.log('Change Order Request Data:', JSON.stringify(changeOrderRequestData));        
 
         // Call Apex method
         createChangeOrder({ changeOrderData: changeOrderRequestData })

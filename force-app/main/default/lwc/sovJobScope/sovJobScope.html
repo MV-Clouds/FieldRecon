@@ -1388,7 +1388,7 @@
     
                 <div class="slds-modal__content pop-up" id="modal-content-id-6">
                     <div class="pop-heading">
-                        {changeOrderModalTitle}
+                        Create Change Order
                     </div>
     
                     <div class="popUpBody slds-p-around--medium">
@@ -1440,7 +1440,7 @@
                                 <button class="close-btn" onclick={handleCloseChangeOrderModal}>Cancel</button>
                                 <button class="save-btn" 
                                         onclick={handleChangeOrderNextStep}
-                                    >
+                                        >
                                     Next Step
                                 </button>
                             </div>
@@ -1451,22 +1451,17 @@
                             <!-- Manual Process Option -->
                             <template if:true={isMannualProcessSelected}>
                                 <div class="form-container">
-                                    <div class="step-header">
-                                        <h3>Add Manual Process</h3>
-                                        <p>Enter process details for the change order</p>
-                                    </div>
-    
                                     <div class="form-group">
                                         <div class="form-label-row">
                                             <label class="form-label required">Process Name</label>
-                                            <div class="character-count">{processNameCharacterCount}/80</div>
+                                            <div class="character-count">{changeOrderProcessNameCharacterCount}/80</div>
                                         </div>
                                         <input type="text" 
                                                class="form-input" 
                                                placeholder="Enter process name"
-                                               value={newProcess.processName}
+                                               value={changeOrderManualProcess.processName}
                                                data-field="processName"
-                                               data-type="process"
+                                               data-type="changeOrderProcess"
                                                oninput={handleInputChange}
                                                maxlength="80">
                                     </div>
@@ -1479,20 +1474,20 @@
                                                step="1"
                                                min="1"
                                                max="9999"
-                                               value={newProcess.sequence}
+                                               value={changeOrderManualProcess.sequence}
                                                data-field="sequence"
-                                               data-type="process"
+                                               data-type="changeOrderProcess"
                                                oninput={handleInputChange}>
                                     </div>
     
                                     <div class="form-group">
                                         <label class="form-label required">Process Type</label>
                                         <lightning-combobox
-                                            value={newProcess.processType}
+                                            value={changeOrderManualProcess.processType}
                                             options={processTypeOptions}
                                             onchange={handleSelectChange}
                                             data-field="processType"
-                                            data-type="process"
+                                            data-type="changeOrderProcess"
                                             placeholder="Select Process Type"
                                             variant="label-hidden">
                                         </lightning-combobox>
@@ -1506,20 +1501,20 @@
                                                step="0.01"
                                                min="0"
                                                max="9999"
-                                               value={newProcess.weightage}
+                                               value={changeOrderManualProcess.weightage}
                                                data-field="weightage"
-                                               data-type="process"
+                                               data-type="changeOrderProcess"
                                                oninput={handleInputChange}>
                                     </div>
     
                                     <div class="form-group">
                                         <label class="form-label required">Measurement Type</label>
                                         <lightning-combobox
-                                            value={newProcess.measurementType}
+                                            value={changeOrderManualProcess.measurementType}
                                             options={measurementTypeOptions}
                                             onchange={handleSelectChange}
                                             data-field="measurementType"
-                                            data-type="process"
+                                            data-type="changeOrderProcess"
                                             placeholder="Select Measurement Type"
                                             variant="label-hidden">
                                         </lightning-combobox>
@@ -1687,7 +1682,6 @@
     
                             <div class="popUpFooter">
                                 <button class="close-btn process-btn" onclick={handleChangeOrderPreviousStep}>Previous</button>
-                                <button class="close-btn process-btn" onclick={handleCloseChangeOrderModal}>Cancel</button>
                                 <button class="save-btn process-btn" 
                                         onclick={handleSaveChangeOrder}
                                         disabled={isChangeOrderSubmitting}>
