@@ -263,7 +263,7 @@ public with sharing class SovJobScopeController {
         List<Scope_Entry_Process__c> processes = new List<Scope_Entry_Process__c>();
         try {
             processes = [
-                SELECT Id, wfrecon__Process_Library__c , wfrecon__Process_Library__r.Name,
+                SELECT Id, Process_Library__c , Process_Library__r.Name,
                        Sequence__c, Process_Name__c, Contract_Price__c, Completed_Percentage__c, Process_Type__c, Weight__c, Current_Complete_Value__c, Scope_Entry__c
                 FROM Scope_Entry_Process__c
                 WHERE Scope_Entry__c = :scopeEntryId

@@ -15,6 +15,19 @@ export default class RecordConfigCmp extends LightningElement {
     @track filteredFieldOptions = [];
     @track parentFieldsOption = [];
     @track isLoading = false;
+
+    // List of audit fields that should be non-editable
+    auditFields = [
+        'CreatedDate',
+        'CreatedById', 
+        'LastModifiedDate',
+        'LastModifiedById',
+        'SystemModstamp',
+        'LastActivityDate',
+        'LastReferencedDate',
+        'LastViewedDate'
+    ];
+
     @track dateOptions = [
         { label: 'DD-MM-YYYY', value: 'ddmmyyyy' },
         { label: 'MM-DD-YYYY', value: 'mmddyyyy' },
@@ -70,6 +83,26 @@ export default class RecordConfigCmp extends LightningElement {
     }
 
     /**
+    * Method Name: isAuditField
+    * @description: Check if field is an audit field
+    * Date: 10/09/2024
+    * Created By: GitHub Copilot
+    */
+    isAuditField(fieldName) {
+        return this.auditFields.includes(fieldName);
+    }
+
+    /**
+    * Method Name: shouldDisableField
+    * @description: Check if field should be disabled (formula, rollup, or audit field)
+    * Date: 10/09/2024
+    * Created By: GitHub Copilot
+    */
+    shouldDisableField(fieldName, isCalculated = false) {
+        return isCalculated || this.isAuditField(fieldName);
+    }
+
+    /**
     * Method Name: fetchMetadata
     * @description: fetch fields data from metadata.
     * Date: 10/09/2024
@@ -93,25 +126,31 @@ export default class RecordConfigCmp extends LightningElement {
                 this.fieldOptions = this.fieldOptions.map(option => ({
                     ...option,
                     showRightRef: this.isLookupField(option.fieldType),
-                    isEditableDisabled: option.isCalculated
+                    isEditableDisabled: this.shouldDisableField(option.value, option.isCalculated)
                 })).filter(option => option.value !== 'OwnerId');
                 
                 if (result.metadataRecords.length > 0) {
                     const fieldsData = JSON.parse(result.metadataRecords[0]);
-                    this.items = fieldsData.map((item, index) => ({
-                        id: index + 1,
-                        fieldName: item.fieldName,
-                        cardView: item.cardView || false,
-                        value: item.value,
-                        label: item.label,
-                        fieldType: item.fieldType,
-                        format: item.format,
-                        isDisable: item.format === '' || item.format == null,
-                        isEditable: item.isEditable !== undefined ? item.isEditable : true,
-                        isEditableDisabled: this.getParentFieldEditableStatus(item.fieldName), // Use new method
-                        picklist: item.fieldType === 'DATE' ? this.dateOptions :
-                            item.fieldType === 'DATETIME' ? this.dateTimeOptions : null
-                    }));
+                    this.items = fieldsData.map((item, index) => {
+                        // Check if this field should be disabled (formula/rollup/audit)
+                        const isEditableDisabled = this.getParentFieldEditableStatus(item.fieldName);
+                        
+                        return {
+                            id: index + 1,
+                            fieldName: item.fieldName,
+                            cardView: item.cardView || false,
+                            value: item.value,
+                            label: item.label,
+                            fieldType: item.fieldType,
+                            format: item.format,
+                            isDisable: item.format === '' || item.format == null,
+                            // For disabled fields, always set isEditable to false, otherwise use saved value
+                            isEditable: isEditableDisabled ? false : (item.isEditable !== undefined ? item.isEditable : false),
+                            isEditableDisabled: isEditableDisabled,
+                            picklist: item.fieldType === 'DATE' ? this.dateOptions :
+                                item.fieldType === 'DATETIME' ? this.dateTimeOptions : null
+                        };
+                    });
                     this.pageSize = parseInt(result.metadataRecords[1], 10);
                 }
                 this.isLoading = false;
@@ -339,7 +378,7 @@ export default class RecordConfigCmp extends LightningElement {
                 searchTerm: '',
                 label: '',
                 isDisable: true,
-                isEditable: true,
+                isEditable: false,
                 isEditableDisabled: false
             };
             this.items = [...this.items, newItem];
@@ -388,16 +427,23 @@ export default class RecordConfigCmp extends LightningElement {
                 this.toast('Error', `Duplicate field name found: ${errorFields}`, 'error');
                 return;
             }
-            const itemsToSave = this.items.map(item => ({
-                fieldName: item.fieldName,
-                fieldApiname: item.value,
-                cardView: item.cardView,
-                value: item.fieldName,
-                label: item.label,
-                fieldType: item.fieldType,
-                format: item.format,
-                isEditable: item.isEditable
-            }));
+            
+            const itemsToSave = this.items.map(item => {
+                // Ensure formula and rollup fields have isEditable set to false
+                const isEditableValue = item.isEditableDisabled ? false : (item.isEditable !== undefined ? item.isEditable : true);
+                
+                return {
+                    fieldName: item.fieldName,
+                    fieldApiname: item.value,
+                    cardView: item.cardView,
+                    value: item.fieldName,
+                    label: item.label,
+                    fieldType: item.fieldType,
+                    format: item.format,
+                    isEditable: isEditableValue // Use the computed value
+                };
+            });
+            
             const itemsData = JSON.stringify(itemsToSave);
             const totalPages = this.pageSize;
             saveMetadata({ itemsData, totalPages, objectApiName: this.objectApiName, featureName: this.featureName })
@@ -536,7 +582,8 @@ export default class RecordConfigCmp extends LightningElement {
         
         // Find the selected field to check if it's calculated or formula
         const selectedField = this.fieldOptions.find(option => option.value === selectedOptionValue);
-        const isEditableDisabled = selectedField ? (selectedField.isCalculated) : false;
+        const isCalculated = selectedField ? selectedField.isCalculated : false;
+        const isEditableDisabled = this.shouldDisableField(selectedOptionValue, isCalculated);
         
         this.items[index].fieldName = selectedOptionValue;
         this.items[index].value = selectedOptionValue;
@@ -544,10 +591,10 @@ export default class RecordConfigCmp extends LightningElement {
         this.items[index].fieldType = type;
         this.items[index].isEditableDisabled = isEditableDisabled;
         
-        // If field is formula/rollup, set isEditable to false and disable checkbox
-        if (isEditableDisabled) {
-            this.items[index].isEditable = false;
-        }
+        // Set isEditable to false for all fields by default
+        // For disabled fields (formula/rollup/audit), it will remain false and checkbox will be disabled
+        // For regular fields, user can manually check the checkbox to make it editable
+        this.items[index].isEditable = false;
         
         if (type == 'DATE') {
             this.items[index].isDisable = false;
@@ -595,7 +642,8 @@ export default class RecordConfigCmp extends LightningElement {
         
         // Find the selected parent field to check if it's calculated or formula
         const selectedField = this.parentFieldsOption.find(option => option.value === selectedOptionValue);
-        const isEditableDisabled = selectedField ? (selectedField.isCalculated) : false;
+        const isCalculated = selectedField ? selectedField.isCalculated : false;
+        const isEditableDisabled = this.shouldDisableField(selectedOptionValue, isCalculated);
         
         this.items[index].fieldName = this.items[index].relationshipName + '.' + selectedOptionValue;
         this.items[index].value = this.items[index].relationshipName + '.' + selectedOptionValue;
@@ -603,10 +651,10 @@ export default class RecordConfigCmp extends LightningElement {
         this.items[index].fieldType = type;
         this.items[index].isEditableDisabled = isEditableDisabled;
         
-        // If field is formula/rollup, set isEditable to false and disable checkbox
-        if (isEditableDisabled) {
-            this.items[index].isEditable = false;
-        }
+        // Set isEditable to false for all fields by default
+        // For disabled fields (formula/rollup/audit), it will remain false and checkbox will be disabled
+        // For regular fields, user can manually check the checkbox to make it editable
+        this.items[index].isEditable = false;
         
         if (type == 'DATE') {
             this.items[index].isDisable = false;
@@ -678,7 +726,8 @@ export default class RecordConfigCmp extends LightningElement {
                             label: field.label,
                             value: field.value,
                             fieldType: field.fieldType,
-                            isCalculated: field.isCalculated, // Add this line
+                            isCalculated: field.isCalculated,
+                            isEditableDisabled: this.shouldDisableField(field.value, field.isCalculated),
                             referenceObjectName: field.referenceFields || [],
                             objectApiName: field.referenceObjectName || ''
                         };
@@ -713,7 +762,7 @@ export default class RecordConfigCmp extends LightningElement {
 
     /**
     * Method Name: getParentFieldEditableStatus
-    * @description: Check if parent field is formula or rollup summary and should be disabled
+    * @description: Check if parent field should be disabled (formula/rollup/audit)
     * Date: 10/09/2024
     * Created By: GitHub Copilot
     */
@@ -722,11 +771,13 @@ export default class RecordConfigCmp extends LightningElement {
         if (fieldName && fieldName.includes('.')) {
             const fieldNameOnly = fieldName.split('.')[1];
             const field = this.parentFieldsOption.find(option => option.value === fieldNameOnly);
-            return field ? (field.isCalculated) : false;
+            const isCalculated = field ? field.isCalculated : false;
+            return this.shouldDisableField(fieldNameOnly, isCalculated);
         }
         
         // Regular field check
         const field = this.fieldOptions.find(option => option.value === fieldName);
-        return field ? (field.isCalculated) : false;
+        const isCalculated = field ? field.isCalculated : false;
+        return this.shouldDisableField(fieldName, isCalculated);
     }
 }

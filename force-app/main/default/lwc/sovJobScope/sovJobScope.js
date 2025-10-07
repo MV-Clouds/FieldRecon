@@ -639,6 +639,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result && result.fieldsData) {
                     try {
                         const fieldsData = JSON.parse(result.fieldsData);
+
+                        console.log('Fetched fieldsData:', fieldsData);
+                        
                         this.scopeEntryColumns = fieldsData.map(field => ({
                             label: field.label,
                             fieldName: field.fieldName,
@@ -694,6 +697,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         getScopeEntries({ jobId: this.recordId })
             .then(result => {
                 this.scopeEntries = result || [];
+                
+                console.log('Fetched scope entries:', this.scopeEntries);
+                
                 this.applyFilters();
                 this.isLoading = false;
             })
@@ -1123,6 +1129,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Common method to process entries for display with nested table support and inline editing
      */
     processEntriesForDisplay(entries) {
+
+        console.log('Processing entries for display:', entries);
+        
         const cols = this.tableColumns;        
         
         return entries.map(entry => {
@@ -1173,7 +1182,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 // Handle percent fields
                 let percentValue = 0;
                 if (col.type === 'percent') {
-                    percentValue = value !== null && value !== undefined ? parseFloat(value) / 100 : 0;
+                    percentValue = value !== null && value !== undefined ? parseFloat(value)  : 0;
                 }
                 
                 return {
@@ -1194,6 +1203,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     contentClass: contentClass
                 };
             });
+
+            console.log('Processed row:', row);
+            
             
             return row;
         });
@@ -1233,6 +1245,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 let percentValue = 0;
                 if (col.type === 'percent') {
                     percentValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+
+                    console.log('percentValue for', key, ':', percentValue);
+                    
                 }
     
                 // Handle number fields  
@@ -1500,6 +1515,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Update process details for a specific entry while preserving selections - Updated with default sorting
      */
      updateProcessDetails(scopeEntryId, processDetails) {
+
+        console.log('Updating process details for entry:', scopeEntryId, processDetails);
+        
         // Set default process sorting to first column if not already set
         if (!this.processSortField && this.processTableColumns.length > 0) {
             this.processSortField = this.processTableColumns[0].fieldName;
@@ -1928,6 +1946,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         .then(([locations, existingLocationIds]) => {
             this.locationRecords = locations || [];
             this.selectedLocationIds = existingLocationIds || [];
+
+            
             this.applyLocationFilters();
         })
         .catch(error => {
