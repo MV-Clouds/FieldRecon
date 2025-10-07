@@ -3,6 +3,7 @@
     user-select: none;
 }
 
+/* Header and Search Styles */
 .filter-search-container {
     display: flex;
     justify-content: space-between;
@@ -19,6 +20,11 @@
     width: 300px;
 }
 
+.search-bar-input {
+    --slds-c-input-color-border: rgba(94, 90, 219, 0.3);
+    --slds-c-input-color-border-focus: rgba(94, 90, 219, 1);
+}
+
 .header-actions {
     display: flex;
     gap: 16px;
@@ -27,6 +33,7 @@
     justify-content: flex-end;
 }
 
+/* Main Card Layout */
 .main-card {
     background-color: white;
     transition: margin-left 0.3s ease;
@@ -37,7 +44,7 @@
     padding-bottom: 14px;
 }
 
-/* Data Table Wrapper with Fixed Height */
+/* Data Table Container */
 .data-table-container {
     flex: 1;
     overflow: auto;
@@ -66,6 +73,7 @@
     background: rgba(94, 90, 219, 1);
 }
 
+/* Table Styles */
 .custom-data-table {
     width: 100%;
     border-collapse: collapse;
@@ -98,6 +106,10 @@
 .custom-data-table td {
     padding: 10px;
     text-align: center;
+    max-width: 200px;
+    word-wrap: break-word;
+    overflow: hidden;
+    position: relative;
 }
 
 .custom-data-table tr:nth-child(odd) {
@@ -108,6 +120,7 @@
     border-bottom: none;
 }
 
+/* Text Styles */
 .center-trancate-text {
     text-align: center;
     color: #585858;
@@ -127,6 +140,7 @@
     text-decoration: underline;
 }
 
+/* Empty State Styles */
 .no-prop {
     font-size: 20px;
     display: flex;
@@ -136,7 +150,6 @@
     height: 100%;
 }
 
-/* Empty state styling */
 .empty-state {
     width: 100%;
     height: 100%;
@@ -173,13 +186,6 @@
     margin-top: 0.5rem;
 }
 
-/* Selected Records Count Badge */
-.selected-count-badge {
-    color: white;
-    border-radius: 10px;
-    font-weight: 600;
-}
-
 /* Action Buttons */
 .action-button {
     display: flex;
@@ -210,6 +216,15 @@
     background-color: #f8f9fa;
 }
 
+.action-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.action-button svg {
+    flex-shrink: 0;
+}
+
+/* Button Variants */
 .action-button.add-btn {
     background-color: rgba(94, 90, 219, 1);
     color: white;
@@ -238,11 +253,6 @@
     border-color: #d8d8d8;
 }
 
-.action-button.delete-btn:disabled .selected-count-badge {
-    background-color: transparent;
-    color: #6c757d;
-}
-
 .action-button.refresh-btn {
     background-color: rgba(94, 90, 219, 1);
     color: white;
@@ -254,18 +264,43 @@
     border-color: rgba(94, 90, 219, 0.9);
 }
 
-.action-button svg {
-    flex-shrink: 0;
+.save-button {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
 }
 
-/* Checkbox Column */
+.save-button:hover:not(:disabled) {
+    background-color: rgba(94, 90, 219, 0.9);
+    border-color: rgba(94, 90, 219, 0.9);
+}
+
+.save-button:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+}
+
+/* Badge and Count Styles */
+.selected-count-badge {
+    color: white;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.action-button.delete-btn:disabled .selected-count-badge {
+    background-color: transparent;
+    color: #6c757d;
+}
+
+/* Column Specific Styles */
 .checkbox-column {
     width: 50px;
     min-width: 50px;
     text-align: center;
 }
 
-/* Actions Column - Update width to accommodate both buttons */
 .actions-column {
     width: 80px;
     min-width: 80px;
@@ -279,6 +314,7 @@
     align-items: center;
 }
 
+/* Icon Buttons */
 .icon-button {
     background-color: transparent;
     border: 1px solid #d8d8d8;
@@ -318,7 +354,6 @@
     color: white;
 }
 
-/* Icon button states for nested table toggle */
 .child-records-btn[data-expanded="true"] {
     background-color: rgba(94, 90, 219, 1) !important;
     color: white !important;
@@ -350,6 +385,11 @@
     margin-bottom: 1.5rem;
 }
 
+.form-group.full-width {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
 .form-label {
     display: block;
     margin-bottom: 0.5rem;
@@ -358,16 +398,16 @@
     font-size: 0.875rem;
 }
 
+.form-label.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
 .form-label-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0px 2px;
-}
-
-.form-label.required::after {
-    content: " *";
-    color: #dc3545;
 }
 
 .form-input,
@@ -393,6 +433,12 @@
     min-height: 80px;
 }
 
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
 .character-count {
     font-size: 0.75rem;
     color: #666;
@@ -406,25 +452,6 @@
 
 .character-count.error {
     color: #dc3545;
-}
-
-/* Add these styles after the existing form styles */
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-.form-group.full-width {
-    width: 100%;
-    margin-bottom: 1rem;
-}
-
-@media (max-width: 768px) {
-    .form-row {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* Modal Styles */
@@ -636,7 +663,6 @@
     position: relative;
 }
 
-/* Create progress track effect */
 .completion-slider::-webkit-slider-track {
     width: 100%;
     height: 6px;
@@ -693,7 +719,6 @@
     text-align: right;
 }
 
-/* Progress bar visual effect using pseudo-element */
 .completion-slider::before {
     content: '';
     position: absolute;
@@ -706,13 +731,287 @@
     z-index: 1;
 }
 
-/* Search bar input styling */
-.search-bar-input {
-    --slds-c-input-color-border: rgba(94, 90, 219, 0.3);
-    --slds-c-input-color-border-focus: rgba(94, 90, 219, 1);
+/* Sort Description */
+.sort-description-container {
+    padding: 8px 2px;
+    margin-bottom: 8px;
 }
 
-/* Responsive adjustments */
+.sort-description {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    border: 1px solid rgba(94, 90, 219, 0.3);
+    border-radius: 0.3rem;
+    padding: 0.5rem 0.75rem;
+    background-color: rgb(244, 244, 255);
+    width: fit-content;
+}
+
+.sort-description .sort-icon {
+    width: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sort-description .sort-icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+    flex-shrink: 0;
+}
+
+.sort-description .sort-text {
+    font-size: 0.875rem;
+    color: rgba(94, 90, 219, 1);
+    font-weight: 500;
+}
+
+/* Sortable Header Styles */
+.sortable-header {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+.sort-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+}
+
+.column-label {
+    font-weight: 600;
+}
+
+.sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    width: 12px;
+    height: 12px;
+}
+
+.sortable-header:not(.active-sort):hover .sort-icon {
+    opacity: 0.7;
+    visibility: visible;
+}
+
+.sortable-header.active-sort .sort-icon {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.sort-icon svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+.rotate-asc {
+    transform: rotate(0deg);
+}
+
+.rotate-desc {
+    transform: rotate(180deg);
+}
+
+/* Process Table Sortable Header Styles */
+.process-sortable-header {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.process-sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.9) !important;
+}
+
+.process-sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    width: 10px;
+    height: 10px;
+}
+
+.process-sortable-header:not(.active-sort):hover .process-sort-icon {
+    opacity: 0.7;
+    visibility: visible;
+}
+
+.process-sortable-header.active-sort .process-sort-icon {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.process-sort-icon svg {
+    width: 10px;
+    height: 10px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+/* Action Buttons for Save/Discard */
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-shrink: 0;
+    order: -1;
+}
+
+.location-edit-actions {
+    border-left: 2px solid #e5e5e5;
+    padding-left: 16px;
+    margin-left: 8px;
+}
+
+/* Modified Cell Highlighting */
+.modified-cell {
+    background-color: #FBF8EF !important;
+    border-radius: 0.25rem;
+    position: relative;
+}
+
+.modified-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: rgba(94, 90, 219, 1);
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.slider-container.modified-field {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Inline Editing Styles */
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+    max-width: 150px;
+}
+
+.editable-cell:hover {
+    background-color: rgba(94, 90, 219, 0.05) !important;
+}
+
+.editable-content {
+    position: relative;
+    cursor: pointer;
+    padding: 2px 4px;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inline-edit-input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 2px solid rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    font-size: inherit;
+    background-color: white;
+    outline: none;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    animation: focusInput 0.1s ease;
+    position: relative;
+    z-index: 10;
+}
+
+.inline-edit-input:focus {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
+    white-space: normal;
+    overflow: visible;
+    transform: scale(1.02);
+    background-color: #ffffff;
+}
+
+.inline-edit-input[type="number"] {
+    max-width: 120px;
+}
+
+.inline-edit-input[type="text"] {
+    max-width: 200px;
+}
+
+@keyframes focusInput {
+    from { border-color: #d8d8d8; }
+    to { border-color: rgba(94, 90, 219, 1); }
+}
+
+/* Modified location cell highlighting */
+.modified-location-cell {
+    background-color: #FFF3CD !important;
+    border-left: 4px solid #F0AD4E !important;
+    position: relative;
+}
+
+/* Edit Indicator */
+.edit-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    color: rgba(94, 90, 219, 0.7);
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 3px;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 15;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.editable-cell:hover .edit-indicator {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.modified-location-cell .edit-indicator {
+    opacity: 1 !important;
+    color: #F0AD4E !important;
+    background-color: rgba(255, 255, 255, 1) !important;
+}
+
+.editing-cell .edit-indicator {
+    display: none !important;
+}
+
+/* Responsive Design */
 @media only screen and (max-width: 900px) {
     .filter-search-container {
         flex-direction: column;
@@ -759,167 +1058,19 @@
     .nested-table-row td {
         padding: 6px 8px;
     }
+
+    .action-buttons {
+        order: 0;
+        width: 100%;
+        justify-content: flex-start;
+    }
 }
 
-@media only screen and (max-width: 600px) {
-    .header-actions {
-        flex-direction: column;
-        align-items: stretch;
+@media only screen and (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
     }
     
-    .action-button {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-/* Additional polish for button states */
-.action-button:active:not(:disabled) {
-    transform: translateY(1px);
-}
-
-/* Sort Description Container */
-.sort-description-container {
-    padding: 8px 2px;
-    margin-bottom: 8px;
-}
-
-.sort-description {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    border: 1px solid rgba(94, 90, 219, 0.3);
-    border-radius: 0.3rem;
-    padding: 0.5rem 0.75rem;
-    background-color: rgb(244, 244, 255);
-    width: fit-content;
-}
-
-.sort-description .sort-icon {
-    width: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sort-description .sort-icon svg {
-    width: 20px;
-    height: 20px;
-    display: block;
-    flex-shrink: 0;
-}
-
-.sort-description .sort-text {
-    font-size: 0.875rem;
-    color: rgba(94, 90, 219, 1);
-    font-weight: 500;
-}
-
-/* Sortable Header Styles - Updated to match sovJobScope */
-.sortable-header {
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    user-select: none;
-}
-
-.sortable-header:hover {
-    background-color: rgba(94, 90, 219, 0.8) !important;
-}
-
-.sort-header-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.25rem;
-}
-
-.column-label {
-    font-weight: 600;
-}
-
-.sort-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    opacity: 0;
-    visibility: hidden;
-    width: 12px;
-    height: 12px;
-}
-
-/* Show sort icon ONLY on hover for non-active columns */
-.sortable-header:not(.active-sort):hover .sort-icon {
-    opacity: 0.7;
-    visibility: visible;
-}
-
-/* Always show sort icon for active sorted column with full opacity */
-.sortable-header.active-sort .sort-icon {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-.sort-icon svg {
-    width: 12px;
-    height: 12px;
-    fill: currentColor;
-    transition: transform 0.3s ease;
-}
-
-/* Sort Icon Rotation */
-.rotate-asc {
-    transform: rotate(0deg);
-}
-
-.rotate-desc {
-    transform: rotate(180deg);
-}
-
-/* Process Table Sortable Header Styles */
-.process-sortable-header {
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    user-select: none;
-}
-
-.process-sortable-header:hover {
-    background-color: rgba(94, 90, 219, 0.9) !important;
-}
-
-.process-sort-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    opacity: 0;
-    visibility: hidden;
-    width: 10px;
-    height: 10px;
-}
-
-/* Show process sort icon ONLY on hover for non-active columns */
-.process-sortable-header:not(.active-sort):hover .process-sort-icon {
-    opacity: 0.7;
-    visibility: visible;
-}
-
-/* Always show process sort icon for active sorted column with full opacity */
-.process-sortable-header.active-sort .process-sort-icon {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-.process-sort-icon svg {
-    width: 10px;
-    height: 10px;
-    fill: currentColor;
-    transition: transform 0.3s ease;
-}
-
-/* Responsive adjustments for sorting */
-@media only screen and (max-width: 768px) {
     .sort-header-content {
         gap: 0.25rem;
     }
@@ -945,193 +1096,11 @@
     .process-sortable-header .column-label {
         font-size: 0.7rem;
     }
-}
 
-/* Add these new styles after the existing CSS */
-
-/* Action Buttons for Save/Discard */
-.action-buttons {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    flex-shrink: 0;
-    order: -1; /* Put save/discard buttons first */
-}
-
-.save-button {
-    background-color: rgba(94, 90, 219, 1);
-    color: white;
-    border-color: rgba(94, 90, 219, 1);
-}
-
-.save-button:hover:not(:disabled) {
-    background-color: rgba(94, 90, 219, 0.9);
-    border-color: rgba(94, 90, 219, 0.9);
-}
-
-.save-button:disabled {
-    background-color: #6c757d;
-    color: #ffffff;
-    border-color: #6c757d;
-    opacity: 0.5;
-}
-
-/* Modified Cell Highlighting */
-.modified-cell {
-    background-color: #FBF8EF !important;
-    border-radius: 0.25rem;
-    position: relative;
-}
-
-.modified-cell::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background-color: rgba(94, 90, 219, 1);
-    border-radius: 0 0.25rem 0.25rem 0;
-}
-
-.slider-container.modified-field {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Update the header-actions to accommodate new buttons */
-.header-actions {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-}
-
-/* Responsive adjustments for new buttons */
-@media only screen and (max-width: 900px) {
-    .action-buttons {
-        order: 0;
-        width: 100%;
-        justify-content: flex-start;
-    }
-}
-
-@media only screen and (max-width: 600px) {
-    .action-buttons {
-        flex-direction: column;
-        width: 100%;
-        gap: 0.5rem;
-    }
-    
-    .action-button {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-/* Inline Editing Styles */
-.editable-cell {
-    cursor: pointer;
-    position: relative;
-    transition: background-color 0.2s ease;
-}
-
-.editable-cell:hover {
-    background-color: rgba(94, 90, 219, 0.05) !important;
-}
-
-.editable-cell:hover .edit-indicator {
-    opacity: 1;
-}
-
-.inline-edit-input {
-    width: 100%;
-    padding: 4px 8px;
-    border: 2px solid rgba(94, 90, 219, 1);
-    border-radius: 4px;
-    font-size: inherit;
-    background-color: white;
-    outline: none;
-    box-sizing: border-box;
-    /* Auto-focus when created */
-    animation: focusInput 0.1s ease;
-}
-
-.inline-edit-input:focus {
-    border-color: rgba(94, 90, 219, 1);
-    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
-}
-
-@keyframes focusInput {
-    from { border-color: #d8d8d8; }
-    to { border-color: rgba(94, 90, 219, 1); }
-}
-
-/* Modified cell highlighting for locations */
-.modified-location-cell {
-    background-color: #FFF3CD !important;
-    border-left: 4px solid #F0AD4E !important;
-    position: relative;
-}
-
-.modified-location-cell::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 4px;
-    background-color: #F0AD4E;
-}
-
-/* Location edit actions */
-.location-edit-actions {
-    border-left: 2px solid #e5e5e5;
-    padding-left: 16px;
-    margin-left: 8px;
-}
-
-/* Update existing editable field classes */
-[data-editable="true"] {
-    cursor: pointer;
-    position: relative;
-    transition: background-color 0.2s ease;
-}
-
-[data-editable="true"]:hover {
-    background-color: rgba(94, 90, 219, 0.05) !important;
-}
-
-[data-editable="true"]:hover .edit-indicator {
-    opacity: 1;
-}
-
-/* Update modified cell highlighting */
-td[class*="true"] {
-    background-color: #FFF3CD !important;
-    border-left: 4px solid #F0AD4E !important;
-    position: relative;
-}
-
-/* Always show edit indicator for modified fields */
-td[class*="true"] .edit-indicator {
-    opacity: 1;
-    color: #F0AD4E;
-}
-
-/* Style for cells that are currently being edited */
-.editing-cell {
-    background-color: #E8F4FD !important;
-    border: 2px solid rgba(94, 90, 219, 0.5) !important;
-}
-
-/* Responsive adjustments for inline editing */
-@media only screen and (max-width: 768px) {
     .inline-edit-input {
         font-size: 14px;
         padding: 6px;
+        max-width: 90px;
     }
     
     .edit-indicator {
@@ -1148,35 +1117,49 @@ td[class*="true"] .edit-indicator {
         margin-top: 8px;
         width: 100%;
     }
+
+    .custom-data-table td {
+        max-width: 100px;
+        font-size: 12px;
+        padding: 6px;
+    }
+    
+    .inline-edit-input[type="number"] {
+        max-width: 80px;
+    }
+    
+    .inline-edit-input[type="text"] {
+        max-width: 90px;
+    }
 }
 
-/* Add these additional styles */
-.editable-content {
-    position: relative;
-    cursor: pointer;
+@media only screen and (max-width: 600px) {
+    .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .action-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+    }
 }
 
-.editable-content:hover {
-    background-color: rgba(94, 90, 219, 0.05);
-    border-radius: 3px;
-}
-
-/* Improve edit indicator visibility */
-.edit-indicator {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    opacity: 0;
-    transition: all 0.2s ease;
-    color: rgba(94, 90, 219, 0.7);
-    background-color: rgba(255, 255, 255, 0.95);
-    border-radius: 3px;
-    padding: 2px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    z-index: 5;
-}
-
-/* Hide when editing */
-.editing-cell .edit-indicator {
-    display: none !important;
+@media only screen and (max-width: 480px) {
+    .custom-data-table td {
+        max-width: 80px;
+        padding: 4px;
+    }
+    
+    .inline-edit-input {
+        font-size: 11px;
+        padding: 2px 4px;
+        max-width: 70px;
+    }
 }

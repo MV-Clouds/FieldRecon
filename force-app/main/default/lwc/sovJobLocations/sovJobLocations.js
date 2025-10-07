@@ -82,6 +82,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         return this.locationColumns.length > 0 ? this.locationColumns : this.defaultColumns;
     }
 
+
     /**
      * Method Name: get displayedLocationEntries
      * @description: Process location entries for table display
@@ -90,7 +91,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         if (!this.filteredLocationEntries || this.filteredLocationEntries.length === 0) {
             return [];
         }
-    
+
         const cols = this.tableColumns;
         return this.filteredLocationEntries.map(entry => {
             const row = { ...entry };
@@ -114,6 +115,23 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 }
                 
                 const displayValue = value !== null && value !== undefined ? String(value) : '';
+                const isModified = this.isFieldModified(entry.Id, key);
+                const isBeingEdited = this.editingCells.has(`${entry.Id}-${key}`);
+                
+                // Build cell classes
+                let cellClass = 'center-trancate-text';
+                if (col.editable) {
+                    cellClass += ' editable-cell';
+                }
+                if (isModified && !isBeingEdited) {
+                    cellClass += ' modified-location-cell';
+                }
+                if (isBeingEdited) {
+                    cellClass += ' editing-cell';
+                }
+                
+                // Build content classes
+                let contentClass = 'editable-content';
                 
                 return {
                     key,
@@ -123,16 +141,20 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     isNameField: key === 'Name',
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
-                    isNumber: col.type === 'number', // FIX: This should match the column type
-                    isEditable: col.editable || false, // FIX: This should use the column's editable property
-                    isModified: this.isFieldModified(entry.Id, key) ? 'true' : 'false',
-                    isBeingEdited: this.editingCells.has(`${entry.Id}-${key}`)
+                    isNumber: col.type === 'number',
+                    isEditable: col.editable || false,
+                    isModified: isModified,
+                    isBeingEdited: isBeingEdited,
+                    cellClass: cellClass,
+                    contentClass: contentClass
                 };
             });
             
             return row;
         });
     }
+
+// ...existing code...
 
     /**
      * Method Name: get isDataAvailable
