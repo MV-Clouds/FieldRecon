@@ -140,7 +140,7 @@
                                                         <div class="select-person-container">
                                                             <label class="select-label">Select Person</label>
                                                             <div class="select-wrapper">
-                                                                <select class="custom-select" data-field="clockIn" onchange={handlePersonChange}>
+                                                                <select class="custom-select" data-field="clockIn" onchange={handleInputChange}>
                                                                     <option value="">-- Select a person --</option>
                                                                     <template for:each={clockInOptions} for:item="option">
                                                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -154,7 +154,7 @@
                                                         <div class="select-person-container">
                                                             <label class="select-label">Select Cost Code</label>
                                                             <div class="select-wrapper">
-                                                                <select class="custom-select-costcode" onchange={handleCostCodeChange}>
+                                                                <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
                                                                     <option value="">-- Select a cost code --</option>
                                                                     <template for:each={costCodeOptions} for:item="option">
                                                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -168,7 +168,7 @@
                                                         <div class="datetime-container">
                                                             <label class="datetime-label">Clock In DateTime</label>
                                                             <div class="datetime-wrapper">
-                                                                <input type="datetime-local" class="custom-datetime" value={clockInTime} onchange={handleManualClockInDateChange}/>
+                                                                <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime" value={clockInTime} onchange={handleInputChange}/>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -205,7 +205,7 @@
                                                         <div class="select-person-container">
                                                             <label class="select-label">Select Person</label>
                                                             <div class="select-wrapper">
-                                                                <select class="custom-select" data-field="clockOut" onchange={handlePersonChange}>
+                                                                <select class="custom-select" data-field="clockOut" onchange={handleInputChange}>
                                                                     <option value="">-- Select a person --</option>
                                                                     <template for:each={clockOutOptions} for:item="option">
                                                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -219,7 +219,7 @@
                                                         <div class="datetime-container">
                                                             <label class="datetime-label">Clock Out DateTime</label>
                                                             <div class="datetime-wrapper">
-                                                                <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleManualClockOutDateChange}/>
+                                                                <input type="datetime-local" class="custom-datetime" data-field="clockOutDateTime" value={clockOutTime} onchange={handleInputChange}/>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -366,7 +366,7 @@
                                         <div class="input-column">
                                             <div class="select-person-container">
                                                 <label class="select-label">Select Person</label>
-                                                <lightning-combobox value={selectedManualPerson} options={allContacts} onchange={handleManualPersonChange} placeholder="Select Person" variant="label-hidden"></lightning-combobox>
+                                                <lightning-combobox value={selectedManualPerson} data-field="manualContact" options={allContacts} onchange={handleInputChange} placeholder="Select Person" variant="label-hidden"></lightning-combobox>
                                             </div>
                                         </div>
                                     </div>
@@ -376,7 +376,7 @@
                                             <div class="datetime-container">
                                                 <label class="datetime-label">Clock In DateTime</label>
                                                 <div class="datetime-wrapper">
-                                                    <input type="datetime-local" class="custom-datetime" value={clockInTime} onchange={handleManualClockInDateChange}/>
+                                                    <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime"  value={clockInTime} onchange={handleInputChange}/>
                                                 </div>
                                             </div>
                                         </div>
@@ -387,7 +387,7 @@
                                             <div class="datetime-container">
                                                 <label class="datetime-label">Clock Out DateTime</label>
                                                 <div class="datetime-wrapper">
-                                                    <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleManualClockOutDateChange}/>
+                                                    <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleInputChange}/>
                                                 </div>
                                             </div>
                                         </div>
@@ -398,7 +398,7 @@
                                             <div class="select-person-container">
                                                 <label class="select-label">Select Cost Code</label>
                                                 <div class="select-wrapper">
-                                                    <select class="custom-select-costcode" onchange={handleCostCodeChange} style="width: 100%;">
+                                                    <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange} style="width: 100%;">
                                                         <option value="">-- Select a cost code --</option>
                                                         <template for:each={costCodeOptions} for:item="option">
                                                             <option key={option.value} value={option.value}>{option.label}</option>
@@ -414,7 +414,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Travel Time</label>
                                             <div class="select-wrapper">
-                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select" style="width: 100%;" value={enteredManualTravelTime} onchange={handleManualFieldChange} />
+                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select" style="width: 100%;" value={enteredManualTravelTime} onchange={handleInputChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -424,7 +424,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Per Diem</label>
                                             <div class="select-wrapper">    
-                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select" style="width: 100%;" value={enteredManualPerDiem} onchange={handleManualFieldChange} />
+                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select" style="width: 100%;" value={enteredManualPerDiem} onchange={handleInputChange} />
                                             </div>
                                         </div>
                                     </div>

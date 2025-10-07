@@ -1,6 +1,7 @@
 import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getMobilizationMembers from '@salesforce/apex/HomeTabController.getMobilizationMembers';
+import getTimeSheetEntryItems from '@salesforce/apex/HomeTabController.getTimeSheetEntryItems';
 import createTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createTimesheetRecords';
 
 export default class HomeTab extends LightningElement {
@@ -23,6 +24,17 @@ export default class HomeTab extends LightningElement {
     @track selectedMobilizationId;
     @track selectedCostCodeId;
     @track previousClockInTime;
+    @track timesheetDetailsRaw = [];
+    @track timesheetColumns = [
+        { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
+        { label: 'Job Number', fieldName: 'jobNumber', style: 'width: 10rem' },
+        { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
+        { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 10rem' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
+        { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
+        { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
+        { label: 'Cost Code', fieldName: 'costCodeName', style: 'width: 8rem' }
+    ];
 
     get apexFormattedDate() {
         return this.selectedDate.toISOString().split('T')[0];
@@ -44,6 +56,47 @@ export default class HomeTab extends LightningElement {
         return this.activeTab === 'week' ? 'active' : '';
     }
 
+    /** 
+    * Method Name: timesheetDetails 
+    * @description: This method processes raw timesheet details and formats them for display in the UI.
+    */
+    get timesheetDetails() {
+        try {
+            if (!this.timesheetDetailsRaw) {
+                return [];
+            }
+
+            return this.timesheetDetailsRaw.map((ts, index) => {
+                return {
+                    id: ts.id,
+                    values: this.timesheetColumns.map(col => {
+                        let cell = { value: '', style: col.style };
+
+                        if (col.fieldName === 'srNo') {
+                            cell.value = index + 1;
+                        } else {
+                            cell.value = ts[col.fieldName] || '';
+                        }
+
+                        // Format dates nicely
+                        if (col.fieldName === 'clockInTime' || col.fieldName === 'clockOutTime') {
+                            cell.value = cell.value.slice(0, 16).replace('T', ' ');
+                        }
+
+                        return cell;
+                    })
+                };
+            });
+        } catch (error) {
+            console.error('Error in timesheetDetails ::', error);
+            return [];
+        }
+    }
+
+    /** 
+    * Method Name: connectedCallback 
+    * @description: Initializes component state, detects if the user is on a mobile device, and triggers fetching of mobilization members and timesheet details.
+    */
     connectedCallback() {
         try {
             this.selectedDate = new Date();
@@ -51,24 +104,31 @@ export default class HomeTab extends LightningElement {
     
             if(isMobileDevice) {
                 this.isMobileDevice = true;
-                console.log('Mobile device detected. Adjusting styles.');
             } else {
                 this.isMobileDevice = false;
-                console.log('Desktop device detected. Using default styles.');
             }
     
             this.getMobilizationMembers();
+            this.getTimesheetDetails();
         } catch (error) {
             console.error('Error in connectedCallback:', error);
         }
     }
 
+    /** 
+    * Method Name: renderedCallback 
+    * @description: Ensures accordion styling is applied once after the component is rendered.
+    */
     renderedCallback() {
         if(!this.accordionStyleApplied){
             this.applyAccordionStyling();
         }
     }
 
+    /** 
+    * Method Name: applyAccordionStyling 
+    * @description: Dynamically injects custom CSS to style the accordion sections within the component.
+    */
     applyAccordionStyling() {
         try {
             // Create style element if it doesn't exist
@@ -96,6 +156,10 @@ export default class HomeTab extends LightningElement {
         }
     }
 
+    /** 
+    * Method Name: getMobilizationMembers 
+    * @description: Fetches mobilization members from Apex, processes the data for today or week view, and prepares it for UI display including job times, map markers, and cost code options.
+    */
     getMobilizationMembers() {
         try {
             this.isLoading = true;
@@ -103,55 +167,65 @@ export default class HomeTab extends LightningElement {
             getMobilizationMembers({ filterDate: this.apexFormattedDate, mode: this.activeTab })
                 .then((data) => {
                     console.log('Data fetched successfully:', data);
-                    if(this.activeTab == 'today') {
-                        this.todayJobList = data.dayJobs || [];
-                        this.isTodayJobAvailable = this.todayJobList.length > 0;
-                        
-                        this.todayJobList = this.todayJobList.map(job => {
-                            return {
-                                ...job,
-                                jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
-                                jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
-                                mapMarkers: [{
-                                    location: {
-                                        Street: job.jobStreet || '',
-                                        City: job.jobCity || '',
-                                        State: job.jobState || '',
-                                        PostalCode: job.jobPostalCode || '',
-                                        Country: job.jobCountry || ''
-                                    },
-                                    value: job.mobId,
-                                    title: job.jobName ? `${job.jobName} (${job.jobNumber})` : job.jobNumber,
-                                    description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
-                                    icon: 'standard:account'
-                                }]
-                            };
-                        });
-
-                        const costCodeMap = data.costCodeDetails[0].costCodeDetails;
-                        this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
-                            label: costCodeMap[key], // the name
-                            value: key               // the id
-                        }));
-
-                    } else if(this.activeTab == 'week') {
-                        let apexData = data.weekJobs || [];
-                        this.groupWeeklyJobData(apexData);
-                        this.isWeekJobAvailable = apexData.length > 0;
+                    if(result != null){
+                        if(this.activeTab == 'today') {
+                            this.todayJobList = data.dayJobs || [];
+                            this.isTodayJobAvailable = this.todayJobList.length > 0;
+                            
+                            this.todayJobList = this.todayJobList.map(job => {
+                                return {
+                                    ...job,
+                                    jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
+                                    jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
+                                    mapMarkers: [{
+                                        location: {
+                                            Street: job.jobStreet || '',
+                                            City: job.jobCity || '',
+                                            State: job.jobState || '',
+                                            PostalCode: job.jobPostalCode || '',
+                                            Country: job.jobCountry || ''
+                                        },
+                                        value: job.mobId,
+                                        title: job.jobName ? `${job.jobName} (${job.jobNumber})` : job.jobNumber,
+                                        description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
+                                        icon: 'standard:account'
+                                    }]
+                                };
+                            });
+    
+                            const costCodeMap = data.costCodeDetails[0].costCodeDetails;
+                            this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
+                                label: costCodeMap[key], // the name
+                                value: key               // the id
+                            }));
+    
+                        } else if(this.activeTab == 'week') {
+                            let apexData = data.weekJobs || [];
+                            this.groupWeeklyJobData(apexData);
+                            this.isWeekJobAvailable = apexData.length > 0;
+                        }
+                    } else {
+                        this.showToast('Error', 'Failed to load data!', 'error');
                     }
                 })
                 .catch((error) => {
-                    console.error('Error fetching data:', error);
+                    console.error('Error fetching data getMobilizationMembers apex:', error);
+                    this.showToast('Error', 'Failed to load data!', 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
             console.error('Error in getMobilizationMembers:', error);
+            this.showToast('Error', 'Failed to load data!', 'error');
             this.isLoading = false;
         }
     }
 
+    /** 
+    * Method Name: groupWeeklyJobData 
+    * @description: Groups Apex weekly job data by day from today to next Monday, formats job times, and prepares map markers for UI display in accordion sections.
+    */
     groupWeeklyJobData(apexData) {
         try {
             console.log(apexData);
@@ -208,6 +282,38 @@ export default class HomeTab extends LightningElement {
         }
     }
 
+    /** 
+    * Method Name: getTimesheetDetails 
+    * @description: Fetches raw timesheet entries from Apex and stores them for further processing in the UI.
+    */
+    getTimesheetDetails() {
+        try {
+            this.isLoading = true;
+
+            getTimeSheetEntryItems()
+                .then(result => {
+                    console.log('getTimeSheetEntryItems result :: ', result);
+                    
+                    if(result != null) {   
+                        this.timesheetDetailsRaw = result;
+                    } else {
+                        this.showToast('Error', 'Failed to load data!', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in getTimeSheetEntryItems apex :: ', error);
+                    this.showToast('Error', 'Failed to load data!', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                })
+        } catch (error) {
+            console.error('Error in getTimeSheetEntryItems ::', error);
+            this.showToast('Error', 'Failed to load data!', 'error');
+            this.isLoading = false;
+        }
+    }
+
     /**
     * Method Name: handleSectionToggle
     * @description: Handle accordion section toggle - Allow multiple sections to be open
@@ -216,16 +322,28 @@ export default class HomeTab extends LightningElement {
         this.activeSectionName = event.detail.openSections;
     }
 
+    /**
+    * Method Name: handleTodayTab
+    * @description: Switches the UI to "Today" view and fetches today's mobilization jobs.
+    */
     handleTodayTab() {
         this.activeTab = 'today';
         this.getMobilizationMembers();
     }
 
+    /**
+    * Method Name: handleWeekTab
+    * @description: Switches the UI to "Week" view and fetches the week's mobilization jobs.
+    */
     handleWeekTab() {
         this.activeTab = 'week';
         this.getMobilizationMembers();
     }
 
+    /**
+    * Method Name: handleClockIn
+    * @description: Opens the Clock In modal and populates selected job and contact details for clocking in.
+    */
     handleClockIn(event) {
         this.showClockInModal = true;
         const mobId = event.currentTarget.dataset.id;
@@ -238,6 +356,10 @@ export default class HomeTab extends LightningElement {
         }
     }
 
+    /**
+    * Method Name: handleClockOut
+    * @description: Opens the Clock Out modal and populates selected job, contact, and previous clock-in details for clocking out.
+    */
     handleClockOut(event) {
         this.showClockOutModal = true;
         const mobId = event.currentTarget.dataset.id;
@@ -257,19 +379,21 @@ export default class HomeTab extends LightningElement {
     */
     handleInputChange(event) {
         let field = event.target.dataset.field;
-        console.log(field);
-        console.log(event.target.value);
-        
-        
+        let value = event.target.value;
+
         if(field === 'clockOut') {
-            this.clockOutTime = event.target.value;
+            this.clockOutTime = value;
         } else if(field === 'clockIn') {
-            this.clockInTime = event.target.value;
+            this.clockInTime = value;
         } else if (field === 'costCode') {
-            this.selectedCostCodeId = event.target.value;
+            this.selectedCostCodeId = value;
         }
     }
 
+    /** 
+    * Method Name: closeClockInModal 
+    * @description: Closes the Clock In modal and resets all related job, contact, and time fields.
+    */
     closeClockInModal() {
         this.showClockInModal = false;
         this.selectedContactId = null;
@@ -280,6 +404,10 @@ export default class HomeTab extends LightningElement {
         this.clockOutTime = null;
     }
 
+    /** 
+    * Method Name: closeClockOutModal 
+    * @description: Closes the Clock Out modal and resets all related job, contact, and time fields.
+    */
     closeClockOutModal() {
         this.showClockOutModal = false;
         this.selectedContactId = null;
@@ -290,10 +418,14 @@ export default class HomeTab extends LightningElement {
         this.clockInTime = null;
     }
 
+    /** 
+    * Method Name: saveClockIn 
+    * @description: Validates input and submits a Clock In request for the selected mobilization, updating the timesheet and UI accordingly.
+    */
     saveClockIn() {
         try {
             if(!this.selectedCostCodeId || !this.clockInTime) {
-                this.showToast('Error', 'No cost code/time selected', 'error');
+                this.showToast('Error', 'Select Cost Code and Time!', 'error');
                 console.error('No cost code/time selected');
                 return;
             }
@@ -318,12 +450,11 @@ export default class HomeTab extends LightningElement {
                 memberId: selectedRecordDetails.memberId
             };
 
-            console.log('params', params);
-            console.log('JSON.stringify(params)', JSON.stringify(params));
+            console.log('createTimesheetRecords params :: ', params);
             
             createTimesheetRecords({ params: JSON.stringify(params)})
                 .then(result => {
-                    console.log('result', result);
+                    console.log('createTimesheetRecords apex result :: ', result);
                     if(result == true) {
                         this.getMobilizationMembers();
                         this.closeClockInModal();
@@ -343,6 +474,10 @@ export default class HomeTab extends LightningElement {
         }
     }
 
+    /** 
+    * Method Name: saveClockOut 
+    * @description: Validates input and submits a Clock Out request for the selected mobilization, updating the timesheet and UI accordingly.
+    */
     saveClockOut() {
         try {
             if(!this.clockOutTime) {
@@ -372,12 +507,11 @@ export default class HomeTab extends LightningElement {
                 memberId: selectedRecordDetails.memberId
             };
 
-            console.log('params', params);
-            console.log('JSON.stringify(params)', JSON.stringify(params));
+            console.log('createTimesheetRecords params :: ', params);
 
             createTimesheetRecords({ params: JSON.stringify(params)})
                 .then(result => {
-                    console.log('result', result);
+                    console.log('createTimesheetRecords apex :: result', result);
                     if(result == true) {
                         this.getMobilizationMembers();
                         this.closeClockOutModal();
@@ -398,6 +532,10 @@ export default class HomeTab extends LightningElement {
         }
     }
 
+    /** 
+    * Method Name: formatDateLabel 
+    * @description: Converts a Date object into a human-readable string format for UI labels (e.g., Monday 6 Oct, 2025).
+    */
     formatDateLabel(date) {
         try {
             const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' };
@@ -407,6 +545,10 @@ export default class HomeTab extends LightningElement {
         }
     }
 
+    /** 
+    * Method Name: handleOpenInMaps 
+    * @description: Opens the Google Maps location for the selected job based on its address, handling both today and week views.
+    */
     handleOpenInMaps(event) {
         try {
             const mobId = event.target.dataset.id;
@@ -436,7 +578,6 @@ export default class HomeTab extends LightningElement {
             console.error('Error in handleOpenInMaps :: ', error);
         }
     }
-
 
     /** 
     * Method Name: showToast 

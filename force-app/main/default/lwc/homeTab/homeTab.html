@@ -126,9 +126,60 @@
                         </div>
                     </div>
                 </lightning-accordion-section>
-                <lightning-accordion-section name="timesheetDetails" label="Timesheet Details">
+                <lightning-accordion-section name="timesheetDetails" label="Past Week's Timesheet Details">
                     <div class="timesheet-details">
-                        Timesheet Content
+                        <template if:true={timesheetDetailsRaw.length}>
+                            <div class="table-content timesheet-table">
+                                <table class="slds-table">
+                                    <thead>
+                                        <tr>
+                                            <template for:each={timesheetColumns} for:item="col">
+                                                <th key={col.fieldName} scope="col" style={col.style}>
+                                                    <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                                </th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={timesheetDetails} for:item="timesheet" for:index="index">
+                                            <tr key={timesheet.id}>
+                                                <template for:each={timesheet.values} for:item="val">
+                                                    <td key={val} style={val.style}>
+                                                        <div class="slds-truncate cell-wrapper" title={val.value}>
+                                                            <template if:true={val.isActions}>
+                                                                <div class="action-button-container">
+                                                                    <div class="timesheet-icon">
+                                                                        <lightning-button-icon icon-name="utility:edit" alternative-text="Edit Action" variant="bare" data-id={timesheet.id} onclick={handleEditTimesheetClick}></lightning-button-icon>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+
+                                                            <template if:false={val.isActions}>
+                                                                <div class="cell-content" title={val.value}>
+                                                                    {val.value}
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                        <template if:false={timesheetDetailsRaw.length}>
+                            <div class="no-records-message">
+                                <div class="empty-state">
+                                    <div class="empty-state__content">
+                                        <div class="empty-state__icon">
+                                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                        </div>
+                                        <div class="empty-state__message">No Timesheet data available for Past Week</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </lightning-accordion-section>
             </lightning-accordion>
