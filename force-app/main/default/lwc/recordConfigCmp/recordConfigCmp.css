@@ -192,7 +192,7 @@
 
 .order_btn_grp {
     display: flex;
-    justify-content: start;
+    justify-content: center;
     flex-direction: row;
     gap: 10px;
 }
@@ -333,6 +333,7 @@
 .display_css .header-text {
     margin: 0;
     font-weight: 600;
+    text-align: center;
 }
 
 .combobox-cover{

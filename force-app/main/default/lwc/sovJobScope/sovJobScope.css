@@ -3,6 +3,7 @@
     user-select: none;
 }
 
+/* Layout Components */
 .filter-search-container {
     display: flex;
     justify-content: space-between;
@@ -31,19 +32,34 @@
     padding-bottom: 14px;
 }
 
-/* Data Table Wrapper with Fixed Height */
+/* Data Table Styles */
+.data-table-container,
+.location-container,
+.process-library-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(94, 90, 219, 1) transparent;
+}
 
-.data-table-container::-webkit-scrollbar {
+.data-table-container::-webkit-scrollbar,
+.location-container::-webkit-scrollbar,
+.process-library-container::-webkit-scrollbar,
+.accordion-container::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-.data-table-container::-webkit-scrollbar-track {
+.data-table-container::-webkit-scrollbar-track,
+.location-container::-webkit-scrollbar-track,
+.process-library-container::-webkit-scrollbar-track,
+.accordion-container::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.data-table-container::-webkit-scrollbar-thumb {
-    background: rgba(94, 90, 219, 0.5);
+.data-table-container::-webkit-scrollbar-thumb,
+.location-container::-webkit-scrollbar-thumb,
+.process-library-container::-webkit-scrollbar-thumb,
+.accordion-container::-webkit-scrollbar-thumb {
+    background-color: rgba(94, 90, 219, 1);
     border-radius: 4px;
 }
 
@@ -76,10 +92,6 @@
     z-index: 10;
 }
 
-.table-body {
-    position: relative;
-}
-
 .custom-data-table td {
     padding: 10px;
     text-align: center;
@@ -96,6 +108,9 @@
 .center-trancate-text {
     text-align: center;
     color: #585858;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .center-trancate-head {
@@ -112,6 +127,15 @@
     text-decoration: underline;
 }
 
+/* Empty State Styles */
+.no-prop,
+.no-process-data,
+.no-location-data,
+.no-process-library-data {
+    padding: 40px 20px;
+    text-align: center;
+}
+
 .no-prop {
     font-size: 20px;
     display: flex;
@@ -121,7 +145,6 @@
     height: 100%;
 }
 
-/* Empty state styling - matching jobDetailsPage */
 .empty-state {
     width: 100%;
     height: 100%;
@@ -139,39 +162,35 @@
 
 .empty-state__content .empty-state__icon {
     height: 100%;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
 }
 
-.empty-state__content .empty-state__message {
+.empty-state__icon img {
+    max-height: 10rem;
+}
+
+.empty-state__content .empty-state__message,
+.no-process-data .empty-state__message {
     color: rgba(94, 90, 219, 1);
     font-size: 16px;
     font-weight: 500;
     margin-top: 1rem;
     display: flex;
     justify-content: center;
+    margin-bottom: 8px;
 }
 
-/* Selected Records Count */
-.selected-count {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    background-color: rgb(244, 244, 255);
-    border: 1px solid rgba(94, 90, 219, 1);
-    border-radius: 0.25rem;
-    color: rgba(94, 90, 219, 1);
-    font-size: 0.875rem;
-    font-weight: 500;
+.no-process-data .empty-state__message {
+    color: #333;
+    margin-top: 0;
 }
 
-.selected-count-text {
-    white-space: nowrap;
-}
-
-/* Selected Records Count Badge */
-.selected-count-badge {
-    color: white;
-    border-radius: 10px;
-    font-weight: 600;
+.no-process-data .empty-state__subtitle {
+    color: #666;
+    font-size: 14px;
+    font-style: italic;
 }
 
 /* Action Buttons */
@@ -204,13 +223,19 @@
     background-color: #f8f9fa;
 }
 
-.action-button.add-btn {
+.action-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.action-button.add-btn,
+.action-button.refresh-btn {
     background-color: rgba(94, 90, 219, 1);
     color: white;
     border-color: rgba(94, 90, 219, 1);
 }
 
-.action-button.add-btn:hover {
+.action-button.add-btn:hover,
+.action-button.refresh-btn:hover {
     background-color: rgba(94, 90, 219, 0.9);
     border-color: rgba(94, 90, 219, 0.9);
 }
@@ -237,44 +262,13 @@
     color: #6c757d;
 }
 
-.action-button.refresh-btn {
-    background-color: rgba(94, 90, 219, 1);
-    color: white;
-    border-color: rgba(94, 90, 219, 1);
-}
-
-.action-button.refresh-btn:hover {
-    background-color: rgba(94, 90, 219, 0.9);
-    border-color: rgba(94, 90, 219, 0.9);
-}
-
 .action-button svg {
     flex-shrink: 0;
     width: 16px;
     height: 16px;
 }
 
-/* Checkbox Column */
-.checkbox-column {
-    width: 50px;
-    min-width: 50px;
-    text-align: center;
-}
-
-/* Actions Column */
-.actions-column {
-    width: 120px;
-    min-width: 120px;
-    text-align: center;
-}
-
-.action-icons {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    align-items: center;
-}
-
+/* Icon Buttons */
 .icon-button {
     background-color: transparent;
     border: 1px solid #d8d8d8;
@@ -328,60 +322,72 @@
     flex-shrink: 0;
 }
 
-/* Modal Styles - matching jobDetailsPage */
-.modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+/* Table Column Widths */
+.checkbox-column {
+    width: 50px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.process-checkbox-column {
+    width: 40px;
+    min-width: 40px;
+    text-align: center;
+}
+
+.actions-column {
+    width: 120px;
+    min-width: 120px;
+    text-align: center;
+}
+
+.action-icons {
     display: flex;
     justify-content: center;
+    gap: 0.5rem;
     align-items: center;
-    z-index: 1000;
 }
 
-.modal-container {
-    background-color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow: hidden;
-}
-
-.modal-header {
+/* Selected Records Count */
+.selected-count {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #e9ecef;
+    padding: 0.5rem 1rem;
+    background-color: rgb(244, 244, 255);
+    border: 1px solid rgba(94, 90, 219, 1);
+    border-radius: 0.25rem;
+    color: rgba(94, 90, 219, 1);
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
-.modal-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
+.selected-count-text {
+    white-space: nowrap;
+}
+
+.selected-count-badge {
+    color: white;
+    border-radius: 10px;
     font-weight: 600;
-    color: #333;
 }
 
-.modal-body {
-    padding: 1.5rem;
-    max-height: 60vh;
-    overflow-y: auto;
+.selected-locations-count,
+.selected-processes-count {
+    background-color: rgb(244, 244, 255);
+    border: 1px solid rgba(94, 90, 219, 1);
+    border-radius: 0.25rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
 }
 
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    border-top: 1px solid #e9ecef;
-    background-color: #f8f9fa;
+.count-text {
+    color: rgba(94, 90, 219, 1);
+    font-weight: 600;
+    font-size: 0.875rem;
 }
 
+/* Modal Styles */
 .pop-up {
     border-radius: 5px;
     scrollbar-width: none;
@@ -448,7 +454,7 @@
     background: rgb(244, 244, 255);
 }
 
-/* Process Modal Button Styles - Smaller buttons */
+/* Process Modal Button Styles */
 .process-btn {
     font-size: 0.875rem !important;
     font-weight: 400;
@@ -482,82 +488,19 @@
     border-color: rgba(94, 90, 219, 0.8);
 }
 
-/* Location Modal Styles */
-.location-modal {
+/* Modal Size Variations */
+.location-modal,
+.process-library-modal {
     max-width: 800px;
     width: 90%;
 }
 
-.location-search {
-    width: 100%;
-}
-
-.location-container {
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid #e5e5e5;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(94, 90, 219, 1) transparent;
-}
-
-.location-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.location-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.location-container::-webkit-scrollbar-thumb {
-    background-color: rgba(94, 90, 219, 1);
-    border-radius: 4px;
-}
-
-.location-table {
-    margin: 0;
-}
-
-.location-row:hover {
-    background-color: rgb(244, 244, 255) !important;
-    cursor: pointer;
-}
-
-.no-location-data {
-    padding: 40px 20px;
-    text-align: center;
-}
-
-.selected-locations-count {
-    background-color: rgb(244, 244, 255);
-    border: 1px solid rgba(94, 90, 219, 1);
-    border-radius: 0.25rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-
-@media only screen and (max-width: 768px) {
-    .location-modal {
-        width: 95%;
-        margin: 1rem;
-    }
-    
-    .location-table {
-        font-size: 11px;
-    }
-    
-    .location-table .header-cell,
-    .location-row td {
-        padding: 6px 8px;
-    }
+.process-library-modal {
+    max-width: 900px;
 }
 
 /* Form Styles */
-
-.form-container{
+.form-container {
     --lwc-borderWidthThin: 1px;   
     --slds-c-input-color-border: #d8d8d8;
 }
@@ -574,7 +517,7 @@
     font-size: 0.875rem;
 }
 
-.form-label-row{
+.form-label-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -624,45 +567,7 @@
     color: #dc3545;
 }
 
-/* Button Styles */
-.button {
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
-}
-
-.button-primary {
-    background-color: rgba(94, 90, 219, 1);
-    color: white;
-    border-color: rgba(94, 90, 219, 1);
-}
-
-.button-primary:hover:not(:disabled) {
-    background-color: rgba(94, 90, 219, 0.9);
-    border-color: rgba(94, 90, 219, 0.9);
-}
-
-.button-primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.button-secondary {
-    background-color: #ffffff;
-    color: #333;
-    border-color: #d8d8d8;
-}
-
-.button-secondary:hover {
-    background-color: rgb(244, 244, 255);
-    border-color: rgba(94, 90, 219, 0.5);
-}
-
-/* Accordion Container - Updated to match job details */
+/* Accordion Container */
 .accordion-container {
     flex: 1;
     overflow: hidden;
@@ -682,7 +587,6 @@
     scrollbar-color: rgba(94, 90, 219, 1) transparent;
 }
 
-/* Override SLDS accordion styles to match job details style */
 .accordion-container lightning-accordion {
     background: transparent;
     border-radius: 8px;
@@ -693,7 +597,6 @@
     background: transparent;
 }
 
-/* Data Table Container within Accordion - Updated styling */
 .accordion-container .data-table-container {
     flex: 1;
     overflow: auto;
@@ -704,7 +607,7 @@
     scrollbar-color: rgba(94, 90, 219, 1) transparent;
 }
 
-/* Summary Cards Styling - Updated colors */
+/* Summary Cards */
 .summary-cards-container {
     display: flex;
     gap: 1rem;
@@ -755,115 +658,6 @@
     line-height: 1.3;
 }
 
-/* Responsive adjustments for summary cards */
-@media only screen and (max-width: 900px) {
-    .summary-cards-container {
-        gap: 0.75rem;
-        margin: 0.875rem 0;
-    }
-    
-    .summary-card {
-        min-width: 150px;
-        padding: 1rem;
-    }
-    
-    .summary-card-value {
-        font-size: 1.25rem;
-    }
-    
-    .summary-card-title {
-        font-size: 0.7rem;
-    }
-    
-    .summary-card-subtitle {
-        font-size: 0.65rem;
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .summary-cards-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-    }
-    
-    .summary-card {
-        min-width: unset;
-        max-width: unset;
-        padding: 1rem;
-    }
-}
-
-@media only screen and (max-width: 480px) {
-    .summary-cards-container {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-    }
-    
-    .summary-card {
-        padding: 0.875rem;
-    }
-    
-    .summary-card-value {
-        font-size: 1.125rem;
-    }
-    
-    .summary-card-title {
-        font-size: 0.65rem;
-    }
-    
-    .summary-card-subtitle {
-        font-size: 0.6rem;
-    }
-}
-
-/* Responsive adjustments */
-@media only screen and (max-width: 900px) {
-    .filter-search-container {
-        flex-direction: column;
-        gap: 1rem;
-        width: 100%;
-    }
-
-    .search-bar {
-        width: 100%;
-    }
-
-    .search-bar lightning-input {
-        width: 100%;
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 16px;
-        width: 100%;
-        justify-content: space-between;
-        flex-wrap: wrap;
-    }
-    
-    .action-button {
-        font-size: 0.75rem;
-        padding: 0.375rem 0.75rem;
-    }
-    
-    .modal-container {
-        width: 95%;
-        margin: 1rem;
-    }
-    
-    .selected-count-badge {
-        font-size: 0.65rem;
-        padding: 1px 4px;
-    }
-}
-
-@media only screen and (max-width: 600px) {
-    .filter-search-container {
-        flex-direction: column;
-        gap: 1rem;
-    }
-}
-
 /* Nested Table Styles */
 .nested-row {
     background-color: transparent;
@@ -898,7 +692,6 @@
     flex-shrink: 0;
 }
 
-/* Nested Table Header Row */
 .nested-table-title-row {
     display: flex;
     justify-content: space-between;
@@ -906,104 +699,6 @@
     width: 100%;
     gap: 1rem;
     flex-wrap: wrap;
-}
-
-/* Add Process Button */
-.add-process-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0 0.875rem;
-    background-color: rgba(94, 90, 219, 1);
-    color: white;
-    border: 1px solid rgba(94, 90, 219, 1);
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    height: 32px;
-    justify-content: center;
-    white-space: nowrap;
-}
-
-.add-process-btn:hover {
-    background-color: rgba(94, 90, 219, 0.9);
-    border-color: rgba(94, 90, 219, 0.9);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
-}
-
-.add-process-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.3);
-}
-
-/* Process Checkbox Column */
-.process-checkbox-column {
-    width: 40px;
-    min-width: 40px;
-    text-align: center;
-}
-
-/* Enhanced Empty State for Process Details */
-.no-process-data {
-    padding: 40px 20px;
-    text-align: center;
-}
-
-.no-process-data .empty-state__icon {
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: center;
-}
-
-.empty-state__icon img{
-    max-height: 10rem;
-}
-
-.no-process-data .empty-state__message {
-    color: #333;
-    font-size: 16px;
-    font-weight: 500;
-    margin-bottom: 8px;
-}
-
-.no-process-data .empty-state__subtitle {
-    color: #666;
-    font-size: 14px;
-    font-style: italic;
-}
-
-/* Nested Table Row Hover Effect */
-.nested-table-row:hover {
-    background-color: rgb(244, 244, 255) !important;
-    cursor: pointer;
-}
-
-/* Responsive adjustments for nested table */
-@media only screen and (max-width: 768px) {
-    .nested-table-title-row {
-        flex-direction: column;
-        gap: 0.75rem;
-        align-items: stretch;
-    }
-    
-    .add-process-btn {
-        font-size: 0.7rem;
-        padding: 0 0.75rem;
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .nested-table {
-        font-size: 11px;
-    }
-    
-    .nested-table .header-cell,
-    .nested-table-row td {
-        padding: 6px 8px;
-    }
 }
 
 .nested-table {
@@ -1049,22 +744,79 @@
     background-color: #ffffff;
 }
 
-.no-process-data {
-    padding: 20px;
-    text-align: center;
+.nested-table-row:hover {
+    background-color: rgb(244, 244, 255) !important;
+    cursor: pointer;
 }
 
-.no-process-data .empty-state__message {
-    color: #666;
-    font-style: italic;
-    font-size: 13px;
-}
-
-.process-loading {
+.process-loading,
+.process-modal-loading {
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
+}
+
+.process-modal-loading {
+    padding: 60px 20px;
+    min-height: 200px;
+}
+
+/* Process Action Buttons */
+.process-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.add-process-btn,
+.library-btn,
+.manual-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0 0.875rem;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 32px;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.add-process-btn,
+.manual-btn {
+    background-color: rgba(94, 90, 219, 1);
+    border: 1px solid rgba(94, 90, 219, 1);
+}
+
+.add-process-btn:hover,
+.manual-btn:hover {
+    background-color: rgba(94, 90, 219, 0.9);
+    border-color: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.library-btn {
+    background-color: rgba(94, 90, 219, 0.85);
+    border-color: rgba(94, 90, 219, 0.85);
+}
+
+.library-btn:hover {
+    background-color: rgba(94, 90, 219, 1);
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.add-process-btn:active,
+.library-btn:active,
+.manual-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.3);
 }
 
 /* Icon button states for nested table toggle */
@@ -1089,20 +841,7 @@
     color: white;
 }
 
-/* Process Action Buttons Container */
-.process-action-buttons {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-/* Process Library Modal Styles */
-.process-library-modal {
-    max-width: 900px;
-    width: 90%;
-}
-
+/* Filter and Search Sections */
 .filter-search-section {
     margin-bottom: 1rem;
     padding: 1rem;
@@ -1123,6 +862,10 @@
     min-width: 200px;
 }
 
+.location-search {
+    width: 100%;
+}
+
 .filter-label {
     display: block;
     margin-bottom: 0.5rem;
@@ -1131,19 +874,11 @@
     font-size: 0.875rem;
 }
 
-.process-library-container {
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid #e5e5e5;
-    scrollbar-width: none;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-}
-
-.process-library-table {
+.location-table {
     margin: 0;
 }
 
+.location-row:hover,
 .process-library-row:hover {
     background-color: rgb(244, 244, 255) !important;
     cursor: pointer;
@@ -1172,180 +907,8 @@
     font-style: italic;
 }
 
-.no-process-library-data {
-    padding: 40px 20px;
-    text-align: center;
-}
-
-.selected-processes-count {
-    background-color: rgb(244, 244, 255);
-    border: 1px solid rgba(94, 90, 219, 1);
-    border-radius: 0.25rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-
-.count-text {
-    color: rgba(94, 90, 219, 1);
-    font-weight: 600;
-    font-size: 0.875rem;
-}
-
-/* Library Button Styles */
-.library-btn {
-    background-color: rgba(94, 90, 219, 0.85);
-    color: white;
-    border-color: rgba(94, 90, 219, 0.85);
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0 0.875rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-}
-
-.library-btn:hover {
-    background-color: rgba(94, 90, 219, 1);
-    border-color: rgba(94, 90, 219, 1);
-}
-
-.library-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.3);
-}
-
-.manual-btn {
-    background-color: rgba(94, 90, 219, 1);
-    color: white;
-    border-color: rgba(94, 90, 219, 1);
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0 0.875rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-}
-
-.manual-btn:hover {
-    background-color: rgba(94, 90, 219, 0.9);
-    border-color: rgba(94, 90, 219, 0.9);
-}
-
-.manual-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.3);
-}
-
-/* Responsive adjustments for process action buttons */
-@media only screen and (max-width: 768px) {
-    .process-action-buttons {
-        flex-direction: column;
-        gap: 0.5rem;
-        width: 100%;
-        align-items: stretch;
-    }
-    
-    .add-process-btn,
-    .library-btn,
-    .manual-btn {
-        width: 100%;
-        justify-content: center;
-        font-size: 0.7rem;
-        padding: 0 0.75rem;
-    }
-    
-    .nested-table-title-row {
-        flex-direction: column;
-        gap: 0.75rem;
-        align-items: stretch;
-    }
-    
-    .action-button {
-        font-size: 0.75rem;
-        padding: 0 0.75rem;
-        height: 34px;
-    }
-    
-    .action-button svg {
-        width: 14px;
-        height: 14px;
-    }
-    
-    .process-library-modal {
-        width: 95%;
-        margin: 1rem;
-    }
-    
-    .filter-row {
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-    
-    .filter-group,
-    .search-group {
-        min-width: unset;
-    }
-    
-    .process-name-cell {
-        padding: 8px;
-    }
-    
-    .process-name {
-        font-size: 0.8rem;
-    }
-    
-    .process-display-name {
-        font-size: 0.7rem;
-    }
-}
-
-/* Additional polish for button states */
-.action-button:active:not(:disabled) {
-    transform: translateY(1px);
-}
-
-/* Ensure delete button maintains its red color */
-.action-button.delete-btn {
-    background-color: #dc3545;
-    color: white;
-    border-color: #dc3545;
-}
-
-.action-button.delete-btn:hover:not(:disabled) {
-    background-color: #c82333;
-    border-color: #bd2130;
-}
-
-.action-button.delete-btn:disabled {
-    background-color: #f8f9fa;
-    color: #6c757d;
-    border-color: #d8d8d8;
-}
-
-/* Scrollbar styling for accordion */
-.accordion-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.accordion-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.accordion-container::-webkit-scrollbar-thumb {
-    background-color: rgba(94, 90, 219, 1);
-    border-radius: 4px;
+.process-library-table {
+    margin: 0;
 }
 
 /* Search bar input styling */
@@ -1354,7 +917,7 @@
     --slds-c-input-color-border-focus: rgba(94, 90, 219, 1);
 }
 
-/* Sort Description Container */
+/* Sort Description */
 .sort-description-container {
     padding: 8px 2px;
     margin-bottom: 8px;
@@ -1392,7 +955,8 @@
 }
 
 /* Sortable Header Styles */
-.sortable-header {
+.sortable-header,
+.process-sortable-header {
     cursor: pointer;
     transition: background-color 0.2s ease;
     user-select: none;
@@ -1400,6 +964,10 @@
 
 .sortable-header:hover {
     background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+.process-sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.9) !important;
 }
 
 .sort-header-content {
@@ -1414,52 +982,8 @@
     font-weight: 600;
 }
 
-.sort-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.3s ease;
-}
-
-.sort-icon svg {
-    width: 12px;
-    height: 12px;
-    transition: transform 0.3s ease;
-}
-
-/* Sort Icon Rotation */
-.rotate-asc {
-    transform: rotate(0deg);
-}
-
-.rotate-desc {
-    transform: rotate(180deg);
-}
-
-/* Sortable Header Styles - Updated for single arrow visibility */
-.sortable-header {
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    user-select: none;
-}
-
-.sortable-header:hover {
-    background-color: rgba(94, 90, 219, 0.8) !important;
-}
-
-.sort-header-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.25rem;
-}
-
-.column-label {
-    font-weight: 600;
-}
-
-.sort-icon {
+.sort-icon,
+.process-sort-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1468,14 +992,14 @@
     visibility: hidden;
 }
 
-/* Show sort icon on hover */
-.sortable-header:hover .sort-icon {
+.sortable-header:hover .sort-icon,
+.sortable-header.active-sort .sort-icon {
     opacity: 1;
     visibility: visible;
 }
 
-/* Always show sort icon for active sorted column */
-.sortable-header.active-sort .sort-icon {
+.process-sortable-header:hover .process-sort-icon,
+.process-sortable-header.active-sort .process-sort-icon {
     opacity: 1;
     visibility: visible;
 }
@@ -1487,7 +1011,13 @@
     transition: transform 0.3s ease;
 }
 
-/* Sort Icon Rotation */
+.process-sort-icon svg {
+    width: 10px;
+    height: 10px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
 .rotate-asc {
     transform: rotate(0deg);
 }
@@ -1496,18 +1026,148 @@
     transform: rotate(180deg);
 }
 
-/* Ensure text doesn't overflow in fixed columns */
-.center-trancate-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: center;
-    color: #585858;
+/* Responsive Design */
+@media only screen and (max-width: 900px) {
+    .summary-cards-container {
+        gap: 0.75rem;
+        margin: 0.875rem 0;
+    }
+    
+    .summary-card {
+        min-width: 150px;
+        padding: 1rem;
+    }
+    
+    .summary-card-value {
+        font-size: 1.25rem;
+    }
+    
+    .summary-card-title {
+        font-size: 0.7rem;
+    }
+    
+    .summary-card-subtitle {
+        font-size: 0.65rem;
+    }
+
+    .filter-search-container {
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+    }
+
+    .search-bar {
+        width: 100%;
+    }
+
+    .search-bar lightning-input {
+        width: 100%;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 16px;
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+    
+    .action-button {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    .selected-count-badge {
+        font-size: 0.65rem;
+        padding: 1px 4px;
+    }
 }
 
-
-/* Responsive adjustments for fixed widths */
 @media only screen and (max-width: 768px) {
+    .summary-cards-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+    
+    .summary-card {
+        min-width: unset;
+        max-width: unset;
+        padding: 1rem;
+    }
+
+    .location-modal,
+    .process-library-modal {
+        width: 95%;
+        margin: 1rem;
+    }
+    
+    .location-table,
+    .nested-table {
+        font-size: 11px;
+    }
+    
+    .location-table .header-cell,
+    .location-row td,
+    .nested-table .header-cell,
+    .nested-table-row td {
+        padding: 6px 8px;
+    }
+
+    .nested-table-title-row {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+    
+    .process-action-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+        align-items: stretch;
+    }
+    
+    .add-process-btn,
+    .library-btn,
+    .manual-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 0.7rem;
+        padding: 0 0.75rem;
+    }
+    
+    .action-button {
+        font-size: 0.75rem;
+        padding: 0 0.75rem;
+        height: 34px;
+    }
+    
+    .action-button svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .filter-group,
+    .search-group {
+        min-width: unset;
+    }
+    
+    .process-name-cell {
+        padding: 8px;
+    }
+    
+    .process-name {
+        font-size: 0.8rem;
+    }
+    
+    .process-display-name {
+        font-size: 0.7rem;
+    }
     
     .sort-header-content {
         gap: 0.25rem;
@@ -1521,49 +1181,7 @@
         width: 10px;
         height: 10px;
     }
-}
 
-/* Process Table Sortable Header Styles */
-.process-sortable-header {
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    user-select: none;
-}
-
-.process-sortable-header:hover {
-    background-color: rgba(94, 90, 219, 0.9) !important;
-}
-
-.process-sort-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    opacity: 0;
-    visibility: hidden;
-}
-
-/* Show process sort icon on hover */
-.process-sortable-header:hover .process-sort-icon {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Always show process sort icon for active sorted column */
-.process-sortable-header.active-sort .process-sort-icon {
-    opacity: 1;
-    visibility: visible;
-}
-
-.process-sort-icon svg {
-    width: 10px;
-    height: 10px;
-    fill: currentColor;
-    transition: transform 0.3s ease;
-}
-
-/* Responsive adjustments for process sorting */
-@media only screen and (max-width: 768px) {
     .process-sort-icon svg {
         width: 8px;
         height: 8px;
@@ -1578,11 +1196,32 @@
     }
 }
 
-/* Process Modal Loading Spinner */
-.process-modal-loading {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 60px 20px;
-    min-height: 200px;
+@media only screen and (max-width: 600px) {
+    .filter-search-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+@media only screen and (max-width: 480px) {
+    .summary-cards-container {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .summary-card {
+        padding: 0.875rem;
+    }
+    
+    .summary-card-value {
+        font-size: 1.125rem;
+    }
+    
+    .summary-card-title {
+        font-size: 0.65rem;
+    }
+    
+    .summary-card-subtitle {
+        font-size: 0.6rem;
+    }
 }
