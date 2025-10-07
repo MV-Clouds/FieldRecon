@@ -18,7 +18,7 @@ public with sharing class JobDetailsPageController {
     @description     : Method is used to get the job related mobilization details
     @param           : filterDate - {Date} - Date to filter the mobilization details
     @param           : mode - {String} - Mode to filter the mobilization details
-    @return          : List<Mobilization__c> - List of mobilization details
+    @return          : List<MobilizationWrapper> - List of mobilization details
     ********************************************************
     */
     @AuraEnabled
@@ -111,7 +111,8 @@ public with sharing class JobDetailsPageController {
 
             return result;
         } catch (Exception e) {
-            throw new AuraHandledException('Error in getJobRelatedMoblizationDetails: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'getJobRelatedMoblizationDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -150,7 +151,8 @@ public with sharing class JobDetailsPageController {
 
         } catch (Exception e) {
             System.debug('Exception in getTimeSheetEntryItems: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'getTimeSheetEntryItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -163,173 +165,174 @@ public with sharing class JobDetailsPageController {
     */
     @AuraEnabled
     public static Map<String, List<WrapperMember>> getMobilizationMembersWithStatus(Id mobId) {
-        Map<String, List<WrapperMember>> result = new Map<String, List<WrapperMember>>();
-        result.put('clockIn', new List<WrapperMember>());
-        result.put('clockOut', new List<WrapperMember>());
-        result.put('costCodeDetails', new List<WrapperMember>());
-
-        List<Mobilization__c> mobilizationRecord = [
-            SELECT Id, Job__c, Start_Date__c, End_Date__c
-            FROM Mobilization__c
-            WHERE Id = :mobId 
-            WITH SECURITY_ENFORCED
-            LIMIT 1
-        ];
-
-        // 1. Fetch Members
-        List<Mobilization_Member__c> members = [
-            SELECT Id, Contact__c, Contact__r.Name, Contact__r.RecordType.DeveloperName, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
-            FROM Mobilization_Member__c
-            WHERE Mobilization__c = :mobId
-            AND Contact__c != null
-            AND (Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon'))
-            AND Contact__r.Can_Clock_In_Out__c = true
-            WITH SECURITY_ENFORCED
-        ];
-
-        Set<Id> contactIds = new Set<Id>();
-        Id jobId;
-        for (Mobilization_Member__c m : members) {
-            contactIds.add(m.Contact__c);
-            jobId = m.Mobilization__r.Job__c; 
-        }
-        System.debug('contactIds: ' + contactIds);
-        System.debug('jobId: ' + jobId);
-
-        if (contactIds.isEmpty()) {
-            return result;
-        }
-
-        // 2. Fetch Timesheets for those contacts for that job and date
-        List<Timesheet__c> tsList = [
-            SELECT Id, Contact__c, Timesheet_Start_Date__c, Timesheet_End_Date__c
-            FROM Timesheet__c
-            WHERE Contact__c IN :contactIds
-            AND Job__c = :jobId
-            AND Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].Start_Date__c)
-            AND Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].End_Date__c)
-            WITH SECURITY_ENFORCED
-        ];
-        System.debug('tsList: ' + tsList.size());
-        Map<Id, Timesheet__c> contactTimesheetMap = new Map<Id, Timesheet__c>();
-        for (Timesheet__c ts : tsList) {
-            System.debug('ts.Ids: ' + ts.Id);
-            contactTimesheetMap.put(ts.Contact__c, ts);
-        }
-
-        // 3. Fetch Entries for those timesheets for that date
-        Date startDate = mobilizationRecord[0].Start_Date__c.date(); // extract only date part
-        List<Timesheet_Entry__c> entries = [
-            SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__r.Contact__c
-            FROM Timesheet_Entry__c
-            WHERE Timesheet__c IN :tsList
-            AND Clock_In_Time__c >= :startDate
-            AND Clock_In_Time__c < :startDate.addDays(1)
-            WITH SECURITY_ENFORCED
-        ];
-        System.debug('entries: ' + entries.size());
-        
-        // Group entries by Contact
-        Map<Id, List<Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<Timesheet_Entry__c>>();
-        for (Timesheet_Entry__c e : entries) {
-            if (!contactEntriesMap.containsKey(e.Timesheet__r.Contact__c)) {
-                contactEntriesMap.put(e.Timesheet__r.Contact__c, new List<Timesheet_Entry__c>());
+        try {
+            Map<String, List<WrapperMember>> result = new Map<String, List<WrapperMember>>();
+            result.put('clockIn', new List<WrapperMember>());
+            result.put('clockOut', new List<WrapperMember>());
+            result.put('costCodeDetails', new List<WrapperMember>());
+    
+            List<Mobilization__c> mobilizationRecord = [
+                SELECT Id, Job__c, Start_Date__c, End_Date__c
+                FROM Mobilization__c
+                WHERE Id = :mobId 
+                WITH SECURITY_ENFORCED
+                LIMIT 1
+            ];
+            System.debug('mobilizationRecord.size() ::' + mobilizationRecord.size());
+    
+            // 1. Fetch Members
+            List<Mobilization_Member__c> members = [
+                SELECT Id, Contact__c, Contact__r.Name, Contact__r.RecordType.DeveloperName, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
+                FROM Mobilization_Member__c
+                WHERE Mobilization__c = :mobId
+                AND Contact__c != null
+                AND (Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon'))
+                AND Contact__r.Can_Clock_In_Out__c = true
+                WITH SECURITY_ENFORCED
+            ];
+            System.debug('members.size() ::' + members.size());
+    
+            Set<Id> contactIds = new Set<Id>();
+            Id jobId;
+            for (Mobilization_Member__c m : members) {
+                contactIds.add(m.Contact__c);
+                jobId = m.Mobilization__r.Job__c; 
             }
-            contactEntriesMap.get(e.Timesheet__r.Contact__c).add(e);
-        }
-
-        // 4. Build wrapper list
-        for (Mobilization_Member__c m : members) {
-            WrapperMember wrap = new WrapperMember();
-            wrap.jobStartTime = mobilizationRecord[0].Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].Start_Date__c)/1000);
-            wrap.jobEndTime = mobilizationRecord[0].End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].End_Date__c)/1000);
-            wrap.contactId = m.Contact__c;
-            wrap.contactName = m.Contact__r.Name;
-            wrap.mobMemberId = m.Id;
-
-            Timesheet__c ts = contactTimesheetMap.get(m.Contact__c);
-            List<Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.Contact__c);
-
-            if (ts == null) {
-                wrap.isTimesheetNull = true;
-                wrap.isTimesheetEntryNull = true;
-                wrap.isAgain = false;
-                result.get('clockIn').add(wrap);
-                continue;
+            System.debug('contactIds: ' + contactIds);
+            System.debug('jobId: ' + jobId);
+    
+            if (contactIds.isEmpty()) {
+                return result;
             }
-
-            if (userEntries == null || userEntries.isEmpty()) {
-                wrap.timesheetId = ts.Id;
-                wrap.isTimeSheetNull = false;
-                wrap.isTimesheetEntryNull = true;
-                wrap.isAgain = false;
-                result.get('clockIn').add(wrap);
-                continue;
+    
+            // 2. Fetch Timesheets for those contacts for that job and date
+            List<Timesheet__c> tsList = [
+                SELECT Id, Contact__c, Timesheet_Start_Date__c, Timesheet_End_Date__c
+                FROM Timesheet__c
+                WHERE Contact__c IN :contactIds
+                AND Job__c = :jobId
+                AND Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].Start_Date__c)
+                AND Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].End_Date__c)
+                WITH SECURITY_ENFORCED
+            ];
+            System.debug('tsList: ' + tsList.size());
+            Map<Id, Timesheet__c> contactTimesheetMap = new Map<Id, Timesheet__c>();
+            for (Timesheet__c ts : tsList) {
+                System.debug('ts.Ids: ' + ts.Id);
+                contactTimesheetMap.put(ts.Contact__c, ts);
             }
-
-            // Sort entries by ClockInTime for consistency
-            // userEntries.sort(new List<Timesheet_Entry__c>{
-            //     new Timesheet_Entry__c(Clock_In_Time__c = DateTime.newInstance(1900,1,1,0,0,0)) // ensures comparator field
-            // });
-
-            Boolean hasOpenEntry = false;
-            Boolean hasCompletedEntry = false;
-            Timesheet_Entry__c latestOpen;
-            Timesheet_Entry__c latestCompleted;
-
-            for (Timesheet_Entry__c e : userEntries) {
-                if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
-                    hasOpenEntry = true;
-                    latestOpen = e;
-                } else if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c != null) {
-                    hasCompletedEntry = true;
-                    latestCompleted = e;
-                } else if (e.Clock_In_Time__c == null && e.Clock_Out_Time__c != null) {
-                    // Edge case → treat as open
-                    hasOpenEntry = true;
-                    latestOpen = e;
+    
+            // 3. Fetch Entries for those timesheets for that date
+            Date startDate = mobilizationRecord[0].Start_Date__c.date(); // extract only date part
+            List<Timesheet_Entry__c> entries = [
+                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__r.Contact__c
+                FROM Timesheet_Entry__c
+                WHERE Timesheet__c IN :tsList
+                AND Clock_In_Time__c >= :startDate
+                AND Clock_In_Time__c < :startDate.addDays(1)
+                WITH SECURITY_ENFORCED
+            ];
+            System.debug('entries: ' + entries.size());
+            
+            // Group entries by Contact
+            Map<Id, List<Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<Timesheet_Entry__c>>();
+            for (Timesheet_Entry__c e : entries) {
+                if (!contactEntriesMap.containsKey(e.Timesheet__r.Contact__c)) {
+                    contactEntriesMap.put(e.Timesheet__r.Contact__c, new List<Timesheet_Entry__c>());
                 }
+                contactEntriesMap.get(e.Timesheet__r.Contact__c).add(e);
             }
-
-            if (hasOpenEntry) {
-                // ClockOut case → must pass the ClockIn time
-                wrap.timesheetId = ts.Id;
-                wrap.isTimeSheetNull = false;
-                wrap.isTimeSheetEntryNull = false;
-                wrap.timesheetEntryId = latestOpen.Id;
-                wrap.clockInTime = (latestOpen.Clock_In_Time__c != null)
-                    ? latestOpen.Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.Clock_In_Time__c)/1000)
-                    : null;
-                wrap.isAgain = false; // Not a new shift yet, finishing current one
-                result.get('clockOut').add(wrap);
-            } else if (hasCompletedEntry) {
-                // Only completed entries → eligible for ClockIn again
-                wrap.timesheetId = ts.Id;
-                wrap.isTimeSheetNull = false;
-                wrap.isTimesheetEntryNull = true;
-                wrap.isAgain = true;  // ✅ Contact is clocking in AGAIN
-                result.get('clockIn').add(wrap);
-            } else {
-                // Default → treat as new ClockIn
-                wrap.timesheetId = ts.Id;
-                wrap.isTimeSheetNull = false;
-                wrap.isTimesheetEntryNull = true;
-                wrap.isAgain = false;
-                result.get('clockIn').add(wrap);
+    
+            // 4. Build wrapper list
+            for (Mobilization_Member__c m : members) {
+                WrapperMember wrap = new WrapperMember();
+                wrap.jobStartTime = mobilizationRecord[0].Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].Start_Date__c)/1000);
+                wrap.jobEndTime = mobilizationRecord[0].End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].End_Date__c)/1000);
+                wrap.contactId = m.Contact__c;
+                wrap.contactName = m.Contact__r.Name;
+                wrap.mobMemberId = m.Id;
+    
+                Timesheet__c ts = contactTimesheetMap.get(m.Contact__c);
+                List<Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.Contact__c);
+    
+                if (ts == null) {
+                    wrap.isTimesheetNull = true;
+                    wrap.isTimesheetEntryNull = true;
+                    wrap.isAgain = false;
+                    result.get('clockIn').add(wrap);
+                    continue;
+                }
+    
+                if (userEntries == null || userEntries.isEmpty()) {
+                    wrap.timesheetId = ts.Id;
+                    wrap.isTimeSheetNull = false;
+                    wrap.isTimesheetEntryNull = true;
+                    wrap.isAgain = false;
+                    result.get('clockIn').add(wrap);
+                    continue;
+                }
+    
+                Boolean hasOpenEntry = false;
+                Boolean hasCompletedEntry = false;
+                Timesheet_Entry__c latestOpen;
+                Timesheet_Entry__c latestCompleted;
+    
+                for (Timesheet_Entry__c e : userEntries) {
+                    if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
+                        hasOpenEntry = true;
+                        latestOpen = e;
+                    } else if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c != null) {
+                        hasCompletedEntry = true;
+                        latestCompleted = e;
+                    } else if (e.Clock_In_Time__c == null && e.Clock_Out_Time__c != null) {
+                        // Edge case → treat as open
+                        hasOpenEntry = true;
+                        latestOpen = e;
+                    }
+                }
+    
+                if (hasOpenEntry) {
+                    // ClockOut case → must pass the ClockIn time
+                    wrap.timesheetId = ts.Id;
+                    wrap.isTimeSheetNull = false;
+                    wrap.isTimeSheetEntryNull = false;
+                    wrap.timesheetEntryId = latestOpen.Id;
+                    wrap.clockInTime = (latestOpen.Clock_In_Time__c != null)
+                        ? latestOpen.Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.Clock_In_Time__c)/1000)
+                        : null;
+                    wrap.isAgain = false; // Not a new shift yet, finishing current one
+                    result.get('clockOut').add(wrap);
+                } else if (hasCompletedEntry) {
+                    // Only completed entries → eligible for ClockIn again
+                    wrap.timesheetId = ts.Id;
+                    wrap.isTimeSheetNull = false;
+                    wrap.isTimesheetEntryNull = true;
+                    wrap.isAgain = true;  // ✅ Contact is clocking in AGAIN
+                    result.get('clockIn').add(wrap);
+                } else {
+                    // Default → treat as new ClockIn
+                    wrap.timesheetId = ts.Id;
+                    wrap.isTimeSheetNull = false;
+                    wrap.isTimesheetEntryNull = true;
+                    wrap.isAgain = false;
+                    result.get('clockIn').add(wrap);
+                }
+                
             }
+            // 5. Build cost code details
+            Map<Id, String> costCodeDetails = new Map<Id, String>();
+            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c];
+            for (Cost_Code__c c : costCodeRecs) {
+                costCodeDetails.put(c.Id, c.Name);
+            }
+            WrapperMember costCodeDetailsWrap = new WrapperMember();
+            costCodeDetailsWrap.costCodeDetails = costCodeDetails;
+            result.get('costCodeDetails').add(costCodeDetailsWrap);
+            return result;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'getMobilizationMembersWithStatus', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
-
-        // 5. Build cost code details
-        Map<Id, String> costCodeDetails = new Map<Id, String>();
-        List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c];
-        for (Cost_Code__c c : costCodeRecs) {
-            costCodeDetails.put(c.Id, c.Name);
-        }
-        WrapperMember costCodeDetailsWrap = new WrapperMember();
-        costCodeDetailsWrap.costCodeDetails = costCodeDetails;
-        result.get('costCodeDetails').add(costCodeDetailsWrap);
-
-        return result;
     }
 
     /*
@@ -427,6 +430,7 @@ public with sharing class JobDetailsPageController {
             return true;
         } catch (Exception e) {
             System.debug(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'createTimesheetRecords', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return false;
         }
     }
@@ -456,7 +460,8 @@ public with sharing class JobDetailsPageController {
 
             return result;
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'getContactsAndCostcode', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -544,7 +549,8 @@ public with sharing class JobDetailsPageController {
             return true;
         } catch (Exception e) {
             System.debug('Exception in createTimesheetRecords: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'createManualTimesheetRecords', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return false;
         }
     }
 
@@ -601,7 +607,8 @@ public with sharing class JobDetailsPageController {
             return true;
         } catch (Exception e) {
             System.debug('Exception in updateTimesheets: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'updateTimesheets', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return false;
         }
     }
 
@@ -635,7 +642,8 @@ public with sharing class JobDetailsPageController {
             return utcDT;
         } catch (Exception e) {
             System.debug('Error in convertUtc: ' + e.getMessage());
-            throw new AuraHandledException('Error in convertUtc: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'convertUtc', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
