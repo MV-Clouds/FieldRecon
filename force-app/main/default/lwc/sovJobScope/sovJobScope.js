@@ -2807,16 +2807,41 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.editingScopeCells.add(cellKey);
         this.applyFilters();
         
-        // Auto-focus the input after DOM update
+        // Auto-focus the input after DOM update with increased delay and better targeting
         setTimeout(() => {
-            const inputSelector = `[data-record-id="${recordId}"][data-field-name="${fieldName}"]`;
-            const inputElement = this.template.querySelector(inputSelector);
+            // Try multiple selectors to find the input/select element
+            let inputElement = null;
+            
+            // For regular inputs
+            inputElement = this.template.querySelector(`input[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+            
+            // For select elements (picklists)
+            if (!inputElement) {
+                inputElement = this.template.querySelector(`select[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+            }
+            
+            // For combobox elements
+            if (!inputElement) {
+                const combobox = this.template.querySelector(`lightning-combobox[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+                if (combobox) {
+                    inputElement = combobox.querySelector('input');
+                }
+            }
+            
             if (inputElement) {
                 inputElement.focus();
+                
+                // For text inputs, select all text for easier editing
+                if (inputElement.type === 'text' || inputElement.type === 'number') {
+                    inputElement.select();
+                }
+                
+                console.log(`Focused input for ${cellKey}`);
+            } else {
+                console.warn(`Could not find input element for ${cellKey}`);
             }
-        }, 50);
+        }, 100); // Increased delay to ensure DOM is fully rendered
     }
-
     /**
      * Method Name: handleScopeCellInputChange
      * @description: Handle input change in scope inline editing - FIXED
@@ -2905,15 +2930,27 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle blur event on scope inline edit input
      */
     handleScopeCellInputBlur(event) {
-        const recordId = event.target.dataset.recordId;
-        const fieldName = event.target.dataset.fieldName;
-        const cellKey = `${recordId}-${fieldName}`;
+        console.log('handleScopeCellInputBlur called');
         
-        // Remove from editing set
-        this.editingScopeCells.delete(cellKey);
+        try {
+            const recordId = event.target.dataset.recordId;
+            const fieldName = event.target.dataset.fieldName;
+            const cellKey = `${recordId}-${fieldName}`;
+            
+            console.log(`Blur event on cell: ${cellKey}`);
+            console.log(`Current editing cells:`, Array.from(this.editingScopeCells));
+            
+            
+            // Remove from editing set
+            this.editingScopeCells.delete(cellKey);
+            
+            // Trigger reactivity to show normal cell
+            this.applyFilters();
+        } catch (error) {
+            console.log('Error in handleScopeCellInputBlur:', error);
+            
+        }
         
-        // Trigger reactivity to show normal cell
-        this.applyFilters();
     }
 
     /**
@@ -3350,11 +3387,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 // Auto-focus the input after DOM update
                 setTimeout(() => {
-                    const input = this.template.querySelector(`lightning-combobox[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
-                    if (input) {
-                        input.focus();
-                    }
-                }, 50);
+                    this.focusProcessInput(recordId, fieldName);
+                }, 100);
             });
         } else {
             // For non-picklist or already cached picklists
@@ -3363,12 +3397,38 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             
             // Auto-focus the input after DOM update
             setTimeout(() => {
-                const input = this.template.querySelector(`input[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
-                if (input) {
-                    input.focus();
-                    input.select(); // Select all text for easy editing
-                }
-            }, 50);
+                this.focusProcessInput(recordId, fieldName);
+            }, 100);
+        }
+    }
+
+    /**
+     * Method Name: focusProcessInput
+     * @description: Helper method to focus process input elements
+     */
+    focusProcessInput(recordId, fieldName) {
+        // Try multiple selectors to find the input/select element
+        let inputElement = null;
+        
+        // For regular inputs
+        inputElement = this.template.querySelector(`input[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
+        
+        // For select elements (picklists)
+        if (!inputElement) {
+            inputElement = this.template.querySelector(`select[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
+        }
+        
+        if (inputElement) {
+            inputElement.focus();
+            
+            // For text inputs, select all text for easier editing
+            if (inputElement.type === 'text' || inputElement.type === 'number') {
+                inputElement.select();
+            }
+            
+            console.log(`Focused process input for ${recordId}-${fieldName}`);
+        } else {
+            console.warn(`Could not find process input element for ${recordId}-${fieldName}`);
         }
     }
     
@@ -3492,6 +3552,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const recordId = event.target.dataset.processRecordId;
         const fieldName = event.target.dataset.processFieldName;
         const cellKey = `${recordId}-${fieldName}`;
+        
+        console.log(`Blur event on process cell: ${cellKey}`);
         
         // Remove from editing set
         this.editingProcessCells.delete(cellKey);
