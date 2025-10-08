@@ -259,62 +259,125 @@
                                                     data-editable={field.isEditable}
                                                     onclick={handleScopeCellClick}>
                                                     
+                                                    <!-- EDITING MODE -->
                                                     <template if:true={field.isBeingEdited}>
-                                                        <!-- Inline editing input -->
-                                                        <template if:true={field.isNumber}>
-                                                            <input type="number" 
-                                                                   class="inline-edit-input"
-                                                                   value={field.rawValue}
+                                                        <!-- Date field editing -->
+                                                        <template if:true={field.isDate}>
+                                                            <input type="date" 
+                                                                   class="inline-edit-input date-input"
+                                                                   value={field.dateValue}
                                                                    data-record-id={entry.Id}
                                                                    data-field-name={field.key}
-                                                                   data-field-type="number"
-                                                                   oninput={handleScopeCellInputChange}
-                                                                   onblur={handleScopeCellInputBlur}
-                                                                   step="1"
-                                                                   min="0">
-                                                        </template>
-                                                        <template if:false={field.isNumber}>
-                                                            <input type="text" 
-                                                                   class="inline-edit-input"
-                                                                   value={field.value}
-                                                                   data-record-id={entry.Id}
-                                                                   data-field-name={field.key}
-                                                                   data-field-type="text"
+                                                                   data-field-type="date"
                                                                    oninput={handleScopeCellInputChange}
                                                                    onblur={handleScopeCellInputBlur}>
                                                         </template>
-                                                    </template>
-                                                    
-                                                    <template if:false={field.isBeingEdited}>
-                                                        <!-- Regular cell display -->
-                                                        <div class={field.contentClass}>
-                                                            <template if:true={field.isCurrency}>
-                                                                <lightning-formatted-number 
-                                                                    value={field.currencyValue} 
-                                                                    format-style="currency" 
-                                                                    currency-code="USD">
-                                                                </lightning-formatted-number>
+                                                        
+                                                        <!-- Picklist field editing -->
+                                                        <template if:true={field.isPicklist}>
+                                                            <template if:false={field.isDate}>
+                                                                <select 
+                                                                    class="inline-edit-select"
+                                                                    data-record-id={entry.Id}
+                                                                    data-field-name={field.key}
+                                                                    data-field-type="picklist"
+                                                                    onchange={handleScopeSelectChange}
+                                                                    onblur={handleScopeCellInputBlur}>
+                                                                    <option value="">--Select--</option>
+                                                                    <template for:each={field.picklistOptions} for:item="option">
+                                                                        <option key={option.value} 
+                                                                                value={option.value}
+                                                                                selected={field.value}>
+                                                                            {option.label}
+                                                                        </option>
+                                                                    </template>
+                                                                </select>
                                                             </template>
-                                                            <template if:false={field.isCurrency}>
-                                                                <template if:true={field.isPercent}>
+                                                        </template>
+                                                        
+                                                        <!-- Number field editing (excluding date) -->
+                                                        <template if:true={field.isNumber}>
+                                                            <template if:false={field.isDate}>
+                                                                <template if:false={field.isPicklist}>
+                                                                    <input type="number" 
+                                                                           class="inline-edit-input"
+                                                                           value={field.rawValue}
+                                                                           data-record-id={entry.Id}
+                                                                           data-field-name={field.key}
+                                                                           data-field-type="number"
+                                                                           oninput={handleScopeCellInputChange}
+                                                                           onblur={handleScopeCellInputBlur}
+                                                                           onkeydown={handleNumberInputKeydown}
+                                                                           step="0.01"
+                                                                           min="0">
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                        
+                                                        <!-- Text field editing -->
+                                                        <template if:false={field.isNumber}>
+                                                            <template if:false={field.isDate}>
+                                                                <template if:false={field.isPicklist}>
+                                                                    <input type="text" 
+                                                                           class="inline-edit-input"
+                                                                           value={field.value}
+                                                                           data-record-id={entry.Id}
+                                                                           data-field-name={field.key}
+                                                                           data-field-type="text"
+                                                                           oninput={handleScopeCellInputChange}
+                                                                           onblur={handleScopeCellInputBlur}>
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                    </template>
+
+                                                    <!-- DISPLAY MODE -->
+                                                    <template if:false={field.isBeingEdited}>
+                                                        <div class={field.contentClass}>
+                                                            <!-- Date field display -->
+                                                            <template if:true={field.isDate}>
+                                                                <template if:true={field.hasValue}>
+                                                                    <lightning-formatted-date-time 
+                                                                        value={field.rawValue}
+                                                                        year="numeric"
+                                                                        month="short"
+                                                                        day="2-digit">
+                                                                    </lightning-formatted-date-time>
+                                                                </template>
+                                                                <template if:false={field.hasValue}>--</template>
+                                                            </template>
+                                                            
+                                                            <!-- Currency field display -->
+                                                            <template if:false={field.isDate}>
+                                                                <template if:true={field.isCurrency}>
                                                                     <lightning-formatted-number 
-                                                                        value={field.percentValue} 
-                                                                        format-style="percent-fixed" 
-                                                                        maximum-fraction-digits="2">
+                                                                        value={field.currencyValue} 
+                                                                        format-style="currency" 
+                                                                        currency-code="USD">
                                                                     </lightning-formatted-number>
                                                                 </template>
-                                                                <template if:false={field.isPercent}>
-                                                                    <template if:true={field.isNameField}>
-                                                                        <a href={entry.recordUrl} target="_blank" class="name-link">
-                                                                                {field.value}
-                                                                        </a>
+                                                                <template if:false={field.isCurrency}>
+                                                                    <!-- Percent field display -->
+                                                                    <template if:true={field.isPercent}>
+                                                                        <lightning-formatted-number 
+                                                                            value={field.percentValue} 
+                                                                            format-style="percent-fixed" 
+                                                                            maximum-fraction-digits="2">
+                                                                        </lightning-formatted-number>
                                                                     </template>
-                                                                    <template if:false={field.isNameField}>
-                                                                        <template if:true={field.hasValue}>
-                                                                            <span>{field.value}</span>
+                                                                    <template if:false={field.isPercent}>
+                                                                        <!-- Name field with link -->
+                                                                        <template if:true={field.isNameField}>
+                                                                            <a href={entry.recordUrl} target="_blank" class="name-link">
+                                                                                {field.value}
+                                                                            </a>
                                                                         </template>
-                                                                        <template if:false={field.hasValue}>
-                                                                            <span>--</span>
+                                                                        <!-- Regular text/picklist display -->
+                                                                        <template if:false={field.isNameField}>
+                                                                            <template if:true={field.hasValue}>
+                                                                                {field.value}
+                                                                            </template>
+                                                                            <template if:false={field.hasValue}>--</template>
                                                                         </template>
                                                                     </template>
                                                                 </template>
@@ -698,65 +761,130 @@
                                                     data-editable={field.isEditable}
                                                     onclick={handleScopeCellClick}>
                                                     
+                                                    <!-- EDITING MODE -->
                                                     <template if:true={field.isBeingEdited}>
-                                                        <!-- Inline editing input -->
-                                                        <template if:true={field.isNumber}>
-                                                            <input type="number" 
-                                                                   class="inline-edit-input"
-                                                                   value={field.rawValue}
+                                                        <!-- Date field editing -->
+                                                        <template if:true={field.isDate}>
+                                                            <input type="date" 
+                                                                   class="inline-edit-input date-input"
+                                                                   value={field.dateValue}
                                                                    data-record-id={entry.Id}
                                                                    data-field-name={field.key}
-                                                                   data-field-type="number"
-                                                                   oninput={handleScopeCellInputChange}
-                                                                   onblur={handleScopeCellInputBlur}
-                                                                   step="1"
-                                                                   min="0">
-                                                        </template>
-                                                        <template if:false={field.isNumber}>
-                                                            <input type="text" 
-                                                                   class="inline-edit-input"
-                                                                   value={field.value}
-                                                                   data-record-id={entry.Id}
-                                                                   data-field-name={field.key}
-                                                                   data-field-type="text"
+                                                                   data-field-type="date"
                                                                    oninput={handleScopeCellInputChange}
                                                                    onblur={handleScopeCellInputBlur}>
                                                         </template>
-                                                    </template>
-                                                    
-                                                    <template if:false={field.isBeingEdited}>
-                                                        <!-- Regular cell display -->
-                                                        <div class={field.contentClass}>
-                                                            <template if:true={field.isCurrency}>
-                                                                <lightning-formatted-number 
-                                                                    value={field.currencyValue} 
-                                                                    format-style="currency" 
-                                                                    currency-code="USD">
-                                                                </lightning-formatted-number>
+                                                        
+                                                        <!-- Picklist field editing -->
+                                                        <template if:true={field.isPicklist}>
+                                                            <template if:false={field.isDate}>
+                                                                <select 
+                                                                    class="inline-edit-select process-select"
+                                                                    data-process-record-id={process.Id}
+                                                                    data-process-field-name={field.key}
+                                                                    data-process-field-type="picklist"
+                                                                    onchange={handleProcessSelectChange}
+                                                                    onblur={handleProcessCellInputBlur}>
+                                                                    <option value="">--Select--</option>
+                                                                    <template for:each={field.picklistOptions} for:item="option">
+                                                                        <option key={option.value} 
+                                                                                value={option.value}
+                                                                                selected={field.value}>
+                                                                            {option.label}
+                                                                        </option>
+                                                                    </template>
+                                                                </select>
                                                             </template>
-                                                            <template if:false={field.isCurrency}>
-                                                                <template if:true={field.isPercent}>
+                                                        </template>
+                                                        
+                                                        <!-- Number field editing (excluding date) -->
+                                                        <template if:true={field.isNumber}>
+                                                            <template if:false={field.isDate}>
+                                                                <template if:false={field.isPicklist}>
+                                                                    <input type="number" 
+                                                                           class="inline-edit-input"
+                                                                           value={field.rawValue}
+                                                                           data-record-id={entry.Id}
+                                                                           data-field-name={field.key}
+                                                                           data-field-type="number"
+                                                                           oninput={handleScopeCellInputChange}
+                                                                           onblur={handleScopeCellInputBlur}
+                                                                           onkeydown={handleNumberInputKeydown}
+                                                                           step="0.01"
+                                                                           min="0">
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                        
+                                                        <!-- Text field editing -->
+                                                        <template if:false={field.isNumber}>
+                                                            <template if:false={field.isDate}>
+                                                                <template if:false={field.isPicklist}>
+                                                                    <input type="text" 
+                                                                           class="inline-edit-input"
+                                                                           value={field.value}
+                                                                           data-record-id={entry.Id}
+                                                                           data-field-name={field.key}
+                                                                           data-field-type="text"
+                                                                           oninput={handleScopeCellInputChange}
+                                                                           onblur={handleScopeCellInputBlur}>
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                    </template>
+
+                                                    <!-- DISPLAY MODE -->
+                                                    <template if:false={field.isBeingEdited}>
+                                                        <div class={field.contentClass}>
+                                                            <!-- Date field display -->
+                                                            <template if:true={field.isDate}>
+                                                                <template if:true={field.hasValue}>
+                                                                    <lightning-formatted-date-time 
+                                                                        value={field.rawValue}
+                                                                        year="numeric"
+                                                                        month="short"
+                                                                        day="2-digit">
+                                                                    </lightning-formatted-date-time>
+                                                                </template>
+                                                                <template if:false={field.hasValue}>--</template>
+                                                            </template>
+                                                            
+                                                            <!-- Currency field display -->
+                                                            <template if:false={field.isDate}>
+                                                                <template if:true={field.isCurrency}>
                                                                     <lightning-formatted-number 
-                                                                        value={field.percentValue} 
-                                                                        format-style="percent-fixed" 
-                                                                        maximum-fraction-digits="2">
+                                                                        value={field.currencyValue} 
+                                                                        format-style="currency" 
+                                                                        currency-code="USD">
                                                                     </lightning-formatted-number>
                                                                 </template>
-                                                                <template if:false={field.isPercent}>
-                                                                    <template if:true={field.isNameField}>
-                                                                        <a href={entry.recordUrl} target="_blank" class="name-link">
-                                                                            <template if:true={field.hasValue}>
-                                                                                {field.value}
-                                                                            </template>
-                                                                            <template if:false={field.hasValue}>--</template>
-                                                                        </a>
+                                                                <template if:false={field.isCurrency}>
+                                                                    <!-- Percent field display -->
+                                                                    <template if:true={field.isPercent}>
+                                                                        <lightning-formatted-number 
+                                                                            value={field.percentValue} 
+                                                                            format-style="percent-fixed" 
+                                                                            maximum-fraction-digits="2">
+                                                                        </lightning-formatted-number>
                                                                     </template>
-                                                                    <template if:false={field.isNameField}>
-                                                                        <template if:true={field.hasValue}>
-                                                                            <span>{field.value}</span>
+                                                                    <template if:false={field.isPercent}>
+                                                                        <!-- Name field with link -->
+                                                                        <template if:true={field.isNameField}>
+                                                                            <a href={entry.recordUrl} target="_blank" class="name-link">
+                                                                                <template if:true={field.hasValue}>
+                                                                                    {field.value}
+                                                                                </template>
+                                                                                <template if:false={field.hasValue}>--</template>
+                                                                            </a>
                                                                         </template>
-                                                                        <template if:false={field.hasValue}>
-                                                                            <span>--</span>
+                                                                        <!-- Regular text/picklist display -->
+                                                                        <template if:false={field.isNameField}>
+                                                                            <template if:true={field.hasValue}>
+                                                                                <span>{field.value}</span>
+                                                                            </template>
+                                                                            <template if:false={field.hasValue}>
+                                                                                <span>--</span>
+                                                                            </template>
                                                                         </template>
                                                                     </template>
                                                                 </template>

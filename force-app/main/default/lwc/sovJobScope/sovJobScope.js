@@ -17,6 +17,8 @@ import createLocationProcesses from '@salesforce/apex/SovJobScopeController.crea
 import saveScopeEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveScopeEntryInlineEdits';
 import createChangeOrder from '@salesforce/apex/SovJobScopeController.createChangeOrder';
 import saveProcessEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveProcessEntryInlineEdits';
+import getPicklistValuesForField from '@salesforce/apex/SovJobScopeController.getPicklistValuesForField'; // ADD THIS LINE
+
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
     @track isLoading = true;
@@ -28,6 +30,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track searchTerm = '';
     @track processTableUpdateTime = 0;
     @track modifiedProcessEntriesByScopeEntry = new Map(); // Map<scopeEntryId, Set<processId>>
+    @track fieldPicklistOptions = new Map(); // Map<fieldName, Array<{label, value}>>
 
     // Sorting properties
     @track sortField = '';
@@ -787,6 +790,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return 'date';
             case 'DATETIME':
                 return 'date';
+            case 'PICKLIST':
+                return 'picklist';
             case 'EMAIL':
                 return 'email';
             case 'PHONE':
@@ -1311,7 +1316,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.showToast('Success', `Edit Record action clicked for record: ${recordId}`, 'success');
     }
 
-   /**
+    /**
      * Method Name: processEntriesForDisplay
      * @description: Common method to process entries for display with nested table support and inline editing
      */
@@ -1363,7 +1368,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 // Build content classes
                 let contentClass = 'editable-content';
                 
-                // Handle currency fields - show $0.00 for empty currency fields
+                // Handle currency fields
                 let currencyValue = 0;
                 if (col.type === 'currency') {
                     currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
@@ -1372,7 +1377,22 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 // Handle percent fields
                 let percentValue = 0;
                 if (col.type === 'percent') {
-                    percentValue = value !== null && value !== undefined ? parseFloat(value)  : 0;
+                    percentValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+                }
+                
+                // Handle date fields
+                let dateValue = '';
+                if (col.type === 'date' && value) {
+                    dateValue = this.formatDateForInput(value);
+                }
+                
+                // Handle picklist fields - REMOVE ASYNC CALL HERE
+                let picklistOptions = [];
+                if (col.type === 'picklist') {
+                    // Only use cached options, don't trigger async load here
+                    if (this.fieldPicklistOptions.has(key)) {
+                        picklistOptions = this.fieldPicklistOptions.get(key);
+                    }
                 }
                 
                 return {
@@ -1381,11 +1401,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     rawValue: value,
                     currencyValue: currencyValue,
                     percentValue: percentValue,
+                    dateValue: dateValue,
+                    picklistOptions: picklistOptions,
                     hasValue: value !== null && value !== undefined && String(value).trim() !== '' && String(value) !== '0',
                     isNameField: key === 'Name',
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
                     isNumber: col.type === 'number',
+                    isDate: col.type === 'date',
+                    isPicklist: col.type === 'picklist',
                     isEditable: col.editable || false,
                     isModified: isModified,
                     isBeingEdited: isBeingEdited,
@@ -1398,7 +1422,45 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         });
     }
 
-   /**
+    /**
+     * Method Name: getPicklistValues
+     * @description: Get picklist values for a field
+     */
+    async getPicklistValues(fieldName) {
+        if (this.fieldPicklistOptions.has(fieldName)) {
+            return this.fieldPicklistOptions.get(fieldName);
+        }
+        
+        try {
+            // Determine which object to query based on field name
+            let objectApiName = 'wfrecon__Scope_Entry__c';
+            
+            // If field is from process table columns, use Scope_Entry_Process__c
+            const isProcessField = this.processTableColumns.some(col => col.fieldName === fieldName);
+            if (isProcessField) {
+                objectApiName = 'wfrecon__Scope_Entry_Process__c';
+            }
+            
+            // Call Apex to get picklist values
+            const picklistValues = await getPicklistValuesForField({ 
+                objectApiName: objectApiName,
+                fieldApiName: fieldName 
+            });
+            
+            const options = picklistValues.map(value => ({
+                label: value,
+                value: value
+            }));
+            
+            this.fieldPicklistOptions.set(fieldName, options);
+            return options;
+        } catch (error) {
+            console.error('Error fetching picklist values:', error);
+            return [];
+        }
+    }
+
+    /**
      * Method Name: processProcessDetailsForDisplay
      * @description: Process process details for nested table display with inline editing support
      */
@@ -1456,28 +1518,42 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 // Handle currency fields
                 let currencyValue = 0;
                 if (col.type === 'currency') {
-                    currencyValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                    currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
                 }
 
                 // Handle percentage fields
                 let percentValue = 0;
                 if (col.type === 'percent') {
-                    percentValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                    percentValue = value !== null && value !== undefined ? parseFloat(value) : 0;
                 }
 
                 // Handle number fields  
                 let numberValue = 0;
                 if (col.type === 'number') {
-                    numberValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                    numberValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+                }
+
+                // Handle date fields
+                let dateValue = '';
+                if (col.type === 'date' && value) {
+                    dateValue = this.formatDateForInput(value);
+                }
+
+                // Handle picklist fields - NO ASYNC CALLS HERE
+                let picklistOptions = [];
+                if (col.type === 'picklist') {
+                    // Check if we already have options cached
+                    if (this.fieldPicklistOptions.has(key)) {
+                        picklistOptions = this.fieldPicklistOptions.get(key);
+                    }
+                    // If editing and no options, we'll load them synchronously elsewhere
                 }
                 
                 // Fix hasValue logic to properly handle empty strings and null values
                 let hasValue;
                 if (col.type === 'currency' || col.type === 'percent' || col.type === 'number') {
-                    // For numeric fields, consider 0 as a valid value but null/undefined as empty
                     hasValue = value !== null && value !== undefined && !isNaN(value);
                 } else {
-                    // For text fields, consider empty strings as no value
                     hasValue = value !== null && value !== undefined && String(value).trim() !== '';
                 }
                 
@@ -1488,12 +1564,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     currencyValue: currencyValue,
                     percentValue: percentValue,
                     numberValue: numberValue,
+                    dateValue: dateValue,
+                    picklistOptions: picklistOptions,
                     hasValue: hasValue,
-                    isNameField: col.isNameField || false,
+                    isNameField: key === 'wfrecon__Process_Library__r.Name',
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
                     isNumber: col.type === 'number',
-                    isUrl: col.type === 'url',
+                    isDate: col.type === 'date',
+                    isPicklist: col.type === 'picklist',
                     isEditable: isEditable,
                     isModified: isModified,
                     isBeingEdited: isBeingEdited,
@@ -1501,8 +1580,49 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     contentClass: contentClass
                 };
             });
+
             return row;
         });
+    }
+
+    /**
+     * Method Name: formatDateForInput
+     * @description: Format date for input field (YYYY-MM-DD)
+     */
+    formatDateForInput(dateValue) {
+        if (!dateValue) return '';
+        
+        try {
+            const date = new Date(dateValue);
+            if (isNaN(date.getTime())) return '';
+            
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return '';
+        }
+    }
+
+    /**
+     * Method Name: formatDateForDisplay
+     * @description: Format date for display (locale-specific)
+     */
+    formatDateForDisplay(dateValue) {
+        if (!dateValue) return '--';
+        
+        try {
+            const date = new Date(dateValue);
+            if (isNaN(date.getTime())) return '--';
+            
+            return date.toLocaleDateString();
+        } catch (error) {
+            console.error('Error formatting date for display:', error);
+            return '--';
+        }
     }
 
     /**
@@ -2656,6 +2776,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             console.error('Error in sortData:', error);
         }
     }
+
     /**
      * Method Name: handleScopeCellClick
      * @description: Handle cell click for inline editing of scope entries
@@ -2672,19 +2793,40 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Don't open editor if already editing this cell
         if (this.editingScopeCells.has(cellKey)) return;
         
-        this.editingScopeCells.add(cellKey);
+        // Find the column to check if it's a picklist
+        const column = this.tableColumns.find(col => col.fieldName === fieldName);
         
-        // Trigger reactivity
-        this.applyFilters();
-        
-        // Auto-focus the input after DOM update
-        setTimeout(() => {
-            const input = this.template.querySelector(`input[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
-            if (input) {
-                input.focus();
-                input.select(); // Select all text for easy editing
-            }
-        }, 50);
+        // If it's a picklist and we don't have options yet, load them
+        if (column && column.type === 'picklist' && !this.fieldPicklistOptions.has(fieldName)) {
+            this.getPicklistValues(fieldName).then(() => {
+                // After options are loaded, set editing state and refresh
+                this.editingScopeCells.add(cellKey);
+                this.applyFilters();
+                
+                // Auto-focus the input after DOM update
+                setTimeout(() => {
+                    const input = this.template.querySelector(`lightning-combobox[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+                    if (input) {
+                        input.focus();
+                    }
+                }, 50);
+            });
+        } else {
+            // For non-picklist or already cached picklists
+            this.editingScopeCells.add(cellKey);
+            this.applyFilters();
+            
+            // Auto-focus the input after DOM update
+            setTimeout(() => {
+                const input = this.template.querySelector(`[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+                if (input) {
+                    input.focus();
+                    if (input.select) {
+                        input.select(); // Select all text for easy editing
+                    }
+                }
+            }, 50);
+        }
     }
 
     /**
@@ -2697,21 +2839,31 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const fieldType = event.target.dataset.fieldType;
         let newValue = event.target.value;
         
-        // Type conversion based on field type - FIXED to handle empty and invalid values
+        // Type conversion based on field type
         if (fieldType === 'number') {
             if (newValue === '' || newValue === null || newValue === undefined) {
-                newValue = null; // Keep as null for empty values
+                newValue = null;
             } else {
-                const parsedValue = parseFloat(newValue);
-                if (isNaN(parsedValue)) {
-                    // Keep the original string value if it's not a valid number
-                    // This allows partial typing like "1." or "-"
-                    newValue = newValue;
-                } else {
-                    newValue = parsedValue;
+                newValue = parseFloat(newValue);
+                if (isNaN(newValue)) {
+                    newValue = null;
                 }
             }
+        } else if (fieldType === 'date') {
+            // Convert date string to ISO format for storage
+            if (newValue) {
+                try {
+                    const date = new Date(newValue);
+                    newValue = date.toISOString();
+                } catch (error) {
+                    console.error('Error parsing date:', error);
+                    newValue = null;
+                }
+            } else {
+                newValue = null;
+            }
         }
+        // Picklist and text fields remain as strings
         
         // Get original value to compare
         const originalEntry = [...this.filteredContractEntries, ...this.filteredChangeOrderEntries].find(entry => entry.Id === recordId);
@@ -2724,7 +2876,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         const modifications = this.modifiedScopeEntries.get(recordId);
         
-        // Compare values properly for numbers
+        // Compare values properly
         const areValuesEqual = (val1, val2) => {
             if (val1 === val2) return true;
             if ((val1 === null || val1 === undefined || val1 === '') && 
@@ -2732,13 +2884,23 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             if (fieldType === 'number' && !isNaN(val1) && !isNaN(val2)) {
                 return parseFloat(val1) === parseFloat(val2);
             }
+            if (fieldType === 'date') {
+                // Compare dates
+                if (!val1 || !val2) return val1 === val2;
+                try {
+                    const date1 = new Date(val1);
+                    const date2 = new Date(val2);
+                    return date1.getTime() === date2.getTime();
+                } catch (error) {
+                    return false;
+                }
+            }
             return false;
         };
         
         if (!areValuesEqual(newValue, originalValue)) {
             modifications[fieldName] = newValue;
         } else {
-            // Remove modification if value is back to original
             delete modifications[fieldName];
             if (Object.keys(modifications).length === 0) {
                 this.modifiedScopeEntries.delete(recordId);
@@ -2824,6 +2986,38 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .finally(() => {
                 this.isSavingScopeEntries = false;
             });
+    }
+
+    handleScopePicklistChange(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const newValue = event.target.value;
+        
+        // Get original value to compare
+        const originalEntry = [...this.filteredContractEntries, ...this.filteredChangeOrderEntries].find(entry => entry.Id === recordId);
+        const originalValue = this.getFieldValue(originalEntry, fieldName);
+        
+        // Track modifications
+        if (!this.modifiedScopeEntries.has(recordId)) {
+            this.modifiedScopeEntries.set(recordId, {});
+        }
+        
+        const modifications = this.modifiedScopeEntries.get(recordId);
+        
+        if (newValue !== originalValue) {
+            modifications[fieldName] = newValue;
+        } else {
+            delete modifications[fieldName];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedScopeEntries.delete(recordId);
+            }
+        }
+        
+        // Update hasScopeModifications flag
+        this.hasScopeModifications = this.modifiedScopeEntries.size > 0;
+        
+        // Trigger reactivity
+        this.applyFilters();
     }
 
     /**
@@ -3140,6 +3334,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
+    /**
+     * Method Name: handleProcessCellClick
+     * @description: Handle cell click for inline editing of process entries
+     */
     handleProcessCellClick(event) {
         const recordId = event.currentTarget.dataset.recordId;
         const fieldName = event.currentTarget.dataset.fieldName;
@@ -3152,19 +3350,38 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Don't open editor if already editing this cell
         if (this.editingProcessCells.has(cellKey)) return;
         
-        this.editingProcessCells.add(cellKey);
+        // Find the column to check if it's a picklist
+        const column = this.processTableColumns.find(col => col.fieldName === fieldName);
         
-        // Trigger reactivity
-        this.updateDisplayedEntries();
-        
-        // Auto-focus the input after DOM update
-        setTimeout(() => {
-            const input = this.template.querySelector(`input[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
-            if (input) {
-                input.focus();
-                input.select(); // Select all text for easy editing
-            }
-        }, 50);
+        // If it's a picklist and we don't have options yet, load them
+        if (column && column.type === 'picklist' && !this.fieldPicklistOptions.has(fieldName)) {
+            this.getPicklistValues(fieldName).then(() => {
+                // After options are loaded, set editing state and refresh
+                this.editingProcessCells.add(cellKey);
+                this.updateDisplayedEntries();
+                
+                // Auto-focus the input after DOM update
+                setTimeout(() => {
+                    const input = this.template.querySelector(`lightning-combobox[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
+                    if (input) {
+                        input.focus();
+                    }
+                }, 50);
+            });
+        } else {
+            // For non-picklist or already cached picklists
+            this.editingProcessCells.add(cellKey);
+            this.updateDisplayedEntries();
+            
+            // Auto-focus the input after DOM update
+            setTimeout(() => {
+                const input = this.template.querySelector(`input[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
+                if (input) {
+                    input.focus();
+                    input.select(); // Select all text for easy editing
+                }
+            }, 50);
+        }
     }
     
     /**
@@ -3427,6 +3644,90 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
         
         return null;
+    }
+
+    /**
+     * Method Name: handleScopeSelectChange
+     * @description: Handle native select change for scope picklist fields
+     */
+    handleScopeSelectChange(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const newValue = event.target.value;
+        
+        // Get original value to compare
+        const originalEntry = [...this.filteredContractEntries, ...this.filteredChangeOrderEntries].find(entry => entry.Id === recordId);
+        const originalValue = this.getFieldValue(originalEntry, fieldName);
+        
+        // Track modifications
+        if (!this.modifiedScopeEntries.has(recordId)) {
+            this.modifiedScopeEntries.set(recordId, {});
+        }
+        
+        const modifications = this.modifiedScopeEntries.get(recordId);
+        
+        if (newValue !== originalValue) {
+            modifications[fieldName] = newValue;
+        } else {
+            delete modifications[fieldName];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedScopeEntries.delete(recordId);
+            }
+        }
+        
+        // Update hasScopeModifications flag
+        this.hasScopeModifications = this.modifiedScopeEntries.size > 0;
+        
+        // Trigger reactivity
+        this.applyFilters();
+    }
+
+    /**
+     * Method Name: handleProcessSelectChange
+     * @description: Handle native select change for process picklist fields
+     */
+    handleProcessSelectChange(event) {
+        const recordId = event.target.dataset.processRecordId;
+        const fieldName = event.target.dataset.processFieldName;
+        const scopeEntryId = this.getScopeEntryIdForProcess(recordId);
+        const newValue = event.target.value;
+        
+        // Get original value to compare
+        const originalProcess = this.findProcessById(recordId);
+        const originalValue = this.getFieldValue(originalProcess, fieldName);
+        
+        // Track modifications with scope context
+        if (!this.modifiedProcessEntries.has(recordId)) {
+            this.modifiedProcessEntries.set(recordId, {
+                scopeEntryId: scopeEntryId,
+                modifications: {}
+            });
+        }
+        
+        // Track by scope entry for button state
+        if (!this.modifiedProcessEntriesByScopeEntry.has(scopeEntryId)) {
+            this.modifiedProcessEntriesByScopeEntry.set(scopeEntryId, new Set());
+        }
+        
+        const entry = this.modifiedProcessEntries.get(recordId);
+        const modifications = entry.modifications;
+        
+        if (newValue !== originalValue) {
+            modifications[fieldName] = newValue;
+            this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).add(recordId);
+        } else {
+            delete modifications[fieldName];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedProcessEntries.delete(recordId);
+                this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).delete(recordId);
+            }
+        }
+        
+        // Update hasProcessModifications flag
+        this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
+        
+        // Trigger reactivity
+        this.updateDisplayedEntries();
     }
 
     /**

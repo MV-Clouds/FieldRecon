@@ -1072,5 +1072,40 @@ public with sharing class SovJobScopeController {
         }
     }
     
+    @AuraEnabled(cacheable=true)
+    public static List<String> getPicklistValuesForField(String objectApiName, String fieldApiName) {
+        List<String> picklistValues = new List<String>();
+        
+        try {
+            Schema.SObjectType objectType = Schema.getGlobalDescribe().get(objectApiName);
+            if (objectType == null) {
+                return picklistValues;
+            }
+            
+            Schema.DescribeSObjectResult objectDescribe = objectType.getDescribe();
+            Schema.DescribeFieldResult fieldDescribe = objectDescribe.fields.getMap().get(fieldApiName)?.getDescribe();
+            
+            if (fieldDescribe != null && fieldDescribe.getType() == Schema.DisplayType.PICKLIST) {
+                List<Schema.PicklistEntry> picklistEntries = fieldDescribe.getPicklistValues();
+                for (Schema.PicklistEntry entry : picklistEntries) {
+                    if (entry.isActive()) {
+                        picklistValues.add(entry.getValue());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getPicklistValuesForField',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching picklist values for ' + objectApiName + '.' + fieldApiName,
+                'apiResponse' => null
+            });
+        }
+        
+        return picklistValues;
+    }
 
 }

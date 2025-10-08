@@ -1720,3 +1720,122 @@
         gap: 0.25rem;
     }
 }
+
+.inline-edit-input.date-input {
+    max-width: 150px;
+    cursor: pointer;
+}
+
+.inline-edit-input.date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    background-color: rgba(94, 90, 219, 0.1);
+    border-radius: 3px;
+    padding: 2px;
+}
+
+.inline-edit-input.date-input::-webkit-calendar-picker-indicator:hover {
+    background-color: rgba(94, 90, 219, 0.2);
+}
+
+/* Picklist inline editing styles */
+.inline-edit-picklist {
+    width: 100%;
+    max-width: 200px;
+    --slds-c-combobox-color-border: rgba(94, 90, 219, 1);
+    --slds-c-combobox-color-border-focus: rgba(94, 90, 219, 1);
+    --slds-c-combobox-shadow-focus: 0 0 0 2px rgba(94, 90, 219, 0.2);
+}
+
+.inline-edit-picklist lightning-base-combobox {
+    border-color: rgba(94, 90, 219, 1);
+    border-radius: 4px;
+}
+
+/* Responsive adjustments for date and picklist */
+@media only screen and (max-width: 768px) {
+    .inline-edit-input.date-input {
+        max-width: 120px;
+        font-size: 12px;
+    }
+    
+    .inline-edit-picklist {
+        max-width: 150px;
+    }
+}
+
+@media only screen and (max-width: 480px) {
+    .inline-edit-input.date-input {
+        max-width: 100px;
+        font-size: 11px;
+    }
+    
+    .inline-edit-picklist {
+        max-width: 120px;
+    }
+}
+
+/* Native select styling for picklist inline editing */
+.inline-edit-select {
+    width: 100%;
+    max-width: 200px;
+    padding: 4px 24px 4px 8px;
+    border: 2px solid rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    font-size: inherit;
+    background-color: white;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235e5adb' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+    z-index: 100;
+}
+
+.inline-edit-select:focus {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
+    background-color: #ffffff;
+}
+
+.inline-edit-select option {
+    padding: 8px;
+    background-color: white;
+    color: #333;
+}
+
+.inline-edit-select option:hover,
+.inline-edit-select option:focus {
+    background-color: rgb(244, 244, 255);
+}
+
+/* Process table specific */
+.nested-table .inline-edit-select.process-select {
+    max-width: 150px;
+    font-size: 11px;
+    padding: 2px 20px 2px 6px;
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 768px) {
+    .inline-edit-select {
+        max-width: 150px;
+        font-size: 12px;
+    }
+}
+
+@media only screen and (max-width: 480px) {
+    .inline-edit-select {
+        max-width: 120px;
+        font-size: 11px;
+    }
+    
+    .nested-table .inline-edit-select.process-select {
+        max-width: 100px;
+        font-size: 10px;
+    }
+}
