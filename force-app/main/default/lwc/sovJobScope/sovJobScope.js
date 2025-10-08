@@ -1820,8 +1820,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .then(result => {
 
                 this.processTypeOptions = (result || []).map(type => ({
-                    label: type,
-                    value: type
+                        label: type,
+                        value: type
                 }));
 
             })
@@ -1829,7 +1829,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 console.error('Error loading process types:', error);
                 this.processTypeOptions = [];
             });
-
+    
         // Load process library records
         getProcessLibraryRecords()
             .then(result => {
@@ -1841,8 +1841,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'Failed to load process library: ' + (error.body?.message || error.message), 'error');
                 this.processLibraryRecords = [];
                 this.processLibraryDisplayRecords = [];
-            });
-
+            });    
     }
 
     /**
@@ -1862,7 +1861,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             filtered = filtered.filter(process => 
                 process.wfrecon__Process_Type__c === this.selectedProcessCategory
             );
-        }
+        }    
 
         // Filter by search term
         if (this.processLibrarySearchTerm) {
@@ -2826,6 +2825,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 measurementType: ''
             };
         }
+
+        // Reset process library filters and selections for change order
+        if (this.changeOrderData.processOption === 'library') {
+            this.selectedProcessCategory = ''; // Reset to "All"
+            this.processLibrarySearchTerm = '';
+            this.selectedChangeOrderProcessIds = [];
+        }
+
+        console.log('processLibraryDisplayRecords before step 2:', JSON.stringify(this.processLibraryDisplayRecords));
+        
 
         this.changeOrderStep = 2;
     }
