@@ -65,8 +65,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             label: 'Process', 
             fieldName: 'wfrecon__Process_Library__r.Name', 
             type: 'url',
-            isNameField: true,
-            editable: true
+            editable: false
         },
         { 
             label: 'Sequence', 
@@ -1559,7 +1558,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 return {
                     key,
-                    value: displayValue,
+                    value: displayValue || (col.type === 'currency' ? '0' : col.type === 'percent' ? '0%' : col.type === 'number' ? '0' : '--'),
                     rawValue: value,
                     currencyValue: currencyValue,
                     percentValue: percentValue,
