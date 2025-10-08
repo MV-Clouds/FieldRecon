@@ -760,55 +760,102 @@ public with sharing class SovJobScopeController {
         }
     }
 
-    /*
-    *********************************************************
-    @description     : Method is used to save inline edits for multiple Scope Entries
-    @param           : String updatedScopeEntriesJson - JSON string of updated scope entry records
-    @return          : String - Success or error message
-    @author          : Rachit Shah
-    ********************************************************
-    */
+
     @AuraEnabled
     public static String saveScopeEntryInlineEdits(String updatedScopeEntriesJson) {
         try {
             if (String.isBlank(updatedScopeEntriesJson)) {
                 return 'Error: No scope entry data provided for update.';
             }
-
+    
             // Deserialize JSON string into a list of Scope Entry records
-            List<Scope_Entry__c> updatedScopeEntries = 
+            List<Scope_Entry__c> updatedScopeEntries =
                 (List<Scope_Entry__c>) JSON.deserialize(updatedScopeEntriesJson, List<Scope_Entry__c>.class);
-
+    
             if (updatedScopeEntries == null || updatedScopeEntries.isEmpty()) {
                 return 'Error: No scope entry records provided for update.';
             }
-
-            // Perform the DML update with partial success handling
+    
+            // Track contract value changes
+            Set<Id> scopeEntriesWithContractValueChanges = new Set<Id>();
+            Map<Id, Decimal> originalContractValues = new Map<Id, Decimal>();
+            List<Id> scopeEntryIds = new List<Id>();
+    
+            for (Scope_Entry__c entry : updatedScopeEntries) {
+                scopeEntryIds.add(entry.Id);
+            }
+    
+            // Fetch original contract values
+            for (Scope_Entry__c original : [
+                SELECT Id, Contract_Value__c
+                FROM Scope_Entry__c
+                WHERE Id IN :scopeEntryIds
+                WITH USER_MODE
+            ]) {
+                originalContractValues.put(original.Id, original.Contract_Value__c);
+            }
+    
+            // Identify records where Contract_Value__c changed
+            for (Scope_Entry__c updatedEntry : updatedScopeEntries) {
+                Decimal oldVal = originalContractValues.get(updatedEntry.Id);
+                Decimal newVal = updatedEntry.Contract_Value__c;
+    
+                if ((oldVal == null && newVal != null) ||
+                    (oldVal != null && newVal == null) ||
+                    (oldVal != null && newVal != null && oldVal != newVal)) {
+                    scopeEntriesWithContractValueChanges.add(updatedEntry.Id);
+                }
+            }
+    
+            // Perform bulk DML update
             Database.SaveResult[] results = Database.update(updatedScopeEntries, false, AccessLevel.USER_MODE);
-
-            // Collect any errors and successes
+    
             List<String> failedRecords = new List<String>();
             Integer successCount = 0;
-            
+    
             for (Integer i = 0; i < results.size(); i++) {
                 if (results[i].isSuccess()) {
                     successCount++;
                 } else {
                     String errorMsg = '';
-                    for (Database.Error error : results[i].getErrors()) {
-                        errorMsg += error.getMessage() + '; ';
+                    for (Database.Error err : results[i].getErrors()) {
+                        errorMsg += err.getMessage() + '; ';
                     }
                     failedRecords.add(updatedScopeEntries[i].Id + ': ' + errorMsg);
                 }
             }
-
-            if (!failedRecords.isEmpty()) {
-                String errorMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
-                return 'Partial Success: ' + errorMessage;
+    
+            // Prepare changed entries map for recalculation
+            String recalcMessage = '';
+            if (!scopeEntriesWithContractValueChanges.isEmpty()) {
+                Map<Id, Scope_Entry__c> changedEntries = new Map<Id, Scope_Entry__c>();
+                for (Scope_Entry__c se : updatedScopeEntries) {
+                    if (scopeEntriesWithContractValueChanges.contains(se.Id)) {
+                        changedEntries.put(se.Id, se);
+                    }
+                }
+    
+                recalcMessage = recalculateLocationProcessesBulk(changedEntries);
             }
-
-            return 'Success: ' + successCount + ' scope entry(s) updated successfully';
-
+    
+            // Build final response
+            String responseMessage = '';
+            if (!failedRecords.isEmpty()) {
+                responseMessage = successCount + ' record(s) updated successfully. Failed records: ' +
+                                  String.join(failedRecords, ', ');
+                if (!String.isBlank(recalcMessage)) {
+                    responseMessage += ' Warnings: ' + recalcMessage;
+                }
+                return 'Partial Success: ' + responseMessage;
+            }
+    
+            responseMessage = 'Success: ' + successCount + ' scope entry(s) updated successfully';
+            if (!String.isBlank(recalcMessage)) {
+                responseMessage += '. ' + recalcMessage;
+            }
+    
+            return responseMessage;
+    
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
@@ -822,7 +869,130 @@ public with sharing class SovJobScopeController {
             return 'Error: ' + e.getMessage();
         }
     }
-
+    
+    /*
+    *********************************************************
+    @description     : Bulk recalculation of location processes using in-memory scope entry data
+    @param           : Map<Id, Scope_Entry__c> scopeEntries
+    @return          : String - Summary message
+    *********************************************************
+    */
+    @AuraEnabled
+    public static String recalculateLocationProcessesBulk(Map<Id, Scope_Entry__c> scopeEntries) {
+        try {
+            if (scopeEntries == null || scopeEntries.isEmpty()) {
+                return 'No scope entries provided for recalculation.';
+            }
+    
+            Set<Id> scopeEntryIds = scopeEntries.keySet();
+    
+            // Fetch all scope entry processes (weights)
+            Map<Id, List<Scope_Entry_Process__c>> entryToProcesses = new Map<Id, List<Scope_Entry_Process__c>>();
+            for (Scope_Entry_Process__c proc : [
+                SELECT Id, Scope_Entry__c, Weight__c
+                FROM Scope_Entry_Process__c
+                WHERE Scope_Entry__c IN :scopeEntryIds
+                WITH USER_MODE
+            ]) {
+                if (!entryToProcesses.containsKey(proc.Scope_Entry__c)) {
+                    entryToProcesses.put(proc.Scope_Entry__c, new List<Scope_Entry_Process__c>());
+                }
+                entryToProcesses.get(proc.Scope_Entry__c).add(proc);
+            }
+    
+            // Fetch all related location processes and include location data
+            Map<Id, List<Location_Process__c>> entryToLocationProcesses = new Map<Id, List<Location_Process__c>>();
+            List<Location_Process__c> allLocationProcesses = [
+                SELECT Id, Scope_Entry_Process__c, Scope_Entry_Process__r.Scope_Entry__c,
+                       Location__c, Location__r.Square_Feet__c
+                FROM Location_Process__c
+                WHERE Scope_Entry_Process__r.Scope_Entry__c IN :scopeEntryIds
+                WITH USER_MODE
+            ];
+    
+            for (Location_Process__c lp : allLocationProcesses) {
+                Id entryId = lp.Scope_Entry_Process__r.Scope_Entry__c;
+                if (!entryToLocationProcesses.containsKey(entryId)) {
+                    entryToLocationProcesses.put(entryId, new List<Location_Process__c>());
+                }
+                entryToLocationProcesses.get(entryId).add(lp);
+            }
+    
+            List<Location_Process__c> locationProcessesToUpdate = new List<Location_Process__c>();
+    
+            // Iterate per Scope Entry for recalculation
+            for (Id entryId : scopeEntryIds) {
+                Scope_Entry__c entry = scopeEntries.get(entryId);
+                List<Scope_Entry_Process__c> processes = entryToProcesses.get(entryId);
+                List<Location_Process__c> locationProcesses = entryToLocationProcesses.get(entryId);
+    
+                if (entry == null || processes == null || processes.isEmpty() || locationProcesses == null || locationProcesses.isEmpty()) {
+                    continue;
+                }
+    
+                Decimal newContractValue = entry.Contract_Value__c != null ? entry.Contract_Value__c : 0;
+                if (newContractValue == 0) continue;
+    
+                // Calculate total process weight
+                Decimal totalWeight = 0;
+                Map<Id, Decimal> processWeights = new Map<Id, Decimal>();
+                for (Scope_Entry_Process__c p : processes) {
+                    Decimal w = p.Weight__c != null ? p.Weight__c : 0;
+                    processWeights.put(p.Id, w);
+                    totalWeight += w;
+                }
+                if (totalWeight == 0) continue;
+    
+                // Calculate total square feet across all locations for this entry
+                Set<Id> locationIds = new Set<Id>();
+                Map<Id, Decimal> locationSqFt = new Map<Id, Decimal>();
+                for (Location_Process__c lp : locationProcesses) {
+                    locationIds.add(lp.Location__c);
+                    Decimal sqFt = (lp.Location__r.Square_Feet__c != null) ? lp.Location__r.Square_Feet__c : 0;
+                    locationSqFt.put(lp.Location__c, sqFt);
+                }
+    
+                Decimal totalSqFt = 0;
+                for (Decimal sqFt : locationSqFt.values()) totalSqFt += sqFt;
+                if (totalSqFt == 0) continue;
+    
+                // Recalculate each Location Process based on the new Contract Value
+                for (Location_Process__c lp : locationProcesses) {
+                    Decimal locSqFt = locationSqFt.get(lp.Location__c);
+                    Decimal locShare = (locSqFt / totalSqFt); // location proportion
+                    Decimal procWeight = processWeights.get(lp.Scope_Entry_Process__c);
+                    Decimal procShare = (procWeight / totalWeight); // process proportion
+    
+                    // Final recalculated Contract Price based on new contract value
+                    Decimal recalculatedContractPrice = newContractValue * locShare * procShare;
+    
+                    Location_Process__c lpToUpdate = new Location_Process__c(
+                        Id = lp.Id,
+                        Contract_Price__c = recalculatedContractPrice
+                    );
+                    locationProcessesToUpdate.add(lpToUpdate);
+                }
+            }
+    
+            if (!locationProcessesToUpdate.isEmpty()) {
+                update as user locationProcessesToUpdate;
+            }
+    
+            return 'Success: Recalculated all location processes using new contract values for ' + scopeEntries.size() + ' scope entries.';
+    
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'recalculateLocationProcessesBulk',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error during recalculation using new contract prices.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
 
     /*
     *********************************************************
