@@ -445,7 +445,7 @@ export default class HomeTab extends LightningElement {
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
                 timesheetEntryId: selectedRecordDetails ? selectedRecordDetails?.timesheetEntryId : null,
-                memberId: selectedRecordDetails.memberId
+                mobMemberId: selectedRecordDetails.mobMemberId
             };
 
             console.log('createTimesheetRecords params :: ', params);
@@ -465,6 +465,8 @@ export default class HomeTab extends LightningElement {
                 .catch(error => {
                     this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     console.error('Error creating timesheet records createTimesheetRecords apex :: ', error);
+                })
+                .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
@@ -507,7 +509,7 @@ export default class HomeTab extends LightningElement {
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
                 timesheetEntryId: selectedRecordDetails ? selectedRecordDetails?.timesheetEntryId : null,
-                memberId: selectedRecordDetails.memberId
+                mobMemberId: selectedRecordDetails.mobMemberId
             };
 
             console.log('createTimesheetRecords params :: ', params);
