@@ -16,7 +16,7 @@ import getExistingLocationProcesses from '@salesforce/apex/SovJobScopeController
 import createLocationProcesses from '@salesforce/apex/SovJobScopeController.createLocationProcesses';
 import saveScopeEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveScopeEntryInlineEdits';
 import createChangeOrder from '@salesforce/apex/SovJobScopeController.createChangeOrder';
-
+import saveProcessEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveProcessEntryInlineEdits';
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
     @track isLoading = true;
@@ -50,48 +50,56 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         { label: 'Status', fieldName: 'wfrecon__Scope_Entry_Status__c', type: 'text', editable: false }
     ];
 
-    // Process table columns configuration
     @track processTableColumns = [
         { 
             label: 'Process', 
             fieldName: 'wfrecon__Process_Library__r.Name', 
             type: 'url',
-            isNameField: true
+            isNameField: true,
+            editable: true
         },
         { 
             label: 'Sequence', 
             fieldName: 'wfrecon__Sequence__c', 
-            type: 'text'
+            type: 'number',
+            editable: true
+        },
+        {
+            label: 'Type',
+            fieldName: 'wfrecon__IsManual__c',
+            type: 'boolean',
+            editable: false
         },
         { 
             label: 'Process Name', 
             fieldName: 'wfrecon__Process_Name__c', 
-            type: 'text'
+            type: 'text',
+            editable: true,
+            conditionalEdit: true // This field has conditional editing
         },
         { 
             label: 'Step Value', 
             fieldName: 'wfrecon__Contract_Price__c', 
-            type: 'currency'
+            type: 'currency',
+            editable: false
         },
         { 
             label: '% Complete', 
             fieldName: 'wfrecon__Completed_Percentage__c', 
-            type: 'percent'
+            type: 'percent',
+            editable: false
         },
         { 
             label: 'Current Complete Value', 
             fieldName: 'wfrecon__Current_Complete_Value__c', 
-            type: 'currency'
-        },
-        { 
-            label: 'Process MH', 
-            fieldName: 'wfrecon__Process_Type__c', 
-            type: 'number'
+            type: 'currency',
+            editable: false
         },
         { 
             label: 'Weight', 
             fieldName: 'wfrecon__Weight__c', 
-            type: 'number'
+            type: 'number',
+            editable: true
         }
     ];
 
@@ -181,6 +189,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track processLibrarySearchTerm = '';
     @track selectedProcessCategory = '';
     @track processTypeFilterOptions = []; // For filter dropdown
+
+    @track modifiedProcessEntries = new Map(); // Track modified process entries
+    @track hasProcessModifications = false; // Track if there are unsaved process changes
+    @track isSavingProcessEntries = false; // Track save operation for process entries
+    @track editingProcessCells = new Set(); // Track which process cells are currently being edited
 
     @track showAddLocationModal = false;
     @track isLocationSubmitting = false;
@@ -661,6 +674,47 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     get changeOrderProcessNameCharacterCount() {
         return this.changeOrderManualProcess.processName ? this.changeOrderManualProcess.processName.length : 0;
+    }
+
+    /**
+     * Method Name: get isProcessButtonsDisabled
+     * @description: Check if process action buttons should be disabled
+     */
+    get isProcessButtonsDisabled() {
+        return !this.hasProcessModifications || this.isSavingProcessEntries;
+    }
+
+    /**
+     * Method Name: get isProcessSaveDisabled
+     * @description: Check if process save button should be disabled
+     */
+    get isProcessSaveDisabled() {
+        return !this.hasProcessModifications || this.isSavingProcessEntries;
+    }
+
+    /**
+     * Method Name: get processSaveButtonLabel
+     * @description: Get dynamic process save button label
+     */
+    get processSaveButtonLabel() {
+        if (this.isSavingProcessEntries) {
+            return 'Saving...';
+        }
+        if (this.hasProcessModifications) {
+            return `Save Process Changes (${this.modifiedProcessEntries.size})`;
+        }
+        return 'Save Process Changes';
+    }
+
+    /**
+     * Method Name: get processDiscardButtonTitle
+     * @description: Get dynamic process discard button title
+     */
+    get processDiscardButtonTitle() {
+        if (!this.hasProcessModifications) {
+            return 'No process changes to discard';
+        }
+        return `Discard ${this.modifiedProcessEntries.size} unsaved process change(s)`;
     }
 
     /**
@@ -1315,7 +1369,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     rawValue: value,
                     currencyValue: currencyValue,
                     percentValue: percentValue,
-                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    hasValue: value !== null && value !== undefined && String(value).trim() !== '' && String(value) !== '0',
                     isNameField: key === 'Name',
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
@@ -1332,47 +1386,87 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         });
     }
 
-    /**
+   /**
      * Method Name: processProcessDetailsForDisplay
-     * @description: Process process details for nested table display
+     * @description: Process process details for nested table display with inline editing support
      */
     processProcessDetailsForDisplay(processDetails) {
         if (!processDetails || processDetails.length === 0) {
             return [];
         }
-    
-        return processDetails.map(process => {
-            const row = { ...process };
+
+        return processDetails.map(processData => {
+            const row = { ...processData };
             // Fix: Link to Process Library record instead of Scope Entry Process
-            row.recordUrl = process.wfrecon__Process_Library__c ? 
-                `/lightning/r/${process.wfrecon__Process_Library__c}/view` : 
-                `/lightning/r/${process.Id}/view`;
+            row.recordUrl = processData.wfrecon__Process_Library__c ? 
+                `/lightning/r/${processData.wfrecon__Process_Library__c}/view` : 
+                `/lightning/r/${processData.Id}/view`;
             // Preserve selection state from selectedProcesses array
-            row.isSelected = this.selectedProcesses.includes(process.Id);
+            row.isSelected = this.selectedProcesses.includes(processData.Id);
             
             row.displayFields = this.processTableColumns.map(col => {
                 const key = col.fieldName;
-                let value = this.getFieldValue(process, key);
+                let value = this.getFieldValue(processData, key);
+                
+                // Check if this field has been modified
+                const modifiedValue = this.getModifiedProcessValue(processData.Id, key);
+                if (modifiedValue !== null && modifiedValue !== undefined) {
+                    value = modifiedValue;
+                }
                 
                 const displayValue = value !== null && value !== undefined ? String(value) : '';
+                const isModified = this.isProcessFieldModified(processData.Id, key);
+                const isBeingEdited = this.editingProcessCells.has(`${processData.Id}-${key}`);
+                
+                // Check if field is editable
+                let isEditable = col.editable || false;
+                
+                // Handle conditional editing for Process Name (only editable if IsManual is true)
+                if (col.conditionalEdit && key === 'wfrecon__Process_Name__c') {
+                    isEditable = isEditable && this.getFieldValue(processData, 'wfrecon__IsManual__c') === true;
+                }
+                
+                // Build cell classes
+                let cellClass = 'center-trancate-text';
+                if (isEditable) {
+                    cellClass += ' editable-cell';
+                }
+                if (isModified && !isBeingEdited) {
+                    cellClass += ' modified-process-cell';
+                }
+                if (isBeingEdited) {
+                    cellClass += ' editing-cell';
+                }
+                
+                // Build content classes
+                let contentClass = 'editable-content';
                 
                 // Handle currency fields
                 let currencyValue = 0;
                 if (col.type === 'currency') {
                     currencyValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
                 }
-    
+
                 // Handle percentage fields
                 let percentValue = 0;
                 if (col.type === 'percent') {
                     percentValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
-                    
                 }
-    
+
                 // Handle number fields  
                 let numberValue = 0;
                 if (col.type === 'number') {
                     numberValue = (value !== null && value !== undefined && !isNaN(value)) ? value : 0;
+                }
+                
+                // Fix hasValue logic to properly handle empty strings and null values
+                let hasValue;
+                if (col.type === 'currency' || col.type === 'percent' || col.type === 'number') {
+                    // For numeric fields, consider 0 as a valid value but null/undefined as empty
+                    hasValue = value !== null && value !== undefined && !isNaN(value);
+                } else {
+                    // For text fields, consider empty strings as no value
+                    hasValue = value !== null && value !== undefined && String(value).trim() !== '';
                 }
                 
                 return {
@@ -1382,12 +1476,17 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     currencyValue: currencyValue,
                     percentValue: percentValue,
                     numberValue: numberValue,
-                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    hasValue: hasValue,
                     isNameField: col.isNameField || false,
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
                     isNumber: col.type === 'number',
-                    isUrl: col.type === 'url'
+                    isUrl: col.type === 'url',
+                    isEditable: isEditable,
+                    isModified: isModified,
+                    isBeingEdited: isBeingEdited,
+                    cellClass: cellClass,
+                    contentClass: contentClass
                 };
             });
             return row;
@@ -2591,7 +2690,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleScopeCellInputChange
-     * @description: Handle input change in scope inline editing
+     * @description: Handle input change in scope inline editing - FIXED
      */
     handleScopeCellInputChange(event) {
         const recordId = event.target.dataset.recordId;
@@ -2599,11 +2698,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const fieldType = event.target.dataset.fieldType;
         let newValue = event.target.value;
         
-        // Type conversion based on field type
-        if (fieldType === 'number' && newValue !== '') {
-            newValue = parseFloat(newValue);
-            if (isNaN(newValue)) {
-                newValue = 0;
+        // Type conversion based on field type - FIXED to handle empty and invalid values
+        if (fieldType === 'number') {
+            if (newValue === '' || newValue === null || newValue === undefined) {
+                newValue = null; // Keep as null for empty values
+            } else {
+                const parsedValue = parseFloat(newValue);
+                if (isNaN(parsedValue)) {
+                    // Keep the original string value if it's not a valid number
+                    // This allows partial typing like "1." or "-"
+                    newValue = newValue;
+                } else {
+                    newValue = parsedValue;
+                }
             }
         }
         
@@ -2618,7 +2725,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         const modifications = this.modifiedScopeEntries.get(recordId);
         
-        if (newValue !== originalValue) {
+        // Compare values properly for numbers
+        const areValuesEqual = (val1, val2) => {
+            if (val1 === val2) return true;
+            if ((val1 === null || val1 === undefined || val1 === '') && 
+                (val2 === null || val2 === undefined || val2 === '')) return true;
+            if (fieldType === 'number' && !isNaN(val1) && !isNaN(val2)) {
+                return parseFloat(val1) === parseFloat(val2);
+            }
+            return false;
+        };
+        
+        if (!areValuesEqual(newValue, originalValue)) {
             modifications[fieldName] = newValue;
         } else {
             // Remove modification if value is back to original
@@ -2631,6 +2749,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Update hasScopeModifications flag
         this.hasScopeModifications = this.modifiedScopeEntries.size > 0;
     }
+
 
     /**
      * Method Name: handleScopeCellInputBlur
@@ -2985,5 +3104,252 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .finally(() => {
                 this.isChangeOrderSubmitting = false;
             });
+    }
+
+    handleProcessCellClick(event) {
+        const recordId = event.currentTarget.dataset.recordId;
+        const fieldName = event.currentTarget.dataset.fieldName;
+        const isEditable = event.currentTarget.dataset.editable === 'true';
+        
+        if (!isEditable) return;
+        
+        const cellKey = `${recordId}-${fieldName}`;
+        
+        // Don't open editor if already editing this cell
+        if (this.editingProcessCells.has(cellKey)) return;
+        
+        this.editingProcessCells.add(cellKey);
+        
+        // Trigger reactivity
+        this.updateDisplayedEntries();
+        
+        // Auto-focus the input after DOM update
+        setTimeout(() => {
+            const input = this.template.querySelector(`input[data-process-record-id="${recordId}"][data-process-field-name="${fieldName}"]`);
+            if (input) {
+                input.focus();
+                input.select(); // Select all text for easy editing
+            }
+        }, 50);
+    }
+    
+    /**
+     * Method Name: handleProcessCellInputChange
+     * @description: Handle input change in process inline editing - FIXED
+     */
+    handleProcessCellInputChange(event) {
+        const recordId = event.target.dataset.processRecordId;
+        const fieldName = event.target.dataset.processFieldName;
+        const fieldType = event.target.dataset.processFieldType;
+        let newValue = event.target.value;
+        
+        // Type conversion based on field type - FIXED to handle empty and invalid values
+        if (fieldType === 'number') {
+            if (newValue === '' || newValue === null || newValue === undefined) {
+                newValue = null; // Keep as null for empty values
+            } else {
+                const parsedValue = parseFloat(newValue);
+                if (isNaN(parsedValue)) {
+                    // Keep the original string value if it's not a valid number
+                    // This allows partial typing like "1." or "-"
+                    newValue = newValue;
+                } else {
+                    newValue = parsedValue;
+                }
+            }
+        }
+        
+        // Get original value to compare
+        const originalProcess = this.findProcessById(recordId);
+        const originalValue = this.getFieldValue(originalProcess, fieldName);
+        
+        // Track modifications
+        if (!this.modifiedProcessEntries.has(recordId)) {
+            this.modifiedProcessEntries.set(recordId, {});
+        }
+        
+        const modifications = this.modifiedProcessEntries.get(recordId);
+        
+        // Compare values properly for numbers
+        const areValuesEqual = (val1, val2) => {
+            if (val1 === val2) return true;
+            if ((val1 === null || val1 === undefined || val1 === '') && 
+                (val2 === null || val2 === undefined || val2 === '')) return true;
+            if (fieldType === 'number' && !isNaN(val1) && !isNaN(val2)) {
+                return parseFloat(val1) === parseFloat(val2);
+            }
+            return false;
+        };
+        
+        if (!areValuesEqual(newValue, originalValue)) {
+            modifications[fieldName] = newValue;
+        } else {
+            // Remove modification if value is back to original
+            delete modifications[fieldName];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedProcessEntries.delete(recordId);
+            }
+        }
+        
+        // Update hasProcessModifications flag
+        this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
+    }
+    
+    /**
+     * Method Name: handleProcessCellInputBlur
+     * @description: Handle blur event on process inline edit input
+     */
+    handleProcessCellInputBlur(event) {
+        const recordId = event.target.dataset.processRecordId;
+        const fieldName = event.target.dataset.processFieldName;
+        const cellKey = `${recordId}-${fieldName}`;
+        
+        // Remove from editing set
+        this.editingProcessCells.delete(cellKey);
+        
+        // Trigger reactivity to show normal cell
+        this.updateDisplayedEntries();
+    }
+    
+    /**
+     * Method Name: handleSaveProcessChanges
+     * @description: Save all modified process entries in a single batch
+     */
+    handleSaveProcessChanges() {
+        if (this.modifiedProcessEntries.size === 0) {
+            return;
+        }
+    
+        this.isSavingProcessEntries = true;
+        
+        // Prepare data for batch update
+        const updatedProcessEntries = [];
+        
+        this.modifiedProcessEntries.forEach((modifications, recordId) => {
+            const processUpdate = { Id: recordId };
+            Object.keys(modifications).forEach(fieldName => {
+                processUpdate[fieldName] = modifications[fieldName];
+            });
+            updatedProcessEntries.push(processUpdate);
+        });
+    
+        // Call batch update method
+        const updatedProcessEntriesJson = JSON.stringify(updatedProcessEntries);
+        
+        saveProcessEntryInlineEdits({ updatedProcessEntriesJson: updatedProcessEntriesJson })
+            .then(result => {
+                if (result.startsWith('Success')) {
+                    this.showToast('Success', result, 'success');
+                    
+                    // Clear modifications and refresh data
+                    this.modifiedProcessEntries.clear();
+                    this.hasProcessModifications = false;
+                    this.editingProcessCells.clear();
+                    
+                    // Refresh scope entries to get updated process data
+                    this.fetchScopeEntries();
+                    
+                } else if (result.startsWith('Partial Success')) {
+                    this.showToast('Warning', result, 'warning');
+                    // Refresh data even on partial success
+                    this.fetchScopeEntries();
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error in process batch update:', error);
+                this.showToast('Error', 'Failed to update process entries: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isSavingProcessEntries = false;
+            });
+    }
+    
+    /**
+     * Method Name: handleDiscardProcessChanges
+     * @description: Discard all unsaved process changes
+     */
+    handleDiscardProcessChanges() {
+        // Clear all modifications
+        this.modifiedProcessEntries.clear();
+        this.hasProcessModifications = false;
+        this.editingProcessCells.clear();
+        
+        // Trigger reactivity to remove highlighting and reset values
+        this.updateDisplayedEntries();
+        
+        this.showToast('Success', 'Process changes discarded', 'success');
+    }
+    
+    /**
+     * Method Name: getModifiedProcessValue
+     * @description: Get modified value for a specific process field
+     */
+    getModifiedProcessValue(recordId, fieldName) {
+        const modifications = this.modifiedProcessEntries.get(recordId);
+        return modifications ? modifications[fieldName] : null;
+    }
+    
+    /**
+     * Method Name: isProcessFieldModified
+     * @description: Check if a specific process field has been modified
+     */
+    isProcessFieldModified(recordId, fieldName) {
+        const modifications = this.modifiedProcessEntries.get(recordId);
+        return modifications && modifications.hasOwnProperty(fieldName);
+    }
+    
+    /**
+     * Method Name: findProcessById
+     * @description: Find a process by ID across all scope entries
+     */
+    findProcessById(processId) {
+        // Search in contract entries
+        for (let entry of this.filteredContractEntries) {
+            if (entry.processDetails) {
+                const process = entry.processDetails.find(p => p.Id === processId);
+                if (process) return process;
+            }
+        }
+        
+        // Search in change order entries
+        for (let entry of this.filteredChangeOrderEntries) {
+            if (entry.processDetails) {
+                const process = entry.processDetails.find(p => p.Id === processId);
+                if (process) return process;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Method Name: handleNumberInputKeydown
+     * @description: Handle keydown events for number inputs to prevent unwanted behavior
+     */
+    handleNumberInputKeydown(event) {
+        // Allow: backspace, delete, tab, escape, enter, and arrow keys
+        if ([8, 9, 27, 13, 37, 38, 39, 40, 46].indexOf(event.keyCode) !== -1 ||
+            // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            (event.keyCode === 65 && event.ctrlKey === true) ||
+            (event.keyCode === 67 && event.ctrlKey === true) ||
+            (event.keyCode === 86 && event.ctrlKey === true) ||
+            (event.keyCode === 88 && event.ctrlKey === true)) {
+            return;
+        }
+        
+        // Prevent up/down arrow keys from changing values when not desired
+        if (event.keyCode === 38 || event.keyCode === 40) {
+            event.preventDefault();
+            return;
+        }
+        
+        // Ensure that it is a number and stop the keypress
+        if ((event.shiftKey || (event.keyCode < 48 || event.keyCode > 57)) && 
+            (event.keyCode < 96 || event.keyCode > 105) && 
+            event.keyCode !== 190 && event.keyCode !== 110) { // Allow decimal point
+            event.preventDefault();
+        }
     }
 }

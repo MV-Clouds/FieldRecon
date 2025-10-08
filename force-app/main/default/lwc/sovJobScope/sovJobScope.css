@@ -1606,6 +1606,75 @@
     color: #333;
 }
 
+/* Process Edit Actions */
+.process-edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+    margin-right: 1rem;
+}
+
+/* Modified process cell highlighting */
+.modified-process-cell {
+    background-color: #FFF3CD !important;
+    border-left: 3px solid #F0AD4E !important;
+    position: relative;
+}
+
+/* Process table specific styles */
+.nested-table .modified-process-cell .edit-indicator {
+    opacity: 1 !important;
+    color: #F0AD4E !important;
+    background-color: rgba(255, 255, 255, 1) !important;
+    width: 14px;
+    height: 14px;
+}
+
+.nested-table .editing-cell .edit-indicator {
+    display: none !important;
+}
+
+.nested-table .editable-cell:hover .edit-indicator {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.nested-table .inline-edit-input {
+    width: 100%;
+    max-width: 90px;
+    min-width: 0;
+    padding: 2px 6px;
+    border: 2px solid rgba(94, 90, 219, 1);
+    border-radius: 3px;
+    font-size: 11px;
+    background-color: white;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.nested-table .inline-edit-input:focus {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 1px rgba(94, 90, 219, 0.2);
+    transform: scale(1.02);
+}
+
+.nested-table .inline-edit-input[type="number"] {
+    max-width: 80px;
+}
+
+.nested-table .inline-edit-input[type="text"] {
+    max-width: 120px;
+}
+
+/* Process action buttons layout */
+.nested-table-title-row .process-action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
 /* Responsive adjustments for change order modal */
 @media only screen and (max-width: 768px) {
     .change-order-modal {
@@ -1619,6 +1688,23 @@
     
     .step-header p {
         font-size: 0.8rem;
+    }
+
+    .process-edit-actions {
+        flex-direction: column;
+        gap: 0.375rem;
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .nested-table .inline-edit-input {
+        max-width: 70px;
+        font-size: 10px;
+        padding: 1px 4px;
+    }
+    
+    .nested-table .inline-edit-input[type="text"] {
+        max-width: 90px;
     }
 }
 

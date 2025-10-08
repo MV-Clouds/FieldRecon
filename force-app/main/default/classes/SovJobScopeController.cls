@@ -333,7 +333,7 @@ public with sharing class SovJobScopeController {
         try {
             processes = [
                 SELECT Id, Process_Library__c , Process_Library__r.Name,
-                       Sequence__c, Process_Name__c, Contract_Price__c, Completed_Percentage__c, Process_Type__c, Weight__c, Current_Complete_Value__c, Scope_Entry__c
+                       Sequence__c, Process_Name__c, Contract_Price__c, Completed_Percentage__c, Process_Type__c, Weight__c, Current_Complete_Value__c, Scope_Entry__c , IsManual__c
                 FROM Scope_Entry_Process__c
                 WHERE Scope_Entry__c = :scopeEntryId
                 WITH USER_MODE
@@ -372,6 +372,7 @@ public with sharing class SovJobScopeController {
             newProcess.Measurement_Type__c = (String) processData.get('measurementType');
             newProcess.Scope_Entry__c = (Id) processData.get('scopeEntryId');
             newProcess.Job__c = (Id) processData.get('jobId');
+            newProcess.IsManual__c = true; // Mark as manual process
             
             insert as user newProcess;
             return 'Success';
@@ -475,7 +476,8 @@ public with sharing class SovJobScopeController {
                 newScopeProcess.Measurement_Type__c = process.Measurement_Type__c;
                 newScopeProcess.Sequence__c = process.Sequence__c;
                 newScopeProcess.Weight__c = process.Weight__c;
-                newScopeProcess.Job__c = jobId; // Associate with Job            
+                newScopeProcess.Job__c = jobId; // Associate with Job 
+                newScopeProcess.IsManual__c = false; // Mark as library process           
                 
                 scopeEntryProcesses.add(newScopeProcess);
             }
@@ -899,6 +901,7 @@ public with sharing class SovJobScopeController {
                     newProcess.Weight__c = (Decimal) procData.get('weightage');
                     newProcess.Measurement_Type__c = (String) procData.get('measurementType');
                     newProcess.Scope_Entry__c = changeOrderScopeEntry.Id;
+                    newProcess.IsManual__c = true; // Mark as manual process
                     newProcess.Job__c = jobId;
                     scopeEntryProcesses.add(newProcess);
                 }
@@ -934,6 +937,7 @@ public with sharing class SovJobScopeController {
                         newScopeProcess.Sequence__c = process.Sequence__c;
                         newScopeProcess.Weight__c = process.Weight__c;
                         newScopeProcess.Job__c = jobId;
+                        newScopeProcess.IsManual__c = false; // Mark as library process
                         scopeEntryProcesses.add(newScopeProcess);
                     }
                 }
@@ -999,6 +1003,70 @@ public with sharing class SovJobScopeController {
                 'isApiException' => false,
                 'exceptionObj' => e,
                 'moreDetails' => 'Error occurred while creating change order.'
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+
+    /*
+    *********************************************************
+    @description     : Method is used to save inline edits for multiple Process Entries
+    @param           : String updatedProcessEntriesJson - JSON string of updated process entry records
+    @return          : String - Success or error message
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String saveProcessEntryInlineEdits(String updatedProcessEntriesJson) {
+        try {
+            if (String.isBlank(updatedProcessEntriesJson)) {
+                return 'Error: No process entry data provided for update.';
+            }
+
+            // Deserialize JSON string into a list of Process Entry records
+            List<Scope_Entry_Process__c> updatedProcessEntries = 
+                (List<Scope_Entry_Process__c>) JSON.deserialize(updatedProcessEntriesJson, List<Scope_Entry_Process__c>.class);
+
+            if (updatedProcessEntries == null || updatedProcessEntries.isEmpty()) {
+                return 'Error: No process entry records provided for update.';
+            }
+
+            // Perform the DML update with partial success handling
+            Database.SaveResult[] results = Database.update(updatedProcessEntries, false, AccessLevel.USER_MODE);
+
+            // Collect any errors and successes
+            List<String> failedRecords = new List<String>();
+            Integer successCount = 0;
+            
+            for (Integer i = 0; i < results.size(); i++) {
+                if (results[i].isSuccess()) {
+                    successCount++;
+                } else {
+                    String errorMsg = '';
+                    for (Database.Error error : results[i].getErrors()) {
+                        errorMsg += error.getMessage() + '; ';
+                    }
+                    failedRecords.add(updatedProcessEntries[i].Id + ': ' + errorMsg);
+                }
+            }
+
+            if (!failedRecords.isEmpty()) {
+                String errorMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
+                return 'Partial Success: ' + errorMessage;
+            }
+
+            return 'Success: ' + successCount + ' process entry(s) updated successfully';
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'saveProcessEntryInlineEdits',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while saving process entry inline edits.',
+                'apiResponse' => null
             });
             return 'Error: ' + e.getMessage();
         }
