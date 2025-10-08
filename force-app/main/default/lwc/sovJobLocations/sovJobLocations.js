@@ -66,6 +66,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     };
 
     @track modifiedProcesses = new Map(); // Track modified processes across all locations
+    @track modifiedProcessesByLocation = new Map(); // Map<locationId, Set<processId>>
     @track hasModifications = false; // Track if there are unsaved changes
     @track isSaving = false; // Track save operation
 
@@ -102,7 +103,13 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             // Preserve nested table state
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
-            row.isLoadingProcesses = entry.isLoadingProcesses || false;            
+            row.isLoadingProcesses = entry.isLoadingProcesses || false;
+
+            // Add per-location button properties
+            row.isProcessButtonsDisabled = !this.hasProcessModificationsForLocation(entry.Id) || this.isSaving;
+            row.isProcessSaveDisabled = !this.hasProcessModificationsForLocation(entry.Id) || this.isSaving;
+            row.processSaveButtonLabel = this.getProcessSaveButtonLabelForLocation(entry.Id);
+            row.processDiscardButtonTitle = this.getProcessDiscardButtonTitleForLocation(entry.Id);            
             
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
@@ -327,6 +334,51 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     isFieldModified(recordId, fieldName) {
         const modifications = this.modifiedLocations.get(recordId);
         return modifications && modifications.hasOwnProperty(fieldName);
+    }
+
+    /**
+     * Method Name: hasProcessModificationsForLocation
+     * @description: Check if specific location has process modifications
+     */
+    hasProcessModificationsForLocation(locationId) {
+        return this.modifiedProcessesByLocation.has(locationId) && 
+            this.modifiedProcessesByLocation.get(locationId).size > 0;
+    }
+
+    /**
+     * Method Name: getProcessModificationCountForLocation
+     * @description: Get count of modified processes for specific location
+     */
+    getProcessModificationCountForLocation(locationId) {
+        if (!this.modifiedProcessesByLocation.has(locationId)) return 0;
+        return this.modifiedProcessesByLocation.get(locationId).size;
+    }
+
+    /**
+     * Method Name: getProcessSaveButtonLabelForLocation
+     * @description: Get dynamic process save button label for specific location
+     */
+    getProcessSaveButtonLabelForLocation(locationId) {
+        if (this.isSaving) {
+            return 'Saving...';
+        }
+        const count = this.getProcessModificationCountForLocation(locationId);
+        if (count > 0) {
+            return `Save Changes (${count})`;
+        }
+        return 'Save Changes';
+    }
+
+    /**
+     * Method Name: getProcessDiscardButtonTitleForLocation
+     * @description: Get dynamic process discard button title for specific location
+     */
+    getProcessDiscardButtonTitleForLocation(locationId) {
+        const count = this.getProcessModificationCountForLocation(locationId);
+        if (count === 0) {
+            return 'No changes to discard';
+        }
+        return `Discard ${count} unsaved change(s)`;
     }
 
     /**
@@ -990,9 +1042,23 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 newValue: newValue,
                 locationId: locationId
             });
+
+            // Track by location for button state
+            if (!this.modifiedProcessesByLocation.has(locationId)) {
+                this.modifiedProcessesByLocation.set(locationId, new Set());
+            }
+            this.modifiedProcessesByLocation.get(locationId).add(processId);
         } else {
             // Remove from modified if value is back to original
             this.modifiedProcesses.delete(processId);
+            
+            // Remove from location tracking
+            if (this.modifiedProcessesByLocation.has(locationId)) {
+                this.modifiedProcessesByLocation.get(locationId).delete(processId);
+                if (this.modifiedProcessesByLocation.get(locationId).size === 0) {
+                    this.modifiedProcessesByLocation.delete(locationId);
+                }
+            }
         }
         
         // Update hasModifications flag
@@ -1083,17 +1149,43 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleSaveChanges
-     * @description: Save all modified processes in a single batch
+     * @description: Save all modified processes in a single batch or for a specific location
      */
-    handleSaveChanges() {
-        if (this.modifiedProcesses.size === 0) {
+    handleSaveChanges(event) {
+        // Check if this is a location-specific save
+        const locationId = event.target.dataset.locationId;
+        
+        let processesToSave;
+        if (locationId) {
+            // Location-specific save - only save processes for this location
+            if (!this.modifiedProcessesByLocation.has(locationId) || 
+                this.modifiedProcessesByLocation.get(locationId).size === 0) {
+                return;
+            }
+            
+            const processIdsForLocation = this.modifiedProcessesByLocation.get(locationId);
+            processesToSave = new Map();
+            processIdsForLocation.forEach(processId => {
+                if (this.modifiedProcesses.has(processId)) {
+                    processesToSave.set(processId, this.modifiedProcesses.get(processId));
+                }
+            });
+        } else {
+            // Global save - save all modifications
+            if (this.modifiedProcesses.size === 0) {
+                return;
+            }
+            processesToSave = this.modifiedProcesses;
+        }
+
+        if (processesToSave.size === 0) {
             return;
         }
 
         this.isSaving = true;
         
         // Prepare data for batch update
-        const processUpdates = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
+        const processUpdates = Array.from(processesToSave.entries()).map(([processId, modification]) => ({
             processId: processId,
             completionPercentage: modification.newValue
         }));
@@ -1104,22 +1196,35 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 if (result.isSuccess) {
                     this.showToast('Success', `${result.successCount} process(es) updated successfully`, 'success');
                     
-                    // Get all affected location IDs
+                    // Get all affected location IDs from the saved processes
                     const affectedLocationIds = new Set();
-                    this.modifiedProcesses.forEach(modification => {
+                    processesToSave.forEach(modification => {
                         affectedLocationIds.add(modification.locationId);
                     });
                     
-                    // Clear modifications and refresh data
-                    this.modifiedProcesses.clear();
-                    this.hasModifications = false;
+                    // Clear modifications for saved processes
+                    if (locationId) {
+                        // Location-specific save - only clear modifications for this location
+                        const processIdsForLocation = this.modifiedProcessesByLocation.get(locationId);
+                        processIdsForLocation.forEach(processId => {
+                            this.modifiedProcesses.delete(processId);
+                        });
+                        this.modifiedProcessesByLocation.delete(locationId);
+                    } else {
+                        // Global save - clear all modifications
+                        this.modifiedProcesses.clear();
+                        this.modifiedProcessesByLocation.clear();
+                    }
+                    
+                    // Update global flag
+                    this.hasModifications = this.modifiedProcesses.size > 0;
                     
                     // Remove all highlighting immediately
                     this.clearAllHighlighting();
                     
                     // Reload process details for affected locations
-                    affectedLocationIds.forEach(locationId => {
-                        this.loadProcessDetails(locationId);
+                    affectedLocationIds.forEach(affectedLocationId => {
+                        this.loadProcessDetails(affectedLocationId);
                     });
                     
                 } else {
@@ -1137,6 +1242,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                         });
                         
                         this.modifiedProcesses.clear();
+                        this.modifiedProcessesByLocation.clear();
                         this.hasModifications = false;
                         this.clearAllHighlighting();
                         
@@ -1157,11 +1263,34 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleDiscardChanges
-     * @description: Discard all unsaved changes
+     * @description: Discard all unsaved changes or changes for a specific location
      */
-    handleDiscardChanges() {
+    handleDiscardChanges(event) {
+        // Check if this is a location-specific discard
+        const locationId = event.target.dataset.locationId;
+        
+        let processesToDiscard;
+        if (locationId) {
+            // Location-specific discard - only discard processes for this location
+            if (!this.modifiedProcessesByLocation.has(locationId) || 
+                this.modifiedProcessesByLocation.get(locationId).size === 0) {
+                return;
+            }
+            
+            const processIdsForLocation = this.modifiedProcessesByLocation.get(locationId);
+            processesToDiscard = new Map();
+            processIdsForLocation.forEach(processId => {
+                if (this.modifiedProcesses.has(processId)) {
+                    processesToDiscard.set(processId, this.modifiedProcesses.get(processId));
+                }
+            });
+        } else {
+            // Global discard - discard all modifications
+            processesToDiscard = this.modifiedProcesses;
+        }
+
         // Reset all sliders to original values and remove highlighting
-        this.modifiedProcesses.forEach((modification, processId) => {
+        processesToDiscard.forEach((modification, processId) => {
             const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
             if (slider) {
                 slider.value = modification.originalValue;
@@ -1186,8 +1315,21 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         });
 
         // Clear modifications
-        this.modifiedProcesses.clear();
-        this.hasModifications = false;
+        if (locationId) {
+            // Location-specific discard - only clear modifications for this location
+            const processIdsForLocation = this.modifiedProcessesByLocation.get(locationId);
+            processIdsForLocation.forEach(processId => {
+                this.modifiedProcesses.delete(processId);
+            });
+            this.modifiedProcessesByLocation.delete(locationId);
+        } else {
+            // Global discard - clear all modifications
+            this.modifiedProcesses.clear();
+            this.modifiedProcessesByLocation.clear();
+        }
+        
+        // Update global flag
+        this.hasModifications = this.modifiedProcesses.size > 0;
         
         this.showToast('Success', 'Changes discarded', 'success');
     }
