@@ -31,6 +31,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     // Sorting properties
     @track sortField = '';
     @track sortOrder = '';
+    @track contractSortField = ''; // ADD THIS
+    @track contractSortOrder = ''; // ADD THIS
+    @track changeOrderSortField = ''; // ADD THIS
+    @track changeOrderSortOrder = ''; // ADD THIS
+    @track processSortByEntry = new Map(); // Map<scopeEntryId, {sortField, sortOrder}>
+
     @track processSortField = '';
     @track processSortOrder = '';
     @track processSetupFlags = {}; // Store process setup flags from Apex
@@ -190,7 +196,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track selectedProcessCategory = '';
     @track processTypeFilterOptions = []; // For filter dropdown
 
-    @track modifiedProcessEntries = new Map(); // Track modified process entries
+    @track modifiedProcessEntries = new Map(); // Change structure to: Map<processId, {scopeEntryId, modifications}>
     @track hasProcessModifications = false; // Track if there are unsaved process changes
     @track isSavingProcessEntries = false; // Track save operation for process entries
     @track editingProcessCells = new Set(); // Track which process cells are currently being edited
@@ -2342,24 +2348,46 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleSortClick
-     * @description: Handle column header click for sorting - Updated
+     * @description: Handle column header click for sorting - FIXED with section context
      */
     handleSortClick(event) {
         try {
             const fieldName = event.currentTarget.dataset.id;
+            const section = event.currentTarget.dataset.section; // ADD THIS to template: data-section="contract" or "changeOrder"
             
-            // Clear all existing active states first
-            this.clearSortIcons();
+            // Determine which sort fields to use based on section
+            let currentSortField, currentSortOrder;
             
-            if (this.sortField === fieldName) {
-                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            if (section === 'contract') {
+                currentSortField = this.contractSortField;
+                currentSortOrder = this.contractSortOrder;
             } else {
-                this.sortField = fieldName;
-                this.sortOrder = 'asc';
+                currentSortField = this.changeOrderSortField;
+                currentSortOrder = this.changeOrderSortOrder;
             }
             
-            this.sortData();
-            this.updateSortIcons();
+            // Clear sort icons for this section only
+            this.clearSortIcons(section);
+            
+            // Toggle or set sort
+            if (currentSortField === fieldName) {
+                currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortField = fieldName;
+                currentSortOrder = 'asc';
+            }
+            
+            // Update the appropriate sort fields
+            if (section === 'contract') {
+                this.contractSortField = currentSortField;
+                this.contractSortOrder = currentSortOrder;
+            } else {
+                this.changeOrderSortField = currentSortField;
+                this.changeOrderSortOrder = currentSortOrder;
+            }
+            
+            this.sortData(section);
+            this.updateSortIcons(section);
         } catch (error) {
             console.error('Error in handleSortClick:', error);
         }
@@ -2367,22 +2395,29 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleProcessSortClick
-     * @description: Handle column header click for sorting in process table
+     * @description: Handle column header click for sorting in process table - FIXED
      */
     handleProcessSortClick(event) {
         try {
             const fieldName = event.currentTarget.dataset.id;
             const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
             
-            // Clear all existing active states first for this specific scope entry only
+            // Get current sort state for this specific entry
+            let currentSort = this.processSortByEntry.get(scopeEntryId) || { sortField: '', sortOrder: 'asc' };
+            
+            // Clear sort icons for this specific entry only
             this.clearProcessSortIcons(scopeEntryId);
             
-            if (this.processSortField === fieldName) {
-                this.processSortOrder = this.processSortOrder === 'asc' ? 'desc' : 'asc';
+            // Toggle or set sort
+            if (currentSort.sortField === fieldName) {
+                currentSort.sortOrder = currentSort.sortOrder === 'asc' ? 'desc' : 'asc';
             } else {
-                this.processSortField = fieldName;
-                this.processSortOrder = 'asc';
+                currentSort.sortField = fieldName;
+                currentSort.sortOrder = 'asc';
             }
+            
+            // Update the sort state for this entry
+            this.processSortByEntry.set(scopeEntryId, currentSort);
             
             this.sortProcessData(scopeEntryId);
             this.updateProcessSortIcons(scopeEntryId);
@@ -2472,18 +2507,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: clearSortIcons
-     * @description: Clear all sort icons and active states
+     * @description: Clear all sort icons and active states - FIXED with section
      */
-    clearSortIcons() {
+    clearSortIcons(section) {
         try {
-            // Remove all active classes
-            const allHeaders = this.template.querySelectorAll('.sortable-header');
+            const selector = section ? `.sortable-header[data-section="${section}"]` : '.sortable-header';
+            const allHeaders = this.template.querySelectorAll(selector);
             allHeaders.forEach(header => {
                 header.classList.remove('active-sort');
             });
             
-            // Remove all rotation classes
-            const allIcons = this.template.querySelectorAll('.sort-icon svg');
+            const iconSelector = section ? `.sortable-header[data-section="${section}"] .sort-icon svg` : '.sort-icon svg';
+            const allIcons = this.template.querySelectorAll(iconSelector);
             allIcons.forEach(icon => {
                 icon.classList.remove('rotate-asc', 'rotate-desc');
             });
@@ -2494,22 +2529,22 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: updateSortIcons
-     * @description: Update sort icons and active states - Updated
+     * @description: Update sort icons and active states - FIXED with section
      */
-    updateSortIcons() {
+    updateSortIcons(section) {
         try {
-            // Clear all first
-            this.clearSortIcons();
+            const sortField = section === 'contract' ? this.contractSortField : this.changeOrderSortField;
+            const sortOrder = section === 'contract' ? this.contractSortOrder : this.changeOrderSortOrder;
             
-            // Add active class to current sorted header
-            const currentHeaders = this.template.querySelectorAll(`[data-sort-field="${this.sortField}"]`);
+            if (!sortField) return;
+            
+            const currentHeaders = this.template.querySelectorAll(`[data-sort-field="${sortField}"][data-section="${section}"]`);
             currentHeaders.forEach(header => {
                 header.classList.add('active-sort');
                 
-                // Add rotation to the icon
                 const icon = header.querySelector('.sort-icon svg');
                 if (icon) {
-                    icon.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                    icon.classList.add(sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
                 }
             });
         } catch (error) {
@@ -2519,37 +2554,39 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: sortProcessData
-     * @description: Sort the process data for a specific scope entry
+     * @description: Sort the process data for a specific scope entry - FIXED
      */
     sortProcessData(scopeEntryId) {
         try {
+            const sortState = this.processSortByEntry.get(scopeEntryId);
+            if (!sortState || !sortState.sortField) return;
+            
+            const sortFunction = (a, b) => {
+                let aValue = this.getFieldValue(a, sortState.sortField);
+                let bValue = this.getFieldValue(b, sortState.sortField);
+
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+
+                let compare = 0;
+                if (aValue > bValue) {
+                    compare = 1;
+                } else if (aValue < bValue) {
+                    compare = -1;
+                }
+
+                return sortState.sortOrder === 'asc' ? compare : -compare;
+            };
+            
             // Update contract entries
             this.filteredContractEntries = this.filteredContractEntries.map(entry => {
                 if (entry.Id === scopeEntryId && entry.processDetails) {
-                    const sortedProcessDetails = [...entry.processDetails].sort((a, b) => {
-                        let aValue = this.getFieldValue(a, this.processSortField);
-                        let bValue = this.getFieldValue(b, this.processSortField);
-
-                        // Handle null/undefined values
-                        if (aValue === null || aValue === undefined) aValue = '';
-                        if (bValue === null || bValue === undefined) bValue = '';
-
-                        // Convert to strings for comparison if they're not numbers
-                        if (typeof aValue === 'string' && typeof bValue === 'string') {
-                            aValue = aValue.toLowerCase();
-                            bValue = bValue.toLowerCase();
-                        }
-
-                        let compare = 0;
-                        if (aValue > bValue) {
-                            compare = 1;
-                        } else if (aValue < bValue) {
-                            compare = -1;
-                        }
-
-                        return this.processSortOrder === 'asc' ? compare : -compare;
-                    });
-
+                    const sortedProcessDetails = [...entry.processDetails].sort(sortFunction);
                     return {
                         ...entry,
                         processDetails: sortedProcessDetails
@@ -2561,30 +2598,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Update change order entries
             this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
                 if (entry.Id === scopeEntryId && entry.processDetails) {
-                    const sortedProcessDetails = [...entry.processDetails].sort((a, b) => {
-                        let aValue = this.getFieldValue(a, this.processSortField);
-                        let bValue = this.getFieldValue(b, this.processSortField);
-
-                        // Handle null/undefined values
-                        if (aValue === null || aValue === undefined) aValue = '';
-                        if (bValue === null || bValue === undefined) bValue = '';
-
-                        // Convert to strings for comparison if they're not numbers
-                        if (typeof aValue === 'string' && typeof bValue === 'string') {
-                            aValue = aValue.toLowerCase();
-                            bValue = bValue.toLowerCase();
-                        }
-
-                        let compare = 0;
-                        if (aValue > bValue) {
-                            compare = 1;
-                        } else if (aValue < bValue) {
-                            compare = -1;
-                        }
-
-                        return this.processSortOrder === 'asc' ? compare : -compare;
-                    });
-
+                    const sortedProcessDetails = [...entry.processDetails].sort(sortFunction);
                     return {
                         ...entry,
                         processDetails: sortedProcessDetails
@@ -2599,20 +2613,22 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: sortData
-     * @description: Sort the data based on current sort field and order
+     * @description: Sort the data based on current sort field and order - FIXED with section
      */
-    sortData() {
+    sortData(section) {
         try {
-            // Sort contract entries
-            this.filteredContractEntries = [...this.filteredContractEntries].sort((a, b) => {
-                let aValue = this.getFieldValue(a, this.sortField);
-                let bValue = this.getFieldValue(b, this.sortField);
+            const sortField = section === 'contract' ? this.contractSortField : this.changeOrderSortField;
+            const sortOrder = section === 'contract' ? this.contractSortOrder : this.changeOrderSortOrder;
+            
+            if (!sortField) return;
+            
+            const sortFunction = (a, b) => {
+                let aValue = this.getFieldValue(a, sortField);
+                let bValue = this.getFieldValue(b, sortField);
 
-                // Handle null/undefined values
                 if (aValue === null || aValue === undefined) aValue = '';
                 if (bValue === null || bValue === undefined) bValue = '';
 
-                // Convert to strings for comparison if they're not numbers
                 if (typeof aValue === 'string' && typeof bValue === 'string') {
                     aValue = aValue.toLowerCase();
                     bValue = bValue.toLowerCase();
@@ -2625,38 +2641,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     compare = -1;
                 }
 
-                return this.sortOrder === 'asc' ? compare : -compare;
-            });
-
-            // Sort change order entries
-            this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries].sort((a, b) => {
-                let aValue = this.getFieldValue(a, this.sortField);
-                let bValue = this.getFieldValue(b, this.sortField);
-
-                // Handle null/undefined values
-                if (aValue === null || aValue === undefined) aValue = '';
-                if (bValue === null || bValue === undefined) bValue = '';
-
-                // Convert to strings for comparison if they're not numbers
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    aValue = aValue.toLowerCase();
-                    bValue = bValue.toLowerCase();
-                }
-
-                let compare = 0;
-                if (aValue > bValue) {
-                    compare = 1;
-                } else if (aValue < bValue) {
-                    compare = -1;
-                }
-
-                return this.sortOrder === 'asc' ? compare : -compare;
-            });
+                return sortOrder === 'asc' ? compare : -compare;
+            };
+            
+            if (section === 'contract') {
+                this.filteredContractEntries = [...this.filteredContractEntries].sort(sortFunction);
+            } else {
+                this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries].sort(sortFunction);
+            }
         } catch (error) {
             console.error('Error in sortData:', error);
         }
     }
-
     /**
      * Method Name: handleScopeCellClick
      * @description: Handle cell click for inline editing of scope entries
@@ -3135,26 +3131,23 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     
     /**
      * Method Name: handleProcessCellInputChange
-     * @description: Handle input change in process inline editing - FIXED
+     * @description: Handle input change in process inline editing - FIXED with scope context
      */
     handleProcessCellInputChange(event) {
         const recordId = event.target.dataset.processRecordId;
         const fieldName = event.target.dataset.processFieldName;
         const fieldType = event.target.dataset.processFieldType;
+        const scopeEntryId = event.target.dataset.scopeEntryId; // ADD THIS
         let newValue = event.target.value;
         
-        // Type conversion based on field type - FIXED to handle empty and invalid values
+        // Type conversion based on field type
         if (fieldType === 'number') {
             if (newValue === '' || newValue === null || newValue === undefined) {
-                newValue = null; // Keep as null for empty values
+                newValue = 0;
             } else {
-                const parsedValue = parseFloat(newValue);
-                if (isNaN(parsedValue)) {
-                    // Keep the original string value if it's not a valid number
-                    // This allows partial typing like "1." or "-"
-                    newValue = newValue;
-                } else {
-                    newValue = parsedValue;
+                newValue = parseFloat(newValue);
+                if (isNaN(newValue)) {
+                    newValue = 0;
                 }
             }
         }
@@ -3163,12 +3156,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const originalProcess = this.findProcessById(recordId);
         const originalValue = this.getFieldValue(originalProcess, fieldName);
         
-        // Track modifications
+        // Track modifications with scope context
         if (!this.modifiedProcessEntries.has(recordId)) {
-            this.modifiedProcessEntries.set(recordId, {});
+            this.modifiedProcessEntries.set(recordId, {
+                scopeEntryId: scopeEntryId,
+                modifications: {}
+            });
         }
         
-        const modifications = this.modifiedProcessEntries.get(recordId);
+        const entry = this.modifiedProcessEntries.get(recordId);
+        const modifications = entry.modifications;
         
         // Compare values properly for numbers
         const areValuesEqual = (val1, val2) => {
@@ -3184,7 +3181,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         if (!areValuesEqual(newValue, originalValue)) {
             modifications[fieldName] = newValue;
         } else {
-            // Remove modification if value is back to original
             delete modifications[fieldName];
             if (Object.keys(modifications).length === 0) {
                 this.modifiedProcessEntries.delete(recordId);
@@ -3225,10 +3221,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Prepare data for batch update
         const updatedProcessEntries = [];
         
-        this.modifiedProcessEntries.forEach((modifications, recordId) => {
+        this.modifiedProcessEntries.forEach((entry, recordId) => {
             const processUpdate = { Id: recordId };
-            Object.keys(modifications).forEach(fieldName => {
-                processUpdate[fieldName] = modifications[fieldName];
+            Object.keys(entry.modifications).forEach(fieldName => {
+                processUpdate[fieldName] = entry.modifications[fieldName];
             });
             updatedProcessEntries.push(processUpdate);
         });
@@ -3240,21 +3236,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result.startsWith('Success')) {
                     this.showToast('Success', result, 'success');
-                    
-                    // Clear modifications and refresh data
                     this.modifiedProcessEntries.clear();
                     this.hasProcessModifications = false;
                     this.editingProcessCells.clear();
                     
-                    // Refresh scope entries to get updated process data
-                    this.fetchScopeEntries();
+                    // Refresh all scope entries that had modified processes
+                    const scopeEntryIds = new Set();
+                    this.modifiedProcessEntries.forEach(entry => {
+                        scopeEntryIds.add(entry.scopeEntryId);
+                    });
                     
-                } else if (result.startsWith('Partial Success')) {
-                    this.showToast('Warning', result, 'warning');
-                    // Refresh data even on partial success
                     this.fetchScopeEntries();
                 } else {
-                    this.showToast('Error', result, 'error');
+                    this.showToast('Warning', result, 'warning');
                 }
             })
             .catch(error => {
@@ -3287,8 +3281,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Get modified value for a specific process field
      */
     getModifiedProcessValue(recordId, fieldName) {
-        const modifications = this.modifiedProcessEntries.get(recordId);
-        return modifications ? modifications[fieldName] : null;
+        const entry = this.modifiedProcessEntries.get(recordId);
+        return entry && entry.modifications ? entry.modifications[fieldName] : null;
     }
     
     /**
@@ -3296,8 +3290,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if a specific process field has been modified
      */
     isProcessFieldModified(recordId, fieldName) {
-        const modifications = this.modifiedProcessEntries.get(recordId);
-        return modifications && modifications.hasOwnProperty(fieldName);
+        const entry = this.modifiedProcessEntries.get(recordId);
+        return entry && entry.modifications && entry.modifications.hasOwnProperty(fieldName);
     }
     
     /**
@@ -3353,3 +3347,4 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 }
+    
