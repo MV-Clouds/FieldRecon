@@ -27,6 +27,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track filteredChangeOrderEntries = [];
     @track searchTerm = '';
     @track processTableUpdateTime = 0;
+    @track modifiedProcessEntriesByScopeEntry = new Map(); // Map<scopeEntryId, Set<processId>>
 
     // Sorting properties
     @track sortField = '';
@@ -1326,7 +1327,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Preserve nested table state
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
-            row.isLoadingProcesses = entry.isLoadingProcesses || false;            
+            row.isLoadingProcesses = entry.isLoadingProcesses || false;     
+            
+            row.isProcessButtonsDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
+            row.isProcessSaveDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
+            row.processSaveButtonLabel = this.getProcessSaveButtonLabelForEntry(entry.Id);
+            row.processDiscardButtonTitle = this.getProcessDiscardButtonTitleForEntry(entry.Id);
             
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
@@ -2854,6 +2860,41 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return modifications && modifications.hasOwnProperty(fieldName);
     }
 
+    /*
+    * Method Name: getProcessButtonsDisabledForEntry
+    * @description: Check if process buttons should be disabled for specific entry
+    */
+    getProcessButtonsDisabledForEntry(scopeEntryId) {
+        return !this.hasProcessModificationsForEntry(scopeEntryId) || this.isSavingProcessEntries;
+    }
+    
+    /**
+    * Method Name: getProcessSaveButtonLabelForEntry
+    * @description: Get dynamic process save button label for specific entry
+    */
+    getProcessSaveButtonLabelForEntry(scopeEntryId) {
+        if (this.isSavingProcessEntries) {
+            return 'Saving...';
+        }
+        const count = this.getProcessModificationCountForEntry(scopeEntryId);
+        if (count > 0) {
+            return `Save Process Changes (${count})`;
+        }
+        return 'Save Process Changes';
+    }
+    
+    /**
+    * Method Name: getProcessDiscardButtonTitleForEntry
+    * @description: Get dynamic process discard button title for specific entry
+    */
+    getProcessDiscardButtonTitleForEntry(scopeEntryId) {
+        const count = this.getProcessModificationCountForEntry(scopeEntryId);
+        if (count === 0) {
+            return 'No process changes to discard';
+        }
+        return `Discard ${count} unsaved process change(s)`;
+    }
+
     /**
      * Method Name: handleCreateChangeOrder
      * @description: Open change order creation modal
@@ -3134,18 +3175,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const recordId = event.target.dataset.processRecordId;
         const fieldName = event.target.dataset.processFieldName;
         const fieldType = event.target.dataset.processFieldType;
-        const scopeEntryId = event.target.dataset.scopeEntryId; // ADD THIS
+        const scopeEntryId = this.getScopeEntryIdForProcess(recordId); // GET scope entry ID
         let newValue = event.target.value;
         
         // Type conversion based on field type
         if (fieldType === 'number') {
             if (newValue === '' || newValue === null || newValue === undefined) {
-                newValue = 0;
+                newValue = null;
             } else {
                 newValue = parseFloat(newValue);
-                if (isNaN(newValue)) {
-                    newValue = 0;
-                }
+                if (isNaN(newValue)) newValue = null;
             }
         }
         
@@ -3159,6 +3198,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 scopeEntryId: scopeEntryId,
                 modifications: {}
             });
+        }
+        
+        // Track by scope entry for button state
+        if (!this.modifiedProcessEntriesByScopeEntry.has(scopeEntryId)) {
+            this.modifiedProcessEntriesByScopeEntry.set(scopeEntryId, new Set());
         }
         
         const entry = this.modifiedProcessEntries.get(recordId);
@@ -3177,15 +3221,62 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         if (!areValuesEqual(newValue, originalValue)) {
             modifications[fieldName] = newValue;
+            this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).add(recordId);
         } else {
             delete modifications[fieldName];
             if (Object.keys(modifications).length === 0) {
                 this.modifiedProcessEntries.delete(recordId);
+                this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).delete(recordId);
+                if (this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).size === 0) {
+                    this.modifiedProcessEntriesByScopeEntry.delete(scopeEntryId);
+                }
             }
         }
         
         // Update hasProcessModifications flag
         this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
+    }
+
+    /**
+     * Method Name: getScopeEntryIdForProcess
+     * @description: Get scope entry ID for a given process ID
+     */
+    getScopeEntryIdForProcess(processId) {
+        // Search in contract entries
+        for (let entry of this.filteredContractEntries) {
+            if (entry.processDetails) {
+                const found = entry.processDetails.find(p => p.Id === processId);
+                if (found) return entry.Id;
+            }
+        }
+        
+        // Search in change order entries
+        for (let entry of this.filteredChangeOrderEntries) {
+            if (entry.processDetails) {
+                const found = entry.processDetails.find(p => p.Id === processId);
+                if (found) return entry.Id;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Method Name: hasProcessModificationsForEntry
+     * @description: Check if specific scope entry has process modifications
+     */
+    hasProcessModificationsForEntry(scopeEntryId) {
+        return this.modifiedProcessEntriesByScopeEntry.has(scopeEntryId) && 
+            this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).size > 0;
+    }
+
+    /**
+     * Method Name: getProcessModificationCountForEntry
+     * @description: Get count of modified processes for specific scope entry
+     */
+    getProcessModificationCountForEntry(scopeEntryId) {
+        if (!this.modifiedProcessEntriesByScopeEntry.has(scopeEntryId)) return 0;
+        return this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).size;
     }
     
     /**
@@ -3208,24 +3299,29 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * Method Name: handleSaveProcessChanges
      * @description: Save all modified process entries in a single batch
      */
-    handleSaveProcessChanges() {
-        if (this.modifiedProcessEntries.size === 0) {
+    handleSaveProcessChanges(event) {
+        // Get scope entry ID from button click
+        const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        
+        if (!this.hasProcessModificationsForEntry(scopeEntryId)) {
             return;
         }
-    
+
         this.isSavingProcessEntries = true;
         
-        // Prepare data for batch update
+        // Get only the processes for this scope entry
+        const processIdsToUpdate = this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId);
         const updatedProcessEntries = [];
         
-        this.modifiedProcessEntries.forEach((entry, recordId) => {
-            const processUpdate = { Id: recordId };
+        processIdsToUpdate.forEach(processId => {
+            const entry = this.modifiedProcessEntries.get(processId);
+            const processUpdate = { Id: processId };
             Object.keys(entry.modifications).forEach(fieldName => {
                 processUpdate[fieldName] = entry.modifications[fieldName];
             });
             updatedProcessEntries.push(processUpdate);
         });
-    
+
         // Call batch update method
         const updatedProcessEntriesJson = JSON.stringify(updatedProcessEntries);
         
@@ -3233,19 +3329,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result.startsWith('Success')) {
                     this.showToast('Success', result, 'success');
-                    this.modifiedProcessEntries.clear();
-                    this.hasProcessModifications = false;
+                    
+                    // Clear modifications for this scope entry only
+                    processIdsToUpdate.forEach(processId => {
+                        this.modifiedProcessEntries.delete(processId);
+                    });
+                    this.modifiedProcessEntriesByScopeEntry.delete(scopeEntryId);
+                    
+                    this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
                     this.editingProcessCells.clear();
                     
-                    // Refresh all scope entries that had modified processes
-                    const scopeEntryIds = new Set();
-                    this.modifiedProcessEntries.forEach(entry => {
-                        scopeEntryIds.add(entry.scopeEntryId);
-                    });
-                    
-                    this.fetchScopeEntries();
+                    // Refresh only this scope entry's processes
+                    this.refreshProcessDetails(scopeEntryId);
                 } else {
-                    this.showToast('Warning', result, 'warning');
+                    this.showToast('Error', result, 'error');
                 }
             })
             .catch(error => {
@@ -3259,18 +3356,35 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     
     /**
      * Method Name: handleDiscardProcessChanges
-     * @description: Discard all unsaved process changes
+     * @description: Discard unsaved process changes for specific scope entry
      */
-    handleDiscardProcessChanges() {
-        // Clear all modifications
-        this.modifiedProcessEntries.clear();
-        this.hasProcessModifications = false;
-        this.editingProcessCells.clear();
+    handleDiscardProcessChanges(event) {
+        const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        
+        if (!this.hasProcessModificationsForEntry(scopeEntryId)) {
+            return;
+        }
+        
+        // Clear modifications for this scope entry only
+        const processIdsToDiscard = this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId);
+        processIdsToDiscard.forEach(processId => {
+            this.modifiedProcessEntries.delete(processId);
+            // Clear editing state for this process
+            this.editingProcessCells.forEach(cellKey => {
+                if (cellKey.startsWith(processId)) {
+                    this.editingProcessCells.delete(cellKey);
+                }
+            });
+        });
+        this.modifiedProcessEntriesByScopeEntry.delete(scopeEntryId);
+        
+        // Update global flag
+        this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
         
         // Trigger reactivity to remove highlighting and reset values
         this.updateDisplayedEntries();
         
-        this.showToast('Success', 'Process changes discarded', 'success');
+        this.showToast('Success', 'Process changes discarded for this entry', 'success');
     }
     
     /**

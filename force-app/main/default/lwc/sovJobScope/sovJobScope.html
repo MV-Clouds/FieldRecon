@@ -347,8 +347,9 @@
                                                                         <button 
                                                                             class="action-button process-btn"
                                                                             onclick={handleDiscardProcessChanges}
-                                                                            disabled={isProcessButtonsDisabled}
-                                                                            title={processDiscardButtonTitle}>
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            disabled={entry.isProcessButtonsDisabled}
+                                                                            title={entry.processDiscardButtonTitle}>
                                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                                 <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -360,7 +361,8 @@
                                                                         <button 
                                                                             class="action-button process-btn save-button"
                                                                             onclick={handleSaveProcessChanges}
-                                                                            disabled={isProcessSaveDisabled}>
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            disabled={entry.isProcessSaveDisabled}>
                                                                             <template if:true={isSavingProcessEntries}>
                                                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                                     <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -374,7 +376,7 @@
                                                                                     <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                                 </svg>
                                                                             </template>
-                                                                            {processSaveButtonLabel}
+                                                                            {entry.processSaveButtonLabel}
                                                                         </button>
                                                                     </div>
                                         
@@ -787,8 +789,9 @@
                                                                         <button 
                                                                             class="action-button process-btn"
                                                                             onclick={handleDiscardProcessChanges}
-                                                                            disabled={isProcessButtonsDisabled}
-                                                                            title={processDiscardButtonTitle}>
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            disabled={entry.isProcessButtonsDisabled}
+                                                                            title={entry.processDiscardButtonTitle}>
                                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                                 <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -800,7 +803,8 @@
                                                                         <button 
                                                                             class="action-button process-btn save-button"
                                                                             onclick={handleSaveProcessChanges}
-                                                                            disabled={isProcessSaveDisabled}>
+                                                                            data-scope-entry-id={entry.Id}
+                                                                            disabled={entry.isProcessSaveDisabled}>
                                                                             <template if:true={isSavingProcessEntries}>
                                                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                                     <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -814,7 +818,7 @@
                                                                                     <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                                 </svg>
                                                                             </template>
-                                                                            {processSaveButtonLabel}
+                                                                            {entry.processSaveButtonLabel}
                                                                         </button>
                                                                     </div>
                                         
