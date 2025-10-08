@@ -1320,7 +1320,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Common method to process entries for display with nested table support and inline editing
      */
     processEntriesForDisplay(entries) {
-        
         const cols = this.tableColumns;        
         
         return entries.map(entry => {
@@ -1339,87 +1338,87 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             row.processDiscardButtonTitle = this.getProcessDiscardButtonTitleForEntry(entry.Id);
             
             row.displayFields = cols.map(col => {
-                const key = col.fieldName;
-                let value = this.getFieldValue(entry, key);
+                const cellKey = `${entry.Id}-${col.fieldName}`;
+                const isBeingEdited = this.editingScopeCells.has(cellKey);
+                const isModified = this.isScopeFieldModified(entry.Id, col.fieldName);
                 
-                // Check if this field has been modified
-                const modifiedValue = this.getModifiedScopeValue(entry.Id, key);
-                if (modifiedValue !== null && modifiedValue !== undefined) {
-                    value = modifiedValue;
+                let value = this.getFieldValue(entry, col.fieldName);
+                let rawValue = value;
+                let displayValue = value;
+                
+                // Check for modified value
+                if (isModified) {
+                    value = this.getModifiedScopeValue(entry.Id, col.fieldName);
+                    rawValue = value;
+                    displayValue = value;
                 }
                 
-                const displayValue = value !== null && value !== undefined ? String(value) : '';
-                const isModified = this.isScopeFieldModified(entry.Id, key);
-                const isBeingEdited = this.editingScopeCells.has(`${entry.Id}-${key}`);
-                
-                // Build cell classes
-                let cellClass = 'center-trancate-text';
-                if (col.editable) {
-                    cellClass += ' editable-cell';
+                // Format display value based on type
+                if (col.type === 'currency' && value != null) {
+                    displayValue = value;
+                } else if (col.type === 'percent' && value != null) {
+                    displayValue = value;
+                } else if (col.type === 'date' && value) {
+                    displayValue = this.formatDateForDisplay(value);
                 }
-                if (isModified && !isBeingEdited) {
+                
+                // Determine CSS classes
+                let cellClass = col.editable ? 'center-trancate-text editable-cell' : 'center-trancate-text';
+                let contentClass = 'editable-content';
+                
+                if (isModified) {
                     cellClass += ' modified-scope-cell';
                 }
+                
                 if (isBeingEdited) {
                     cellClass += ' editing-cell';
                 }
                 
-                // Build content classes
-                let contentClass = 'editable-content';
-                
-                // Handle currency fields
-                let currencyValue = 0;
-                if (col.type === 'currency') {
-                    currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
-                }
-                
-                // Handle percent fields
-                let percentValue = 0;
-                if (col.type === 'percent') {
-                    percentValue = value !== null && value !== undefined ? parseFloat(value) : 0;
-                }
-                
-                // Handle date fields
-                let dateValue = '';
-                if (col.type === 'date' && value) {
-                    dateValue = this.formatDateForInput(value);
-                }
-                
-                // Handle picklist fields - REMOVE ASYNC CALL HERE
-                let picklistOptions = [];
-                if (col.type === 'picklist') {
-                    // Only use cached options, don't trigger async load here
-                    if (this.fieldPicklistOptions.has(key)) {
-                        picklistOptions = this.fieldPicklistOptions.get(key);
-                    }
-                }
-                
-                return {
-                    key,
-                    value: displayValue,
-                    rawValue: value,
-                    currencyValue: currencyValue,
-                    percentValue: percentValue,
-                    dateValue: dateValue,
-                    picklistOptions: picklistOptions,
-                    hasValue: value !== null && value !== undefined && String(value).trim() !== '' && String(value) !== '0',
-                    isNameField: key === 'Name',
+                // Prepare field data
+                const fieldData = {
+                    key: col.fieldName,
+                    value: displayValue || '',
+                    rawValue: rawValue,
+                    cellClass: cellClass,
+                    contentClass: contentClass,
+                    isEditable: col.editable || false,
+                    isBeingEdited: isBeingEdited,
+                    hasValue: value != null && value !== '',
+                    
+                    // Type indicators
+                    isDate: col.type === 'date',
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
                     isNumber: col.type === 'number',
-                    isDate: col.type === 'date',
                     isPicklist: col.type === 'picklist',
-                    isEditable: col.editable || false,
-                    isModified: isModified,
-                    isBeingEdited: isBeingEdited,
-                    cellClass: cellClass,
-                    contentClass: contentClass
+                    isNameField: col.fieldName === 'Name',
+                    
+                    // Date specific
+                    dateValue: col.type === 'date' && value ? this.formatDateForInput(value) : '',
+                    
+                    // Currency specific
+                    currencyValue: col.type === 'currency' ? (value || 0) : null,
+                    
+                    // Percent specific  
+                    percentValue: col.type === 'percent' ? (value || 0) : null
                 };
-            });            
+                
+                // Add picklist options if it's a picklist field
+                if (col.type === 'picklist') {
+                    const options = this.fieldPicklistOptions.get(col.fieldName) || [];
+                    fieldData.picklistOptions = options.map(option => ({
+                        ...option,
+                        selected: option.value === value
+                    }));
+                }
+                
+                return fieldData;
+            });
             
             return row;
         });
     }
+    
 
     /**
      * Method Name: getPicklistValues
@@ -2780,7 +2779,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * Method Name: handleScopeCellClick
      * @description: Handle cell click for inline editing of scope entries
      */
-    handleScopeCellClick(event) {
+    async handleScopeCellClick(event) {
         const recordId = event.currentTarget.dataset.recordId;
         const fieldName = event.currentTarget.dataset.fieldName;
         const isEditable = event.currentTarget.dataset.editable === 'true';
@@ -2797,35 +2796,25 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         // If it's a picklist and we don't have options yet, load them
         if (column && column.type === 'picklist' && !this.fieldPicklistOptions.has(fieldName)) {
-            this.getPicklistValues(fieldName).then(() => {
-                // After options are loaded, set editing state and refresh
-                this.editingScopeCells.add(cellKey);
-                this.applyFilters();
-                
-                // Auto-focus the input after DOM update
-                setTimeout(() => {
-                    const input = this.template.querySelector(`lightning-combobox[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
-                    if (input) {
-                        input.focus();
-                    }
-                }, 50);
-            });
-        } else {
-            // For non-picklist or already cached picklists
-            this.editingScopeCells.add(cellKey);
-            this.applyFilters();
-            
-            // Auto-focus the input after DOM update
-            setTimeout(() => {
-                const input = this.template.querySelector(`[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
-                if (input) {
-                    input.focus();
-                    if (input.select) {
-                        input.select(); // Select all text for easy editing
-                    }
-                }
-            }, 50);
+            try {
+                await this.getPicklistValues(fieldName);
+            } catch (error) {
+                console.error('Error loading picklist values:', error);
+            }
         }
+        
+        // Start editing
+        this.editingScopeCells.add(cellKey);
+        this.applyFilters();
+        
+        // Auto-focus the input after DOM update
+        setTimeout(() => {
+            const inputSelector = `[data-record-id="${recordId}"][data-field-name="${fieldName}"]`;
+            const inputElement = this.template.querySelector(inputSelector);
+            if (inputElement) {
+                inputElement.focus();
+            }
+        }, 50);
     }
 
     /**
@@ -3727,35 +3716,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         // Trigger reactivity
         this.updateDisplayedEntries();
-    }
-
-    /**
-     * Method Name: handleNumberInputKeydown
-     * @description: Handle keydown events for number inputs to prevent unwanted behavior
-     */
-    handleNumberInputKeydown(event) {
-        // Allow: backspace, delete, tab, escape, enter, and arrow keys
-        if ([8, 9, 27, 13, 37, 38, 39, 40, 46].indexOf(event.keyCode) !== -1 ||
-            // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
-            (event.keyCode === 65 && event.ctrlKey === true) ||
-            (event.keyCode === 67 && event.ctrlKey === true) ||
-            (event.keyCode === 86 && event.ctrlKey === true) ||
-            (event.keyCode === 88 && event.ctrlKey === true)) {
-            return;
-        }
-        
-        // Prevent up/down arrow keys from changing values when not desired
-        if (event.keyCode === 38 || event.keyCode === 40) {
-            event.preventDefault();
-            return;
-        }
-        
-        // Ensure that it is a number and stop the keypress
-        if ((event.shiftKey || (event.keyCode < 48 || event.keyCode > 57)) && 
-            (event.keyCode < 96 || event.keyCode > 105) && 
-            event.keyCode !== 190 && event.keyCode !== 110) { // Allow decimal point
-            event.preventDefault();
-        }
     }
 }
     

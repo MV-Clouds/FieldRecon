@@ -307,7 +307,6 @@
                                                                            data-field-type="number"
                                                                            oninput={handleScopeCellInputChange}
                                                                            onblur={handleScopeCellInputBlur}
-                                                                           onkeydown={handleNumberInputKeydown}
                                                                            step="0.01"
                                                                            min="0">
                                                                 </template>
@@ -554,7 +553,6 @@
                                                                                                            data-process-field-type="number"
                                                                                                            oninput={handleProcessCellInputChange}
                                                                                                            onblur={handleProcessCellInputBlur}
-                                                                                                           onkeydown={handleNumberInputKeydown}
                                                                                                            step="any"
                                                                                                            min="0">
                                                                                                 </template>
@@ -780,11 +778,11 @@
                                                             <template if:false={field.isDate}>
                                                                 <select 
                                                                     class="inline-edit-select process-select"
-                                                                    data-process-record-id={process.Id}
-                                                                    data-process-field-name={field.key}
-                                                                    data-process-field-type="picklist"
-                                                                    onchange={handleProcessSelectChange}
-                                                                    onblur={handleProcessCellInputBlur}>
+                                                                    data-record-id={entry.Id}
+                                                                    data-field-name={field.key}
+                                                                    data-field-type="picklist"
+                                                                    onchange={handleScopeSelectChange}
+                                                                    onblur={handleScopeCellInputBlur}>
                                                                     <option value="">--Select--</option>
                                                                     <template for:each={field.picklistOptions} for:item="option">
                                                                         <option key={option.value} 
@@ -809,7 +807,6 @@
                                                                            data-field-type="number"
                                                                            oninput={handleScopeCellInputChange}
                                                                            onblur={handleScopeCellInputBlur}
-                                                                           onkeydown={handleNumberInputKeydown}
                                                                            step="0.01"
                                                                            min="0">
                                                                 </template>
@@ -1049,7 +1046,6 @@
                                                                                                            data-process-field-type="number"
                                                                                                            oninput={handleProcessCellInputChange}
                                                                                                            onblur={handleProcessCellInputBlur}
-                                                                                                           onkeydown={handleNumberInputKeydown}
                                                                                                            step="any"
                                                                                                            min="0">
                                                                                                 </template>
