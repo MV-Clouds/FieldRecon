@@ -209,6 +209,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track locationRecords = [];
     @track locationDisplayRecords = [];
     @track selectedLocationIds = [];
+    @track originalLocationIds = [];
     @track locationSearchTerm = '';
     @track selectedLocationScopeEntryId = '';
 
@@ -1295,25 +1296,17 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedScopeEntryName = entry ? entry.Name : '';
         this.selectedLocationScopeEntryId = scopeEntryId;
         
-        // Reset selections
+        // Reset selections but keep original state tracking
         this.selectedLocationIds = [];
+        this.originalLocationIds = [];
         this.locationSearchTerm = '';
         
         // Load location data
         this.loadLocationData(scopeEntryId);
         
         this.showAddLocationModal = true;
-        
     }
 
-    /**
-     * Method Name: handleEditRecord
-     * @description: Handle edit record action - shows toast message
-     */
-    handleEditRecord(event) {
-        const recordId = event.currentTarget.dataset.recordId;
-        this.showToast('Success', `Edit Record action clicked for record: ${recordId}`, 'success');
-    }
 
     /**
      * Method Name: processEntriesForDisplay
@@ -1400,15 +1393,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     currencyValue: col.type === 'currency' ? (value || 0) : null,
                     
                     // Percent specific  
-                    percentValue: col.type === 'percent' ? (value || 0) : null
+                    percentValue: col.type === 'percent' ? (value || 0) : null,
+                    
+                    // Current selected value for picklist
+                    selectedValue: value || ''
                 };
                 
                 // Add picklist options if it's a picklist field
                 if (col.type === 'picklist') {
                     const options = this.fieldPicklistOptions.get(col.fieldName) || [];
                     fieldData.picklistOptions = options.map(option => ({
-                        ...option,
-                        selected: option.value === value
+                        label: option.label,
+                        value: option.value,
+                        selected: option.value === value // Properly set selected state
                     }));
                 }
                 
@@ -2293,8 +2290,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         ])
         .then(([locations, existingLocationIds]) => {
             this.locationRecords = locations || [];
-            this.selectedLocationIds = existingLocationIds || [];
-
+            this.selectedLocationIds = [...(existingLocationIds || [])]; // Create a copy
+            this.originalLocationIds = [...(existingLocationIds || [])]; // Store original state
+            
+            console.log('Loaded locations:', this.locationRecords.length);
+            console.log('Existing location processes:', this.selectedLocationIds.length);
+            console.log('Original location IDs:', this.originalLocationIds);
             
             this.applyLocationFilters();
         })
@@ -2303,6 +2304,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.showToast('Error', 'Failed to load locations: ' + (error.body?.message || error.message), 'error');
             this.locationRecords = [];
             this.locationDisplayRecords = [];
+            this.selectedLocationIds = [];
+            this.originalLocationIds = [];
         });
     }
 
@@ -2428,6 +2431,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedScopeEntryName = '';
         this.selectedLocationScopeEntryId = '';
         this.selectedLocationIds = [];
+        this.originalLocationIds = []; // Clear original state
         this.locationSearchTerm = '';
         this.locationRecords = [];
         this.locationDisplayRecords = [];
@@ -2438,21 +2442,37 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save selected locations and create location processes
      */
     handleSaveLocations() {
-        if (this.selectedLocationIds.length === 0) {
-            this.showToast('Warning', 'Please select at least one location', 'warning');
-            return;
-        }
 
         this.isLocationSubmitting = true;
         
+        // Calculate the differences
+        const originalIds = new Set(this.originalLocationIds || []);
+        const selectedIds = new Set(this.selectedLocationIds || []);
+        
+        const addedLocationIds = [...selectedIds].filter(id => !originalIds.has(id));
+        const removedLocationIds = [...originalIds].filter(id => !selectedIds.has(id));
+        const unchangedLocationIds = [...selectedIds].filter(id => originalIds.has(id));
+        
+        console.log('Location Changes Analysis:');
+        console.log('Original IDs:', this.originalLocationIds);
+        console.log('Selected IDs:', this.selectedLocationIds);
+        console.log('Added IDs:', addedLocationIds);
+        console.log('Removed IDs:', removedLocationIds);
+        console.log('Unchanged IDs:', unchangedLocationIds);
+        
         const locationData = {
             scopeEntryId: this.selectedLocationScopeEntryId,
-            selectedLocationIds: this.selectedLocationIds
+            selectedLocationIds: this.selectedLocationIds,
+            originalLocationIds: this.originalLocationIds,
+            addedLocationIds: addedLocationIds,
+            removedLocationIds: removedLocationIds,
+            unchangedLocationIds: unchangedLocationIds,
+            hasChanges: addedLocationIds.length > 0 || removedLocationIds.length > 0
         };
 
         createLocationProcesses({ locationData })
             .then(result => {
-                if (result === 'Success') {
+                if (result.includes('Success')) {
                     this.showToast('Success', `${this.selectedLocationIds.length} location(s) added successfully`, 'success');
                     this.handleCloseLocationModal();
                 } else {

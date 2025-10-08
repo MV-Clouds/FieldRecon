@@ -633,33 +633,36 @@ public with sharing class SovJobScopeController {
 
     /*
     *********************************************************
-    @description     : Method to create location process records for selected locations
-    @param           : Map<String, Object> locationData - Contains scopeEntryId and selectedLocationIds
+    @description     : Method to create/update location processes for scope entries with proper recalculation
+    @param           : Map<String, Object> locationData - Contains scopeEntryId, location changes, and relationship data
     @return          : String - Success or error message
-    @author          : Rachit Shah
+    @author          : Updated to handle existing location processes with recalculation
     ********************************************************
     */
     @AuraEnabled
     public static String createLocationProcesses(Map<String, Object> locationData) {
         try {
-            Id scopeEntryId = (Id) locationData.get('scopeEntryId');
+            String scopeEntryId = (String) locationData.get('scopeEntryId');
             
-            // Convert List<Object> to List<String> for location IDs
+            // Get all the location arrays
             List<Object> selectedLocationIdsObj = (List<Object>) locationData.get('selectedLocationIds');
-            List<String> selectedLocationIds = new List<String>();
+            List<Object> originalLocationIdsObj = (List<Object>) locationData.get('originalLocationIds');
+            List<Object> addedLocationIdsObj = (List<Object>) locationData.get('addedLocationIds');
+            List<Object> removedLocationIdsObj = (List<Object>) locationData.get('removedLocationIds');
+            Boolean hasChanges = (Boolean) locationData.get('hasChanges');
             
-            if (selectedLocationIdsObj != null) {
-                for (Object obj : selectedLocationIdsObj) {
-                    selectedLocationIds.add(String.valueOf(obj));
-                }
-            }
+            // Convert to String lists
+            List<String> selectedLocationIds = convertToStringList(selectedLocationIdsObj);
+            List<String> originalLocationIds = convertToStringList(originalLocationIdsObj);
+            List<String> addedLocationIds = convertToStringList(addedLocationIdsObj);
+            List<String> removedLocationIds = convertToStringList(removedLocationIdsObj);
             
-            if (selectedLocationIds == null || selectedLocationIds.isEmpty()) {
-                return 'Error: No locations selected';
+            if (String.isBlank(scopeEntryId)) {
+                return 'Error: Scope Entry ID is required';
             }
             
             // Get scope entry to retrieve contract value
-            Scope_Entry__c scopeEntry = [
+            List<Scope_Entry__c> scopeEntries = [
                 SELECT Id, Contract_Value__c
                 FROM Scope_Entry__c
                 WHERE Id = :scopeEntryId
@@ -667,9 +670,15 @@ public with sharing class SovJobScopeController {
                 LIMIT 1
             ];
             
+            if (scopeEntries.isEmpty()) {
+                return 'Error: Scope entry not found';
+            }
+            
+            Scope_Entry__c scopeEntry = scopeEntries[0];
+            
             // Get all processes for this scope entry with their weights
             List<Scope_Entry_Process__c> processes = [
-                SELECT Id, Weight__c, Sequence__c, Process_Library__c
+                SELECT Id, Weight__c, Sequence__c, Process_Library__c, Process_Name__c, IsManual__c
                 FROM Scope_Entry_Process__c
                 WHERE Scope_Entry__c = :scopeEntryId
                 WITH USER_MODE
@@ -677,34 +686,8 @@ public with sharing class SovJobScopeController {
             ];
             
             if (processes.isEmpty()) {
-                return 'Error: No processes found for this scope entry';
+                return 'Error: No processes found for this scope entry. Please add processes first.';
             }
-            
-            // Get selected locations with their square footage
-            List<Location__c> selectedLocations = [
-                SELECT Id, Square_Feet__c
-                FROM Location__c
-                WHERE Id IN :selectedLocationIds
-                WITH USER_MODE
-            ];
-            
-            if (selectedLocations.isEmpty()) {
-                return 'Error: Selected locations not found';
-            }
-            
-            // Calculate total square footage across all selected locations
-            Decimal totalSquareFeet = 0;
-            for (Location__c location : selectedLocations) {
-                Decimal sqFt = location.Square_Feet__c != null ? location.Square_Feet__c : 0;
-                totalSquareFeet += sqFt;
-            }
-            
-            if (totalSquareFeet == 0) {
-                return 'Error: Total square footage cannot be zero. Please ensure locations have square footage values';
-            }
-            
-            // Calculate unit price per square foot
-            Decimal unitPrice = scopeEntry.Contract_Value__c / totalSquareFeet;
             
             // Calculate total weight for process distribution
             Decimal totalWeight = 0;
@@ -716,36 +699,168 @@ public with sharing class SovJobScopeController {
                 return 'Error: Total process weight cannot be zero';
             }
             
-            // Create location process records
-            List<Location_Process__c> locationProcessesToInsert = new List<Location_Process__c>();
+            List<Location_Process__c> processesToDelete = new List<Location_Process__c>();
+            List<Location_Process__c> processesToCreate = new List<Location_Process__c>();
+            List<Location_Process__c> processesToUpdate = new List<Location_Process__c>();
             
-            for (Location__c location : selectedLocations) {
-                // Calculate location's share of contract value based on square footage
-                Decimal locationSquareFeet = location.Square_Feet__c != null ? location.Square_Feet__c : 0;
-                Decimal locationContractValue = unitPrice * locationSquareFeet;
+            Integer deletedCount = 0;
+            Integer createdCount = 0;
+            Integer updatedCount = 0;
+            
+            // 1. Handle removals (delete location processes for removed locations)
+            if (!removedLocationIds.isEmpty()) {
+                List<Location_Process__c> existingProcessesToDelete = [
+                    SELECT Id
+                    FROM Location_Process__c
+                    WHERE Location__c IN :removedLocationIds
+                    AND Scope_Entry_Process__c IN (
+                        SELECT Id FROM Scope_Entry_Process__c WHERE Scope_Entry__c = :scopeEntryId
+                    )
+                    WITH USER_MODE
+                ];
                 
-                // Create location processes for each scope entry process
-                for (Scope_Entry_Process__c process : processes) {
-                    // Calculate process contract price based on weight distribution within location
-                    Decimal processWeight = (process.Weight__c != null ? process.Weight__c : 0);
-                    Decimal processContractPrice = (locationContractValue * processWeight) / totalWeight;
-                    
-                    Location_Process__c locationProcess = new Location_Process__c();
-                    locationProcess.Location__c = location.Id;
-                    locationProcess.Scope_Entry_Process__c = process.Id;
-                    locationProcess.Process_Library__c = process.Process_Library__c;
-                    locationProcess.Sequence__c = process.Sequence__c;
-                    locationProcess.Contract_Price__c = processContractPrice;
-                    
-                    locationProcessesToInsert.add(locationProcess);
+                if (!existingProcessesToDelete.isEmpty()) {
+                    delete as user existingProcessesToDelete;
+                    deletedCount = existingProcessesToDelete.size();
                 }
             }
             
-            if (!locationProcessesToInsert.isEmpty()) {
-                insert as user locationProcessesToInsert;
+            // 2. Get final location data for all selected locations (for recalculation)
+            if (!selectedLocationIds.isEmpty()) {
+                List<Location__c> selectedLocations = [
+                    SELECT Id, Square_Feet__c
+                    FROM Location__c
+                    WHERE Id IN :selectedLocationIds
+                    WITH USER_MODE
+                ];
+                
+                if (selectedLocations.isEmpty()) {
+                    return 'Error: Selected locations not found';
+                }
+                
+                // Calculate total square footage across all FINAL selected locations
+                Decimal totalSquareFeet = 0;
+                Map<String, Decimal> locationSquareFeet = new Map<String, Decimal>();
+                
+                for (Location__c location : selectedLocations) {
+                    Decimal sqFt = location.Square_Feet__c != null ? location.Square_Feet__c : 0;
+                    totalSquareFeet += sqFt;
+                    locationSquareFeet.put(location.Id, sqFt);
+                }
+                
+                if (totalSquareFeet == 0) {
+                    return 'Error: Total square footage cannot be zero. Please ensure locations have square footage values';
+                }
+                
+                // Calculate unit price per square foot based on FINAL total square footage
+                Decimal unitPrice = scopeEntry.Contract_Value__c / totalSquareFeet;
+                
+                // 3. Create location processes for newly added locations
+                if (!addedLocationIds.isEmpty()) {
+                    for (String locationId : addedLocationIds) {
+                        Decimal locationSqFt = locationSquareFeet.get(locationId);
+                        if (locationSqFt == null) continue;
+                        
+                        Decimal locationContractValue = unitPrice * locationSqFt;
+                        
+                        // Create location processes for each scope entry process
+                        for (Scope_Entry_Process__c process : processes) {
+                            Decimal processWeight = (process.Weight__c != null ? process.Weight__c : 0);
+                            Decimal processContractPrice = (locationContractValue * processWeight) / totalWeight;
+                            
+                            Location_Process__c locationProcess = new Location_Process__c();
+                            locationProcess.Location__c = locationId;
+                            locationProcess.Scope_Entry_Process__c = process.Id;
+                            locationProcess.Process_Library__c = process.Process_Library__c;
+                            locationProcess.Sequence__c = process.Sequence__c;
+                            locationProcess.Contract_Price__c = processContractPrice;
+                                                        
+                            processesToCreate.add(locationProcess);
+                        }
+                    }
+                    
+                    if (!processesToCreate.isEmpty()) {
+                        insert as user processesToCreate;
+                        createdCount = processesToCreate.size();
+                    }
+                }
+                
+                // 4. Update existing location processes (recalculate contract prices based on new total)
+                if (hasChanges) {
+                    // Get all existing location processes for unchanged locations (need price recalculation)
+                    List<String> unchangedLocationIds = new List<String>();
+                    for (String locationId : selectedLocationIds) {
+                        if (!addedLocationIds.contains(locationId)) {
+                            unchangedLocationIds.add(locationId);
+                        }
+                    }
+                    
+                    if (!unchangedLocationIds.isEmpty()) {
+                        List<Location_Process__c> existingProcessesToUpdate = [
+                            SELECT Id, Location__c, Scope_Entry_Process__c, Contract_Price__c
+                            FROM Location_Process__c
+                            WHERE Location__c IN :unchangedLocationIds
+                            AND Scope_Entry_Process__c IN (
+                                SELECT Id FROM Scope_Entry_Process__c WHERE Scope_Entry__c = :scopeEntryId
+                            )
+                            WITH USER_MODE
+                        ];
+                        
+                        // Create a map for quick process weight lookup
+                        Map<Id, Decimal> processWeights = new Map<Id, Decimal>();
+                        for (Scope_Entry_Process__c process : processes) {
+                            processWeights.put(process.Id, process.Weight__c != null ? process.Weight__c : 0);
+                        }
+                        
+                        for (Location_Process__c existingProcess : existingProcessesToUpdate) {
+                            String locationId = existingProcess.Location__c;
+                            Decimal locationSqFt = locationSquareFeet.get(locationId);
+                            
+                            if (locationSqFt != null) {
+                                Decimal locationContractValue = unitPrice * locationSqFt;
+                                Decimal processWeight = processWeights.get(existingProcess.Scope_Entry_Process__c);
+                                Decimal newProcessContractPrice = (locationContractValue * processWeight) / totalWeight;
+                                
+                                existingProcess.Contract_Price__c = newProcessContractPrice;
+                                processesToUpdate.add(existingProcess);
+                            }
+                        }
+                        
+                        if (!processesToUpdate.isEmpty()) {
+                            update processesToUpdate;
+                            updatedCount = processesToUpdate.size();
+                        }
+                    }
+                }
             }
             
-            return 'Success';
+            // Build success message
+            List<String> messages = new List<String>();
+            
+            if (createdCount > 0) {
+                Integer newLocationsCount = addedLocationIds.size();
+                messages.add(createdCount + ' process(es) created for ' + newLocationsCount + ' new location(s)');
+            }
+            
+            if (deletedCount > 0) {
+                Integer removedLocationsCount = removedLocationIds.size();
+                messages.add(deletedCount + ' process(es) removed for ' + removedLocationsCount + ' location(s)');
+            }
+            
+            if (updatedCount > 0) {
+                messages.add(updatedCount + ' existing process(es) recalculated');
+            }
+            
+            if (messages.isEmpty()) {
+                if (selectedLocationIds.isEmpty()) {
+                    return 'Success: All location processes removed';
+                } else {
+                    return 'Success: No changes were needed';
+                }
+            }
+            
+            return 'Success: ' + String.join(messages, ', ');
+            
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
@@ -753,11 +868,31 @@ public with sharing class SovJobScopeController {
                 'isApiException' => false,
                 'statusCode' => null,
                 'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating location processes.',
+                'moreDetails' => 'Error occurred while creating/updating location processes.',
                 'apiResponse' => null
             });
             return 'Error: ' + e.getMessage();
         }
+    }
+
+    /*
+    *********************************************************
+    @description     : Helper method to convert List<Object> to List<String>
+    @param           : List<Object> objectList - List of objects to convert
+    @return          : List<String> - Converted string list
+    @author          : Helper method for type conversion
+    ********************************************************
+    */
+    private static List<String> convertToStringList(List<Object> objectList) {
+        List<String> stringList = new List<String>();
+        if (objectList != null) {
+            for (Object obj : objectList) {
+                if (obj != null) {
+                    stringList.add(String.valueOf(obj));
+                }
+            }
+        }
+        return stringList;
     }
 
 
