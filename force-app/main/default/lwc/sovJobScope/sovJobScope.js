@@ -2100,9 +2100,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedProcessLibraryIds = [];
         this.processLibrarySearchTerm = '';
         this.selectedProcessCategory = '';
-        this.processLibraryRecords = [];
-        this.processLibraryDisplayRecords = [];
-        this.processTypeOptions = [];
     }
 
     /**
