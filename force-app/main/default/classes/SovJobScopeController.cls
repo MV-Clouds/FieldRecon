@@ -680,7 +680,33 @@ public with sharing class SovJobScopeController {
                 return 'Error: No processes found for this scope entry';
             }
             
-            // Calculate total weight
+            // Get selected locations with their square footage
+            List<Location__c> selectedLocations = [
+                SELECT Id, Square_Feet__c
+                FROM Location__c
+                WHERE Id IN :selectedLocationIds
+                WITH USER_MODE
+            ];
+            
+            if (selectedLocations.isEmpty()) {
+                return 'Error: Selected locations not found';
+            }
+            
+            // Calculate total square footage across all selected locations
+            Decimal totalSquareFeet = 0;
+            for (Location__c location : selectedLocations) {
+                Decimal sqFt = location.Square_Feet__c != null ? location.Square_Feet__c : 0;
+                totalSquareFeet += sqFt;
+            }
+            
+            if (totalSquareFeet == 0) {
+                return 'Error: Total square footage cannot be zero. Please ensure locations have square footage values';
+            }
+            
+            // Calculate unit price per square foot
+            Decimal unitPrice = scopeEntry.Contract_Value__c / totalSquareFeet;
+            
+            // Calculate total weight for process distribution
             Decimal totalWeight = 0;
             for (Scope_Entry_Process__c process : processes) {
                 totalWeight += (process.Weight__c != null ? process.Weight__c : 0);
@@ -693,18 +719,23 @@ public with sharing class SovJobScopeController {
             // Create location process records
             List<Location_Process__c> locationProcessesToInsert = new List<Location_Process__c>();
             
-            for (String locationId : selectedLocationIds) {
+            for (Location__c location : selectedLocations) {
+                // Calculate location's share of contract value based on square footage
+                Decimal locationSquareFeet = location.Square_Feet__c != null ? location.Square_Feet__c : 0;
+                Decimal locationContractValue = unitPrice * locationSquareFeet;
+                
+                // Create location processes for each scope entry process
                 for (Scope_Entry_Process__c process : processes) {
-                    // Calculate contract price based on weight
+                    // Calculate process contract price based on weight distribution within location
                     Decimal processWeight = (process.Weight__c != null ? process.Weight__c : 0);
-                    Decimal contractPrice = (scopeEntry.Contract_Value__c * processWeight) / totalWeight;
+                    Decimal processContractPrice = (locationContractValue * processWeight) / totalWeight;
                     
                     Location_Process__c locationProcess = new Location_Process__c();
-                    locationProcess.Location__c = locationId;
+                    locationProcess.Location__c = location.Id;
                     locationProcess.Scope_Entry_Process__c = process.Id;
                     locationProcess.Process_Library__c = process.Process_Library__c;
                     locationProcess.Sequence__c = process.Sequence__c;
-                    locationProcess.Contract_Price__c = contractPrice;
+                    locationProcess.Contract_Price__c = processContractPrice;
                     
                     locationProcessesToInsert.add(locationProcess);
                 }

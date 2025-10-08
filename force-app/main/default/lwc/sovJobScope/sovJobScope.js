@@ -62,7 +62,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     @track processTableColumns = [
         { 
-            label: 'Process', 
+            label: 'Process Library', 
             fieldName: 'wfrecon__Process_Library__r.Name', 
             type: 'url',
             editable: false
