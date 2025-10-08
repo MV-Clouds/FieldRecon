@@ -163,46 +163,47 @@ export default class HomeTab extends LightningElement {
     getMobilizationMembers() {
         try {
             this.isLoading = true;
-            console.log('Fetching mobilization members for date:', this.apexFormattedDate, 'in', this.activeTab, 'mode');
             getMobilizationMembers({ filterDate: this.apexFormattedDate, mode: this.activeTab })
                 .then((data) => {
-                    console.log('Data fetched successfully:', data);
-                    if(result != null){
-                        if(this.activeTab == 'today') {
-                            this.todayJobList = data.dayJobs || [];
-                            this.isTodayJobAvailable = this.todayJobList.length > 0;
-                            
-                            this.todayJobList = this.todayJobList.map(job => {
-                                return {
-                                    ...job,
-                                    jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
-                                    jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
-                                    mapMarkers: [{
-                                        location: {
-                                            Street: job.jobStreet || '',
-                                            City: job.jobCity || '',
-                                            State: job.jobState || '',
-                                            PostalCode: job.jobPostalCode || '',
-                                            Country: job.jobCountry || ''
-                                        },
-                                        value: job.mobId,
-                                        title: job.jobName ? `${job.jobName} (${job.jobNumber})` : job.jobNumber,
-                                        description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
-                                        icon: 'standard:account'
-                                    }]
-                                };
-                            });
-    
-                            const costCodeMap = data.costCodeDetails[0].costCodeDetails;
-                            this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
-                                label: costCodeMap[key], // the name
-                                value: key               // the id
-                            }));
-    
-                        } else if(this.activeTab == 'week') {
-                            let apexData = data.weekJobs || [];
-                            this.groupWeeklyJobData(apexData);
-                            this.isWeekJobAvailable = apexData.length > 0;
+                    console.log('getMobilizationMembers fetched successfully:', data);
+                    if(data != null){
+                        if (data && Object.keys(data).length !== 0) {
+                            if(this.activeTab == 'today') {
+                                this.todayJobList = data.dayJobs || [];
+                                this.isTodayJobAvailable = this.todayJobList.length > 0;
+                                
+                                this.todayJobList = this.todayJobList.map(job => {
+                                    return {
+                                        ...job,
+                                        jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
+                                        jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
+                                        mapMarkers: [{
+                                            location: {
+                                                Street: job.jobStreet || '',
+                                                City: job.jobCity || '',
+                                                State: job.jobState || '',
+                                                PostalCode: job.jobPostalCode || '',
+                                                Country: job.jobCountry || ''
+                                            },
+                                            value: job.mobId,
+                                            title: job.jobName ? `${job.jobName} (${job.jobNumber})` : job.jobNumber,
+                                            description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
+                                            icon: 'standard:account'
+                                        }]
+                                    };
+                                });
+        
+                                const costCodeMap = data.costCodeDetails[0].costCodeDetails;
+                                this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
+                                    label: costCodeMap[key], // the name
+                                    value: key               // the id
+                                }));
+        
+                            } else if(this.activeTab == 'week') {
+                                let apexData = data.weekJobs || [];
+                                this.groupWeeklyJobData(apexData);
+                                this.isWeekJobAvailable = apexData.length > 0;
+                            }
                         }
                     } else {
                         this.showToast('Error', 'Failed to load data!', 'error');
@@ -228,8 +229,6 @@ export default class HomeTab extends LightningElement {
     */
     groupWeeklyJobData(apexData) {
         try {
-            console.log(apexData);
-            
             // Generate week range: today → next Monday (7 days total)
             let today = new Date();
 
@@ -265,7 +264,6 @@ export default class HomeTab extends LightningElement {
 
                 let dateKey = currentDate.toDateString();
                 let jobsForDay = normalizedApexData[dateKey] || []; 
-                console.log(dateKey);
 
                 weekSections.push({
                     id: `day-${i}`,
@@ -275,8 +273,6 @@ export default class HomeTab extends LightningElement {
             }
 
             this.weekJobList = weekSections;
-            console.log(this.weekJobList);
-            
         } catch (error) {
             console.error('Error in groupWeeklyJobData :: ', error);
         }
@@ -294,8 +290,10 @@ export default class HomeTab extends LightningElement {
                 .then(result => {
                     console.log('getTimeSheetEntryItems result :: ', result);
                     
-                    if(result != null) {   
-                        this.timesheetDetailsRaw = result;
+                    if(result != null) {  
+                        if (result && result.length !== 0) {
+                            this.timesheetDetailsRaw = result;
+                        } 
                     } else {
                         this.showToast('Error', 'Failed to load data!', 'error');
                     }
@@ -457,6 +455,7 @@ export default class HomeTab extends LightningElement {
                     console.log('createTimesheetRecords apex result :: ', result);
                     if(result == true) {
                         this.getMobilizationMembers();
+                        this.getTimesheetDetails();
                         this.closeClockInModal();
                         this.showToast('Success', 'Clocked In Successfully', 'success');
                     } else {
@@ -486,11 +485,15 @@ export default class HomeTab extends LightningElement {
                 return;
             }
 
-            this.isLoading = true;
-
             const selectedRecordDetails = this.todayJobList.find(
                 record => record.mobId === this.selectedMobilizationId
             );
+
+            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime)) {
+                this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+            this.isLoading = true;
 
             const params = {
                 actionType: 'clockOut',
@@ -514,6 +517,7 @@ export default class HomeTab extends LightningElement {
                     console.log('createTimesheetRecords apex :: result', result);
                     if(result == true) {
                         this.getMobilizationMembers();
+                        this.getTimesheetDetails();
                         this.closeClockOutModal();
                         this.showToast('Success', 'Clocked Out Successfully', 'success');
                     } else {
@@ -523,6 +527,8 @@ export default class HomeTab extends LightningElement {
                 .catch(error => {
                     this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     console.error('Error creating timesheet records createTimesheetRecords apex :: ', error);
+                })
+                .finally(() => {
                     this.isLoading = false;
                 });
             return;

@@ -53,6 +53,12 @@
                                                                 <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
                                                             </template>
                                                         </div>
+
+                                                        <template if:true={job.isAgain}>
+                                                            <div class="info-message info-style">
+                                                                You already logged one entry for the day.
+                                                            </div>
+                                                        </template>
                                                     </div>
 
                                                     <div class="separator"></div>
@@ -68,7 +74,7 @@
                                         </div>
                                     </template>
                                     <div class="no-jobs-message" if:false={isTodayJobAvailable}>
-                                        No Jobs Assigned for Today
+                                        No jobs assigned for today
                                     </div>
                                 </div>
                             </template>
@@ -115,7 +121,7 @@
                                                         </div>
                                                     </template>
                                                     <template if:false={daySection.jobs.length}>
-                                                        <p class="no-jobs">No jobs scheduled for this day.</p>
+                                                        <p class="no-jobs">No jobs assigned for this day.</p>
                                                     </template>
                                                 </lightning-accordion-section>
                                             </template>
@@ -175,7 +181,7 @@
                                         <div class="empty-state__icon">
                                             <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                                         </div>
-                                        <div class="empty-state__message">No Timesheet data available for Past Week</div>
+                                        <div class="empty-state__message">No timesheet data available for past week</div>
                                     </div>
                                 </div>
                             </div>
@@ -205,7 +211,7 @@
                                 <div class="clock-in-container">
                                     <div class="input-column">
                                         <div class="select-person-container">
-                                            <label class="select-label">Select Cost Code</label>
+                                            <label class="select-label required">Select Cost Code</label>
                                             <div class="select-wrapper">
                                                 <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
                                                     <option value="">-- Select a cost code --</option>
@@ -219,7 +225,7 @@
                                     
                                     <div class="input-column">
                                         <div class="datetime-container">
-                                            <label class="datetime-label">Clock In DateTime</label>
+                                            <label class="datetime-label required">Clock In DateTime</label>
                                             <div class="datetime-wrapper">
                                                 <input type="datetime-local" class="custom-datetime" data-field="clockIn" value={clockInTime} onchange={handleInputChange}/>
                                             </div>
@@ -259,7 +265,7 @@
                                     <div class="form-wrapper">
                                         <div class="input-column">
                                             <div class="datetime-container">
-                                                <label class="datetime-label">Clock Out DateTime</label>
+                                                <label class="datetime-label required">Clock Out DateTime</label>
                                                 <div class="datetime-wrapper">
                                                     <input type="datetime-local" class="custom-datetime" data-field="clockOut" value={clockOutTime} onchange={handleInputChange}/>
                                                 </div>

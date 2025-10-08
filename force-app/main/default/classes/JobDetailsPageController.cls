@@ -22,13 +22,16 @@ public with sharing class JobDetailsPageController {
     ********************************************************
     */
     @AuraEnabled
-    public static List<MobilizationWrapper> getJobRelatedMoblizationDetails(Date filterDate, String mode) {
+    public static List<MobilizationWrapper> getJobRelatedMoblizationDetails(Date filterDate, String mode, Date customStartDate, Date customEndDate) {
         try {
             System.debug('filterDate in apex: ' + filterDate);
             DateTime startOfDay;
             DateTime endOfDay;
 
-            if (mode == 'week') {
+            if (mode == 'custom' && customStartDate != null && customEndDate != null) {
+                startOfDay = DateTime.newInstance(customStartDate, Time.newInstance(0,0,0,0));
+                endOfDay   = DateTime.newInstance(customEndDate, Time.newInstance(23,59,59,999));
+            } else if (mode == 'week') {
                 DateTime dt = DateTime.newInstance(filterDate, Time.newInstance(0, 0, 0, 0));
                 Integer dow = Integer.valueOf(dt.format('u')); // 1=Mon … 7=Sun
                 Date startOfWeek = dow == 7 ? filterDate : filterDate.addDays(-dow);
@@ -48,7 +51,7 @@ public with sharing class JobDetailsPageController {
                 FROM Mobilization__c
                 WHERE Start_Date__c >= :startOfDay 
                 AND Start_Date__c <= :endOfDay 
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
                 ORDER BY Start_Date__c ASC
             ];
 
@@ -74,6 +77,7 @@ public with sharing class JobDetailsPageController {
                 FROM Timesheet_Entry_Item__c
                 WHERE Timesheet_Entry__r.TimeSheet__r.Job__c IN :jobDateMap.keySet()
                 AND Clock_In_Date__c != null
+                WITH USER_MODE
                 GROUP BY Timesheet_Entry__r.TimeSheet__r.Job__c, Clock_In_Date__c
             ]) {
                 Id jobId = (Id)ar.get('jobId');
@@ -139,7 +143,8 @@ public with sharing class JobDetailsPageController {
                 FROM Timesheet_Entry_Item__c 
                 WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId
                   AND Clock_In_Date__c = :startDate
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
+                ORDER BY Clock_In_Time__c ASC
             ];
 
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
@@ -175,7 +180,7 @@ public with sharing class JobDetailsPageController {
                 SELECT Id, Job__c, Start_Date__c, End_Date__c
                 FROM Mobilization__c
                 WHERE Id = :mobId 
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
                 LIMIT 1
             ];
             System.debug('mobilizationRecord.size() ::' + mobilizationRecord.size());
@@ -188,7 +193,7 @@ public with sharing class JobDetailsPageController {
                 AND Contact__c != null
                 AND (Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon'))
                 AND Contact__r.Can_Clock_In_Out__c = true
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
             ];
             System.debug('members.size() ::' + members.size());
     
@@ -213,7 +218,7 @@ public with sharing class JobDetailsPageController {
                 AND Job__c = :jobId
                 AND Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].Start_Date__c)
                 AND Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].End_Date__c)
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
             ];
             System.debug('tsList: ' + tsList.size());
             Map<Id, Timesheet__c> contactTimesheetMap = new Map<Id, Timesheet__c>();
@@ -230,7 +235,7 @@ public with sharing class JobDetailsPageController {
                 WHERE Timesheet__c IN :tsList
                 AND Clock_In_Time__c >= :startDate
                 AND Clock_In_Time__c < :startDate.addDays(1)
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
             ];
             System.debug('entries: ' + entries.size());
             
@@ -321,7 +326,7 @@ public with sharing class JobDetailsPageController {
             }
             // 5. Build cost code details
             Map<Id, String> costCodeDetails = new Map<Id, String>();
-            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c];
+            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c WITH USER_MODE];
             for (Cost_Code__c c : costCodeRecs) {
                 costCodeDetails.put(c.Id, c.Name);
             }
@@ -348,7 +353,7 @@ public with sharing class JobDetailsPageController {
             Map<String, Object> paramsMap = (Map<String, Object>) JSON.deserializeUntyped(params);
             System.debug(paramsMap);
             
-            List<Mobilization_Member__c> mobMemberRecs = [SELECT Id, Contact__c, Mobilization__r.Mobilization_Group__r.Start_Date__c, Mobilization__r.Mobilization_Group__r.End_Date__c FROM Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId')];
+            List<Mobilization_Member__c> mobMemberRecs = [SELECT Id, Contact__c, Mobilization__r.Mobilization_Group__r.Start_Date__c, Mobilization__r.Mobilization_Group__r.End_Date__c FROM Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
 
             if((String) paramsMap.get('actionType') == 'clockIn') {
                 
@@ -364,23 +369,23 @@ public with sharing class JobDetailsPageController {
                     timesheetRec.Timesheet_Start_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.Start_Date__c.date();
                     timesheetRec.Timesheet_End_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.End_Date__c.date();
                     timesheetRec.Do_Not_Execute__c = true;
-                    insert as user timesheetRec;
+                    insert timesheetRec;
     
                     Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
                     timesheetEntryRec.Timesheet__c = timesheetRec.Id;
                     timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
                     timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.Do_Not_Execute__c = true;
-                    insert as user timesheetEntryRec;
+                    insert timesheetEntryRec;
                 } else {
-                    List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId')];
+                    List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
                     
                     Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
                     timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
                     timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
                     timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.Do_Not_Execute__c = true;
-                    insert as user timesheetEntryRec;
+                    insert timesheetEntryRec;
                 }
             }
 
@@ -392,38 +397,133 @@ public with sharing class JobDetailsPageController {
 
                 // Convert clockInTime to UTC to user timezone
                 String clockInTimeString = (String)paramsMap.get('clockInTime');
+                Datetime clkInUserTz  = Datetime.valueOfGmt(clockInTimeString.replace('T',' ').replace('Z',''));
+
+                // Helper to check date difference
+                Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
 
                 if(paramsMap.get('isTimeSheetEntryNull') == true) {
                     if(paramsMap.get('isTimeSheetNull') == false) {
-                        List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId')];
+                        List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
 
-                        Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                        timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
-                        timesheetEntryRec.Clock_In_Time__c = Datetime.valueOfGmt(clockInTimeString.replace('T',' ').replace('Z',''));
-                        timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
-                        timesheetEntryRec.Do_Not_Execute__c = true;
-                        insert as user timesheetEntryRec;
+                        if (!timesheetRecs.isEmpty()) {
+                            Id tsId = timesheetRecs[0].Id;
+                            
+                            if (crossesMidnight) {
+                                // 🕛 Split Entry Across Two Days
+                                Datetime firstDayEnd = DateTime.newInstance(clkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
+                                Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
-                        Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
-                        timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRec.Id;
-                        timesheetEntryItemRec.Clock_In_Time__c = timesheetEntryRec.Clock_In_Time__c;
-                        timesheetEntryItemRec.Clock_Out_Time__c = timesheetEntryRec.Clock_Out_Time__c;
-                        timesheetEntryItemRec.Cost_Code__c = timesheetEntryRec.Cost_Code__c;
-                        timesheetEntryItemRec.Do_Not_Execute__c = true;
-                        insert as user timesheetEntryItemRec;
+                                // 1️⃣ Entry for Day 1 (till 11:59 PM)
+                                Timesheet_Entry__c entryDay1 = new Timesheet_Entry__c(
+                                    Timesheet__c = tsId,
+                                    Clock_In_Time__c = clkInUserTz,
+                                    Clock_Out_Time__c = firstDayEnd,
+                                    Do_Not_Execute__c = true
+                                );
+                                insert entryDay1;
+
+                                Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
+                                    Timesheet_Entry__c = entryDay1.Id,
+                                    Clock_In_Time__c = entryDay1.Clock_In_Time__c,
+                                    Clock_Out_Time__c = entryDay1.Clock_Out_Time__c,
+                                    Do_Not_Execute__c = true
+                                );
+                                insert itemDay1;
+
+                                // 2️⃣ Entry for Day 2 (from 12:00 AM)
+                                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
+                                    Timesheet__c = tsId,
+                                    Clock_In_Time__c = secondDayStart,
+                                    Clock_Out_Time__c = clkOutUserTz,
+                                    Do_Not_Execute__c = true
+                                );
+                                insert entryDay2;
+
+                                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
+                                    Timesheet_Entry__c = entryDay2.Id,
+                                    Clock_In_Time__c = entryDay2.Clock_In_Time__c,
+                                    Clock_Out_Time__c = entryDay2.Clock_Out_Time__c,
+                                    Do_Not_Execute__c = true
+                                );
+                                insert itemDay2;
+
+                            } else {
+                                Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
+                                timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
+                                timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
+                                timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
+                                timesheetEntryRec.Do_Not_Execute__c = true;
+                                insert timesheetEntryRec;
+        
+                                Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
+                                timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRec.Id;
+                                timesheetEntryItemRec.Clock_In_Time__c = timesheetEntryRec.Clock_In_Time__c;
+                                timesheetEntryItemRec.Clock_Out_Time__c = timesheetEntryRec.Clock_Out_Time__c;
+                                timesheetEntryItemRec.Cost_Code__c = timesheetEntryRec.Cost_Code__c;
+                                timesheetEntryItemRec.Do_Not_Execute__c = true;
+                                insert timesheetEntryItemRec;
+                            }
+                        }
                     }
                 } else {
-                    List<Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Cost_Code__c FROM Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId')];
-                    timesheetEntryRecs[0].Clock_Out_Time__c = clkOutUserTz;
-                    update as user timesheetEntryRecs;
-    
-                    Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
-                    timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRecs[0].Id;
-                    timesheetEntryItemRec.Clock_In_Time__c = timesheetEntryRecs[0].Clock_In_Time__c;
-                    timesheetEntryItemRec.Clock_Out_Time__c = timesheetEntryRecs[0].Clock_Out_Time__c;
-                    timesheetEntryItemRec.Cost_Code__c = timesheetEntryRecs[0].Cost_Code__c;
-                    timesheetEntryItemRec.Do_Not_Execute__c = true;
-                    insert as user timesheetEntryItemRec;
+                    List<Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Cost_Code__c, Timesheet__c FROM Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
+                    if (!timesheetEntryRecs.isEmpty()) {
+                        Timesheet_Entry__c existing = timesheetEntryRecs[0];
+                        Boolean crossesMidnightExisting = (existing.Clock_In_Time__c.date() != clkOutUserTz.date());
+
+                        if (crossesMidnightExisting) {
+                            Datetime firstDayEnd = DateTime.newInstance(existing.Clock_In_Time__c.date(), Time.newInstance(23, 59, 59, 999));
+                            Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
+
+                            // Update existing entry to end at 11:59 PM
+                            existing.Clock_Out_Time__c = firstDayEnd;
+                            update existing;
+
+                            // Create Timesheet Entry Item for day 1
+                            Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
+                                Timesheet_Entry__c = existing.Id,
+                                Clock_In_Time__c = existing.Clock_In_Time__c,
+                                Clock_Out_Time__c = existing.Clock_Out_Time__c,
+                                Cost_Code__c = existing.Cost_Code__c,
+                                Do_Not_Execute__c = true
+                            );
+                            insert itemDay1;
+
+                            // Create new entry for next day
+                            Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
+                                Timesheet__c = existing.Timesheet__c,
+                                Clock_In_Time__c = secondDayStart,
+                                Clock_Out_Time__c = clkOutUserTz,
+                                Cost_Code__c = existing.Cost_Code__c,
+                                Do_Not_Execute__c = true
+                            );
+                            insert entryDay2;
+
+                            // Create Timesheet Entry Item for day 2
+                            Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
+                                Timesheet_Entry__c = entryDay2.Id,
+                                Clock_In_Time__c = entryDay2.Clock_In_Time__c,
+                                Clock_Out_Time__c = entryDay2.Clock_Out_Time__c,
+                                Cost_Code__c = entryDay2.Cost_Code__c,
+                                Do_Not_Execute__c = true
+                            );
+                            insert itemDay2;
+                        } else {
+                            // Normal same-day update
+                            existing.Clock_Out_Time__c = clkOutUserTz;
+                            update existing;
+
+                            Timesheet_Entry_Item__c item = new Timesheet_Entry_Item__c(
+                                Timesheet_Entry__c = existing.Id,
+                                Clock_In_Time__c = existing.Clock_In_Time__c,
+                                Clock_Out_Time__c = existing.Clock_Out_Time__c,
+                                Cost_Code__c = existing.Cost_Code__c,
+                                Do_Not_Execute__c = true
+                            );
+                            insert item;
+                        }
+                    }
                 }
             }
 
@@ -448,14 +548,14 @@ public with sharing class JobDetailsPageController {
                 SELECT Id, Name 
                 FROM Contact 
                 WHERE RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
                 ORDER BY Name ASC
             ];
 
             Map<String, Object> result = new Map<String, Object>();
             result.put('contacts', allContactsRecs);
 
-            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c ORDER BY Name ASC];
+            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c WITH USER_MODE ORDER BY Name ASC];
             result.put('costCodes', costCodeRecs);
 
             return result;
@@ -502,7 +602,7 @@ public with sharing class JobDetailsPageController {
                 AND Job__c = :jobId
                 AND Timesheet_Start_Date__c <= :jobStartDate
                 AND Timesheet_End_Date__c >= :jobEndDate
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
             ];
             
             Timesheet__c tsRec = new Timesheet__c();
@@ -512,7 +612,7 @@ public with sharing class JobDetailsPageController {
                     SELECT Id, Name, Mobilization_Group__r.Start_Date__c, Mobilization_Group__r.End_Date__c 
                     FROM Mobilization__c 
                     WHERE Id = :mobId
-                    WITH SECURITY_ENFORCED
+                    WITH USER_MODE
                 ];
 
                 Timesheet__c timesheetRec = new Timesheet__c();
@@ -521,7 +621,7 @@ public with sharing class JobDetailsPageController {
                 timesheetRec.Timesheet_Start_Date__c = mobRec[0].Mobilization_Group__r.Start_Date__c.date();
                 timesheetRec.Timesheet_End_Date__c = mobRec[0].Mobilization_Group__r.End_Date__c.date();
                 timesheetRec.Do_Not_Execute__c = true;
-                insert as user timesheetRec;
+                insert timesheetRec;
 
                 tsRec = timesheetRec;
             } else {
@@ -567,42 +667,40 @@ public with sharing class JobDetailsPageController {
             System.debug(params);
             Map<String, Object> jsonList = (Map<String, Object>) JSON.deserializeUntyped(params);
             System.debug(jsonList);
+
             // Query records
-            List<Timesheet_Entry_Item__c> tsItems = [
+            Timesheet_Entry_Item__c tsItem = [
                 SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c 
                 FROM Timesheet_Entry_Item__c 
                 WHERE Id = :(String)jsonList.get('Id')
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
+                LIMIT 1
             ];
 
-            List<Timesheet_Entry__c> tsEntry = [
-                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c 
+            Timesheet_Entry__c tsEntry = [
+                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__c 
                 FROM Timesheet_Entry__c 
                 WHERE Id = :(String)jsonList.get('TSEId')
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
+                LIMIT 1
             ];
 
-            String clockInTimeString = (String)jsonList.get('ClockIn');
-            Datetime clkInUserTz = convertUtc(clockInTimeString);
+            // Convert clock-in and clock-out strings to Datetime
+            Datetime clkInUserTz = convertUtc((String)jsonList.get('ClockIn'));
+            Datetime clkOutUserTz = convertUtc((String)jsonList.get('ClockOut'));
 
-            String clockOutTimeString = (String)jsonList.get('ClockOut');
-            Datetime clkOutUserTz = convertUtc(clockOutTimeString);
+            Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
+            Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
 
-            // Update travel time
-            for (Timesheet_Entry_Item__c item : tsItems) {
-                item.Clock_In_Time__c = clkInUserTz;
-                item.Clock_Out_Time__c = clkOutUserTz;
-                item.Travel_Time__c = (Decimal.valueOf((String)jsonList.get('TravelTime')));
-                item.Per_Diem__c = (Integer.valueOf((String)jsonList.get('PerDiem')));
-            }
+            tsItem.Clock_In_Time__c = clkInUserTz;
+            tsItem.Clock_Out_Time__c = clkOutUserTz;
+            tsItem.Travel_Time__c = (Decimal.valueOf((String)jsonList.get('TravelTime')));
+            tsItem.Per_Diem__c = (Integer.valueOf((String)jsonList.get('PerDiem')));
+            update tsItem;
 
-            for (Timesheet_Entry__c entry : tsEntry) {
-                entry.Clock_In_Time__c = clkInUserTz;
-                entry.Clock_Out_Time__c = clkOutUserTz;
-            }
-
-            update as user tsItems;
-            update as user tsEntry;
+            tsEntry.Clock_In_Time__c = clkInUserTz;
+            tsEntry.Clock_Out_Time__c = clkOutUserTz;
+            update tsEntry;
 
             return true;
         } catch (Exception e) {
@@ -666,6 +764,7 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public String contactName;
         @AuraEnabled public Datetime clockInTime;
         @AuraEnabled public Datetime clockOutTime;
+        @AuraEnabled public Decimal workHours;
         @AuraEnabled public Decimal travelTime;
         @AuraEnabled public Decimal perDiem;
         @AuraEnabled public Decimal totalTime;
@@ -683,7 +782,8 @@ public with sharing class JobDetailsPageController {
 
             this.travelTime = item.Travel_Time__c != null ? item.Travel_Time__c : 0.00;
             this.perDiem = item.Per_Diem__c != null ? item.Per_Diem__c : 0;
-            this.totalTime = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
+            this.workHours = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
+            this.totalTime = this.workHours + this.travelTime;
             this.costCodeName = item.Cost_Code__r != null ? item.Cost_Code__r.Name : '-';
             this.clockInDate = item.Clock_In_Date__c;
         }

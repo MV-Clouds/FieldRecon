@@ -16,6 +16,9 @@ export default class JobDetailsPage extends LightningElement {
     @track viewMode = 'day';
     @track weekStart;
     @track weekEnd;
+    @track searchTerm;
+    @track customStartDate;
+    @track customEndDate;
     @track showClockInOutModal = false;
     @track showTimesheetModal = false;
     @track jobId;
@@ -70,6 +73,7 @@ export default class JobDetailsPage extends LightningElement {
         { label: 'Full Name', fieldName: 'contactName', style: 'width: 12rem' },
         { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 10rem' },
         { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
+        { label: 'Work Hours', fieldName: 'workHours', style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
         { label: 'Per Diem', fieldName: 'perDiem', style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
@@ -144,10 +148,6 @@ export default class JobDetailsPage extends LightningElement {
             console.error('Error in jobDetails ::', error);
         }
     }
-
-    get clockInOutModalClass() {
-        return this.activeTab === 'clockin' ? 'slds-modal__container clock-in-popup' : 'slds-modal__container';
-    }
     
     get clockInTabClass() {
         return this.activeTab === 'clockin' ? 'active' : '';
@@ -163,6 +163,10 @@ export default class JobDetailsPage extends LightningElement {
     
     get isClockOutActive(){
         return this.activeTab === 'clockout';
+    }
+
+    get isCustomView() {
+        return this.viewMode == 'custom';
     }
 
     get dayClass() {
@@ -243,7 +247,7 @@ export default class JobDetailsPage extends LightningElement {
         try {
             this.isLoading = true;
             
-            getJobRelatedMoblizationDetails({ filterDate: this.apexFormattedDate, mode: this.viewMode })
+            getJobRelatedMoblizationDetails({ filterDate: this.apexFormattedDate, mode: this.viewMode, customStartDate: this.customStartDate, customEndDate: this.customEndDate })
                 .then((data) => {
                     if(data != null) {
                         this.jobDetailsRaw = data;
@@ -280,7 +284,8 @@ export default class JobDetailsPage extends LightningElement {
     */
     handleSearch(event) {
         try {
-            const searchKey = event.target.value.toLowerCase();
+            this.searchTerm = event.target.value;
+            const searchKey = event.target.value.trim().toLowerCase();
     
             if (!searchKey) {
                 // If input is empty, show all
@@ -372,6 +377,8 @@ export default class JobDetailsPage extends LightningElement {
         try {
             this.viewMode = 'day';
             this.selectedDate = new Date(); // reset to today
+            this.customStartDate = null;
+            this.customEndDate = null;
             this.getJobRelatedMoblizationDetails();
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -386,6 +393,9 @@ export default class JobDetailsPage extends LightningElement {
     switchToWeekView() {
         try {
             this.viewMode = 'week';
+            this.customStartDate = null;
+            this.customEndDate = null;
+            this.selectedDate = new Date();
             this.calculateWeekRange();
             this.getJobRelatedMoblizationDetails();
         } catch (error) {
@@ -417,7 +427,47 @@ export default class JobDetailsPage extends LightningElement {
     * @description: Method is used to switch to custom view
     */
     switchToCustomView() {
-        this.viewMode = 'custom';
+        try {
+            this.viewMode = 'custom';
+    
+            // Get today's date
+            const today = new Date();
+    
+            // Get day of week (0 = Sunday, 6 = Saturday)
+            const day = today.getDay();
+    
+            // Calculate Sunday (start of week)
+            const sunday = new Date(today);
+            sunday.setDate(today.getDate() - day);
+    
+            // Calculate Saturday (end of week)
+            const saturday = new Date(sunday);
+            saturday.setDate(sunday.getDate() + 6);
+    
+            // Convert to yyyy-MM-dd (for <input type="date">)
+            const toISODate = date => date.toISOString().split('T')[0];
+    
+            this.customStartDate = toISODate(sunday);
+            this.customEndDate = toISODate(saturday);
+    
+            // Optionally trigger Apex call immediately with defaults
+            this.getJobRelatedMoblizationDetails();
+        } catch (error) {
+            console.error('Error in switchToCustomView :: ', error);
+        }
+    }
+
+    handleCustomDateChange(event) {
+        const field = event.target.dataset.field;
+        if (field === 'filterStart') {
+            this.customStartDate = event.target.value;
+        } else if (field === 'filterEnd') {
+            this.customEndDate = event.target.value;
+        }
+
+        if(this.customStartDate && this.customEndDate) {
+            this.getJobRelatedMoblizationDetails();
+        }
     }
 
     /** 
@@ -519,7 +569,7 @@ export default class JobDetailsPage extends LightningElement {
     handleClockIn() {
         try {
             if(!this.selectedContactId || !this.clockInTime || !this.selectedCostCodeId) {
-                this.showToast('Error', 'Please fill value in all the fields!', 'error');
+                this.showToast('Error', 'Please fill value in all required the fields!', 'error');
                 console.error('No contact/cost code/time selected');
                 return;
             }
@@ -639,16 +689,21 @@ export default class JobDetailsPage extends LightningElement {
     handleClockOut() {
         try {
             if(!this.selectedContactId || !this.clockOutTime) {
-                this.showToast('Error', 'Please fill value in all the fields!', 'error');
+                this.showToast('Error', 'Please fill value in all the required fields!', 'error');
                 console.error('No contact/time selected');
                 return;
             }
-
-            this.isLoading = true;
-
+            
             const selectedRecordDetails = this.clockOutList.find(
                 record => record.contactId === this.selectedContactId
             );
+
+            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime)) {
+                this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+            
+            this.isLoading = true;
 
             const params = {
                 actionType: 'clockOut',
@@ -703,7 +758,7 @@ export default class JobDetailsPage extends LightningElement {
     
             if(dataField == 'costCode') {
                 this.selectedCostCodeId = value;
-            } else if(dataField == 'clockIn' || dataField == clockOut) {
+            } else if(dataField == 'clockIn' || dataField == 'clockOut') {
                 this.selectedContactId = value;
                 this.clockInTime = this.defaultStartTime;
                 this.clockOutTime = this.defaultEndTime;
@@ -873,9 +928,19 @@ export default class JobDetailsPage extends LightningElement {
     */
     createManualTimesheet() {
         try {
+            console.log(this.selectedManualPersonId);
+            console.log(this.selectedCostCodeId);
+            console.log(this.clockInTime);
+            console.log(this.clockOutTime);
+            
             if(!this.selectedManualPersonId || !this.selectedCostCodeId || !this.clockInTime || !this.clockOutTime) {
-                this.showToast('Error', 'Please fill value in all the fields!', 'error');
+                this.showToast('Error', 'Please fill value in all the required fields!', 'error');
                 console.error('No contact/cost code/clock in time/clock out time selected');
+                return;
+            }
+
+            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(this.clockInTime.replace(' ', 'T'))) {
+                this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
                 return;
             }
 
@@ -961,8 +1026,8 @@ export default class JobDetailsPage extends LightningElement {
                     Id: record.id,
                     TSEId: record.TSEId,
                     FullName: record.contactName,
-                    ClockIn: record.clockInTime,
-                    ClockOut: record.clockOutTime,
+                    ClockIn: record.clockInTime.slice(0, 16),
+                    ClockOut: record.clockOutTime.slice(0, 16),
                     TravelTime: record.travelTime || 0.00,
                     PerDiem: record.perDiem || 0.00
                 };
@@ -1022,6 +1087,11 @@ export default class JobDetailsPage extends LightningElement {
                     return false;
                 }
                 entry.PerDiem = perDiemNum; // store as number
+            }
+
+            if(new Date(entry.ClockOut.replace(' ', 'T')) <= new Date(entry.ClockIn.replace(' ', 'T'))) {
+                this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
             }
 
             this.isLoading = true;

@@ -72,7 +72,7 @@ public class JobDetailsPageControllerTest {
         Date filterDate = Date.today();
         Test.startTest();
         List<JobDetailsPageController.MobilizationWrapper> wrappers =
-            JobDetailsPageController.getJobRelatedMoblizationDetails(filterDate, 'day');
+            JobDetailsPageController.getJobRelatedMoblizationDetails(filterDate, 'day', null, null);
         Test.stopTest();
     }
 
@@ -81,7 +81,7 @@ public class JobDetailsPageControllerTest {
         Date filterDate = Date.today();
         Test.startTest();
         List<JobDetailsPageController.MobilizationWrapper> wrappers =
-            JobDetailsPageController.getJobRelatedMoblizationDetails(filterDate, 'week');
+            JobDetailsPageController.getJobRelatedMoblizationDetails(filterDate, 'week', null, null);
         Test.stopTest();
     }
 
@@ -97,10 +97,39 @@ public class JobDetailsPageControllerTest {
 
     @IsTest
     static void testGetMobilizationMembersWithStatus_NoTimesheet() {
-        Mobilization__c mob = [SELECT Id FROM Mobilization__c LIMIT 1];
+        RecordType empRt = [SELECT Id FROM RecordType WHERE DeveloperName='Employee_WF_Recon' AND SObjectType='Contact' LIMIT 1];
+        Contact emp3 = new Contact(FirstName='Employee1', LastName='Test', RecordTypeId=empRt.Id, Can_Clock_In_Out__c=true);
+        insert emp3;
+
+        Job__c job3 = new Job__c(Job_Name__c='Job 3', Description__c='Test Job 3');
+        insert job3;
+
+        Mobilization_Group__c mobGroup3 = new Mobilization_Group__c(
+            Start_Date__c = Date.today(),
+            End_Date__c = Date.today().addDays(1),
+            Job__c = job3.Id,
+            Mobilization_Status__c='Confirmed'
+        );
+        insert mobGroup3;
+
+        Mobilization__c mob3 = new Mobilization__c(
+            Job__c=job3.Id,
+            Start_Date__c=Date.today(),
+            End_Date__c=Date.today().addDays(1),
+            Mobilization_Group__c=mobGroup3.Id,
+            Mobilization_Status__c='Confirmed'
+        );
+        insert mob3;
+
+        Mobilization_Member__c member3 = new Mobilization_Member__c(
+            Mobilization__c=mob3.Id, 
+            Contact__c=emp3.Id
+        );
+        insert member3;
+
         Test.startTest();
         Map<String,List<JobDetailsPageController.WrapperMember>> members =
-            JobDetailsPageController.getMobilizationMembersWithStatus(mob.Id);
+            JobDetailsPageController.getMobilizationMembersWithStatus(mob3.Id);
         Test.stopTest();
     }
 
@@ -181,6 +210,60 @@ public class JobDetailsPageControllerTest {
         Date today = Date.today();
         Datetime clockInDt = Datetime.newInstance(today, Time.newInstance(10,0,0,0));
         Datetime clockOutDt = Datetime.newInstance(today, Time.newInstance(12,0,0,0));
+
+        String params = JSON.serialize(new Map<String,Object>{
+            'mobMemberId' => member.Id,
+            'actionType' => 'clockOut',
+            'isTimeSheetNull' => false,
+            'isTimeSheetEntryNull' => true,
+            'timesheetId' => ts.Id,
+            'clockInTime' => clockInDt,
+            'clockOutTime' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'jobId' => member.Mobilization__r.Job__c,
+            'costCodeId' => null
+        });
+
+        Test.startTest();
+        Boolean res = JobDetailsPageController.createTimesheetRecords(params);
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testCreateTimesheetRecords_ClockOutExistingEntryMidnight() {
+        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c FROM Mobilization_Member__c LIMIT 1];
+        Timesheet__c ts = [SELECT Id FROM Timesheet__c LIMIT 1];
+        Timesheet_Entry__c entry = [SELECT Id, Clock_In_Time__c FROM Timesheet_Entry__c WHERE Timesheet__c=:ts.Id LIMIT 1];
+
+        Date today = Date.today();
+        Datetime clockInDt = Datetime.newInstance(today, Time.newInstance(10,0,0,0));
+        Datetime clockOutDt = Datetime.newInstance(today.addDays(1), Time.newInstance(12,0,0,0));
+
+        String params = JSON.serialize(new Map<String,Object>{
+            'mobMemberId' => member.Id,
+            'actionType' => 'clockOut',
+            'isTimeSheetNull' => false,
+            'isTimeSheetEntryNull' => false,
+            'timesheetId' => ts.Id,
+            'timesheetEntryId' => entry.Id,
+            'clockInTime' => entry.Clock_In_Time__c,
+            'clockOutTime' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'jobId' => member.Mobilization__r.Job__c,
+            'costCodeId' => null
+        });
+
+        Test.startTest();
+        Boolean res = JobDetailsPageController.createTimesheetRecords(params);
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testCreateTimesheetRecords_ClockOutNewEntryMidnight() {
+        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c FROM Mobilization_Member__c LIMIT 1];
+        Timesheet__c ts = [SELECT Id FROM Timesheet__c LIMIT 1];
+
+        Date today = Date.today();
+        Datetime clockInDt = Datetime.newInstance(today, Time.newInstance(10,0,0,0));
+        Datetime clockOutDt = Datetime.newInstance(today.addDays(1), Time.newInstance(12,0,0,0));
 
         String params = JSON.serialize(new Map<String,Object>{
             'mobMemberId' => member.Id,

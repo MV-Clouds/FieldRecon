@@ -20,11 +20,27 @@
                 </div>
             </div>
 
-            <div class="date-filter">
-                <button class="arrow-button" onclick={handlePreviousDate}>&lt;</button>
-                <span class="filter-date">{formattedSelectedDate}</span>
-                <button class="arrow-button" onclick={handleNextDate}>&gt;</button>
-            </div>
+            <template if:false={isCustomView}>
+                <div class="date-filter">
+                    <button class="arrow-button" onclick={handlePreviousDate}>&lt;</button>
+                    <span class="filter-date">{formattedSelectedDate}</span>
+                    <button class="arrow-button" onclick={handleNextDate}>&gt;</button>
+                </div>
+            </template>
+
+            <template if:true={isCustomView}>
+                <div class="custom-date-filter">
+                    <div class="date-container">
+                        <div class="date-label">Start Date</div>
+                        <input type="date" class="slds-input date-input" label="Start Date" value={customStartDate} onchange={handleCustomDateChange} data-field="filterStart"></input>
+                    </div>
+                    
+                    <div class="date-container">
+                        <div class="date-label">End Date</div>
+                        <input type="date" class="slds-input date-input" label="End Date" value={customEndDate} onchange={handleCustomDateChange} data-field="filterEnd"></input>
+                    </div>
+                </div>
+            </template>
 
             <div class="view-toggle">
                 <lightning-button-group>
@@ -103,7 +119,7 @@
 
         <template if:true={showClockInOutModal}>
             <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
-                <div class={clockInOutModalClass}>
+                <div class="slds-modal__container">
                     <!-- Close Button -->
                     <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeClockInOutModal}>
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
@@ -138,7 +154,7 @@
                                                     
                                                     <div class="input-column">
                                                         <div class="select-person-container">
-                                                            <label class="select-label">Select Person</label>
+                                                            <label class="select-label required">Select Person</label>
                                                             <div class="select-wrapper">
                                                                 <select class="custom-select" data-field="clockIn" onchange={handleInputChange}>
                                                                     <option value="">-- Select a person --</option>
@@ -152,7 +168,7 @@
 
                                                     <div class="input-column">
                                                         <div class="select-person-container">
-                                                            <label class="select-label">Select Cost Code</label>
+                                                            <label class="select-label required">Select Cost Code</label>
                                                             <div class="select-wrapper">
                                                                 <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
                                                                     <option value="">-- Select a cost code --</option>
@@ -166,7 +182,7 @@
                                                     
                                                     <div class="input-column">
                                                         <div class="datetime-container">
-                                                            <label class="datetime-label">Clock In DateTime</label>
+                                                            <label class="datetime-label required">Clock In DateTime</label>
                                                             <div class="datetime-wrapper">
                                                                 <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime" value={clockInTime} onchange={handleInputChange}/>
                                                             </div>
@@ -203,7 +219,7 @@
                                                     
                                                     <div class="input-column">
                                                         <div class="select-person-container">
-                                                            <label class="select-label">Select Person</label>
+                                                            <label class="select-label required">Select Person</label>
                                                             <div class="select-wrapper">
                                                                 <select class="custom-select" data-field="clockOut" onchange={handleInputChange}>
                                                                     <option value="">-- Select a person --</option>
@@ -217,7 +233,7 @@
                                                     
                                                     <div class="input-column">
                                                         <div class="datetime-container">
-                                                            <label class="datetime-label">Clock Out DateTime</label>
+                                                            <label class="datetime-label required">Clock Out DateTime</label>
                                                             <div class="datetime-wrapper">
                                                                 <input type="datetime-local" class="custom-datetime" data-field="clockOutDateTime" value={clockOutTime} onchange={handleInputChange}/>
                                                             </div>
@@ -365,7 +381,7 @@
                                     <div class="form-group">
                                         <div class="input-column">
                                             <div class="select-person-container">
-                                                <label class="select-label">Select Person</label>
+                                                <label class="select-label required">Select Person</label>
                                                 <lightning-combobox value={selectedManualPerson} data-field="manualContact" options={allContacts} onchange={handleInputChange} placeholder="Select Person" variant="label-hidden"></lightning-combobox>
                                             </div>
                                         </div>
@@ -374,7 +390,7 @@
                                     <div class="form-group">
                                         <div class="input-column">
                                             <div class="datetime-container">
-                                                <label class="datetime-label">Clock In DateTime</label>
+                                                <label class="datetime-label required">Clock In DateTime</label>
                                                 <div class="datetime-wrapper">
                                                     <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime"  value={clockInTime} onchange={handleInputChange}/>
                                                 </div>
@@ -385,9 +401,9 @@
                                     <div class="form-group">
                                         <div class="input-column">
                                             <div class="datetime-container">
-                                                <label class="datetime-label">Clock Out DateTime</label>
+                                                <label class="datetime-label required">Clock Out DateTime</label>
                                                 <div class="datetime-wrapper">
-                                                    <input type="datetime-local" class="custom-datetime" value={clockOutTime} onchange={handleInputChange}/>
+                                                    <input type="datetime-local" class="custom-datetime" data-field="clockOutDateTime" value={clockOutTime} onchange={handleInputChange}/>
                                                 </div>
                                             </div>
                                         </div>
@@ -396,7 +412,7 @@
                                     <div class="form-group">
                                         <div class="input-column">
                                             <div class="select-person-container">
-                                                <label class="select-label">Select Cost Code</label>
+                                                <label class="select-label required">Select Cost Code</label>
                                                 <div class="select-wrapper">
                                                     <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange} style="width: 100%;">
                                                         <option value="">-- Select a cost code --</option>
@@ -431,10 +447,10 @@
                                 </div>
                             </div>
 
-                            <!-- Footer -->
-                            <div class="popUpFooter">
-                                <button class="clock-in-button" onclick={createManualTimesheet}>Create</button>
-                            </div>
+                        </div>
+                        <!-- Footer -->
+                        <div class="popUpFooter">
+                            <button class="clock-in-button" onclick={createManualTimesheet}>Create</button>
                         </div>
                     </div>
                 </div>
@@ -474,7 +490,7 @@
                                     <div class="form-group">
                                         <div class="input-column">
                                             <div class="datetime-container">
-                                                <label class="datetime-label">Clock In Time</label>
+                                                <label class="datetime-label required">Clock In Time</label>
                                                 <div class="datetime-wrapper">
                                                     <input type="datetime-local" data-field="ClockIn" class="custom-datetime" value={editableTimesheetEntry.ClockIn} onchange={handleEditTSELFieldChange} />
                                                 </div>
@@ -486,7 +502,7 @@
                                     <div class="form-group">
                                         <div class="input-column">
                                             <div class="datetime-container">
-                                                <label class="datetime-label">Clock Out Time</label>
+                                                <label class="datetime-label required">Clock Out Time</label>
                                                 <div class="datetime-wrapper">
                                                     <input type="datetime-local" data-field="ClockOut" class="custom-datetime" value={editableTimesheetEntry.ClockOut} onchange={handleEditTSELFieldChange} />
                                                 </div>

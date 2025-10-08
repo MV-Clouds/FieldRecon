@@ -29,13 +29,14 @@ public with sharing class HomeTabController {
             String userId = UserInfo.getUserId();
             Contact currentUserContact = new Contact();
             if(Test.isRunningTest()) {
-                currentUserContact = [SELECT Id, Name FROM Contact LIMIT 1];
+                currentUserContact = [SELECT Id, Name FROM Contact WITH USER_MODE LIMIT 1];
             } else {
                 currentUserContact = [
                     SELECT Id, Name 
                     FROM Contact 
                     WHERE User__c = :userId
                     AND RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
+                    WITH USER_MODE
                     LIMIT 1
                 ];
             }
@@ -72,7 +73,7 @@ public with sharing class HomeTabController {
                 WHERE Contact__c = :currentUserContact.Id
                   AND Mobilization__r.Start_Date__c <= :endDateTime
                   AND Mobilization__r.End_Date__c >= :startDateTime
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
             ];
 
             if(mobMembers.isEmpty()) return result;
@@ -91,6 +92,7 @@ public with sharing class HomeTabController {
                       AND Job__c IN :jobIds
                       AND Timesheet_Start_Date__c <= :filterDate
                       AND Timesheet_End_Date__c >= :filterDate
+                    WITH USER_MODE
                 ];
 
                 for(Timesheet__c ts : tsList) jobTimesheetMap.put(ts.Job__c, ts);
@@ -101,12 +103,21 @@ public with sharing class HomeTabController {
                     WHERE Timesheet__c IN :tsList
                       AND Clock_In_Time__c >= :startDateTime
                       AND Clock_In_Time__c <= :endDateTime
+                    WITH USER_MODE
                 ];
 
                 Map<Id, Timesheet_Entry__c> openEntryMap = new Map<Id, Timesheet_Entry__c>();
+                Map<Id, Integer> completedCountMap = new Map<Id, Integer>();
                 for(Timesheet_Entry__c e : entries) {
                     if(e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
                         openEntryMap.put(e.Timesheet__r.Job__c, e);
+                    } else if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c != null) {
+                        // Count completed entries
+                        completedCountMap.put(e.Timesheet__r.Job__c,
+                            completedCountMap.containsKey(e.Timesheet__r.Job__c)
+                                ? completedCountMap.get(e.Timesheet__r.Job__c) + 1
+                                : 1
+                        );
                     }
                 }
 
@@ -139,6 +150,11 @@ public with sharing class HomeTabController {
                     wrap.isTimeSheetEntryNull = openEntry == null;
                     wrap.isClockedIn      = openEntry != null;
                     wrap.clockInTime      = openEntry != null ? openEntry.Clock_In_Time__c.addSeconds(userTz.getOffset(openEntry.Clock_In_Time__c)/1000) : null;
+
+                    Integer completedCount = completedCountMap.containsKey(m.Mobilization__r.Job__c)
+                        ? completedCountMap.get(m.Mobilization__r.Job__c)
+                        : 0;
+                    wrap.isAgain = (completedCount > 0);
 
                     dayJobs.add(wrap);
                 }
@@ -187,7 +203,7 @@ public with sharing class HomeTabController {
 
             // Add cost codes
             Map<Id, String> costCodeDetails = new Map<Id, String>();
-            for(Cost_Code__c c : [SELECT Id, Name FROM Cost_Code__c]) costCodeDetails.put(c.Id, c.Name);
+            for(Cost_Code__c c : [SELECT Id, Name FROM Cost_Code__c WITH USER_MODE]) costCodeDetails.put(c.Id, c.Name);
             WrapperMember costWrap = new WrapperMember();
             costWrap.costCodeDetails = costCodeDetails;
             result.put('costCodeDetails', new List<WrapperMember>{ costWrap });
@@ -213,13 +229,14 @@ public with sharing class HomeTabController {
             String userId = UserInfo.getUserId();
             Contact currentUserContact = new Contact();
             if(Test.isRunningTest()) {
-                currentUserContact = [SELECT Id, Name FROM Contact LIMIT 1];
+                currentUserContact = [SELECT Id, Name FROM Contact WITH USER_MODE LIMIT 1];
             } else {
                 currentUserContact = [
                     SELECT Id, Name 
                     FROM Contact 
                     WHERE User__c = :userId
                     AND RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
+                    WITH USER_MODE
                     LIMIT 1
                 ];
             }
@@ -239,7 +256,7 @@ public with sharing class HomeTabController {
                 WHERE Timesheet_Entry__r.TimeSheet__r.Contact__c = :currentUserContact.Id
                   AND Clock_In_Date__c >= :lastWeekDate
                   AND Clock_In_Date__c <= :todayDate
-                WITH SECURITY_ENFORCED
+                WITH USER_MODE
             ];
 
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
@@ -279,6 +296,7 @@ public with sharing class HomeTabController {
         @AuraEnabled public String mobId;
         @AuraEnabled public String mobMemberId;
         @AuraEnabled public Map<Id, String> costCodeDetails;
+        @AuraEnabled public Boolean isAgain;
     }
 
     public class TimesheetEntryItemWrapper {
