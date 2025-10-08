@@ -936,7 +936,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 if (col.type === 'percent') {
                     rawValue = value !== null && value !== undefined ? parseFloat(value) : 0;
                     percentValue = rawValue / 100;
-                    // Add progress style for slider visual
                     progressStyle = `--progress-width: ${rawValue}%`;
                 }
                 
@@ -957,7 +956,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             });
             return row;
         });
-    }    
+    }
 
     /**
      * Method Name: handleSliderChange
@@ -1001,6 +1000,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         
         // Apply highlighting immediately
         this.applySliderHighlighting(processId, newValue !== originalValue);
+        
+        // Update the process details to reflect the change in the data model
+        this.updateSliderValueInProcessDetails(locationId, processId, newValue);
     }
 
     /**
@@ -1031,6 +1033,41 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 }
             }
         }, 0);
+    }
+
+     /**
+    * Method Name: updateSliderValueInProcessDetails
+    * @description: Update the slider value in the process details data model
+    */
+    updateSliderValueInProcessDetails(locationId, processId, newValue) {
+        this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
+            if (entry.Id === locationId && entry.processDetails) {
+                const updatedProcessDetails = entry.processDetails.map(process => {
+                    if (process.Id === processId) {
+                        const updatedProcess = { ...process };
+                        // Update the display fields to reflect the new value
+                        updatedProcess.displayFields = updatedProcess.displayFields.map(field => {
+                            if (field.isSlider && field.key === 'wfrecon__Completed_Percentage__c') {
+                                return {
+                                    ...field,
+                                    rawValue: newValue,
+                                    progressStyle: `--progress-width: ${newValue}%`
+                                };
+                            }
+                            return field;
+                        });
+                        return updatedProcess;
+                    }
+                    return process;
+                });
+                
+                return {
+                    ...entry,
+                    processDetails: updatedProcessDetails
+                };
+            }
+            return entry;
+        });
     }
 
     /**
