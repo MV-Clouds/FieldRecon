@@ -414,7 +414,7 @@
                                             <div class="select-person-container">
                                                 <label class="select-label required">Select Cost Code</label>
                                                 <div class="select-wrapper">
-                                                    <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange} style="width: 100%;">
+                                                    <select class="custom-select-costcode width-100" data-field="costCode" onchange={handleInputChange}>
                                                         <option value="">-- Select a cost code --</option>
                                                         <template for:each={costCodeOptions} for:item="option">
                                                             <option key={option.value} value={option.value}>{option.label}</option>
@@ -430,7 +430,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Travel Time</label>
                                             <div class="select-wrapper">
-                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select" style="width: 100%;" value={enteredManualTravelTime} onchange={handleInputChange} />
+                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select width-100" value={enteredManualTravelTime} onchange={handleInputChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -440,7 +440,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Per Diem</label>
                                             <div class="select-wrapper">    
-                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select" style="width: 100%;" value={enteredManualPerDiem} onchange={handleInputChange} />
+                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select width-100" value={enteredManualPerDiem} onchange={handleInputChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -515,7 +515,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Travel Time</label>
                                             <div class="select-wrapper">
-                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select" style="width: 100%;" value={editableTimesheetEntry.TravelTime} onchange={handleEditTSELFieldChange} />
+                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select width-100" value={editableTimesheetEntry.TravelTime} onchange={handleEditTSELFieldChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -525,7 +525,17 @@
                                         <div class="input-column">
                                             <label class="select-label">Per Diem</label>
                                             <div class="select-wrapper">    
-                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select" style="width: 100%;" value={editableTimesheetEntry.PerDiem} onchange={handleEditTSELFieldChange} />
+                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select width-100" value={editableTimesheetEntry.PerDiem} onchange={handleEditTSELFieldChange} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Premium -->
+                                    <div class="form-group">
+                                        <div class="premium-col">
+                                            <label class="premium-label">Premium</label>
+                                            <div class="premium-div">    
+                                                <input type="checkbox" data-field="premium" checked={editableTimesheetEntry.premium} onchange={handleEditTSELFieldChange} />
                                             </div>
                                         </div>
                                     </div>

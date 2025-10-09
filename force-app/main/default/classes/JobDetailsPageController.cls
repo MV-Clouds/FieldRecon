@@ -139,7 +139,7 @@ public with sharing class JobDetailsPageController {
             List<Timesheet_Entry_Item__c> items = [
                 SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
                        Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
-                       Cost_Code__r.Name, Clock_In_Date__c
+                       Cost_Code__r.Name, Clock_In_Date__c, Premium__c
                 FROM Timesheet_Entry_Item__c 
                 WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId
                   AND Clock_In_Date__c = :startDate
@@ -670,7 +670,7 @@ public with sharing class JobDetailsPageController {
 
             // Query records
             Timesheet_Entry_Item__c tsItem = [
-                SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c 
+                SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c, Premium__c 
                 FROM Timesheet_Entry_Item__c 
                 WHERE Id = :(String)jsonList.get('Id')
                 WITH USER_MODE
@@ -691,11 +691,13 @@ public with sharing class JobDetailsPageController {
 
             Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
             Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
+            Boolean premium = Boolean.valueOf((String)jsonList.get('premium'));
 
             tsItem.Clock_In_Time__c = clkInUserTz;
             tsItem.Clock_Out_Time__c = clkOutUserTz;
-            tsItem.Travel_Time__c = (Decimal.valueOf((String)jsonList.get('TravelTime')));
-            tsItem.Per_Diem__c = (Integer.valueOf((String)jsonList.get('PerDiem')));
+            tsItem.Travel_Time__c = travelTime;
+            tsItem.Per_Diem__c = perDiem;
+            tsItem.Premium__c = premium;
             update tsItem;
 
             tsEntry.Clock_In_Time__c = clkInUserTz;
@@ -768,6 +770,7 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public Decimal travelTime;
         @AuraEnabled public Decimal perDiem;
         @AuraEnabled public Decimal totalTime;
+        @AuraEnabled public Boolean premium;
         @AuraEnabled public String costCodeName;
         @AuraEnabled public Date clockInDate;
 
@@ -785,6 +788,7 @@ public with sharing class JobDetailsPageController {
             this.workHours = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
             this.totalTime = this.workHours + this.travelTime;
             this.costCodeName = item.Cost_Code__r != null ? item.Cost_Code__r.Name : '-';
+            this.premium = item.Premium__c;
             this.clockInDate = item.Clock_In_Date__c;
         }
     }

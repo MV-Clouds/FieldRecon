@@ -325,7 +325,8 @@ public class JobDetailsPageControllerTest {
             'ClockIn' => clockInDt.format('yyyy-MM-dd\'T\'HH:mm'),
             'ClockOut' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
             'TravelTime' => '2.5',
-            'PerDiem' => '1'
+            'PerDiem' => '1',
+            'premium' => 'false'
         });
 
         Test.startTest();

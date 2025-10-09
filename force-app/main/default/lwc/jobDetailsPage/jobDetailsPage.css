@@ -726,3 +726,20 @@ lightning-combobox {
     --slds-c-input-shadow: unset !important;
     border: 2px solid rgba(94, 90, 219, 1) !important;
 }
+
+.premium-col{
+    display: flex;
+    align-items: center;
+}
+
+.premium-label{
+    margin-right: 1rem;
+}
+
+.premium-div{
+    display: flex;
+}
+
+.width-100{
+    width: 100%;
+}

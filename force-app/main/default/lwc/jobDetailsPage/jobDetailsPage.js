@@ -77,6 +77,7 @@ export default class JobDetailsPage extends LightningElement {
         { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
         { label: 'Per Diem', fieldName: 'perDiem', style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
+        { label: 'Premium', fieldName: 'premium', style: 'width: 6rem' },
         { label: 'Cost Code', fieldName: 'costCodeName', style: 'width: 8rem' }
     ];
 
@@ -1029,7 +1030,8 @@ export default class JobDetailsPage extends LightningElement {
                     ClockIn: record.clockInTime.slice(0, 16),
                     ClockOut: record.clockOutTime.slice(0, 16),
                     TravelTime: record.travelTime || 0.00,
-                    PerDiem: record.perDiem || 0.00
+                    PerDiem: record.perDiem || 0.00,
+                    premium: record?.premium || false
                 };
                 
                 this.editTimesheetEntry = true;
@@ -1046,7 +1048,14 @@ export default class JobDetailsPage extends LightningElement {
     handleEditTSELFieldChange(event) {
         try {
             const field = event.target.dataset.field; // data-field attribute on input
-            const value = event.target.value;
+            let value;
+
+            // Handle checkbox separately
+            if (event.target.type === 'checkbox') {
+                value = event.target.checked;
+            } else {
+                value = event.target.value;
+            }
     
             if(field && this.editableTimesheetEntry) {
                 // Update variable dynamically
