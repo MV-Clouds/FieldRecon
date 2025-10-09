@@ -640,14 +640,15 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     fetchLocationEntries() {
         if (!this.recordId) {
             this.isLoading = false;
-            return;
+            return Promise.resolve();
         }
 
-        getLocationEntries({ jobId: this.recordId })
+        return getLocationEntries({ jobId: this.recordId })
             .then(result => {
                 this.locationEntries = result || [];
                 this.applyFilters();
                 this.isLoading = false;
+                return result;
             })
             .catch(error => {
                 console.error('Error fetching location entries:', error);
@@ -655,6 +656,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 this.locationEntries = [];
                 this.filteredLocationEntries = [];
                 this.isLoading = false;
+                throw error; // Re-throw to allow caller to handle
             });
     }
 
@@ -801,19 +803,173 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Refresh table data
      */
     handleRefresh() {
+        this.performCompleteRefresh();
+    }
+
+    /**
+     * Method Name: performCompleteRefresh
+     * @description: Comprehensive refresh method that handles all business logic
+     */
+    performCompleteRefresh() {
         this.isLoading = true;
         this.selectedRows = [];
-        // Reset to default sorting (first column)
+        
+        // Clear all modifications and editing states
+        this.modifiedLocations.clear();
+        this.hasLocationModifications = false;
+        this.modifiedProcesses.clear();
+        this.modifiedProcessesByLocation.clear();
+        this.hasModifications = false;
+        this.editingCells.clear();
+        
+        // Reset sorting to defaults
         if (this.tableColumns.length > 0) {
             this.sortField = this.tableColumns[0].fieldName;
             this.sortOrder = 'asc';
         }
+        
         // Reset process sorting
         if (this.processTableColumns.length > 0) {
             this.processSortField = this.processTableColumns[0].fieldName;
             this.processSortOrder = 'asc';
         }
-        this.fetchLocationEntries();
+        
+        // Clear search term
+        this.searchTerm = '';
+        
+        // Reset field picklist options cache if needed
+        this.fieldPicklistOptions.clear();
+        
+        // Store expanded locations for restoration after refresh
+        const expandedLocationIds = this.locationEntries
+            .filter(entry => entry.showProcessDetails)
+            .map(entry => entry.Id);
+        
+        // Fetch fresh data
+        this.fetchLocationEntries()
+            .then(() => {
+                // Restore expanded state for previously expanded locations
+                if (expandedLocationIds.length > 0) {
+                    this.restoreExpandedStates(expandedLocationIds);
+                }
+                
+                // Clear any highlighting
+                this.clearAllHighlighting();
+                
+                // Update sort icons
+                this.updateSortIcons();
+                
+                this.showToast('Success', 'Data refreshed successfully', 'success');
+            })
+            .catch(error => {
+                console.error('Error during refresh:', error);
+                this.showToast('Error', 'Failed to refresh data: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
+    /**
+     * Method Name: handleNestedRefresh
+     * @description: Handle refresh for nested process details table
+     */
+    handleNestedRefresh(event) {
+        const locationId = event.currentTarget.dataset.locationId;
+        if (!locationId) {
+            console.error('No location ID found for nested refresh');
+            return;
+        }
+        
+        this.refreshNestedProcessDetails(locationId);
+    }
+
+    /**
+     * Method Name: refreshNestedProcessDetails
+     * @description: Refresh process details for a specific location
+     */
+    refreshNestedProcessDetails(locationId) {
+        try {
+            // Find the location entry
+            const locationEntry = this.locationEntries.find(entry => entry.Id === locationId);
+            if (!locationEntry) {
+                console.error('Location entry not found for ID:', locationId);
+                return;
+            }
+            
+            // Clear any modifications for this location's processes
+            if (this.modifiedProcessesByLocation.has(locationId)) {
+                const processIds = this.modifiedProcessesByLocation.get(locationId);
+                processIds.forEach(processId => {
+                    this.modifiedProcesses.delete(processId);
+                });
+                this.modifiedProcessesByLocation.delete(locationId);
+            }
+            
+            // Update global modifications flag
+            this.hasModifications = this.modifiedProcesses.size > 0;
+            
+            // Reset process sorting for this location
+            if (this.processTableColumns.length > 0) {
+                this.processSortField = this.processTableColumns[0].fieldName;
+                this.processSortOrder = 'asc';
+            }
+            
+            // Set loading state for this location
+            locationEntry.isLoadingProcesses = true;
+            
+            // Trigger reactivity
+            this.locationEntries = [...this.locationEntries];
+            this.applyFilters();
+            
+            // Reload process details
+            this.loadProcessDetails(locationId)
+                .then(() => {
+                    // Update sort icons for this location's process table
+                    this.updateProcessSortIcons(locationId);
+                    
+                    this.showToast('Success', `Process details refreshed for ${locationEntry.Name}`, 'success');
+                })
+                .catch(error => {
+                    console.error('Error refreshing process details:', error);
+                    this.showToast('Error', 'Failed to refresh process details: ' + (error.body?.message || error.message), 'error');
+                })
+                .finally(() => {
+                    // Remove loading state
+                    locationEntry.isLoadingProcesses = false;
+                    
+                    // Trigger reactivity
+                    this.locationEntries = [...this.locationEntries];
+                    this.applyFilters();
+                });
+                
+        } catch (error) {
+            console.error('Error in refreshNestedProcessDetails:', error);
+            this.showToast('Error', 'An error occurred while refreshing process details', 'error');
+        }
+    }
+
+    /**
+     * Method Name: restoreExpandedStates
+     * @description: Restore expanded states for specified location IDs
+     */
+    restoreExpandedStates(locationIds) {
+        try {
+            locationIds.forEach(locationId => {
+                const locationEntry = this.locationEntries.find(entry => entry.Id === locationId);
+                if (locationEntry) {
+                    locationEntry.showProcessDetails = true;
+                    // Reload process details for expanded locations
+                    this.loadProcessDetails(locationId);
+                }
+            });
+            
+            // Trigger reactivity
+            this.locationEntries = [...this.locationEntries];
+            this.applyFilters();
+        } catch (error) {
+            console.error('Error restoring expanded states:', error);
+        }
     }
 
     /**
@@ -1013,14 +1169,16 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Load process details for a specific location
      */
     loadProcessDetails(locationId) {
-        getLocationProcesses({ locationId: locationId })
+        return getLocationProcesses({ locationId: locationId })
             .then(result => {
                 this.updateProcessDetails(locationId, result || []);
+                return result;
             })
             .catch(error => {
                 console.error('Error loading process details:', error);
                 this.updateProcessDetails(locationId, []);
                 this.showToast('Error', 'Failed to load process details: ' + (error.body?.message || error.message), 'error');
+                throw error; // Re-throw to allow caller to handle
             });
     }
 
@@ -1950,8 +2108,17 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     this.hasLocationModifications = false;
                     this.editingCells.clear();
                     
-                    // Refresh location entries
-                    this.fetchLocationEntries();
+                    // Use comprehensive refresh and restore expanded states
+                    this.fetchLocationEntries()
+                        .then(() => {
+                            // Restore expanded states for previously expanded locations
+                            if (locationsWithExpandedProcesses.length > 0) {
+                                this.restoreExpandedStates(locationsWithExpandedProcesses);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error during refresh after save:', error);
+                        });
                     
                 } else if (result.startsWith('Partial Success')) {
                     this.showToast('Warning', result, 'warning');
@@ -1960,7 +2127,18 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     this.modifiedLocations.clear();
                     this.hasLocationModifications = false;
                     this.editingCells.clear();
-                    this.fetchLocationEntries();
+                    
+                    // Use comprehensive refresh and restore expanded states
+                    this.fetchLocationEntries()
+                        .then(() => {
+                            // Restore expanded states for previously expanded locations
+                            if (locationsWithExpandedProcesses.length > 0) {
+                                this.restoreExpandedStates(locationsWithExpandedProcesses);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error during refresh after partial save:', error);
+                        });
                     
                 } else {
                     this.showToast('Error', result, 'error');

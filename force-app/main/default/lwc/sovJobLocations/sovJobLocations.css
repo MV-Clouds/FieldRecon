@@ -878,6 +878,25 @@
     margin-left: 8px;
 }
 
+/* Nested Table Action Buttons */
+.nested-table-header .action-buttons {
+    gap: 0.5rem;
+}
+
+.nested-table-header .action-button {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+    height: 32px;
+}
+
+.nested-table-header .refresh-btn {
+    background-color: rgba(94, 90, 219, 0.8);
+}
+
+.nested-table-header .refresh-btn:hover {
+    background-color: rgba(94, 90, 219, 1);
+}
+
 /* Modified Cell Highlighting */
 .modified-cell {
     background-color: #FBF8EF !important;
