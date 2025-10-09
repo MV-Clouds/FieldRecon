@@ -1012,7 +1012,6 @@ public with sharing class SovJobScopeController {
     @return          : String - Summary message
     *********************************************************
     */
-    @AuraEnabled
     public static String recalculateLocationProcessesBulk(Map<Id, Scope_Entry__c> scopeEntries) {
         try {
             if (scopeEntries == null || scopeEntries.isEmpty()) {

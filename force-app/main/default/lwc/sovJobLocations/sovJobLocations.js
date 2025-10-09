@@ -1460,7 +1460,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         
         // Update global flag
         this.hasModifications = this.modifiedProcesses.size > 0;
-        
+        // sovjobloc
         // Force UI refresh to update button states and slider widths
         this.filteredLocationEntries = [...this.filteredLocationEntries];
         

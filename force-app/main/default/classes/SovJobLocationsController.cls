@@ -144,15 +144,15 @@ public with sharing class SovJobLocationsController {
     @AuraEnabled
     public static String createLocationEntry(Map<String, Object> locationData) {
         try {
-            wfrecon__Location__c newLocation = new wfrecon__Location__c();
+            Location__c newLocation = new Location__c();
             newLocation.Name = (String) locationData.get('name');
-            newLocation.wfrecon__Square_Feet__c = (Decimal) locationData.get('squareFeet');
-            newLocation.wfrecon__Crack_Count__c = (Decimal) locationData.get('crackCount');
-            newLocation.wfrecon__Distressed_Edge__c = (Decimal) locationData.get('distressedEdge');
-            newLocation.wfrecon__Distressed_Joint_LF__c = (Decimal) locationData.get('distressedJoint');
-            newLocation.wfrecon__Misc_Defect_Count__c = (Decimal) locationData.get('miscDefectCount');
-            newLocation.wfrecon__Cure_Time_Days__c = (Decimal) locationData.get('cureTimeDays');
-            newLocation.wfrecon__Job__c = (Id) locationData.get('jobId');
+            newLocation.Square_Feet__c = (Decimal) locationData.get('squareFeet');
+            newLocation.Crack_Count__c = (Decimal) locationData.get('crackCount');
+            newLocation.Distressed_Edge__c = (Decimal) locationData.get('distressedEdge');
+            newLocation.Distressed_Joint_LF__c = (Decimal) locationData.get('distressedJoint');
+            newLocation.Misc_Defect_Count__c = (Decimal) locationData.get('miscDefectCount');
+            newLocation.Cure_Time_Days__c = (Decimal) locationData.get('cureTimeDays');
+            newLocation.Job__c = (Id) locationData.get('jobId');
             
             insert as user newLocation;
             return 'Success';
@@ -185,9 +185,9 @@ public with sharing class SovJobLocationsController {
                 return 'Error: No records selected for deletion';
             }
             
-            List<wfrecon__Location__c> locationsToDelete = [
+            List<Location__c> locationsToDelete = [
                 SELECT Id 
-                FROM wfrecon__Location__c 
+                FROM Location__c 
                 WHERE Id IN :locationIds 
                 WITH USER_MODE
             ];
@@ -212,22 +212,22 @@ public with sharing class SovJobLocationsController {
     *********************************************************
     @description     : Method is used to get Location Process details
     @param           : Id locationId - Location Id
-    @return          : List<wfrecon__Location_Process__c> - List of Process records
+    @return          : List<Location_Process__c> - List of Process records
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static List<wfrecon__Location_Process__c> getLocationProcesses(Id locationId) {
-        List<wfrecon__Location_Process__c> processes = new List<wfrecon__Location_Process__c>();
+    public static List<Location_Process__c> getLocationProcesses(Id locationId) {
+        List<Location_Process__c> processes = new List<Location_Process__c>();
         try {
             processes = [
-                SELECT Id, Name, wfrecon__Contract_Price__c, wfrecon__Completed_Percentage__c, 
-                       wfrecon__Current_Completed_Value__c, wfrecon__Process_Status__c, 
-                       wfrecon__Sequence__c, wfrecon__Location__c
-                FROM wfrecon__Location_Process__c
-                WHERE wfrecon__Location__c = :locationId
+                SELECT Id, Name, Contract_Price__c, Completed_Percentage__c, 
+                       Current_Completed_Value__c, Process_Status__c, 
+                       Sequence__c, Location__c
+                FROM Location_Process__c
+                WHERE Location__c = :locationId
                 WITH USER_MODE
-                ORDER BY wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
+                ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
@@ -255,15 +255,15 @@ public with sharing class SovJobLocationsController {
         Map<String, Object> configData = new Map<String, Object>();
         
         try {
-            List<wfrecon__LocationConfigration__mdt> configs = [
+            List<LocationConfigration__mdt> configs = [
                 SELECT FieldsData__c, PageSize__c 
-                FROM wfrecon__LocationConfigration__mdt 
+                FROM LocationConfigration__mdt 
                 WITH USER_MODE 
                 LIMIT 1
             ];
 
             if (!configs.isEmpty()) {
-                wfrecon__LocationConfigration__mdt config = configs[0];
+                LocationConfigration__mdt config = configs[0];
                 configData.put('fieldsData', config.FieldsData__c);
                 configData.put('pageSize', config.PageSize__c);
             } else {
@@ -300,39 +300,80 @@ public with sharing class SovJobLocationsController {
                 return 'Error: No location data provided for update.';
             }
 
-            // Deserialize JSON string into a list of Location records
-            List<Location__c> updatedLocations = 
+            List<Location__c> updatedLocations =
                 (List<Location__c>) JSON.deserialize(updatedLocationsJson, List<Location__c>.class);
 
             if (updatedLocations == null || updatedLocations.isEmpty()) {
                 return 'Error: No location records provided for update.';
             }
 
-            // Perform the DML update with partial success handling
+            // Step 1: Fetch original Square_Feet__c for change detection
+            Set<Id> locationIds = new Set<Id>();
+            for (Location__c loc : updatedLocations) {
+                locationIds.add(loc.Id);
+            }
+
+            Map<Id, Decimal> originalSqFtMap = new Map<Id, Decimal>();
+            for (Location__c oldLoc : [
+                SELECT Id, Square_Feet__c
+                FROM Location__c
+                WHERE Id IN :locationIds
+                WITH USER_MODE
+            ]) {
+                originalSqFtMap.put(oldLoc.Id, oldLoc.Square_Feet__c);
+            }
+
+            // Step 2: Identify which locations had square feet changes
+            Set<Id> changedLocationIds = new Set<Id>();
+            for (Location__c newLoc : updatedLocations) {
+                Decimal oldSqFt = originalSqFtMap.get(newLoc.Id);
+                Decimal newSqFt = newLoc.Square_Feet__c;
+
+                if ((oldSqFt == null && newSqFt != null) ||
+                    (oldSqFt != null && newSqFt == null) ||
+                    (oldSqFt != null && newSqFt != null && oldSqFt != newSqFt)) {
+                    changedLocationIds.add(newLoc.Id);
+                }
+            }
+
+            // Step 3: Perform the DML update
             Database.SaveResult[] results = Database.update(updatedLocations, false, AccessLevel.USER_MODE);
 
-            // Collect any errors and successes
             List<String> failedRecords = new List<String>();
             Integer successCount = 0;
-            
+
             for (Integer i = 0; i < results.size(); i++) {
                 if (results[i].isSuccess()) {
                     successCount++;
                 } else {
-                    String errorMsg = '';
-                    for (Database.Error error : results[i].getErrors()) {
-                        errorMsg += error.getMessage() + '; ';
-                    }
-                    failedRecords.add(updatedLocations[i].Id + ': ' + errorMsg);
+                    String errMsg = '';
+                    for (Database.Error e : results[i].getErrors()) {
+                        errMsg += e.getMessage() + '; ';
+                    } 
+                    failedRecords.add(updatedLocations[i].Id + ': ' + errMsg);
                 }
             }
 
-            if (!failedRecords.isEmpty()) {
-                String errorMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
-                return 'Partial Success: ' + errorMessage;
+            // Step 4: Trigger recalculation if any square footage changed
+            String recalculationMsg = '';
+            if (!changedLocationIds.isEmpty()) {
+                recalculationMsg = recalculateForChangedLocations(changedLocationIds);
             }
 
-            return 'Success: ' + successCount + ' location(s) updated successfully';
+            // Step 5: Build response message
+            String finalMsg = '';
+            if (!failedRecords.isEmpty()) {
+                finalMsg = 'Partial Success: ' + successCount + ' location(s) updated successfully. Failed: ' +
+                        String.join(failedRecords, ', ');
+            } else {
+                finalMsg = 'Success: ' + successCount + ' location(s) updated successfully.';
+            }
+
+            if (!String.isBlank(recalculationMsg)) {
+                finalMsg += ' ' + recalculationMsg;
+            }
+
+            return finalMsg;
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
@@ -341,12 +382,65 @@ public with sharing class SovJobLocationsController {
                 'isApiException' => false,
                 'statusCode' => null,
                 'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while saving inline edits.',
+                'moreDetails' => 'Error occurred while saving inline edits and recalculating contract prices.',
                 'apiResponse' => null
             });
             return 'Error: ' + e.getMessage();
         }
     }
+
+    private static String recalculateForChangedLocations(Set<Id> changedLocationIds) {
+        try {
+            if (changedLocationIds == null || changedLocationIds.isEmpty()) {
+                return 'No locations changed for recalculation.';
+            }
+
+            // Get related Scope Entries via Location_Process__c
+            Map<Id, Id> locationToScopeEntry = new Map<Id, Id>();
+            for (Location_Process__c lp : [
+                SELECT Location__c, Scope_Entry_Process__r.Scope_Entry__c
+                FROM Location_Process__c
+                WHERE Location__c IN :changedLocationIds
+                WITH USER_MODE
+            ]) {
+                locationToScopeEntry.put(lp.Location__c, lp.Scope_Entry_Process__r.Scope_Entry__c);
+            }
+
+            if (locationToScopeEntry.isEmpty()) {
+                return 'No related scope entries found for changed locations.';
+            }
+
+            // Collect all affected Scope Entry IDs
+            Set<Id> scopeEntryIds = new Set<Id>(locationToScopeEntry.values());
+
+            // Fetch related Scope Entries with their contract values
+            Map<Id, Scope_Entry__c> scopeEntries = new Map<Id, Scope_Entry__c>(
+                [SELECT Id, Contract_Value__c
+                FROM Scope_Entry__c
+                WHERE Id IN :scopeEntryIds
+                WITH USER_MODE]
+            );
+
+            // Reuse existing recalculation logic
+            String result = SovJobScopeController.recalculateLocationProcessesBulk(scopeEntries);
+
+            return result;
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'recalculateForChangedLocations',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while recalculating processes for changed locations.',
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+
 
     /*
     *********************************************************
