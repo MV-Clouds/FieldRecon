@@ -49,7 +49,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track processTableColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true },
         { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number' },
-        { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.Name', type: 'text' },
+        { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c', type: 'text' },
         { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency' },
         { label: 'Completed %', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true },
         { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency' },

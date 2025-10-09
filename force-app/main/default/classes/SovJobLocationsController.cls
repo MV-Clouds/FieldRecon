@@ -64,7 +64,7 @@ public with sharing class SovJobLocationsController {
                     // --- Fetch all related Location Processes in bulk ---
                     List<Location_Process__c> allLocationProcesses = [
                         SELECT Id, Name, Contract_Price__c, Completed_Percentage__c, 
-                               Current_Completed_Value__c, Process_Status__c, Scope_Entry_Process__r.Name,	
+                               Current_Completed_Value__c, Process_Status__c, Scope_Entry_Process__r.wfrecon__Process_Name__c,	
                                Sequence__c, Location__c
                         FROM Location_Process__c
                         WHERE Location__c IN :locationIds
@@ -93,16 +93,7 @@ public with sharing class SovJobLocationsController {
             System.debug('LocationEntries getLocationEntries - Query executed: ' + (String.isNotBlank(allLocationFields) ? 'true' : 'false'));
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getLocationEntries',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Location Entries with processes dynamically for Job ID: ' + jobId,
-                'apiResponse' => null
-            });
-
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getLocationEntries', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Entries with processes dynamically for Job ID: ' + jobId,'apiResponse' => null});
             result.put('locationEntries', new List<SObject>());
             result.put('locationProcessMap', new Map<Id, List<Location_Process__c>>());
             result.put('success', false);
@@ -166,15 +157,7 @@ public with sharing class SovJobLocationsController {
                 return '';
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getAllFields',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching fields dynamically for ' + objectName,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getAllFields','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching fields dynamically for ' + objectName,'apiResponse' => null});
             return '';
         }
     }
@@ -203,15 +186,7 @@ public with sharing class SovJobLocationsController {
             insert as user newLocation;
             return 'Success';
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'createLocationEntry',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating Location Entry.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createLocationEntry','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating Location Entry.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -272,15 +247,7 @@ public with sharing class SovJobLocationsController {
                 String recalcResult = SovJobScopeController.recalculateLocationProcessesBulk(scopeEntries);
                 if (!recalcResult.startsWith('Success')) {
                     // Log recalculation error but don't fail the deletion
-                    ExceptionHandler.logException(new Map<String, Object>{
-                        'className' => CLASSNAME,
-                        'methodName' => 'deleteLocationEntries',
-                        'isApiException' => false,
-                        'statusCode' => null,
-                        'exceptionObj' => null,
-                        'moreDetails' => 'Location deletion succeeded but recalculation failed: ' + recalcResult,
-                        'apiResponse' => null
-                    });
+                    ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'deleteLocationEntries','isApiException' => false,'statusCode' => null,'exceptionObj' => null,'moreDetails' => 'Location deletion succeeded but recalculation failed: ' + recalcResult,'apiResponse' => null});
                     return 'Success: Locations deleted, but some recalculation issues occurred. ' + recalcResult;
                 }
                 return 'Success: ' + locationIds.size() + ' location(s) deleted and remaining processes recalculated.';
@@ -288,15 +255,7 @@ public with sharing class SovJobLocationsController {
             
             return 'Success: ' + locationIds.size() + ' location(s) deleted.';
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'deleteLocationEntries',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while deleting Location Entries.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'deleteLocationEntries','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while deleting Location Entries.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -329,15 +288,7 @@ public with sharing class SovJobLocationsController {
                 configData.put('pageSize', 10);
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getLocationConfiguration',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Location Configuration.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getLocationConfiguration','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Location Configuration.','apiResponse' => null});
         }
 
         return configData;
@@ -434,15 +385,7 @@ public with sharing class SovJobLocationsController {
             return finalMsg;
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'saveInlineEdits',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while saving inline edits and recalculating contract prices.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'saveInlineEdits','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while saving inline edits and recalculating contract prices.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -485,15 +428,7 @@ public with sharing class SovJobLocationsController {
             return result;
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'recalculateForChangedLocations',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while recalculating processes for changed locations.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'recalculateForChangedLocations','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while recalculating processes for changed locations.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -535,15 +470,7 @@ public with sharing class SovJobLocationsController {
                 }
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getPicklistValuesForField',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while getting picklist values.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getPicklistValuesForField','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while getting picklist values.','apiResponse' => null});
         }
         return picklistValues;
     }
