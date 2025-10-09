@@ -562,7 +562,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return '';
             }
         } catch (error) {
-            console.error('Error in sortDescription:', error);
             return '';
         }
     }
@@ -777,7 +776,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             }
             
         } catch (error) {
-            console.error('Error applying accordion styling:', error);
+            // Error styling accordion - silently continue
         }
     }
 
@@ -834,7 +833,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                             editable: field.isEditable || false 
                         }));
                     } catch (error) {
-                        console.error('Error parsing fieldsData:', error);
                         // Use default columns if parsing fails
                         this.scopeEntryColumns = this.defaultColumns;
                     }
@@ -852,7 +850,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
             })
             .catch(error => {
-                console.error('Error fetching configuration:', error);
                 // Use default columns on error
                 this.scopeEntryColumns = this.defaultColumns;
                 // Set default sorting
@@ -896,8 +893,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.isLoading = false;
             })
             .catch(error => {
-                console.error('Error fetching scope entries:', error);
-                this.showToast('Error', 'Error fetching scope entries: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to load scope entries', 'error');
                 this.scopeEntries = [];
                 this.processSetupFlags = {};
                 this.isLoading = false;
@@ -912,7 +908,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         // Prevent duplicate processing using timestamp
         if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
-            console.log('Duplicate event ignored');
             return;
         }
         
@@ -1050,7 +1045,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Force reactivity for summary calculations
             this.template.querySelector('.summary-cards-container')?.setAttribute('data-update', Date.now().toString());
         } catch (error) {
-            console.error('Error applying filters:', error);
             this.filteredContractEntries = [];
             this.filteredChangeOrderEntries = [];
         }
@@ -1111,7 +1105,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     handleRefreshProcessData(event) {
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
         if (scopeEntryId) {
-            console.log('Refreshing process data for scope entry:', scopeEntryId);
             this.refreshScopeEntryProcessData(scopeEntryId);
         }
     }
@@ -1164,14 +1157,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                         // Apply filters to update displayed data
                         this.applyFilters();
                         
-                        this.showToast('Success', 'Process data refreshed successfully', 'success');
+                        this.showToast('Success', 'Process data has been updated', 'success');
                     } else {
                         throw new Error(result.error || 'Failed to refresh process data');
                     }
                 })
                 .catch(error => {
-                    console.error('Error refreshing process data:', error);
-                    this.showToast('Error', 'Failed to refresh process data: ' + (error.body?.message || error.message), 'error');
+                    this.showToast('Error', 'Failed to refresh process data', 'error');
                     
                     // Remove loading state on error
                     this.scopeEntries = this.scopeEntries.map(entry => {
@@ -1185,8 +1177,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     });
                 });
         } catch (error) {
-            console.error('Error in refreshScopeEntryProcessData:', error);
-            this.showToast('Error', 'An error occurred while refreshing process data', 'error');
+            this.showToast('Error', 'Failed to refresh process data', 'error');
         }
     }
 
@@ -1205,7 +1196,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result && result.startsWith('Success')) {
                     // Enhanced success message that may include recalculation details
-                    this.showToast('Success', result, 'success');
+                    this.showToast('Success', 'Selected processes have been removed', 'success');
                     
                     // Clear selections
                     this.selectedProcesses = [];
@@ -1217,8 +1208,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                console.error('Error deleting processes:', error);
-                this.showToast('Error', 'Failed to delete processes: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to delete processes', 'error');
             });
     }
 
@@ -1334,7 +1324,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         createScopeEntry({ scopeEntryData })
             .then(result => {
                 if (result === 'Success') {
-                    this.showToast('Success', 'Scope entry created successfully', 'success');
+                    this.showToast('Success', 'New scope entry has been created', 'success');
                     this.handleCloseModal();
                     this.fetchScopeEntries();
                 } else {
@@ -1342,7 +1332,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to create scope entry: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to create scope entry', 'error');
             })
             .finally(() => {
                 this.isSubmitting = false;
@@ -1398,7 +1388,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         deleteScopeEntries({ scopeEntryIds: this.selectedRows })
             .then(result => {
                 if (result === 'Success') {
-                    this.showToast('Success', `${this.selectedRows.length} record(s) deleted successfully`, 'success');
+                    this.showToast('Success', 'Selected entries have been deleted', 'success');
                     this.selectedRows = [];
                     this.fetchScopeEntries();
                 } else {
@@ -1406,7 +1396,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to delete records: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to delete records', 'error');
             })
             .finally(() => {
                 this.isLoading = false;
@@ -1579,7 +1569,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.fieldPicklistOptions.set(fieldName, options);
             return options;
         } catch (error) {
-            console.error('Error fetching picklist values:', error);
             return [];
         }
     }
@@ -1726,7 +1715,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             
             return `${year}-${month}-${day}`;
         } catch (error) {
-            console.error('Error formatting date:', error);
             return '';
         }
     }
@@ -1744,7 +1732,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             
             return date.toLocaleDateString();
         } catch (error) {
-            console.error('Error formatting date for display:', error);
             return '--';
         }
     }
@@ -1854,7 +1841,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.template.querySelector('.accordion-container')?.setAttribute('data-update', Date.now().toString());
         }
         catch(error){
-            console.error('Error toggling process details:', error.stack);
+            // Error loading process details - silently continue
         }
         
     }
@@ -1869,9 +1856,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.updateProcessDetails(scopeEntryId, result || []);
             })
             .catch(error => {
-                console.error('Error loading process details:', error);
                 this.updateProcessDetails(scopeEntryId, []);
-                this.showToast('Error', 'Failed to load process details: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to load process details', 'error');
             });
     }
 
@@ -1973,7 +1959,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         createScopeEntryProcess({ processData })
             .then(result => {
                 if (result === 'Success') {
-                    this.showToast('Success', 'Manual process created successfully', 'success');
+                    this.showToast('Success', 'Process has been added', 'success');
                     this.handleCloseProcessModal();
                     
                     // Refresh the process details for this scope entry while preserving selections
@@ -1983,7 +1969,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to create process: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to create process', 'error');
             })
             .finally(() => {
                 this.isProcessSubmitting = false;
@@ -2181,7 +2167,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
             })
             .catch(error => {
-                console.error('Error loading process types:', error);
                 this.processTypeOptions = [];
             });
     
@@ -2192,8 +2177,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.applyProcessLibraryFilters(); // Apply filters after loading
             })
             .catch(error => {
-                console.error('Error loading process library records:', error);
-                this.showToast('Error', 'Failed to load process library: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to load process library', 'error');
                 this.processLibraryRecords = [];
                 this.processLibraryDisplayRecords = [];
             });    
@@ -2374,7 +2358,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         createScopeEntryProcessesFromLibrary({ processData })
             .then(result => {
                 if (result === 'Success') {
-                    this.showToast('Success', `${this.selectedProcessLibraryIds.length} processes added successfully`, 'success');
+                    this.showToast('Success', 'Processes have been added from library', 'success');
                     this.handleCloseProcessLibraryModal();
                     
                     // Refresh the process details for this scope entry while preserving selections
@@ -2384,7 +2368,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to add processes: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to add processes', 'error');
             })
             .finally(() => {
                 this.isProcessLibrarySubmitting = false;
@@ -2402,9 +2386,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.updateProcessDetails(scopeEntryId, result || []);
             })
             .catch(error => {
-                console.error('Error refreshing process details:', error);
                 this.updateProcessDetails(scopeEntryId, []);
-                this.showToast('Error', 'Failed to refresh process details: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to refresh process details', 'error');
             });
     }
 
@@ -2422,15 +2405,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.selectedLocationIds = [...(existingLocationIds || [])]; // Create a copy
             this.originalLocationIds = [...(existingLocationIds || [])]; // Store original state
             
-            console.log('Loaded locations:', this.locationRecords.length);
-            console.log('Existing location processes:', this.selectedLocationIds.length);
-            console.log('Original location IDs:', this.originalLocationIds);
-            
             this.applyLocationFilters();
         })
         .catch(error => {
-            console.error('Error loading location data:', error);
-            this.showToast('Error', 'Failed to load locations: ' + (error.body?.message || error.message), 'error');
+            this.showToast('Error', 'Failed to load locations', 'error');
             this.locationRecords = [];
             this.locationDisplayRecords = [];
             this.selectedLocationIds = [];
@@ -2582,13 +2560,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const removedLocationIds = [...originalIds].filter(id => !selectedIds.has(id));
         const unchangedLocationIds = [...selectedIds].filter(id => originalIds.has(id));
         
-        console.log('Location Changes Analysis:');
-        console.log('Original IDs:', this.originalLocationIds);
-        console.log('Selected IDs:', this.selectedLocationIds);
-        console.log('Added IDs:', addedLocationIds);
-        console.log('Removed IDs:', removedLocationIds);
-        console.log('Unchanged IDs:', unchangedLocationIds);
-        
         const locationData = {
             scopeEntryId: this.selectedLocationScopeEntryId,
             selectedLocationIds: this.selectedLocationIds,
@@ -2602,7 +2573,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         createLocationProcesses({ locationData })
             .then(result => {
                 if (result.includes('Success')) {
-                    this.showToast('Success', `${this.selectedLocationIds.length} location(s) added successfully`, 'success');
+                    this.showToast('Success', 'Locations have been updated', 'success');
                     this.handleCloseLocationModal();
                     
                 } else {
@@ -2610,7 +2581,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to add locations: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to add locations', 'error');
             })
             .finally(() => {
                 this.isLocationSubmitting = false;
@@ -2660,7 +2631,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.sortData(section);
             this.updateSortIcons(section);
         } catch (error) {
-            console.error('Error in handleSortClick:', error);
+            // Error handling sort - silently continue
         }
     }
 
@@ -2693,7 +2664,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.sortProcessData(scopeEntryId);
             this.updateProcessSortIcons(scopeEntryId);
         } catch (error) {
-            console.error('Error in handleProcessSortClick:', error);
+            // Error handling process sort - silently continue
         }
     }
 
@@ -2735,7 +2706,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 });
             }
         } catch (error) {
-            console.error('Error in updateProcessSortIcons:', error);
+            // Error updating process sort icons - silently continue
         }
     }
 
@@ -2772,7 +2743,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 });
             }
         } catch (error) {
-            console.error('Error in clearProcessSortIcons:', error);
+            // Error clearing process sort icons - silently continue
         }
     }
 
@@ -2794,7 +2765,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 icon.classList.remove('rotate-asc', 'rotate-desc');
             });
         } catch (error) {
-            console.error('Error in clearSortIcons:', error);
+            // Error clearing sort icons - silently continue
         }
     }
 
@@ -2819,7 +2790,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             });
         } catch (error) {
-            console.error('Error in updateSortIcons:', error);
+            // Error updating sort icons - silently continue
         }
     }
 
@@ -2878,7 +2849,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return entry;
             });
         } catch (error) {
-            console.error('Error in sortProcessData:', error);
+            // Error sorting process data - silently continue
         }
     }
 
@@ -2921,7 +2892,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries].sort(sortFunction);
             }
         } catch (error) {
-            console.error('Error in sortData:', error);
+            // Error sorting data - silently continue
         }
     }
 
@@ -2949,7 +2920,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             try {
                 await this.getPicklistValues(fieldName);
             } catch (error) {
-                console.error('Error loading picklist values:', error);
+                // Error loading picklist values - continue without picklist
             }
         }
         
@@ -2985,10 +2956,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (inputElement.type === 'text' || inputElement.type === 'number') {
                     inputElement.select();
                 }
-                
-                console.log(`Focused input for ${cellKey}`);
             } else {
-                console.warn(`Could not find input element for ${cellKey}`);
+                // Could not find input element - silently continue
             }
         }, 100); // Increased delay to ensure DOM is fully rendered
     }
@@ -3019,7 +2988,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     const date = new Date(newValue);
                     newValue = date.toISOString();
                 } catch (error) {
-                    console.error('Error parsing date:', error);
                     newValue = null;
                 }
             } else {
@@ -3080,16 +3048,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle blur event on scope inline edit input
      */
     handleScopeCellInputBlur(event) {
-        console.log('handleScopeCellInputBlur called');
-        
         try {
             const recordId = event.target.dataset.recordId;
             const fieldName = event.target.dataset.fieldName;
             const cellKey = `${recordId}-${fieldName}`;
-            
-            console.log(`Blur event on cell: ${cellKey}`);
-            console.log(`Current editing cells:`, Array.from(this.editingScopeCells));
-            
             
             // Remove from editing set
             this.editingScopeCells.delete(cellKey);
@@ -3097,8 +3059,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Trigger reactivity to show normal cell
             this.applyFilters();
         } catch (error) {
-            console.log('Error in handleScopeCellInputBlur:', error);
-            
+            // Error handling blur event - silently continue
         }
         
     }
@@ -3131,7 +3092,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         saveScopeEntryInlineEdits({ updatedScopeEntriesJson: updatedScopeEntriesJson })
             .then(result => {
                 if (result.startsWith('Success')) {
-                    this.showToast('Success', result, 'success');
+                    this.showToast('Success', 'Your changes have been saved', 'success');
                     
                     // Clear modifications and refresh data
                     this.modifiedScopeEntries.clear();
@@ -3155,8 +3116,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                console.error('Error in scope batch update:', error);
-                this.showToast('Error', 'Failed to update scope entries: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to update scope entries', 'error');
             })
             .finally(() => {
                 this.isSavingScopeEntries = false;
@@ -3208,7 +3168,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Trigger reactivity to remove highlighting and reset values
         this.applyFilters();
         
-        this.showToast('Success', 'Scope changes discarded', 'success');
+        this.showToast('Success', 'Changes have been discarded', 'success');
     }
 
     /**
@@ -3355,9 +3315,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.selectedChangeOrderProcessIds = [];
         }
 
-        console.log('processLibraryDisplayRecords before step 2:', JSON.stringify(this.processLibraryDisplayRecords));
-        
-
         this.changeOrderStep = 2;
     }
 
@@ -3488,13 +3445,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             changeOrderRequestData.selectedProcessIds = this.selectedChangeOrderProcessIds;
         }
 
-        console.log('Change Order Request Data:', JSON.stringify(changeOrderRequestData));        
-
         // Call Apex method
         createChangeOrder({ changeOrderData: changeOrderRequestData })
             .then(result => {
                 if (result === 'Success') {
-                    this.showToast('Success', 'Change order created successfully', 'success');
+                    this.showToast('Success', 'Change order has been created', 'success');
                     this.handleCloseChangeOrderModal();
                     this.fetchScopeEntries(); // Refresh the data
                 } else {
@@ -3502,7 +3457,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to create change order: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to create change order', 'error');
             })
             .finally(() => {
                 this.isChangeOrderSubmitting = false;
@@ -3575,10 +3530,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             if (inputElement.type === 'text' || inputElement.type === 'number') {
                 inputElement.select();
             }
-            
-            console.log(`Focused process input for ${recordId}-${fieldName}`);
         } else {
-            console.warn(`Could not find process input element for ${recordId}-${fieldName}`);
+            // Could not find process input element - silently continue
         }
     }
     
@@ -3703,8 +3656,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const fieldName = event.target.dataset.processFieldName;
         const cellKey = `${recordId}-${fieldName}`;
         
-        console.log(`Blur event on process cell: ${cellKey}`);
-        
         // Remove from editing set
         this.editingProcessCells.delete(cellKey);
         
@@ -3745,7 +3696,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         saveProcessEntryInlineEdits({ updatedProcessEntriesJson: updatedProcessEntriesJson })
             .then(result => {
                 if (result.startsWith('Success')) {
-                    this.showToast('Success', result, 'success');
+                    this.showToast('Success', 'Process changes have been saved', 'success');
                     
                     // Clear modifications for this scope entry only
                     processIdsToUpdate.forEach(processId => {
@@ -3763,8 +3714,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                console.error('Error in process batch update:', error);
-                this.showToast('Error', 'Failed to update process entries: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Failed to update process entries', 'error');
             })
             .finally(() => {
                 this.isSavingProcessEntries = false;
@@ -3801,7 +3751,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         // Trigger reactivity to remove highlighting and reset values
         this.updateDisplayedEntries();
         
-        this.showToast('Success', 'Process changes discarded for this entry', 'success');
+        this.showToast('Success', 'Process changes have been discarded', 'success');
     }
     
     /**

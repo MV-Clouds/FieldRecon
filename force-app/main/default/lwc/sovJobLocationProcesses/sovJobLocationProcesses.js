@@ -140,7 +140,6 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 return '';
             }
         } catch (error) {
-            console.error('Error in sortDescription:', error);
             return '';
         }
     }
@@ -189,8 +188,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 this.isLoading = false;
             })
             .catch(error => {
-                console.error('Error fetching location processes:', error);
-                this.showToast('Error', 'Error fetching location processes: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Unable to load location processes. Please refresh the page and try again.', 'error');
                 this.locationProcesses = [];
                 this.filteredProcesses = [];
                 this.isLoading = false;
@@ -278,7 +276,6 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 this.isUpdatingDOM = false;
             }, 150);
         } catch (error) {
-            console.error('Error applying filters:', error);
             this.filteredProcesses = [];
             this.isUpdatingDOM = false;
         }
@@ -461,7 +458,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
         batchUpdateProcessCompletion({ processUpdates: processUpdates })
             .then(result => {
                 if (result.isSuccess) {
-                    this.showToast('Success', `${result.successCount} process(es) updated successfully`, 'success');
+                    this.showToast('Success', `Successfully updated ${result.successCount} process${result.successCount !== 1 ? 'es' : ''}`, 'success');
                     
                     // Clear modifications and refresh data
                     this.modifiedProcesses.clear();
@@ -472,9 +469,9 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                     
                     this.fetchLocationProcesses();
                 } else {
-                    let errorMessage = result.message;
-                    if (result.errorDetails && result.errorDetails.length > 0) {
-                        errorMessage += '\nDetails: ' + result.errorDetails.join(', ');
+                    let errorMessage = 'Failed to update some processes. Please try again.';
+                    if (result.message) {
+                        errorMessage = result.message;
                     }
                     this.showToast('Error', errorMessage, 'error');
                     
@@ -489,8 +486,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 }
             })
             .catch(error => {
-                console.error('Error in batch update:', error);
-                this.showToast('Error', 'Failed to update processes: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Unable to save changes. Please check your connection and try again.', 'error');
             })
             .finally(() => {
                 this.isSaving = false;
@@ -551,7 +547,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
         this.modifiedProcesses.clear();
         this.hasModifications = false;
         
-        this.showToast('Success', 'Changes discarded', 'success');
+        this.showToast('Success', 'All changes have been discarded', 'success');
     }
 
     /**
@@ -572,7 +568,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
             this.sortData();
             this.updateSortIcons();
         } catch (error) {
-            console.error('Error in handleSortClick:', error);
+            // Handle error silently
         }
     }
 
@@ -611,7 +607,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 this.updateRowHighlighting();
             }, 100);
         } catch (error) {
-            console.error('Error in sortData:', error);
+            // Handle error silently
         }
     }
 
@@ -644,7 +640,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 }
             });
         } catch (error) {
-            console.error('Error in updateSortIcons:', error);
+            // Handle error silently
         }
     }
 

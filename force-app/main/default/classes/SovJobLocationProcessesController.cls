@@ -43,13 +43,7 @@ public with sharing class SovJobLocationProcessesController {
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getJobLocationProcesses',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Location Processes for Job ID: ' + jobId,
-                'apiResponse' => null
+                'className' => CLASSNAME, 'methodName' => 'getJobLocationProcesses', 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Processes for Job ID: ' + jobId, 'apiResponse' => null
             });
         }
         return processes;

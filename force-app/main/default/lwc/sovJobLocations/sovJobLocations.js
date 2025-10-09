@@ -319,7 +319,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 return '';
             }
         } catch (error) {
-            console.error('Error in sortDescription:', error);
             return '';
         }
     }
@@ -503,7 +502,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             this.fieldPicklistOptions.set(fieldName, options);
             return options;
         } catch (error) {
-            console.error('Error fetching picklist values:', error);
             return [];
         }
     }
@@ -525,7 +523,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             
             return `${year}-${month}-${day}`;
         } catch (error) {
-            console.error('Error formatting date:', error);
             return '';
         }
     }
@@ -552,8 +549,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 if (result && result.fieldsData) {
                     try {
                         const parsedFields = JSON.parse(result.fieldsData);
-    
-                        console.log('Parsed location configuration:', parsedFields);
                         
                         if (Array.isArray(parsedFields) && parsedFields.length > 0) {
                             this.locationColumns = parsedFields.map(field => {
@@ -570,7 +565,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                             this.locationColumns = this.defaultColumns;
                         }                        
                     } catch (error) {
-                        console.error('Error parsing location configuration:', error);
                         this.locationColumns = this.defaultColumns;
                     }
                 } else {
@@ -582,19 +576,16 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     this.sortField = this.locationColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
-
-                console.log('Final location columns:', this.locationColumns);
                 
             })
             .catch(error => {
-                console.error('Error fetching configuration:', error);
                 this.locationColumns = this.defaultColumns;
                 // Set default sorting
                 if (this.locationColumns.length > 0) {
                     this.sortField = this.locationColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
-                this.showToast('Warning', 'Using default configuration due to error', 'warning');
+                this.showToast('Notice', 'Using default table configuration', 'warning');
             })
             .finally(() => {
                 this.fetchLocationEntries();
@@ -641,19 +632,14 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Handle configuration updated event from record config component
      */
     handleConfigurationUpdated(event) {
-        console.log('Configuration updated event received:', event.detail);
-        
         // Prevent duplicate processing using timestamp
         if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
-            console.log('Duplicate event ignored');
             return;
         }
         
         if (event.detail.success && event.detail.featureName === 'LocationEntry') {
             // Store timestamp to prevent duplicates
             this.lastConfigUpdateTimestamp = event.detail.timestamp;
-            
-            console.log('Processing configuration update...');
             
             // Stop event propagation
             event.stopPropagation();
@@ -680,8 +666,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
         return getLocationEntries({ jobId: this.recordId })
             .then(result => {
-                console.log('Raw result from getLocationEntries:', result);
-                
                 if (result && result.success) {
                     // Ensure locationEntries is always an array
                     this.locationEntries = Array.isArray(result.locationEntries) ? result.locationEntries : [];
@@ -696,25 +680,19 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     
                     this.applyFilters();
                     this.isLoading = false;
-                    console.log('✅ Successfully loaded location entries:', this.locationEntries.length, 'locations');
-                    console.log('✅ Process map size:', this.locationProcessMap.size);
-                    console.log('✅ Process map contents:', Array.from(this.locationProcessMap.entries()).map(([key, value]) => ({locationId: key, processCount: value.length})));
-                    console.log('✅ Filtered location entries:', this.filteredLocationEntries.length);
                     
                     return result;
                 } else {
-                    console.error('❌ Result success was false:', result);
                     // Initialize empty arrays even on failure
                     this.locationEntries = [];
                     this.filteredLocationEntries = [];
                     this.locationProcessMap = new Map();
                     this.isLoading = false;
-                    throw new Error(result.error || 'Failed to fetch location entries');
+                    throw new Error(result.error || 'Unable to load location data');
                 }
             })
             .catch(error => {
-                console.error('Error fetching location entries:', error);
-                this.showToast('Error', 'Error fetching location entries: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Unable to load location data. Please refresh and try again.', 'error');
                 // Initialize empty arrays on error to prevent filter issues
                 this.locationEntries = [];
                 this.filteredLocationEntries = [];
@@ -759,7 +737,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         try {
             // Ensure locationEntries is always an array
             if (!Array.isArray(this.locationEntries)) {
-                console.warn('locationEntries is not an array, initializing as empty array');
                 this.locationEntries = [];
             }
 
@@ -833,7 +810,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 }, 0);
             }
         } catch (error) {
-            console.error('Error applying filters:', error);
             this.filteredLocationEntries = [];
         }
     }
@@ -883,7 +859,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Comprehensive refresh method that handles all business logic
      */
     performCompleteRefresh() {
-        console.log('🔄 Starting complete refresh...');
         this.isLoading = true;
         this.selectedRows = [];
         
@@ -938,11 +913,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 
                 // Update sort icons
                 this.updateSortIcons();
-                
-                console.log('✅ Complete refresh successful');
             })
             .catch(error => {
-                console.error('Error during refresh:', error);
+                // Error already handled in fetchLocationEntries
             })
             .finally(() => {
                 this.isLoading = false;
@@ -956,7 +929,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     handleNestedRefresh(event) {
         const locationId = event.currentTarget.dataset.locationId;
         if (!locationId) {
-            console.error('No location ID found for nested refresh');
             return;
         }
         
@@ -972,7 +944,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             // Find the location entry
             const locationEntry = this.locationEntries.find(entry => entry.Id === locationId);
             if (!locationEntry) {
-                console.error('Location entry not found for ID:', locationId);
                 return;
             }
             
@@ -996,7 +967,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             
             // Use preloaded process data and immediately update the display
             const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
-            console.log(`Refreshing processes for location ${locationId}:`, preloadedProcesses.length, 'processes found');
             
             this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
                 if (entry.Id === locationId) {
@@ -1006,11 +976,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                         const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
                         updatedEntry.processDetails = processedDetails;
                         updatedEntry.isLoadingProcesses = false;
-                        console.log(`Refreshed ${processedDetails.length} processes for location ${locationId}`);
                     } else {
                         updatedEntry.processDetails = [];
                         updatedEntry.isLoadingProcesses = false;
-                        console.log(`No processes found for location ${locationId} after refresh`);
                     }
                     
                     return updatedEntry;
@@ -1035,8 +1003,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             this.showToast('Success', `Process details refreshed for ${locationEntry.Name}`, 'success');
             
         } catch (error) {
-            console.error('Error refreshing process details:', error);
-            this.showToast('Error', 'Failed to refresh process details: ' + error.message, 'error');
+            this.showToast('Error', 'Unable to refresh process details. Please try again.', 'error');
         }
     }
 
@@ -1066,12 +1033,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                         // Update the location entry in both arrays
                         locationEntry.processDetails = processedDetails;
                         locationEntry.isLoadingProcesses = false;
-                        
-                        console.log(`Restored ${processedDetails.length} processes for location ${locationId} with fresh data`);
                     } else {
                         locationEntry.processDetails = [];
                         locationEntry.isLoadingProcesses = false;
-                        console.log(`No processes found for location ${locationId}`);
                     }
                 }
             });
@@ -1092,7 +1056,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 });
             }, 300); // Increased delay to ensure fresh data is fully processed
         } catch (error) {
-            console.error('Error restoring expanded states:', error);
+            // Error handled silently
         }
     }
 
@@ -1186,15 +1150,15 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         createLocationEntry({ locationData })
             .then(result => {
                 if (result === 'Success') {
-                    this.showToast('Success', 'Location created successfully', 'success');
+                    this.showToast('Success', 'New location has been created successfully', 'success');
                     this.handleCloseModal();
                     this.fetchLocationEntries();
                 } else {
-                    this.showToast('Error', result, 'error');
+                    this.showToast('Error', 'Unable to create location. Please try again.', 'error');
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to create location: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Unable to create location. Please check your data and try again.', 'error');
             })
             .finally(() => {
                 this.isSubmitting = false;
@@ -1241,7 +1205,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     handleMassDelete() {
         if (this.selectedRows.length === 0) {
-            this.showToast('Warning', 'Please select at least one record to delete', 'warning');
+            this.showToast('Notice', 'Please select at least one location to delete', 'warning');
             return;
         }
 
@@ -1250,15 +1214,17 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         deleteLocationEntries({ locationIds: this.selectedRows })
             .then(result => {
                 if (result.includes('Success')) {
-                    this.showToast('Success', `${this.selectedRows.length} record(s) deleted successfully`, 'success');
+                    const count = this.selectedRows.length;
+                    const message = count === 1 ? 'Location deleted successfully' : `${count} locations deleted successfully`;
+                    this.showToast('Success', message, 'success');
                     this.selectedRows = [];
                     this.fetchLocationEntries();
                 } else {
-                    this.showToast('Error', result, 'error');
+                    this.showToast('Error', 'Unable to delete selected locations. Please try again.', 'error');
                 }
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to delete records: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Unable to delete selected locations. Please try again.', 'error');
             })
             .finally(() => {
                 this.isLoading = false;
@@ -1280,7 +1246,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 // Always load process data when opening, regardless of existing processDetails
                 if (updatedEntry.showProcessDetails) {
                     const preloadedProcesses = this.locationProcessMap.get(recordId) || [];
-                    console.log(`Loading processes for location ${recordId}:`, preloadedProcesses.length, 'processes found');
                     
                     // Immediately update the process details instead of waiting for the updateProcessDetails method
                     if (preloadedProcesses.length > 0) {
@@ -1293,12 +1258,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                         const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
                         updatedEntry.processDetails = processedDetails;
                         updatedEntry.isLoadingProcesses = false;
-                        
-                        console.log(`Processed ${processedDetails.length} processes for location ${recordId}`);
                     } else {
                         updatedEntry.processDetails = [];
                         updatedEntry.isLoadingProcesses = false;
-                        console.log(`No processes found for location ${recordId}`);
                     }
                 }
                 
@@ -1328,7 +1290,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     // Method kept for potential backward compatibility but should not be called
     loadProcessDetails(locationId) {
-        console.warn('loadProcessDetails is deprecated - processes are now preloaded');
         const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
         this.updateProcessDetails(locationId, preloadedProcesses);
         return Promise.resolve(preloadedProcesses);
@@ -1534,7 +1495,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     }
                 }
             } else {
-                console.warn(`Slider with process ID ${processId} not found for highlighting`);
+                // Slider not found for highlighting
             }
         });
     }
@@ -1634,7 +1595,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         batchUpdateProcessCompletion({ processUpdates: processUpdates })
             .then(result => {
                 if (result.isSuccess) {
-                    this.showToast('Success', `${result.successCount} process(es) updated successfully`, 'success');
+                    const count = result.successCount;
+                    const message = count === 1 ? 'Process completion updated successfully' : `${count} process completions updated successfully`;
+                    this.showToast('Success', message, 'success');
                     
                     // Clear modifications for saved processes
                     if (locationId) {
@@ -1659,8 +1622,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 }
             })
             .catch(error => {
-                console.error('Error in batch update:', error);
-                this.showToast('Error', 'Failed to update processes: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Unable to update process completion. Please try again.', 'error');
             })
             .finally(() => {
                 this.performCompleteRefresh();
@@ -1754,7 +1716,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             });
         }, 10);
         
-        this.showToast('Success', 'Changes discarded', 'success');
+        this.showToast('Success', 'Process changes have been discarded', 'success');
     }
 
     /**
@@ -1808,7 +1770,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     refreshProcessDetailsForLocations(locationIds) {
         locationIds.forEach(locationId => {
             const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
-            console.log(`Refreshing saved data for location ${locationId}:`, preloadedProcesses.length, 'processes');
             
             this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
                 if (entry.Id === locationId && entry.showProcessDetails) {
@@ -1853,7 +1814,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             this.sortData();
             this.updateSortIcons();
         } catch (error) {
-            console.error('Error in handleSortClick:', error);
+            // Error handled silently
         }
     }
 
@@ -1876,7 +1837,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             this.sortProcessData(locationId);
             this.updateProcessSortIcons(locationId);
         } catch (error) {
-            console.error('Error in handleProcessSortClick:', error);
+            // Error handled silently
         }
     }
 
@@ -1910,7 +1871,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 return this.sortOrder === 'asc' ? compare : -compare;
             });
         } catch (error) {
-            console.error('Error in sortData:', error);
+            // Error handled silently
         }
     }
 
@@ -1954,7 +1915,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 return entry;
             });
         } catch (error) {
-            console.error('Error in sortProcessData:', error);
+            // Error handled silently
         }
     }
 
@@ -1987,7 +1948,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 }
             });
         } catch (error) {
-            console.error('Error in updateSortIcons:', error);
+            // Error handled silently
         }
     }
 
@@ -2001,10 +1962,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 // Clear icons for this specific location
                 const locationHeaders = this.template.querySelectorAll(`th[data-location-id="${locationId}"].process-sortable-header`);
                 const locationIcons = this.template.querySelectorAll(`th[data-location-id="${locationId}"] .process-sort-icon svg`);
-
-                console.log('locationHeaders:', locationHeaders);
-                console.log('locationIcons:', locationIcons);
-                
                 
                 locationHeaders.forEach(header => {
                     header.classList.remove('active-sort');
@@ -2026,11 +1983,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 });
             }
             else{
-                console.log('NO locationId provided to updateProcessSortIcons');
-                
+                // No locationId provided
             }
         } catch (error) {
-            console.error('Error in updateProcessSortIcons:', error);
+            // Error handled silently
         }
     }
 
@@ -2048,11 +2004,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 const locationEntry = this.filteredLocationEntries.find(entry => entry.Id === locationId);
                 
                 if (!locationEntry || !locationEntry.processDetails) {
-                    console.log(`No process details found for location ${locationId}`);
                     return;
                 }
-                
-                console.log(`Updating ${sliders.length} sliders for location ${locationId} with ${locationEntry.processDetails.length} processes`);
                 
                 sliders.forEach(slider => {
                     const processId = slider.dataset.processId;
@@ -2086,12 +2039,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                                 processRow.classList.remove('modified-field');
                             }
                             
-                            console.log(`✅ Updated slider for process ${processId}: ${freshValue}%`);
                             return;
                         }
                     }
-                    
-                    console.warn(`⚠️ Could not find fresh data for process ${processId} in location ${locationId}`);
                     
                     // Fallback to existing value if fresh data not found
                     const currentValue = parseFloat(slider.value) || 0;
@@ -2104,29 +2054,12 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                             valueDisplay.textContent = `${currentValue}%`;
                         }
                     }
-                    
-                    console.log(`Fallback slider update for process ${processId}: ${currentValue}%`);
                 });
-                
-                console.log(`✅ Completed updating ${sliders.length} slider displays for location ${locationId}`);
             }, 200); // Sufficient delay to ensure DOM is fully updated with fresh data
             
         } catch (error) {
-            console.error('Error updating slider displays:', error);
+            // Error handled silently
         }
-    }
-
-    /**
-     * Method Name: showToast
-     * @description: Show toast message
-     */
-    showToast(title, message, variant) {
-        const event = new ShowToastEvent({
-            title,
-            message,
-            variant
-        });
-        this.dispatchEvent(event);
     }
 
     /**
@@ -2151,7 +2084,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             try {
                 await this.getPicklistValues(fieldName);
             } catch (error) {
-                console.error('Error loading picklist values:', error);
+                // Error handled silently
             }
         }
         
@@ -2316,7 +2249,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 // Force a re-render to show the picklist with options
                 this.filteredLocationEntries = [...this.filteredLocationEntries];
             } catch (error) {
-                console.error('Error loading picklist values:', error);
+                // Error handled silently
             }
         }
         
@@ -2373,16 +2306,17 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         saveInlineEdits({ updatedLocationsJson: updatedLocationsJson })
             .then(result => {
                 if (result.startsWith('Success')) {
-                    this.showToast('Success', result, 'success');
+                    const count = this.modifiedLocations.size;
+                    const message = count === 1 ? 'Location updated successfully' : `${count} locations updated successfully`;
+                    this.showToast('Success', message, 'success');
                 } else if (result.startsWith('Partial Success')) {
-                    this.showToast('Warning', result, 'warning');
+                    this.showToast('Warning', 'Some locations were updated, but others failed. Please check and try again.', 'warning');
                 } else {
-                    this.showToast('Error', result, 'error');
+                    this.showToast('Error', 'Unable to update locations. Please try again.', 'error');
                 }
             })
             .catch(error => {
-                console.error('Error in location batch update:', error);
-                this.showToast('Error', 'Failed to update locations: ' + (error.body?.message || error.message), 'error');
+                this.showToast('Error', 'Something went wrong while updating locations. Please try again.', 'error');
             })
             .finally(() => {
                 this.isSavingLocations = false;
@@ -2403,6 +2337,19 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         // Trigger reactivity to remove highlighting and reset values
         this.filteredLocationEntries = [...this.filteredLocationEntries];
         
-        this.showToast('Success', 'Location changes discarded', 'success');
+        this.showToast('Success', 'Location changes have been discarded', 'success');
+    }
+
+    /**
+     * Method Name: showToast
+     * @description: Show toast message
+     */
+    showToast(title, message, variant) {
+        const event = new ShowToastEvent({
+            title,
+            message,
+            variant
+        });
+        this.dispatchEvent(event);
     }
 }
