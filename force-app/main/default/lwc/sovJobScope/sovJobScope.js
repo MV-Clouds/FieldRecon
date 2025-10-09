@@ -74,12 +74,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             type: 'number',
             editable: true
         },
-        {
-            label: 'Type',
-            fieldName: 'wfrecon__IsManual__c',
-            type: 'boolean',
-            editable: false
-        },
         { 
             label: 'Process Name', 
             fieldName: 'wfrecon__Process_Name__c', 
@@ -2177,13 +2171,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedScopeEntryId = event.currentTarget.dataset.scopeEntryId;
         this.selectedScopeEntryName = event.currentTarget.dataset.scopeEntryName;
         
-        // Reset selections
+        // Reset selections and clear all modal data
         this.selectedProcessLibraryIds = [];
         this.processLibrarySearchTerm = '';
         this.selectedProcessCategory = '';
+        this.processLibraryDisplayRecords = [];
+        this.processLibraryRecords = [];
         
         // Load process library records and types
         this.showProcessLibraryModal = true;
+        this.loadProcessLibraryData();
     }
 
     /**
@@ -2249,6 +2246,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
 
         // Create display records with selection state and processed fields
+        // Note: isSelected will be false for all records since selectedProcessLibraryIds was cleared
         this.processLibraryDisplayRecords = filtered.map(process => {
             const processRecord = {
                 ...process,
@@ -2369,6 +2367,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedProcessLibraryIds = [];
         this.processLibrarySearchTerm = '';
         this.selectedProcessCategory = '';
+        this.processLibraryDisplayRecords = [];
+        this.processLibraryRecords = [];
     }
 
     /**
