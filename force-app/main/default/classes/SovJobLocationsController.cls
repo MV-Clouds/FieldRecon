@@ -16,15 +16,18 @@ public with sharing class SovJobLocationsController {
 
    /*
     *********************************************************
-    @description     : Method is used to dynamically get Location Entries for a Job
+    @description     : Method is used to dynamically get Location Entries for a Job with all related processes preloaded
     @param           : Id jobId - Job Id
-    @return          : List<SObject> - List of Location Entries (dynamic fields)
+    @return          : Map<String, Object> - Map containing location entries and their process data
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static List<SObject> getLocationEntries(Id jobId) {
+    public static Map<String, Object> getLocationEntries(Id jobId) {
+        Map<String, Object> result = new Map<String, Object>();
         List<SObject> locationEntries = new List<SObject>();
+        Map<Id, List<Location_Process__c>> locationProcessMap = new Map<Id, List<Location_Process__c>>();
+        
         try {
             String objectName = 'wfrecon__Location__c';
             
@@ -50,7 +53,45 @@ public with sharing class SovJobLocationsController {
                         ' ORDER BY CreatedDate DESC';
                 
                 locationEntries = Database.query(query, AccessLevel.USER_MODE);
+
+                if (!locationEntries.isEmpty()) {
+                    // --- Collect all Location IDs ---
+                    Set<Id> locationIds = new Set<Id>();
+                    for (SObject entry : locationEntries) {
+                        locationIds.add(entry.Id);
+                    }
+
+                    // --- Fetch all related Location Processes in bulk ---
+                    List<Location_Process__c> allLocationProcesses = [
+                        SELECT Id, Name, wfrecon__Contract_Price__c, wfrecon__Completed_Percentage__c, 
+                               wfrecon__Current_Completed_Value__c, wfrecon__Process_Status__c, wfrecon__Scope_Entry_Process__r.Name,	
+                               wfrecon__Sequence__c, wfrecon__Location__c
+                        FROM wfrecon__Location_Process__c
+                        WHERE wfrecon__Location__c IN :locationIds
+                        WITH USER_MODE
+                        ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
+                    ];
+
+                    // --- Group processes by location ---
+                    for (Location_Process__c process : allLocationProcesses) {
+                        Id locationId = process.Location__c;
+                        if (!locationProcessMap.containsKey(locationId)) {
+                            locationProcessMap.put(locationId, new List<Location_Process__c>());
+                        }
+                        locationProcessMap.get(locationId).add(process);
+                    }
+                }
             }
+
+            result.put('locationEntries', locationEntries);
+            result.put('locationProcessMap', locationProcessMap);
+            result.put('success', true);
+            
+            // Add debugging information
+            System.debug('LocationEntries getLocationEntries - Found ' + locationEntries.size() + ' locations');
+            System.debug('LocationEntries getLocationEntries - Process map has ' + locationProcessMap.size() + ' entries');
+            System.debug('LocationEntries getLocationEntries - Query executed: ' + (String.isNotBlank(allLocationFields) ? 'true' : 'false'));
+
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
@@ -58,11 +99,16 @@ public with sharing class SovJobLocationsController {
                 'isApiException' => false,
                 'statusCode' => null,
                 'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Location Entries dynamically.',
+                'moreDetails' => 'Error occurred while fetching Location Entries with processes dynamically for Job ID: ' + jobId,
                 'apiResponse' => null
             });
+
+            result.put('locationEntries', new List<SObject>());
+            result.put('locationProcessMap', new Map<Id, List<Location_Process__c>>());
+            result.put('success', false);
+            result.put('error', e.getMessage());
         }
-        return locationEntries;
+        return result;
     }
 
     /*
@@ -253,41 +299,6 @@ public with sharing class SovJobLocationsController {
             });
             return 'Error: ' + e.getMessage();
         }
-    }
-
-    /*
-    *********************************************************
-    @description     : Method is used to get Location Process details
-    @param           : Id locationId - Location Id
-    @return          : List<Location_Process__c> - List of Process records
-    @author          : Rachit Shah
-    ********************************************************
-    */
-    @AuraEnabled
-    public static List<Location_Process__c> getLocationProcesses(Id locationId) {
-        List<Location_Process__c> processes = new List<Location_Process__c>();
-        try {
-            processes = [
-                SELECT Id, Name, Contract_Price__c, Completed_Percentage__c, 
-                       Current_Completed_Value__c, Process_Status__c, 
-                       Sequence__c, Location__c
-                FROM Location_Process__c
-                WHERE Location__c = :locationId
-                WITH USER_MODE
-                ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
-            ];
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getLocationProcesses',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Location Processes for Location ID: ' + locationId,
-                'apiResponse' => null
-            });
-        }
-        return processes;
     }
 
     /*

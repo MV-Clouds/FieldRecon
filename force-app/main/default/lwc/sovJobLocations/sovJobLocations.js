@@ -5,12 +5,15 @@ import { NavigationMixin } from 'lightning/navigation';
 import getLocationEntries from '@salesforce/apex/SovJobLocationsController.getLocationEntries';
 import createLocationEntry from '@salesforce/apex/SovJobLocationsController.createLocationEntry';
 import deleteLocationEntries from '@salesforce/apex/SovJobLocationsController.deleteLocationEntries';
-import getLocationProcesses from '@salesforce/apex/SovJobLocationsController.getLocationProcesses';
 import getLocationConfiguration from '@salesforce/apex/SovJobLocationsController.getLocationConfiguration';
 import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInlineEdits';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 import getPicklistValuesForField from '@salesforce/apex/SovJobLocationsController.getPicklistValuesForField';
 
+/**
+ * Lightning Web Component for SOV Job Locations management
+ * Handles location entries with inline editing and process tracking
+ */
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track recordId;
     @track isLoading = true;
@@ -21,6 +24,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track locationColumns = [];
     @track lastConfigUpdateTimestamp = 0;
     @track fieldPicklistOptions = new Map(); // Map<fieldName, Array<{label, value}>>
+    @track locationProcessMap = new Map(); // Map<locationId, Array<processData>> - Preloaded process data
 
     // Sorting properties
     @track sortField = '';
@@ -48,6 +52,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track processTableColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true },
         { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number' },
+        { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.Name', type: 'text' },
         { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency' },
         { label: 'Completed %', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true },
         { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency' },
@@ -71,6 +76,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track modifiedProcessesByLocation = new Map(); // Map<locationId, Set<processId>>
     @track hasModifications = false; // Track if there are unsaved changes
     @track isSaving = false; // Track save operation
+    @track savingLocations = new Set(); // Track which locations are currently saving
 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
@@ -108,17 +114,37 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             row.isLoadingProcesses = entry.isLoadingProcesses || false;
 
             // Add per-location button properties
-            row.isProcessButtonsDisabled = !this.hasProcessModificationsForLocation(entry.Id) || this.isSaving;
-            row.isProcessSaveDisabled = !this.hasProcessModificationsForLocation(entry.Id) || this.isSaving;
-            row.processSaveButtonLabel = this.getProcessSaveButtonLabelForLocation(entry.Id);
-            row.processDiscardButtonTitle = this.getProcessDiscardButtonTitleForLocation(entry.Id);            
+            const entryId = entry.Id;
+            const hasProcessMods = this.hasProcessModificationsForLocation(entryId);
+            const isSavingLocation = this.savingLocations.has(entryId);
+            
+            row.isProcessButtonsDisabled = !hasProcessMods || isSavingLocation;
+            row.isProcessSaveDisabled = !hasProcessMods || isSavingLocation;
+            
+            // Compute button labels directly instead of calling methods
+            if (isSavingLocation) {
+                row.processSaveButtonLabel = 'Saving...';
+            } else if (hasProcessMods) {
+                const count = this.getProcessModificationCountForLocation(entryId);
+                row.processSaveButtonLabel = `Save Changes (${count})`;
+            } else {
+                row.processSaveButtonLabel = 'Save Changes';
+            }
+            
+            if (!hasProcessMods) {
+                row.processDiscardButtonTitle = 'No unsaved changes to discard';
+            } else {
+                const count = this.getProcessModificationCountForLocation(entryId);
+                row.processDiscardButtonTitle = `Discard ${count} unsaved process change(s) for this location`;
+            }            
             
             row.displayFields = cols.map(col => {
                 const key = col.fieldName;
                 let value = this.getFieldValue(entry, key);
                 
                 // Check if this field has been modified
-                const modifiedValue = this.getModifiedValue(entry.Id, key);
+                const entryId = entry.Id;
+                const modifiedValue = this.getModifiedValue(entryId, key);
                 if (modifiedValue !== null && modifiedValue !== undefined) {
                     value = modifiedValue;
                 }
@@ -169,8 +195,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     // If editing and no options, we'll load them synchronously elsewhere
                 }
                 
-                const isModified = this.isFieldModified(entry.Id, key);
-                const isBeingEdited = this.editingCells.has(`${entry.Id}-${key}`);
+                const isModified = this.isFieldModified(entryId, key);
+                const cellKey = `${entryId}-${key}`;
+                const isBeingEdited = this.editingCells.has(cellKey);
                 
                 // Build cell classes
                 let cellClass = 'center-trancate-text';
@@ -302,7 +329,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Check if action buttons should be disabled
      */
     get isButtonsDisabled() {
-        return !this.hasModifications || this.isSaving;
+        return !this.hasModifications || this.isSaving || this.savingLocations.size > 0;
     }
 
     /**
@@ -310,7 +337,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Check if save button should be disabled
      */
     get isSaveDisabled() {
-        return !this.hasModifications || this.isSaving;
+        return !this.hasModifications || this.isSaving || this.savingLocations.size > 0;
     }
 
     /**
@@ -318,7 +345,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Get dynamic save button label
      */
     get saveButtonLabel() {
-        if (this.isSaving) {
+        if (this.isSaving || this.savingLocations.size > 0) {
             return 'Saving...';
         }
         if (this.hasModifications) {
@@ -421,7 +448,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Get dynamic process save button label for specific location
      */
     getProcessSaveButtonLabelForLocation(locationId) {
-        if (this.isSaving) {
+        if (this.savingLocations.has(locationId)) {
             return 'Saving...';
         }
         const count = this.getProcessModificationCountForLocation(locationId);
@@ -508,6 +535,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Load location entries with default sorting
      */
     connectedCallback() {
+        // Initialize saving locations set if not already initialized
+        if (!this.savingLocations) {
+            this.savingLocations = new Set();
+        }
         this.fetchLocationConfiguration();
     }
 
@@ -635,26 +666,59 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: fetchLocationEntries
-     * @description: Fetch location entries for the job
+     * @description: Fetch location entries for the job with preloaded process data
      */
     fetchLocationEntries() {
         if (!this.recordId) {
             this.isLoading = false;
+            // Initialize empty arrays to ensure filter functions work
+            this.locationEntries = [];
+            this.filteredLocationEntries = [];
+            this.locationProcessMap = new Map();
             return Promise.resolve();
         }
 
         return getLocationEntries({ jobId: this.recordId })
             .then(result => {
-                this.locationEntries = result || [];
-                this.applyFilters();
-                this.isLoading = false;
-                return result;
+                console.log('Raw result from getLocationEntries:', result);
+                
+                if (result && result.success) {
+                    // Ensure locationEntries is always an array
+                    this.locationEntries = Array.isArray(result.locationEntries) ? result.locationEntries : [];
+                    
+                    // Store the preloaded process data
+                    this.locationProcessMap = new Map();
+                    if (result.locationProcessMap) {
+                        Object.keys(result.locationProcessMap).forEach(locationId => {
+                            this.locationProcessMap.set(locationId, result.locationProcessMap[locationId]);
+                        });
+                    }
+                    
+                    this.applyFilters();
+                    this.isLoading = false;
+                    console.log('✅ Successfully loaded location entries:', this.locationEntries.length, 'locations');
+                    console.log('✅ Process map size:', this.locationProcessMap.size);
+                    console.log('✅ Process map contents:', Array.from(this.locationProcessMap.entries()).map(([key, value]) => ({locationId: key, processCount: value.length})));
+                    console.log('✅ Filtered location entries:', this.filteredLocationEntries.length);
+                    
+                    return result;
+                } else {
+                    console.error('❌ Result success was false:', result);
+                    // Initialize empty arrays even on failure
+                    this.locationEntries = [];
+                    this.filteredLocationEntries = [];
+                    this.locationProcessMap = new Map();
+                    this.isLoading = false;
+                    throw new Error(result.error || 'Failed to fetch location entries');
+                }
             })
             .catch(error => {
                 console.error('Error fetching location entries:', error);
                 this.showToast('Error', 'Error fetching location entries: ' + (error.body?.message || error.message), 'error');
+                // Initialize empty arrays on error to prevent filter issues
                 this.locationEntries = [];
                 this.filteredLocationEntries = [];
+                this.locationProcessMap = new Map();
                 this.isLoading = false;
                 throw error; // Re-throw to allow caller to handle
             });
@@ -693,6 +757,12 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     applyFilters() {
         try {
+            // Ensure locationEntries is always an array
+            if (!Array.isArray(this.locationEntries)) {
+                console.warn('locationEntries is not an array, initializing as empty array');
+                this.locationEntries = [];
+            }
+
             // Don't reset sorting when applying filters, only when there's no default
             if (!this.sortField && this.tableColumns.length > 0) {
                 this.sortField = this.tableColumns[0].fieldName;
@@ -730,15 +800,17 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
             // Store current process states
             const currentProcessStates = new Map();
-            this.filteredLocationEntries.forEach(entry => {
-                if (entry.processDetails || entry.showProcessDetails !== undefined) {
-                    currentProcessStates.set(entry.Id, {
-                        processDetails: entry.processDetails,
-                        showProcessDetails: entry.showProcessDetails,
-                        isLoadingProcesses: entry.isLoadingProcesses
-                    });
-                }
-            });
+            if (Array.isArray(this.filteredLocationEntries)) {
+                this.filteredLocationEntries.forEach(entry => {
+                    if (entry.processDetails || entry.showProcessDetails !== undefined) {
+                        currentProcessStates.set(entry.Id, {
+                            processDetails: entry.processDetails,
+                            showProcessDetails: entry.showProcessDetails,
+                            isLoadingProcesses: entry.isLoadingProcesses
+                        });
+                    }
+                });
+            }
 
             this.filteredLocationEntries = filteredEntries;
 
@@ -811,6 +883,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Comprehensive refresh method that handles all business logic
      */
     performCompleteRefresh() {
+        console.log('🔄 Starting complete refresh...');
         this.isLoading = true;
         this.selectedRows = [];
         
@@ -821,6 +894,13 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         this.modifiedProcessesByLocation.clear();
         this.hasModifications = false;
         this.editingCells.clear();
+        
+        // Clear saving states
+        if (!this.savingLocations) {
+            this.savingLocations = new Set();
+        } else {
+            this.savingLocations.clear();
+        }
         
         // Reset sorting to defaults
         if (this.tableColumns.length > 0) {
@@ -859,11 +939,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 // Update sort icons
                 this.updateSortIcons();
                 
-                this.showToast('Success', 'Data refreshed successfully', 'success');
+                console.log('✅ Complete refresh successful');
             })
             .catch(error => {
                 console.error('Error during refresh:', error);
-                this.showToast('Error', 'Failed to refresh data: ' + (error.body?.message || error.message), 'error');
             })
             .finally(() => {
                 this.isLoading = false;
@@ -886,7 +965,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: refreshNestedProcessDetails
-     * @description: Refresh process details for a specific location
+     * @description: Refresh process details for a specific location using preloaded data
      */
     refreshNestedProcessDetails(locationId) {
         try {
@@ -915,37 +994,49 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 this.processSortOrder = 'asc';
             }
             
-            // Set loading state for this location
-            locationEntry.isLoadingProcesses = true;
+            // Use preloaded process data and immediately update the display
+            const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
+            console.log(`Refreshing processes for location ${locationId}:`, preloadedProcesses.length, 'processes found');
             
-            // Trigger reactivity
-            this.locationEntries = [...this.locationEntries];
-            this.applyFilters();
+            this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
+                if (entry.Id === locationId) {
+                    const updatedEntry = { ...entry };
+                    
+                    if (preloadedProcesses.length > 0) {
+                        const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
+                        updatedEntry.processDetails = processedDetails;
+                        updatedEntry.isLoadingProcesses = false;
+                        console.log(`Refreshed ${processedDetails.length} processes for location ${locationId}`);
+                    } else {
+                        updatedEntry.processDetails = [];
+                        updatedEntry.isLoadingProcesses = false;
+                        console.log(`No processes found for location ${locationId} after refresh`);
+                    }
+                    
+                    return updatedEntry;
+                }
+                return entry;
+            });
             
-            // Reload process details
-            this.loadProcessDetails(locationId)
-                .then(() => {
-                    // Update sort icons for this location's process table
+            // Apply sorting after the data is loaded
+            if (this.processSortField) {
+                setTimeout(() => {
+                    this.sortProcessData(locationId);
                     this.updateProcessSortIcons(locationId);
-                    
-                    this.showToast('Success', `Process details refreshed for ${locationEntry.Name}`, 'success');
-                })
-                .catch(error => {
-                    console.error('Error refreshing process details:', error);
-                    this.showToast('Error', 'Failed to refresh process details: ' + (error.body?.message || error.message), 'error');
-                })
-                .finally(() => {
-                    // Remove loading state
-                    locationEntry.isLoadingProcesses = false;
-                    
-                    // Trigger reactivity
-                    this.locationEntries = [...this.locationEntries];
-                    this.applyFilters();
-                });
-                
+                    this.updateSliderDisplays(locationId);
+                }, 0);
+            } else {
+                // Update slider displays even without sorting
+                setTimeout(() => {
+                    this.updateSliderDisplays(locationId);
+                }, 0);
+            }
+            
+            this.showToast('Success', `Process details refreshed for ${locationEntry.Name}`, 'success');
+            
         } catch (error) {
-            console.error('Error in refreshNestedProcessDetails:', error);
-            this.showToast('Error', 'An error occurred while refreshing process details', 'error');
+            console.error('Error refreshing process details:', error);
+            this.showToast('Error', 'Failed to refresh process details: ' + error.message, 'error');
         }
     }
 
@@ -959,14 +1050,47 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 const locationEntry = this.locationEntries.find(entry => entry.Id === locationId);
                 if (locationEntry) {
                     locationEntry.showProcessDetails = true;
-                    // Reload process details for expanded locations
-                    this.loadProcessDetails(locationId);
+                    // Use preloaded process details for expanded locations with fresh data
+                    const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
+                    
+                    // Immediately refresh the process details with fresh data
+                    if (preloadedProcesses.length > 0) {
+                        // Set default process sorting if not set
+                        if (!this.processSortField && this.processTableColumns.length > 0) {
+                            this.processSortField = this.processTableColumns[0].fieldName;
+                            this.processSortOrder = 'asc';
+                        }
+                        
+                        const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
+                        
+                        // Update the location entry in both arrays
+                        locationEntry.processDetails = processedDetails;
+                        locationEntry.isLoadingProcesses = false;
+                        
+                        console.log(`Restored ${processedDetails.length} processes for location ${locationId} with fresh data`);
+                    } else {
+                        locationEntry.processDetails = [];
+                        locationEntry.isLoadingProcesses = false;
+                        console.log(`No processes found for location ${locationId}`);
+                    }
                 }
             });
             
             // Trigger reactivity
             this.locationEntries = [...this.locationEntries];
             this.applyFilters();
+            
+            // Update slider displays for all expanded locations with increased delay for fresh data
+            setTimeout(() => {
+                locationIds.forEach(locationId => {
+                    // Apply sorting first
+                    if (this.processSortField) {
+                        this.sortProcessData(locationId);
+                    }
+                    // Then update slider displays with fresh data
+                    this.updateSliderDisplays(locationId);
+                });
+            }, 300); // Increased delay to ensure fresh data is fully processed
         } catch (error) {
             console.error('Error restoring expanded states:', error);
         }
@@ -1143,7 +1267,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleToggleProcessDetails
-     * @description: Toggle process details display and load data if needed
+     * @description: Toggle process details display using preloaded data
      */
     handleToggleProcessDetails(event) {
         const recordId = event.currentTarget.dataset.recordId;
@@ -1153,33 +1277,61 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 const updatedEntry = { ...entry };
                 updatedEntry.showProcessDetails = !entry.showProcessDetails;
                 
-                if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
-                    updatedEntry.isLoadingProcesses = true;
-                    this.loadProcessDetails(recordId);
+                // Always load process data when opening, regardless of existing processDetails
+                if (updatedEntry.showProcessDetails) {
+                    const preloadedProcesses = this.locationProcessMap.get(recordId) || [];
+                    console.log(`Loading processes for location ${recordId}:`, preloadedProcesses.length, 'processes found');
+                    
+                    // Immediately update the process details instead of waiting for the updateProcessDetails method
+                    if (preloadedProcesses.length > 0) {
+                        // Set default process sorting if not set
+                        if (!this.processSortField && this.processTableColumns.length > 0) {
+                            this.processSortField = this.processTableColumns[0].fieldName;
+                            this.processSortOrder = 'asc';
+                        }
+                        
+                        const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
+                        updatedEntry.processDetails = processedDetails;
+                        updatedEntry.isLoadingProcesses = false;
+                        
+                        console.log(`Processed ${processedDetails.length} processes for location ${recordId}`);
+                    } else {
+                        updatedEntry.processDetails = [];
+                        updatedEntry.isLoadingProcesses = false;
+                        console.log(`No processes found for location ${recordId}`);
+                    }
                 }
                 
                 return updatedEntry;
             }
             return entry;
         });
+        
+        // Apply sorting after the data is loaded
+        if (this.processSortField) {
+            setTimeout(() => {
+                this.sortProcessData(recordId);
+                this.updateSliderDisplays(recordId);
+            }, 0);
+        } else {
+            // Update slider displays even without sorting
+            setTimeout(() => {
+                this.updateSliderDisplays(recordId);
+            }, 0);
+        }
     }
 
     /**
-     * Method Name: loadProcessDetails
-     * @description: Load process details for a specific location
+     * Method Name: loadProcessDetails (DEPRECATED)
+     * @description: Load process details for a specific location - now uses preloaded data
+     * @deprecated: This method is no longer used since processes are preloaded
      */
+    // Method kept for potential backward compatibility but should not be called
     loadProcessDetails(locationId) {
-        return getLocationProcesses({ locationId: locationId })
-            .then(result => {
-                this.updateProcessDetails(locationId, result || []);
-                return result;
-            })
-            .catch(error => {
-                console.error('Error loading process details:', error);
-                this.updateProcessDetails(locationId, []);
-                this.showToast('Error', 'Failed to load process details: ' + (error.body?.message || error.message), 'error');
-                throw error; // Re-throw to allow caller to handle
-            });
+        console.warn('loadProcessDetails is deprecated - processes are now preloaded');
+        const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
+        this.updateProcessDetails(locationId, preloadedProcesses);
+        return Promise.resolve(preloadedProcesses);
     }
 
     /**
@@ -1251,7 +1403,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     
         return processDetails.map(process => {
             const row = { ...process };
-            row.recordUrl = `/lightning/r/${process.Id}/view`;
+            const processId = this.getFieldValue(process, 'Id');
+            row.recordUrl = `/lightning/r/${processId}/view`;
             
             row.displayFields = this.processTableColumns.map(col => {
                 const key = col.fieldName;
@@ -1358,8 +1511,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Apply highlighting to modified slider containers
      */
     applySliderHighlighting(processId, isModified) {
-        setTimeout(() => {
-            const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
+        // Use requestAnimationFrame for better DOM timing
+        requestAnimationFrame(() => {
+            const slider = this.template.querySelector(`input[data-process-id="${processId}"]`);
             if (slider) {
                 const sliderContainer = slider.closest('.slider-container');
                 const tableCell = slider.closest('td');
@@ -1379,8 +1533,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                         tableCell.classList.remove('modified-cell');
                     }
                 }
+            } else {
+                console.warn(`Slider with process ID ${processId} not found for highlighting`);
             }
-        }, 0);
+        });
     }
 
      /**
@@ -1391,7 +1547,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
             if (entry.Id === locationId && entry.processDetails) {
                 const updatedProcessDetails = entry.processDetails.map(process => {
-                    if (process.Id === processId) {
+                    const currentProcessId = this.getFieldValue(process, 'Id');
+                    if (currentProcessId === processId) {
                         const updatedProcess = { ...process };
                         // Update the display fields to reflect the new value
                         updatedProcess.displayFields = updatedProcess.displayFields.map(field => {
@@ -1427,6 +1584,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         const locationId = event.target.dataset.locationId;
         
         let processesToSave;
+        let affectedLocationIds = new Set();
+        
         if (locationId) {
             // Location-specific save - only save processes for this location
             if (!this.modifiedProcessesByLocation.has(locationId) || 
@@ -1441,19 +1600,29 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     processesToSave.set(processId, this.modifiedProcesses.get(processId));
                 }
             });
+            affectedLocationIds.add(locationId);
+            
+            // Set location-specific saving state
+            this.savingLocations.add(locationId);
         } else {
             // Global save - save all modifications
             if (this.modifiedProcesses.size === 0) {
                 return;
             }
             processesToSave = this.modifiedProcesses;
+            
+            // Collect all affected location IDs
+            processesToSave.forEach(modification => {
+                affectedLocationIds.add(modification.locationId);
+                this.savingLocations.add(modification.locationId);
+            });
+            
+            this.isSaving = true;
         }
 
         if (processesToSave.size === 0) {
             return;
         }
-
-        this.isSaving = true;
         
         // Prepare data for batch update
         const processUpdates = Array.from(processesToSave.entries()).map(([processId, modification]) => ({
@@ -1466,12 +1635,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result.isSuccess) {
                     this.showToast('Success', `${result.successCount} process(es) updated successfully`, 'success');
-                    
-                    // Get all affected location IDs from the saved processes
-                    const affectedLocationIds = new Set();
-                    processesToSave.forEach(modification => {
-                        affectedLocationIds.add(modification.locationId);
-                    });
                     
                     // Clear modifications for saved processes
                     if (locationId) {
@@ -1490,40 +1653,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     // Update global flag
                     this.hasModifications = this.modifiedProcesses.size > 0;
                     
-                    // Remove all highlighting immediately
-                    this.clearAllHighlighting();
-                    
-                    // Force UI refresh to update button states
-                    this.filteredLocationEntries = [...this.filteredLocationEntries];
-                    
-                    // Reload process details for affected locations
-                    affectedLocationIds.forEach(affectedLocationId => {
-                        this.loadProcessDetails(affectedLocationId);
-                    });
-                    
-                } else {
-                    let errorMessage = result.message;
-                    if (result.errorDetails && result.errorDetails.length > 0) {
-                        errorMessage += '\nDetails: ' + result.errorDetails.join(', ');
-                    }
-                    this.showToast('Error', errorMessage, 'error');
-                    
-                    // If some succeeded, refresh to show current state
-                    if (result.successCount > 0) {
-                        const affectedLocationIds = new Set();
-                        this.modifiedProcesses.forEach(modification => {
-                            affectedLocationIds.add(modification.locationId);
-                        });
-                        
-                        this.modifiedProcesses.clear();
-                        this.modifiedProcessesByLocation.clear();
-                        this.hasModifications = false;
-                        this.clearAllHighlighting();
-                        
-                        affectedLocationIds.forEach(locationId => {
-                            this.loadProcessDetails(locationId);
-                        });
-                    }
+                    // Remove highlighting for saved processes only
+                    this.clearHighlightingForLocations(affectedLocationIds);
+                                        
                 }
             })
             .catch(error => {
@@ -1531,7 +1663,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'Failed to update processes: ' + (error.body?.message || error.message), 'error');
             })
             .finally(() => {
-                this.isSaving = false;
+                this.performCompleteRefresh();
             });
     }
 
@@ -1565,7 +1697,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
         // Reset all sliders to original values and remove highlighting
         processesToDiscard.forEach((modification, processId) => {
-            const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
+            const slider = this.template.querySelector(`input[data-process-id="${processId}"]`);
             if (slider) {
                 slider.value = modification.originalValue;
                 slider.style.setProperty('--progress-width', `${modification.originalValue}%`);
@@ -1630,7 +1762,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Remove all highlighting from slider containers and table cells
      */
     clearAllHighlighting() {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             // Remove all highlighting classes
             const allSliderContainers = this.template.querySelectorAll('.slider-container.modified-field');
             const allTableCells = this.template.querySelectorAll('td.modified-cell');
@@ -1642,7 +1774,65 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             allTableCells.forEach(cell => {
                 cell.classList.remove('modified-cell');
             });
-        }, 0);
+        });
+    }
+
+    /**
+     * Method Name: clearHighlightingForLocations
+     * @description: Remove highlighting for specific locations only
+     */
+    clearHighlightingForLocations(locationIds) {
+        requestAnimationFrame(() => {
+            locationIds.forEach(locationId => {
+                // Find all sliders and cells for this location
+                const locationSliders = this.template.querySelectorAll(`input[data-location-id="${locationId}"]`);
+                locationSliders.forEach(slider => {
+                    const sliderContainer = slider.closest('.slider-container');
+                    const tableCell = slider.closest('td');
+                    
+                    if (sliderContainer) {
+                        sliderContainer.classList.remove('modified-field');
+                    }
+                    if (tableCell) {
+                        tableCell.classList.remove('modified-cell');
+                    }
+                });
+            });
+        });
+    }
+
+    /**
+     * Method Name: refreshProcessDetailsForLocations
+     * @description: Refresh process details for specific locations using preloaded data
+     */
+    refreshProcessDetailsForLocations(locationIds) {
+        locationIds.forEach(locationId => {
+            const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
+            console.log(`Refreshing saved data for location ${locationId}:`, preloadedProcesses.length, 'processes');
+            
+            this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
+                if (entry.Id === locationId && entry.showProcessDetails) {
+                    const updatedEntry = { ...entry };
+                    
+                    if (preloadedProcesses.length > 0) {
+                        const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
+                        updatedEntry.processDetails = processedDetails;
+                        updatedEntry.isLoadingProcesses = false;
+                    } else {
+                        updatedEntry.processDetails = [];
+                        updatedEntry.isLoadingProcesses = false;
+                    }
+                    
+                    return updatedEntry;
+                }
+                return entry;
+            });
+            
+            // Update slider displays after data refresh
+            setTimeout(() => {
+                this.updateSliderDisplays(locationId);
+            }, 100);
+        });
     }
 
     /**
@@ -1841,6 +2031,88 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             }
         } catch (error) {
             console.error('Error in updateProcessSortIcons:', error);
+        }
+    }
+
+    /**
+     * Method Name: updateSliderDisplays
+     * @description: Update all slider display widths after data refresh
+     */
+    updateSliderDisplays(locationId) {
+        try {
+            setTimeout(() => {
+                // Find all sliders for the specific location
+                const sliders = this.template.querySelectorAll(`input[type="range"][data-location-id="${locationId}"]`);
+                
+                // Get the latest location entry from filtered entries
+                const locationEntry = this.filteredLocationEntries.find(entry => entry.Id === locationId);
+                
+                if (!locationEntry || !locationEntry.processDetails) {
+                    console.log(`No process details found for location ${locationId}`);
+                    return;
+                }
+                
+                console.log(`Updating ${sliders.length} sliders for location ${locationId} with ${locationEntry.processDetails.length} processes`);
+                
+                sliders.forEach(slider => {
+                    const processId = slider.dataset.processId;
+                    
+                    // Get the fresh value from the latest process data
+                    const processDetail = locationEntry.processDetails.find(pd => this.getFieldValue(pd, 'Id') === processId);
+                    if (processDetail) {
+                        const percentField = processDetail.displayFields.find(field => field.key === 'wfrecon__Completed_Percentage__c');
+                        if (percentField && percentField.rawValue !== undefined) {
+                            const freshValue = percentField.rawValue;
+                            
+                            // Update the slider's actual value and attributes
+                            slider.value = freshValue;
+                            slider.setAttribute('data-original-value', freshValue);
+                            
+                            // Update the CSS custom property for progress width
+                            slider.style.setProperty('--progress-width', `${freshValue}%`);
+                            
+                            // Update the slider value display
+                            const sliderContainer = slider.closest('.slider-container');
+                            if (sliderContainer) {
+                                const valueDisplay = sliderContainer.querySelector('.slider-value');
+                                if (valueDisplay) {
+                                    valueDisplay.textContent = `${freshValue}%`;
+                                }
+                            }
+                            
+                            // Remove any modified styling since we have fresh data
+                            const processRow = slider.closest('tr');
+                            if (processRow) {
+                                processRow.classList.remove('modified-field');
+                            }
+                            
+                            console.log(`✅ Updated slider for process ${processId}: ${freshValue}%`);
+                            return;
+                        }
+                    }
+                    
+                    console.warn(`⚠️ Could not find fresh data for process ${processId} in location ${locationId}`);
+                    
+                    // Fallback to existing value if fresh data not found
+                    const currentValue = parseFloat(slider.value) || 0;
+                    slider.style.setProperty('--progress-width', `${currentValue}%`);
+                    
+                    const sliderContainer = slider.closest('.slider-container');
+                    if (sliderContainer) {
+                        const valueDisplay = sliderContainer.querySelector('.slider-value');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = `${currentValue}%`;
+                        }
+                    }
+                    
+                    console.log(`Fallback slider update for process ${processId}: ${currentValue}%`);
+                });
+                
+                console.log(`✅ Completed updating ${sliders.length} slider displays for location ${locationId}`);
+            }, 200); // Sufficient delay to ensure DOM is fully updated with fresh data
+            
+        } catch (error) {
+            console.error('Error updating slider displays:', error);
         }
     }
 
@@ -2102,44 +2374,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result.startsWith('Success')) {
                     this.showToast('Success', result, 'success');
-                    
-                    // Clear modifications and refresh data
-                    this.modifiedLocations.clear();
-                    this.hasLocationModifications = false;
-                    this.editingCells.clear();
-                    
-                    // Use comprehensive refresh and restore expanded states
-                    this.fetchLocationEntries()
-                        .then(() => {
-                            // Restore expanded states for previously expanded locations
-                            if (locationsWithExpandedProcesses.length > 0) {
-                                this.restoreExpandedStates(locationsWithExpandedProcesses);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error during refresh after save:', error);
-                        });
-                    
                 } else if (result.startsWith('Partial Success')) {
                     this.showToast('Warning', result, 'warning');
-                    
-                    // Partial success - still clear and refresh
-                    this.modifiedLocations.clear();
-                    this.hasLocationModifications = false;
-                    this.editingCells.clear();
-                    
-                    // Use comprehensive refresh and restore expanded states
-                    this.fetchLocationEntries()
-                        .then(() => {
-                            // Restore expanded states for previously expanded locations
-                            if (locationsWithExpandedProcesses.length > 0) {
-                                this.restoreExpandedStates(locationsWithExpandedProcesses);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error during refresh after partial save:', error);
-                        });
-                    
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -2150,6 +2386,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             })
             .finally(() => {
                 this.isSavingLocations = false;
+                this.performCompleteRefresh();
             });
     }
 
