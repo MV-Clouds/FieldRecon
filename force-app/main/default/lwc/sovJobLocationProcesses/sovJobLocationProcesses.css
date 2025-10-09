@@ -157,7 +157,7 @@
 }
 
 .empty-state__content .empty-state__icon {
-    width: 10%;
+    width: 50%;
     height: 100%;
 }
 
@@ -279,6 +279,7 @@
     background-color: #FBF8EF !important;
     border-radius: 0.25rem;
     position: relative;
+    transition: all 0.3s ease;
 }
 
 /* Add a subtle left border indicator for modified rows */

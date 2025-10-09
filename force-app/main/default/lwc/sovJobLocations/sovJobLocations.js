@@ -364,9 +364,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             return 'Saving...';
         }
         if (this.hasLocationModifications) {
-            return `Save Location Changes (${this.modifiedLocations.size})`;
+            return `Save Changes (${this.modifiedLocations.size})`;
         }
-        return 'Save Location Changes';
+        return 'Save Changes';
     }
 
     /**

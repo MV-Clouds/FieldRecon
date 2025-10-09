@@ -703,20 +703,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get processSaveButtonLabel
-     * @description: Get dynamic process save button label
-     */
-    get processSaveButtonLabel() {
-        if (this.isSavingProcessEntries) {
-            return 'Saving...';
-        }
-        if (this.hasProcessModifications) {
-            return `Save Process Changes (${this.modifiedProcessEntries.size})`;
-        }
-        return 'Save Process Changes';
-    }
-
-    /**
      * Method Name: get processDiscardButtonTitle
      * @description: Get dynamic process discard button title
      */
@@ -3204,9 +3190,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
         const count = this.getProcessModificationCountForEntry(scopeEntryId);
         if (count > 0) {
-            return `Save Process Changes (${count})`;
+            return `Save Changes (${count})`;
         }
-        return 'Save Process Changes';
+        return 'Save Changes';
     }
     
     /**

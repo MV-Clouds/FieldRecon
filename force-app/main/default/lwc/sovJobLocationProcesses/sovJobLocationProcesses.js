@@ -16,6 +16,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     @track modifiedProcesses = new Map(); // Track modified processes
     @track hasModifications = false; // Track if there are unsaved changes
     @track isSaving = false; // Track save operation
+    @track isUpdatingDOM = false; // Track when DOM is being updated
 
     // Process table columns configuration
     @track processTableColumns = [
@@ -158,6 +159,20 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     }
 
     /**
+     * Method Name: renderedCallback
+     * @description: Called after every render of the component
+     */
+    renderedCallback() {
+        // Restore highlighting for modified processes after each render
+        // Only do this if we have modifications and we're not already updating DOM
+        if (this.modifiedProcesses.size > 0 && !this.isUpdatingDOM) {
+            setTimeout(() => {
+                this.updateRowHighlighting();
+            }, 50);
+        }
+    }
+
+    /**
      * Method Name: fetchLocationProcesses
      * @description: Fetch all location processes for the job
      */
@@ -215,6 +230,8 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      */
     applyFilters() {
         try {
+            this.isUpdatingDOM = true;
+            
             let filteredData = this.locationProcesses.filter(locationProcess => {
                 if (!this.searchTerm) return true;
                 
@@ -254,9 +271,16 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                     this.updateSortIcons();
                 }, 0);
             }
+
+            // Restore highlighting for modified processes after filtering
+            setTimeout(() => {
+                this.updateRowHighlighting();
+                this.isUpdatingDOM = false;
+            }, 150);
         } catch (error) {
             console.error('Error applying filters:', error);
             this.filteredProcesses = [];
+            this.isUpdatingDOM = false;
         }
     }
 
@@ -339,8 +363,10 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      * @description: Apply highlighting to modified slider containers
      */
     applySliderHighlighting(processId, isModified) {
-        setTimeout(() => {
+        // Use multiple attempts to find the element in case DOM is still updating
+        const attemptHighlighting = (attempts = 0) => {
             const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
+            
             if (slider) {
                 const sliderContainer = slider.closest('.slider-container');
                 const tableCell = slider.closest('td');
@@ -360,15 +386,21 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                         tableCell.classList.remove('modified-cell');
                     }
                 }
+            } else if (attempts < 3) {
+                // Retry if element not found and we haven't exceeded max attempts
+                setTimeout(() => attemptHighlighting(attempts + 1), 100);
             }
-        }, 0);
+        };
+        
+        attemptHighlighting();
     }
 
     /**
      * Method Name: updateRowHighlighting
-     * @description: Update visual highlighting for all modified rows
+     * @description: Update visual highlighting for all modified rows and restore slider values
      */
     updateRowHighlighting() {
+        // Use a longer timeout to ensure DOM is fully rendered after filtering/sorting
         setTimeout(() => {
             // Clear all previous highlighting
             const allSliderContainers = this.template.querySelectorAll('.slider-container');
@@ -382,11 +414,30 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 cell.classList.remove('modified-cell');
             });
             
-            // Apply highlighting to currently modified processes
+            // Apply highlighting and restore values for currently modified processes
             this.modifiedProcesses.forEach((modification, processId) => {
+                const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
+                if (slider) {
+                    // Restore the modified value
+                    slider.value = modification.newValue;
+                    
+                    // Update visual progress
+                    slider.style.setProperty('--progress-width', `${modification.newValue}%`);
+                    
+                    // Update the displayed percentage
+                    const sliderContainer = slider.closest('.slider-container');
+                    if (sliderContainer) {
+                        const valueDisplay = sliderContainer.querySelector('.slider-value');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = `${modification.newValue}%`;
+                        }
+                    }
+                }
+                
+                // Apply highlighting
                 this.applySliderHighlighting(processId, true);
             });
-        }, 0);
+        }, 200); // Increased timeout to ensure DOM is fully rendered
     }
 
     /**
@@ -554,6 +605,11 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
 
                 return this.sortOrder === 'asc' ? compare : -compare;
             });
+
+            // Restore highlighting after sorting
+            setTimeout(() => {
+                this.updateRowHighlighting();
+            }, 100);
         } catch (error) {
             console.error('Error in sortData:', error);
         }
@@ -619,20 +675,6 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      */
     get isSaveDisabled() {
         return !this.hasModifications || this.isSaving;
-    }
-
-    /**
-     * Method Name: get saveButtonLabel
-     * @description: Get dynamic save button label
-     */
-    get saveButtonLabel() {
-        if (this.isSaving) {
-            return 'Saving...';
-        }
-        if (this.hasModifications) {
-            return `Save Changes (${this.modifiedProcesses.size})`;
-        }
-        return 'Save Changes';
     }
 
     /**
