@@ -10,10 +10,7 @@ import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInli
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 import getPicklistValuesForField from '@salesforce/apex/SovJobLocationsController.getPicklistValuesForField';
 
-/**
- * Lightning Web Component for SOV Job Locations management
- * Handles location entries with inline editing and process tracking
- */
+
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track recordId;
     @track isLoading = true;
@@ -24,7 +21,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track locationColumns = [];
     @track lastConfigUpdateTimestamp = 0;
     @track fieldPicklistOptions = new Map(); // Map<fieldName, Array<{label, value}>>
-    @track locationProcessMap = new Map(); // Map<locationId, Array<processData>> - Preloaded process data
+    @track locationProcessMap = new Map(); // Map<locationId, Array<processData>>
 
     // Sorting properties
     @track sortField = '';
@@ -751,28 +748,26 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 
                 const searchLower = this.searchTerm.toLowerCase();
                 
-                const searchInObject = (obj, visited = new Set()) => {
-                    if (!obj || typeof obj !== 'object' || visited.has(obj)) return false;
-                    visited.add(obj);
+                // Search only in visible fields defined in tableColumns
+                const searchInVisibleFields = (record) => {
+                    // Get the visible columns
+                    const visibleColumns = this.tableColumns || this.defaultColumns;
                     
-                    for (let key in obj) {
-                        if (obj.hasOwnProperty(key)) {
-                            const value = obj[key];
-                            if (value !== null && value !== undefined) {
-                                if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
-                                    return true;
-                                } else if (typeof value === 'number' && value.toString().includes(searchLower)) {
-                                    return true;
-                                } else if (typeof value === 'object') {
-                                    if (searchInObject(value, visited)) return true;
-                                }
+                    for (let column of visibleColumns) {
+                        const fieldValue = this.getFieldValue(record, column.fieldName);
+                        
+                        if (fieldValue !== null && fieldValue !== undefined) {
+                            if (typeof fieldValue === 'string' && fieldValue.toLowerCase().includes(searchLower)) {
+                                return true;
+                            } else if (typeof fieldValue === 'number' && fieldValue.toString().includes(searchLower)) {
+                                return true;
                             }
                         }
                     }
                     return false;
                 };
                 
-                return searchInObject(entry);
+                return searchInVisibleFields(entry);
             });
 
             // Store current process states

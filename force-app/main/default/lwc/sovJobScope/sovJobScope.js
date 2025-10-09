@@ -971,26 +971,26 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 const searchLower = this.searchTerm.toLowerCase();
                 
-                const searchInObject = (obj, visited = new Set()) => {
-                    if (!obj || visited.has(obj)) return false;
-                    visited.add(obj);
+                // Search only in visible fields defined in tableColumns
+                const searchInVisibleFields = (record) => {
+                    // Get the visible columns
+                    const visibleColumns = this.tableColumns || this.defaultColumns;
                     
-                    for (let key in obj) {
-                        if (obj.hasOwnProperty(key)) {
-                            let value = obj[key];
-                            if (value !== null && value !== undefined) {
-                                if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
-                                    return true;
-                                } else if (typeof value === 'object' && searchInObject(value, visited)) {
-                                    return true;
-                                }
+                    for (let column of visibleColumns) {
+                        const fieldValue = this.getFieldValue(record, column.fieldName);
+                        
+                        if (fieldValue !== null && fieldValue !== undefined) {
+                            if (typeof fieldValue === 'string' && fieldValue.toLowerCase().includes(searchLower)) {
+                                return true;
+                            } else if (typeof fieldValue === 'number' && fieldValue.toString().includes(searchLower)) {
+                                return true;
                             }
                         }
                     }
                     return false;
                 };
                 
-                return searchInObject(entry);
+                return searchInVisibleFields(entry);
             });
 
             filteredEntries = filteredEntries.map(entry => {

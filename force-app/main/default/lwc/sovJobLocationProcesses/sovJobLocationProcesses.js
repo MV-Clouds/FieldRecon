@@ -29,11 +29,6 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
         { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text' }
     ];
 
-    @wire(CurrentPageReference)
-    setCurrentPageReference(pageRef) {
-        this.recordId = pageRef.attributes.recordId;
-    }
-
     /**
      * Method Name: get displayedProcesses
      * @description: Process location processes for table display
@@ -144,6 +139,11 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
         }
     }
 
+    @wire(CurrentPageReference)
+    setCurrentPageReference(pageRef) {
+        this.recordId = pageRef.attributes.recordId;
+    }
+
     /**
      * Method Name: connectedCallback
      * @description: Load location processes on component load
@@ -235,28 +235,26 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
                 
                 const searchLower = this.searchTerm.toLowerCase();
                 
-                const searchInObject = (obj, visited = new Set()) => {
-                    if (!obj || typeof obj !== 'object' || visited.has(obj)) return false;
-                    visited.add(obj);
+                // Search only in visible fields defined in processTableColumns
+                const searchInVisibleFields = (record) => {
+                    // Get the visible columns
+                    const visibleColumns = this.processTableColumns;
                     
-                    for (let key in obj) {
-                        if (obj.hasOwnProperty(key)) {
-                            const value = obj[key];
-                            if (value !== null && value !== undefined) {
-                                if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
-                                    return true;
-                                } else if (typeof value === 'number' && value.toString().includes(searchLower)) {
-                                    return true;
-                                } else if (typeof value === 'object') {
-                                    if (searchInObject(value, visited)) return true;
-                                }
+                    for (let column of visibleColumns) {
+                        const fieldValue = this.getFieldValue(record, column.fieldName);
+                        
+                        if (fieldValue !== null && fieldValue !== undefined) {
+                            if (typeof fieldValue === 'string' && fieldValue.toLowerCase().includes(searchLower)) {
+                                return true;
+                            } else if (typeof fieldValue === 'number' && fieldValue.toString().includes(searchLower)) {
+                                return true;
                             }
                         }
                     }
                     return false;
                 };
                 
-                return searchInObject(locationProcess);
+                return searchInVisibleFields(locationProcess);
             });
     
             this.filteredProcesses = filteredData;

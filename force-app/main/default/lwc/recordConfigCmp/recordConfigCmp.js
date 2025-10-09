@@ -86,7 +86,7 @@ export default class RecordConfigCmp extends LightningElement {
     * Method Name: isAuditField
     * @description: Check if field is an audit field
     * Date: 10/09/2024
-    * Created By: GitHub Copilot
+    * Created By: Rachit Shah
     */
     isAuditField(fieldName) {
         return this.auditFields.includes(fieldName);
@@ -96,7 +96,7 @@ export default class RecordConfigCmp extends LightningElement {
     * Method Name: shouldDisableField
     * @description: Check if field should be disabled (formula, rollup, or audit field)
     * Date: 10/09/2024
-    * Created By: GitHub Copilot
+    * Created By: Rachit Shah
     */
     shouldDisableField(fieldName, isCalculated = false) {
         return isCalculated || this.isAuditField(fieldName);
@@ -167,7 +167,7 @@ export default class RecordConfigCmp extends LightningElement {
     * Method Name: getFieldEditableStatus
     * @description: Check if field is formula or rollup summary and should be disabled
     * Date: 10/09/2024
-    * Created By: GitHub Copilot
+    * Created By: Rachit Shah
     */
     getFieldEditableStatus(fieldName) {
         const field = this.fieldOptions.find(option => option.value === fieldName);
@@ -178,7 +178,7 @@ export default class RecordConfigCmp extends LightningElement {
     * Method Name: handleEditableChange
     * @description: Handle editable checkbox change
     * Date: 10/09/2024
-    * Created By: GitHub Copilot
+    * Created By: Rachit Shah
     */
     handleEditableChange(event) {
         const index = parseInt(event.target.dataset.index, 10);
@@ -764,7 +764,7 @@ export default class RecordConfigCmp extends LightningElement {
     * Method Name: getParentFieldEditableStatus
     * @description: Check if parent field should be disabled (formula/rollup/audit)
     * Date: 10/09/2024
-    * Created By: GitHub Copilot
+    * Created By: Rachit Shah
     */
     getParentFieldEditableStatus(fieldName) {
         // Check if it's a parent field (contains dot notation)
