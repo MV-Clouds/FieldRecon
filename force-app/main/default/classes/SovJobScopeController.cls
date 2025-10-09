@@ -1109,7 +1109,7 @@ public with sharing class SovJobScopeController {
             }
     
             if (!locationProcessesToUpdate.isEmpty()) {
-                update as user locationProcessesToUpdate;
+                update locationProcessesToUpdate;
             }
     
             return 'Success: Recalculated all location processes using new contract values for ' + scopeEntries.size() + ' scope entries.';

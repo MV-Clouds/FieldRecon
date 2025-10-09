@@ -185,6 +185,24 @@ public with sharing class SovJobLocationsController {
                 return 'Error: No records selected for deletion';
             }
             
+            // Get all location processes that will be affected by location deletion
+            List<Location_Process__c> locationProcessesToDelete = [
+                SELECT Id, Scope_Entry_Process__c, Scope_Entry_Process__r.Scope_Entry__c,
+                       Location__c, Contract_Price__c
+                FROM Location_Process__c 
+                WHERE Location__c IN :locationIds 
+                WITH USER_MODE
+            ];
+            
+            // Collect affected scope entry IDs for recalculation
+            Set<Id> affectedScopeEntryIds = new Set<Id>();
+            for (Location_Process__c lp : locationProcessesToDelete) {
+                if (lp.Scope_Entry_Process__r.Scope_Entry__c != null) {
+                    affectedScopeEntryIds.add(lp.Scope_Entry_Process__r.Scope_Entry__c);
+                }
+            }
+            
+            // Delete the locations (this will cascade delete location processes due to lookup relationship)
             List<Location__c> locationsToDelete = [
                 SELECT Id 
                 FROM Location__c 
@@ -193,7 +211,36 @@ public with sharing class SovJobLocationsController {
             ];
             
             delete as user locationsToDelete;
-            return 'Success';
+            
+            // Recalculate remaining location processes for affected scope entries
+            if (!affectedScopeEntryIds.isEmpty()) {
+
+                // Get all affected scope entries with their contract values
+                Map<Id, Scope_Entry__c> scopeEntries = new Map<Id, Scope_Entry__c>([
+                    SELECT Id, Contract_Value__c
+                    FROM Scope_Entry__c
+                    WHERE Id IN :affectedScopeEntryIds
+                    WITH USER_MODE
+                ]);
+
+                String recalcResult = SovJobScopeController.recalculateLocationProcessesBulk(scopeEntries);
+                if (!recalcResult.startsWith('Success')) {
+                    // Log recalculation error but don't fail the deletion
+                    ExceptionHandler.logException(new Map<String, Object>{
+                        'className' => CLASSNAME,
+                        'methodName' => 'deleteLocationEntries',
+                        'isApiException' => false,
+                        'statusCode' => null,
+                        'exceptionObj' => null,
+                        'moreDetails' => 'Location deletion succeeded but recalculation failed: ' + recalcResult,
+                        'apiResponse' => null
+                    });
+                    return 'Success: Locations deleted, but some recalculation issues occurred. ' + recalcResult;
+                }
+                return 'Success: ' + locationIds.size() + ' location(s) deleted and remaining processes recalculated.';
+            }
+            
+            return 'Success: ' + locationIds.size() + ' location(s) deleted.';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,

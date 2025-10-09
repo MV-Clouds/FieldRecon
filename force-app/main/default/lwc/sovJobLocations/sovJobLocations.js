@@ -1125,7 +1125,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             
         deleteLocationEntries({ locationIds: this.selectedRows })
             .then(result => {
-                if (result === 'Success') {
+                if (result.includes('Success')) {
                     this.showToast('Success', `${this.selectedRows.length} record(s) deleted successfully`, 'success');
                     this.selectedRows = [];
                     this.fetchLocationEntries();
