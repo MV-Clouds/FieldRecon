@@ -198,6 +198,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track hasProcessModifications = false; // Track if there are unsaved process changes
     @track isSavingProcessEntries = false; // Track save operation for process entries
     @track editingProcessCells = new Set(); // Track which process cells are currently being edited
+    @track selectedProcessesByScopeEntry = new Map(); // Map<scopeEntryId, Set<processId>>
 
     @track showAddLocationModal = false;
     @track isLocationSubmitting = false;
@@ -753,6 +754,32 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      *  @description: Get dynamic process save button label
      */
     
+    /**
+     * Method Name: hasSelectedProcessesForEntry
+     * @description: Check if any processes are selected for a specific scope entry
+     */
+    hasSelectedProcessesForEntry(scopeEntryId) {
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        return selectedProcesses && selectedProcesses.size > 0;
+    }
+
+    /**
+     * Method Name: getSelectedProcessesCountForEntry
+     * @description: Get count of selected processes for a specific scope entry
+     */
+    getSelectedProcessesCountForEntry(scopeEntryId) {
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        return selectedProcesses ? selectedProcesses.size : 0;
+    }
+
+    /**
+     * Method Name: isDeleteProcessDisabledForEntry
+     * @description: Check if delete process button should be disabled for a specific scope entry
+     */
+    isDeleteProcessDisabledForEntry(scopeEntryId) {
+        return !this.hasSelectedProcessesForEntry(scopeEntryId);
+    }
+    
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
@@ -1109,6 +1136,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.isLoading = true;
         this.selectedRows = [];
         this.selectedProcesses = [];
+        this.selectedProcessesByScopeEntry = new Map(); // Clear scope entry-specific selections
         // Reset to default sorting (first column)
         if (this.tableColumns.length > 0) {
             this.sortField = this.tableColumns[0].fieldName;
@@ -1214,21 +1242,34 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * Method Name: handleDeleteSelectedProcesses
      * @description: Handle deletion of selected process entries with automatic recalculation
      */
-    handleDeleteSelectedProcesses() {
-        if (this.selectedProcesses.length === 0) {
+    handleDeleteSelectedProcesses(event) {
+        const scopeEntryId = event.target.dataset.scopeEntryId;
+        
+        if (!scopeEntryId) {
+            this.showToast('Error', 'Unable to identify scope entry for deletion', 'error');
+            return;
+        }
+
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        if (!selectedProcesses || selectedProcesses.size === 0) {
             this.showToast('Warning', 'Please select at least one process to delete', 'warning');
             return;
         }
 
+        const processIds = Array.from(selectedProcesses);
+
         // Call the apex method to delete selected processes
-        deleteSelectedScopeEntryProcesses({ processIds: this.selectedProcesses })
+        deleteSelectedScopeEntryProcesses({ processIds: processIds })
             .then(result => {
                 if (result && result.startsWith('Success')) {
                     // Enhanced success message that may include recalculation details
                     this.showToast('Success', 'Selected processes have been removed', 'success');
                     
-                    // Clear selections
-                    this.selectedProcesses = [];
+                    // Clear selections for this scope entry
+                    this.selectedProcessesByScopeEntry.delete(scopeEntryId);
+                    
+                    // Also remove from global array
+                    this.selectedProcesses = this.selectedProcesses.filter(id => !processIds.includes(id));
                     
                     // Refresh all scope entries data to reflect the changes and recalculations
                     this.handleRefresh();
@@ -1478,6 +1519,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             row.processSaveButtonLabel = this.getProcessSaveButtonLabelForEntry(entry.Id);
             row.processDiscardButtonTitle = this.getProcessDiscardButtonTitleForEntry(entry.Id);
             
+            // Add scope entry-specific delete properties
+            row.hasSelectedProcesses = this.hasSelectedProcessesForEntry(entry.Id);
+            row.selectedProcessesCount = this.getSelectedProcessesCountForEntry(entry.Id);
+            row.isDeleteProcessDisabled = this.isDeleteProcessDisabledForEntry(entry.Id);
+            
             row.displayFields = cols.map(col => {
                 const cellKey = `${entry.Id}-${col.fieldName}`;
                 const isBeingEdited = this.editingScopeCells.has(cellKey);
@@ -1617,8 +1663,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             row.recordUrl = processData.wfrecon__Process_Library__c ? 
                 `/lightning/r/${processData.wfrecon__Process_Library__c}/view` : 
                 `/lightning/r/${processData.Id}/view`;
-            // Preserve selection state from selectedProcesses array
-            row.isSelected = this.selectedProcesses.includes(processData.Id);
+            // Preserve selection state from scope entry-specific selection tracking
+            const scopeEntryId = this.getScopeEntryIdForProcess(processData.Id);
+            const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+            row.isSelected = selectedProcesses ? selectedProcesses.has(processData.Id) : false;
             
             row.displayFields = this.processTableColumns.map(col => {
                 const key = col.fieldName;
@@ -2086,11 +2134,25 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleProcessRowSelection(event) {
         const processId = event.target.dataset.processId;
+        const scopeEntryId = event.target.dataset.scopeEntryId;
         const isChecked = event.target.checked;
 
+        // Initialize the scope entry set if it doesn't exist
+        if (!this.selectedProcessesByScopeEntry.has(scopeEntryId)) {
+            this.selectedProcessesByScopeEntry.set(scopeEntryId, new Set());
+        }
+
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+
         if (isChecked) {
-            this.selectedProcesses = [...this.selectedProcesses, processId];
+            selectedProcesses.add(processId);
+            // Also maintain global array for backward compatibility if needed
+            if (!this.selectedProcesses.includes(processId)) {
+                this.selectedProcesses = [...this.selectedProcesses, processId];
+            }
         } else {
+            selectedProcesses.delete(processId);
+            // Remove from global array as well
             this.selectedProcesses = this.selectedProcesses.filter(id => id !== processId);
         }
 
@@ -2112,12 +2174,23 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         const processIds = entry.processDetails.map(process => process.Id);
         
+        // Initialize the scope entry set if it doesn't exist
+        if (!this.selectedProcessesByScopeEntry.has(scopeEntryId)) {
+            this.selectedProcessesByScopeEntry.set(scopeEntryId, new Set());
+        }
+
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        
         if (isChecked) {
-            // Add all process IDs that aren't already selected
+            // Add all process IDs for this scope entry
+            processIds.forEach(id => selectedProcesses.add(id));
+            // Add to global array that aren't already selected
             const newSelections = processIds.filter(id => !this.selectedProcesses.includes(id));
             this.selectedProcesses = [...this.selectedProcesses, ...newSelections];
         } else {
             // Remove all process IDs for this scope entry
+            processIds.forEach(id => selectedProcesses.delete(id));
+            // Remove from global array as well
             this.selectedProcesses = this.selectedProcesses.filter(id => !processIds.includes(id));
         }
 
