@@ -927,6 +927,33 @@
     border-color: #1e7e34;
 }
 
+/* Delete button specific styling for process actions */
+.add-process-btn.delete-btn {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.add-process-btn.delete-btn:hover:not(:disabled) {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.add-process-btn.delete-btn:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.add-process-btn.delete-btn:disabled .selected-count-badge {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
 .add-process-btn:hover,
 .manual-btn:hover {
     background-color: rgba(94, 90, 219, 0.9);

@@ -17,7 +17,8 @@ import createLocationProcesses from '@salesforce/apex/SovJobScopeController.crea
 import saveScopeEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveScopeEntryInlineEdits';
 import createChangeOrder from '@salesforce/apex/SovJobScopeController.createChangeOrder';
 import saveProcessEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveProcessEntryInlineEdits';
-import getPicklistValuesForField from '@salesforce/apex/SovJobScopeController.getPicklistValuesForField'; // ADD THIS LINE
+import getPicklistValuesForField from '@salesforce/apex/SovJobScopeController.getPicklistValuesForField';
+import deleteSelectedScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.deleteSelectedScopeEntryProcesses';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -515,6 +516,30 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     get isAllLocationsSelected() {
         return this.locationDisplayRecords.length > 0 && 
                this.locationDisplayRecords.every(location => location.isSelected);
+    }
+
+    /**
+     * Method Name: get hasSelectedProcesses
+     * @description: Check if any processes are selected for deletion
+     */
+    get hasSelectedProcesses() {
+        return this.selectedProcesses.length > 0;
+    }
+
+    /**
+     * Method Name: get selectedProcessesCount
+     * @description: Get count of selected processes
+     */
+    get selectedProcessesCount() {
+        return this.selectedProcesses.length;
+    }
+
+    /**
+     * Method Name: get isDeleteProcessDisabled
+     * @description: Check if delete process button should be disabled
+     */
+    get isDeleteProcessDisabled() {
+        return this.selectedProcesses.length === 0;
     }
 
     /**
@@ -1163,6 +1188,38 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             console.error('Error in refreshScopeEntryProcessData:', error);
             this.showToast('Error', 'An error occurred while refreshing process data', 'error');
         }
+    }
+
+    /**
+     * Method Name: handleDeleteSelectedProcesses
+     * @description: Handle deletion of selected process entries with automatic recalculation
+     */
+    handleDeleteSelectedProcesses() {
+        if (this.selectedProcesses.length === 0) {
+            this.showToast('Warning', 'Please select at least one process to delete', 'warning');
+            return;
+        }
+
+        // Call the apex method to delete selected processes
+        deleteSelectedScopeEntryProcesses({ processIds: this.selectedProcesses })
+            .then(result => {
+                if (result && result.startsWith('Success')) {
+                    // Enhanced success message that may include recalculation details
+                    this.showToast('Success', result, 'success');
+                    
+                    // Clear selections
+                    this.selectedProcesses = [];
+                    
+                    // Refresh all scope entries data to reflect the changes and recalculations
+                    this.handleRefresh();
+                } else {
+                    throw new Error(result || 'Unknown error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting processes:', error);
+                this.showToast('Error', 'Failed to delete processes: ' + (error.body?.message || error.message), 'error');
+            });
     }
 
     /**

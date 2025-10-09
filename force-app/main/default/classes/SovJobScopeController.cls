@@ -1443,4 +1443,76 @@ public with sharing class SovJobScopeController {
         return picklistValues;
     }
 
+    /*
+    *********************************************************
+    @description     : Method is used to delete multiple Scope Entry Processes and recalculate location processes
+    @param           : List<Id> processIds - List of Process IDs to delete
+    @return          : String - Success or error message with recalculation details
+    @author          : Rachit Shah
+    @note            : When processes are deleted, related location processes are automatically deleted
+                      due to master-detail relationship. This method then redistributes amounts
+                      among remaining location processes to maintain proper value distribution.
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String deleteSelectedScopeEntryProcesses(List<Id> processIds) {
+        try {
+            if (processIds == null || processIds.isEmpty()) {
+                return 'Process IDs are required';
+            }
+
+            // First, get the processes to be deleted along with their scope entries
+            List<Scope_Entry_Process__c> processesToDelete = [
+                SELECT Id, Name, Scope_Entry__c, Scope_Entry__r.Contract_Value__c
+                FROM Scope_Entry_Process__c 
+                WHERE Id IN :processIds
+                WITH USER_MODE
+            ];
+
+            if (processesToDelete.isEmpty()) {
+                return 'No processes found for deletion';
+            }
+
+            // Collect affected scope entries for recalculation
+            Set<Id> affectedScopeEntryIds = new Set<Id>();
+            Map<Id, Scope_Entry__c> affectedScopeEntries = new Map<Id, Scope_Entry__c>();
+            
+            for (Scope_Entry_Process__c process : processesToDelete) {
+                affectedScopeEntryIds.add(process.Scope_Entry__c);
+                affectedScopeEntries.put(process.Scope_Entry__c, process.Scope_Entry__r);
+            }
+
+            // Delete the processes (this will automatically delete related location processes due to master-detail relationship)
+            delete as user processesToDelete;
+
+            // Recalculate remaining location processes for affected scope entries
+            String recalculationResult = '';
+            if (!affectedScopeEntries.isEmpty()) {
+                recalculationResult = recalculateLocationProcessesBulk(affectedScopeEntries);
+            }
+
+            // Build success message
+            String successMessage = 'Success: ' + processesToDelete.size() + ' process(es) deleted';
+            if (String.isNotBlank(recalculationResult) && recalculationResult.startsWith('Success')) {
+                successMessage += '. ' + recalculationResult;
+            } else if (String.isNotBlank(recalculationResult)) {
+                successMessage += '. Recalculation warning: ' + recalculationResult;
+            }
+
+            return successMessage;
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'deleteSelectedScopeEntryProcesses',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Process deletion failed for IDs: ' + String.join(processIds, ', '),
+                'apiResponse' => null
+            });
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
 }
