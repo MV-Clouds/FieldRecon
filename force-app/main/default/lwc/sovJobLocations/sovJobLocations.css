@@ -110,6 +110,8 @@
     word-wrap: break-word;
     overflow: hidden;
     position: relative;
+    box-sizing: border-box;
+    vertical-align: middle;
 }
 
 .custom-data-table tr:nth-child(odd) {
@@ -949,6 +951,9 @@
     animation: focusInput 0.1s ease;
     position: relative;
     z-index: 10;
+    height: auto;
+    line-height: normal;
+    margin: 0;
 }
 
 .inline-edit-input:focus {
@@ -956,7 +961,6 @@
     box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
     white-space: normal;
     overflow: visible;
-    transform: scale(1.02);
     background-color: #ffffff;
 }
 
@@ -966,6 +970,37 @@
 
 .inline-edit-input[type="text"] {
     max-width: 200px;
+}
+
+.inline-edit-input[type="date"] {
+    max-width: 150px;
+}
+
+/* Select element for picklist fields */
+.inline-edit-select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 2px solid rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    font-size: inherit;
+    background-color: white;
+    outline: none;
+    box-sizing: border-box;
+    animation: focusInput 0.1s ease;
+    position: relative;
+    z-index: 10;
+    max-width: 200px;
+    height: auto;
+    line-height: normal;
+    margin: 0;
+}
+
+.inline-edit-select:focus {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
+    background-color: #ffffff;
 }
 
 @keyframes focusInput {

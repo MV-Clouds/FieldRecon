@@ -9,6 +9,7 @@ import getLocationProcesses from '@salesforce/apex/SovJobLocationsController.get
 import getLocationConfiguration from '@salesforce/apex/SovJobLocationsController.getLocationConfiguration';
 import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInlineEdits';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
+import getPicklistValuesForField from '@salesforce/apex/SovJobLocationsController.getPicklistValuesForField';
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -19,6 +20,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track selectedRows = [];
     @track locationColumns = [];
     @track lastConfigUpdateTimestamp = 0;
+    @track fieldPicklistOptions = new Map(); // Map<fieldName, Array<{label, value}>>
 
     // Sorting properties
     @track sortField = '';
@@ -121,7 +123,52 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     value = modifiedValue;
                 }
                 
-                const displayValue = value !== null && value !== undefined ? String(value) : '';
+                // Handle different field types for display
+                let displayValue = value !== null && value !== undefined ? String(value) : '';
+                let currencyValue = '';
+                let percentValue = '';
+                let numberValue = '';
+                let dateValue = '';
+                
+                // Handle currency fields
+                if (col.type === 'currency' && value !== null && value !== undefined) {
+                    currencyValue = String(value);
+                    displayValue = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD'
+                    }).format(value);
+                }
+                
+                // Handle percent fields
+                if (col.type === 'percent' && value !== null && value !== undefined) {
+                    percentValue = String(value);
+                    displayValue = value + '%';
+                }
+                
+                // Handle number fields
+                if (col.type === 'number' && value !== null && value !== undefined) {
+                    numberValue = String(value);
+                }
+
+                // Handle date fields
+                if (col.type === 'date' && value) {
+                    dateValue = this.formatDateForInput(value);
+                }
+
+                // Handle picklist fields - NO ASYNC CALLS HERE
+                let picklistOptions = [];
+                if (col.type === 'picklist') {
+                    // Check if we already have options cached
+                    if (this.fieldPicklistOptions.has(key)) {
+                        const allOptions = this.fieldPicklistOptions.get(key);
+                        picklistOptions = allOptions.map(option => ({
+                            ...option,
+                            selected: option.value === value
+                        }));
+                    }
+                    // If editing and no options, we'll load them synchronously elsewhere
+                }
+                
                 const isModified = this.isFieldModified(entry.Id, key);
                 const isBeingEdited = this.editingCells.has(`${entry.Id}-${key}`);
                 
@@ -139,16 +186,31 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 
                 // Build content classes
                 let contentClass = 'editable-content';
+
+                // Fix hasValue logic to properly handle empty strings and null values
+                let hasValue;
+                if (col.type === 'currency' || col.type === 'percent' || col.type === 'number') {
+                    hasValue = value !== null && value !== undefined && !isNaN(value);
+                } else {
+                    hasValue = value !== null && value !== undefined && String(value).trim() !== '';
+                }
                                 
                 return {
                     key,
-                    value: displayValue,
+                    value: displayValue || (col.type === 'currency' ? '0' : col.type === 'percent' ? '0%' : col.type === 'number' ? '0' : '--'),
                     rawValue: value,
-                    hasValue: value !== null && value !== undefined && String(value).trim() !== '',
+                    currencyValue: currencyValue,
+                    percentValue: percentValue,
+                    numberValue: numberValue,
+                    dateValue: dateValue,
+                    picklistOptions: picklistOptions,
+                    hasValue: hasValue,
                     isNameField: key === 'Name',
                     isCurrency: col.type === 'currency',
                     isPercent: col.type === 'percent',
                     isNumber: col.type === 'number',
+                    isDate: col.type === 'date',
+                    isPicklist: col.type === 'picklist',
                     isEditable: col.editable || false,
                     isModified: isModified,
                     isBeingEdited: isBeingEdited,
@@ -382,6 +444,66 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: getPicklistValues
+     * @description: Get picklist values for a field
+     */
+    async getPicklistValues(fieldName) {
+        if (this.fieldPicklistOptions.has(fieldName)) {
+            return this.fieldPicklistOptions.get(fieldName);
+        }
+        
+        try {
+            // Determine which object to query based on field name
+            let objectApiName = 'wfrecon__Location__c';
+            
+            // If field is from process table columns, use Location_Process__c
+            const isProcessField = this.processTableColumns.some(col => col.fieldName === fieldName);
+            if (isProcessField) {
+                objectApiName = 'wfrecon__Location_Process__c';
+            }
+            
+            // Call Apex to get picklist values
+            const picklistValues = await getPicklistValuesForField({ 
+                objectApiName: objectApiName,
+                fieldApiName: fieldName 
+            });
+            
+            const options = picklistValues.map(value => ({
+                label: value,
+                value: value
+            }));
+            
+            this.fieldPicklistOptions.set(fieldName, options);
+            return options;
+        } catch (error) {
+            console.error('Error fetching picklist values:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Method Name: formatDateForInput
+     * @description: Format date for input field (YYYY-MM-DD)
+     */
+    formatDateForInput(dateValue) {
+        if (!dateValue) return '';
+        
+        try {
+            const date = new Date(dateValue);
+            if (isNaN(date.getTime())) return '';
+            
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return '';
+        }
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load location entries with default sorting
      */
@@ -468,6 +590,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 return 'date';
             case 'DATETIME':
                 return 'date';
+            case 'PICKLIST':
+                return 'picklist';
             case 'EMAIL':
                 return 'email';
             case 'PHONE':
@@ -1222,6 +1346,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     // Remove all highlighting immediately
                     this.clearAllHighlighting();
                     
+                    // Force UI refresh to update button states
+                    this.filteredLocationEntries = [...this.filteredLocationEntries];
+                    
                     // Reload process details for affected locations
                     affectedLocationIds.forEach(affectedLocationId => {
                         this.loadProcessDetails(affectedLocationId);
@@ -1312,6 +1439,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     tableCell.classList.remove('modified-cell');
                 }
             }
+            
+            // Update the data model to reflect the original value
+            this.updateSliderValueInProcessDetails(modification.locationId, processId, modification.originalValue);
         });
 
         // Clear modifications
@@ -1330,6 +1460,20 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         
         // Update global flag
         this.hasModifications = this.modifiedProcesses.size > 0;
+        
+        // Force UI refresh to update button states and slider widths
+        this.filteredLocationEntries = [...this.filteredLocationEntries];
+        
+        // Use setTimeout to ensure DOM updates are processed before re-applying styles
+        setTimeout(() => {
+            // Re-apply proper slider styles after DOM refresh
+            processesToDiscard.forEach((modification, processId) => {
+                const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
+                if (slider) {
+                    slider.style.setProperty('--progress-width', `${modification.originalValue}%`);
+                }
+            });
+        }, 10);
         
         this.showToast('Success', 'Changes discarded', 'success');
     }
@@ -1568,11 +1712,12 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleCellClick
-     * @description: Handle cell click for inline editing
+     * @description: Handle cell click for inline editing with auto-focus
      */
-    handleCellClick(event) {
+    async handleCellClick(event) {
         const recordId = event.currentTarget.dataset.recordId;
         const fieldName = event.currentTarget.dataset.fieldName;
+        const fieldType = event.currentTarget.dataset.fieldType;
         const isEditable = event.currentTarget.dataset.editable === 'true';
         
         if (!isEditable) return;
@@ -1581,6 +1726,15 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         
         // Don't open editor if already editing this cell
         if (this.editingCells.has(cellKey)) return;
+
+        // Load picklist options if needed
+        if (fieldType === 'picklist') {
+            try {
+                await this.getPicklistValues(fieldName);
+            } catch (error) {
+                console.error('Error loading picklist values:', error);
+            }
+        }
         
         this.editingCells.add(cellKey);
         
@@ -1590,9 +1744,14 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         // Auto-focus the input after DOM update
         setTimeout(() => {
             const input = this.template.querySelector(`input[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
-            if (input) {
-                input.focus();
-                input.select(); // Select all text for easy editing
+            const select = this.template.querySelector(`select[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+            const element = input || select;
+            
+            if (element) {
+                element.focus();
+                if (input) {
+                    input.select(); // Select all text for easy editing
+                }
             }
         }, 50);
     }
@@ -1613,7 +1772,81 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             if (isNaN(newValue)) {
                 newValue = 0;
             }
+        } else if (fieldType === 'date') {
+            // For date fields, keep the value as string (YYYY-MM-DD format)
+            // The backend will handle the conversion
         }
+        
+        // Get original value to compare
+        const originalEntry = this.locationEntries.find(entry => entry.Id === recordId);
+        const originalValue = this.getFieldValue(originalEntry, fieldName);
+        
+        // Track modifications
+        if (!this.modifiedLocations.has(recordId)) {
+            this.modifiedLocations.set(recordId, {});
+        }
+        
+        const modifications = this.modifiedLocations.get(recordId);
+        
+        // Compare values properly for different types
+        const areValuesEqual = (val1, val2) => {
+            if (val1 === val2) return true;
+            if ((val1 === null || val1 === undefined || val1 === '') && 
+                (val2 === null || val2 === undefined || val2 === '')) return true;
+            if (fieldType === 'number' && !isNaN(val1) && !isNaN(val2)) {
+                return parseFloat(val1) === parseFloat(val2);
+            }
+            if (fieldType === 'date') {
+                // Compare date strings
+                const date1 = val1 ? new Date(val1).toISOString().split('T')[0] : '';
+                const date2 = val2 ? new Date(val2).toISOString().split('T')[0] : '';
+                return date1 === date2;
+            }
+            return false;
+        };
+        
+        if (!areValuesEqual(newValue, originalValue)) {
+            modifications[fieldName] = newValue;
+        } else {
+            // Remove modification if value is back to original
+            delete modifications[fieldName];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedLocations.delete(recordId);
+            }
+        }
+        
+        // Update hasLocationModifications flag
+        this.hasLocationModifications = this.modifiedLocations.size > 0;
+    }
+
+    /**
+     * Method Name: handleCellInputBlur
+     * @description: Handle blur event on inline edit input
+     */
+    handleCellInputBlur(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const cellKey = `${recordId}-${fieldName}`;
+        
+        // Use setTimeout to allow other events to process first
+        setTimeout(() => {
+            // Remove from editing set
+            this.editingCells.delete(cellKey);
+            
+            // Trigger reactivity to show normal cell
+            this.filteredLocationEntries = [...this.filteredLocationEntries];
+        }, 100);
+    }
+
+    /**
+     * Method Name: handleSelectChange
+     * @description: Handle picklist selection change
+     */
+    handleSelectChange(event) {
+        const recordId = event.target.dataset.recordId;
+        const fieldName = event.target.dataset.fieldName;
+        const fieldType = event.target.dataset.fieldType;
+        const newValue = event.target.value;
         
         // Get original value to compare
         const originalEntry = this.locationEntries.find(entry => entry.Id === recordId);
@@ -1641,19 +1874,46 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: handleCellInputBlur
-     * @description: Handle blur event on inline edit input
+     * Method Name: handleCellDoubleClick
+     * @description: Handle double click to start editing and load picklist options if needed
      */
-    handleCellInputBlur(event) {
-        const recordId = event.target.dataset.recordId;
-        const fieldName = event.target.dataset.fieldName;
+    async handleCellDoubleClick(event) {
+        const recordId = event.currentTarget.dataset.recordId;
+        const fieldName = event.currentTarget.dataset.fieldName;
+        const fieldType = event.currentTarget.dataset.fieldType;
         const cellKey = `${recordId}-${fieldName}`;
         
-        // Remove from editing set
-        this.editingCells.delete(cellKey);
+        // Check if cell is editable
+        const column = this.tableColumns.find(col => col.fieldName === fieldName);
+        if (!column || !column.editable) return;
         
-        // Trigger reactivity to show normal cell
+        // Add to editing set
+        this.editingCells.add(cellKey);
+        
+        // Load picklist options if this is a picklist field and we don't have options yet
+        if (column && column.type === 'picklist' && !this.fieldPicklistOptions.has(fieldName)) {
+            try {
+                await this.getPicklistValues(fieldName);
+                // Force a re-render to show the picklist with options
+                this.filteredLocationEntries = [...this.filteredLocationEntries];
+            } catch (error) {
+                console.error('Error loading picklist values:', error);
+            }
+        }
+        
+        // Trigger reactivity to show editing cell
         this.filteredLocationEntries = [...this.filteredLocationEntries];
+        
+        // Focus the input after a brief delay
+        setTimeout(() => {
+            const input = this.template.querySelector(`[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+            if (input) {
+                input.focus();
+                if (input.type === 'text' || input.type === 'number') {
+                    input.select();
+                }
+            }
+        }, 50);
     }
 
     /**

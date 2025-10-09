@@ -347,4 +347,52 @@ public with sharing class SovJobLocationsController {
             return 'Error: ' + e.getMessage();
         }
     }
+
+    /*
+    *********************************************************
+    @description     : Method is used to get picklist values for a field
+    @param           : String objectApiName - API name of the object
+    @param           : String fieldApiName - API name of the field
+    @return          : List<String> - List of picklist values
+    @author          : Rachit Shah
+    ********************************************************
+    */
+    @AuraEnabled(cacheable=true)
+    public static List<String> getPicklistValuesForField(String objectApiName, String fieldApiName) {
+        List<String> picklistValues = new List<String>();
+        try {
+            Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
+            
+            if (globalDescribe.containsKey(objectApiName)) {
+                Schema.SObjectType objectType = globalDescribe.get(objectApiName);
+                Schema.DescribeSObjectResult objectDescribe = objectType.getDescribe();
+                Map<String, Schema.SObjectField> fieldMap = objectDescribe.fields.getMap();
+                
+                if (fieldMap.containsKey(fieldApiName)) {
+                    Schema.SObjectField field = fieldMap.get(fieldApiName);
+                    Schema.DescribeFieldResult fieldDescribe = field.getDescribe();
+                    
+                    if (fieldDescribe.getType() == Schema.DisplayType.PICKLIST) {
+                        List<Schema.PicklistEntry> picklistEntries = fieldDescribe.getPicklistValues();
+                        for (Schema.PicklistEntry entry : picklistEntries) {
+                            if (entry.isActive()) {
+                                picklistValues.add(entry.getValue());
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getPicklistValuesForField',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while getting picklist values.',
+                'apiResponse' => null
+            });
+        }
+        return picklistValues;
+    }
 }
