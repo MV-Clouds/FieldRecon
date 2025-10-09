@@ -3065,11 +3065,88 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: validateScopeChanges
+     * @description: Validate scope entry modifications before saving
+     */
+    validateScopeChanges() {
+        const errors = [];
+        
+        for (const [recordId, changes] of this.modifiedScopeEntries.entries()) {
+            const entry = this.scopeEntries.find(e => e.Id === recordId);
+            const entryName = entry ? entry.Name : recordId;
+            
+            for (const [fieldName, value] of Object.entries(changes)) {
+                // Get field metadata to determine validation rules
+                const column = this.tableColumns.find(col => col.fieldName === fieldName);
+                
+                if (column) {
+
+                    console.log(`Validating ${entryName} - ${column.label}:`, value);
+                    console.log('Type:', column.type);
+                    
+                    // Text field validation
+                    if (column.type === 'text') {
+                        // Check for empty values after trimming
+                        if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+                            errors.push(`${entryName} - ${column.label}: Field cannot be empty`);
+                        }
+                        // Check max 80 characters
+                        else if (value && value.length > 80) {
+                            errors.push(`${entryName} - ${column.label}: Text cannot exceed 80 characters (current: ${value.length})`);
+                        }
+                    }
+                    
+                    // Number field validation (max 6 digits with 2 decimal places)
+                    if ((column.type === 'number' || column.type === 'currency' || column.type === 'percent')) {
+                        // Check for empty, null, undefined, or zero values
+                        if (value === null || value === undefined || value === '' || 
+                            (typeof value === 'string' && value.trim() === '') ||
+                            (typeof value === 'string' && value.trim() === '-') ||
+                            parseFloat(value) === 0) {
+                            errors.push(`${entryName} - ${column.label}: Field cannot be empty or zero`);
+                        }
+                        else {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                                // Check for negative numbers
+                                if (numValue < 0) {
+                                    errors.push(`${entryName} - ${column.label}: Negative numbers are not allowed`);
+                                }
+                                
+                                // Check if number has more than 6 digits before decimal
+                                const wholePart = Math.floor(Math.abs(numValue)).toString();
+                                if (wholePart.length > 6) {
+                                    errors.push(`${entryName} - ${column.label}: Number cannot have more than 6 digits before decimal point (current: ${wholePart.length})`);
+                                }
+                                
+                                // Check if number has more than 2 decimal places
+                                const decimalPart = numValue.toString().split('.')[1];
+                                if (decimalPart && decimalPart.length > 2) {
+                                    errors.push(`${entryName} - ${column.label}: Number cannot have more than 2 decimal places (current: ${decimalPart.length})`);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return errors;
+    }
+
+    /**
      * Method Name: handleSaveScopeChanges
      * @description: Save all modified scope entries in a single batch
      */
     handleSaveScopeChanges() {
         if (this.modifiedScopeEntries.size === 0) {
+            return;
+        }
+
+        // Validate changes before saving
+        const validationErrors = this.validateScopeChanges();
+        if (validationErrors.length > 0) {
+            this.showToast('Validation Error', validationErrors.join('\n'), 'error');
             return;
         }
 
@@ -3664,6 +3741,81 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
     
     /**
+     * Method Name: validateProcessChanges
+     * @description: Validate process entry modifications before saving
+     */
+    validateProcessChanges(scopeEntryId) {
+        const errors = [];
+        
+        if (!this.modifiedProcessEntriesByScopeEntry.has(scopeEntryId)) {
+            return errors;
+        }
+        
+        const processIdsToValidate = this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId);
+        
+        for (const processId of processIdsToValidate) {
+            const modificationEntry = this.modifiedProcessEntries.get(processId);
+            if (!modificationEntry) continue;
+            
+            const process = this.findProcessById(processId);
+            const processName = process ? (process.wfrecon__Process_Name__c || process.Id) : processId;
+            
+            for (const [fieldName, value] of Object.entries(modificationEntry.modifications)) {
+                // Get field metadata to determine validation rules
+                const column = this.processTableColumns.find(col => col.fieldName === fieldName);
+                
+                if (column) {
+                    // Text field validation
+                    if (column.type === 'text') {
+                        // Check for empty values after trimming
+                        if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+                            errors.push(`${processName} - ${column.label}: Field cannot be empty`);
+                        }
+                        // Check max 80 characters
+                        else if (value && value.length > 80) {
+                            errors.push(`${processName} - ${column.label}: Text cannot exceed 80 characters (current: ${value.length})`);
+                        }
+                    }
+                    
+                    // Number field validation (max 6 digits with 2 decimal places)
+                    if ((column.type === 'number' || column.type === 'currency' || column.type === 'percent')) {
+                        // Check for empty, null, undefined, or zero values
+                        if (value === null || value === undefined || value === '' || 
+                            (typeof value === 'string' && value.trim() === '') ||
+                            (typeof value === 'string' && value.trim() === '-') ||
+                            parseFloat(value) === 0) {
+                            errors.push(`${processName} - ${column.label}: Field cannot be empty or zero`);
+                        }
+                        else {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                                // Check for negative numbers
+                                if (numValue < 0) {
+                                    errors.push(`${processName} - ${column.label}: Negative numbers are not allowed`);
+                                }
+                                
+                                // Check if number has more than 6 digits before decimal
+                                const wholePart = Math.floor(Math.abs(numValue)).toString();
+                                if (wholePart.length > 6) {
+                                    errors.push(`${processName} - ${column.label}: Number cannot have more than 6 digits before decimal point (current: ${wholePart.length})`);
+                                }
+                                
+                                // Check if number has more than 2 decimal places
+                                const decimalPart = numValue.toString().split('.')[1];
+                                if (decimalPart && decimalPart.length > 2) {
+                                    errors.push(`${processName} - ${column.label}: Number cannot have more than 2 decimal places (current: ${decimalPart.length})`);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return errors;
+    }
+
+    /**
      * Method Name: handleSaveProcessChanges
      * @description: Save all modified process entries in a single batch
      */
@@ -3672,6 +3824,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
         
         if (!this.hasProcessModificationsForEntry(scopeEntryId)) {
+            return;
+        }
+
+        // Validate changes before saving
+        const validationErrors = this.validateProcessChanges(scopeEntryId);
+        if (validationErrors.length > 0) {
+            this.showToast('Validation Error', validationErrors.join('\n'), 'error');
             return;
         }
 

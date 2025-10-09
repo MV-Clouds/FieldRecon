@@ -1548,6 +1548,13 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 this.modifiedProcessesByLocation.get(locationId).size === 0) {
                 return;
             }
+
+            // Validate changes before saving for this location
+            const validationErrors = this.validateProcessChanges(locationId);
+            if (validationErrors.length > 0) {
+                this.showToast('Validation Error', validationErrors.join('\n'), 'error');
+                return;
+            }
             
             const processIdsForLocation = this.modifiedProcessesByLocation.get(locationId);
             processesToSave = new Map();
@@ -1565,6 +1572,24 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             if (this.modifiedProcesses.size === 0) {
                 return;
             }
+
+            // Validate changes for all affected locations before saving
+            const allLocationIds = new Set();
+            this.modifiedProcesses.forEach(modification => {
+                allLocationIds.add(modification.locationId);
+            });
+
+            let allValidationErrors = [];
+            for (const locId of allLocationIds) {
+                const locationErrors = this.validateProcessChanges(locId);
+                allValidationErrors = allValidationErrors.concat(locationErrors);
+            }
+
+            if (allValidationErrors.length > 0) {
+                this.showToast('Validation Error', allValidationErrors.join('\n'), 'error');
+                return;
+            }
+
             processesToSave = this.modifiedProcesses;
             
             // Collect all affected location IDs
@@ -2264,11 +2289,142 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: validateLocationChanges
+     * @description: Validate location entry modifications before saving
+     */
+    validateLocationChanges() {
+        const errors = [];
+        
+        for (const [recordId, changes] of this.modifiedLocations.entries()) {
+            const entry = this.locationEntries.find(e => e.Id === recordId);
+            const entryName = entry ? entry.Name : recordId;
+            
+            for (const [fieldName, value] of Object.entries(changes)) {
+                // Get field metadata to determine validation rules
+                const column = this.tableColumns.find(col => col.fieldName === fieldName);
+                
+                if (column) {
+                    console.log(`Validating ${entryName} - ${column.label}:`, value);
+                    console.log('Type:', column.type);
+                    
+                    // Text field validation
+                    if (column.type === 'text') {
+                        // Check for empty values after trimming
+                        if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+                            errors.push(`${entryName} - ${column.label}: Field cannot be empty`);
+                        }
+                        // Check max 80 characters
+                        else if (value && value.length > 80) {
+                            errors.push(`${entryName} - ${column.label}: Text cannot exceed 80 characters (current: ${value.length})`);
+                        }
+                    }
+                    
+                    // Number field validation (max 6 digits with 2 decimal places)
+                    if ((column.type === 'number' || column.type === 'currency' || column.type === 'percent')) {
+                        // Check for empty, null, undefined, or zero values
+                        if (value === null || value === undefined || value === '' || 
+                            (typeof value === 'string' && value.trim() === '') ||
+                            (typeof value === 'string' && value.trim() === '-') ||
+                            parseFloat(value) === 0) {
+                            errors.push(`${entryName} - ${column.label}: Field cannot be empty or zero`);
+                        }
+                        else {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                                // Check for negative numbers
+                                if (numValue < 0) {
+                                    errors.push(`${entryName} - ${column.label}: Negative numbers are not allowed`);
+                                }
+                                
+                                // Check if number has more than 6 digits before decimal
+                                const wholePart = Math.floor(Math.abs(numValue)).toString();
+                                if (wholePart.length > 6) {
+                                    errors.push(`${entryName} - ${column.label}: Number cannot have more than 6 digits before decimal point (current: ${wholePart.length})`);
+                                }
+                                
+                                // Check if number has more than 2 decimal places
+                                const decimalPart = numValue.toString().split('.')[1];
+                                if (decimalPart && decimalPart.length > 2) {
+                                    errors.push(`${entryName} - ${column.label}: Number cannot have more than 2 decimal places (current: ${decimalPart.length})`);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return errors;
+    }
+
+    /**
+     * Method Name: validateProcessChanges
+     * @description: Validate process entry modifications before saving
+     */
+    validateProcessChanges(locationId) {
+        const errors = [];
+        
+        if (!this.modifiedProcessesByLocation.has(locationId)) {
+            return errors;
+        }
+        
+        const processIdsToValidate = this.modifiedProcessesByLocation.get(locationId);
+        
+        for (const processId of processIdsToValidate) {
+            const modificationEntry = this.modifiedProcesses.get(processId);
+            if (!modificationEntry) continue;
+            
+            const location = this.locationEntries.find(l => l.Id === locationId);
+            const locationName = location ? location.Name : locationId;
+            
+            // For process completion percentage validation (slider values)
+            if (modificationEntry.fieldName === 'wfrecon__Completed_Percentage__c') {
+                const value = modificationEntry.newValue;
+                
+                // Check for empty, null, undefined values
+                if (value === null || value === undefined || value === '' || 
+                    (typeof value === 'string' && value.trim() === '')) {
+                    errors.push(`${locationName} - Process Completion: Field cannot be empty`);
+                }
+                else {
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                        // Check for negative numbers
+                        if (numValue < 0) {
+                            errors.push(`${locationName} - Process Completion: Negative values are not allowed`);
+                        }
+                        
+                        // Check for values over 100% for percentage fields
+                        if (numValue > 100) {
+                            errors.push(`${locationName} - Process Completion: Percentage cannot exceed 100%`);
+                        }
+                        
+                        // Check if number has more than 2 decimal places
+                        const decimalPart = numValue.toString().split('.')[1];
+                        if (decimalPart && decimalPart.length > 2) {
+                            errors.push(`${locationName} - Process Completion: Percentage cannot have more than 2 decimal places (current: ${decimalPart.length})`);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return errors;
+    }
+
+    /**
      * Method Name: handleSaveLocationChanges
      * @description: Save all modified location entries in a single batch
      */
     handleSaveLocationChanges() {
         if (this.modifiedLocations.size === 0) {
+            return;
+        }
+
+        // Validate changes before saving
+        const validationErrors = this.validateLocationChanges();
+        if (validationErrors.length > 0) {
+            this.showToast('Validation Error', validationErrors.join('\n'), 'error');
             return;
         }
 
