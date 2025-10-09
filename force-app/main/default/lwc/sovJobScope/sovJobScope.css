@@ -915,6 +915,18 @@
     border: 1px solid rgba(94, 90, 219, 1);
 }
 
+/* Refresh button specific styling for process actions */
+.add-process-btn.refresh-btn {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.add-process-btn.refresh-btn:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
 .add-process-btn:hover,
 .manual-btn:hover {
     background-color: rgba(94, 90, 219, 0.9);

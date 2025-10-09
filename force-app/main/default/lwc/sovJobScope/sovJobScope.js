@@ -1094,6 +1094,92 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: handleRefreshProcessData
+     * @description: Handle refresh button click for specific scope entry process data
+     */
+    handleRefreshProcessData(event) {
+        const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        if (scopeEntryId) {
+            console.log('Refreshing process data for scope entry:', scopeEntryId);
+            this.refreshScopeEntryProcessData(scopeEntryId);
+        }
+    }
+
+    /**
+     * Method Name: refreshScopeEntryProcessData
+     * @description: General method to refresh process data for a specific scope entry
+     */
+    refreshScopeEntryProcessData(scopeEntryId) {
+        try {
+            // Store currently expanded entries
+            const expandedEntries = new Set();
+            this.scopeEntries.forEach(entry => {
+                if (entry.showProcessDetails) {
+                    expandedEntries.add(entry.Id);
+                }
+            });
+
+            // Show loading state for the specific entry
+            this.scopeEntries = this.scopeEntries.map(entry => {
+                if (entry.Id === scopeEntryId) {
+                    return {
+                        ...entry,
+                        isLoadingProcesses: true,
+                        showProcessDetails: true // Ensure the table remains expanded
+                    };
+                }
+                return entry;
+            });
+
+            // Re-fetch scope entries data to get updated process information
+            getScopeEntries({ jobId: this.recordId })
+                .then(result => {
+                    if (result && result.success) {
+                        this.scopeEntries = result.scopeEntries || [];
+                        this.processSetupFlags = result.processSetupFlags || {};
+                        
+                        // Restore expanded state for all previously expanded entries
+                        this.scopeEntries = this.scopeEntries.map(entry => {
+                            if (expandedEntries.has(entry.Id)) {
+                                return {
+                                    ...entry,
+                                    showProcessDetails: true,
+                                    isLoadingProcesses: false
+                                };
+                            }
+                            return entry;
+                        });
+
+                        // Apply filters to update displayed data
+                        this.applyFilters();
+                        
+                        this.showToast('Success', 'Process data refreshed successfully', 'success');
+                    } else {
+                        throw new Error(result.error || 'Failed to refresh process data');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing process data:', error);
+                    this.showToast('Error', 'Failed to refresh process data: ' + (error.body?.message || error.message), 'error');
+                    
+                    // Remove loading state on error
+                    this.scopeEntries = this.scopeEntries.map(entry => {
+                        if (entry.Id === scopeEntryId) {
+                            return {
+                                ...entry,
+                                isLoadingProcesses: false
+                            };
+                        }
+                        return entry;
+                    });
+                });
+        } catch (error) {
+            console.error('Error in refreshScopeEntryProcessData:', error);
+            this.showToast('Error', 'An error occurred while refreshing process data', 'error');
+        }
+    }
+
+    /**
      * Method Name: handleAddScopeEntry
      * @description: Open add scope entry modal
      */
@@ -2475,6 +2561,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result.includes('Success')) {
                     this.showToast('Success', `${this.selectedLocationIds.length} location(s) added successfully`, 'success');
                     this.handleCloseLocationModal();
+                    
                 } else {
                     this.showToast('Error', result, 'error');
                 }
