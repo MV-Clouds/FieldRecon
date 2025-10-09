@@ -167,5 +167,21 @@ public with sharing class SovJobLocationProcessesControllerTest {
         System.assert(result.errorDetails[0].containsIgnoreCase('No processes provided'), 'Expected missing data message.');
     }
 
+    @IsTest
+    static void testBatchUpdateProcessCompletionValidationFailure() {
+
+        // Prepare update wrapper
+        SovJobLocationProcessesController.ProcessUpdateWrapper updateWrapper = 
+            new SovJobLocationProcessesController.ProcessUpdateWrapper();
+        updateWrapper.processId = '012000000000000AAA'; // Non-existent ID
+        updateWrapper.completionPercentage = 100; 
+        List<SovJobLocationProcessesController.ProcessUpdateWrapper> updates = new List<SovJobLocationProcessesController.ProcessUpdateWrapper>{ updateWrapper };
+
+        Test.startTest();
+        SovJobLocationProcessesController.BatchUpdateResult result = SovJobLocationProcessesController.batchUpdateProcessCompletion(updates);
+        Test.stopTest();
+
+    }
+
 
 }

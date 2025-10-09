@@ -271,10 +271,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         { label: 'Add from Process Library', value: 'library' }
     ];
 
-    @wire(CurrentPageReference)
-    setCurrentPageReference(pageRef) {
-        this.recordId = pageRef.attributes.recordId;
-    }
 
     /**
      * Method Name: get contractSectionLabel
@@ -759,6 +755,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get processSaveButtonLabel
+     *  @description: Get dynamic process save button label
+     */
+    
+    @wire(CurrentPageReference)
+    setCurrentPageReference(pageRef) {
+        this.recordId = pageRef.attributes.recordId;
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load external CSS and fetch scope entries
      */
@@ -767,12 +773,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.loadProcessLibraryData();
     }
 
+    /**
+     * Method Name: renderedCallback    
+     * @description: Apply accordion styling once
+    */
     renderedCallback() {
         if(!this.accordionStyleApplied){
             this.applyAccordionStyling();
         }
     }
 
+    /**
+     * Method Name: applyAccordionStyling   
+     * @description: Dynamically apply styles to accordion headers
+     */
     applyAccordionStyling() {
         try {
             // Create style element if it doesn't exist
@@ -2000,7 +2014,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
      /**
      * Method Name: updateProcessDetails
-     * @description: Update process details for a specific entry while preserving selections - Updated with default sorting
+     * @description: Update process details for a specific entry while preserving selections
      */
      updateProcessDetails(scopeEntryId, processDetails) {
         

@@ -132,15 +132,7 @@ public with sharing class SovJobLocationProcessesController {
             result.message = 'Batch update failed: ' + e.getMessage();
             result.errorDetails.add(e.getMessage());
             
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'batchUpdateProcessCompletion',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred during batch update of Location Processes',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'batchUpdateProcessCompletion', 'exceptionObj' => e, 'moreDetails' => 'Error occurred during batch update of Location Processes', 'apiResponse' => null});
         }
         
         return result;
