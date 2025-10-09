@@ -63,11 +63,11 @@ public with sharing class SovJobLocationsController {
 
                     // --- Fetch all related Location Processes in bulk ---
                     List<Location_Process__c> allLocationProcesses = [
-                        SELECT Id, Name, wfrecon__Contract_Price__c, wfrecon__Completed_Percentage__c, 
-                               wfrecon__Current_Completed_Value__c, wfrecon__Process_Status__c, wfrecon__Scope_Entry_Process__r.Name,	
-                               wfrecon__Sequence__c, wfrecon__Location__c
-                        FROM wfrecon__Location_Process__c
-                        WHERE wfrecon__Location__c IN :locationIds
+                        SELECT Id, Name, Contract_Price__c, Completed_Percentage__c, 
+                               Current_Completed_Value__c, Process_Status__c, Scope_Entry_Process__r.Name,	
+                               Sequence__c, Location__c
+                        FROM Location_Process__c
+                        WHERE Location__c IN :locationIds
                         WITH USER_MODE
                         ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
                     ];

@@ -1346,10 +1346,12 @@ public with sharing class SovJobScopeController {
 
     /*
     *********************************************************
-    @description     : Method is used to save inline edits for multiple Process Entries
+    @description     : Method is used to save inline edits for multiple Process Entries and automatically recalculate location processes when weightage changes
     @param           : String updatedProcessEntriesJson - JSON string of updated process entry records
-    @return          : String - Success or error message
+    @return          : String - Success or error message with recalculation details
     @author          : Rachit Shah
+    @note            : When process weightage is modified, related location processes are automatically
+                      recalculated to maintain proper value distribution based on the new weights.
     ********************************************************
     */
     @AuraEnabled
@@ -1367,16 +1369,56 @@ public with sharing class SovJobScopeController {
                 return 'Error: No process entry records provided for update.';
             }
 
+            // Get the IDs of processes being updated
+            Set<Id> processIds = new Set<Id>();
+            for (Scope_Entry_Process__c process : updatedProcessEntries) {
+                if (process.Id != null) {
+                    processIds.add(process.Id);
+                }
+            }
+
+            // Fetch current process data to detect weightage changes
+            Map<Id, Decimal> originalWeights = new Map<Id, Decimal>();
+            Map<Id, Id> processToScopeEntry = new Map<Id, Id>();
+            List<Scope_Entry_Process__c> currentProcesses = [
+                SELECT Id, Weight__c, Scope_Entry__c, Scope_Entry__r.Contract_Value__c
+                FROM Scope_Entry_Process__c
+                WHERE Id IN :processIds
+                WITH USER_MODE
+            ];
+
+            for (Scope_Entry_Process__c currentProcess : currentProcesses) {
+                originalWeights.put(currentProcess.Id, currentProcess.Weight__c);
+                processToScopeEntry.put(currentProcess.Id, currentProcess.Scope_Entry__c);
+            }
+
             // Perform the DML update with partial success handling
             Database.SaveResult[] results = Database.update(updatedProcessEntries, false, AccessLevel.USER_MODE);
 
             // Collect any errors and successes
             List<String> failedRecords = new List<String>();
             Integer successCount = 0;
+            Set<Id> affectedScopeEntryIds = new Set<Id>();
+            Boolean weightageChanged = false;
             
             for (Integer i = 0; i < results.size(); i++) {
                 if (results[i].isSuccess()) {
                     successCount++;
+                    
+                    // Check if weightage changed for this process
+                    Scope_Entry_Process__c updatedProcess = updatedProcessEntries[i];
+                    if (updatedProcess.Id != null && originalWeights.containsKey(updatedProcess.Id)) {
+                        Decimal originalWeight = originalWeights.get(updatedProcess.Id);
+                        Decimal newWeight = updatedProcess.Weight__c;
+                        
+                        // Compare weights (handle null values)
+                        if ((originalWeight == null && newWeight != null) ||
+                            (originalWeight != null && newWeight == null) ||
+                            (originalWeight != null && newWeight != null && originalWeight != newWeight)) {
+                            weightageChanged = true;
+                            affectedScopeEntryIds.add(processToScopeEntry.get(updatedProcess.Id));
+                        }
+                    }
                 } else {
                     String errorMsg = '';
                     for (Database.Error error : results[i].getErrors()) {
@@ -1386,12 +1428,44 @@ public with sharing class SovJobScopeController {
                 }
             }
 
+            // Recalculate location processes if weightage changed
+            String recalculationResult = '';
+            if (weightageChanged && !affectedScopeEntryIds.isEmpty()) {
+                // Fetch affected scope entries for recalculation
+                Map<Id, Scope_Entry__c> affectedScopeEntries = new Map<Id, Scope_Entry__c>();
+                for (Scope_Entry__c scopeEntry : [
+                    SELECT Id, Contract_Value__c
+                    FROM Scope_Entry__c
+                    WHERE Id IN :affectedScopeEntryIds
+                    WITH USER_MODE
+                ]) {
+                    affectedScopeEntries.put(scopeEntry.Id, scopeEntry);
+                }
+                
+                if (!affectedScopeEntries.isEmpty()) {
+                    recalculationResult = recalculateLocationProcessesBulk(affectedScopeEntries);
+                }
+            }
+
             if (!failedRecords.isEmpty()) {
                 String errorMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
+                if (String.isNotBlank(recalculationResult) && recalculationResult.startsWith('Success')) {
+                    errorMessage += '. ' + recalculationResult;
+                }
                 return 'Partial Success: ' + errorMessage;
             }
 
-            return 'Success: ' + successCount + ' process entry(s) updated successfully';
+            // Build success message
+            String successMessage = 'Success: ' + successCount + ' process entry(s) updated successfully';
+            if (weightageChanged && String.isNotBlank(recalculationResult)) {
+                if (recalculationResult.startsWith('Success')) {
+                    successMessage += '. ' + recalculationResult;
+                } else {
+                    successMessage += '. Recalculation warning: ' + recalculationResult;
+                }
+            }
+
+            return successMessage;
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
