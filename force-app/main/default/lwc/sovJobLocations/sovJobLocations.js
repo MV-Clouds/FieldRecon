@@ -1261,17 +1261,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: handleEditRecord
-     * @description: Handle edit record action
-     */
-    handleEditRecord(event) {
-        const recordId = event.currentTarget.dataset.recordId;
-        
-        console.log('Edit record action for ID:', recordId);
-        
-    }
-
-    /**
      * Method Name: handleSaveChanges
      * @description: Save all modified processes in a single batch or for a specific location
      */
@@ -1926,6 +1915,16 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         }
 
         this.isSavingLocations = true;
+        
+        // Check if any square feet modifications exist for process recalculation
+        const hasSquareFeetChanges = Array.from(this.modifiedLocations.values()).some(modifications => 
+            modifications.hasOwnProperty('wfrecon__Square_Feet__c')
+        );
+        
+        // Store locations with expanded process details for refresh
+        const locationsWithExpandedProcesses = this.locationEntries
+            .filter(entry => entry.showProcessDetails)
+            .map(entry => entry.Id);
         
         // Prepare data for batch update
         const updatedLocations = [];

@@ -304,8 +304,8 @@
 }
 
 .actions-column {
-    width: 80px;
-    min-width: 80px;
+    width: 60px;
+    min-width: 60px;
     text-align: center;
 }
 
@@ -343,16 +343,6 @@
 
 .icon-button.child-records-btn:hover {
     background-color: #17a2b8;
-    color: white;
-}
-
-.icon-button.edit-btn {
-    border-color: rgba(94, 90, 219, 0.7);
-    color: rgba(94, 90, 219, 0.7);
-}
-
-.icon-button.edit-btn:hover {
-    background-color: rgba(94, 90, 219, 0.7);
     color: white;
 }
 
