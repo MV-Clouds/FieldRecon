@@ -60,7 +60,7 @@
         <!-- Summary Cards Section -->
         <div class="summary-cards-container">
             <div class="summary-card contract-value">
-                <div class="summary-card-title">Total Contracted Value</div>
+                <div class="summary-card-title">Total Contract Value</div>
                 <div class="summary-card-value">
                     <lightning-formatted-number 
                         value={totalContractValue} 
@@ -69,7 +69,20 @@
                         maximum-fraction-digits="0">
                     </lightning-formatted-number>
                 </div>
-                <div class="summary-card-subtitle">Across all scope entries</div>
+                <div class="summary-card-subtitle">Contract entries only</div>
+            </div>
+
+            <div class="summary-card change-order-value">
+                <div class="summary-card-title">Total Change Order Value</div>
+                <div class="summary-card-value">
+                    <lightning-formatted-number 
+                        value={totalChangeOrderValue} 
+                        format-style="currency" 
+                        currency-code="USD"
+                        maximum-fraction-digits="0">
+                    </lightning-formatted-number>
+                </div>
+                <div class="summary-card-subtitle">Change order entries only</div>
             </div>
 
             <div class="summary-card completed-value">

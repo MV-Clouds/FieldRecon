@@ -433,15 +433,36 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: get totalContractValue
-     * @description: Calculate total contract value across all scope entries
+     * @description: Calculate total contract value from contract entries only
      */
     get totalContractValue() {
-        if (!this.scopeEntries || this.scopeEntries.length === 0) return 0;
+        if (!this.filteredContractEntries || this.filteredContractEntries.length === 0) return 0;
         
-        return this.scopeEntries.reduce((total, entry) => {
+        return this.filteredContractEntries.reduce((total, entry) => {
             const contractValue = this.getFieldValue(entry, 'wfrecon__Contract_Value__c');
             return total + (contractValue || 0);
         }, 0);
+    }
+
+    /**
+     * Method Name: get totalChangeOrderValue
+     * @description: Calculate total contract value from change order entries only
+     */
+    get totalChangeOrderValue() {
+        if (!this.filteredChangeOrderEntries || this.filteredChangeOrderEntries.length === 0) return 0;
+        
+        return this.filteredChangeOrderEntries.reduce((total, entry) => {
+            const contractValue = this.getFieldValue(entry, 'wfrecon__Contract_Value__c');
+            return total + (contractValue || 0);
+        }, 0);
+    }
+
+    /**
+     * Method Name: get totalAllContractValue
+     * @description: Calculate total contract value across all scope entries (contract + change orders)
+     */
+    get totalAllContractValue() {
+        return this.totalContractValue + this.totalChangeOrderValue;
     }
 
     /**
@@ -462,7 +483,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Calculate total remaining value (contract - completed)
      */
     get totalRemainingValue() {
-        return Math.max(0, this.totalContractValue - this.totalCompletedValue);
+        return Math.max(0, this.totalAllContractValue - this.totalCompletedValue);
     }
 
     /**
@@ -470,9 +491,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Calculate overall completion percentage
      */
     get overallCompletionPercentage() {
-        if (this.totalContractValue === 0) return 0;
+        if (this.totalAllContractValue === 0) return 0;
         
-        return (this.totalCompletedValue / this.totalContractValue);
+        return (this.totalCompletedValue / this.totalAllContractValue);
     }
 
     /**
