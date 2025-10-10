@@ -724,10 +724,10 @@ lightning-combobox {
     border-radius: 0px 3px 3px 0px !important;
 }
 
-.search-container:focus-within, .date-input:focus {
+/* .search-container:focus-within, .date-input:focus {
     --slds-c-input-shadow: unset !important;
     border: 2px solid rgba(94, 90, 219, 1) !important;
-}
+} */
 
 .premium-col{
     display: flex;
@@ -744,4 +744,11 @@ lightning-combobox {
 
 .width-100{
     width: 100%;
+}
+
+.cell-content {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 }

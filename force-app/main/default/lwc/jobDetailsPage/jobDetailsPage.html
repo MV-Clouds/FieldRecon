@@ -32,12 +32,12 @@
                 <div class="custom-date-filter">
                     <div class="date-container">
                         <div class="date-label">Start Date</div>
-                        <input type="date" class="slds-input date-input" label="Start Date" value={customStartDate} onchange={handleCustomDateChange} data-field="filterStart"></input>
+                        <input type="date" class="slds-input date-input" min="2000-01-01" max="9999-12-31" value={customStartDate} onchange={handleCustomDateChange} data-field="filterStart"></input>
                     </div>
                     
                     <div class="date-container">
                         <div class="date-label">End Date</div>
-                        <input type="date" class="slds-input date-input" label="End Date" value={customEndDate} onchange={handleCustomDateChange} data-field="filterEnd"></input>
+                        <input type="date" class="slds-input date-input" min="2000-01-01" max="9999-12-31" value={customEndDate} onchange={handleCustomDateChange} data-field="filterEnd"></input>
                     </div>
                 </div>
             </template>
@@ -91,7 +91,7 @@
                                                 </a>
                                             </template>
                                             <template if:false={val.recordLink}>
-                                                <div class="cell-content" title={val.value}>
+                                                <div class="cell-content" style={val.style} title={val.value}>
                                                     {val.value}
                                                 </div>
                                             </template>
@@ -430,7 +430,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Travel Time</label>
                                             <div class="select-wrapper">
-                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select width-100" value={enteredManualTravelTime} onchange={handleInputChange} />
+                                                <input type="number" step="0.01" min="0.01" data-field="TravelTime" class="custom-select width-100" value={enteredManualTravelTime} onchange={handleInputChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -440,7 +440,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Per Diem</label>
                                             <div class="select-wrapper">    
-                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select width-100" value={enteredManualPerDiem} onchange={handleInputChange} />
+                                                <input type="number" step="1" max="1" min="0" data-field="PerDiem" class="custom-select width-100" value={enteredManualPerDiem} onchange={handleInputChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -515,7 +515,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Travel Time</label>
                                             <div class="select-wrapper">
-                                                <input type="number" step="0.01" data-field="TravelTime" class="custom-select width-100" value={editableTimesheetEntry.TravelTime} onchange={handleEditTSELFieldChange} />
+                                                <input type="number" step="0.01" min="0.01" data-field="TravelTime" class="custom-select width-100" value={editableTimesheetEntry.TravelTime} onchange={handleEditTSELFieldChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -525,7 +525,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Per Diem</label>
                                             <div class="select-wrapper">    
-                                                <input type="number" step="0.01" data-field="PerDiem" class="custom-select width-100" value={editableTimesheetEntry.PerDiem} onchange={handleEditTSELFieldChange} />
+                                                <input type="number" step="1" data-field="PerDiem" class="custom-select width-100" value={editableTimesheetEntry.PerDiem} onchange={handleEditTSELFieldChange} />
                                             </div>
                                         </div>
                                     </div>

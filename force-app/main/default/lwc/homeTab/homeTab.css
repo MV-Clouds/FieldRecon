@@ -222,6 +222,11 @@
 
 /* Mobile Responsive */
 @media screen and (max-width: 768px) {
+    .wrapper{
+        width: unset;
+        margin-top: unset;
+        margin-left: unset;
+    }
     .job-entry {
         flex-direction: column; /* stack vertically on mobile */
     }

@@ -467,7 +467,12 @@ export default class JobDetailsPage extends LightningElement {
         }
 
         if(this.customStartDate && this.customEndDate) {
-            this.getJobRelatedMoblizationDetails();
+            // Wait 2 seconds before fetching data
+            clearTimeout(this._dateChangeTimeout); // clear previous timer if any
+            this._dateChangeTimeout = setTimeout(() => {
+                this.getJobRelatedMoblizationDetails();
+            }, 1000);
+            // this.getJobRelatedMoblizationDetails();
         }
     }
 
@@ -602,6 +607,7 @@ export default class JobDetailsPage extends LightningElement {
                     if(result == true) {
                         this.selectedContactId = null;
                         this.selectedCostCodeId = null;
+                        this.template.querySelector('.custom-select-costcode').value = '';
                         this.isSelectedContactClockedIn = false;
                         this.clockInTime = this.defaultStartTime;
                         this.getClockInDetails();
@@ -699,7 +705,7 @@ export default class JobDetailsPage extends LightningElement {
                 record => record.contactId === this.selectedContactId
             );
 
-            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime)) {
+            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
                 return;
             }
@@ -729,6 +735,7 @@ export default class JobDetailsPage extends LightningElement {
                         this.previousClockInTime = null;
                         this.clockOutTime = this.defaultEndTime;
                         this.getClockOutDetails();
+                        this.getJobRelatedMoblizationDetails();
                         this.showToast('Success', 'User Clocked Out Successfully', 'success');
                     } else {
                         this.showToast('Error', 'Failed to Clock Out User', 'error');
@@ -987,6 +994,7 @@ export default class JobDetailsPage extends LightningElement {
                     console.log('createManualTimesheetRecords result :: ' , result);
                     if(result == true) {
                         this.getJobRelatedTimesheetDetails();
+                        this.getJobRelatedMoblizationDetails();
                         this.showToast('Success', 'Timesheet created successfully', 'success');
                         this.selectedManualPersonId = null;
                         this.selectedCostCodeId = null;
@@ -1123,6 +1131,7 @@ export default class JobDetailsPage extends LightningElement {
                 .then((result) => {
                     if(result == true) {
                         this.getJobRelatedTimesheetDetails();
+                        this.getJobRelatedMoblizationDetails();
                         this.showToast('Success', 'Timesheet entry updated successfully', 'success');
                         this.closeEditTimesheetModal();
                     } else {
