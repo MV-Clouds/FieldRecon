@@ -1254,7 +1254,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     refreshScopeEntryProcessData(scopeEntryId) {
         try {
-            debugger;
             // Store currently expanded entries
             const expandedEntries = new Set();
             this.scopeEntries.forEach(entry => {
@@ -2807,8 +2806,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleCloseLocationModal() {
         this.showAddLocationModal = false;
-        this.selectedScopeEntryName = '';
         this.selectedLocationScopeEntryId = '';
+        this.selectedScopeEntryName = '';
         this.selectedLocationIds = [];
         this.originalLocationIds = []; // Clear original state
         this.locationSearchTerm = '';
@@ -2832,6 +2831,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const addedLocationIds = [...selectedIds].filter(id => !originalIds.has(id));
         const removedLocationIds = [...originalIds].filter(id => !selectedIds.has(id));
         const unchangedLocationIds = [...selectedIds].filter(id => originalIds.has(id));
+
+        const scopeEntryId = this.selectedLocationScopeEntryId;
         
         const locationData = {
             scopeEntryId: this.selectedLocationScopeEntryId,
@@ -2848,6 +2849,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result.includes('Success')) {
                     this.showToast('Success', 'Locations have been updated', 'success');
                     this.handleCloseLocationModal();
+                    this.refreshProcessDetails(scopeEntryId);
                     
                 } else {
                     this.showToast('Error', result, 'error');
