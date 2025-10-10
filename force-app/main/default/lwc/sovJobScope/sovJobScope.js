@@ -672,6 +672,17 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get changeOrderNameCharacterCountClass
+     * @description: Get CSS class for change order name character count based on length
+     */
+    get changeOrderNameCharacterCountClass() {
+        const count = this.changeOrderNameCharacterCount;
+        if (count > 80) return 'character-count error';
+        if (count > 70) return 'character-count warning';
+        return 'character-count';
+    }
+
+    /**
      * Method Name: get isChangeOrderStep1
      * @description: Check if we're on step 1 of change order creation
      */
@@ -695,7 +706,64 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return this.changeOrderData.name && 
                this.changeOrderData.contractValue && 
                this.changeOrderData.contractValue > 0 &&
+               this.changeOrderData.contractValue <= 2000000000 &&
                this.changeOrderData.processOption;
+    }
+
+    /**
+     * Method Name: validateChangeOrderStep1
+     * @description: Validate step 1 data for change order
+     * @return: Object with isValid boolean and error message
+     */
+    validateChangeOrderStep1() {
+        const { name, contractValue, processOption } = this.changeOrderData;
+        
+        // Check if any required field is missing
+        const missingFields = [];
+        
+        if (!name || name.trim() === '') {
+            missingFields.push('Name');
+        }
+        
+        if (!contractValue || contractValue <= 0) {
+            missingFields.push('Contract Value');
+        }
+        
+        if (!processOption || processOption.trim() === '') {
+            missingFields.push('Process Option');
+        }
+        
+        // If multiple required fields are missing, show generic message
+        if (missingFields.length > 1) {
+            return { isValid: false, message: 'Please fill all required fields' };
+        }
+        
+        // Specific field validations
+        if (!name || name.trim() === '') {
+            return { isValid: false, message: 'Name is required' };
+        }
+        
+        if (name.trim().length > 80) {
+            return { isValid: false, message: 'Name cannot be longer than 80 characters' };
+        }
+        
+        if (!contractValue) {
+            return { isValid: false, message: 'Contract Value is required' };
+        }
+        
+        if (contractValue <= 0) {
+            return { isValid: false, message: 'Contract Value must be greater than 0' };
+        }
+        
+        if (contractValue > 2000000000) {
+            return { isValid: false, message: 'Contract Value cannot exceed 2,000,000,000' };
+        }
+        
+        if (!processOption || processOption.trim() === '') {
+            return { isValid: false, message: 'Process Option is required' };
+        }
+        
+        return { isValid: true, message: '' };
     }
 
     /**
@@ -720,6 +788,17 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     get changeOrderProcessNameCharacterCount() {
         return this.changeOrderManualProcess.processName ? this.changeOrderManualProcess.processName.length : 0;
+    }
+
+    /**
+     * Method Name: get changeOrderProcessNameCharacterCountClass
+     * @description: Get CSS class for change order process name character count based on length
+     */
+    get changeOrderProcessNameCharacterCountClass() {
+        const count = this.changeOrderProcessNameCharacterCount;
+        if (count > 80) return 'character-count error';
+        if (count > 70) return 'character-count warning';
+        return 'character-count';
     }
 
     /**
@@ -1317,7 +1396,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     handleInputChange(event) {
         const field = event.target.dataset.field;
         const type = event.target.dataset.type || 'scopeEntry'; // default to scopeEntry
-        let value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;
+        let value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;        
         
         if (type === 'scopeEntry') {
             this.newScopeEntry = { ...this.newScopeEntry, [field]: value };
@@ -1354,12 +1433,41 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     validateScopeEntry() {
         const { name, contractValue, description } = this.newScopeEntry;
         
+        // Check if any required field is missing
+        const missingFields = [];
+        
+        if (!name || name.trim() === '') {
+            missingFields.push('Name');
+        }
+        
+        if (!contractValue || contractValue <= 0) {
+            missingFields.push('Contract Value');
+        }
+        
+        // If multiple required fields are missing, show generic message
+        if (missingFields.length > 1) {
+            return { isValid: false, message: 'Please fill all required fields' };
+        }
+        
+        // Specific field validations
         if (!name || name.trim() === '') {
             return { isValid: false, message: 'Name is required' };
         }
         
-        if (!contractValue || contractValue <= 0) {
-            return { isValid: false, message: 'Contract Value is required and must be greater than 0' };
+        if (name.trim().length > 80) {
+            return { isValid: false, message: 'Name cannot be longer than 80 characters' };
+        }
+        
+        if (!contractValue) {
+            return { isValid: false, message: 'Contract Value is required' };
+        }
+        
+        if (contractValue <= 0) {
+            return { isValid: false, message: 'Contract Value must be greater than 0' };
+        }
+        
+        if (contractValue > 2000000000) {
+            return { isValid: false, message: 'Contract Value cannot exceed 2,000,000,000' };
         }
         
         if (description && description.trim().length > 255) {
@@ -1983,6 +2091,35 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     validateProcess() {
         const { processName, sequence, processType, weightage, measurementType } = this.newProcess;
         
+        // Check if any required field is missing
+        const missingFields = [];
+        
+        if (!processName || processName.trim() === '') {
+            missingFields.push('Process Name');
+        }
+        
+        if (!sequence || sequence <= 0) {
+            missingFields.push('Sequence');
+        }
+        
+        if (!processType || processType.trim() === '') {
+            missingFields.push('Process Type');
+        }
+        
+        if (!weightage || weightage <= 0) {
+            missingFields.push('Weight');
+        }
+        
+        if (!measurementType || measurementType.trim() === '') {
+            missingFields.push('Measurement Type');
+        }
+        
+        // If multiple required fields are missing, show generic message
+        if (missingFields.length > 1) {
+            return { isValid: false, message: 'Please fill all required fields' };
+        }
+        
+        // Specific field validations
         if (!processName || processName.trim() === '') {
             return { isValid: false, message: 'Process Name is required' };
         }
@@ -1991,16 +2128,24 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             return { isValid: false, message: 'Process Name cannot be longer than 80 characters' };
         }
         
-        if (!sequence || sequence <= 0 || sequence > 9999) {
-            return { isValid: false, message: 'Sequence is required and must be between 1 and 9999' };
+        if (!sequence) {
+            return { isValid: false, message: 'Sequence is required' };
+        }
+        
+        if (sequence <= 0 || sequence > 9999) {
+            return { isValid: false, message: 'Sequence must be between 1 and 9999' };
         }
         
         if (!processType || processType.trim() === '') {
             return { isValid: false, message: 'Process Type is required' };
         }
         
-        if (!weightage || weightage <= 0 || weightage > 9999) {
-            return { isValid: false, message: 'Weightage is required and must be between 0 and 9999' };
+        if (!weightage) {
+            return { isValid: false, message: 'Weight is required' };
+        }
+        
+        if (weightage <= 0 || weightage > 9999) {
+            return { isValid: false, message: 'Weight must be between 0.01 and 9999' };
         }
         
         if (!measurementType || measurementType.trim() === '') {
@@ -3452,11 +3597,26 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleChangeOrderInputChange
-     * @description: Handle input changes in change order form
+     * @description: Handle input changes in change order form with real-time validation
      */
     handleChangeOrderInputChange(event) {
         const field = event.target.dataset.field;
         let value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;
+        
+        // Real-time validation for contract value
+        if (field === 'contractValue' && event.target.type === 'number') {
+            if (value > 2000000000) {
+                event.target.style.borderColor = '#dc3545';
+                event.target.style.boxShadow = '0 0 0 2px rgba(220, 53, 69, 0.2)';
+                setTimeout(() => {
+                    this.showToast('Error', 'Contract Value cannot exceed 2,000,000,000', 'error');
+                }, 100);
+                return;
+            } else {
+                event.target.style.borderColor = '';
+                event.target.style.boxShadow = '';
+            }
+        }
         
         this.changeOrderData = { ...this.changeOrderData, [field]: value };
     }
@@ -3477,8 +3637,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Proceed to step 2 of change order creation
      */
     handleChangeOrderNextStep() {
-        if (!this.canProceedToStep2) {
-            this.showToast('Error', 'Please fill all required fields', 'error');
+        const validation = this.validateChangeOrderStep1();
+        if (!validation.isValid) {
+            this.showToast('Error', validation.message, 'error');
             return;
         }
 
@@ -3564,6 +3725,35 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         if (this.changeOrderData.processOption === 'manual') {
             const { processName, sequence, processType, weightage, measurementType } = this.changeOrderManualProcess;
             
+            // Check if any required field is missing
+            const missingFields = [];
+            
+            if (!processName || processName.trim() === '') {
+                missingFields.push('Process Name');
+            }
+            
+            if (!sequence || sequence <= 0) {
+                missingFields.push('Sequence');
+            }
+            
+            if (!processType || processType.trim() === '') {
+                missingFields.push('Process Type');
+            }
+            
+            if (!weightage || weightage <= 0) {
+                missingFields.push('Weight');
+            }
+            
+            if (!measurementType || measurementType.trim() === '') {
+                missingFields.push('Measurement Type');
+            }
+            
+            // If multiple required fields are missing, show generic message
+            if (missingFields.length > 1) {
+                return { isValid: false, message: 'Please fill all required fields' };
+            }
+            
+            // Specific field validations
             if (!processName || processName.trim() === '') {
                 return { isValid: false, message: 'Process Name is required' };
             }
@@ -3572,16 +3762,24 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return { isValid: false, message: 'Process Name cannot be longer than 80 characters' };
             }
             
-            if (!sequence || sequence <= 0 || sequence > 9999) {
-                return { isValid: false, message: 'Sequence is required and must be between 1 and 9999' };
+            if (!sequence) {
+                return { isValid: false, message: 'Sequence is required' };
+            }
+            
+            if (sequence <= 0 || sequence > 9999) {
+                return { isValid: false, message: 'Sequence must be between 1 and 9999' };
             }
             
             if (!processType || processType.trim() === '') {
                 return { isValid: false, message: 'Process Type is required' };
             }
             
-            if (!weightage || weightage <= 0 || weightage > 9999) {
-                return { isValid: false, message: 'Weightage is required and must be between 0 and 9999' };
+            if (!weightage) {
+                return { isValid: false, message: 'Weight is required' };
+            }
+            
+            if (weightage <= 0 || weightage > 9999) {
+                return { isValid: false, message: 'Weight must be between 0.01 and 9999' };
             }
             
             if (!measurementType || measurementType.trim() === '') {

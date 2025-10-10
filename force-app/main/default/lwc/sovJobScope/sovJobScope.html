@@ -1240,7 +1240,7 @@
                             <div class="form-group">
                                 <div class="form-label-row">
                                     <label class="form-label required">Name</label>
-                                    <div class="character-count">{nameCharacterCount}/80</div>
+                                    <div>{nameCharacterCount}/80</div>
                                 </div>
                                 <input type="text" 
                                        class="form-input" 
@@ -1258,6 +1258,7 @@
                                        placeholder="Enter contract value"
                                        step="1"
                                        min="1"
+                                       max="2000000000"
                                        value={newScopeEntry.contractValue}
                                        data-field="contractValue"
                                        data-type="scopeEntry"
@@ -1266,16 +1267,15 @@
                             <div class="form-group">
                                 <div class="form-label-row">
                                     <label class="form-label">Description</label>
-                                    <div class="character-count">{descriptionCharacterCount}/255</div>
+                                    <div class={descriptionCharacterCountClass}>{descriptionCharacterCount}/255</div>
                                 </div>
                                 <textarea class="form-textarea" 
                                           placeholder="Enter description"
-                                          value={newScopeEntry.description}
                                           data-field="description"
                                           data-type="scopeEntry"
                                           oninput={handleInputChange}
                                           maxlength="255"
-                                          rows="3"></textarea>
+                                          rows="3">{newScopeEntry.description}</textarea>
                             </div>
                         </div>
 
@@ -1314,7 +1314,7 @@
                                 <div class="form-group">
                                     <div class="form-label-row">
                                         <label class="form-label required">Process Name</label>
-                                        <div class="character-count">{processNameCharacterCount}/80</div>
+                                        <div>{processNameCharacterCount}/80</div>
                                     </div>
                                     <input type="text" 
                                            class="form-input" 
@@ -1359,7 +1359,7 @@
                                            class="form-input" 
                                            placeholder="Enter weight"
                                            step="0.01"
-                                           min="0"
+                                           min="0.01"
                                            max="9999"
                                            value={newProcess.weightage}
                                            data-field="weightage"
@@ -1723,7 +1723,7 @@
                                 <div class="form-group">
                                     <div class="form-label-row">
                                         <label class="form-label required">Change Order Name</label>
-                                        <div class="character-count">{changeOrderNameCharacterCount}/80</div>
+                                        <div>{changeOrderNameCharacterCount}/80</div>
                                     </div>
                                     <input type="text" 
                                            class="form-input" 
@@ -1743,6 +1743,7 @@
                                            placeholder="Enter contract value"
                                            step="1"
                                            min="1"
+                                           max="2000000000"
                                            value={changeOrderData.contractValue}
                                            data-field="contractValue"
                                            oninput={handleChangeOrderInputChange}>
@@ -1779,7 +1780,7 @@
                                     <div class="form-group">
                                         <div class="form-label-row">
                                             <label class="form-label required">Process Name</label>
-                                            <div class="character-count">{changeOrderProcessNameCharacterCount}/80</div>
+                                            <div>{changeOrderProcessNameCharacterCount}/80</div>
                                         </div>
                                         <input type="text" 
                                                class="form-input" 
@@ -1824,7 +1825,7 @@
                                                class="form-input" 
                                                placeholder="Enter weight"
                                                step="0.01"
-                                               min="0"
+                                               min="0.01"
                                                max="9999"
                                                value={changeOrderManualProcess.weightage}
                                                data-field="weightage"
