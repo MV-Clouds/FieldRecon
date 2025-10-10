@@ -1381,7 +1381,7 @@
                                 </div>
                             </div>
 
-                            <div class="popUpFooter">
+                            <div class="popUpFooter process-library-footer">
                                 <button class="close-btn process-btn" onclick={handleCloseProcessModal}>Cancel</button>
                                 <button class="save-btn process-btn" 
                                         onclick={handleSaveProcess}
@@ -1405,38 +1405,38 @@
                     <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                 </button>
 
-                <div class="slds-modal__content pop-up" id="modal-content-id-4">
+                <div class="slds-modal__content library-popup" id="modal-content-id-4">
                     <div class="pop-heading">
                         Add Processes from Library - {selectedScopeEntryName}
                     </div>
 
-                    <div class="popUpBody slds-p-around--medium">
-                        <!-- Filter and Search Section -->
-                        <div class="filter-search-section">
-                            <div class="filter-row">
-                                <div class="filter-group">
-                                    <label class="filter-label">Category Filter</label>
-                                    <lightning-combobox
-                                        value={selectedProcessCategory}
-                                        options={processTypeCategoryOptions}
-                                        onchange={handleProcessCategoryFilter}
-                                        placeholder="Select Category"
-                                        variant="label-hidden">
-                                    </lightning-combobox>
-                                </div>
-                                <div class="search-group">
-                                    <label class="filter-label">Search</label>
-                                    <lightning-input
-                                        type="search"
-                                        variant="label-hidden"
-                                        placeholder="Search processes..."
-                                        value={processLibrarySearchTerm}
-                                        onchange={handleProcessLibrarySearch}
-                                        class="search-bar-input">
-                                    </lightning-input>
-                                </div>
+                    <div class="filter-search-section">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label class="filter-label">Category Filter</label>
+                                <lightning-combobox
+                                    value={selectedProcessCategory}
+                                    options={processTypeCategoryOptions}
+                                    onchange={handleProcessCategoryFilter}
+                                    placeholder="Select Category"
+                                    variant="label-hidden">
+                                </lightning-combobox>
+                            </div>
+                            <div class="search-group">
+                                <label class="filter-label">Search</label>
+                                <lightning-input
+                                    type="search"
+                                    variant="label-hidden"
+                                    placeholder="Search processes..."
+                                    value={processLibrarySearchTerm}
+                                    onchange={handleProcessLibrarySearch}
+                                    class="search-bar-input">
+                                </lightning-input>
                             </div>
                         </div>
+                    </div>
+
+                    <div class=" slds-p-around--medium">
 
                         <!-- Process Selection Table -->
                         <div class="process-library-container">
@@ -1560,16 +1560,16 @@
                                 <span class="count-text">{selectedProcessLibraryIds.length} processes selected</span>
                             </div>
                         </template>
+                    </div>
 
-                        <div class="popUpFooter">
-                            <button class="close-btn process-btn" onclick={handleCloseProcessLibraryModal}>Cancel</button>
-                            <button class="save-btn process-btn" 
-                                    onclick={handleSaveProcessesFromLibrary}
-                                    disabled={isProcessLibrarySubmitting}>
-                                <template if:true={isProcessLibrarySubmitting}>Adding...</template>
-                                <template if:false={isProcessLibrarySubmitting}>Add Selected Processes</template>
-                            </button>
-                        </div>
+                    <div class="popUpFooter process-library-footer" style="margin-bottom: 1rem;">
+                        <button class="close-btn process-btn" onclick={handleCloseProcessLibraryModal}>Cancel</button>
+                        <button class="save-btn process-btn" 
+                                onclick={handleSaveProcessesFromLibrary}
+                                disabled={isProcessLibrarySubmitting}>
+                            <template if:true={isProcessLibrarySubmitting}>Adding...</template>
+                            <template if:false={isProcessLibrarySubmitting}>Add Selected Processes</template>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1716,7 +1716,7 @@
                         Create Change Order
                     </div>
     
-                    <div class="popUpBody slds-p-around--medium">
+                    <div class="popUpBody slds-p-around--medium" style="max-height: 35rem !important;">
                         <!-- Step 1: Basic Information -->
                         <template if:true={isChangeOrderStep1}>
                             <div class="form-container">
@@ -1845,6 +1845,16 @@
                                             variant="label-hidden">
                                         </lightning-combobox>
                                     </div>
+                                </div>
+
+                                <div class="popUpFooter">
+                                    <button class="close-btn process-btn" onclick={handleChangeOrderPreviousStep}>Previous</button>
+                                    <button class="save-btn process-btn" 
+                                            onclick={handleSaveChangeOrder}
+                                            disabled={isChangeOrderSubmitting}>
+                                        <template if:true={isChangeOrderSubmitting}>Creating...</template>
+                                        <template if:false={isChangeOrderSubmitting}>Create Change Order</template>
+                                    </button>
                                 </div>
                             </template>
     
@@ -2004,17 +2014,17 @@
                                         <span class="count-text">{selectedChangeOrderProcessIds.length} processes selected</span>
                                     </div>
                                 </template>
+
+                                <div class="popUpFooter">
+                                    <button class="close-btn process-btn" onclick={handleChangeOrderPreviousStep}>Previous</button>
+                                    <button class="save-btn process-btn" 
+                                            onclick={handleSaveChangeOrder}
+                                            disabled={isChangeOrderSubmitting}>
+                                        <template if:true={isChangeOrderSubmitting}>Creating...</template>
+                                        <template if:false={isChangeOrderSubmitting}>Create Change Order</template>
+                                    </button>
+                                </div>
                             </template>
-    
-                            <div class="popUpFooter">
-                                <button class="close-btn process-btn" onclick={handleChangeOrderPreviousStep}>Previous</button>
-                                <button class="save-btn process-btn" 
-                                        onclick={handleSaveChangeOrder}
-                                        disabled={isChangeOrderSubmitting}>
-                                    <template if:true={isChangeOrderSubmitting}>Creating...</template>
-                                    <template if:false={isChangeOrderSubmitting}>Create Change Order</template>
-                                </button>
-                            </div>
                         </template>
                     </div>
                 </div>

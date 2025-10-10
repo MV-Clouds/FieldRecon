@@ -527,6 +527,16 @@
     background-size: cover;
 }
 
+.library-popup{
+    border-radius: 5px;
+    scrollbar-width: none;
+    overflow: scroll;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
+    min-height: 35rem;
+}
+
 .pop-heading {
     font-size: 24px;
     display: flex;
@@ -630,10 +640,12 @@
 }
 
 .popUpBody {
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     flex: 1;
+    max-height: 30rem;
+    overflow: scroll;
+    
 }
 
 .process-library-container {
@@ -644,10 +656,16 @@
     flex: 1;
 }
 
+.process-library-footer{
+    margin-top: 1rem;
+}
+
 /* Form Styles */
 .form-container {
     --lwc-borderWidthThin: 1px;   
     --slds-c-input-color-border: #d8d8d8;
+    max-height: 25rem;
+    overflow: auto;
 }
 
 .form-group {
