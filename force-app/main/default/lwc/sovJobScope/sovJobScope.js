@@ -154,6 +154,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     // Process Modal Properties
     @track showAddProcessModal = false;
     @track isProcessSubmitting = false;
+    @track isProcessLibrarySubmitting = false;
     @track selectedScopeEntryId = '';
     @track selectedScopeEntryName = '';
     @track newProcess = {
@@ -350,7 +351,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if delete button should be disabled
      */
     get isDeleteDisabled() {
-        return this.selectedRows.length === 0;
+        return this.selectedRows.length === 0 || this.isLoading || this.isSavingScopeEntries;
     }
 
     /**
@@ -552,7 +553,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if delete process button should be disabled
      */
     get isDeleteProcessDisabled() {
-        return this.selectedProcesses.length === 0;
+        return this.selectedProcesses.length === 0 || this.isProcessSubmitting || this.isSavingProcessEntries;
     }
 
     /**
@@ -606,7 +607,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if scope action buttons should be disabled
      */
     get isScopeButtonsDisabled() {
-        return !this.hasScopeModifications || this.isSavingScopeEntries;
+        return !this.hasScopeModifications || this.isSavingScopeEntries || this.isLoading;
     }
 
     /**
@@ -614,7 +615,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if scope save button should be disabled
      */
     get isScopeSaveDisabled() {
-        return !this.hasScopeModifications || this.isSavingScopeEntries;
+        return !this.hasScopeModifications || this.isSavingScopeEntries || this.isLoading;
     }
 
     /**
@@ -807,7 +808,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if process action buttons should be disabled
      */
     get isProcessButtonsDisabled() {
-        return !this.hasProcessModifications || this.isSavingProcessEntries;
+        return !this.hasProcessModifications || this.isSavingProcessEntries || this.isProcessSubmitting;
     }
 
     /**
@@ -815,7 +816,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Check if process save button should be disabled
      */
     get isProcessSaveDisabled() {
-        return !this.hasProcessModifications || this.isSavingProcessEntries;
+        return !this.hasProcessModifications || this.isSavingProcessEntries || this.isProcessSubmitting;
     }
 
     /**
@@ -1213,6 +1214,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Refresh table data - Updated to maintain default sorting
      */
     handleRefresh() {
+        // Prevent double-click by checking if already processing
+        if (this.isLoading) {
+            return;
+        }
+
         this.isLoading = true;
         this.selectedRows = [];
         this.selectedProcesses = [];
@@ -1241,6 +1247,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleRefreshProcessData(event) {
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        
+        // Check if process is already loading to prevent double-click
+        const entry = this.getEntryById(scopeEntryId);
+        if (entry && entry.isLoadingProcesses) {
+            return;
+        }
+        
         console.log('Refreshing process data for scope entry:', scopeEntryId);
         
         if (scopeEntryId) {
@@ -1325,6 +1338,13 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle deletion of selected process entries with automatic recalculation
      */
     handleDeleteSelectedProcesses(event) {
+        // Prevent double-click by checking if already processing
+        if (this.isProcessSubmitting || this.isSavingProcessEntries) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
         const scopeEntryId = event.target.dataset.scopeEntryId;
         
         if (!scopeEntryId) {
@@ -1339,6 +1359,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
 
         const processIds = Array.from(selectedProcesses);
+
+        // Set loading state to prevent multiple clicks
+        this.isProcessSubmitting = true;
 
         // Call the apex method to delete selected processes
         deleteSelectedScopeEntryProcesses({ processIds: processIds })
@@ -1361,6 +1384,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to delete processes', 'error');
+            })
+            .finally(() => {
+                // Reset loading state
+                this.isProcessSubmitting = false;
             });
     }
 
@@ -1488,6 +1515,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save new scope entry with validation
      */
     handleSaveScopeEntry() {
+        // Prevent double-click by checking if already processing
+        if (this.isSubmitting) {
+            return;
+        }
+
         const validation = this.validateScopeEntry();
         if (!validation.isValid) {
             this.showToast('Error', validation.message, 'error');
@@ -1561,6 +1593,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle mass delete of selected scope entries
      */
     handleMassDelete() {
+        // Prevent double-click by checking if already processing
+        if (this.isLoading || this.isSavingScopeEntries) {
+            return;
+        }
+
         if (this.selectedRows.length === 0) {
             this.showToast('Warning', 'Please select at least one record to delete', 'warning');
             return;
@@ -2168,6 +2205,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save new process with validation
      */
     handleSaveProcess() {
+        // Prevent double-click by checking if already processing
+        if (this.isProcessSubmitting) {
+            return;
+        }
+
         const validation = this.validateProcess();
         if (!validation.isValid) {
             this.showToast('Error', validation.message, 'error');
@@ -2374,6 +2416,38 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
                 return entry;
             });
+        }
+
+        // Update sort icons after DOM re-renders
+        setTimeout(() => {
+            this.refreshAllSortIcons();
+        }, 100);
+    }
+
+    /**
+     * Method Name: refreshAllSortIcons
+     * @description: Refresh all sort icons for scope entries and their process tables
+     */
+    refreshAllSortIcons() {
+        try {
+            // Refresh contract section sort icons
+            if (this.contractSortField) {
+                this.updateSortIcons('contract');
+            }
+
+            // Refresh change order section sort icons
+            if (this.changeOrderSortField) {
+                this.updateSortIcons('changeOrder');
+            }
+
+            // Refresh process table sort icons for each scope entry that has sort state
+            this.processSortByEntry.forEach((sortState, scopeEntryId) => {
+                if (sortState && sortState.sortField) {
+                    this.updateProcessSortIcons(scopeEntryId);
+                }
+            });
+        } catch (error) {
+            // Error refreshing sort icons - silently continue
         }
     }
 
@@ -2612,6 +2686,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save selected processes from library
      */
     handleSaveProcessesFromLibrary() {
+        // Prevent double-click by checking if already processing
+        if (this.isProcessLibrarySubmitting) {
+            return;
+        }
+
         if (this.selectedProcessLibraryIds.length === 0) {
             this.showToast('Warning', 'Please select at least one process', 'warning');
             return;
@@ -2821,6 +2900,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save selected locations and create location processes
      */
     handleSaveLocations() {
+        // Prevent double-click by checking if already processing
+        if (this.isLocationSubmitting) {
+            return;
+        }
+
+        // Check if any locations are selected
+        if (!this.selectedLocationIds || this.selectedLocationIds.length === 0) {
+            this.showToast('Warning', 'Please select at least one location', 'warning');
+            return;
+        }
 
         this.isLocationSubmitting = true;
         
@@ -2922,13 +3011,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Get current sort state for this specific entry
             let currentSort = this.processSortByEntry.get(scopeEntryId) || { sortField: '', sortOrder: 'asc' };
             
-            // Clear sort icons for this specific entry only
-            this.clearProcessSortIcons(scopeEntryId);
-            
             // Toggle or set sort
             if (currentSort.sortField === fieldName) {
                 currentSort.sortOrder = currentSort.sortOrder === 'asc' ? 'desc' : 'asc';
             } else {
+                // Clear icons for this scope entry only when changing field
+                this.clearProcessSortIcons(scopeEntryId);
                 currentSort.sortField = fieldName;
                 currentSort.sortOrder = 'asc';
             }
@@ -2951,19 +3039,24 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         try {
             // If scopeEntryId is provided, only update icons for that specific table
             if (scopeEntryId) {
-                // Clear all first for this specific scope entry
-                this.clearProcessSortIcons(scopeEntryId);
+                // Get the sort state for this specific scope entry
+                const sortState = this.processSortByEntry.get(scopeEntryId);
+                if (!sortState || !sortState.sortField) {
+                    return; // No sort state or field, nothing to update
+                }
                 
                 // Add active class to current sorted header for this specific scope entry
-                // Fix: Target headers directly with both field name and scope entry ID
-                const currentHeaders = this.template.querySelectorAll(`.process-sortable-header[data-process-sort-field="${this.processSortField}"][data-scope-entry-id="${scopeEntryId}"]`);
+                const currentHeaders = this.template.querySelectorAll(`.process-sortable-header[data-process-sort-field="${sortState.sortField}"][data-scope-entry-id="${scopeEntryId}"]`);
                 currentHeaders.forEach(header => {
                     header.classList.add('active-sort');
                     
                     // Add rotation to the icon
                     const icon = header.querySelector('.process-sort-icon svg');
                     if (icon) {
-                        icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                        // Remove any existing rotation classes first
+                        icon.classList.remove('rotate-asc', 'rotate-desc');
+                        // Add the correct rotation
+                        icon.classList.add(sortState.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
                     }
                 });
             } else {
@@ -2976,6 +3069,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     const icon = header.querySelector('.process-sort-icon svg');
                     if (icon) {
+                        icon.classList.remove('rotate-asc', 'rotate-desc');
                         icon.classList.add(this.processSortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
                     }
                 });
@@ -3414,6 +3508,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save all modified scope entries in a single batch
      */
     handleSaveScopeChanges() {
+        // Prevent double-click by checking if already processing
+        if (this.isSavingScopeEntries || this.isLoading) {
+            return;
+        }
+
         if (this.modifiedScopeEntries.size === 0) {
             return;
         }
@@ -3828,6 +3927,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save the change order
      */
     handleSaveChangeOrder() {
+        // Prevent double-click by checking if already processing
+        if (this.isChangeOrderSubmitting) {
+            return;
+        }
+
         const step2Validation = this.validateChangeOrderStep2();
         if (!step2Validation.isValid) {
             this.showToast('Error', step2Validation.message, 'error');
@@ -4154,6 +4258,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save all modified process entries in a single batch
      */
     handleSaveProcessChanges(event) {
+        // Prevent double-click by checking if already processing
+        if (this.isSavingProcessEntries || this.isProcessSubmitting) {
+            return;
+        }
+
         // Get scope entry ID from button click
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
         

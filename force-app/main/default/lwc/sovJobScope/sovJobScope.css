@@ -351,6 +351,9 @@
     opacity: 0.6;
     cursor: not-allowed;
     background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
+    pointer-events: none;
 }
 
 .action-button:active:not(:disabled) {
@@ -364,10 +367,17 @@
     border-color: rgba(94, 90, 219, 1);
 }
 
-.action-button.add-btn:hover,
-.action-button.refresh-btn:hover {
+.action-button.add-btn:hover:not(:disabled),
+.action-button.refresh-btn:hover:not(:disabled) {
     background-color: rgba(94, 90, 219, 0.9);
     border-color: rgba(94, 90, 219, 0.9);
+}
+
+.action-button.add-btn:disabled,
+.action-button.refresh-btn:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
 }
 
 .action-button.delete-btn {
@@ -575,6 +585,8 @@
     border: 1px solid lightgray;
     background: lightgray;
     cursor: not-allowed;
+    pointer-events: none;
+    opacity: 0.6;
 }
 
 .close-btn {
@@ -1180,7 +1192,7 @@
     justify-content: center;
     transition: all 0.3s ease;
     opacity: 0;
-    visibility: hidden;
+    visibility: visible;
 }
 
 .sortable-header:hover .sort-icon,
@@ -1567,6 +1579,8 @@
     color: #ffffff;
     border-color: #6c757d;
     opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .editable-cell {
