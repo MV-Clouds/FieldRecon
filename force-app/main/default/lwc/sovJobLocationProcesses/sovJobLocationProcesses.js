@@ -20,13 +20,13 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
 
     // Process table columns configuration
     @track processTableColumns = [
-        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true },
-        { label: 'Location Name', fieldName: 'wfrecon__Location__r.Name', type: 'text', isLocationField: true },
-        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number' },
-        { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency' },
-        { label: 'Completed Percentage', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true },
-        { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency' },
-        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text' }
+        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
+        { label: 'Location Name', fieldName: 'wfrecon__Location__r.Name', type: 'text', isLocationField: true, sortable: true },
+        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', sortable: true },
+        { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', sortable: true },
+        { label: 'Completed Percentage', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true, sortable: false },
+        { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency', sortable: true },
+        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text', sortable: true }
     ];
 
     /**
@@ -149,10 +149,13 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      * @description: Load location processes on component load
      */
     connectedCallback() {
-        // Set default sorting to first column
+        // Set default sorting to first sortable column
         if (this.processTableColumns.length > 0) {
-            this.sortField = this.processTableColumns[0].fieldName;
-            this.sortOrder = 'asc';
+            const firstSortableColumn = this.processTableColumns.find(col => col.sortable);
+            if (firstSortableColumn) {
+                this.sortField = firstSortableColumn.fieldName;
+                this.sortOrder = 'asc';
+            }
         }
         this.fetchLocationProcesses();
     }

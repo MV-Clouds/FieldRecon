@@ -523,10 +523,12 @@
                     <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                 </button>
 
-                <div class="slds-modal__content pop-up" id="modal-content-id-1">
                     <div class="pop-heading">
                         Add New Location
                     </div>
+
+                <div class="slds-modal__content pop-up" id="modal-content-id-1">
+
 
                     <div class="popUpBody slds-p-around--medium">
                         <div class="form-container">
@@ -624,8 +626,10 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div class="popUpFooter">
+                    <div class="popUpFooter">
                             <button class="close-btn" onclick={handleCloseModal}>Cancel</button>
                             <button class="save-btn" 
                                     onclick={handleSaveLocation}
@@ -633,9 +637,7 @@
                                 <template if:true={isSubmitting}>Saving...</template>
                                 <template if:false={isSubmitting}>Save</template>
                             </button>
-                        </div>
                     </div>
-                </div>
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
