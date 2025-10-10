@@ -1,7 +1,7 @@
 @IsTest
 public with sharing class SovJobLocationProcessesControllerTest {
     
-    @testSetup
+    @TestSetup
     static void setupTestData() {
         // 1️⃣ Create Job
         Job__c job = new Job__c(

@@ -115,15 +115,7 @@ public with sharing class SovJobScopeController {
             result.put('success', true);
     
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getScopeEntries',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Scope Entries dynamically (bulk-safe version).',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getScopeEntries', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Scope Entries dynamically (bulk-safe version).','apiResponse' => null});
     
             result.put('scopeEntries', new List<SObject>());
             result.put('processSetupFlags', new Map<Id, Boolean>());
@@ -190,15 +182,7 @@ public with sharing class SovJobScopeController {
                 return '';
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getAllFields',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching fields dynamically for ' + objectName,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getAllFields','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching fields dynamically for ' + objectName,'apiResponse' => null});
             return '';
         }
     }
@@ -233,15 +217,7 @@ public with sharing class SovJobScopeController {
                 configData.put('pageSize', 10);
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getScopeEntryConfiguration',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Scope Entry Configuration.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getScopeEntryConfiguration','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Scope Entry Configuration.','apiResponse' => null});
         }
 
         return configData;
@@ -268,15 +244,7 @@ public with sharing class SovJobScopeController {
             insert as user newScopeEntry;
             return 'Success';
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'createScopeEntry',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating Scope Entry.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createScopeEntry','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating Scope Entry.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -306,15 +274,7 @@ public with sharing class SovJobScopeController {
             delete as user scopeEntriesToDelete;
             return 'Success';
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'deleteScopeEntries',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while deleting Scope Entries.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'deleteScopeEntries','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while deleting Scope Entries.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -340,15 +300,7 @@ public with sharing class SovJobScopeController {
                 ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
             ];
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getScopeEntryProcesses',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Scope Entry Processes for Scope Entry ID: ' + scopeEntryId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getScopeEntryProcesses','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Scope Entry Processes for Scope Entry ID: ' + scopeEntryId,'apiResponse' => null});
         }
         return processes;
     }
@@ -377,15 +329,7 @@ public with sharing class SovJobScopeController {
             insert as user newProcess;
             return 'Success';
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'createScopeEntryProcess',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating Scope Entry Process.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createScopeEntryProcess','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating Scope Entry Process.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -410,15 +354,7 @@ public with sharing class SovJobScopeController {
                 ORDER BY Process_Type__c ASC, Sequence__c ASC NULLS LAST, Name ASC
             ];
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getProcessLibraryRecords',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Process Library records.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProcessLibraryRecords','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Process Library records.','apiResponse' => null});
         }
         return processes;
     }
@@ -486,15 +422,7 @@ public with sharing class SovJobScopeController {
             
             return 'Success';
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'createScopeEntryProcessesFromLibrary',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating Scope Entry Processes from Library.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createScopeEntryProcessesFromLibrary','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating Scope Entry Processes from Library.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -527,15 +455,7 @@ public with sharing class SovJobScopeController {
                 }
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getProcessTypes',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Process Types.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProcessTypes','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Process Types.','apiResponse' => null});
         }
         return processTypes;
     }
@@ -562,15 +482,7 @@ public with sharing class SovJobScopeController {
                 ORDER BY Name ASC
             ];
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getJobLocations',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching Job Locations.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getJobLocations','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Job Locations.','apiResponse' => null});
         }
         return locations;
     }
@@ -618,15 +530,7 @@ public with sharing class SovJobScopeController {
                 }
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getExistingLocationProcesses',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching existing location processes.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getExistingLocationProcesses','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching existing location processes.','apiResponse' => null});
         }
         return existingLocationIds;
     }
@@ -862,15 +766,7 @@ public with sharing class SovJobScopeController {
             return 'Success: ' + String.join(messages, ', ');
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'createLocationProcesses',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating/updating location processes.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createLocationProcesses','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating/updating location processes.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -992,15 +888,7 @@ public with sharing class SovJobScopeController {
             return responseMessage;
     
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'saveScopeEntryInlineEdits',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while saving scope entry inline edits.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'saveScopeEntryInlineEdits','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while saving scope entry inline edits.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -1115,15 +1003,7 @@ public with sharing class SovJobScopeController {
             return 'Success: Recalculated all location processes using new contract values for ' + scopeEntries.size() + ' scope entries.';
     
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'recalculateLocationProcessesBulk',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error during recalculation using new contract prices.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'recalculateLocationProcessesBulk','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error during recalculation using new contract prices.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -1332,13 +1212,7 @@ public with sharing class SovJobScopeController {
             return 'Success';
     
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'YourClassNameHere',
-                'methodName' => 'createChangeOrder',
-                'isApiException' => false,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating change order.'
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'YourClassNameHere','methodName' => 'createChangeOrder','isApiException' => false,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating change order.'});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -1468,15 +1342,7 @@ public with sharing class SovJobScopeController {
             return successMessage;
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'saveProcessEntryInlineEdits',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while saving process entry inline edits.',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'saveProcessEntryInlineEdits','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while saving process entry inline edits.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -1503,15 +1369,7 @@ public with sharing class SovJobScopeController {
                 }
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getPicklistValuesForField',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching picklist values for ' + objectApiName + '.' + fieldApiName,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getPicklistValuesForField','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching picklist values for ' + objectApiName + '.' + fieldApiName,'apiResponse' => null});
         }
         
         return picklistValues;
@@ -1576,15 +1434,7 @@ public with sharing class SovJobScopeController {
             return successMessage;
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'deleteSelectedScopeEntryProcesses',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Process deletion failed for IDs: ' + String.join(processIds, ', '),
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'deleteSelectedScopeEntryProcesses','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Process deletion failed for IDs: ' + String.join(processIds, ', '),'apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
