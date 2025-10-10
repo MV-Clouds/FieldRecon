@@ -47,7 +47,7 @@ public with sharing class JobDetailsPageController {
             // 1. Fetch mobilizations
             List<Mobilization__c> mobs = [
                 SELECT Id, Job__c, Job__r.Id, Start_Date__c, End_Date__c, Mobilization_Status__c, 
-                    Job__r.Name, Job__r.Job_Name__c, Job__r.Address__c, Job__r.Description__c
+                    Job__r.Name, Job__r.Job_Name__c, Job__r.Address__c, Job__r.Description__c, Job__r.Status__c
                 FROM Mobilization__c
                 WHERE Start_Date__c >= :startOfDay 
                 AND Start_Date__c <= :endOfDay 
@@ -104,7 +104,7 @@ public with sharing class JobDetailsPageController {
                 w.endDate = m.End_Date__c.addSeconds(userTz.getOffset(m.End_Date__c)/1000);
                 // w.startDate = m.Start_Date__c;
                 // w.endDate = m.End_Date__c;
-                w.status = m.Mobilization_Status__c;
+                w.status = m.Job__r.Status__c;
 
                 // Lookup hours
                 String key = m.Job__c + '_' + String.valueOf(m.Start_Date__c.date());

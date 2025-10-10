@@ -619,11 +619,14 @@ export default class JobDetailsPage extends LightningElement {
                 .catch(error => {
                     this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     console.error('Error creating timesheet records createTimesheetRecords apex :: ', error);
+                })
+                .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in handleClockIn ::', error);
+            this.isLoading = false;
         }
     }
     

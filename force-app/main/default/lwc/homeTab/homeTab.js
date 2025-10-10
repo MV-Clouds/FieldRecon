@@ -491,7 +491,7 @@ export default class HomeTab extends LightningElement {
                 record => record.mobId === this.selectedMobilizationId
             );
 
-            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime)) {
+            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
                 return;
             }
