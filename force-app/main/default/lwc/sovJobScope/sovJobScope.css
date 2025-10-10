@@ -69,7 +69,6 @@
     overflow-y: auto;
     overflow-x: auto;
     border: 1px solid #ddd;
-    border-radius: 4px;
 }
 
 .process-library-container{
@@ -78,7 +77,6 @@
     overflow-x: auto;
     margin-bottom: 1rem;
     border: 1px solid #ddd;
-    border-radius: 4px;
 }
 
 /* .data-table-container::-webkit-scrollbar-thumb:hover {
@@ -517,8 +515,12 @@
     border: 1px solid rgba(94, 90, 219, 1);
     border-radius: 0.25rem;
     padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
+    margin: 0.75rem 0;
     text-align: center;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    order: 2;
 }
 
 .count-text {
@@ -529,22 +531,26 @@
 
 /* Modal Styles */
 .pop-up {
-    border-radius: 5px;
     scrollbar-width: none;
-    overflow: scroll;
+    overflow-y: auto;
     background-image: url('/resource/wfrecon__FieldReconBG');
     background-repeat: no-repeat;
     background-size: cover;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .library-popup{
-    border-radius: 5px;
     scrollbar-width: none;
-    overflow: scroll;
+    overflow: hidden;
     background-image: url('/resource/wfrecon__FieldReconBG');
     background-repeat: no-repeat;
     background-size: cover;
-    min-height: 35rem;
+    max-height: 75vh;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .pop-heading {
@@ -567,6 +573,10 @@
     display: flex;
     justify-content: center;
     gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    flex-shrink: 0;
 }
 
 .save-btn {
@@ -598,10 +608,12 @@
     background: #FFFFFF;
     border: 1px solid rgba(94, 90, 219, 1);
     color: rgba(94, 90, 219, 1);
+    border-radius: 5px;
 }
 
 .close-btn:hover {
     background: rgb(244, 244, 255);
+    border-color: rgba(94, 90, 219, 0.8);
 }
 
 /* Process Modal Button Styles */
@@ -619,6 +631,7 @@
     background: rgba(94, 90, 219, 1);
     color: white;
     border: 1px solid rgba(94, 90, 219, 1);
+    border-radius: 5px;
 }
 
 .save-btn.process-btn:disabled {
@@ -631,6 +644,7 @@
     background: #FFFFFF;
     border: 1px solid rgba(94, 90, 219, 1);
     color: rgba(94, 90, 219, 1);
+    border-radius: 5px;
 }
 
 .close-btn.process-btn:hover {
@@ -640,27 +654,39 @@
 
 /* Modal Size Variations */
 .location-modal,
-.process-library-modal {
+.process-library-modal,
+.change-order-modal {
     max-width: 800px;
     width: 90%;
-    max-height: 90vh;
     overflow: hidden;
 }
 
 .process-library-modal {
     max-width: 900px;
+    max-height: 95vh !important;
 }
 
-.popUpBody {
+.change-order-modal {
+    max-width: 700px;
+}
+
+/* Modal Container Layouts */
+.slds-modal__container {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    max-height: 30rem;
-    overflow: scroll;
-    
+    overflow: hidden;
 }
 
-.process-library-container {
+.slds-modal__content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    min-height: 0;
+}
+
+/* Location Container Styling */
+.location-container {
     height: 20rem;
     overflow-y: auto;
     overflow-x: auto;
@@ -668,16 +694,63 @@
     flex: 1;
 }
 
+.popUpBody {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    padding-bottom: 0rem;
+    min-height: 0;
+}
+
+.process-library-container {
+    height: 16rem;
+    overflow-y: auto;
+    overflow-x: auto;
+    margin-bottom: 0.5rem;
+    flex: 1;
+    min-height: 0;
+    border: 1px solid #ddd;
+    position: relative;
+    background-color: white;
+    order: 1;
+    z-index: 0;
+}
+
 .process-library-footer{
-    margin-top: 1rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+}
+
+/* Process Library Modal Specific Layout */
+.library-popup .slds-p-around--medium {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: 1rem;
+    min-height: 0;
+}
+
+/* Process Library Content Wrapper */
+.process-library-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /* Form Styles */
 .form-container {
     --lwc-borderWidthThin: 1px;   
     --slds-c-input-color-border: #d8d8d8;
-    max-height: 25rem;
-    overflow: auto;
+    overflow-y: auto;
+    flex: 1;
+    padding: 0;
+    min-height: 0;
 }
 
 .form-group {
@@ -1045,13 +1118,35 @@
     color: white;
 }
 
-/* Filter and Search Sections */
+/* Filter and Search Sections - Updated */
 .filter-search-section {
     margin-bottom: 1rem;
     padding: 1rem;
     background-color: rgb(244, 244, 255);
     border-radius: 0.25rem;
     border: 1px solid rgba(94, 90, 219, 0.2);
+    flex-shrink: 0;
+}
+
+/* Location Container in Modals */
+.location-container {
+    height: 16rem;
+    overflow-y: auto;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    flex: 1;
+    min-height: 8rem;
+    border: 1px solid #ddd;
+}
+
+/* Step Header Styling */
+.step-header {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid #e5e5e5;
+    flex-shrink: 0;
+    background-color: rgba(244, 244, 255, 0.5);
+    border-radius: 0.25rem;
 }
 
 .filter-row {
@@ -1340,14 +1435,22 @@
     .change-order-modal {
         width: 95%;
         margin: 0.5rem;
-        max-height: 95vh;
+        max-height: 90vh;
     }
     
     .process-library-modal .slds-modal__container,
     .change-order-modal .slds-modal__container {
         width: 95%;
-        height: 95vh;
+        max-height: 90vh;
         margin: 0.5rem;
+    }
+
+    .pop-up {
+        max-height: 75vh;
+    }
+
+    .library-popup {
+        max-height: 80vh;
     }
     
     .filter-search-section .filter-row {
@@ -1366,9 +1469,13 @@
     }
     
     .process-library-container {
-        height: 15rem;
+        height: 12rem;
         font-size: 12px;
         margin-bottom: 0.5rem;
+    }
+
+    .location-container {
+        height: 12rem;
     }
     
     .process-library-table {
