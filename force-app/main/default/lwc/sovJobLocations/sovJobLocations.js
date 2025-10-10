@@ -47,13 +47,13 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     // Process table columns configuration
     @track processTableColumns = [
-        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true },
-        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number' },
-        { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c', type: 'text' },
-        { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency' },
-        { label: 'Completed %', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true },
-        { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency' },
-        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text' }
+        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, isSortable: true },
+        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', isSortable: true },
+        { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c', type: 'text', isSortable: true },
+        { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', isSortable: true },
+        { label: 'Completed %', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true , isEditable: false, isSortable: false},
+        { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency', isSortable: true },
+        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text', isSortable: true }
     ];
 
     // Modal properties
@@ -68,6 +68,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         miscDefectCount: null,
         cureTimeDays: null
     };
+
+    // Validation state for modal
+    @track validationErrors = {};
+    @track showValidation = false;
 
     @track modifiedProcesses = new Map(); // Track modified processes across all locations
     @track modifiedProcessesByLocation = new Map(); // Map<locationId, Set<processId>>
@@ -294,6 +298,38 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     get nameCharacterCount() {
         return this.newLocation.name ? this.newLocation.name.length : 0;
+    }
+
+    /**
+     * Method Name: get hasNameError
+     * @description: Check if name field has validation error
+     */
+    get hasNameError() {
+        return this.showValidation && this.validationErrors.name;
+    }
+
+    /**
+     * Method Name: get hasSquareFeetError
+     * @description: Check if square feet field has validation error
+     */
+    get hasSquareFeetError() {
+        return this.showValidation && this.validationErrors.squareFeet;
+    }
+
+    /**
+     * Method Name: get nameFieldClass
+     * @description: Get CSS class for name input field
+     */
+    get nameFieldClass() {
+        return this.hasNameError ? 'form-input error' : 'form-input';
+    }
+
+    /**
+     * Method Name: get squareFeetFieldClass
+     * @description: Get CSS class for square feet input field
+     */
+    get squareFeetFieldClass() {
+        return this.hasSquareFeetError ? 'form-input error' : 'form-input';
     }
 
     /**
@@ -1078,6 +1114,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     handleCloseModal() {
         this.showAddModal = false;
+        this.showValidation = false;
+        this.validationErrors = {};
         this.newLocation = {
             name: '',
             squareFeet: null,
@@ -1106,17 +1144,34 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     validateLocation() {
         const { name, squareFeet } = this.newLocation;
-        
-        if (!name || name.trim() === '') {
-            return { isValid: false, message: 'Name is required' };
+        const errors = [];
+
+        const isNameEmpty = !name || name.trim() === '';
+        const isSquareFeetInvalid = !squareFeet || squareFeet <= 0;
+
+        // Case 1: Both fields empty
+        if (isNameEmpty && (!squareFeet || squareFeet === '')) {
+            return { isValid: false, message: 'Please fill all required fields.' };
         }
-        
-        if (!squareFeet || squareFeet <= 0) {
-            return { isValid: false, message: 'Square Feet is required and must be greater than 0' };
+
+        // Case 2: One of the fields missing or invalid
+        if (isNameEmpty) {
+            return { isValid: false, message: 'Name is required.' };
         }
-        
+
+        if (isSquareFeetInvalid) {
+            return { isValid: false, message: 'Square Feet is required and must be greater than 0.' };
+        }
+
+        // Case 3: Both filled but invalid data (numeric issue or special case)
+        if (!isNameEmpty && squareFeet <= 0) {
+            return { isValid: false, message: 'Square Feet must be greater than 0.' };
+        }
+
+        // Case 4: All good
         return { isValid: true, message: '' };
     }
+
 
     /**
      * Method Name: handleSaveLocation

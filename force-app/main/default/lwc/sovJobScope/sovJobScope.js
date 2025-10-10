@@ -1245,7 +1245,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * Method Name: handleRefreshProcessData
      * @description: Handle refresh button click for specific scope entry process data
      */
-    handleRefreshProcessData(event) {
+    async handleRefreshProcessData(event) {
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
         
         // Check if process is already loading to prevent double-click
@@ -1257,7 +1257,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         console.log('Refreshing process data for scope entry:', scopeEntryId);
         
         if (scopeEntryId) {
-            this.loadProcessDetails(scopeEntryId);
+           let res = await this.loadProcessDetails(scopeEntryId);
+           this.showToast('Success', 'Process data has been refreshed', 'success');
         }
     }
 
