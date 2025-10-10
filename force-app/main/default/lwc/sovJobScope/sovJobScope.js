@@ -1241,8 +1241,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleRefreshProcessData(event) {
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
+        console.log('Refreshing process data for scope entry:', scopeEntryId);
+        
         if (scopeEntryId) {
-            this.refreshScopeEntryProcessData(scopeEntryId);
+            this.loadProcessDetails(scopeEntryId);
         }
     }
 
@@ -1252,6 +1254,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     refreshScopeEntryProcessData(scopeEntryId) {
         try {
+            debugger;
             // Store currently expanded entries
             const expandedEntries = new Set();
             this.scopeEntries.forEach(entry => {
@@ -1352,7 +1355,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.selectedProcesses = this.selectedProcesses.filter(id => !processIds.includes(id));
                     
                     // Refresh all scope entries data to reflect the changes and recalculations
-                    this.handleRefresh();
+                    this.loadProcessDetails(scopeEntryId);
                 } else {
                     throw new Error(result || 'Unknown error occurred');
                 }
