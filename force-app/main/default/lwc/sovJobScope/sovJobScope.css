@@ -65,12 +65,20 @@
 
 .location-container{
     margin-bottom: 1rem;
+    height: 20rem;
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
 .process-library-container{
     height: 20rem;
-    overflow: scroll;
+    overflow-y: auto;
+    overflow-x: auto;
     margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
 .data-table-container::-webkit-scrollbar-thumb:hover {
@@ -539,8 +547,6 @@
     display: flex;
     justify-content: center;
     gap: 1rem;
-    position: sticky;
-    bottom: 1rem;
 }
 
 .save-btn {
@@ -615,10 +621,27 @@
 .process-library-modal {
     max-width: 800px;
     width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
 }
 
 .process-library-modal {
     max-width: 900px;
+}
+
+.popUpBody {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.process-library-container {
+    height: 20rem;
+    overflow-y: auto;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    flex: 1;
 }
 
 /* Form Styles */
@@ -1282,9 +1305,74 @@
     }
 
     .location-modal,
-    .process-library-modal {
+    .process-library-modal,
+    .change-order-modal {
         width: 95%;
-        margin: 1rem;
+        margin: 0.5rem;
+        max-height: 95vh;
+    }
+    
+    .process-library-modal .slds-modal__container,
+    .change-order-modal .slds-modal__container {
+        width: 95%;
+        height: 95vh;
+        margin: 0.5rem;
+    }
+    
+    .filter-search-section .filter-row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .filter-group,
+    .search-group {
+        width: 100%;
+    }
+    
+    .filter-group lightning-combobox,
+    .search-group lightning-input {
+        width: 100%;
+    }
+    
+    .process-library-container {
+        height: 15rem;
+        font-size: 12px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .process-library-table {
+        font-size: 11px;
+    }
+    
+    .process-library-table .header-cell,
+    .process-library-table td {
+        padding: 4px 6px;
+        font-size: 10px;
+    }
+    
+    .pop-heading {
+        font-size: 1rem;
+        padding: 0.5rem;
+        text-align: center;
+    }
+    
+    .popUpFooter {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+    
+    .process-btn {
+        width: 100%;
+        font-size: 0.875rem;
+        padding: 0.75rem;
+    }
+    
+    .selected-processes-count,
+    .selected-locations-count {
+        text-align: center;
+        padding: 0.5rem;
+        font-size: 0.875rem;
     }
     
     .location-table,
@@ -1572,6 +1660,8 @@
 .change-order-modal {
     max-width: 900px;
     width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
 }
 
 /* Change Order Button */

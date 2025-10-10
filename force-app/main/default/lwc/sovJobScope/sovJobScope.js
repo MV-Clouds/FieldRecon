@@ -193,6 +193,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track processLibrarySearchTerm = '';
     @track selectedProcessCategory = '';
     @track processTypeFilterOptions = []; // For filter dropdown
+    @track processTypeCategoryOptions = []; // Separate options for category filter with "All" option
 
     @track modifiedProcessEntries = new Map(); // Change structure to: Map<processId, {scopeEntryId, modifications}>
     @track hasProcessModifications = false; // Track if there are unsaved process changes
@@ -1373,6 +1374,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             type: 'Contract' // Default to Contract
         };
         this.showAddModal = true;
+        
     }
 
     /**
@@ -1387,6 +1389,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             description: '',
             type: 'Contract' // Default to Contract
         };
+    
     }
 
     /**
@@ -1602,6 +1605,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.loadLocationData(scopeEntryId);
         
         this.showAddLocationModal = true;
+        
     }
 
 
@@ -2065,6 +2069,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         };
         
         this.showAddProcessModal = true;
+    
     }
 
     /**
@@ -2081,6 +2086,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             weightage: null,
             measurementType: ''
         };
+        
     }
 
     /**
@@ -2398,6 +2404,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         // Load process library records and types
         this.showProcessLibraryModal = true;
+        
+        
         this.loadProcessLibraryData();
     }
 
@@ -2415,9 +2423,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                         value: type
                 }));
 
+                // Create separate category options with "All" option for filter dropdown
+                this.processTypeCategoryOptions = [
+                    { label: 'All', value: '' },
+                    ...this.processTypeOptions
+                ];
+
             })
             .catch(error => {
                 this.processTypeOptions = [];
+                this.processTypeCategoryOptions = [{ label: 'All', value: '' }];
             });
     
         // Load process library records
@@ -2587,6 +2602,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedProcessCategory = '';
         this.processLibraryDisplayRecords = [];
         this.processLibraryRecords = [];
+        
     }
 
     /**
@@ -2795,6 +2811,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.locationSearchTerm = '';
         this.locationRecords = [];
         this.locationDisplayRecords = [];
+        
     }
 
     /**
@@ -3577,6 +3594,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.selectedChangeOrderProcessIds = [];
         
         this.showCreateChangeOrderModal = true;
+    
+        
+        // Load process library data for potential use in step 2
+        this.loadProcessLibraryData();
     }
 
     /**
@@ -3593,6 +3614,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             processOption: ''
         };
         this.selectedChangeOrderProcessIds = [];
+        
+
     }
 
     /**
