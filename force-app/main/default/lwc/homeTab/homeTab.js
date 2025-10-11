@@ -1,10 +1,11 @@
 import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { NavigationMixin } from 'lightning/navigation';
 import getMobilizationMembers from '@salesforce/apex/HomeTabController.getMobilizationMembers';
 import getTimeSheetEntryItems from '@salesforce/apex/HomeTabController.getTimeSheetEntryItems';
 import createTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createTimesheetRecords';
 
-export default class HomeTab extends LightningElement {
+export default class HomeTab extends NavigationMixin(LightningElement) {
     @track isMobileDevice = false;
     @track selectedDate;
     @track isLoading = false;
@@ -24,6 +25,8 @@ export default class HomeTab extends LightningElement {
     @track selectedMobilizationId;
     @track selectedCostCodeId;
     @track previousClockInTime;
+    @track currentWeekTravelTime;
+    @track currentTotalWorkHours;
     @track timesheetDetailsRaw = [];
     @track timesheetColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -31,6 +34,7 @@ export default class HomeTab extends LightningElement {
         { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
         { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 10rem' },
         { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
+        { label: 'Work Hours', fieldName: 'workHours', style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
         { label: 'Cost Code', fieldName: 'costCodeName', style: 'width: 8rem' }
@@ -63,8 +67,13 @@ export default class HomeTab extends LightningElement {
     get timesheetDetails() {
         try {
             if (!this.timesheetDetailsRaw) {
+                this.currentWeekTravelTime = 0;
+                this.currentTotalWorkHours = 0;
                 return [];
             }
+
+            this.currentWeekTravelTime = 0;
+            this.currentTotalWorkHours = 0;
 
             return this.timesheetDetailsRaw.map((ts, index) => {
                 return {
@@ -83,12 +92,22 @@ export default class HomeTab extends LightningElement {
                             cell.value = cell.value.slice(0, 16).replace('T', ' ');
                         }
 
+                        // Sum travelTime and totalTime dynamically based on column name
+                        if (col.fieldName === 'travelTime' && ts[col.fieldName]) {
+                            this.currentWeekTravelTime += cell.value;
+                        }
+                        if (col.fieldName === 'workHours' && ts[col.fieldName]) {
+                            this.currentTotalWorkHours += cell.value;
+                        }
+
                         return cell;
                     })
                 };
             });
         } catch (error) {
             console.error('Error in timesheetDetails ::', error);
+            this.currentWeekTravelTime = 0;
+            this.currentTotalWorkHours = 0;
             return [];
         }
     }
@@ -142,6 +161,10 @@ export default class HomeTab extends LightningElement {
                     font-weight: 600 !important;
                     border-radius: 4px;
                 }
+
+                .accordion-container .slds-accordion__summary-content{
+                    font-size: medium;
+                }
             `;
             
             // Append to component's template
@@ -173,8 +196,11 @@ export default class HomeTab extends LightningElement {
                                 this.isTodayJobAvailable = this.todayJobList.length > 0;
                                 
                                 this.todayJobList = this.todayJobList.map(job => {
+                                    console.log('job :: ', job);
+                                    
                                     return {
                                         ...job,
+                                        jobId: job.jobId,
                                         jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
                                         jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
                                         mapMarkers: [{
@@ -539,6 +565,32 @@ export default class HomeTab extends LightningElement {
             this.isLoading = false;
         }
     }
+
+    /** 
+    * Method Name: handleLinkClick 
+    * @description: Method is used to handle the link click
+    */
+    handleLinkClick(event) {
+        try {
+            const jobId = event.currentTarget.dataset.link; // ✅ use currentTarget
+            console.log('Job Id:', jobId);
+
+            if (jobId) {
+                this[NavigationMixin.Navigate]({
+                    type: 'standard__recordPage',
+                    attributes: {
+                        recordId: jobId,
+                        actionName: 'view',
+                    },
+                });
+            } else {
+                console.warn('No jobId found in dataset');
+            }
+        } catch (error) {
+            console.error('Error in handleLinkClick:', error);
+        }
+    }
+
 
     /** 
     * Method Name: formatDateLabel 

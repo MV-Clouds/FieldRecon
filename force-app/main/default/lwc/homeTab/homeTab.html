@@ -28,10 +28,12 @@
                                     <template if:true={isTodayJobAvailable}>
                                         <div class="job-card">
                                             <template for:each={todayJobList} for:item="job" for:index="index">
-                                                <div key={job.Id} class="job-entry">
+                                                <div key={job.mobId} class="job-entry">
                                                     <!-- Left Side -->
                                                     <div class="job-left">
-                                                        <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                        <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                                            <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                        </a>
                                                         <p class="job-description">{job.jobDescription}</p>
 
                                                         <div class="job-time">
@@ -132,7 +134,27 @@
                         </div>
                     </div>
                 </lightning-accordion-section>
-                <lightning-accordion-section name="timesheetDetails" label="Past Week's Timesheet Details">
+                <lightning-accordion-section name="timesheetDetails" label="Current Week's Timesheet Details">
+                    <div class="summary-cards-container">
+                        <div class="summary-card">
+                            <div class="summary-card-title">
+                                Total Travel Time
+                            </div>
+                            <div class="summary-card-value">
+                                <lightning-formatted-number value={currentWeekTravelTime} format-style="decimal" maximum-fraction-digits="2"></lightning-formatted-number>
+                            </div>
+                            <div class="summary-card-subtitle"></div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-title">
+                                Total Work Hours
+                            </div>
+                            <div class="summary-card-value">
+                                <lightning-formatted-number value={currentTotalWorkHours} format-style="decimal" maximum-fraction-digits="2"></lightning-formatted-number>
+                            </div>
+                            <div class="summary-card-subtitle"></div>
+                        </div>
+                    </div>
                     <div class="timesheet-details">
                         <template if:true={timesheetDetailsRaw.length}>
                             <div class="table-content timesheet-table">

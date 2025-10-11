@@ -246,7 +246,10 @@ public with sharing class HomeTabController {
             }
             
             Date todayDate = Date.today();
-            Date lastWeekDate = todayDate.addDays(-7);
+
+            // Calculate start (Sunday) and end (Saturday) of this week
+            Date startOfWeek = todayDate.toStartOfWeek(); // Sunday
+            Date endOfWeek = startOfWeek.addDays(6);      // Saturday
 
             List<Timesheet_Entry_Item__c> items = [
                 SELECT Id, Timesheet_Entry__r.TimeSheet__r.Job__c, Timesheet_Entry__r.TimeSheet__r.Job__r.Name, Timesheet_Entry__r.TimeSheet__r.Job__r.Job_Name__c,
@@ -254,9 +257,10 @@ public with sharing class HomeTabController {
                        Cost_Code__r.Name, Clock_In_Date__c
                 FROM Timesheet_Entry_Item__c 
                 WHERE Timesheet_Entry__r.TimeSheet__r.Contact__c = :currentUserContact.Id
-                  AND Clock_In_Date__c >= :lastWeekDate
-                  AND Clock_In_Date__c <= :todayDate
+                  AND Clock_In_Date__c >= :startOfWeek
+                  AND Clock_In_Date__c <= :endOfWeek
                 WITH USER_MODE
+                ORDER BY CreatedDate DESC
             ];
 
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
@@ -305,6 +309,7 @@ public with sharing class HomeTabController {
         @AuraEnabled public String jobName;
         @AuraEnabled public Datetime clockInTime;
         @AuraEnabled public Datetime clockOutTime;
+        @AuraEnabled public Decimal workHours;
         @AuraEnabled public Decimal travelTime;
         @AuraEnabled public Decimal totalTime;
         @AuraEnabled public String costCodeName;
@@ -318,9 +323,9 @@ public with sharing class HomeTabController {
             // Convert to user timezone
             this.clockInTime  = item.Clock_In_Time__c  != null ? item.Clock_In_Time__c.addSeconds(userTz.getOffset(item.Clock_In_Time__c)/1000)  : null;
             this.clockOutTime = item.Clock_Out_Time__c != null ? item.Clock_Out_Time__c.addSeconds(userTz.getOffset(item.Clock_Out_Time__c)/1000) : null;
-
+            this.workHours = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
             this.travelTime = item.Travel_Time__c != null ? item.Travel_Time__c : 0.00;
-            this.totalTime = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
+            this.totalTime = this.workHours + this.travelTime;
             this.costCodeName = item.Cost_Code__r != null ? item.Cost_Code__r.Name : '-';
             this.clockInDate = item.Clock_In_Date__c;
         }

@@ -1,5 +1,6 @@
 import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { NavigationMixin } from 'lightning/navigation';
 import getJobRelatedMoblizationDetails from '@salesforce/apex/JobDetailsPageController.getJobRelatedMoblizationDetails';
 import getTimeSheetEntryItems from '@salesforce/apex/JobDetailsPageController.getTimeSheetEntryItems';
 import getMobilizationMembersWithStatus from '@salesforce/apex/JobDetailsPageController.getMobilizationMembersWithStatus';
@@ -7,8 +8,9 @@ import createTimesheetRecords from '@salesforce/apex/JobDetailsPageController.cr
 import getContactsAndCostcode from '@salesforce/apex/JobDetailsPageController.getContactsAndCostcode';
 import createManualTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createManualTimesheetRecords';
 import updateTimesheets from '@salesforce/apex/JobDetailsPageController.updateTimesheets';
+import deleteTimesheetEntry from '@salesforce/apex/JobDetailsPageController.deleteTimesheetEntry';
 
-export default class JobDetailsPage extends LightningElement {
+export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track jobDetailsRaw;
     @track filteredJobDetailsRaw;
     @track isLoading = true;
@@ -39,6 +41,7 @@ export default class JobDetailsPage extends LightningElement {
     @track clockOutTime;
     @track manualTimesheetEntry = false;
     @track editTimesheetEntry = false;
+    @track showDeleteConfirmModal = false;
     @track selectedTimesheetEntryLineId;
     @track editableTimesheetEntry = {};
     @track allContacts = [];
@@ -316,9 +319,15 @@ export default class JobDetailsPage extends LightningElement {
     */
     handleLinkClick(event) {
         try {
-            const link = event.currentTarget.dataset.link;
-            if (link) {
-                window.open(link, '_blank');
+            const jobId = event.currentTarget.dataset.link;
+            if (jobId) {
+                this[NavigationMixin.Navigate]({
+                    type: 'standard__recordPage',
+                    attributes: {
+                        recordId: jobId,
+                        actionName: 'view',
+                    },
+                });
             }
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -458,6 +467,10 @@ export default class JobDetailsPage extends LightningElement {
         }
     }
 
+    /** 
+    * Method Name: handleCustomDateChange 
+    * @description: handle custom date filter change and call method to filter data
+    */
     handleCustomDateChange(event) {
         const field = event.target.dataset.field;
         if (field === 'filterStart') {
@@ -1053,6 +1066,61 @@ export default class JobDetailsPage extends LightningElement {
     }
 
     /** 
+    * Method Name: handleDeleteTimesheetClick 
+    * @description: Method is used to handle the delete timesheet action
+    */
+    handleDeleteTimesheetClick(event) {
+        try {
+            this.showDeleteConfirmModal = true;
+            this.selectedTimesheetEntryLineId = event.currentTarget.dataset.id;
+        } catch (error) {
+            console.error('Error in handleDeleteTimesheetClick:', error);
+        }
+    }
+
+    /** 
+    * Method Name: closeDeleteConfirmModal 
+    * @description: Method is used to close the delete confirm modal
+    */
+    closeDeleteConfirmModal() {
+        this.showDeleteConfirmModal = false;
+        this.selectedTimesheetEntryLineId = null;
+    }
+
+    /** 
+    * Method Name: handleDeleteConfirmTSEL 
+    * @description: Method is used to handle the delete confirm action
+    */
+    handleDeleteConfirmTSEL() {
+        try {
+            this.isLoading = true;
+            deleteTimesheetEntry({TSELId : this.selectedTimesheetEntryLineId})
+                .then((result) => {
+                    if(result == true) {
+                        this.selectedTimesheetEntryLineId = null;
+                        this.showDeleteConfirmModal = false;
+                        this.getJobRelatedTimesheetDetails();
+                        this.getJobRelatedMoblizationDetails();
+                        this.showToast('Success', 'Timesheet deleted successfully', 'success');
+                    } else {
+                        this.showToast('Error', 'Failed to delete timesheet record. Please try again.', 'error');
+                    }
+                })
+                .catch((error) => {
+                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                    console.error('Error in deleteTimesheetEntry :: ', error);
+                    this.isLoading = false;
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in handleDeleteTimesheetClick:', error);
+            this.isLoading = false;
+        }
+    }
+
+    /** 
     * Method Name: handleEditTSELFieldChange 
     * @description: Method is used to handle the field change in edit timesheet modal
     */
@@ -1133,6 +1201,7 @@ export default class JobDetailsPage extends LightningElement {
             updateTimesheets({ params: stringifiedEntry })
                 .then((result) => {
                     if(result == true) {
+                        this.selectedTimesheetEntryLineId = null;
                         this.getJobRelatedTimesheetDetails();
                         this.getJobRelatedMoblizationDetails();
                         this.showToast('Success', 'Timesheet entry updated successfully', 'success');

@@ -561,4 +561,106 @@
     top: 0;
     z-index: 98;
 }
+
+.cell-content {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
 /* Table */
+
+.record-link {
+    color: rgba(94, 90, 219, 1);
+}
+
+.record-link :hover{
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.summary-cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.6rem;
+    margin: 1rem 0;
+}
+
+/* Default (desktop/laptop) layout */
+.summary-card {
+    background: rgb(244, 244, 255);
+    border-radius: 6px;
+    padding: 1.25rem;
+    color: #585858;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(94, 90, 219, 0.2);
+    transition: all 0.2s ease;
+    flex: 0 0 25%; /* 25% width for each card */
+    box-sizing: border-box;
+}
+
+/* Add invisible spacer to occupy right side */
+.summary-cards-container::after {
+    content: '';
+    flex: 0 0 50%;
+}
+
+/* Hover effect */
+.summary-card:hover {
+    box-shadow: 0 2px 6px rgba(94, 90, 219, 0.3);
+    border-color: rgba(94, 90, 219, 1);
+}
+
+/* Titles and values */
+.summary-card-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: rgba(94, 90, 219, 1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.summary-card-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+    color: #333;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.summary-card-subtitle {
+    font-size: 0.7rem;
+    color: #666;
+    font-weight: 400;
+    line-height: 1.3;
+}
+
+/* 📱 Responsive for phones */
+@media (max-width: 768px) {
+    .summary-card {
+        flex: 0 0 48%; /* 50% roughly */
+        padding: 1rem;
+    }
+
+    .summary-cards-container::after {
+        content: none;
+    }
+
+    /* Smaller text on phones */
+    .summary-card-title {
+        font-size: 0.65rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-card-value {
+        font-size: 1.1rem;
+    }
+
+    .summary-card-subtitle {
+        font-size: 0.65rem;
+    }
+}

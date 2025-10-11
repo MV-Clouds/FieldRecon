@@ -625,19 +625,7 @@
     stroke: none;
 }
 
-/* Override for edit icon paths that should be filled when hovered */
-/* .edit-icon-btn:hover svg path {
-    fill: none;
-    stroke: rgba(94, 90, 219, 0.7);
-} */
-
-/* .edit-icon-btn:hover {
-    background-color: white;
-    border-color: white;
-    color: rgba(94, 90, 219, 0.7);
-} */
-
-.clock-icon, .timesheet-icon, .edit-icon-btn {
+.clock-icon, .timesheet-icon, .edit-icon-btn, .delete-icon-btn {
     background-color: transparent;
     border: 1px solid #d8d8d8;
     border-radius: 0.25rem;
@@ -653,41 +641,11 @@
     color: rgba(94, 90, 219, 0.8);
 }
 
-/* .clock-icon:hover, .timesheet-icon:hover, .edit-icon-btn:hover {
-    color: white;
-} */
-
-/* .edit-icon-btn:hover {
-    background-color: white;
-    border-color: white;
-    color: rgba(94, 90, 219, 0.7);
-} */
-
-/* .clock-icon {
-    border-color: rgba(94, 90, 219, 0.8);
-    color: rgba(94, 90, 219, 0.8);
-} */
-
-.clock-icon:hover, .timesheet-icon:hover, .edit-icon-btn:hover {
+.clock-icon:hover, .timesheet-icon:hover, .edit-icon-btn:hover, .delete-icon-btn:hover {
     background-color: rgba(94, 90, 219, 0.8);
     border-color: rgba(94, 90, 219, 0.8);
     color: white;
 }
-
-/* .timesheet-icon {
-    border-color: rgba(94, 90, 219, 0.6);
-    color: rgba(94, 90, 219, 0.6);
-} */
-
-/* .timesheet-icon:hover {
-    background-color: rgba(94, 90, 219, 0.6);
-    border-color: rgba(94, 90, 219, 0.6);
-} */
-
-/* .edit-icon-btn {
-    border-color: rgba(94, 90, 219, 0.7);
-    color: rgba(94, 90, 219, 0.7);
-} */
 
 /* Form */
 .form-container{

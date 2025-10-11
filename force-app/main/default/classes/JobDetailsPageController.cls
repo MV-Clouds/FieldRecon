@@ -627,24 +627,72 @@ public with sharing class JobDetailsPageController {
             } else {
                 tsRec = tsList[0];
             }
+            Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
 
-            Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-            timesheetEntryRec.Timesheet__c = tsRec.Id;
-            timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-            timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
-            timesheetEntryRec.Cost_Code__c = costCodeId;
-            timesheetEntryRec.Do_Not_Execute__c = true;
-            insert as user timesheetEntryRec;
+            if (crossesMidnight) {
+                // Split into 2 entries
+                Datetime firstDayEnd = DateTime.newInstance(clkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
+                Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
-            Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
-            timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRec.Id;
-            timesheetEntryItemRec.Clock_In_Time__c = clkInUserTz;
-            timesheetEntryItemRec.Clock_Out_Time__c = clkOutUserTz;
-            timesheetEntryItemRec.Cost_Code__c = costCodeId;
-            timesheetEntryItemRec.Travel_Time__c = travelTime;
-            timesheetEntryItemRec.Per_Diem__c = perDiem;
-            timesheetEntryItemRec.Do_Not_Execute__c = true;
-            insert as user timesheetEntryItemRec;
+                // Entry for day 1
+                Timesheet_Entry__c entryDay1 = new Timesheet_Entry__c(
+                    Timesheet__c = tsRec.Id,
+                    Clock_In_Time__c = clkInUserTz,
+                    Clock_Out_Time__c = firstDayEnd,
+                    Cost_Code__c = costCodeId,
+                    Do_Not_Execute__c = true
+                );
+                insert entryDay1;
+
+                Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
+                    Timesheet_Entry__c = entryDay1.Id,
+                    Clock_In_Time__c = clkInUserTz,
+                    Clock_Out_Time__c = firstDayEnd,
+                    Cost_Code__c = costCodeId,
+                    Travel_Time__c = travelTime,
+                    Per_Diem__c = perDiem,
+                    Do_Not_Execute__c = true
+                );
+                insert itemDay1;
+
+                // Entry for day 2
+                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
+                    Timesheet__c = tsRec.Id,
+                    Clock_In_Time__c = secondDayStart,
+                    Clock_Out_Time__c = clkOutUserTz,
+                    Cost_Code__c = costCodeId,
+                    Do_Not_Execute__c = true
+                );
+                insert entryDay2;
+
+                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
+                    Timesheet_Entry__c = entryDay2.Id,
+                    Clock_In_Time__c = secondDayStart,
+                    Clock_Out_Time__c = clkOutUserTz,
+                    Cost_Code__c = costCodeId,
+                    Do_Not_Execute__c = true
+                );
+                insert itemDay2;
+            } else {
+                // Normal same-day record
+                Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
+                timesheetEntryRec.Timesheet__c = tsRec.Id;
+                timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
+                timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
+                timesheetEntryRec.Cost_Code__c = costCodeId;
+                timesheetEntryRec.Do_Not_Execute__c = true;
+                insert as user timesheetEntryRec;
+
+                Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
+                timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRec.Id;
+                timesheetEntryItemRec.Clock_In_Time__c = clkInUserTz;
+                timesheetEntryItemRec.Clock_Out_Time__c = clkOutUserTz;
+                timesheetEntryItemRec.Cost_Code__c = costCodeId;
+                timesheetEntryItemRec.Travel_Time__c = travelTime;
+                timesheetEntryItemRec.Per_Diem__c = perDiem;
+                timesheetEntryItemRec.Do_Not_Execute__c = true;
+                insert as user timesheetEntryItemRec;
+            }
 
             return true;
         } catch (Exception e) {
@@ -678,7 +726,7 @@ public with sharing class JobDetailsPageController {
             ];
 
             Timesheet_Entry__c tsEntry = [
-                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__c 
+                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__c, Cost_Code__c 
                 FROM Timesheet_Entry__c 
                 WHERE Id = :(String)jsonList.get('TSEId')
                 WITH USER_MODE
@@ -692,22 +740,86 @@ public with sharing class JobDetailsPageController {
             Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
             Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
             Boolean premium = Boolean.valueOf((String)jsonList.get('premium'));
+            
+            Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
 
-            tsItem.Clock_In_Time__c = clkInUserTz;
-            tsItem.Clock_Out_Time__c = clkOutUserTz;
-            tsItem.Travel_Time__c = travelTime;
-            tsItem.Per_Diem__c = perDiem;
-            tsItem.Premium__c = premium;
-            update tsItem;
+            if (crossesMidnight) {
+                Datetime firstDayEnd = DateTime.newInstance(clkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
+                Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
-            tsEntry.Clock_In_Time__c = clkInUserTz;
-            tsEntry.Clock_Out_Time__c = clkOutUserTz;
-            update tsEntry;
+                // Update current entry to end day 1
+                tsEntry.Clock_In_Time__c = clkInUserTz;
+                tsEntry.Clock_Out_Time__c = firstDayEnd;
+                update tsEntry;
+
+                tsItem.Clock_In_Time__c = clkInUserTz;
+                tsItem.Clock_Out_Time__c = firstDayEnd;
+                tsItem.Travel_Time__c = travelTime;
+                tsItem.Per_Diem__c = perDiem;
+                tsItem.Premium__c = premium;
+                update tsItem;
+
+                // Create new entry for day 2
+                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
+                    Timesheet__c = tsEntry.Timesheet__c,
+                    Clock_In_Time__c = secondDayStart,
+                    Clock_Out_Time__c = clkOutUserTz,
+                    Cost_Code__c = tsEntry.Cost_Code__c,
+                    Do_Not_Execute__c = true
+                );
+                insert entryDay2;
+
+                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
+                    Timesheet_Entry__c = entryDay2.Id,
+                    Clock_In_Time__c = secondDayStart,
+                    Clock_Out_Time__c = clkOutUserTz,
+                    Cost_Code__c = tsEntry.Cost_Code__c,
+                    Do_Not_Execute__c = true
+                );
+                insert itemDay2;
+            } else {
+                // Normal same-day update
+                tsItem.Clock_In_Time__c = clkInUserTz;
+                tsItem.Clock_Out_Time__c = clkOutUserTz;
+                tsItem.Travel_Time__c = travelTime;
+                tsItem.Per_Diem__c = perDiem;
+                tsItem.Premium__c = premium;
+                update tsItem;
+
+                tsEntry.Clock_In_Time__c = clkInUserTz;
+                tsEntry.Clock_Out_Time__c = clkOutUserTz;
+                update tsEntry;
+            }
 
             return true;
         } catch (Exception e) {
             System.debug('Exception in updateTimesheets: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'updateTimesheets', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return false;
+        }
+    }
+
+    /*
+    *********************************************************
+    @description     : Method is used to delete timesheet record
+    @param           : TSELId - {String} - id to delete timesheet record
+    @return          : Boolean - Success or failure of the operation
+    ********************************************************
+    */
+    @AuraEnabled
+    public static Boolean deleteTimesheetEntry(String TSELId) {
+        try {
+            Timesheet_Entry_Item__c tsItem = [SELECT Id, Timesheet_Entry__c FROM Timesheet_Entry_Item__c WHERE Id = :TSELId];
+
+            Timesheet_Entry__c tsEntry = [SELECT Id FROM Timesheet_Entry__c WHERE Id = :tsItem.Timesheet_Entry__c];
+
+            delete tsItem;
+            delete tsEntry;
+
+            return true;
+        } catch (Exception e) {
+            System.debug('Exception in deleteTimesheetEntry: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'deleteTimesheetEntry', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return false;
         }
     }

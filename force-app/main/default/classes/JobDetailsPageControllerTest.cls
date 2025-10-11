@@ -311,6 +311,34 @@ public class JobDetailsPageControllerTest {
     }
 
     @IsTest
+    static void testCreateManualTimesheetRecordsMidnight() {
+        Job__c job = [SELECT Id FROM Job__c LIMIT 1];
+        Mobilization__c mob = [SELECT Id FROM Mobilization__c WHERE Job__c=:job.Id LIMIT 1];
+        Contact contact = [SELECT Id FROM Contact WHERE RecordType.DeveloperName='Employee_WF_Recon' LIMIT 1];
+
+        Date today = Date.today();
+        Datetime clockInDt = Datetime.newInstance(today, Time.newInstance(10,0,0,0));
+        Datetime clockOutDt = Datetime.newInstance(today.addDays(1), Time.newInstance(12,0,0,0));
+
+        String params = JSON.serialize(new Map<String,Object>{
+            'contactId' => contact.Id,
+            'jobId' => job.Id,
+            'mobId' => mob.Id,
+            'costCodeId' => null,
+            'jobStartDate' => clockInDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'jobEndDate' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'clockInTime' => clockInDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'clockOutTime' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'travelTime' => '1.5',
+            'perDiem' => '1'
+        });
+
+        Test.startTest();
+        Boolean res = JobDetailsPageController.createManualTimesheetRecords(params);
+        Test.stopTest();
+    }
+
+    @IsTest
     static void testUpdateTimesheets() {
         Timesheet_Entry_Item__c item = [SELECT Id, Timesheet_Entry__c FROM Timesheet_Entry_Item__c LIMIT 1];
         Timesheet_Entry__c entry = [SELECT Id FROM Timesheet_Entry__c WHERE Id=:item.Timesheet_Entry__c LIMIT 1];
@@ -331,6 +359,39 @@ public class JobDetailsPageControllerTest {
 
         Test.startTest();
         Boolean res = JobDetailsPageController.updateTimesheets(params);
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testUpdateTimesheetsMidnight() {
+        Timesheet_Entry_Item__c item = [SELECT Id, Timesheet_Entry__c FROM Timesheet_Entry_Item__c LIMIT 1];
+        Timesheet_Entry__c entry = [SELECT Id FROM Timesheet_Entry__c WHERE Id=:item.Timesheet_Entry__c LIMIT 1];
+
+        Date today = Date.today();
+        Datetime clockInDt = Datetime.newInstance(today, Time.newInstance(10,0,0,0));
+        Datetime clockOutDt = Datetime.newInstance(today.addDays(1), Time.newInstance(12,0,0,0));
+
+        String params = JSON.serialize(new Map<String,Object>{
+            'Id' => item.Id,
+            'TSEId' => entry.Id,
+            'ClockIn' => clockInDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'ClockOut' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
+            'TravelTime' => '2.5',
+            'PerDiem' => '1',
+            'premium' => 'false'
+        });
+
+        Test.startTest();
+        Boolean res = JobDetailsPageController.updateTimesheets(params);
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testDeleteTimesheetEntry() {
+        Timesheet_Entry_Item__c item = [SELECT Id, Timesheet_Entry__c FROM Timesheet_Entry_Item__c LIMIT 1];
+
+        Test.startTest();
+        Boolean res = JobDetailsPageController.deleteTimesheetEntry(item.Id);
         Test.stopTest();
     }
 
