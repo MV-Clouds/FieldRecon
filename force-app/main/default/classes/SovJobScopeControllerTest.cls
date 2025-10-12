@@ -157,17 +157,6 @@ public with sharing class SovJobScopeControllerTest {
     }
 
     @IsTest
-    static void testGetScopeEntryProcesses() {
-        Scope_Entry__c scopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
-        
-        Test.startTest();
-        List<Scope_Entry_Process__c> result = SovJobScopeController.getScopeEntryProcesses(scopeEntry.Id);
-        Test.stopTest();
-        
-        System.assertEquals(2, result.size(), 'Expected getScopeEntryProcesses to return 2 processes');
-    }
-
-    @IsTest
     static void testCreateScopeEntryProcess() {
         Scope_Entry__c scopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
         Job__c job = [SELECT Id FROM Job__c LIMIT 1];

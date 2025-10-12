@@ -6,7 +6,6 @@ import getScopeEntryConfiguration from '@salesforce/apex/SovJobScopeController.g
 import createScopeEntry from '@salesforce/apex/SovJobScopeController.createScopeEntry';
 import deleteScopeEntries from '@salesforce/apex/SovJobScopeController.deleteScopeEntries';
 import { CurrentPageReference } from 'lightning/navigation';
-import getScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.getScopeEntryProcesses';
 import createScopeEntryProcess from '@salesforce/apex/SovJobScopeController.createScopeEntryProcess';
 import getProcessLibraryRecords from '@salesforce/apex/SovJobScopeController.getProcessLibraryRecords';
 import createScopeEntryProcessesFromLibrary from '@salesforce/apex/SovJobScopeController.createScopeEntryProcessesFromLibrary';
@@ -32,6 +31,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track processTableUpdateTime = 0;
     @track modifiedProcessEntriesByScopeEntry = new Map(); // Map<scopeEntryId, Set<processId>>
     @track fieldPicklistOptions = new Map(); // Map<fieldName, Array<{label, value}>>
+    @track scopeEntryProcessMap = new Map(); // Map<scopeEntryId, Array<processData>> - stores preloaded process data
 
     // Sorting properties
     @track sortField = '';
@@ -810,11 +810,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: connectedCallback
-     * @description: Load external CSS and fetch scope entries
+     * @description: Load scope entries with default sorting
      */
-    connectedCallback() {        
-        this.fetchScopeEntryConfiguration();
-        this.loadProcessLibraryData();
+    connectedCallback() {
+        this.fetchScopeConfiguration();
     }
 
     /**
@@ -895,10 +894,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: fetchScopeEntryConfiguration
+     * Method Name: fetchScopeConfiguration
      * @description: Fetch configuration and then load scope entries
      */
-    fetchScopeEntryConfiguration() {
+    fetchScopeConfiguration() {
         getScopeEntryConfiguration()
             .then(result => {
                 if (result && result.fieldsData) {
@@ -912,11 +911,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                             editable: field.isEditable || false 
                         }));
                     } catch (error) {
-                        // Use default columns if parsing fails
                         this.scopeEntryColumns = this.defaultColumns;
                     }
                 } else {
-                    // Use default columns if no configuration found
                     this.scopeEntryColumns = this.defaultColumns;
                 }
 
@@ -925,57 +922,88 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.sortField = this.scopeEntryColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
-
                 
+                // Load scope entries and process library
+                this.fetchScopeEntries();
+                this.loadProcessLibraryData();
             })
             .catch(error => {
-                // Use default columns on error
                 this.scopeEntryColumns = this.defaultColumns;
                 // Set default sorting
                 if (this.scopeEntryColumns.length > 0) {
                     this.sortField = this.scopeEntryColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
-
-                
                 this.showToast('Warning', 'Using default configuration due to error', 'warning');
-            }).finally(() => {
+                
+                // Still load data even if config fails
                 this.fetchScopeEntries();
+                this.loadProcessLibraryData();
             });
     }
 
     /**
      * Method Name: fetchScopeEntries
-     * @description: Fetch scope entries for the job
+     * @description: Fetch scope entries for the job with preloaded process data
      */
     fetchScopeEntries() {
-    
         if (!this.recordId) {
             this.isLoading = false;
-            return;
+            // Initialize empty arrays to ensure filter functions work
+            this.scopeEntries = [];
+            this.contractEntries = [];
+            this.changeOrderEntries = [];
+            this.filteredContractEntries = [];
+            this.filteredChangeOrderEntries = [];
+            this.processSetupFlags = {};
+            this.scopeEntryProcessMap = new Map();
+            return Promise.resolve();
         }
-    
-        getScopeEntries({ jobId: this.recordId })
+
+        return getScopeEntries({ jobId: this.recordId })
             .then(result => {
-                // Handle the new Map response structure
                 if (result && result.success) {
-                    this.scopeEntries = result.scopeEntries || [];
+                    // Ensure scopeEntries is always an array
+                    this.scopeEntries = Array.isArray(result.scopeEntries) ? result.scopeEntries : [];
                     this.processSetupFlags = result.processSetupFlags || {};
-                                        
+                    
+                    // Store the preloaded process data
+                    this.scopeEntryProcessMap = new Map();
+                    if (result.scopeEntryProcessMap) {
+                        Object.keys(result.scopeEntryProcessMap).forEach(scopeEntryId => {
+                            this.scopeEntryProcessMap.set(scopeEntryId, result.scopeEntryProcessMap[scopeEntryId]);
+                        });
+                    }
+                    
                     this.applyFilters();
+                    this.isLoading = false;
+                    
+                    return result;
                 } else {
-                    // Handle error case
-                    this.showToast('Error', result.error || 'Failed to fetch scope entries', 'error');
+                    // Initialize empty arrays even on failure
                     this.scopeEntries = [];
+                    this.contractEntries = [];
+                    this.changeOrderEntries = [];
+                    this.filteredContractEntries = [];
+                    this.filteredChangeOrderEntries = [];
                     this.processSetupFlags = {};
+                    this.scopeEntryProcessMap = new Map();
+                    this.isLoading = false;
+                    throw new Error(result.error || 'Unable to load scope data');
                 }
-                this.isLoading = false;
             })
             .catch(error => {
-                this.showToast('Error', 'Failed to load scope entries', 'error');
+                this.showToast('Error', 'Unable to load scope data. Please refresh and try again.', 'error');
+                // Initialize empty arrays on error to prevent filter issues
                 this.scopeEntries = [];
+                this.contractEntries = [];
+                this.changeOrderEntries = [];
+                this.filteredContractEntries = [];
+                this.filteredChangeOrderEntries = [];
                 this.processSetupFlags = {};
+                this.scopeEntryProcessMap = new Map();
                 this.isLoading = false;
+                throw error; // Re-throw to allow caller to handle
             });
     }
 
@@ -984,7 +1012,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle configuration updated event from record config component
      */
     handleConfigurationUpdated(event) {
-        
         // Prevent duplicate processing using timestamp
         if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
             return;
@@ -999,7 +1026,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             
             // Refresh the configuration and reload data
             this.isLoading = true;
-            this.fetchScopeEntryConfiguration();
+            this.fetchScopeConfiguration();
         }
     }
 
@@ -1153,126 +1180,115 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleRefresh
-     * @description: Refresh table data - Updated to maintain default sorting
+     * @description: Refresh table data
      */
     handleRefresh() {
-        // Prevent double-click by checking if already processing
-        if (this.isLoading) {
-            return;
-        }
+        this.performCompleteRefresh();
+    }
 
+    /**
+     * Method Name: performCompleteRefresh
+     * @description: Comprehensive refresh method that handles all business logic
+     */
+    performCompleteRefresh() {
         this.isLoading = true;
         this.selectedRows = [];
-        this.selectedProcesses = [];
-        this.selectedProcessesByScopeEntry = new Map(); // Clear scope entry-specific selections
-        // Reset to default sorting (first column)
-        if (this.tableColumns.length > 0) {
-            this.sortField = this.tableColumns[0].fieldName;
+        
+        // Clear all modifications and editing states
+        this.modifiedProcessEntriesByScopeEntry.clear();
+        this.modifiedProcessEntries.clear();
+        this.hasProcessModifications = false;
+        this.isSavingProcessEntries = false;
+        
+        // Clear preloaded data
+        this.scopeEntryProcessMap.clear();
+        
+        // Reset sorting to defaults
+        if (this.scopeEntryColumns.length > 0) {
+            this.sortField = this.scopeEntryColumns[0].fieldName;
             this.sortOrder = 'asc';
+            this.contractSortField = this.scopeEntryColumns[0].fieldName;
+            this.contractSortOrder = 'asc';
+            this.changeOrderSortField = this.scopeEntryColumns[0].fieldName;
+            this.changeOrderSortOrder = 'asc';
         }
-        // Reset process sorting
+        
+        // Reset process sorting  
         if (this.processTableColumns.length > 0) {
             this.processSortField = this.processTableColumns[0].fieldName;
             this.processSortOrder = 'asc';
         }
-        // Clear sort icons
-        setTimeout(() => {
-            this.clearSortIcons();
-            this.clearProcessSortIcons();
-        }, 100);
-        this.fetchScopeEntries();
-    }
-
-    /**
-     * Method Name: handleRefreshProcessData
-     * @description: Handle refresh button click for specific scope entry process data
-     */
-    async handleRefreshProcessData(event) {
-        const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
         
-        // Check if process is already loading to prevent double-click
-        const entry = this.getEntryById(scopeEntryId);
-        if (entry && entry.isLoadingProcesses) {
-            return;
-        }
+        // Clear search term
+        this.searchTerm = '';
         
-        console.log('Refreshing process data for scope entry:', scopeEntryId);
+        // Reset field picklist options cache
+        this.fieldPicklistOptions.clear();
         
-        if (scopeEntryId) {
-           let res = await this.loadProcessDetails(scopeEntryId);
-           this.showToast('Success', 'Process data has been refreshed', 'success');
-        }
-    }
-
-    /**
-     * Method Name: refreshScopeEntryProcessData
-     * @description: General method to refresh process data for a specific scope entry
-     */
-    refreshScopeEntryProcessData(scopeEntryId) {
-        try {
-            // Store currently expanded entries
-            const expandedEntries = new Set();
-            this.scopeEntries.forEach(entry => {
-                if (entry.showProcessDetails) {
-                    expandedEntries.add(entry.Id);
+        // Store expanded scope entries for restoration after refresh
+        const expandedScopeEntryIds = this.scopeEntries
+            .filter(entry => entry.showProcessDetails)
+            .map(entry => entry.Id);
+        
+        // Fetch fresh data
+        this.fetchScopeEntries()
+            .then(() => {
+                // Restore expanded state for previously expanded scope entries
+                if (expandedScopeEntryIds.length > 0) {
+                    this.restoreExpandedStates(expandedScopeEntryIds);
                 }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to refresh data', 'error');
             });
+    }
 
-            // Show loading state for the specific entry
+    /**
+     * Method Name: restoreExpandedStates
+     * @description: Restore expanded state for scope entries after refresh
+     */
+    restoreExpandedStates(expandedScopeEntryIds) {
+        try {
+            // Update the displayed entries to restore expanded states
             this.scopeEntries = this.scopeEntries.map(entry => {
-                if (entry.Id === scopeEntryId) {
-                    return {
-                        ...entry,
-                        isLoadingProcesses: true,
-                        showProcessDetails: true // Ensure the table remains expanded
-                    };
+                if (expandedScopeEntryIds.includes(entry.Id)) {
+                    return { ...entry, showProcessDetails: true };
                 }
                 return entry;
             });
-
-            // Re-fetch scope entries data to get updated process information
-            getScopeEntries({ jobId: this.recordId })
-                .then(result => {
-                    if (result && result.success) {
-                        this.scopeEntries = result.scopeEntries || [];
-                        this.processSetupFlags = result.processSetupFlags || {};
-                        
-                        // Restore expanded state for all previously expanded entries
-                        this.scopeEntries = this.scopeEntries.map(entry => {
-                            if (expandedEntries.has(entry.Id)) {
-                                return {
-                                    ...entry,
-                                    showProcessDetails: true,
-                                    isLoadingProcesses: false
-                                };
-                            }
-                            return entry;
-                        });
-
-                        // Apply filters to update displayed data
-                        this.applyFilters();
-                        
-                        this.showToast('Success', 'Process data has been updated', 'success');
-                    } else {
-                        throw new Error(result.error || 'Failed to refresh process data');
-                    }
-                })
-                .catch(error => {
-                    this.showToast('Error', 'Failed to refresh process data', 'error');
-                    
-                    // Remove loading state on error
-                    this.scopeEntries = this.scopeEntries.map(entry => {
-                        if (entry.Id === scopeEntryId) {
-                            return {
-                                ...entry,
-                                isLoadingProcesses: false
-                            };
-                        }
-                        return entry;
-                    });
-                });
+            
+            // Also update filtered arrays
+            this.contractEntries = this.contractEntries.map(entry => {
+                if (expandedScopeEntryIds.includes(entry.Id)) {
+                    return { ...entry, showProcessDetails: true };
+                }
+                return entry;
+            });
+            
+            this.changeOrderEntries = this.changeOrderEntries.map(entry => {
+                if (expandedScopeEntryIds.includes(entry.Id)) {
+                    return { ...entry, showProcessDetails: true };
+                }
+                return entry;
+            });
         } catch (error) {
-            this.showToast('Error', 'Failed to refresh process data', 'error');
+            console.error('Error restoring expanded states:', error);
+        }
+    }
+
+    /**
+     * Method Name: clearAllHighlighting
+     * @description: Clear all cell highlighting
+     */
+    clearAllHighlighting() {
+        try {
+            // Clear any modified cell highlighting
+            const modifiedCells = this.template.querySelectorAll('.modified-scope-cell, .modified-process-cell');
+            modifiedCells.forEach(cell => {
+                cell.classList.remove('modified-scope-cell', 'modified-process-cell');
+            });
+        } catch (error) {
+            console.error('Error clearing highlighting:', error);
         }
     }
 
@@ -1319,8 +1335,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     // Also remove from global array
                     this.selectedProcesses = this.selectedProcesses.filter(id => !processIds.includes(id));
                     
-                    // Refresh all scope entries data to reflect the changes and recalculations
-                    this.loadProcessDetails(scopeEntryId);
+                    // Refresh the process details from preloaded data
+                    const processData = this.scopeEntryProcessMap.get(scopeEntryId) || [];
+                    this.updateProcessDetails(scopeEntryId, processData);
                 } else {
                     throw new Error(result || 'Unknown error occurred');
                 }
@@ -1606,7 +1623,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Preserve nested table state
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
-            row.isLoadingProcesses = entry.isLoadingProcesses || false;     
+            row.isLoadingProcesses = false; // Always false since data is preloaded     
             
             row.isProcessButtonsDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
             row.isProcessSaveDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
@@ -1743,6 +1760,71 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: buildFieldDisplayData
+     * @description: Helper method to build field display data structure
+     */
+    buildFieldDisplayData(processData, col, key, value, displayValue, isModified, isEditable, isBeingEdited) {
+        // Build cell classes
+        let cellClass = 'center-trancate-text';
+        if (isEditable) cellClass += ' editable-cell';
+        if (isModified && !isBeingEdited) cellClass += ' modified-process-cell';
+        if (isBeingEdited) cellClass += ' editing-cell';
+        
+        // Build content classes
+        let contentClass = 'editable-content';
+        
+        // Handle different field types
+        let currencyValue = 0, percentValue = 0, numberValue = 0, dateValue = '';
+        
+        if (col.type === 'currency') {
+            currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+        } else if (col.type === 'percent') {
+            percentValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+        } else if (col.type === 'number') {
+            numberValue = value !== null && value !== undefined ? parseFloat(value) : 0;
+        } else if (col.type === 'date' && value) {
+            dateValue = this.formatDateForInput(value);
+        }
+        
+        // Handle picklist options
+        let picklistOptions = [];
+        if (col.type === 'picklist' && this.fieldPicklistOptions.has(key)) {
+            picklistOptions = this.fieldPicklistOptions.get(key);
+        }
+        
+        // Determine if field has value
+        let hasValue;
+        if (['currency', 'percent', 'number'].includes(col.type)) {
+            hasValue = value !== null && value !== undefined && !isNaN(value);
+        } else {
+            hasValue = value !== null && value !== undefined && String(value).trim() !== '';
+        }
+        
+        return {
+            key,
+            value: displayValue || (col.type === 'currency' ? '0' : col.type === 'percent' ? '0%' : col.type === 'number' ? '0' : '--'),
+            rawValue: value,
+            currencyValue,
+            percentValue,
+            numberValue,
+            dateValue,
+            picklistOptions,
+            hasValue,
+            isNameField: key === 'wfrecon__Process_Library__r.Name',
+            isCurrency: col.type === 'currency',
+            isPercent: col.type === 'percent',
+            isNumber: col.type === 'number',
+            isDate: col.type === 'date',
+            isPicklist: col.type === 'picklist',
+            isEditable,
+            isModified,
+            isBeingEdited,
+            cellClass,
+            contentClass
+        };
+    }
+
+    /**
      * Method Name: processProcessDetailsForDisplay
      * @description: Process process details for nested table display with inline editing support
      */
@@ -1753,15 +1835,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
         return processDetails.map(processData => {
             const row = { ...processData };
-            // Fix: Link to Process Library record instead of Scope Entry Process
+            
+            // Set record URL for navigation
             row.recordUrl = processData.wfrecon__Process_Library__c ? 
                 `/lightning/r/${processData.wfrecon__Process_Library__c}/view` : 
                 `/lightning/r/${processData.Id}/view`;
-            // Preserve selection state from scope entry-specific selection tracking
+            
+            // Preserve selection state
             const scopeEntryId = this.getScopeEntryIdForProcess(processData.Id);
             const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
             row.isSelected = selectedProcesses ? selectedProcesses.has(processData.Id) : false;
             
+            // Process display fields
             row.displayFields = this.processTableColumns.map(col => {
                 const key = col.fieldName;
                 let value = this.getFieldValue(processData, key);
@@ -1784,87 +1869,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     isEditable = isEditable && this.getFieldValue(processData, 'wfrecon__IsManual__c') === true;
                 }
                 
-                // Build cell classes
-                let cellClass = 'center-trancate-text';
-                if (isEditable) {
-                    cellClass += ' editable-cell';
-                }
-                if (isModified && !isBeingEdited) {
-                    cellClass += ' modified-process-cell';
-                }
-                if (isBeingEdited) {
-                    cellClass += ' editing-cell';
-                }
-                
-                // Build content classes
-                let contentClass = 'editable-content';
-                
-                // Handle currency fields
-                let currencyValue = 0;
-                if (col.type === 'currency') {
-                    currencyValue = value !== null && value !== undefined ? parseFloat(value) : 0;
-                }
-
-                // Handle percentage fields
-                let percentValue = 0;
-                if (col.type === 'percent') {
-                    percentValue = value !== null && value !== undefined ? parseFloat(value) : 0;
-                }
-
-                // Handle number fields  
-                let numberValue = 0;
-                if (col.type === 'number') {
-                    numberValue = value !== null && value !== undefined ? parseFloat(value) : 0;
-                }
-
-                // Handle date fields
-                let dateValue = '';
-                if (col.type === 'date' && value) {
-                    dateValue = this.formatDateForInput(value);
-                }
-
-                // Handle picklist fields - NO ASYNC CALLS HERE
-                let picklistOptions = [];
-                if (col.type === 'picklist') {
-                    // Check if we already have options cached
-                    if (this.fieldPicklistOptions.has(key)) {
-                        picklistOptions = this.fieldPicklistOptions.get(key);
-                    }
-                    // If editing and no options, we'll load them synchronously elsewhere
-                }
-                
-                // Fix hasValue logic to properly handle empty strings and null values
-                let hasValue;
-                if (col.type === 'currency' || col.type === 'percent' || col.type === 'number') {
-                    hasValue = value !== null && value !== undefined && !isNaN(value);
-                } else {
-                    hasValue = value !== null && value !== undefined && String(value).trim() !== '';
-                }
-                
-                return {
-                    key,
-                    value: displayValue || (col.type === 'currency' ? '0' : col.type === 'percent' ? '0%' : col.type === 'number' ? '0' : '--'),
-                    rawValue: value,
-                    currencyValue: currencyValue,
-                    percentValue: percentValue,
-                    numberValue: numberValue,
-                    dateValue: dateValue,
-                    picklistOptions: picklistOptions,
-                    hasValue: hasValue,
-                    isNameField: key === 'wfrecon__Process_Library__r.Name',
-                    isCurrency: col.type === 'currency',
-                    isPercent: col.type === 'percent',
-                    isNumber: col.type === 'number',
-                    isDate: col.type === 'date',
-                    isPicklist: col.type === 'picklist',
-                    isEditable: isEditable,
-                    isModified: isModified,
-                    isBeingEdited: isBeingEdited,
-                    cellClass: cellClass,
-                    contentClass: contentClass
-                };
+                return this.buildFieldDisplayData(processData, col, key, value, displayValue, isModified, isEditable, isBeingEdited);
             });
-
+            
             return row;
         });
     }
@@ -1967,69 +1974,80 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleToggleProcessDetails
-     * @description: Toggle process details display and load data if needed
+     * @description: Toggle process details display and load data synchronously from preloaded data
      */
     handleToggleProcessDetails(event) {
-
-        try{
-            const recordId = event.currentTarget.dataset.recordId;
+        const recordId = event.currentTarget.dataset.recordId;
         
-            // Update contract entries
-            this.filteredContractEntries = this.filteredContractEntries.map(entry => {
+        if (!recordId) {
+            this.showToast('Error', 'Unable to identify scope entry', 'error');
+            return;
+        }
+
+        try {
+            // Force reactivity by creating new arrays for contract entries
+            this.filteredContractEntries = [...this.filteredContractEntries.map(entry => {
                 if (entry.Id === recordId) {
                     const updatedEntry = { ...entry };
                     updatedEntry.showProcessDetails = !entry.showProcessDetails;
                     
-                    // Load process details if expanding and not already loaded
-                    if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
-                        updatedEntry.isLoadingProcesses = true;
-                        this.loadProcessDetails(recordId);
+                    // Always ensure loading is false and process data when expanding
+                    if (updatedEntry.showProcessDetails) {
+                        // Get process data from preloaded map
+                        const processData = this.scopeEntryProcessMap.get(recordId) || [];
+                        console.log('Process data for scope entry', recordId, ':', processData);
+                        
+                        // Process the data for display
+                        try {
+                            const processedDetails = this.processProcessDetailsForDisplay(processData);
+                            updatedEntry.processDetails = processedDetails;
+                        } catch (error) {
+                            console.error('Error processing process details:', error);
+                            updatedEntry.processDetails = [];
+                        }
                     }
+                    
+                    // Always ensure loading state is false since data is synchronous
+                    updatedEntry.isLoadingProcesses = false;
                     
                     return updatedEntry;
                 }
                 return entry;
-            });
+            })];
             
-            // Update change order entries
-            this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
+            // Force reactivity by creating new arrays for change order entries  
+            this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries.map(entry => {
                 if (entry.Id === recordId) {
                     const updatedEntry = { ...entry };
                     updatedEntry.showProcessDetails = !entry.showProcessDetails;
                     
-                    // Load process details if expanding and not already loaded
-                    if (updatedEntry.showProcessDetails && !updatedEntry.processDetails) {
-                        updatedEntry.isLoadingProcesses = true;
-                        this.loadProcessDetails(recordId);
+                    // Always ensure loading is false and process data when expanding
+                    if (updatedEntry.showProcessDetails) {
+                        // Get process data from preloaded map
+                        const processData = this.scopeEntryProcessMap.get(recordId) || [];
+                        console.log('Process data for scope entry', recordId, ':', processData);
+                        
+                        // Process the data for display
+                        try {
+                            const processedDetails = this.processProcessDetailsForDisplay(processData);
+                            updatedEntry.processDetails = processedDetails;
+                        } catch (error) {
+                            console.error('Error processing process details:', error);
+                            updatedEntry.processDetails = [];
+                        }
                     }
+                    
+                    // Always ensure loading state is false since data is synchronous
+                    updatedEntry.isLoadingProcesses = false;
                     
                     return updatedEntry;
                 }
                 return entry;
-            });
-            
-            // Force re-render
-            this.template.querySelector('.accordion-container')?.setAttribute('data-update', Date.now().toString());
+            })];
+        } catch (error) {
+            console.error('Error in handleToggleProcessDetails:', error);
+            this.showToast('Error', 'Failed to toggle process details', 'error');
         }
-        catch(error){
-            // Error loading process details - silently continue
-        }
-        
-    }
-
-    /**
-     * Method Name: loadProcessDetails
-     * @description: Load process details for a specific scope entry
-     */
-    loadProcessDetails(scopeEntryId) {
-        getScopeEntryProcesses({ scopeEntryId: scopeEntryId })
-            .then(result => {
-                this.updateProcessDetails(scopeEntryId, result || []);
-            })
-            .catch(error => {
-                this.updateProcessDetails(scopeEntryId, []);
-                this.showToast('Error', 'Failed to load process details', 'error');
-            });
     }
 
     /**
@@ -2197,72 +2215,81 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Update process details for a specific entry while preserving selections
      */
      updateProcessDetails(scopeEntryId, processDetails) {
-        
-        // Set default process sorting to first column if not already set
-        if (!this.processSortField && this.processTableColumns.length > 0) {
-            this.processSortField = this.processTableColumns[0].fieldName;
-            this.processSortOrder = 'asc';
-        }
-
-        // Process the details for display while preserving selections
-        const processedDetails = this.processProcessDetailsForDisplay(processDetails);
-        
-        // Sort the processed details if we have a sort field
-        let sortedDetails = processedDetails;
-        if (this.processSortField) {
-            sortedDetails = [...processedDetails].sort((a, b) => {
-                let aValue = this.getFieldValue(a, this.processSortField);
-                let bValue = this.getFieldValue(b, this.processSortField);
-
-                // Handle null/undefined values
-                if (aValue === null || aValue === undefined) aValue = '';
-                if (bValue === null || bValue === undefined) bValue = '';
-
-                // Convert to strings for comparison if they're not numbers
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    aValue = aValue.toLowerCase();
-                    bValue = bValue.toLowerCase();
-                }
-
-                let compare = 0;
-                if (aValue > bValue) {
-                    compare = 1;
-                } else if (aValue < bValue) {
-                    compare = -1;
-                }
-
-                return this.processSortOrder === 'asc' ? compare : -compare;
-            });
+        if (!scopeEntryId) {
+            return;
         }
         
-        // Update contract entries
-        this.filteredContractEntries = this.filteredContractEntries.map(entry => {
-            if (entry.Id === scopeEntryId) {
-                return {
-                    ...entry,
-                    processDetails: sortedDetails,
-                    isLoadingProcesses: false
-                };
+        try {
+            // Set default process sorting to first column if not already set
+            if (!this.processSortField && this.processTableColumns.length > 0) {
+                this.processSortField = this.processTableColumns[0].fieldName;
+                this.processSortOrder = 'asc';
             }
-            return entry;
-        });
-        
-        // Update change order entries
-        this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
-            if (entry.Id === scopeEntryId) {
-                return {
-                    ...entry,
-                    processDetails: sortedDetails,
-                    isLoadingProcesses: false
-                };
-            }
-            return entry;
-        });
 
-        // Update sort icons for process table
-        setTimeout(() => {
-            this.updateProcessSortIcons();
-        }, 0);
+            // Process the details for display while preserving selections
+            const processedDetails = this.processProcessDetailsForDisplay(processDetails || []);
+            
+            // Sort the processed details if we have a sort field
+            let sortedDetails = processedDetails;
+            if (this.processSortField && processedDetails.length > 0) {
+                sortedDetails = [...processedDetails].sort((a, b) => {
+                    let aValue = this.getFieldValue(a, this.processSortField);
+                    let bValue = this.getFieldValue(b, this.processSortField);
+
+                    // Handle null/undefined values
+                    if (aValue === null || aValue === undefined) aValue = '';
+                    if (bValue === null || bValue === undefined) bValue = '';
+
+                    // Convert to strings for comparison if they're not numbers
+                    if (typeof aValue === 'string' && typeof bValue === 'string') {
+                        aValue = aValue.toLowerCase();
+                        bValue = bValue.toLowerCase();
+                    }
+
+                    let compare = 0;
+                    if (aValue > bValue) {
+                        compare = 1;
+                    } else if (aValue < bValue) {
+                        compare = -1;
+                    }
+
+                    return this.processSortOrder === 'asc' ? compare : -compare;
+                });
+            }
+            
+            // Force reactivity by creating new arrays
+            this.filteredContractEntries = [...this.filteredContractEntries.map(entry => {
+                if (entry.Id === scopeEntryId) {
+                    return {
+                        ...entry,
+                        processDetails: sortedDetails,
+                        isLoadingProcesses: false
+                    };
+                }
+                return entry;
+            })];
+            
+            this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries.map(entry => {
+                if (entry.Id === scopeEntryId) {
+                    return {
+                        ...entry,
+                        processDetails: sortedDetails,
+                        isLoadingProcesses: false
+                    };
+                }
+                return entry;
+            })];
+
+            // Update sort icons for process table
+            setTimeout(() => {
+                this.updateProcessSortIcons(scopeEntryId);
+            }, 0);
+            
+        } catch (error) {
+            // Set loading state to false even on error
+            this.setProcessLoadingState(scopeEntryId, false);
+            throw error;
+        }
     }
 
 
@@ -2670,18 +2697,42 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: setProcessLoadingState
+     * @description: Utility method to set loading state for process details
+     */
+    setProcessLoadingState(scopeEntryId, isLoading) {
+        // Force reactivity by creating new arrays
+        this.filteredContractEntries = [...this.filteredContractEntries.map(entry => {
+            if (entry.Id === scopeEntryId) {
+                return { ...entry, isLoadingProcesses: isLoading };
+            }
+            return entry;
+        })];
+        
+        this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries.map(entry => {
+            if (entry.Id === scopeEntryId) {
+                return { ...entry, isLoadingProcesses: isLoading };
+            }
+            return entry;
+        })];
+    }
+
+    /**
      * Method Name: refreshProcessDetails
-     * @description: Refresh process details while preserving selections
+     * @description: Refresh process details while preserving selections using preloaded data
      */
     refreshProcessDetails(scopeEntryId) {
-        getScopeEntryProcesses({ scopeEntryId: scopeEntryId })
-            .then(result => {
-                this.updateProcessDetails(scopeEntryId, result || []);
-            })
-            .catch(error => {
-                this.updateProcessDetails(scopeEntryId, []);
-                this.showToast('Error', 'Failed to refresh process details', 'error');
-            });
+        if (!scopeEntryId) {
+            return;
+        }
+        
+        try {
+            // Get process data from the preloaded map
+            const processData = this.scopeEntryProcessMap.get(scopeEntryId) || [];
+            this.updateProcessDetails(scopeEntryId, processData);
+        } catch (error) {
+            this.showToast('Error', 'Failed to refresh process details', 'error');
+        }
     }
 
     /**

@@ -16,9 +16,9 @@ public with sharing class SovJobScopeController {
 
     /*
     *********************************************************
-    @description     : Method is used to dynamically get Scope Entries for a Job with complete process setup flags
+    @description     : Method is used to dynamically get Scope Entries for a Job with all related processes preloaded
     @param           : Id jobId - Job Id
-    @return          : Map<String, Object> - Map containing scope entries and their process setup flags
+    @return          : Map<String, Object> - Map containing scope entries, their process data, and process setup flags
     @author          : Rachit Shah
     ********************************************************
     */
@@ -27,6 +27,7 @@ public with sharing class SovJobScopeController {
         Map<String, Object> result = new Map<String, Object>();
         List<SObject> scopeEntries = new List<SObject>();
         Map<Id, Boolean> processSetupFlags = new Map<Id, Boolean>();
+        Map<Id, List<Scope_Entry_Process__c>> scopeEntryProcessMap = new Map<Id, List<Scope_Entry_Process__c>>();
     
         try {
             String objectName = 'wfrecon__Scope_Entry__c';
@@ -56,21 +57,38 @@ public with sharing class SovJobScopeController {
                         scopeEntryIds.add(entry.Id);
                     }
     
-                    // --- Fetch all related Processes in bulk ---
-                    Map<Id, Set<Id>> scopeEntryToProcessIds = new Map<Id, Set<Id>>();
-                    for (Scope_Entry_Process__c proc : [
-                        SELECT Id, Scope_Entry__c
+                    // --- Fetch all related Scope Entry Processes in bulk ---
+                    List<Scope_Entry_Process__c> allScopeEntryProcesses = [
+                        SELECT Id, Name, Sequence__c, Process_Name__c, 
+                               Contract_Price__c, Completed_Percentage__c, 
+                               Current_Complete_Value__c, Weight__c, 
+                               Process_Library__r.Name, Process_Library__c,
+                               IsManual__c, Scope_Entry__c
                         FROM Scope_Entry_Process__c
                         WHERE Scope_Entry__c IN :scopeEntryIds
                         WITH USER_MODE
-                    ]) {
-                        if (!scopeEntryToProcessIds.containsKey(proc.Scope_Entry__c)) {
-                            scopeEntryToProcessIds.put(proc.Scope_Entry__c, new Set<Id>());
+                        ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
+                    ];
+
+                    // --- Group processes by scope entry ---
+                    Map<Id, Set<Id>> scopeEntryToProcessIds = new Map<Id, Set<Id>>();
+                    for (Scope_Entry_Process__c process : allScopeEntryProcesses) {
+                        Id scopeEntryId = process.Scope_Entry__c;
+                        
+                        // Add to the process map for UI display
+                        if (!scopeEntryProcessMap.containsKey(scopeEntryId)) {
+                            scopeEntryProcessMap.put(scopeEntryId, new List<Scope_Entry_Process__c>());
                         }
-                        scopeEntryToProcessIds.get(proc.Scope_Entry__c).add(proc.Id);
+                        scopeEntryProcessMap.get(scopeEntryId).add(process);
+                        
+                        // Track process IDs for setup flag calculation
+                        if (!scopeEntryToProcessIds.containsKey(scopeEntryId)) {
+                            scopeEntryToProcessIds.put(scopeEntryId, new Set<Id>());
+                        }
+                        scopeEntryToProcessIds.get(scopeEntryId).add(process.Id);
                     }
     
-                    // --- Fetch all related Location Processes in bulk ---
+                    // --- Fetch all related Location Processes in bulk for setup flag calculation ---
                     Set<Id> allProcessIds = new Set<Id>();
                     for (Set<Id> pIds : scopeEntryToProcessIds.values()) {
                         allProcessIds.addAll(pIds);
@@ -112,6 +130,7 @@ public with sharing class SovJobScopeController {
     
             result.put('scopeEntries', scopeEntries);
             result.put('processSetupFlags', processSetupFlags);
+            result.put('scopeEntryProcessMap', scopeEntryProcessMap);
             result.put('success', true);
     
         } catch (Exception e) {
@@ -119,6 +138,7 @@ public with sharing class SovJobScopeController {
     
             result.put('scopeEntries', new List<SObject>());
             result.put('processSetupFlags', new Map<Id, Boolean>());
+            result.put('scopeEntryProcessMap', new Map<Id, List<Scope_Entry_Process__c>>());
             result.put('success', false);
             result.put('error', e.getMessage());
         }
@@ -200,15 +220,15 @@ public with sharing class SovJobScopeController {
         Map<String, Object> configData = new Map<String, Object>();
         
         try {
-            List<wfrecon__ScopeEntryConfigration__mdt> configs = [
+            List<ScopeEntryConfigration__mdt> configs = [
                 SELECT FieldsData__c, PageSize__c 
-                FROM wfrecon__ScopeEntryConfigration__mdt 
+                FROM ScopeEntryConfigration__mdt 
                 WITH USER_MODE 
                 LIMIT 1
             ];
 
             if (!configs.isEmpty()) {
-                wfrecon__ScopeEntryConfigration__mdt config = configs[0];
+                ScopeEntryConfigration__mdt config = configs[0];
                 configData.put('fieldsData', config.FieldsData__c);
                 configData.put('pageSize', config.PageSize__c);
             }
@@ -279,31 +299,6 @@ public with sharing class SovJobScopeController {
         }
     }
 
-    /*
-    *********************************************************
-    @description     : Method is used to get Scope Entry Process details
-    @param           : Id scopeEntryId - Scope Entry Id
-    @return          : List<Scope_Entry_Process__c> - List of Process records
-    @author          : Rachit Shah
-    ********************************************************
-    */
-    @AuraEnabled
-    public static List<Scope_Entry_Process__c> getScopeEntryProcesses(Id scopeEntryId) {
-        List<Scope_Entry_Process__c> processes = new List<Scope_Entry_Process__c>();
-        try {
-            processes = [
-                SELECT Id, Process_Library__c , Process_Library__r.Name,
-                       Sequence__c, Process_Name__c, Contract_Price__c, Completed_Percentage__c, Process_Type__c, Weight__c, Current_Complete_Value__c, Scope_Entry__c , IsManual__c
-                FROM Scope_Entry_Process__c
-                WHERE Scope_Entry__c = :scopeEntryId
-                WITH USER_MODE
-                ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
-            ];
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getScopeEntryProcesses','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Scope Entry Processes for Scope Entry ID: ' + scopeEntryId,'apiResponse' => null});
-        }
-        return processes;
-    }
 
     /*
     *********************************************************
