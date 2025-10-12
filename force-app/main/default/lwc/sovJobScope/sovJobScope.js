@@ -490,15 +490,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get isAllProcessesSelectedForEntry
-     * @description: Check if all processes are selected for current entry (used in template)
-     */
-    get isAllProcessesSelectedForEntry() {
-        // This will be evaluated for each entry in the template
-        return (scopeEntryId) => this.isAllProcessesSelectedForEntry(scopeEntryId);
-    }
-
-    /**
      * Method Name: get hasSelectedProcessLibrary
      * @description: Check if any process library records are selected
      */
@@ -581,28 +572,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get getSortableHeaderClass
-     * @description: Get CSS class for sortable headers with active state
-     */
-    get getSortableHeaderClass() {
-        return (fieldName) => {
-            const baseClass = 'header-cell center-trancate-head sortable-header';
-            return this.sortField === fieldName ? `${baseClass} active-sort` : baseClass;
-        };
-    }
-
-    /**
-     * Method Name: get getProcessSortableHeaderClass
-     * @description: Get CSS class for process table sortable headers with active state
-     */
-    get getProcessSortableHeaderClass() {
-        return (fieldName) => {
-            const baseClass = 'header-cell center-trancate-head sortable-header';
-            return this.processSortField === fieldName ? `${baseClass} active-sort` : baseClass;
-        };
-    }
-
-    /**
      * Method Name: get isScopeButtonsDisabled
      * @description: Check if scope action buttons should be disabled
      */
@@ -641,28 +610,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             return 'No scope changes to discard';
         }
         return `Discard ${this.modifiedScopeEntries.size} unsaved scope change(s)`;
-    }
-
-    /**
-     * Method Name: get showChangeOrderButtons
-     * @description: Check if change order buttons should be shown (when entry has locations and processes)
-     */
-    get showChangeOrderButtons() {
-        return (scopeEntryId) => {
-            const entry = this.getEntryById(scopeEntryId);
-            return entry && entry.processDetails && entry.processDetails.length > 0;
-        };
-    }
-
-    /**
-     * Method Name: get hideProcessButtons
-     * @description: Check if process buttons should be hidden (when entry has locations and processes)
-     */
-    get hideProcessButtons() {
-        return (scopeEntryId) => {
-            const entry = this.getEntryById(scopeEntryId);
-            return entry && entry.processDetails && entry.processDetails.length > 0;
-        };
     }
 
     /**
@@ -830,11 +777,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return `Discard ${this.modifiedProcessEntries.size} unsaved process change(s)`;
     }
 
-    /**
-     * Method Name: get processSaveButtonLabel
-     *  @description: Get dynamic process save button label
-     */
-    
     /**
      * Method Name: hasSelectedProcessesForEntry
      * @description: Check if any processes are selected for a specific scope entry
@@ -4435,52 +4377,5 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.applyFilters();
     }
 
-    /**
-     * Method Name: handleProcessSelectChange
-     * @description: Handle native select change for process picklist fields
-     */
-    handleProcessSelectChange(event) {
-        const recordId = event.target.dataset.processRecordId;
-        const fieldName = event.target.dataset.processFieldName;
-        const scopeEntryId = this.getScopeEntryIdForProcess(recordId);
-        const newValue = event.target.value;
-        
-        // Get original value to compare
-        const originalProcess = this.findProcessById(recordId);
-        const originalValue = this.getFieldValue(originalProcess, fieldName);
-        
-        // Track modifications with scope context
-        if (!this.modifiedProcessEntries.has(recordId)) {
-            this.modifiedProcessEntries.set(recordId, {
-                scopeEntryId: scopeEntryId,
-                modifications: {}
-            });
-        }
-        
-        // Track by scope entry for button state
-        if (!this.modifiedProcessEntriesByScopeEntry.has(scopeEntryId)) {
-            this.modifiedProcessEntriesByScopeEntry.set(scopeEntryId, new Set());
-        }
-        
-        const entry = this.modifiedProcessEntries.get(recordId);
-        const modifications = entry.modifications;
-        
-        if (newValue !== originalValue) {
-            modifications[fieldName] = newValue;
-            this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).add(recordId);
-        } else {
-            delete modifications[fieldName];
-            if (Object.keys(modifications).length === 0) {
-                this.modifiedProcessEntries.delete(recordId);
-                this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId).delete(recordId);
-            }
-        }
-        
-        // Update hasProcessModifications flag
-        this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
-        
-        // Trigger reactivity
-        this.updateDisplayedEntries();
-    }
 }
     

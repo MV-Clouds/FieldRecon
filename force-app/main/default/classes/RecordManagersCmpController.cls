@@ -149,12 +149,12 @@ public with sharing class RecordManagersCmpController {
             mdata.label = masterLabel;
 
             Metadata.CustomMetadataValue fieldsDataValue = new Metadata.CustomMetadataValue();
-            fieldsDataValue.field = 'FieldsData__c';
+            fieldsDataValue.field = 'wfrecon__FieldsData__c';
             fieldsDataValue.value = itemsData;
             mdata.values.add(fieldsDataValue);
 
             Metadata.CustomMetadataValue pageSizeValue = new Metadata.CustomMetadataValue();
-            pageSizeValue.field = 'PageSize__c';
+            pageSizeValue.field = 'wfrecon__PageSize__c';
             pageSizeValue.value = totalPages;
             mdata.values.add(pageSizeValue);
 
