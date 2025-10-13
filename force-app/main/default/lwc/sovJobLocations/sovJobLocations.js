@@ -7,8 +7,8 @@ import createLocationEntry from '@salesforce/apex/SovJobLocationsController.crea
 import deleteLocationEntries from '@salesforce/apex/SovJobLocationsController.deleteLocationEntries';
 import getLocationConfiguration from '@salesforce/apex/SovJobLocationsController.getLocationConfiguration';
 import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInlineEdits';
-import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 import getPicklistValuesForField from '@salesforce/apex/SovJobLocationsController.getPicklistValuesForField';
+import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
@@ -38,11 +38,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     // Default table columns
     @track defaultColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text', editable: true },
-        { label: 'Square Feet', fieldName: 'wfrecon__Square_Feet__c', type: 'number', editable: true },
-        { label: 'Crack Count', fieldName: 'wfrecon__Crack_Count__c', type: 'number', editable: true },
-        { label: 'Distressed Edge', fieldName: 'wfrecon__Distressed_Edge__c', type: 'number', editable: true },
-        { label: 'Distressed Joint LF', fieldName: 'wfrecon__Distressed_Joint_LF__c', type: 'number', editable: true },
-        { label: 'Misc Defect Count', fieldName: 'wfrecon__Misc_Defect_Count__c', type: 'number', editable: true }
+        { label: 'Quantity', fieldName: 'wfrecon__Quantity__c', type: 'number', editable: true },
+        { label: 'Unit of Measure', fieldName: 'wfrecon__Unit_of_Measure__c', type: 'text', editable: true }
     ];
 
     // Process table columns configuration
@@ -61,17 +58,12 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track isSubmitting = false;
     @track newLocation = {
         name: '',
-        squareFeet: null,
-        crackCount: null,
-        distressedEdge: null,
-        distressedJoint: null,
-        miscDefectCount: null,
-        cureTimeDays: null
+        quantity: null,
+        unitOfMeasure: ''
     };
 
-    // Validation state for modal
-    @track validationErrors = {};
-    @track showValidation = false;
+    // Unit of Measure picklist options
+    @track unitOfMeasureOptions = [];
 
     @track modifiedProcesses = new Map(); // Track modified processes across all locations
     @track modifiedProcessesByLocation = new Map(); // Map<locationId, Set<processId>>
@@ -293,46 +285,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get nameCharacterCount
-     * @description: Get current character count for name field
-     */
-    get nameCharacterCount() {
-        return this.newLocation.name ? this.newLocation.name.length : 0;
-    }
-
-    /**
-     * Method Name: get hasNameError
-     * @description: Check if name field has validation error
-     */
-    get hasNameError() {
-        return this.showValidation && this.validationErrors.name;
-    }
-
-    /**
-     * Method Name: get hasSquareFeetError
-     * @description: Check if square feet field has validation error
-     */
-    get hasSquareFeetError() {
-        return this.showValidation && this.validationErrors.squareFeet;
-    }
-
-    /**
-     * Method Name: get nameFieldClass
-     * @description: Get CSS class for name input field
-     */
-    get nameFieldClass() {
-        return this.hasNameError ? 'form-input error' : 'form-input';
-    }
-
-    /**
-     * Method Name: get squareFeetFieldClass
-     * @description: Get CSS class for square feet input field
-     */
-    get squareFeetFieldClass() {
-        return this.hasSquareFeetError ? 'form-input error' : 'form-input';
-    }
-
-    /**
      * Method Name: get sortDescription
      * @description: Set the header sort description
      */
@@ -540,6 +492,26 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: loadUnitOfMeasurePicklist
+     * @description: Load Unit of Measure picklist values
+     */
+    async loadUnitOfMeasurePicklist() {
+        try {
+            const options = await getPicklistValuesForField({ 
+                objectApiName: 'wfrecon__Location__c', 
+                fieldApiName: 'wfrecon__Unit_of_Measure__c' 
+            });
+            this.unitOfMeasureOptions = options.map(value => ({
+                label: value,
+                value: value
+            }));
+        } catch (error) {
+            console.error('Error loading Unit of Measure picklist:', error);
+            this.unitOfMeasureOptions = [];
+        }
+    }
+
+    /**
      * Method Name: formatDateForInput
      * @description: Format date for input field (YYYY-MM-DD)
      */
@@ -569,6 +541,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         if (!this.savingLocations) {
             this.savingLocations = new Set();
         }
+        this.loadUnitOfMeasurePicklist();
         this.fetchLocationConfiguration();
     }
 
@@ -1098,12 +1071,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     handleAddLocation() {
         this.newLocation = {
             name: '',
-            squareFeet: null,
-            crackCount: null,
-            distressedEdge: null,
-            distressedJoint: null,
-            miscDefectCount: null,
-            cureTimeDays: null
+            quantity: null,
+            unitOfMeasure: ''
         };
         this.showAddModal = true;
     }
@@ -1114,16 +1083,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     handleCloseModal() {
         this.showAddModal = false;
-        this.showValidation = false;
-        this.validationErrors = {};
         this.newLocation = {
             name: '',
-            squareFeet: null,
-            crackCount: null,
-            distressedEdge: null,
-            distressedJoint: null,
-            miscDefectCount: null,
-            cureTimeDays: null
+            quantity: null,
+            unitOfMeasure: ''
         };
     }
 
@@ -1132,55 +1095,44 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Handle input changes
      */
     handleInputChange(event) {
-        const field = event.target.dataset.field;
-        let value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;
+        let field, value;
+        
+        // Handle lightning-combobox
+        if (event.target.name) {
+            field = event.target.name;
+            value = event.detail.value;
+        } else {
+            // Handle regular input fields
+            field = event.target.dataset.field;
+            value = event.target.type === 'number' ? parseFloat(event.target.value) : event.target.value;
+        }
         
         this.newLocation = { ...this.newLocation, [field]: value };
     }
-
-    /**
-     * Method Name: validateLocation
-     * @description: Validate location form data
-     */
-    validateLocation() {
-        const { name, squareFeet } = this.newLocation;
-        const errors = [];
-
-        const isNameEmpty = !name || name.trim() === '';
-        const isSquareFeetInvalid = !squareFeet || squareFeet <= 0;
-
-        // Case 1: Both fields empty
-        if (isNameEmpty && (!squareFeet || squareFeet === '')) {
-            return { isValid: false, message: 'Please fill all required fields.' };
-        }
-
-        // Case 2: One of the fields missing or invalid
-        if (isNameEmpty) {
-            return { isValid: false, message: 'Name is required.' };
-        }
-
-        if (isSquareFeetInvalid) {
-            return { isValid: false, message: 'Square Feet is required and must be greater than 0.' };
-        }
-
-        // Case 3: Both filled but invalid data (numeric issue or special case)
-        if (!isNameEmpty && squareFeet <= 0) {
-            return { isValid: false, message: 'Square Feet must be greater than 0.' };
-        }
-
-        // Case 4: All good
-        return { isValid: true, message: '' };
-    }
-
 
     /**
      * Method Name: handleSaveLocation
      * @description: Save new location entry
      */
     handleSaveLocation() {
-        const validation = this.validateLocation();
-        if (!validation.isValid) {
-            this.showToast('Error', validation.message, 'error');
+
+        if(this.newLocation.name.trim() === '' || this.newLocation.quantity === null || this.newLocation.unitOfMeasure.trim() === '') {
+            this.showToast('Error', 'All fields are required.', 'error');
+            return;
+        }
+
+        if(this.newLocation.quantity !== null && (isNaN(this.newLocation.quantity) || this.newLocation.quantity < 0)) {
+            this.showToast('Error', 'Quantity must be a non-negative number.', 'error');
+            return;
+        }
+
+        if (!this.newLocation.unitOfMeasure || this.newLocation.unitOfMeasure.trim() === '') {
+            this.showToast('Error', 'Unit of Measure is required.', 'error');
+            return;
+        }
+
+        if (!this.newLocation.name || this.newLocation.name.trim() === '') {
+            this.showToast('Error', 'Name is required.', 'error');
             return;
         }
 
@@ -1188,12 +1140,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         
         const locationData = {
             name: this.newLocation.name.trim(),
-            squareFeet: this.newLocation.squareFeet,
-            crackCount: this.newLocation.crackCount || 0,
-            distressedEdge: this.newLocation.distressedEdge || 0,
-            distressedJoint: this.newLocation.distressedJoint || 0,
-            miscDefectCount: this.newLocation.miscDefectCount || 0,
-            cureTimeDays: this.newLocation.cureTimeDays || 0,
+            quantity: this.newLocation.quantity,
+            unitOfMeasure: this.newLocation.unitOfMeasure,
             jobId: this.recordId
         };
 
@@ -2484,16 +2432,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         }
 
         this.isSavingLocations = true;
-        
-        // Check if any square feet modifications exist for process recalculation
-        const hasSquareFeetChanges = Array.from(this.modifiedLocations.values()).some(modifications => 
-            modifications.hasOwnProperty('wfrecon__Square_Feet__c')
-        );
-        
-        // Store locations with expanded process details for refresh
-        const locationsWithExpandedProcesses = this.locationEntries
-            .filter(entry => entry.showProcessDetails)
-            .map(entry => entry.Id);
+
         
         // Prepare data for batch update
         const updatedLocations = [];

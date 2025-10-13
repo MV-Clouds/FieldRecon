@@ -12,8 +12,8 @@ public with sharing class JobTriggerHandler {
                 }
 
                 Location__c loc = new Location__c();
-                loc.Name = 'General Location for ' + job.Job_Name__c;
-                loc.Square_Feet__c = 1;
+                loc.Name = 'Job Site';
+                loc.Quantity__c = 1;
                 loc.Job__c = job.Id;
                 locationsToInsert.add(loc);
             }

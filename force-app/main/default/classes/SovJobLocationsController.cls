@@ -175,12 +175,8 @@ public with sharing class SovJobLocationsController {
         try {
             Location__c newLocation = new Location__c();
             newLocation.Name = (String) locationData.get('name');
-            newLocation.Square_Feet__c = (Decimal) locationData.get('squareFeet');
-            newLocation.Crack_Count__c = (Decimal) locationData.get('crackCount');
-            newLocation.Distressed_Edge__c = (Decimal) locationData.get('distressedEdge');
-            newLocation.Distressed_Joint_LF__c = (Decimal) locationData.get('distressedJoint');
-            newLocation.Misc_Defect_Count__c = (Decimal) locationData.get('miscDefectCount');
-            newLocation.Cure_Time_Days__c = (Decimal) locationData.get('cureTimeDays');
+            newLocation.Quantity__c = (Decimal) locationData.get('quantity');
+            newLocation.Unit_of_Measure__c = (String) locationData.get('unitOfMeasure');
             newLocation.Job__c = (Id) locationData.get('jobId');
             
             insert as user newLocation;
@@ -316,7 +312,7 @@ public with sharing class SovJobLocationsController {
                 return 'Error: No location records provided for update.';
             }
 
-            // Step 1: Fetch original Square_Feet__c for change detection
+            // Step 1: Fetch original Quantity__c for change detection
             Set<Id> locationIds = new Set<Id>();
             for (Location__c loc : updatedLocations) {
                 locationIds.add(loc.Id);
@@ -324,19 +320,19 @@ public with sharing class SovJobLocationsController {
 
             Map<Id, Decimal> originalSqFtMap = new Map<Id, Decimal>();
             for (Location__c oldLoc : [
-                SELECT Id, Square_Feet__c
+                SELECT Id, Quantity__c, Unit_of_Measure__c
                 FROM Location__c
                 WHERE Id IN :locationIds
                 WITH USER_MODE
             ]) {
-                originalSqFtMap.put(oldLoc.Id, oldLoc.Square_Feet__c);
+                originalSqFtMap.put(oldLoc.Id, oldLoc.Quantity__c);
             }
 
-            // Step 2: Identify which locations had square feet changes
+            // Step 2: Identify which locations had quantity feet changes
             Set<Id> changedLocationIds = new Set<Id>();
             for (Location__c newLoc : updatedLocations) {
                 Decimal oldSqFt = originalSqFtMap.get(newLoc.Id);
-                Decimal newSqFt = newLoc.Square_Feet__c;
+                Decimal newSqFt = newLoc.Quantity__c;
 
                 if ((oldSqFt == null && newSqFt != null) ||
                     (oldSqFt != null && newSqFt == null) ||

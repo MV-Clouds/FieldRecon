@@ -44,17 +44,20 @@ public with sharing class SovJobScopeControllerTest {
         List<Location__c> locations = new List<Location__c>{
             new Location__c(
                 Name = 'Main Hall',
-                Square_Feet__c = 500,
+                Quantity__c = 500,
+                Unit_of_Measure__c = 'Square Footage',
                 Job__c = job.Id
             ),
             new Location__c(
                 Name = 'Conference Room',
-                Square_Feet__c = 300,
+                Quantity__c = 300,
+                Unit_of_Measure__c = 'Cubic Footage',
                 Job__c = job.Id
             ),
             new Location__c(
                 Name = 'Lobby',
-                Square_Feet__c = 200,
+                Quantity__c = 200,
+                Unit_of_Measure__c = 'Linear Footage',
                 Job__c = job.Id
             )
         };
@@ -70,7 +73,7 @@ public with sharing class SovJobScopeControllerTest {
                     totalWeight += (p.Weight__c != null ? p.Weight__c : 0);
                 }
 
-                Decimal locationShare = loc.Square_Feet__c / (500 + 300 + 200); // total 1000 sq ft
+                Decimal locationShare = loc.Quantity__c / (500 + 300 + 200); // total 1000 sq ft
                 Decimal processShare = proc.Weight__c / totalWeight;
                 Decimal contractPrice = scopeEntry.Contract_Value__c * locationShare * processShare;
 

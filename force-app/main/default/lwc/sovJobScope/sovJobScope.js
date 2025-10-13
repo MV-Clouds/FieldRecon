@@ -219,7 +219,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         },
         { 
             label: 'Square Feet', 
-            fieldName: 'wfrecon__Square_Feet__c', 
+            fieldName: 'wfrecon__Quantity__c', 
             type: 'number'
         },
         { 
@@ -2788,7 +2788,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             const searchLower = this.locationSearchTerm.toLowerCase();
             filtered = filtered.filter(location => {
                 return (location.Name && location.Name.toLowerCase().includes(searchLower)) ||
-                       (location.wfrecon__Square_Feet__c && location.wfrecon__Square_Feet__c.toString().includes(searchLower)) ||
+                       (location.wfrecon__Quantity__c && location.wfrecon__Quantity__c.toString().includes(searchLower)) ||
                        (location.wfrecon__Crack_Count__c && location.wfrecon__Crack_Count__c.toString().includes(searchLower));
             });
         }

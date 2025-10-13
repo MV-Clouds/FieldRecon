@@ -43,9 +43,9 @@ public with sharing class SovJobLocationsControllerTest {
 
         // 4️⃣ Create Locations
         List<Location__c> locations = new List<Location__c>{
-            new Location__c(Name = 'Main Hall', Square_Feet__c = 500, Job__c = job.Id),
-            new Location__c(Name = 'Conference Room', Square_Feet__c = 300, Job__c = job.Id),
-            new Location__c(Name = 'Lobby', Square_Feet__c = 200, Job__c = job.Id)
+            new Location__c(Name = 'Main Hall', Quantity__c = 500, Job__c = job.Id),
+            new Location__c(Name = 'Conference Room', Quantity__c = 300, Job__c = job.Id),
+            new Location__c(Name = 'Lobby', Quantity__c = 200, Job__c = job.Id)
         };
         insert locations;
 
@@ -54,7 +54,7 @@ public with sharing class SovJobLocationsControllerTest {
         for (Location__c loc : locations) {
             for (Scope_Entry_Process__c proc : scopeEntryProcesses) {
                 Decimal totalWeight = 100; // 40 + 60
-                Decimal locationShare = loc.Square_Feet__c / 1000; // total 1000 sq ft
+                Decimal locationShare = loc.Quantity__c / 1000; // total 1000 sq ft
                 Decimal processShare = proc.Weight__c / totalWeight;
                 Decimal contractPrice = scopeEntry.Contract_Value__c * locationShare * processShare;
 
@@ -133,8 +133,8 @@ public with sharing class SovJobLocationsControllerTest {
     // 🧪 Test saveInlineEdits with recalculation trigger
     @IsTest
     static void testSaveInlineEdits() {
-        Location__c loc = [SELECT Id, Square_Feet__c FROM Location__c LIMIT 1];
-        loc.Square_Feet__c = loc.Square_Feet__c + 50; // simulate change
+        Location__c loc = [SELECT Id, Quantity__c FROM Location__c LIMIT 1];
+        loc.Quantity__c = loc.Quantity__c + 50; // simulate change
 
         String jsonData = JSON.serialize(new List<Location__c>{ loc });
 

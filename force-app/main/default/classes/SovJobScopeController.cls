@@ -468,9 +468,9 @@ public with sharing class SovJobScopeController {
         List<Location__c> locations = new List<Location__c>();
         try {
             locations = [
-                SELECT Id, Name, Square_Feet__c, Crack_Count__c, 
+                SELECT Id, Name, Quantity__c, Crack_Count__c, 
                        Distressed_Edge__c, Distressed_Joint_LF__c, 
-                       Misc_Defect_Count__c
+                       Misc_Defect_Count__c, Unit_of_Measure__c
                 FROM Location__c
                 WHERE Job__c = :jobId
                 WITH USER_MODE
@@ -627,7 +627,7 @@ public with sharing class SovJobScopeController {
             // 2. Get final location data for all selected locations (for recalculation)
             if (!selectedLocationIds.isEmpty()) {
                 List<Location__c> selectedLocations = [
-                    SELECT Id, Square_Feet__c
+                    SELECT Id, Quantity__c, Unit_of_Measure__c
                     FROM Location__c
                     WHERE Id IN :selectedLocationIds
                     WITH USER_MODE
@@ -637,21 +637,21 @@ public with sharing class SovJobScopeController {
                     return 'Error: Selected locations not found';
                 }
                 
-                // Calculate total square footage across all FINAL selected locations
+                // Calculate total quanity footage across all FINAL selected locations
                 Decimal totalSquareFeet = 0;
                 Map<String, Decimal> locationSquareFeet = new Map<String, Decimal>();
                 
                 for (Location__c location : selectedLocations) {
-                    Decimal sqFt = location.Square_Feet__c != null ? location.Square_Feet__c : 0;
+                    Decimal sqFt = location.Quantity__c != null ? location.Quantity__c : 0;
                     totalSquareFeet += sqFt;
                     locationSquareFeet.put(location.Id, sqFt);
                 }
                 
                 if (totalSquareFeet == 0) {
-                    return 'Error: Total square footage cannot be zero. Please ensure locations have square footage values';
+                    return 'Error: Total Quantity cannot be zero. Please ensure locations have Quantity values';
                 }
                 
-                // Calculate unit price per square foot based on FINAL total square footage
+                // Calculate unit price per Quantity based on FINAL total Quantity footage
                 Decimal unitPrice = scopeEntry.Contract_Value__c / totalSquareFeet;
                 
                 // 3. Create location processes for newly added locations
@@ -921,7 +921,7 @@ public with sharing class SovJobScopeController {
             Map<Id, List<Location_Process__c>> entryToLocationProcesses = new Map<Id, List<Location_Process__c>>();
             List<Location_Process__c> allLocationProcesses = [
                 SELECT Id, Scope_Entry_Process__c, Scope_Entry_Process__r.Scope_Entry__c,
-                       Location__c, Location__r.Square_Feet__c
+                       Location__c, Location__r.Quantity__c, Location__r.Unit_of_Measure__c
                 FROM Location_Process__c
                 WHERE Scope_Entry_Process__r.Scope_Entry__c IN :scopeEntryIds
                 WITH USER_MODE
@@ -965,7 +965,7 @@ public with sharing class SovJobScopeController {
                 Map<Id, Decimal> locationSqFt = new Map<Id, Decimal>();
                 for (Location_Process__c lp : locationProcesses) {
                     locationIds.add(lp.Location__c);
-                    Decimal sqFt = (lp.Location__r.Square_Feet__c != null) ? lp.Location__r.Square_Feet__c : 0;
+                    Decimal sqFt = (lp.Location__r.Quantity__c != null) ? lp.Location__r.Quantity__c : 0;
                     locationSqFt.put(lp.Location__c, sqFt);
                 }
     

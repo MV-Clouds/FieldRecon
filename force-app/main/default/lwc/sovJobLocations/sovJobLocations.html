@@ -523,21 +523,16 @@
                     <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                 </button>
 
-                    <div class="pop-heading">
-                        Add New Location
-                    </div>
+                <div class="pop-heading">
+                    Add New Location
+                </div>
 
                 <div class="slds-modal__content pop-up" id="modal-content-id-1">
-
-
                     <div class="popUpBody slds-p-around--medium">
                         <div class="form-container">
                             <!-- Name field -->
                             <div class="form-group full-width">
-                                <div class="form-label-row">
-                                    <label class="form-label required">Name</label>
-                                    <div class="character-count">{nameCharacterCount}/80</div>
-                                </div>
+                                <label class="form-label required">Name</label>
                                 <input type="text" 
                                        class="form-input" 
                                        placeholder="Enter location name"
@@ -550,94 +545,42 @@
                             <!-- Two column layout -->
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label class="form-label required">Square Feet</label>
+                                    <label class="form-label required">Quantity</label>
                                     <input type="number" 
                                            class="form-input" 
-                                           placeholder="Enter square feet"
-                                           step="1"
+                                           placeholder="Enter quantity"
+                                           step="0.01"
                                            min="0"
-                                           value={newLocation.squareFeet}
-                                           data-field="squareFeet"
+                                           value={newLocation.quantity}
+                                           data-field="quantity"
                                            oninput={handleInputChange}>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="form-label">Crack Count</label>
-                                    <input type="number" 
-                                           class="form-input" 
-                                           placeholder="Enter crack count"
-                                           step="1"
-                                           min="0"
-                                           value={newLocation.crackCount}
-                                           data-field="crackCount"
-                                           oninput={handleInputChange}>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label">Distressed Edge</label>
-                                    <input type="number" 
-                                           class="form-input" 
-                                           placeholder="Enter distressed edge"
-                                           step="1"
-                                           min="0"
-                                           value={newLocation.distressedEdge}
-                                           data-field="distressedEdge"
-                                           oninput={handleInputChange}>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Distressed Joint LF</label>
-                                    <input type="number" 
-                                           class="form-input" 
-                                           placeholder="Enter distressed joint LF"
-                                           step="1"
-                                           min="0"
-                                           value={newLocation.distressedJoint}
-                                           data-field="distressedJoint"
-                                           oninput={handleInputChange}>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label">Misc Defect Count</label>
-                                    <input type="number" 
-                                           class="form-input" 
-                                           placeholder="Enter misc defect count"
-                                           step="1"
-                                           min="0"
-                                           value={newLocation.miscDefectCount}
-                                           data-field="miscDefectCount"
-                                           oninput={handleInputChange}>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">Cure Time Days</label>
-                                    <input type="number" 
-                                           class="form-input" 
-                                           placeholder="Enter cure time days"
-                                           step="1"
-                                           min="0"
-                                           value={newLocation.cureTimeDays}
-                                           data-field="cureTimeDays"
-                                           oninput={handleInputChange}>
+                                    <label class="form-label required">Unit of Measure</label>
+                                    <lightning-combobox
+                                        name="unitOfMeasure"
+                                        variant="label-hidden"
+                                        placeholder="Select Unit of Measure"
+                                        options={unitOfMeasureOptions}
+                                        value={newLocation.unitOfMeasure}
+                                        data-field="unitOfMeasure"
+                                        onchange={handleInputChange}>
+                                    </lightning-combobox>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>               
+                <div class="popUpFooter">
+                    <button class="close-btn" onclick={handleCloseModal}>Cancel</button>
+                    <button class="save-btn" 
+                            onclick={handleSaveLocation}
+                            disabled={isSubmitting}>
+                        <template if:true={isSubmitting}>Saving...</template>
+                        <template if:false={isSubmitting}>Save</template>
+                    </button>
                 </div>
-
-                    <div class="popUpFooter">
-                            <button class="close-btn" onclick={handleCloseModal}>Cancel</button>
-                            <button class="save-btn" 
-                                    onclick={handleSaveLocation}
-                                    disabled={isSubmitting}>
-                                <template if:true={isSubmitting}>Saving...</template>
-                                <template if:false={isSubmitting}>Save</template>
-                            </button>
-                    </div>
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
