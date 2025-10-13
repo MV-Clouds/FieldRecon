@@ -288,60 +288,6 @@ public with sharing class SovJobScopeControllerTest {
     }
 
     @IsTest
-    static void testCreateChangeOrderManual() {
-        Scope_Entry__c originalScopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
-        Job__c job = [SELECT Id FROM Job__c LIMIT 1];
-        
-        Map<String, Object> changeOrderData = new Map<String, Object>{
-            'originalScopeEntryId' => originalScopeEntry.Id,
-            'changeOrderName' => 'Test Change Order',
-            'contractValue' => 25000,
-            'processOption' => 'manual',
-            'jobId' => job.Id,
-            'manualProcess' => new Map<String, Object>{
-                'processName' => 'Manual Test Process',
-                'sequence' => 1,
-                'processType' => 'Generic',
-                'weightage' => 50,
-                'measurementType' => 'Square Feet'
-            }
-        };
-        
-        Test.startTest();
-        String result = SovJobScopeController.createChangeOrder(changeOrderData);
-        Test.stopTest();
-        
-        System.assertEquals('Success', result, 'Expected createChangeOrder with manual process to return Success');
-    }
-
-        @IsTest
-    static void testCreateChangeOrderLibrary() {
-        Scope_Entry__c originalScopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
-        Job__c job = [SELECT Id FROM Job__c LIMIT 1];
-        List<Process__c> processes = [SELECT Id FROM Process__c LIMIT 2];
-        
-        List<String> selectedProcessIds = new List<String>();
-        for (Process__c proc : processes) {
-            selectedProcessIds.add(proc.Id);
-        }
-        
-        Map<String, Object> changeOrderData = new Map<String, Object>{
-            'originalScopeEntryId' => originalScopeEntry.Id,
-            'changeOrderName' => 'Test Change Order',
-            'contractValue' => 25000,
-            'processOption' => 'library',
-            'jobId' => job.Id,
-            'selectedProcessIds' => selectedProcessIds
-        };
-        
-        Test.startTest();
-        String result = SovJobScopeController.createChangeOrder(changeOrderData);
-        Test.stopTest();
-        
-        System.assertEquals('Success', result, 'Expected createChangeOrder with library process to return Success');
-    }
-
-    @IsTest
     static void testSaveProcessEntryInlineEdits() {
         List<Scope_Entry_Process__c> processes = [SELECT Id, Process_Name__c, Weight__c FROM Scope_Entry_Process__c LIMIT 1];
         if (!processes.isEmpty()) {

@@ -9,6 +9,8 @@ import getLocationConfiguration from '@salesforce/apex/SovJobLocationsController
 import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInlineEdits';
 import getPicklistValuesForField from '@salesforce/apex/SovJobLocationsController.getPicklistValuesForField';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
+import { getPicklistValues } from "lightning/uiObjectInfoApi";
+import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/Location__c.Unit_of_Measure__c';
 
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
@@ -26,8 +28,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     // Sorting properties
     @track sortField = '';
     @track sortOrder = '';
-    @track processSortField = '';
-    @track processSortOrder = '';
+    @track processSortField = 'wfrecon__Sequence__c';
+    @track processSortOrder = 'asc';
 
     // Inline editing properties
     @track modifiedLocations = new Map(); // Track modified location entries
@@ -39,7 +41,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track defaultColumns = [
         { label: 'Name', fieldName: 'Name', type: 'text', editable: true },
         { label: 'Quantity', fieldName: 'wfrecon__Quantity__c', type: 'number', editable: true },
-        { label: 'Unit of Measure', fieldName: 'wfrecon__Unit_of_Measure__c', type: 'text', editable: true }
+        { label: 'Unit of Measure', fieldName: 'wfrecon__Unit_of_Measure__c', type: 'picklist', editable: true }
     ];
 
     // Process table columns configuration
@@ -74,6 +76,18 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
+    }
+
+    @wire(getPicklistValues, { recordTypeId: '012000000000000AAA', fieldApiName: UNIT_OF_MEASURE_FIELD })
+    wiredUnitOfMeasure({ error, data }) {
+        if (data) {
+            this.unitOfMeasureOptions = data.values.map(item => ({ label: item.label, value: item.value }));
+            // Also populate the fieldPicklistOptions map for inline editing
+            this.fieldPicklistOptions.set('wfrecon__Unit_of_Measure__c', this.unitOfMeasureOptions);
+        } else if (error) {
+            this.unitOfMeasureOptions = [];
+            console.error('Error loading Unit of Measure picklist values:', error);
+        }
     }
 
     /**
@@ -180,8 +194,10 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     // Check if we already have options cached
                     if (this.fieldPicklistOptions.has(key)) {
                         const allOptions = this.fieldPicklistOptions.get(key);
+                        // Use the current value (which could be modified value) for selection
                         picklistOptions = allOptions.map(option => ({
-                            ...option,
+                            label: option.label,
+                            value: option.value,
                             selected: option.value === value
                         }));
                     }
@@ -492,26 +508,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: loadUnitOfMeasurePicklist
-     * @description: Load Unit of Measure picklist values
-     */
-    async loadUnitOfMeasurePicklist() {
-        try {
-            const options = await getPicklistValuesForField({ 
-                objectApiName: 'wfrecon__Location__c', 
-                fieldApiName: 'wfrecon__Unit_of_Measure__c' 
-            });
-            this.unitOfMeasureOptions = options.map(value => ({
-                label: value,
-                value: value
-            }));
-        } catch (error) {
-            console.error('Error loading Unit of Measure picklist:', error);
-            this.unitOfMeasureOptions = [];
-        }
-    }
-
-    /**
      * Method Name: formatDateForInput
      * @description: Format date for input field (YYYY-MM-DD)
      */
@@ -541,7 +537,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         if (!this.savingLocations) {
             this.savingLocations = new Set();
         }
-        this.loadUnitOfMeasurePicklist();
+        
         this.fetchLocationConfiguration();
     }
 
@@ -887,12 +883,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             this.sortOrder = 'asc';
         }
         
-        // Reset process sorting
-        if (this.processTableColumns.length > 0) {
-            this.processSortField = this.processTableColumns[0].fieldName;
-            this.processSortOrder = 'asc';
-        }
-        
         // Clear search term
         this.searchTerm = '';
         
@@ -963,11 +953,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             // Update global modifications flag
             this.hasModifications = this.modifiedProcesses.size > 0;
             
-            // Reset process sorting for this location
-            if (this.processTableColumns.length > 0) {
-                this.processSortField = this.processTableColumns[0].fieldName;
-                this.processSortOrder = 'asc';
-            }
             
             // Use preloaded process data and immediately update the display
             const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
@@ -1026,11 +1011,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     
                     // Immediately refresh the process details with fresh data
                     if (preloadedProcesses.length > 0) {
-                        // Set default process sorting if not set
-                        if (!this.processSortField && this.processTableColumns.length > 0) {
-                            this.processSortField = this.processTableColumns[0].fieldName;
-                            this.processSortOrder = 'asc';
-                        }
                         
                         const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
                         
@@ -1247,9 +1227,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     
                     // Immediately update the process details instead of waiting for the updateProcessDetails method
                     if (preloadedProcesses.length > 0) {
-                        // Set default process sorting if not set
-                        if (!this.processSortField && this.processTableColumns.length > 0) {
-                            this.processSortField = this.processTableColumns[0].fieldName;
+                        // Set default process sorting to Sequence if not set
+                        if (!this.processSortField) {
+                            this.processSortField = 'wfrecon__Sequence__c';
                             this.processSortOrder = 'asc';
                         }
                         
@@ -1300,7 +1280,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     updateProcessDetails(locationId, processDetails) {
         // Set default process sorting to first column if not already set
         if (!this.processSortField && this.processTableColumns.length > 0) {
-            this.processSortField = this.processTableColumns[0].fieldName;
+            this.processSortField = 'wfrecon__Sequence__c';
             this.processSortOrder = 'asc';
         }
 

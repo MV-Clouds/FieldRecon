@@ -654,8 +654,7 @@
 
 /* Modal Size Variations */
 .location-modal,
-.process-library-modal,
-.change-order-modal {
+.process-library-modal {
     max-width: 800px;
     width: 90%;
     overflow: hidden;
@@ -666,9 +665,7 @@
     max-height: 95vh !important;
 }
 
-.change-order-modal {
-    max-width: 700px;
-}
+
 
 /* Modal Container Layouts */
 .slds-modal__container {
@@ -1288,19 +1285,34 @@
     justify-content: center;
     transition: all 0.3s ease;
     opacity: 0;
+    visibility: hidden;
+    width: 12px;
+    height: 12px;
+}
+
+.process-sort-icon {
+    width: 10px;
+    height: 10px;
+}
+
+.sortable-header:not(.active-sort):hover .sort-icon {
+    opacity: 0.7;
     visibility: visible;
 }
 
-.sortable-header:hover .sort-icon,
 .sortable-header.active-sort .sort-icon {
-    opacity: 1;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.process-sortable-header:not(.active-sort):hover .process-sort-icon {
+    opacity: 0.7;
     visibility: visible;
 }
 
-.process-sortable-header:hover .process-sort-icon,
 .process-sortable-header.active-sort .process-sort-icon {
-    opacity: 1;
-    visibility: visible;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .sort-icon svg {
@@ -1431,15 +1443,13 @@
     }
 
     .location-modal,
-    .process-library-modal,
-    .change-order-modal {
+    .process-library-modal {
         width: 95%;
         margin: 0.5rem;
         max-height: 90vh;
     }
     
-    .process-library-modal .slds-modal__container,
-    .change-order-modal .slds-modal__container {
+    .process-library-modal .slds-modal__container {
         width: 95%;
         max-height: 90vh;
         margin: 0.5rem;
@@ -1797,23 +1807,9 @@
 }
 
 /* Change Order Modal */
-.change-order-modal {
-    max-width: 900px;
-    width: 90%;
-    max-height: 90vh;
-    overflow: hidden;
-}
 
-/* Change Order Button */
-.change-order-btn {
-    background-color: rgba(94, 90, 219, 0.95);
-    border-color: rgba(94, 90, 219, 0.95);
-}
 
-.change-order-btn:hover {
-    background-color: rgba(94, 90, 219, 1);
-    border-color: rgba(94, 90, 219, 1);
-}
+
 
 /* Step Header */
 .step-header {
@@ -1893,7 +1889,6 @@
     gap: 0.5rem;
     align-items: center;
     flex-shrink: 0;
-    margin-right: 1rem;
 }
 
 /* Modified process cell highlighting */
@@ -1956,12 +1951,8 @@
     flex-wrap: wrap;
 }
 
-/* Responsive adjustments for change order modal */
+/* Responsive adjustments */
 @media only screen and (max-width: 768px) {
-    .change-order-modal {
-        width: 95%;
-        margin: 1rem;
-    }
     
     .step-header h3 {
         font-size: 1rem;
@@ -2119,4 +2110,14 @@
         max-width: 100px;
         font-size: 10px;
     }
+}
+
+/* Hide process action buttons when all contract entries are approved */
+.hide-process-buttons .process-action-buttons {
+    display: none !important;
+}
+
+/* Hide scope entry checkboxes when all contract entries are approved */
+.hide-contract-checkboxes .checkbox-column input[type="checkbox"] {
+    display: none;
 }
