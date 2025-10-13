@@ -33,22 +33,21 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track fieldPicklistOptions = new Map(); // Map<fieldName, Array<{label, value}>>
     @track scopeEntryProcessMap = new Map(); // Map<scopeEntryId, Array<processData>> - stores preloaded process data
 
-    // Sorting properties
     @track sortField = '';
     @track sortOrder = '';
-    @track contractSortField = ''; // ADD THIS
-    @track contractSortOrder = ''; // ADD THIS
-    @track changeOrderSortField = ''; // ADD THIS
-    @track changeOrderSortOrder = ''; // ADD THIS
-    @track processSortByEntry = new Map(); // Map<scopeEntryId, {sortField, sortOrder}>
+    @track contractSortField = '';
+    @track contractSortOrder = '';
+    @track changeOrderSortField = '';
+    @track changeOrderSortOrder = '';
+    @track processSortByEntry = new Map();
 
     @track processSortField = '';
     @track processSortOrder = '';
-    @track processSetupFlags = {}; // Store process setup flags from Apex
+    @track processSetupFlags = {};
     
     @track scopeEntryColumns = [];
     @track accordionStyleApplied = false;
-    @track activeSectionName = ['contractSection', 'changeOrderSection']; // Open both sections by default
+    @track activeSectionName = ['contractSection', 'changeOrderSection'];
     @track typeOptions = [
         { label: 'Contract', value: 'Contract' },
         { label: 'Change Order', value: 'Change Order' }
@@ -79,7 +78,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             fieldName: 'wfrecon__Process_Name__c', 
             type: 'text',
             editable: true,
-            conditionalEdit: true // This field has conditional editing
+            conditionalEdit: true
         },
         { 
             label: 'Step Value', 
@@ -146,10 +145,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         name: '',
         contractValue: null,
         description: '',
-        type: 'Contract' // Default type
+        type: 'Contract'
     };
 
-    @track lastConfigUpdateTimestamp = 0; // Add this to track last update
+    @track lastConfigUpdateTimestamp = 0;
 
     // Process Modal Properties
     @track showAddProcessModal = false;
@@ -189,18 +188,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track showProcessLibraryModal = false;
     @track isProcessLibrarySubmitting = false;
     @track processLibraryRecords = [];
-    @track processLibraryDisplayRecords = []; // New: This will hold the display data with selection states
+    @track processLibraryDisplayRecords = [];
     @track selectedProcessLibraryIds = [];
     @track processLibrarySearchTerm = '';
     @track selectedProcessCategory = '';
-    @track processTypeFilterOptions = []; // For filter dropdown
-    @track processTypeCategoryOptions = []; // Separate options for category filter with "All" option
+    @track processTypeFilterOptions = [];
+    @track processTypeCategoryOptions = [];
 
-    @track modifiedProcessEntries = new Map(); // Change structure to: Map<processId, {scopeEntryId, modifications}>
-    @track hasProcessModifications = false; // Track if there are unsaved process changes
-    @track isSavingProcessEntries = false; // Track save operation for process entries
-    @track editingProcessCells = new Set(); // Track which process cells are currently being edited
-    @track selectedProcessesByScopeEntry = new Map(); // Map<scopeEntryId, Set<processId>>
+    @track modifiedProcessEntries = new Map();
+    @track hasProcessModifications = false;
+    @track isSavingProcessEntries = false;
+    @track editingProcessCells = new Set();
+    @track selectedProcessesByScopeEntry = new Map();
 
     @track showAddLocationModal = false;
     @track isLocationSubmitting = false;
@@ -245,20 +244,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     ];
 
-    @track modifiedScopeEntries = new Map(); // Track modified scope entries
-    @track hasScopeModifications = false; // Track if there are unsaved scope changes
-    @track isSavingScopeEntries = false; // Track save operation for scope entries
-    @track editingScopeCells = new Set(); // Track which cells are currently being edited
+    @track modifiedScopeEntries = new Map();
+    @track hasScopeModifications = false;
+    @track isSavingScopeEntries = false;
+    @track editingScopeCells = new Set();
 
     // Change Order Modal Properties
     @track showCreateChangeOrderModal = false;
     @track isChangeOrderSubmitting = false;
     @track selectedScopeEntryForChangeOrder = null;
-    @track changeOrderStep = 1; // 1 for initial form, 2 for process selection
+    @track changeOrderStep = 1;
     @track changeOrderData = {
         name: '',
         contractValue: null,
-        processOption: '' // 'manual' or 'library'
+        processOption: ''
     };
     @track selectedChangeOrderProcessIds = [];
 
@@ -1061,7 +1060,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: applyFilters
-     * @description: Apply search filters and separate by type while preserving selections - Updated
+     * @description: Apply search filters and separate by type while preserving selections
      */
     applyFilters() {
         try {
@@ -1114,8 +1113,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (entry.processDetails || entry.showProcessDetails !== undefined) {
                     currentProcessStates.set(entry.Id, {
                         processDetails: entry.processDetails,
-                        showProcessDetails: entry.showProcessDetails,
-                        isLoadingProcesses: entry.isLoadingProcesses
+                        showProcessDetails: entry.showProcessDetails
                     });
                 }
             });
@@ -1135,7 +1133,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (savedState) {
                     entry.processDetails = savedState.processDetails;
                     entry.showProcessDetails = savedState.showProcessDetails;
-                    entry.isLoadingProcesses = savedState.isLoadingProcesses;
                 }
             });
 
@@ -1351,34 +1348,112 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
-    /**
-     * Method Name: handleAddScopeEntry
-     * @description: Open add scope entry modal
-     */
-    handleAddScopeEntry() {
-        this.newScopeEntry = {
-            name: '',
-            contractValue: null,
-            description: '',
-            type: 'Contract' // Default to Contract
-        };
-        this.showAddModal = true;
-        
+    openModal(modalType, options = {}) {
+        switch (modalType) {
+            case 'scopeEntry':
+                this.newScopeEntry = {
+                    name: '',
+                    contractValue: null,
+                    description: '',
+                    type: 'Contract'
+                };
+                this.showAddModal = true;
+                break;
+            case 'process':
+                this.selectedScopeEntryId = options.scopeEntryId;
+                this.selectedScopeEntryName = options.scopeEntryName;
+                this.newProcess = {
+                    processName: '',
+                    sequence: null,
+                    processType: '',
+                    weightage: null,
+                    measurementType: ''
+                };
+                this.showAddProcessModal = true;
+                break;
+            case 'processLibrary':
+                this.selectedScopeEntryId = options.scopeEntryId;
+                this.selectedScopeEntryName = options.scopeEntryName;
+                this.showProcessLibraryModal = true;
+                this.loadProcessLibraryData();
+                break;
+            case 'location':
+                this.selectedLocationScopeEntryId = options.scopeEntryId;
+                this.selectedScopeEntryName = options.scopeEntryName;
+                this.showAddLocationModal = true;
+                this.loadLocationData();
+                break;
+            case 'changeOrder':
+                this.selectedScopeEntryForChangeOrder = options.scopeEntry;
+                this.changeOrderStep = 1;
+                this.changeOrderData = {
+                    name: '',
+                    contractValue: null,
+                    processOption: ''
+                };
+                this.showCreateChangeOrderModal = true;
+                break;
+        }
     }
 
-    /**
-     * Method Name: handleCloseModal
-     * @description: Close add scope entry modal
-     */
+    closeModal(modalType) {
+        switch (modalType) {
+            case 'scopeEntry':
+                this.showAddModal = false;
+                this.newScopeEntry = {
+                    name: '',
+                    contractValue: null,
+                    description: '',
+                    type: 'Contract'
+                };
+                break;
+            case 'process':
+                this.showAddProcessModal = false;
+                this.newProcess = {
+                    processName: '',
+                    sequence: null,
+                    processType: '',
+                    weightage: null,
+                    measurementType: ''
+                };
+                this.selectedScopeEntryId = '';
+                this.selectedScopeEntryName = '';
+                break;
+            case 'processLibrary':
+                this.showProcessLibraryModal = false;
+                this.selectedProcessLibraryIds = [];
+                this.processLibrarySearchTerm = '';
+                this.selectedProcessCategory = '';
+                this.selectedScopeEntryId = '';
+                this.selectedScopeEntryName = '';
+                break;
+            case 'location':
+                this.showAddLocationModal = false;
+                this.selectedLocationIds = [];
+                this.locationSearchTerm = '';
+                this.selectedLocationScopeEntryId = '';
+                this.selectedScopeEntryName = '';
+                break;
+            case 'changeOrder':
+                this.showCreateChangeOrderModal = false;
+                this.selectedScopeEntryForChangeOrder = null;
+                this.changeOrderStep = 1;
+                this.changeOrderData = {
+                    name: '',
+                    contractValue: null,
+                    processOption: ''
+                };
+                this.selectedChangeOrderProcessIds = [];
+                break;
+        }
+    }
+
+    handleAddScopeEntry() {
+        this.openModal('scopeEntry');
+    }
+
     handleCloseModal() {
-        this.showAddModal = false;
-        this.newScopeEntry = {
-            name: '',
-            contractValue: null,
-            description: '',
-            type: 'Contract' // Default to Contract
-        };
-    
+        this.closeModal('scopeEntry');
     }
 
     /**
@@ -1583,28 +1658,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
-    /**
-     * Method Name: handleAddLocation
-     * @description: Open location modal and load locations
-     */
     handleAddLocation(event) {
         const scopeEntryId = event.currentTarget.dataset.recordId;
-        
-        // Find the scope entry name
         const entry = this.getEntryById(scopeEntryId);
-        this.selectedScopeEntryName = entry ? entry.Name : '';
-        this.selectedLocationScopeEntryId = scopeEntryId;
         
-        // Reset selections but keep original state tracking
-        this.selectedLocationIds = [];
-        this.originalLocationIds = [];
-        this.locationSearchTerm = '';
-        
-        // Load location data
-        this.loadLocationData(scopeEntryId);
-        
-        this.showAddLocationModal = true;
-        
+        this.openModal('location', {
+            scopeEntryId: scopeEntryId,
+            scopeEntryName: entry ? entry.Name : ''
+        });
     }
 
 
@@ -1623,7 +1684,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Preserve nested table state
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
-            row.isLoadingProcesses = false; // Always false since data is preloaded     
             
             row.isProcessButtonsDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
             row.isProcessSaveDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
@@ -2007,27 +2067,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                         }
                     }
                     
-                    // Always ensure loading state is false since data is synchronous
-                    updatedEntry.isLoadingProcesses = false;
-                    
                     return updatedEntry;
                 }
                 return entry;
             })];
             
-            // Force reactivity by creating new arrays for change order entries  
             this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries.map(entry => {
                 if (entry.Id === recordId) {
                     const updatedEntry = { ...entry };
                     updatedEntry.showProcessDetails = !entry.showProcessDetails;
                     
-                    // Always ensure loading is false and process data when expanding
                     if (updatedEntry.showProcessDetails) {
-                        // Get process data from preloaded map
                         const processData = this.scopeEntryProcessMap.get(recordId) || [];
                         console.log('Process data for scope entry', recordId, ':', processData);
                         
-                        // Process the data for display
                         try {
                             const processedDetails = this.processProcessDetailsForDisplay(processData);
                             updatedEntry.processDetails = processedDetails;
@@ -2036,9 +2089,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                             updatedEntry.processDetails = [];
                         }
                     }
-                    
-                    // Always ensure loading state is false since data is synchronous
-                    updatedEntry.isLoadingProcesses = false;
                     
                     return updatedEntry;
                 }
@@ -2072,21 +2122,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     
     }
 
-    /**
-     * Method Name: handleCloseProcessModal
-     * @description: Close add process modal
-     */
     handleCloseProcessModal() {
-        this.showAddProcessModal = false;
-        this.selectedScopeEntryName = '';
-        this.newProcess = {
-            processName: '',
-            sequence: null,
-            processType: '',
-            weightage: null,
-            measurementType: ''
-        };
-        
+        this.closeModal('process');
     }
 
     /**
@@ -2433,26 +2470,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return changeOrderEntry;
     }
 
-    /**
-     * Method Name: handleAddProcessFromLibrary
-     * @description: Handle add process from library button click
-     */
     handleAddProcessFromLibrary(event) {
-        this.selectedScopeEntryId = event.currentTarget.dataset.scopeEntryId;
-        this.selectedScopeEntryName = event.currentTarget.dataset.scopeEntryName;
-        
-        // Reset selections and clear all modal data
-        this.selectedProcessLibraryIds = [];
-        this.processLibrarySearchTerm = '';
-        this.selectedProcessCategory = '';
-        this.processLibraryDisplayRecords = [];
-        this.processLibraryRecords = [];
-        
-        // Load process library records and types
-        this.showProcessLibraryModal = true;
-        
-        
-        this.loadProcessLibraryData();
+        this.openModal('processLibrary', {
+            scopeEntryId: event.currentTarget.dataset.scopeEntryId,
+            scopeEntryName: event.currentTarget.dataset.scopeEntryName
+        });
     }
 
     /**
@@ -2636,19 +2658,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.applyProcessLibraryFilters();
     }
 
-    /**
-     * Method Name: handleCloseProcessLibraryModal
-     * @description: Close process library modal
-     */
     handleCloseProcessLibraryModal() {
-        this.showProcessLibraryModal = false;
-        this.selectedScopeEntryName = '';
-        this.selectedProcessLibraryIds = [];
-        this.processLibrarySearchTerm = '';
-        this.selectedProcessCategory = '';
-        this.processLibraryDisplayRecords = [];
-        this.processLibraryRecords = [];
-        
+        this.closeModal('processLibrary');
     }
 
     /**
@@ -2873,20 +2884,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.applyLocationFilters();
     }
 
-    /**
-     * Method Name: handleCloseLocationModal
-     * @description: Close location modal
-     */
     handleCloseLocationModal() {
-        this.showAddLocationModal = false;
-        this.selectedLocationScopeEntryId = '';
-        this.selectedScopeEntryName = '';
-        this.selectedLocationIds = [];
-        this.originalLocationIds = []; // Clear original state
-        this.locationSearchTerm = '';
-        this.locationRecords = [];
-        this.locationDisplayRecords = [];
-        
+        this.closeModal('location');
     }
 
     /**
@@ -2946,16 +2945,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
-    /**
-     * Method Name: handleSortClick
-     * @description: Handle column header click for sorting - FIXED with section context
-     */
     handleSortClick(event) {
         try {
             const fieldName = event.currentTarget.dataset.id;
-            const section = event.currentTarget.dataset.section; // ADD THIS to template: data-section="contract" or "changeOrder"
+            const section = event.currentTarget.dataset.section;
             
-            // Determine which sort fields to use based on section
             let currentSortField, currentSortOrder;
             
             if (section === 'contract') {
@@ -2966,10 +2960,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 currentSortOrder = this.changeOrderSortOrder;
             }
             
-            // Clear sort icons for this section only
-            this.clearSortIcons(section);
-            
-            // Toggle or set sort
             if (currentSortField === fieldName) {
                 currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
             } else {
@@ -2977,7 +2967,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 currentSortOrder = 'asc';
             }
             
-            // Update the appropriate sort fields
             if (section === 'contract') {
                 this.contractSortField = currentSortField;
                 this.contractSortOrder = currentSortOrder;
@@ -2987,41 +2976,31 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             }
             
             this.sortData(section);
-            this.updateSortIcons(section);
+            this.updateSortIcons(section, currentSortField, currentSortOrder);
         } catch (error) {
-            // Error handling sort - silently continue
+            // Error handling sort
         }
     }
 
-    /**
-     * Method Name: handleProcessSortClick
-     * @description: Handle column header click for sorting in process table - FIXED
-     */
     handleProcessSortClick(event) {
         try {
             const fieldName = event.currentTarget.dataset.id;
             const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
             
-            // Get current sort state for this specific entry
             let currentSort = this.processSortByEntry.get(scopeEntryId) || { sortField: '', sortOrder: 'asc' };
             
-            // Toggle or set sort
             if (currentSort.sortField === fieldName) {
                 currentSort.sortOrder = currentSort.sortOrder === 'asc' ? 'desc' : 'asc';
             } else {
-                // Clear icons for this scope entry only when changing field
-                this.clearProcessSortIcons(scopeEntryId);
                 currentSort.sortField = fieldName;
                 currentSort.sortOrder = 'asc';
             }
             
-            // Update the sort state for this entry
             this.processSortByEntry.set(scopeEntryId, currentSort);
-            
             this.sortProcessData(scopeEntryId);
-            this.updateProcessSortIcons(scopeEntryId);
+            this.updateProcessSortIcons('process', currentSort.sortField, currentSort.sortOrder);
         } catch (error) {
-            // Error handling process sort - silently continue
+            // Error handling process sort
         }
     }
 
@@ -3157,10 +3136,77 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
-    /**
-     * Method Name: sortProcessData
-     * @description: Sort the process data for a specific scope entry - FIXED
-     */
+    sortEntries(entries, sortField, sortOrder) {
+        if (!sortField || !entries) return entries;
+        
+        return [...entries].sort((a, b) => {
+            let aValue = this.getFieldValue(a, sortField);
+            let bValue = this.getFieldValue(b, sortField);
+
+            if (aValue === null || aValue === undefined) aValue = '';
+            if (bValue === null || bValue === undefined) bValue = '';
+
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                aValue = aValue.toLowerCase();
+                bValue = bValue.toLowerCase();
+            }
+
+            let compare = 0;
+            if (aValue > bValue) {
+                compare = 1;
+            } else if (aValue < bValue) {
+                compare = -1;
+            }
+
+            return sortOrder === 'asc' ? compare : -compare;
+        });
+    }
+
+    updateSortIcons(section, sortField, sortOrder) {
+        try {
+            this.clearSortIcons(section);
+            
+            const selector = section === 'process' 
+                ? `.process-sortable-header[data-process-sort-field="${sortField}"]`
+                : `.sortable-header[data-field="${sortField}"][data-section="${section}"]`;
+                
+            const headers = this.template.querySelectorAll(selector);
+            headers.forEach(header => {
+                header.classList.add('active-sort');
+                
+                const iconSelector = section === 'process' ? '.process-sort-icon svg' : '.sort-icon svg';
+                const icon = header.querySelector(iconSelector);
+                if (icon) {
+                    icon.classList.remove('rotate-asc', 'rotate-desc');
+                    icon.classList.add(sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
+                }
+            });
+        } catch (error) {
+            // Error updating sort icons
+        }
+    }
+
+    clearSortIcons(section) {
+        try {
+            const headerSelector = section === 'process' 
+                ? '.process-sortable-header'
+                : `.sortable-header[data-section="${section}"]`;
+                
+            const allHeaders = this.template.querySelectorAll(headerSelector);
+            allHeaders.forEach(header => {
+                header.classList.remove('active-sort');
+                
+                const iconSelector = section === 'process' ? '.process-sort-icon svg' : '.sort-icon svg';
+                const icons = header.querySelectorAll(iconSelector);
+                icons.forEach(icon => {
+                    icon.classList.remove('rotate-asc', 'rotate-desc');
+                });
+            });
+        } catch (error) {
+            // Error clearing sort icons
+        }
+    }
+
     sortProcessData(scopeEntryId) {
         try {
             const sortState = this.processSortByEntry.get(scopeEntryId);
@@ -3188,74 +3234,42 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return sortState.sortOrder === 'asc' ? compare : -compare;
             };
             
-            // Update contract entries
             this.filteredContractEntries = this.filteredContractEntries.map(entry => {
                 if (entry.Id === scopeEntryId && entry.processDetails) {
-                    const sortedProcessDetails = [...entry.processDetails].sort(sortFunction);
                     return {
                         ...entry,
-                        processDetails: sortedProcessDetails
+                        processDetails: [...entry.processDetails].sort(sortFunction)
                     };
                 }
                 return entry;
             });
 
-            // Update change order entries
             this.filteredChangeOrderEntries = this.filteredChangeOrderEntries.map(entry => {
                 if (entry.Id === scopeEntryId && entry.processDetails) {
-                    const sortedProcessDetails = [...entry.processDetails].sort(sortFunction);
                     return {
                         ...entry,
-                        processDetails: sortedProcessDetails
+                        processDetails: [...entry.processDetails].sort(sortFunction)
                     };
                 }
                 return entry;
             });
         } catch (error) {
-            // Error sorting process data - silently continue
+            // Error sorting process data
         }
     }
 
-    /**
-     * Method Name: sortData
-     * @description: Sort the data based on current sort field and order - FIXED with section
-     */
     sortData(section) {
         try {
             const sortField = section === 'contract' ? this.contractSortField : this.changeOrderSortField;
             const sortOrder = section === 'contract' ? this.contractSortOrder : this.changeOrderSortOrder;
             
-            if (!sortField) return;
-            
-            const sortFunction = (a, b) => {
-                let aValue = this.getFieldValue(a, sortField);
-                let bValue = this.getFieldValue(b, sortField);
-
-                if (aValue === null || aValue === undefined) aValue = '';
-                if (bValue === null || bValue === undefined) bValue = '';
-
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    aValue = aValue.toLowerCase();
-                    bValue = bValue.toLowerCase();
-                }
-
-                let compare = 0;
-                if (aValue > bValue) {
-                    compare = 1;
-                } else if (aValue < bValue) {
-                    compare = -1;
-                }
-
-                return sortOrder === 'asc' ? compare : -compare;
-            };
-            
             if (section === 'contract') {
-                this.filteredContractEntries = [...this.filteredContractEntries].sort(sortFunction);
+                this.filteredContractEntries = this.sortEntries(this.filteredContractEntries, sortField, sortOrder);
             } else {
-                this.filteredChangeOrderEntries = [...this.filteredChangeOrderEntries].sort(sortFunction);
+                this.filteredChangeOrderEntries = this.sortEntries(this.filteredChangeOrderEntries, sortField, sortOrder);
             }
         } catch (error) {
-            // Error sorting data - silently continue
+            // Error sorting data
         }
     }
 
@@ -3698,22 +3712,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.loadProcessLibraryData();
     }
 
-    /**
-     * Method Name: handleCloseChangeOrderModal
-     * @description: Close change order modal and reset data
-     */
     handleCloseChangeOrderModal() {
-        this.showCreateChangeOrderModal = false;
-        this.selectedScopeEntryForChangeOrder = null;
-        this.changeOrderStep = 1;
-        this.changeOrderData = {
-            name: '',
-            contractValue: null,
-            processOption: ''
-        };
-        this.selectedChangeOrderProcessIds = [];
-        
-
+        this.closeModal('changeOrder');
     }
 
     /**
@@ -3921,7 +3921,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save the change order
      */
     handleSaveChangeOrder() {
-        // Prevent double-click by checking if already processing
         if (this.isChangeOrderSubmitting) {
             return;
         }
