@@ -1,4 +1,5 @@
 import { LightningElement, api, track, wire } from 'lwc';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { getPicklistValues } from 'lightning/uiObjectInfoApi';
@@ -7,28 +8,54 @@ import STATUS_FIELD from '@salesforce/schema/Billing__c.Status__c';
 import getJobData from '@salesforce/apex/BillingAndPaymentTabController.getJobData';
 import getBillingsData from '@salesforce/apex/BillingAndPaymentTabController.getBillingsData';
 import getPaymentsData from '@salesforce/apex/BillingAndPaymentTabController.getPaymentsData';
+import createBilling from '@salesforce/apex/BillingAndPaymentTabController.createBilling';
+import deleteRecordApex from '@salesforce/apex/BillingAndPaymentTabController.deleteRecord';
+import approveBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.approveBilling';
+import createPayment from '@salesforce/apex/BillingAndPaymentTabController.createPayment';
 
 export default class BillingAndPaymentTab extends NavigationMixin(LightningElement) {
     @api recordId;
+    @track accountId;
     @track isLoading = false;
     @track activeTab = 'billings';
+    @track isBillCreatable = false;
+    @track isPaymentCreatable = false;
     @track billingListRaw = [];
     @track filteredBillingList = [];
     @track paymentListRaw = [];
     @track filteredPaymentList = [];
+    @track approvedBillingOptions = [];
     @track statusOptions = [];
     @track selectedStatus = 'All';
     @track searchTerm = '';
     @track jobDetailsMap = {
-        'jobName': '',
-        'jobNumber': '',
-        'jobRetainage': ''
+        jobName: '',
+        jobNumber: '',
+        jobRetainage: ''
     };
+    @track newBill = {
+        Start_Date__c: null,
+        End_Date__c: null,
+        Is_Retainage_Billing__c: false
+    };
+    @track newPayment = {
+        Payment_Received_Date__c: null,
+        Payment_Reference__c: null,
+        billId: null
+    }
     @track createNewBillModal = false;
-    @track showDeleteConfirmModal = false;
-    @track actionRecord;
+    @track createNewPaymentModal = false;
+    @track showConfirmModal = false;
     @track billId;
     @track paymentId;
+    @track deleteRecordId;
+    @track deleteSObjectApiName;
+    @track popupProperties = {
+        heading: '',
+        body: '',
+        buttonLabel: '',
+        action: ''
+    }
 
     @track billingsColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -72,6 +99,11 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         recordTypeId: '$objectInfo.data.defaultRecordTypeId',
         fieldApiName: STATUS_FIELD
     })
+
+    /** 
+     * Method Name: wiredStatusValues
+     * @description: Wires picklist values for Status__c and prepares options including 'All'.
+     */
     wiredStatusValues({ data, error }) {
         if (data) {
             this.statusOptions = [
@@ -102,17 +134,32 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         return this.activeTab === 'payments' ? 'active' : '';
     }
 
+    /** 
+     * Method Name: billDetails
+     * @description: Getter that transforms filtered billing list into a table-friendly structure.
+     */
     get billDetails() {
         try {
             if (!this.filteredBillingList) {
                 return [];
             }
 
+            let visibleColumns = this.billingsColumns.filter(col => {
+                if (col.fieldName === 'wfrecon__Billing_Reference_Number__c') {
+                    return this.selectedStatus === 'Approved' || this.selectedStatus === 'All';
+                }
+                return true;
+            });
+
             return this.filteredBillingList.map((bill, index) => {
+                // determine if approve should be disabled for this billing
+                const isApproved = bill.wfrecon__Status__c ? String(bill.wfrecon__Status__c).trim().toLowerCase() === 'approved' : false;
+
                 return {
                     key: bill.Id,
                     billId: bill.Id,
-                    values: this.billingsColumns.map(col => {
+                    disableApprove: isApproved,
+                    values: visibleColumns.map(col => {
                         let cell = {
                             key: col.fieldName,
                             value: '',
@@ -142,7 +189,15 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         }
 
                         if(col.fieldName === 'wfrecon__Amount__c') {
-                            cell.value = '$' + cell.value
+                            if(cell.value != '') {
+                                cell.value = '$' + cell.value
+                            } else {
+                                cell.value = '$0.00';
+                            }
+                        }
+
+                        if (!cell.value && cell.value !== 0) {
+                            cell.value = '-';
                         }
 
                         return cell;
@@ -154,6 +209,19 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         }
     }
 
+    get visibleBillingsColumns() {
+        return this.billingsColumns.filter(col => {
+            if (col.fieldName === 'wfrecon__Billing_Reference_Number__c') {
+                return this.selectedStatus === 'Approved' || this.selectedStatus === 'All';
+            }
+            return true;
+        });
+    }
+
+    /** 
+     * Method Name: paymentDetails
+     * @description: Getter that transforms filtered payment list into a table-friendly structure.
+     */
     get paymentDetails() {
         try {
             if (!this.filteredPaymentList) {
@@ -193,6 +261,10 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                             cell.value = cell.value.slice(0, 16).replace('T', ' ');
                         }
 
+                        if (!cell.value && cell.value !== 0) {
+                            cell.value = '-';
+                        }
+
                         return cell;
                     })
                 };
@@ -202,76 +274,133 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         }
     }
 
+    /** 
+     * Method Name: connectedCallback
+     * @description: LWC lifecycle hook to initialize loading, job details and billing data.
+     */
     connectedCallback() {
         this.isLoading = true;
         console.log(this.recordId);
-        this.loadJobDetails();
+        this.loadJobData();
         this.loadBillingData();
     }
 
-    loadJobDetails(){
+    loadJobData() {
         try {
-            getJobData({jobId: this.recordId})
-                .then((result) => {
-                    console.log(result);
-                    this.jobDetailsMap = {
-                        'jobNumber': result[0].Name,
-                        'jobName': result[0].wfrecon__Job_Name__c,
-                        'jobRetainage': result[0]?.wfrecon__Retainage__c || '0.00%'
-                    };
+            getJobData({ jobId: this.recordId })
+                .then((res) => {
+                    console.log('getJobData apex res :: ', res);
+                    
+                    if (res && res.length > 0) {
+                        const job = res[0];
+                        this.jobDetailsMap = {
+                            jobName: job.wfrecon__Job_Name__c || '',
+                            jobNumber: job.Name || '',
+                            jobRetainage: job?.wfrecon__Retainage__c || '0.00%'
+                        };
+                        this.accountId = job?.wfrecon__Account__c || null;
+                    }
                 })
-                .catch((error) => {
-                    console.error('Error in loadJobDetails :: ', error);
-                })
-                .finally(() => {
-                    this.isLoading = false;
+                .catch((e) => {
+                    console.error('Error in getJobData :: ', e);
+                    this.showToast('Error', 'Failed to load job data. Please contact system admin.', 'error');
                 });
         } catch (error) {
-            console.error('Error in loadJobDetails ::', error);
+            console.error('Error in loadJobData :: ', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
         }
     }
 
+    /** 
+     * Method Name: loadBillingData
+     * @description: Calls Apex to fetch billing records for the job and stores filtered/raw lists.
+     */
     loadBillingData() {
         try {
             this.isLoading = true;
             getBillingsData({jobId: this.recordId})
                 .then((result) => {
-                    console.log(result);
-                    this.billingListRaw = result;
-                    this.filteredBillingList = result;
+                    console.log('getBillingsData apex result :: ', result);
+                    if(result && result.hasApprovedScopeEntries == true) {
+                        this.isBillCreatable = true;
+                        this.billingListRaw = result.billings;
+                        this.filteredBillingList = result.billings;
+                    } else if(result && result.hasApprovedScopeEntries == false) {
+                        this.isBillCreatable = false;
+                        this.billingListRaw = [];
+                        this.filteredBillingList = [];
+                    } else {
+                        this.billingListRaw = [];
+                        this.filteredBillingList = [];
+                        this.isBillCreatable = false;
+                        this.showToast('Error', 'Failed to load billing data. Please contact system admin.', 'error');
+                    }
                 })
                 .catch((error) => {
                     console.error('Error in getBillingsData :: ', error);
+                    this.showToast('Error', 'Failed to load billing data. Please contact system admin.', 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
             console.error('Error in loadBillingData :: ', error);
+            this.isLoading = false;
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
         }
     }
 
+    /** 
+     * Method Name: handleBillingsTab
+     * @description: Activates the Billings tab and reloads billing data.
+     */
     handleBillingsTab() {
-        this.activeTab = 'billings';
-        this.loadBillingData();
-    }
-
-    handleSearch(event) {
-        let recordType = event.target.dataset.field;
-        this.searchTerm = event.target.value ? event.target.value.toLowerCase() : '';
-
-        if(recordType == 'billing') {
-            this.filterBills();
-        } else if (recordType == 'payment') {
-            this.filterPayments();
+        try {
+            this.activeTab = 'billings';
+            this.loadBillingData();
+        } catch (error) {
+            console.error('Error in handleBillingsTab :: ', error);
         }
     }
 
-    handleStatusChange(event) {
-        this.selectedStatus = event.detail.value;
-        this.filterBills();
+    /** 
+     * Method Name: handleSearch
+     * @description: Handles search input and triggers filtering for billings or payments.
+     */
+    handleSearch(event) {
+        try {
+            let recordType = event.target.dataset.field;
+            this.searchTerm = event.target.value ? event.target.value.toLowerCase() : '';
+    
+            if(recordType == 'billing') {
+                this.filterBills();
+            } else if (recordType == 'payment') {
+                this.filterPayments();
+            }
+        } catch (error) {
+            console.error('Error in handleSearch :: ', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+        }
     }
 
+    /** 
+     * Method Name: handleStatusChange
+     * @description: Updates selected status and re-filters billing list.
+     */
+    handleStatusChange(event) {
+        try {
+            this.selectedStatus = event.detail.value;
+            this.filterBills();
+        } catch (error) {
+            console.error('Error in handleStatusChange :: ', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+        }
+    }
+
+    /** 
+     * Method Name: filterBills
+     * @description: Filters billing records based on search term and selected status.
+     */
     filterBills() {
         try {
             const search = this.searchTerm;
@@ -305,25 +434,45 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         }
     }
 
+    /** 
+     * Method Name: handleActionClick
+     * @description: Handles row action clicks for edit/delete/approve on billing and payment records.
+     */
     handleActionClick(event) {
         try {
             const recordId = event.currentTarget.dataset.id;
             const actionType = event.currentTarget.dataset.action;
+            console.log(recordId, actionType);
             
-            if (actionType === 'editBilling') {
-                this.billId = recordId;
-                this.actionRecord = 'Billing';
-            } else if (actionType === 'deleteBilling') {
-                this.billId = recordId;
-                this.actionRecord = 'Billing';
-                this.showDeleteConfirmModal = true;
-            } else if (actionType === 'editPayment') {
-                this.paymentId = recordId;
-                this.actionRecord = 'Payment';
+            if (actionType === 'deleteBilling') {
+                this.deleteRecordId = recordId;
+                this.deleteSObjectApiName = 'Billing__c';
+                this.showConfirmModal = true;
+                this.popupProperties = {
+                    heading: 'Confirm Deletion',
+                    body: 'Are you sure you want to delete this billing record? This action cannot be undone.',
+                    buttonLabel: 'Confirm Delete',
+                    action: 'deleteBilling'
+                };
             } else if (actionType === 'deletePayment') {
-                this.paymentId = recordId;
-                this.actionRecord = 'Payment';
-                this.showDeleteConfirmModal = true;
+                this.deleteRecordId = recordId;
+                this.deleteSObjectApiName = 'Payment__c';
+                this.showConfirmModal = true;
+                this.popupProperties = {
+                    heading: 'Confirm Deletion',
+                    body: 'Are you sure you want to delete this payment record? This action cannot be undone.',
+                    buttonLabel: 'Confirm Delete',
+                    action: 'deletePayment'
+                };
+            } else if (actionType === 'approveBilling') {
+                this.billId = recordId;
+                this.showConfirmModal = true;
+                this.popupProperties = {
+                    heading: 'Approve Billing',
+                    body: 'Are you sure you want to approve this billing record?',
+                    buttonLabel: 'Approve',
+                    action: 'approveBilling'
+                };
             }
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -331,31 +480,141 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         }
     }
 
-    handlePaymentsTab() {
-        this.activeTab = 'payments';
-        this.loadPaymentData();
+    /** 
+     * Method Name: closeConfirmModal
+     * @description: Closes the confirmation modal.
+     */
+    closeConfirmModal(){
+        this.showConfirmModal = false;
+        this.deleteRecordId = null;
+        this.deleteSObjectApiName = null;
+        this.billId = null;
+        this.popupProperties = {
+            heading: '',
+            body: '',
+            buttonLabel: '',
+            action: ''
+        };
     }
 
+    /** 
+     * Method Name: handleConfirmClick
+     * @description: Handles confirm button click in the confirmation modal for dynamic actions.
+     */
+    handleConfirmClick(){
+        try {
+            if(this.popupProperties.action === 'deleteBilling' || this.popupProperties.action === 'deletePayment'){
+                this.handleDeleteRecord();
+            } else if(this.popupProperties.action === 'approveBilling'){
+                this.handleApproveBilling();
+            }
+
+            this.popupProperties = {
+                heading: '',
+                body: '',
+                buttonLabel: '',
+                action: ''
+            };
+            this.billId = null;
+        } catch (error) {
+            console.error('Error in handleConfirmClick :: ', error);
+        }
+    }
+
+    /** 
+     * Method Name: handleApproveBilling
+     * @description: Placeholder method for handling approve billing action.
+     */
+    handleApproveBilling() {
+        try {
+            this.isLoading = true;
+            approveBillingRecord({ billingId: this.billId })
+                .then((result) => {
+                    if(result == 'SUCCESS') {
+                        this.showToast('Success', 'Billing approved successfully', 'success');
+                        this.closeConfirmModal();
+                        this.loadBillingData();
+                    } else {
+                        this.showToast('Error', 'Failed to approve billing. Please contact system admin.', 'error');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error approving billing:', error);
+                    this.showToast('Error', 'Failed to approve billing. Please contact system admin.', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in handleApproveBilling ::', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: handlePaymentsTab
+     * @description: Activates the Payments tab and loads payment data.
+     */
+    handlePaymentsTab() {
+        try {
+            this.activeTab = 'payments';
+            this.loadPaymentData();
+        } catch (error) {
+            console.error('Error in handlePaymentsTab :: ', error);
+        }
+    }
+
+    /** 
+     * Method Name: loadPaymentData
+     * @description: Calls Apex to fetch payment records for the job and stores filtered/raw lists.
+     */
     loadPaymentData() {
         try {
             this.isLoading = true;
             getPaymentsData({jobId: this.recordId})
                 .then((result) => {
+                    console.log('getPaymentsData apex result :: ', result);
                     this.paymentListRaw = result;
                     this.filteredPaymentList = result;
-                    console.log(result);
+
+                    if(result && result.hasApprovedBillings == true) {
+                        this.isPaymentCreatable = true;
+                        this.paymentListRaw = result.payments;
+                        this.filteredPaymentList = result.payments;
+                        this.approvedBillingOptions = result.approvedBillings.map(bill => ({
+                            label: bill.Name,
+                            value: bill.Id
+                        }));
+                    } else if(result && result.hasApprovedBillings == false) {
+                        this.isPaymentCreatable = false;
+                        this.paymentListRaw = [];
+                        this.filteredPaymentList = [];
+                    } else {
+                        this.paymentListRaw = [];
+                        this.filteredPaymentList = [];
+                        this.isPaymentCreatable = false;
+                        this.showToast('Error', 'Failed to load payment data. Please contact system admin.', 'error');
+                    }
                 })
                 .catch((error) => {
                     console.error('Error in getPaymentsData :: ', error);
+                    this.showToast('Error', 'Failed to load payment data. Please contact system admin.', 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
             console.error('Error in loadPaymentData :: ', error);
+            this.isLoading = false;
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
         }
     }
 
+    /** 
+     * Method Name: filterPayments
+     * @description: Filters payment records based on the search term.
+     */
     filterPayments() {
         try {
             const search = this.searchTerm;
@@ -404,27 +663,185 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         }
     }
 
+    /** 
+     * Method Name: handleCreateBilling
+     * @description: Opens the modal to create a new billing record.
+     */
     handleCreateBilling() {
-        this.createNewBillModal = true;
-    }
-
-    closeNewBillModal() {
-        this.createNewBillModal = false;
-    }
-
-    closeDeleteConfirmModal(){
-        this.showDeleteConfirmModal = false;
-    }
-
-    handleDeleteConfirm(){
-        if(this.actionRecord === 'Billing'){
-
-        } else if(this.actionRecord === 'Payment'){
-
+        try {
+            this.createNewBillModal = true;
+            this.newBill = {
+                Start_Date__c: null,
+                End_Date__c: null,
+                Is_Retainage_Billing__c: false
+            };
+        } catch (error) {
+            console.error('Error in handleCreateBilling :: ', error);
         }
     }
 
-    handleReceivePayment() {
+    /**
+     * Method Name: handleNewBillChange
+     * @description: Handles input change for new bill form fields.
+     */
+    handleNewBillChange(event) {
+        const { name, value } = event.target;
         
+        if (name === 'Is_Retainage_Billing__c') {
+            this.newBill.Is_Retainage_Billing__c = event.target.checked;
+            return;
+        }
+        this.newBill = { ...this.newBill, [name]: value };
+    }
+
+    /**
+     * Method Name: handleSaveNewBill
+     * @description: Creates Billing__c record and closes popup with toast.
+     */
+    handleSaveNewBill() {
+        try {
+            this.isLoading = true;
+            console.log('Creating billing with data: ', this.newBill);
+            
+            createBilling({ jobId: this.recordId, startDate: this.newBill.Start_Date__c || null, endDate: this.newBill.End_Date__c || null, isRetainage: this.newBill.Is_Retainage_Billing__c || false })
+                .then((result) => {
+                    if(result == 'SUCCESS') {
+                        this.showToast('Success', 'Billing record created successfully.', 'success');
+                        this.closeNewBillModal();
+                        this.loadBillingData();
+                    } else {
+                        this.showToast('Error', 'Failed to create billing record. Please contact system admin.', 'error');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error in createBilling :: ', error);
+                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in handleSaveNewBill :: ', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: closeNewBillModal
+     * @description: Closes the create new billing modal.
+     */
+    closeNewBillModal() {
+        this.createNewBillModal = false;
+        this.newBill = {
+            Start_Date__c: null,
+            End_Date__c: null,
+            Is_Retainage_Billing__c: false
+        };
+    }
+
+    /** 
+     * Method Name: handleReceivePayment
+     * @description: Placeholder for handling receive payment action.
+     */
+    handleReceivePayment() {
+        this.createNewPaymentModal = true;
+    }
+
+    closeNewPaymentModal() {
+        this.createNewPaymentModal = false;
+        this.newPayment = {
+            Payment_Received_Date__c: null,
+            Payment_Reference__c: null,
+            billId: null
+        };
+    }
+
+    handleDeleteRecord() {
+        try {
+            if(!this.deleteRecordId || !this.deleteSObjectApiName){
+                this.showToast('Error', 'Missing record information to delete.', 'error');
+                return;
+            }
+    
+            this.isLoading = true;
+            deleteRecordApex({ recordId: this.deleteRecordId, sObjectApiName: this.deleteSObjectApiName })
+                .then((result) => {
+                    if(result =='SUCCESS') {
+                        this.showToast('Success', 'Record deleted successfully.', 'success');
+        
+                        if (this.activeTab === 'billings') {
+                            this.loadBillingData();
+                        } else if (this.activeTab === 'payments') {
+                            this.loadPaymentData();
+                        }
+                        this.closeConfirmModal();
+                    } else {
+                        this.showToast('Error', 'Failed to delete record. Please contact system admin.', 'error');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error deleting record :: ', error);
+                    this.showToast('Error', 'Failed to delete record. Please contact system admin.', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in handleDeleteRecord :: ', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    handleNewPaymentChange(event) {
+        const { name, value } = event.target;
+        this.newPayment = { ...this.newPayment, [name]: value }; 
+    }
+    
+    handleSaveNewPayment() {
+        try {
+            console.log('Creating payment with data: ', this.newPayment);
+            if(this.newPayment.billId == null) {
+                this.showToast('Error', 'Please select a billing for the payment.', 'error');
+                return;
+            }
+            this.isLoading = true;
+            createPayment({ jobId: this.recordId, billId: this.newPayment.billId, accountId: this.accountId, paymentReceivedDate: this.newPayment.Payment_Received_Date__c || null, paymentReference: this.newPayment.Payment_Reference__c || null })
+                .then((result) => {
+                    if (result === 'SUCCESS') {
+                        this.showToast('Success', 'Payment created successfully.', 'success');
+                        this.closeNewPaymentModal();
+                        this.loadPaymentData();
+                    } else {
+                        this.showToast('Error', 'Failed to create payment. Please contact system admin.', 'error');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error in createPayment :: ', error);
+                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in handleSaveNewPayment :: ', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    /**
+     * Method Name: showToast
+     * @description: Helper method to display toast messages
+     */
+    showToast(title, message, variant) {
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title: title,
+                message: message,
+                variant: variant
+            })
+        );
     }
 }

@@ -8,7 +8,7 @@
     background-color: #ffffff;
     padding: 1rem;
     padding-bottom: 1rem;
-    height: calc(100% + 1.5rem);
+    min-height: 31rem;
     margin-top: -0.8rem;
     width: calc(100% + 1.5rem);
     margin-left: -0.8rem;
@@ -225,12 +225,15 @@
 /* No records */
 
 /* Pop-up */
+
 .pop-up {
     display: flex;
     flex-direction: column;
-    border-radius: 5px;
-    overflow: hidden;
-    max-height: 80vh; /* limits overall popup height */
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
+    max-height: 80vh;
+    border-radius: 15px;
 }
 
 .pop-heading {
@@ -242,13 +245,12 @@
     color: white;
     padding: 0.4rem 1rem;
     background: rgba(94, 90, 219, 1);
-    flex-shrink: 0; /* keep header from shrinking */
+    flex-shrink: 0;
 }
 
 .popUpBody {
-    flex: 1; /* take remaining space */
-    overflow-y: auto; /* scroll if content overflows */
-    padding: 1rem;
+    flex: 1;
+    overflow-y: auto;
 }
 
 .close-icon {
@@ -261,20 +263,48 @@
     justify-content: center;
     gap: 1rem;
     padding: 1rem;
-    background: transparent;
-    flex-shrink: 0; /* keep footer from shrinking */
+    flex-shrink: 0;
+}
+
+.save-btn {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 35px;
+    text-align: center;
+    border: 1px solid rgba(94, 90, 219, 1);
+    padding: 0px 20px;
+    background: rgba(94, 90, 219, 1);
+    color: white;
+    border-radius: 5px;
+}
+
+.save-btn:disabled {
+    border: 1px solid lightgray;
+    background: lightgray;
+    cursor: not-allowed;
 }
 
 .close-btn {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 35px;
+    text-align: center;
+    padding: 0px 20px;
+    background: #FFFFFF;
     border: 1px solid rgba(94, 90, 219, 1);
-    border-radius: 3px;
-    color: black;
-    padding: 0.3rem;
-    padding-left: 0.7rem;
-    padding-right: 0.7rem;
-    font-size: 14px;
-    background: white;
-    font-weight: 500;
+    color: rgba(94, 90, 219, 1);
+    border-radius: 5px;
+}
+
+.close-btn:hover {
+    background: rgb(244, 244, 255);
+    border-color: rgba(94, 90, 219, 0.8);
+}
+
+.slds-modal__content{
+    border-radius: 0% !important;
+    border-end-end-radius: 0% !important;
+    border-end-start-radius: 0% !important;
 }
 /* Pop-up */
 
@@ -288,22 +318,7 @@
     margin-bottom: 1.5rem;
 }
 
-.form-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #333;
-    font-size: 0.875rem;
-}
-
-.form-label-row{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0px 2px;
-}
-
-.form-label.required::after {
+.select-label.required::after {
     content: " *";
     color: #dc3545;
 }
@@ -332,8 +347,11 @@
 }
 
 .select-label {
-    font-size: large;
+    display: block;
+    margin-bottom: 0.5rem;
     font-weight: 500;
+    color: #333;
+    font-size: 0.875rem;
 }
 /* Form */
 
@@ -413,7 +431,7 @@
     stroke: none;
 }
 
-.clock-icon, .timesheet-icon, .edit-icon-btn, .delete-icon-btn {
+.clock-icon, .timesheet-icon, .edit-icon-btn, .delete-icon-btn, .approve-icon-btn {
     background-color: transparent;
     border: 1px solid #d8d8d8;
     border-radius: 0.25rem;
@@ -429,8 +447,65 @@
     color: rgba(94, 90, 219, 0.8);
 }
 
-.clock-icon:hover, .timesheet-icon:hover, .edit-icon-btn:hover, .delete-icon-btn:hover {
+.clock-icon:hover, .timesheet-icon:hover, .edit-icon-btn:hover, .delete-icon-btn:hover, .approve-icon-btn:hover {
     background-color: rgba(94, 90, 219, 0.8);
     border-color: rgba(94, 90, 219, 0.8);
     color: white;
+}
+
+/* Disabled state for approve button */
+.approve-icon-btn.disabled,
+.approve-icon-btn[disabled],
+.approve-icon-btn[aria-disabled="true"] {
+    background-color: #f3f3f3 !important;
+    border-color: #e0e0e0 !important;
+    color: #a0a0a0 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+/*  Empty state */
+.empty-state-container {
+    width: 100%;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px; /* Same height as the clock-in form */
+    border: 1px solid #dddbda;
+}
+
+.empty-state-content {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.empty-state-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #706e6b;
+    margin-bottom: 10px;
+}
+
+.empty-state-message {
+    font-size: 14px;
+    color: #939393;
+    line-height: 1.4;
+}
+/*  Empty state */
+
+.width-100{
+    width: 100%;
+}
+
+.checkbox-row{
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-label{
+    margin-right: 1rem;
 }
