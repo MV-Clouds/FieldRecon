@@ -1,0 +1,1228 @@
+import { LightningElement, track } from 'lwc';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import getMobilizationDetails from '@salesforce/apex/MobSchedulerController.getMobilizationDetails';
+import getResourceDetails from '@salesforce/apex/MobSchedulerController.getResourceDetails';
+import removeJobResource from '@salesforce/apex/MobSchedulerController.removeJobResource';
+import assignResourceToMob from '@salesforce/apex/MobSchedulerController.assignResourceToMob';
+import assignResourceToJob from '@salesforce/apex/MobSchedulerController.assignResourceToJob';
+import deleteMobilization from '@salesforce/apex/MobSchedulerController.deleteMobilization';
+import getDefaultValues from '@salesforce/apex/MobSchedulerController.getDefaultValues';
+import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
+
+export default class Scheduler extends LightningElement {
+    showSpinner = false;
+
+    @track isDayView = true;
+    @track isResourceView = false;
+    @track isWeekView = false;
+
+    @track resources = [];
+    @track filteredResources = [];
+    @track weekDays = [];
+    @track dayView = { day: '', date: '', iso: '', events: [] };
+    @track filteredDayView = { day: '', date: '', iso: '', events: [] };
+
+    @track periodRangeLabel = '';
+    @track weekEvents = [];
+    @track filteredEvents = [];
+
+    @track resourceType = 'Crew';
+    @track resourceTypeForAssign = 'Crew';
+
+    currentWeekStart;
+    searchKey = '';
+    resourceSearchKey = '';
+
+    defaultMobGValues = {
+        'wfrecon__Start_Time__c': null,
+        'wfrecon__End_Time__c': null,
+        'wfrecon__Include_Saturday__c': false,
+        'wfrecon__Include_Sunday__c': false
+    };
+
+    // Modal Popup Variables
+    showFormPopup = false;
+
+    isMobEditForm = false;
+    mobIdToEdit = '';
+
+    isMobGroupCreate = false;
+    startDateForMG = new Date();
+    endDateForMG = this.startDateForMG + 7;
+
+    isResourcesEditForm = false;
+    mobIdForResources = null;
+    allCrewMembers = [];
+    allSubContractors = [];
+    allAssets = [];
+
+    isAssignForm = false;
+    isAssetAssignment = false;
+    selectedResourceId = null;
+    selectedMobId = null;
+    selectedJobId = null;
+
+    // Confirmation Popup
+    showConfirmationPopup = false;
+    confirmationTitle = 'Confirm!';
+    confirmationMessage = 'Are you sure, you want to proceed';
+    confirmationBtnLabel = 'Confirm';
+    
+    isOverlap = false;
+    isAllowOverLap = false;
+
+    isOverlapJob = false;
+    jobAssignmentInfo = {};
+    selectedResourceIdsForAssign = [];
+
+    isRemove = false;
+    resourceIdToRemove = null;
+    typeOfResourceToRemove = '';
+
+    isMobDelete = false;
+    mobIdToDelete = null;
+
+    get resourceObjectApi(){
+        return this.resourceType == 'Asset' ? 'wfrecon__Equipment__c' : 'Contact';
+    }
+
+    displayResource = {
+        primaryField: 'Name',
+        additionalFields: ['CreatedBy.Name']
+    }
+
+    matchingResource = {
+        primaryField: { fieldPath: 'Name' }, 
+        additionalFields: [{ fieldPath: 'CreatedBy.Name' }]
+    }
+
+    get filterResource() {
+        return this.resourceType == 'Asset' ?  null :
+        {
+            criteria: [
+                {
+                    fieldPath: 'RecordType.DeveloperName',
+                    operator: 'eq',
+                    value: this.resourceType == 'Crew' ? 'Employee_WF_Recon' : 'Sub_Contractor_WF_Recon',
+                }
+            ]
+        }
+    };
+
+    jobFilters = {
+        criteria: [
+            {
+                fieldPath: 'wfrecon__End_Date_Rollup__c',
+                operator: 'gte',
+                value: { literal: 'TODAY' }
+            },
+            {
+                fieldPath: 'wfrecon__End_Date_Rollup__c',
+                operator: 'ne',
+                value: null
+            }
+        ]
+    }
+    displayJobs = {
+        primaryField: 'Name',
+        additionalFields: ['wfrecon__Job_Name__c']
+    }
+
+    matchingJobs = {
+        primaryField: { fieldPath: 'Name' }, 
+        additionalFields: [{ fieldPath: 'wfrecon__Job_Name__c' }]
+    }
+
+    displayMobs = {
+        primaryField: 'wfrecon__Start_Date_Text__c',
+        additionalFields: ['Name']
+    }
+
+    matchingMobs = {
+        primaryField: { fieldPath: 'wfrecon__Start_Date_Text__c' },
+        additionalFields: [{ fieldPath: 'Name' }]
+    }
+
+    get filterDates(){
+        return {
+            criteria: [
+                {
+                    fieldPath: 'wfrecon__Job__c',
+                    operator: 'eq',
+                    value: this.selectedJobId,
+                },
+                {
+                    fieldPath: 'wfrecon__Start_Date__c',
+                    operator: 'gte',
+                    value: { literal: 'TODAY' }
+                }
+            ]
+        }
+    }
+
+    selectedCrewId = [];
+    selectedAssetId = [];
+    selectedSubContractorId = [];
+    get resourceFields(){
+        let fieldsList = [
+            {
+                name: 'selectedCrewId',
+                label: 'Select Crew',
+                value: this.selectedCrewId,
+                type: 'Crew',
+                placeholder: 'Search Crew...',
+                objName: 'Contact',
+                filters: {
+                            criteria: [
+                                {
+                                    fieldPath: 'RecordType.DeveloperName',
+                                    operator: 'eq',
+                                    value: 'Employee_WF_Recon',
+                                }
+                            ]
+                        },
+                displayInfo: null,
+                matchingInfo: null,
+                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.crew : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.crew)) || []
+            },
+            {
+                name: 'selectedAssetId',
+                label: 'Select Asset',
+                value: this.selectedAssetId,
+                type: 'Asset',
+                placeholder: 'Search Asset...',
+                objName: 'wfrecon__Equipment__c',
+                filters: null,
+                displayInfo: null,
+                matchingInfo: null,
+                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.assets : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.assets)) || []
+            },
+            {
+                name: 'selectedSubContractorId',
+                label: 'Select Sub Contractor',
+                value: this.selectedSubContractorId,
+                type: 'SubContractor',
+                placeholder: 'Search Sub Contractor...',
+                objName: 'Contact',
+                filters: {
+                            criteria: [
+                                {
+                                    fieldPath: 'RecordType.DeveloperName',
+                                    operator: 'eq',
+                                    value: 'Sub_Contractor_WF_Recon',
+                                }
+                            ]
+                        },
+                displayInfo: null,
+                matchingInfo: null,
+                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.subcontractors : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.subcontractors)) || []
+            }
+        ];
+        return fieldsList;
+    }
+
+    get resourcesDisplay(){
+        let resourceInfo = [
+            {
+                type:'Crew',
+                name: 'selectedCrewId',
+                label: 'Select Crew Members',
+                options: this.allCrewMembers,
+                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.crew : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.crew)) || []
+            },
+            {
+                type:'Asset',
+                name: 'selectedAssetId',
+                label: 'Select Assets',
+                options: this.allAssets,
+                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.assets : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.assets)) || []
+            },
+            {
+                type:'SubContractor',
+                name: 'selectedSubContractorId',
+                label: 'Select Sub Contractors',
+                options: this.allSubContractors,
+                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.subcontractors : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.subcontractors)) || []
+            }
+        ]
+
+        console.log('New Info is :: ' , resourceInfo);
+        
+        return resourceInfo.filter(res => res.type === this.resourceType);
+    }
+
+    get resourceOptionsToShow() {
+        let resources = [];
+        if (this.resourceTypeForAssign === 'Crew') {
+            resources = this.allCrewMembers || [];
+        } else if (this.resourceTypeForAssign === 'Asset') {
+            resources = this.allAssets || [];
+        } else if (this.resourceTypeForAssign === 'SubContractor') {
+            resources = this.allSubContractors || [];
+        }
+
+        const search = this.resourceSearchKey?.toLowerCase() || '';
+        return resources
+            .filter(rs => !search || rs.name?.toLowerCase().includes(search))
+            .map(res => ({
+                ...res,
+                isSelected: this.selectedResourceIdsForAssign?.includes(res.id)
+            }));
+    }
+
+
+    get addedResources(){
+        let selectedTiles = [];
+        if(this.resourceTypeForAssign == 'Crew'){
+            selectedTiles = (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.crew : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.crew)) || [];
+        } else if(this.resourceTypeForAssign == 'Asset'){
+            selectedTiles = (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.assets : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.assets)) || [];
+        } else if(this.resourceTypeForAssign == 'SubContractor'){
+            selectedTiles = (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.subcontractors : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.subcontractors)) || []
+        }
+        return selectedTiles;
+    }
+
+    // Main tab classes
+    get resourceTabClass() { return this.isResourceView ? 'nav-tab-btn active' : 'nav-tab-btn'; }
+    get weekTabClass() { return this.isWeekView ? 'nav-tab-btn active' : 'nav-tab-btn'; }
+    get dayTabClass() { return this.isDayView ? 'nav-tab-btn active' : 'nav-tab-btn'; }
+
+    get popupHeader(){
+        if(this.isMobGroupCreate) return 'Create Mobilization Group';
+        if(this.isMobEditForm) return 'Edit Mobilization';
+        if(this.isAssignForm) return `Assign ${this.resourceType}`;
+        return 'Assign Resources';
+        // return this.isMobEditForm || this.isMobGroupCreate ? 'Edit Mobilization' : `Assign ${this.resourceType}`;
+    }
+
+    get currentWeekEnd(){
+        return 
+    }
+
+    connectedCallback() {
+        this.showLoading(true);
+        this.initDay(new Date());
+        this.loadDefaultMobGroupValues();
+        // this.loadAllResources();
+    }
+
+    loadDefaultMobGroupValues(){
+        try {
+            getDefaultValues()
+            .then(result =>{
+                console.log('Result is :: ', result);
+                this.defaultMobGValues = result;
+                this.defaultMobGValues.wfrecon__Start_Time__c = this.convertToTodayDateTime(result.wfrecon__Start_Time__c);
+                this.defaultMobGValues.wfrecon__End_Time__c = this.convertToTodayDateTime(result.wfrecon__End_Time__c);
+            })
+            .catch(e => {
+                console.log('Error In loadDefaultMobGroupValues > getDefaultValues :: ', e.message);
+            })
+        } catch (error) {
+            console.log('Error loadDefaultMobGroupValues :: ', e.message);
+        }
+    }
+
+    loadAllResources(selectedDate){
+        try {
+            this.showLoading(true);
+            getAllResources({selectedDate: selectedDate})
+            .then((result) => {
+                const sortByAvailability = (a, b) => {
+                    // true > false, so reverse for available first
+                    return (a.isAvailable === b.isAvailable) ? 0 : a.isAvailable ? -1 : 1;
+                };
+
+                this.allCrewMembers = [...(result.crew || [])].sort(sortByAvailability);
+                this.allSubContractors = [...(result.subcontractors || [])].sort(sortByAvailability);
+                this.allAssets = [...(result.assets || [])].sort(sortByAvailability);
+
+                console.log('Fetched resources :: ', result);
+                this.showLoading(false);
+            })
+            .catch((e) => {
+                this.showToast('Error', 'Could not fetch resources, please try again...');
+                console.log('Error fetching resources.', e.message);
+            })
+        } catch (e) {
+            this.showToast('Error', 'Could not fetch resources, please try again...');
+            console.log('Error in function loadAllResources:::', e.message);
+        }
+    }
+
+    convertToTodayDateTime(timeString) {
+        // Example: "07:00 AM"
+        const today = new Date();
+        const [time, modifier] = timeString.split(' ');
+
+        let [hours, minutes] = time.split(':').map(Number);
+        if (modifier === 'PM' && hours < 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+
+        // Construct a new Date using today's date and the given time
+        const dateTime = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate(),
+            hours,
+            minutes,
+            0
+        );
+
+        return dateTime.toISOString(); // Apex-friendly format
+    }
+
+    // Tab switching
+    showResourceView() {
+        this.isResourceView = true;
+        this.isWeekView = false;
+        this.isDayView = false;
+        this.currentWeekStart = this.currentWeekStart || new Date();
+        this.initWeek(this.currentWeekStart);
+    };
+    showWeekView() {
+        this.isResourceView = false;
+        this.isWeekView = true;
+        this.isDayView = false;
+        this.currentWeekStart = this.currentWeekStart || new Date();
+        this.initWeek(this.currentWeekStart);
+        // this.loadData('week');
+    };
+    showDayView() {
+        this.isResourceView = false;
+        this.isWeekView = false;
+        this.isDayView = true;
+        this.currentWeekStart = this.currentWeekStart || new Date();
+        this.initDay(this.currentWeekStart);
+    };
+
+    // Select resource type
+    selectResourceType(event) {
+        let name = event.target.name;
+        let forWhat = event.currentTarget.dataset.for;
+
+        if(forWhat == 'assign'){
+            this.resourceTypeForAssign = name;
+            this.selectedResourceIdsForAssign = [];
+        } else{
+            this.resourceType = name;
+        }
+        if (forWhat != 'assign') this.loadResourceData(name);
+    }
+
+    // Period navigation
+    prevPeriod() {
+        console.log('Prev Button');
+        if (this.isWeekView || this.isResourceView) {
+            const prev = new Date(this.currentWeekStart);
+            prev.setDate(prev.getDate() - 7);
+            this.initWeek(prev);
+        } else if (this.isDayView) {
+            const prev = new Date(this.currentWeekStart);
+            prev.setDate(prev.getDate() - 1);
+            this.initDay(prev);
+        }
+    };
+
+    nextPeriod() {
+        console.log('Next Button');
+        
+        if (this.isWeekView || this.isResourceView) {
+            const next = new Date(this.currentWeekStart);
+            next.setDate(next.getDate() + 7);
+            this.initWeek(next);
+        } else if (this.isDayView) {
+            const next = new Date(this.currentWeekStart);
+            next.setDate(next.getDate() + 1);
+            this.initDay(next);
+        }
+    };
+
+    handleDateToGoTo(event){
+        try{
+            console.log('The Values is :: ', event.currentTarget.value);
+            if(!event.currentTarget.value) return;
+            this.currentWeekStart = new Date(event.currentTarget.value);
+            this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
+        }catch(e){
+            console.log('Error is :: ', e.message);
+        }
+    }
+
+    handleSearchValueChange(event){
+        try {
+            this.searchKey = event.currentTarget.value;
+            console.log('Search Key :: ', this.searchKey);
+            this.applySearchFilter();
+        } catch (e) {
+            console.log('Error in function handleSearchValueChange:::', e.message);
+        }
+    }
+
+    handleResourceSearch(event){
+        try {
+            this.resourceSearchKey = event.currentTarget.value;
+        } catch (e) {
+            console.log('Error in function handleResourceSearch:::', e.message);
+        }
+    }
+
+
+    // Init Week
+    initWeek(date) {
+        this.showLoading(true);
+        const start = new Date(date);
+        start.setDate(start.getDate() - start.getDay()); // Sunday
+        this.currentWeekStart = start;
+
+        const days = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            days.push({
+                iso: d.toISOString().slice(0, 10),
+                label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+                day: d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
+                date: d.getDate().toString(),
+                events: []
+            });
+        }
+        this.weekDays = days;
+        this.periodRangeLabel = `${days[0].label} - ${days[6].label}`;
+
+        this.isResourceView ? this.loadResourceData(this.resourceType) : this.loadData('week');
+    }
+
+    // Init Day
+    initDay(date) {
+        this.showLoading(true);
+        this.currentWeekStart = date;
+
+        const iso = date.toISOString().slice(0, 10);
+        this.dayView = {
+            iso: iso,
+            day: date.toLocaleDateString(undefined, { weekday: 'long' }),
+            date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+            events: []
+        };
+
+        this.periodRangeLabel = `${this.dayView.day}, ${this.dayView.date}`;
+
+        this.loadData('day', date);
+    }
+
+    // Load Week/Day data
+    loadData(mode = 'week', selectedDate = null) {
+        this.showLoading(true);
+        let startDateStr, endDateStr;
+
+        if (mode === 'week') {
+            const start = new Date(this.currentWeekStart);
+            const end = new Date(this.currentWeekStart);
+            end.setDate(end.getDate() + 6);
+            startDateStr = start.toISOString().slice(0, 10);
+            endDateStr = end.toISOString().slice(0, 10);
+        } else if (mode === 'day' && selectedDate) {
+            const dayIso = selectedDate.toISOString().slice(0, 10);
+            startDateStr = dayIso;
+            endDateStr = dayIso;
+        } else {
+            console.error('Invalid loadData call: mode or selectedDate missing');
+            this.showLoading(false);
+            return;
+        }
+
+        getMobilizationDetails({ startDate: startDateStr, endDate: endDateStr })
+            .then(data => {
+                this.weekEvents = data.weekEvents || [];
+                this.applySearchFilter();
+                mode === 'week' ? this.mapWeekData() : this.mapDayData(selectedDate);
+            })
+            .catch(error => {
+                console.error(error);
+                this.showLoading(false);
+            });
+    }
+
+    // Load Resource-specific data
+    loadResourceData(resourceType = 'Crew', selectedDate = null) {
+        this.showLoading(true);
+        const start = this.currentWeekStart;
+        const end = new Date(this.currentWeekStart);
+        end.setDate(end.getDate() + 6);
+
+        console.log('loadResourceData :: ', resourceType, selectedDate, start, end);
+        
+        const startDateStr = start.toISOString().slice(0,10);
+        const endDateStr = (selectedDate || end).toISOString().slice(0,10);
+
+        getResourceDetails({ startDate: startDateStr, endDate: endDateStr, resourceType })
+            .then(data => {
+                // Map data into table per week
+                this.resources = this.weekDays.map(day => {
+                    return day; // placeholder, mapping below
+                });
+
+                // Map resources
+                this.resources = [];
+                const weekMap = {};
+                for (let day of this.weekDays) {
+                    weekMap[day.iso] = day.iso;
+                }
+
+                // Build resources with jobs per day
+                const resMap = {};
+                data.forEach(item => {
+                    if (!resMap[item.id]) {
+                        resMap[item.id] = { id: item.id, name: item.name, days: this.weekDays.map(d => ({ iso: d.iso, events: [] })) };
+                    }
+                    const dayIso = new Date(item.start).toISOString().slice(0,10);
+                    const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
+                    if (dayObj) dayObj.events.push({ id: item.junctionId, jobName: item.jobName, jobId: item.jobId, isPast: new Date(item.end) < new Date() });
+                });
+
+                this.resources = Object.values(resMap);
+                console.log('Resource Map :: ', this.resources);
+                this.applySearchFilter();
+                
+                this.showLoading(false);
+            })
+            .catch(error => {
+                console.error(error);
+                this.showLoading(false);
+            });
+    }
+
+    applySearchFilter() {
+        try{
+            console.log('Search key is :: ', this.resources);
+            
+            if (!this.searchKey) {
+                if(!this.isResourceView){
+                    this.filteredEvents = JSON.parse(JSON.stringify(this.weekEvents));
+                    this.isWeekView ? this.mapWeekData() : this.mapDayData(this.currentWeekStart);
+                    return;
+                }else{
+                    this.filteredResources = JSON.parse(JSON.stringify(this.resources));
+                    return;
+                }
+            }
+    
+            const key = this.searchKey.toLowerCase();
+            console.log('Checking 1');
+            
+            if(this.isResourceView){
+                console.log('Check 2');
+                
+                this.filteredResources = this.resources.map(resource => {                
+                    const keyLower = key.toLowerCase();
+
+                    // check if resource name matches
+                    const isResourceMatch = resource.name?.toLowerCase().includes(keyLower);
+
+                    // if resource name matches, return it as is (all days, all events)
+                    if (isResourceMatch) return { ...resource, days: resource.days };
+
+                    let anyDayMatched = false;
+
+                    // map all days
+                    const updatedDays = resource.days.map(day => {
+                        // filter matching events for this day
+                        const filteredEvents = day.events.filter(event =>
+                            event.jobName?.toLowerCase().includes(keyLower) ||
+                            event.jobId?.toLowerCase().includes(keyLower)
+                        );
+
+                        // if any events matched, mark the flag
+                        if (filteredEvents.length > 0) {
+                            anyDayMatched = true;
+                            return { ...day, events: filteredEvents };
+                        }
+
+                        // keep day but empty events if not matching
+                        return { ...day, events: [] };
+                    });
+
+                    // include resource only if at least one day had a match
+                    if (anyDayMatched) {
+                        return { ...resource, days: updatedDays };
+                    }
+
+                    // no matches at all
+                    return null;
+                })
+                .filter(r => r !== null);
+
+                return;
+            }
+            console.log('CP4');
+    
+            this.filteredEvents = this.weekEvents.filter(event => {
+                // Match Job Name or Location
+                if ((event.jobId && event.jobId.toLowerCase().includes(key)) ||
+                    (event.jobName && event.jobName.toLowerCase().includes(key)) ||
+                    (event.location && event.location.toLowerCase().includes(key))) {
+                    return true;
+                }
+    
+                // Match Crew
+                if (event.crew?.some(c => c.name.toLowerCase().includes(key))) return true;
+    
+                // Match Assets
+                if (event.assets?.some(a => a.name.toLowerCase().includes(key))) return true;
+    
+                // Match Subcontractors
+                if (event.subcontractors?.some(s => s.name.toLowerCase().includes(key))) return true;
+    
+    
+                return false; // no match
+            });
+    
+            this.isWeekView ? this.mapWeekData() : this.mapDayData(this.currentWeekStart);
+        }catch(e){
+            console.log('Error in applySearchFilter :: ', e);
+        }
+
+    }
+
+
+    // Map week data
+    mapWeekData() {
+        this.weekDays = this.weekDays.map(day => {
+            const dayEvents = this.filteredEvents?.filter(ev => {
+                const evIso = new Date(ev.start).toISOString().slice(0,10);
+                return evIso === day.iso;
+            }).map(ev => this.normalizeEvent(ev));
+            return { ...day, events: dayEvents };
+        });        
+        console.log('mapWeekData :: ', this.weekDays);
+        
+        this.showLoading(false);
+    }
+
+    // Map day data
+    mapDayData(date) {
+        const dayIso = date.toISOString().slice(0,10);
+        const dayEvents = this.filteredEvents?.filter(ev => {
+            const evIso = new Date(ev.start).toISOString().slice(0,10);
+            return evIso === dayIso;
+        }).map(ev => this.normalizeEvent(ev));
+
+        this.dayView = { ...this.dayView, events: dayEvents };
+        console.log('mapDayData :: ', this.dayView);
+        
+        this.showLoading(false);
+    }
+
+    // Normalize event fields
+    normalizeEvent(ev) {
+        const startTime = new Date(ev.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        const endTime = new Date(ev.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        let statusClass = 'status scheduled';
+        switch(ev.status?.toLowerCase()) {
+            case 'pending': statusClass = 'status pending'; break;
+            case 'completed': statusClass = 'status completed'; break;
+            case 'cancelled': statusClass = 'status cancelled'; break;
+        }
+        return {
+            id: ev.id,
+            jobId: ev.jobId,
+            jobName: ev.jobName,
+            location: ev.location,
+            start: startTime,
+            date: new Date(ev.start).toISOString().slice(0,10),
+            end: endTime,
+            status: ev.status,
+            statusClass,
+            crew: ev.crew || [],
+            assets: ev.assets || [],
+            subcontractors: ev.subcontractors || [],
+            isPast: new Date(ev.end) < new Date()
+        };
+    }
+
+
+    // ----------------------------- Data Interaction Related Functions -------------------------------
+
+    handleAddMobilizationGroup(){
+        try{
+            console.log('Open MG Popup');
+            this.handleClosePopup();
+            this.showFormPopup = true;
+            this.isMobGroupCreate  = true;
+        }catch(e){
+            console.log('Error in handleAddMobilizationGroup :: ', e.message);
+            
+        }
+    }
+
+    handleCreateMobSubmitted(event){
+        try {
+            this.showLoading(true);
+            event.preventDefault();
+            let details = event.detail.fields;
+
+            const start = Date.parse(details.wfrecon__Start_Date__c);
+            const end = Date.parse(details.wfrecon__End_Date__c);
+
+            if (start < new Date()) {
+                this.showToast('Error', 'Start date can not be in past.', 'error');
+            }else if (start > end) {
+                this.showToast('Error', 'End date should be after the start date.', 'error');
+            }else{
+                this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
+            }
+        } catch (e) {
+            console.log('Error in function handleCreateMobSubmitted:::', e.message);
+        }
+    }
+
+    handleRemoveAssignment(event){
+        try {
+            let id = event.currentTarget.dataset.id;
+            if(!id){
+                console.log('Error in function handleRemoveAssignment:::: id is not defined');
+                return;
+            } else if(this.resourceType){
+                this.isRemove = true;
+                this.resourceIdToRemove = id;
+                this.typeOfResourceToRemove = this.resourceType;
+                // this.showConfirmationPopup = true;
+                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+            }
+        } catch (e) {
+            console.log('Error in function handleRemoveAssignment:::', e.message);
+        }
+    }
+
+    removeJobAssignment(id, type = this.resourceType){
+        try{
+            this.showLoading(true);
+            removeJobResource({ id: id, type: type })
+            .then(result => {
+                console.log('result is :: ', result);
+                if(result === 'success'){
+                    this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
+                }else{
+                    console.log('Error in function handleRemoveAssignment:::', result);
+                    this.showToast('Error', 'Could not remove job, please try again...', 'error');
+                    this.showLoading(false);
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Could not remove job, please try again...', 'error');
+                console.log('Error in function handleRemoveAssignment:::', error);
+                this.showLoading(false);
+            })
+        } catch(e){
+            this.showToast('Error', 'Could not remove job, please try again...', 'error');
+            console.log('Error in function handleRemoveAssignment:::', e.message);
+            this.showLoading(false);
+        }
+    }
+
+    handleAssignResource(event){
+        try{
+            let iso = event.currentTarget.dataset.iso;
+            let resource = event.currentTarget.dataset.resource;
+            console.log('iso Data is :: ', iso);
+            console.log('resource Data is :: ', resource);
+
+            this.handleClosePopup();
+            this.selectedMobId = iso;
+            this.selectedResourceId = resource;
+            this.isAssignForm = true;
+            this.isAssetAssignment = this.resourceType == 'Asset' ? true : false;
+            this.showFormPopup = true;
+        } catch (e) {
+            console.log('Error in function handleAssignResource:::', e.message);
+            this.showLoading(false);
+            this.showToast('Error', 'Could not assign job, please try again...', 'error');
+        }
+    }
+
+    handleEditResource(event){
+        try {
+            this.handleClosePopup();
+            console.log('Editing :: ', event.detail);
+            this.loadAllResources(event.detail.date);
+            
+            this.mobIdForResources = event.detail.id;
+            this.showFormPopup = true;
+            this.isResourcesEditForm = true;
+        } catch (e) {
+            console.log('Error in function handleEditResource:::', e.message);
+        }
+    }
+
+    handleSelectResourceOption(event){
+        try {
+            // let name = event.currentTarget.name;
+            let name = 'selectedResourceIdsForAssign';
+            let id = event.currentTarget.dataset.id;
+            let checked = event.currentTarget.checked;
+            if(checked){
+                this[name].push(id);
+            } else{
+                this[name] = this[name].filter(item => item !== id);
+            }
+            
+            console.log('Selected Resources are :: ', name, this[name]);
+        } catch (e) {
+            console.log('Error in function handleSelectResourceOption:::', e.message);
+        }
+    }
+
+    handleJobCardDelete(event){
+        try {
+            this.mobIdToDelete = event.detail;
+            this.isMobDelete = true;
+            this.askConfirmation('Delete Mobilization!', 'Are you sure you want to delete this mobilization for selected day?', 'Delete');
+        } catch (e) {
+            console.log('Error in function handleJobCardDelete:::', e.message);
+        }
+    }
+
+    deleteMob(id){
+        try {
+            this.showLoading(true);
+            console.log('Deleting the Mobilization Id: ', id);
+            deleteMobilization({ mobId: id })
+            .then(result => {
+                console.log('result is :: ', result);
+                if(result === 'success'){
+                    this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
+                }else{
+                    console.log('Error in function deleteMobilization:::', result);
+                    this.showToast('Error', 'Could not delete mobilization, please try again...', 'error');
+                    this.showLoading(false);
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Could not delete mobilization, please try again...');
+                console.log('Error in function deleteMobilization:::', error);
+            })
+            
+        } catch (e) {
+            this.showToast('Error', 'Could not delete mobilization, please try again...');
+            console.log('Error in function deleteMob:::', e.message);
+        }
+    }
+
+    // Popup Methods
+    handleJobCardEdit(event) {
+        try {
+            this.handleClosePopup();
+            this.showLoading(true);
+            this.mobIdToEdit = event.detail;
+            console.log('mobIdToEdit :: ', this.mobIdToEdit);
+            
+            this.isMobEditForm = true;
+            this.showFormPopup = true;
+        } catch (e) {
+            this.showToast('Error', 'Could not open the edit form. Please try again.', 'error');
+        }
+    }
+
+    handleCancelEdit() {
+        this.showFormPopup = false;
+        this.isMobEditForm = false;
+        this.isMobGroupCreate = false;
+    }
+
+    handleSuccess() {
+        this.mobIdToEdit = '';
+        this.showFormPopup = false;
+        this.isMobEditForm = false;
+        this.isMobGroupCreate = false;
+        this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
+    }
+
+    handleFormLoaded(event) {
+        console.log('Form Loaded :: ', event.detail);
+        this.showLoading(false);
+    }
+
+    handleError(event) {
+        console.log('Error in function handleError:::', event.detail);
+        
+        this.showToast('Error', 'Something went wrong, please try again...', 'error');
+    }
+
+    // Resource Assignment Popup
+    handleResourceItemUpdate(event){
+        try {
+            let name = event.currentTarget.name;
+            console.log('The Whole detail is :: ', event.detail);
+            
+            this[name] = event.detail.recordId;
+            console.log('Name :: ', name, ' Value :: ', this[name]);
+            
+        } catch (e) {
+            console.log('Error in function handleResourceItemUpdate:::', e.message);
+        }
+    }
+
+    handleSaveChanges(){
+        try {
+            this.showLoading(true);
+            if(!this.selectedResourceId || !this.selectedJobId || !this.selectedMobId){
+                this.showToast('Error', 'Please select all the required fields.', 'error');
+                return;
+            }else{
+                let assignmentData = { 
+                    resourceId: this.selectedResourceId, 
+                    mobId: this.selectedMobId, 
+                    type: this.resourceType,
+                    allowOverlap: this.isAllowOverLap
+                }
+                assignResourceToMob({assignmentData: assignmentData})
+                .then(result => {
+                    console.log('result is :: ', result);
+                    if(result == 'OVERLAP'){
+                        this.isOverlap = true;
+                        this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. Do you still want to assign?', 'Assign')
+                        // this.showConfirmationPopup = true;
+                        // this.showLoading(false);
+                        // this.isAllowOverLap = true;
+                        // this.showToast('Error', 'Resource is already assigned to job in this period.', 'error');
+                        // return;
+                    }else if(result == 'success'){
+                        this.showToast('Success', 'Resource assigned successfully.', 'success');
+                        this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
+                        this.showFormPopup = false;
+                        this.isAssignForm = false;
+                    }else{
+                        this.showToast('Error', 'Could not assign resource to a job, please try again...', 'error');
+                    }
+                })
+                .catch(error => {
+                    this.showToast('Error', 'Could not assign job, please try again...', 'error');
+                    console.log('Error in function handleSaveChanges:::', error);
+                });
+            }
+            // console.log('Save Changes :: ', event.detail);
+            // this.showLoading(true);
+            // this.showToast('Success', 'Changes saved successfully.', 'success');
+            
+        } catch (e) {
+            console.log('Error in function handleSaveChanges:::', e.message);
+        }
+    }
+
+
+    // Job Card Resource Editing Form
+    addResourceForAssignment(event){
+        try {
+            this.showLoading(true);
+
+            if(event){
+                console.log('Going Into the Event');
+                
+                let name = 'selectedResourceIdsForAssign';
+                let type = this.resourceTypeForAssign;
+    
+                this.jobAssignmentInfo = { 
+                    resourceIds: this[name].join(','), 
+                    mobId: this.mobIdForResources, 
+                    type: type,
+                    allowOverlap: false,
+                    overlapMode: 'SKIP',
+                }
+            }
+
+            // let allowOverlapMap = {};
+            // console.log('this.jobAssignmentInfo.overlappingDates ::' , this.jobAssignmentInfo.overlappingDates);
+            
+            // if (this.jobAssignmentInfo.overlappingDates) {
+            //     this.jobAssignmentInfo.overlappingDates?.forEach(ol => {
+            //         allowOverlapMap[ol.Id] = ol.allowOverlap || false;
+            //     });
+            // }
+
+            // this.jobAssignmentInfo.allowOverlapMap = allowOverlapMap;
+
+            console.log('Result is :: ', this.jobAssignmentInfo);
+            
+            assignResourceToJob({ assignmentData: this.jobAssignmentInfo })
+            .then(result => {
+                // console.log('Raw Apex result:', result);
+
+                // Parse the JSON string returned from Apex
+                let parsedResult;
+                try {
+                    parsedResult = JSON.parse(result);
+                } catch (e) {
+                    console.error('Invalid JSON returned from Apex:', e);
+                    this.showToast('Error', 'Unexpected response format from server.', 'error');
+                    return;
+                }
+
+                console.log('Parsed Result:', parsedResult);
+
+                // Check result status
+                const status = parsedResult?.status;
+
+                if (status === 'OVERLAP') {
+                    this.isOverlapJob = true;
+                    // const overlaps = parsedResult?.overlaps || [];
+
+                    // const message = `Select resources to overlap and assign(other's will not get assigned):`;
+                    // this.jobAssignmentInfo.overlappingDates = overlaps.map(ol => ({ ...ol, allowOverlap: false}));
+                    // console.log('Overlapping Mobilizations:', this.jobAssignmentInfo.overlappingDates);
+                    // Show confirmation popup
+                    this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign');
+
+                } else if (status === 'SUCCESS') {
+                    this.showToast('Success', 'Resource assigned successfully.', 'success');
+                    this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
+                    this.showFormPopup = false;
+                    this.isAssignForm = false;
+                    this.selectedResourceIdsForAssign = [];
+
+                } else if (status === 'ERROR') {
+                    this.showToast('Error', parsedResult.message || 'Could not assign resource to job.', 'error');
+
+                } else {
+                    // Catch unexpected responses
+                    this.showToast('Error', 'Unexpected response from server.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error in assignResourceToJob:', error);
+                this.showToast('Error', 'Could not assign job, please try again...', 'error');
+            });
+            this.selectedCrewId = [];
+            this.selectedAssetId = [];
+            this.selectedSubContractorId = [];
+        } catch (e) {
+            console.log('Error in function addResourceForAssignment:::', e.message);
+        }
+    }
+
+    // handleOverlapChange(event){
+    //     let id = event.currentTarget.dataset.id;
+    //     let allowOverlap = event.currentTarget.checked;
+    //     this.jobAssignmentInfo.overlappingDates.find(ol => ol.Id == id).allowOverlap = allowOverlap;
+    // }
+
+    handleRemoveJobResource(event){
+        try {
+            let id = event.currentTarget.dataset.id;
+            let type = event.currentTarget.dataset.type;
+
+            console.log('Removing :: ', id, type);
+            
+            this.isRemove = true;
+            this.resourceIdToRemove = id;
+            this.typeOfResourceToRemove = type;
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+            // this.removeJobAssignment(id, type); 
+        } catch (e) {
+            console.log('Error in function handleRemoveJobResource:::', e.message);
+        }
+    }
+
+    handleRemoveResourceFromCard(event){
+        try {
+            console.log('Event details is:: ', event.detail);
+            
+            let id = event.detail.id;
+            let type = event.detail.type;
+            this.isRemove = true;
+            this.resourceIdToRemove = id;
+            this.typeOfResourceToRemove = type;
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+            // this.removeJobAssignment(id, type);
+        } catch (e) {
+            console.log('Error in function handleRemoveResourceFromCard:::', e.message);
+        }
+    }
+
+    // Generic Methods
+    showLoading(isLoading){
+        this.showSpinner = isLoading;
+    }
+
+    showToast(title, message, variant){
+        this.showLoading(false);
+        const evt = new ShowToastEvent({
+            title: title,
+            message: message,
+            variant: variant,
+            mode: 'dismissable'
+        });
+        this.dispatchEvent(evt);
+    }
+
+    handleClosePopup(){
+        this.showFormPopup = false;
+        this.isMobEditForm = false;
+        this.isMobGroupCreate = false;
+        this.isAssignForm = false;
+        this.isResourcesEditForm = false;
+        this.selectedResourceIdsForAssign = [];
+    }
+
+    // Confirmation
+
+    askConfirmation(title, message, confirmLabel){
+        this.showLoading(false);
+        this.confirmationTitle = title;
+        this.confirmationMessage = message;
+        this.confirmationBtnLabel = confirmLabel;
+        this.showConfirmationPopup = true;
+
+    }
+    handleConfirmationAction(event){
+        try {
+            console.log('jobAssignmentInfo :: ', this.jobAssignmentInfo);
+            
+            let name = event.currentTarget.name;
+            if(name == 'confirm'){
+                if(this.isOverlap){
+                    this.isAllowOverLap = true;
+                    this.handleSaveChanges();
+                } else if(this.isOverlapJob){
+                    this.jobAssignmentInfo.allowOverlap = true;
+                    this.jobAssignmentInfo.overlapMode = 'ALL';
+                    // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : true}));
+                    this.addResourceForAssignment();
+                    this.resourceIdToRemove = null;
+                    this.typeOfResourceToRemove = null;
+                } else if(this.isRemove){
+                    this.removeJobAssignment(this.resourceIdToRemove, this.typeOfResourceToRemove);
+                    this.resourceIdToRemove = null;
+                    this.typeOfResourceToRemove = null;
+                } else if(this.isMobDelete){
+                    this.deleteMob(this.mobIdToDelete);
+                    this.mobIdToDelete = null;
+                }
+            } else if(name == 'noOverlap'){
+                if(this.isOverlapJob){
+                    this.jobAssignmentInfo.allowOverlap = true;
+                    this.jobAssignmentInfo.overlapMode = 'SKIP';
+                    // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : false}));
+                    this.addResourceForAssignment();
+                    this.resourceIdToRemove = null;
+                    this.typeOfResourceToRemove = null;
+                }
+            }
+
+            this.showConfirmationPopup = false;
+            this.isOverlap = false;
+            this.isOverlapJob = false;
+            this.isRemove = false;
+            this.isMobDelete = false;
+            this.jobAssignmentInfo.overlappingDates = null;
+
+            // Reset Confirm Popup Details
+            this.confirmationTitle = 'Confirm!';
+            this.confirmationMessage = 'Are you sure, you want to proceed';
+            this.confirmationBtnLabel = 'Confirm';
+        } catch (e) {
+            console.log('Error in function handleConfirmationAction:::', e.message);
+        }
+    }
+}
