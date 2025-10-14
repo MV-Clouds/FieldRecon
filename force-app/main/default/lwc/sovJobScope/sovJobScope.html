@@ -19,7 +19,7 @@
             
             <div class="header-actions">
                 <!-- New Action Buttons -->
-                <button class="action-button refresh-btn" onclick={handleRefresh}>
+                <button class="action-button refresh-btn" onclick={performCompleteRefresh}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M4 4V10H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M20 20V14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -59,8 +59,22 @@
 
         <!-- Summary Cards Section -->
         <div class="summary-cards-container">
-            <div class="summary-card contract-value">
-                <div class="summary-card-title">Total Contract Value</div>
+
+            <div class="summary-card total-contract-value">
+                <div class="summary-card-title">Total Contract</div>
+                <div class="summary-card-value">
+                    <lightning-formatted-number 
+                        value={totalAllContractValue} 
+                        format-style="currency" 
+                        currency-code="USD"
+                        maximum-fraction-digits="0">
+                    </lightning-formatted-number>
+                </div>
+                <div class="summary-card-subtitle">Base + Change orders</div>
+            </div>
+
+            <div class="summary-card base-contract-value">
+                <div class="summary-card-title">Base Contract</div>
                 <div class="summary-card-value">
                     <lightning-formatted-number 
                         value={totalContractValue} 
@@ -69,11 +83,11 @@
                         maximum-fraction-digits="0">
                     </lightning-formatted-number>
                 </div>
-                <div class="summary-card-subtitle">Contract entries only</div>
+                <div class="summary-card-subtitle">Contract entries</div>
             </div>
 
             <div class="summary-card change-order-value">
-                <div class="summary-card-title">Total Change Order Value</div>
+                <div class="summary-card-title">Change Orders</div>
                 <div class="summary-card-value">
                     <lightning-formatted-number 
                         value={totalChangeOrderValue} 
@@ -82,11 +96,11 @@
                         maximum-fraction-digits="0">
                     </lightning-formatted-number>
                 </div>
-                <div class="summary-card-subtitle">Change order entries only</div>
+                <div class="summary-card-subtitle">Change order entries</div>
             </div>
 
             <div class="summary-card completed-value">
-                <div class="summary-card-title">Total Completed Amount</div>
+                <div class="summary-card-title">Completed</div>
                 <div class="summary-card-value">
                     <lightning-formatted-number 
                         value={totalCompletedValue} 
@@ -95,11 +109,11 @@
                         maximum-fraction-digits="0">
                     </lightning-formatted-number>
                 </div>
-                <div class="summary-card-subtitle">Work completed so far</div>
+                <div class="summary-card-subtitle">Work completed</div>
             </div>
 
             <div class="summary-card completed-percentage">
-                <div class="summary-card-title">Total Completed Percentage</div>
+                <div class="summary-card-title">% Complete</div>
                 <div class="summary-card-value">
                     <lightning-formatted-number 
                         value={overallCompletionPercentage} 
@@ -111,7 +125,7 @@
             </div>
 
             <div class="summary-card remaining-value">
-                <div class="summary-card-title">Total Amount Remaining</div>
+                <div class="summary-card-title">Remaining</div>
                 <div class="summary-card-value">
                     <lightning-formatted-number 
                         value={totalRemainingValue} 
@@ -120,7 +134,7 @@
                         maximum-fraction-digits="0">
                     </lightning-formatted-number>
                 </div>
-                <div class="summary-card-subtitle">Work left to complete</div>
+                <div class="summary-card-subtitle">Work left</div>
             </div>
         </div>
 
@@ -203,10 +217,12 @@
                                 <thead class="table-header">
                                     <tr>
                                         <th class="header-cell center-trancate-head checkbox-column">
-                                            <input type="checkbox" 
-                                                    checked={isAllContractSelected}
-                                                    onchange={handleSelectAllContract}
-                                                    data-type="select-all-contract">
+                                            <template if:false={shouldHideContractHeaderCheckbox}>
+                                                <input type="checkbox" 
+                                                        checked={isAllContractSelected}
+                                                        onchange={handleSelectAllContract}
+                                                        data-type="select-all-contract">
+                                            </template>
                                         </th>
                                         <th class="header-cell center-trancate-head actions-column">Actions</th>
                                         <template for:each={tableColumns} for:item="column">
@@ -232,11 +248,13 @@
                                     <template for:each={displayedContractEntries} for:item="entry">
                                         <tr key={entry.Id}>
                                             <td class="center-trancate-text checkbox-column">
-                                                <input type="checkbox" 
-                                                        checked={entry.isSelected}
-                                                        onchange={handleRowSelection}
-                                                        data-row-id={entry.Id}
-                                                        data-type="row-checkbox">
+                                                <template if:false={entry.isScopeEntryApproved}>
+                                                    <input type="checkbox" 
+                                                            checked={entry.isSelected}
+                                                            onchange={handleRowSelection}
+                                                            data-row-id={entry.Id}
+                                                            data-type="row-checkbox">
+                                                </template>
                                             </td>
                                             <td class="center-trancate-text actions-column">
                                                 <div class="action-icons">
@@ -299,7 +317,7 @@
                                                                     data-record-id={entry.Id}
                                                                     data-field-name={field.key}
                                                                     data-field-type="picklist"
-                                                                    value={field.selectedValue}
+                                                                    
                                                                     onchange={handleScopeSelectChange}
                                                                     onblur={handleScopeCellInputBlur}>
                                                                     <option value="">--Select--</option>
@@ -326,7 +344,7 @@
                                                                            data-field-type="number"
                                                                            oninput={handleScopeCellInputChange}
                                                                            onblur={handleScopeCellInputBlur}
-                                                                           step="0.01"
+                                                                           step="1"
                                                                            min="0">
                                                                 </template>
                                                             </template>
@@ -480,34 +498,32 @@
                                                                     </template>
 
                                         
-                                                                    <template if:false={entry.hasCompleteProcessSetup}>
-                                                                        <template if:false={entry.isScopeEntryApproved}>
-                                                                            <button class="add-process-btn manual-btn" 
-                                                                                    title="Add Manual Process"
-                                                                                    onclick={handleAddProcess}
-                                                                                    data-scope-entry-id={entry.Id}
-                                                                                    data-scope-entry-name={entry.Name}>
-                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                </svg>
-                                                                                Add Manual Process
-                                                                            </button>
-                                                                            <button class="add-process-btn manual-btn" 
-                                                                                    title="Add Process from Library"
-                                                                                    onclick={handleAddProcessFromLibrary}
-                                                                                    data-scope-entry-id={entry.Id}
-                                                                                    data-scope-entry-name={entry.Name}>
-                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                </svg>
-                                                                                Add Process from Library
-                                                                            </button>
-                                                                        </template>
+                                                                    <template if:false={entry.isScopeEntryApproved}>
+                                                                        <button class="add-process-btn manual-btn" 
+                                                                                title="Add Manual Process"
+                                                                                onclick={handleAddProcess}
+                                                                                data-scope-entry-id={entry.Id}
+                                                                                data-scope-entry-name={entry.Name}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            </svg>
+                                                                            Add Manual Process
+                                                                        </button>
+                                                                        <button class="add-process-btn manual-btn" 
+                                                                                title="Add Process from Library"
+                                                                                onclick={handleAddProcessFromLibrary}
+                                                                                data-scope-entry-id={entry.Id}
+                                                                                data-scope-entry-name={entry.Name}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            </svg>
+                                                                            Add Process from Library
+                                                                        </button>
                                                                     </template>
                                                                 </div>
                                                             </div>
@@ -526,11 +542,14 @@
                                                                         <thead class="table-header">
                                                                             <tr>
                                                                                 <th class="header-cell center-trancate-head process-checkbox-column">
-                                                                                    <input type="checkbox" 
-                                                                                            onclick={handleSelectAllProcesses}
-                                                                                            data-scope-entry-id={entry.Id}
-                                                                                            data-type="select-all-processes"
-                                                                                            title="Select All">
+                                                                                    <template if:false={entry.isScopeEntryApproved}>
+                                                                                        <input type="checkbox" 
+                                                                                                onclick={handleSelectAllProcesses}
+                                                                                                data-scope-entry-id={entry.Id}
+                                                                                                data-type="select-all-processes"
+                                                                                                checked={entry.isAllProcessesSelected}
+                                                                                                title="Select All">
+                                                                                    </template>
                                                                                 </th>
                                                                                 <template for:each={processTableColumns} for:item="column">
                                                                                     <th key={column.fieldName} 
@@ -555,12 +574,14 @@
                                                                             <template for:each={entry.processDetails} for:item="process">
                                                                                 <tr key={process.Id} class="nested-table-row">
                                                                                     <td class="center-trancate-text process-checkbox-column">
-                                                                                        <input type="checkbox" 
-                                                                                                data-process-id={process.Id}
-                                                                                                data-scope-entry-id={entry.Id}
-                                                                                                data-type="process-checkbox"
-                                                                                                checked={process.isSelected}
-                                                                                                onchange={handleProcessRowSelection}>
+                                                                                        <template if:false={entry.isScopeEntryApproved}>
+                                                                                            <input type="checkbox" 
+                                                                                                    data-process-id={process.Id}
+                                                                                                    data-scope-entry-id={entry.Id}
+                                                                                                    data-type="process-checkbox"
+                                                                                                    checked={process.isSelected}
+                                                                                                    onchange={handleProcessRowSelection}>
+                                                                                        </template>
                                                                                     </td>
                                                                                     <template for:each={process.displayFields} for:item="field">
                                                                                         <td key={field.key} 
@@ -718,10 +739,12 @@
                                 <thead class="table-header">
                                     <tr>
                                         <th class="header-cell center-trancate-head checkbox-column">
-                                            <input type="checkbox" 
-                                                    checked={isAllChangeOrderSelected}
-                                                    onchange={handleSelectAllChangeOrder}
-                                                    data-type="select-all-changeorder">
+                                            <template if:false={shouldHideChangeOrderHeaderCheckbox}>
+                                                <input type="checkbox" 
+                                                        checked={isAllChangeOrderSelected}
+                                                        onchange={handleSelectAllChangeOrder}
+                                                        data-type="select-all-changeorder">
+                                            </template>
                                         </th>
                                         <th class="header-cell center-trancate-head actions-column">Actions</th>
                                         <template for:each={tableColumns} for:item="column">
@@ -747,11 +770,13 @@
                                     <template for:each={displayedChangeOrderEntries} for:item="entry">
                                         <tr key={entry.Id}>
                                             <td class="center-trancate-text checkbox-column">
-                                                <input type="checkbox" 
-                                                        checked={entry.isSelected}
-                                                        onchange={handleRowSelection}
-                                                        data-row-id={entry.Id}
-                                                        data-type="row-checkbox">
+                                                <template if:false={entry.isScopeEntryApproved}>
+                                                    <input type="checkbox" 
+                                                            checked={entry.isSelected}
+                                                            onchange={handleRowSelection}
+                                                            data-row-id={entry.Id}
+                                                            data-type="row-checkbox">
+                                                </template>
                                             </td>
                                             <td class="center-trancate-text actions-column">
                                                 <div class="action-icons">
@@ -841,8 +866,8 @@
                                                                            data-field-type="number"
                                                                            oninput={handleScopeCellInputChange}
                                                                            onblur={handleScopeCellInputBlur}
-                                                                           step="0.01"
-                                                                           min="0">
+                                                                           step="1"
+                                                                           >
                                                                 </template>
                                                             </template>
                                                         </template>
@@ -999,34 +1024,32 @@
                                                                         </button>
                                                                     </template>
 
-                                                                    <template if:false={entry.hasCompleteProcessSetup}>
-                                                                        <template if:false={entry.isScopeEntryApproved}>
-                                                                            <button class="add-process-btn manual-btn" 
-                                                                                    title="Add Manual Process"
-                                                                                    onclick={handleAddProcess}
-                                                                                    data-scope-entry-id={entry.Id}
-                                                                                    data-scope-entry-name={entry.Name}>
-                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                </svg>
-                                                                                Add Manual Process
-                                                                            </button>
-                                                                            <button class="add-process-btn manual-btn" 
-                                                                                    title="Add Process from Library"
-                                                                                    onclick={handleAddProcessFromLibrary}
-                                                                                    data-scope-entry-id={entry.Id}
-                                                                                    data-scope-entry-name={entry.Name}>
-                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                </svg>
-                                                                                Add Process from Library
-                                                                            </button>
-                                                                        </template>
+                                                                    <template if:false={entry.isScopeEntryApproved}>
+                                                                        <button class="add-process-btn manual-btn" 
+                                                                                title="Add Manual Process"
+                                                                                onclick={handleAddProcess}
+                                                                                data-scope-entry-id={entry.Id}
+                                                                                data-scope-entry-name={entry.Name}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            </svg>
+                                                                            Add Manual Process
+                                                                        </button>
+                                                                        <button class="add-process-btn manual-btn" 
+                                                                                title="Add Process from Library"
+                                                                                onclick={handleAddProcessFromLibrary}
+                                                                                data-scope-entry-id={entry.Id}
+                                                                                data-scope-entry-name={entry.Name}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                            </svg>
+                                                                            Add Process from Library
+                                                                        </button>
                                                                     </template>
                                                                 </div>
                                                             </div>
@@ -1045,11 +1068,14 @@
                                                                         <thead class="table-header">
                                                                             <tr>
                                                                                 <th class="header-cell center-trancate-head process-checkbox-column">
-                                                                                    <input type="checkbox" 
-                                                                                            onclick={handleSelectAllProcesses}
-                                                                                            data-scope-entry-id={entry.Id}
-                                                                                            data-type="select-all-processes"
-                                                                                            title="Select All">
+                                                                                    <template if:false={entry.isScopeEntryApproved}>
+                                                                                        <input type="checkbox" 
+                                                                                                onclick={handleSelectAllProcesses}
+                                                                                                data-scope-entry-id={entry.Id}
+                                                                                                data-type="select-all-processes"
+                                                                                                checked={entry.isAllProcessesSelected}
+                                                                                                title="Select All">
+                                                                                    </template>
                                                                                 </th>
                                                                                 <template for:each={processTableColumns} for:item="column">
                                                                                     <th key={column.fieldName} 
@@ -1074,12 +1100,14 @@
                                                                             <template for:each={entry.processDetails} for:item="process">
                                                                                 <tr key={process.Id} class="nested-table-row">
                                                                                     <td class="center-trancate-text process-checkbox-column">
-                                                                                        <input type="checkbox" 
-                                                                                                data-process-id={process.Id}
-                                                                                                data-scope-entry-id={entry.Id}
-                                                                                                data-type="process-checkbox"
-                                                                                                checked={process.isSelected}
-                                                                                                onchange={handleProcessRowSelection}>
+                                                                                        <template if:false={entry.isScopeEntryApproved}>
+                                                                                            <input type="checkbox" 
+                                                                                                    data-process-id={process.Id}
+                                                                                                    data-scope-entry-id={entry.Id}
+                                                                                                    data-type="process-checkbox"
+                                                                                                    checked={process.isSelected}
+                                                                                                    onchange={handleProcessRowSelection}>
+                                                                                        </template>
                                                                                     </td>
                                                                                     <template for:each={process.displayFields} for:item="field">
                                                                                         <td key={field.key} 
@@ -1234,6 +1262,14 @@
                     <div class="popUpBody slds-p-around--medium">
                         <div class="form-container">
                             <div class="form-group">
+                                <label class="form-label">Type</label>
+                                <input type="text" 
+                                       class="form-input" 
+                                       value={newScopeEntry.type}
+                                       readonly
+                                       style="background-color: #f3f3f3; cursor: not-allowed;">
+                            </div>
+                            <div class="form-group">
                                 <div class="form-label-row">
                                     <label class="form-label required">Name</label>
                                     <div>{nameCharacterCount}/80</div>
@@ -1249,16 +1285,14 @@
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Contract Value</label>
-                                <input type="number" 
+                                <input type="text" 
                                        class="form-input" 
-                                       placeholder="Enter contract value"
-                                       step="1"
-                                       min="1"
-                                       max="2000000000"
+                                       placeholder="Enter Contract Value"
                                        value={newScopeEntry.contractValue}
                                        data-field="contractValue"
                                        data-type="scopeEntry"
-                                       oninput={handleInputChange}>
+                                       oninput={handleInputChange}
+                                       >
                             </div>
                             <div class="form-group">
                                 <div class="form-label-row">
@@ -1278,7 +1312,6 @@
                 </div>
 
                 <div class="popUpFooter">
-                    <button class="close-btn" onclick={handleCloseModal}>Cancel</button>
                     <button class="save-btn" 
                             onclick={handleSaveScopeEntry}
                             disabled={isSubmitting}>
@@ -1366,7 +1399,6 @@
                 </div>
 
                 <div class="popUpFooter process-library-footer">
-                    <button class="close-btn process-btn" onclick={handleCloseProcessModal}>Cancel</button>
                     <button class="save-btn process-btn" 
                             onclick={handleSaveProcess}
                             disabled={isProcessSubmitting}>
@@ -1547,7 +1579,6 @@
                 </div>
 
                 <div class="popUpFooter process-library-footer" style="margin-bottom: 1rem;">
-                    <button class="close-btn process-btn" onclick={handleCloseProcessLibraryModal}>Cancel</button>
                     <button class="save-btn process-btn" 
                             onclick={handleSaveProcessesFromLibrary}
                             disabled={isProcessLibrarySubmitting}>
@@ -1673,7 +1704,6 @@
                 </div>
 
                 <div class="popUpFooter">
-                    <button class="close-btn process-btn" onclick={handleCloseLocationModal}>Cancel</button>
                     <button class="save-btn process-btn" 
                             onclick={handleSaveLocations}
                             disabled={isLocationSubmitting}>
@@ -1686,6 +1716,23 @@
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
 
-
+    <!-- Generic Confirmation Modal -->
+    <template if:true={showConfirmationModal}>
+        <c-generic-confirmation-modal
+            title={confirmationTitle}
+            message={confirmationMessage}
+            confirm-button-label={confirmationButtonLabel}
+            cancel-button-label="Cancel"
+            confirm-button-variant={confirmationButtonVariant}
+            icon={confirmationIcon}
+            icon-variant={confirmationIconVariant}
+            is-processing={isConfirmationProcessing}
+            show-modal={showConfirmationModal}
+            size="medium"
+            onconfirm={handleConfirmationConfirm}
+            oncancel={handleConfirmationCancel}
+            onclose={handleConfirmationClose}>
+        </c-generic-confirmation-modal>
+    </template>
 
 </template>

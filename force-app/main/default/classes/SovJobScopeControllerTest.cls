@@ -224,29 +224,6 @@ public with sharing class SovJobScopeControllerTest {
     }
 
     @IsTest
-    static void testGetJobLocations() {
-        Job__c job = [SELECT Id FROM Job__c LIMIT 1];
-        
-        Test.startTest();
-        List<Location__c> result = SovJobScopeController.getJobLocations(job.Id);
-        Test.stopTest();
-        
-        // Verify we have the expected locations
-        System.assertEquals(true, result.size() >= 3, 'Expected at least 3 locations, but got: ' + result.size());
-    }
-
-    @IsTest
-    static void testGetExistingLocationProcesses() {
-        Scope_Entry__c scopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
-        
-        Test.startTest();
-        List<Id> result = SovJobScopeController.getExistingLocationProcesses(scopeEntry.Id);
-        Test.stopTest();
-        
-        System.assertEquals(3, result.size(), 'Expected getExistingLocationProcesses to return 3 location IDs');
-    }
-
-    @IsTest
     static void testCreateLocationProcesses() {
         Scope_Entry__c scopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
         List<Location__c> locations = [SELECT Id FROM Location__c];

@@ -585,4 +585,21 @@
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
+
+    <!-- Generic Confirmation Modal -->
+    <template if:true={showConfirmationModal}>
+        <c-generic-confirmation-modal
+            title={confirmationTitle}
+            message={confirmationMessage}
+            confirm-button-label={confirmationButtonLabel}
+            cancel-button-label="Cancel"
+            confirm-button-variant={confirmationButtonVariant}
+            is-processing={isConfirmationProcessing}
+            show-modal={showConfirmationModal}
+            size="medium"
+            onconfirm={handleConfirmationConfirm}
+            oncancel={handleConfirmationCancel}
+            onclose={handleConfirmationClose}>
+        </c-generic-confirmation-modal>
+    </template>
 </template>

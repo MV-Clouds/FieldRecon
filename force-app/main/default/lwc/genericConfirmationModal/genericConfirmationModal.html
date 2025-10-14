@@ -1,0 +1,57 @@
+<template>
+    <template if:true={isModalVisible}>
+        <!-- Modal -->
+        <section 
+            role="dialog" 
+            tabindex="-1" 
+            aria-labelledby="modal-heading" 
+            aria-modal="true" 
+            aria-describedby="modal-content" 
+            class={modalClass}
+            onkeydown={handleKeyDown}>
+            
+            <div class="slds-modal__container">
+                <!-- Modal Header -->
+                <div class="slds-modal__header">
+                    <h1 id="modal-heading" class="slds-modal__title slds-hyphenate">
+                        {title}
+                    </h1>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="slds-modal__content slds-p-around_medium" id="modal-content">
+                    <div class="slds-text-longform">
+                        <lightning-formatted-rich-text value={message}></lightning-formatted-rich-text>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="slds-modal__footer">
+                    <button 
+                        class="slds-button slds-button_neutral" 
+                        onclick={handleCancel}
+                        disabled={isProcessing}>
+                        {cancelButtonLabel}
+                    </button>
+                    
+                    <button 
+                        class={confirmButtonClass}
+                        onclick={handleConfirm}
+                        disabled={isProcessing}>
+                        <template if:true={isProcessing}>
+                            <lightning-spinner 
+                                alternative-text="Processing" 
+                                size="small" 
+                                class="slds-button__spinner">
+                            </lightning-spinner>
+                        </template>
+                        {confirmButtonLabel}
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Backdrop -->
+        <div class="slds-backdrop slds-backdrop_open" onclick={handleBackdropClick}></div>
+    </template>
+</template>

@@ -73,6 +73,15 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     @track isSaving = false; // Track save operation
     @track savingLocations = new Set(); // Track which locations are currently saving
 
+    // Confirmation Modal Properties
+    @track showConfirmationModal = false;
+    @track confirmationTitle = '';
+    @track confirmationMessage = '';
+    @track confirmationAction = '';
+    @track confirmationButtonLabel = 'Confirm';
+    @track confirmationButtonVariant = 'brand';
+    @track confirmationData = null;
+
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
@@ -1179,7 +1188,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleMassDelete
-     * @description: Handle mass delete of selected locations
+     * @description: Handle mass delete of selected locations with confirmation
      */
     handleMassDelete() {
         if (this.selectedRows.length === 0) {
@@ -1187,12 +1196,36 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             return;
         }
 
+        // Show confirmation modal for deletion
+        this.showDeleteConfirmation();
+    }
+
+    /**
+     * Method Name: showDeleteConfirmation
+     * @description: Show confirmation modal before deleting locations
+     */
+    showDeleteConfirmation() {
+        const locationCount = this.selectedRows.length;
+        this.confirmationTitle = 'Delete Locations';
+        this.confirmationMessage = `Warning: This will permanently delete ${locationCount} location ${locationCount === 1 ? 'entry' : 'entries'} and all related data.`;
+        this.confirmationButtonLabel = 'Delete';
+        this.confirmationButtonVariant = 'destructive';
+        this.confirmationAction = 'deleteLocations';
+        this.confirmationData = [...this.selectedRows];
+        this.showConfirmationModal = true;
+    }
+
+    /**
+     * Method Name: proceedWithLocationDeletion
+     * @description: Proceed with actual deletion after confirmation
+     */
+    proceedWithLocationDeletion(locationIds) {
         this.isLoading = true;
             
-        deleteLocationEntries({ locationIds: this.selectedRows })
+        deleteLocationEntries({ locationIds: locationIds })
             .then(result => {
                 if (result.includes('Success')) {
-                    const count = this.selectedRows.length;
+                    const count = locationIds.length;
                     const message = count === 1 ? 'Location deleted successfully' : `${count} locations deleted successfully`;
                     this.showToast('Success', message, 'success');
                     this.selectedRows = [];
@@ -2463,6 +2496,60 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
         this.filteredLocationEntries = [...this.filteredLocationEntries];
         
         this.showToast('Success', 'Location changes have been discarded', 'success');
+    }
+
+    /**
+     * Method Name: handleConfirmationConfirm
+     * @description: Handle confirmation modal confirm action
+     */
+    handleConfirmationConfirm() {
+        try {
+            switch (this.confirmationAction) {
+                case 'deleteLocations':
+                    this.showConfirmationModal = false;
+                    this.proceedWithLocationDeletion(this.confirmationData);
+                    break;
+                default:
+                    this.showConfirmationModal = false;
+                    break;
+            }
+        } catch (error) {
+            this.showToast('Error', 'An error occurred while processing the action', 'error');
+            this.showConfirmationModal = false;
+        } finally {
+            this.resetConfirmationState();
+        }
+    }
+
+    /**
+     * Method Name: handleConfirmationCancel
+     * @description: Handle confirmation modal cancel action
+     */
+    handleConfirmationCancel() {
+        this.showConfirmationModal = false;
+        this.resetConfirmationState();
+    }
+
+    /**
+     * Method Name: handleConfirmationClose
+     * @description: Handle confirmation modal close action
+     */
+    handleConfirmationClose() {
+        this.showConfirmationModal = false;
+        this.resetConfirmationState();
+    }
+
+    /**
+     * Method Name: resetConfirmationState
+     * @description: Reset confirmation modal state
+     */
+    resetConfirmationState() {
+        this.confirmationTitle = '';
+        this.confirmationMessage = '';
+        this.confirmationAction = '';
+        this.confirmationButtonLabel = 'Confirm';
+        this.confirmationButtonVariant = 'brand';
+        this.confirmationData = null;
     }
 
     /**

@@ -1,0 +1,261 @@
+/* Generic Confirmation Modal Styles */
+:host {
+    --primary-theme-color: #5e5adb;
+    --primary-theme-color-shade-20: #5e5adb20;
+}
+
+/* Modal Header */
+.generic-modal .slds-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: var(--primary-theme-color, #5e5adb);
+    color: white;
+    border: none;
+    border-radius: 0.25rem 0.25rem 0 0;
+    position: relative;
+    border-start-start-radius: 1.25rem;
+    border-start-end-radius: 1.25rem;
+}
+
+.generic-modal .slds-modal__title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+    color: white;
+    flex-grow: 1;
+    text-align: center;
+}
+
+.generic-modal .slds-icon_container {
+    margin-right: 0;
+}
+
+/* Modal Content */
+.generic-modal .slds-modal__content {
+    max-height: 60vh;
+    overflow-y: auto;
+    background: white;
+    background-image: url(/resource/wfrecon__FieldReconBG);
+    background-repeat: no-repeat;
+    background-size: cover;
+    text-align: center;
+}
+
+/* Modal Footer */
+.generic-modal .slds-modal__footer {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: none;
+    background: white;
+    background-image: url(/resource/wfrecon__FieldReconBG);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+/* Button Styles */
+.generic-modal .slds-button {
+    position: relative;
+    font-size: 0.875rem;
+    height: 40px;
+    border-radius: 4px;
+}
+
+.generic-modal .slds-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.generic-modal .slds-button_neutral {
+    background: white;
+    border: 1px solid var(--primary-theme-color, #5a5adb);
+    color: var(--primary-theme-color, #5a5adb);
+}
+
+.generic-modal .slds-button_neutral:hover:not(:disabled) {
+    background: var(--primary-theme-color-shade-20, #5e5adb20);
+    border-color: var(--primary-theme-color, #5a5adb);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.2);
+}
+
+.generic-modal .slds-button_neutral:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.1);
+}
+
+.generic-modal .slds-button_brand {
+    background-color: var(--primary-theme-color, #5a5adb);
+    border: none;
+    color: #ffffff;
+}
+
+.generic-modal .slds-button_brand:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.generic-modal .slds-button_brand:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.2);
+}
+
+.generic-modal .slds-button_destructive {
+    background-color: #c23934;
+    border: none;
+    color: #ffffff;
+}
+
+.generic-modal .slds-button_destructive:hover:not(:disabled) {
+    background: #a61e1a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(194, 57, 52, 0.4);
+}
+
+.generic-modal .slds-button_destructive:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(194, 57, 52, 0.3);
+}
+
+/* Close Button and Spinner */
+.generic-modal .slds-button__spinner {
+    margin-right: 0.25rem;
+}
+
+.generic-modal .slds-modal__close {
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 0.5rem;
+    cursor: pointer;
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.generic-modal .slds-modal__close:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    transform: translateY(-50%) scale(1.05);
+    transition: all 0.2s ease;
+}
+
+.generic-modal .slds-modal__close:active {
+    transform: translateY(-50%) scale(0.95);
+    transition: all 0.1s ease;
+}
+
+/* Button Animation Classes */
+.generic-modal .slds-button:focus {
+    outline: 2px solid rgba(94, 90, 219, 0.5);
+    outline-offset: 2px;
+}
+
+.generic-modal .slds-button_neutral:focus {
+    outline: 2px solid rgba(94, 90, 219, 0.3);
+    outline-offset: 2px;
+}
+
+.generic-modal .slds-button_destructive:focus {
+    outline: 2px solid rgba(194, 57, 52, 0.3);
+    outline-offset: 2px;
+}
+
+/* Icon Colors */
+.generic-modal .slds-icon-text-warning {
+    color: #fe9339;
+}
+
+.generic-modal .slds-icon-text-error {
+    color: #c23934;
+}
+
+.generic-modal .slds-icon-text-success {
+    color: #2e844a;
+}
+
+.generic-modal .slds-icon-text-default {
+    color: white;
+}
+
+/* Modal size variations */
+.generic-modal.slds-modal_medium .slds-modal__container {
+    max-width: 40rem;
+    width: 40rem;
+}
+
+.generic-modal.slds-modal_large .slds-modal__container {
+    max-width: 60rem;
+    width: 60rem;
+}
+
+/* Focus trap and accessibility */
+.generic-modal.slds-modal:focus {
+    outline: none;
+}
+
+.generic-modal .slds-modal__close:focus {
+    box-shadow: 0 0 0 2px white;
+    outline: none;
+}
+
+/* Z-index for proper layering */
+.generic-modal.slds-modal {
+    z-index: 99999;
+}
+
+.generic-modal + .slds-backdrop {
+    z-index: 99998;
+}
+
+/* Rich text formatting in modal content */
+.generic-modal .slds-text-longform p {
+    margin: 0 0 1rem 0;
+}
+
+.generic-modal .slds-text-longform p:last-child {
+    margin-bottom: 0;
+}
+
+.generic-modal .slds-text-longform strong {
+    font-weight: 600;
+}
+
+.generic-modal .slds-text-longform em {
+    font-style: italic;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .generic-modal .slds-modal__container {
+        margin: 1rem;
+        max-width: calc(100vw - 2rem);
+        width: calc(100vw - 2rem);
+    }
+    
+    .generic-modal .slds-modal__footer {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .generic-modal .slds-modal__footer .slds-button {
+        width: 200px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .generic-modal .slds-modal__footer .slds-button:last-child {
+        margin-bottom: 0;
+    }
+}
