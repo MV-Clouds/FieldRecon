@@ -58,6 +58,22 @@ public with sharing class SovJobScopeController {
                         scopeEntryIds.add(entry.Id);
                     }
     
+                    // --- Fetch location counts for each scope entry ---
+                    Map<Id, Integer> scopeEntryLocationCounts = new Map<Id, Integer>();
+                    List<AggregateResult> locationCounts = [
+                        SELECT Scope_Entry__c, COUNT(Id) locationCount
+                        FROM Location_Scope_Entry__c
+                        WHERE Scope_Entry__c IN :scopeEntryIds
+                        WITH USER_MODE
+                        GROUP BY Scope_Entry__c
+                    ];
+                    
+                    for (AggregateResult ar : locationCounts) {
+                        Id scopeEntryId = (Id) ar.get('wfrecon__Scope_Entry__c');
+                        Integer count = (Integer) ar.get('locationCount');
+                        scopeEntryLocationCounts.put(scopeEntryId, count);
+                    }
+    
                     // --- Fetch all related Scope Entry Processes in bulk ---
                     List<Scope_Entry_Process__c> allScopeEntryProcesses = [
                         SELECT Id, Name, Sequence__c, Process_Name__c, 
@@ -98,12 +114,16 @@ public with sharing class SovJobScopeController {
                         Id scopeEntryId = entry.Id;
                         processSetupFlags.put(scopeEntryId, true); // Always allow process addition
                     }
+                    
+                    // --- Add location counts to result ---
+                    result.put('scopeEntryLocationCounts', scopeEntryLocationCounts);
                 }
             }
     
             result.put('scopeEntries', scopeEntries);
             result.put('processSetupFlags', processSetupFlags);
             result.put('scopeEntryProcessMap', scopeEntryProcessMap);
+            result.put('scopeEntryLocationCounts', result.containsKey('scopeEntryLocationCounts') ? result.get('scopeEntryLocationCounts') : new Map<Id, Integer>());
             result.put('success', true);
     
         } catch (Exception e) {
@@ -112,6 +132,7 @@ public with sharing class SovJobScopeController {
             result.put('scopeEntries', new List<SObject>());
             result.put('processSetupFlags', new Map<Id, Boolean>());
             result.put('scopeEntryProcessMap', new Map<Id, List<Scope_Entry_Process__c>>());
+            result.put('scopeEntryLocationCounts', new Map<Id, Integer>());
             result.put('success', false);
             result.put('error', e.getMessage());
         }
@@ -227,13 +248,13 @@ public with sharing class SovJobScopeController {
     @AuraEnabled
     public static String createScopeEntry(Map<String, Object> scopeEntryData) {
         try {
-            wfrecon__Scope_Entry__c newScopeEntry = new wfrecon__Scope_Entry__c();
+            Scope_Entry__c newScopeEntry = new Scope_Entry__c();
             newScopeEntry.Name = (String) scopeEntryData.get('name');
-            newScopeEntry.wfrecon__Contract_Value__c = (Decimal) scopeEntryData.get('contractValue');
-            newScopeEntry.wfrecon__Description__c = (String) scopeEntryData.get('description');
-            newScopeEntry.wfrecon__Job__c = (Id) scopeEntryData.get('jobId');
-            newScopeEntry.wfrecon__Type__c = (String) scopeEntryData.get('type'); // Add type field
-            newScopeEntry.wfrecon__Scope_Entry_Status__c = 'Draft';
+            newScopeEntry.Contract_Value__c = (Decimal) scopeEntryData.get('contractValue');
+            newScopeEntry.Description__c = (String) scopeEntryData.get('description');
+            newScopeEntry.Job__c = (Id) scopeEntryData.get('jobId');
+            newScopeEntry.Type__c = (String) scopeEntryData.get('type'); // Add type field
+            newScopeEntry.Scope_Entry_Status__c = 'Draft';
             
             insert as user newScopeEntry;
             return 'Success';
@@ -258,9 +279,9 @@ public with sharing class SovJobScopeController {
                 return 'Error: No records selected for deletion';
             }
             
-            List<wfrecon__Scope_Entry__c> scopeEntriesToDelete = [
+            List<Scope_Entry__c> scopeEntriesToDelete = [
                 SELECT Id 
-                FROM wfrecon__Scope_Entry__c 
+                FROM Scope_Entry__c 
                 WHERE Id IN :scopeEntryIds 
                 WITH USER_MODE
             ];
@@ -287,33 +308,33 @@ public with sharing class SovJobScopeController {
         try {
             Id scopeEntryId = (Id) processData.get('scopeEntryId');
             
-            wfrecon__Scope_Entry_Process__c newProcess = new wfrecon__Scope_Entry_Process__c();
-            newProcess.wfrecon__Process_Name__c = (String) processData.get('processName');
-            newProcess.wfrecon__Sequence__c = (Decimal) processData.get('sequence'); // For manual processes, use user-provided sequence
-            newProcess.wfrecon__Process_Type__c = (String) processData.get('processType');
+            Scope_Entry_Process__c newProcess = new Scope_Entry_Process__c();
+            newProcess.Process_Name__c = (String) processData.get('processName');
+            newProcess.Sequence__c = (Decimal) processData.get('sequence'); // For manual processes, use user-provided sequence
+            newProcess.Process_Type__c = (String) processData.get('processType');
             
             // Set default weight if not provided for equal distribution
             Decimal weightage = (Decimal) processData.get('weightage');
-            newProcess.wfrecon__Weight__c = (weightage != null) ? weightage : 1.0;
+            newProcess.Weight__c = (weightage != null) ? weightage : 1.0;
             
-            newProcess.wfrecon__Measurement_Type__c = (String) processData.get('measurementType');
-            newProcess.wfrecon__Scope_Entry__c = scopeEntryId;
-            newProcess.wfrecon__Job__c = (Id) processData.get('jobId');
-            newProcess.wfrecon__IsManual__c = true; // Mark as manual process
+            newProcess.Measurement_Type__c = (String) processData.get('measurementType');
+            newProcess.Scope_Entry__c = scopeEntryId;
+            newProcess.Job__c = (Id) processData.get('jobId');
+            newProcess.IsManual__c = true; // Mark as manual process
             
             insert as user newProcess;
 
             Integer relatedLocationsCount = [
                 SELECT COUNT()
-                FROM wfrecon__Location_Scope_Entry__c
-                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
+                FROM Location_Scope_Entry__c
+                WHERE Scope_Entry__c = :scopeEntryId
                 WITH USER_MODE
             ];
 
             if (relatedLocationsCount > 0) {
                 // Fetch entry for recalculation
-                Map<Id, wfrecon__Scope_Entry__c> entryMap = new Map<Id, wfrecon__Scope_Entry__c>(
-                    [SELECT Id, wfrecon__Contract_Value__c FROM wfrecon__Scope_Entry__c WHERE Id = :scopeEntryId]
+                Map<Id, Scope_Entry__c> entryMap = new Map<Id, Scope_Entry__c>(
+                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId]
                 );
                 recalculateLocationProcessesBulk(entryMap);
             }            
@@ -333,16 +354,16 @@ public with sharing class SovJobScopeController {
     ********************************************************
     */
     @AuraEnabled
-    public static List<wfrecon__Process__c> getProcessLibraryRecords() {
-        List<wfrecon__Process__c> processes = new List<wfrecon__Process__c>();
+    public static List<Process__c> getProcessLibraryRecords() {
+        List<Process__c> processes = new List<Process__c>();
         try {
             processes = [
-                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Process_Type__c, 
-                       wfrecon__Measurement_Type__c, wfrecon__Sequence__c, wfrecon__Weight__c,
-                       wfrecon__Process_Description__c
-                FROM wfrecon__Process__c
+                SELECT Id, Name, Process_Name__c, Process_Type__c, 
+                       Measurement_Type__c, Sequence__c, Weight__c,
+                       Process_Description__c
+                FROM Process__c
                 WITH USER_MODE
-                ORDER BY wfrecon__Process_Type__c ASC, wfrecon__Sequence__c ASC NULLS LAST, Name ASC
+                ORDER BY Process_Type__c ASC, Sequence__c ASC NULLS LAST, Name ASC
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProcessLibraryRecords','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Process Library records.','apiResponse' => null});
@@ -380,9 +401,9 @@ public with sharing class SovJobScopeController {
             
             // Get the current maximum sequence number for this scope entry
             List<AggregateResult> maxSequenceResult = [
-                SELECT MAX(wfrecon__Sequence__c) maxSeq
-                FROM wfrecon__Scope_Entry_Process__c
-                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
+                SELECT MAX(Sequence__c) maxSeq
+                FROM Scope_Entry_Process__c
+                WHERE Scope_Entry__c = :scopeEntryId
                 WITH USER_MODE
             ];
             
@@ -392,33 +413,33 @@ public with sharing class SovJobScopeController {
             }
             
             // Get Process Library records
-            List<wfrecon__Process__c> processLibraryRecords = [
-                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Process_Type__c, 
-                       wfrecon__Measurement_Type__c, wfrecon__Sequence__c, wfrecon__Weight__c   
-                FROM wfrecon__Process__c
+            List<Process__c> processLibraryRecords = [
+                SELECT Id, Name, Process_Name__c, Process_Type__c, 
+                       Measurement_Type__c, Sequence__c, Weight__c   
+                FROM Process__c
                 WHERE Id IN :selectedProcessIds
                 WITH USER_MODE
             ];
             
             // Create Scope Entry Process records with sequential sequence numbers
-            List<wfrecon__Scope_Entry_Process__c> scopeEntryProcesses = new List<wfrecon__Scope_Entry_Process__c>();
+            List<Scope_Entry_Process__c> scopeEntryProcesses = new List<Scope_Entry_Process__c>();
             Integer sequenceCounter = 1;
             
-            for (wfrecon__Process__c process : processLibraryRecords) {
-                wfrecon__Scope_Entry_Process__c newScopeProcess = new wfrecon__Scope_Entry_Process__c();
+            for (Process__c process : processLibraryRecords) {
+                Scope_Entry_Process__c newScopeProcess = new Scope_Entry_Process__c();
                 
                 // Required relationship fields
-                newScopeProcess.wfrecon__Scope_Entry__c = scopeEntryId;
-                newScopeProcess.wfrecon__Process_Library__c = process.Id;
+                newScopeProcess.Scope_Entry__c = scopeEntryId;
+                newScopeProcess.Process_Library__c = process.Id;
                 
                 // Copy values from Process Library but assign sequential sequence
-                newScopeProcess.wfrecon__Process_Name__c = process.wfrecon__Process_Name__c;
-                newScopeProcess.wfrecon__Process_Type__c = process.wfrecon__Process_Type__c;
-                newScopeProcess.wfrecon__Measurement_Type__c = process.wfrecon__Measurement_Type__c;
-                newScopeProcess.wfrecon__Sequence__c = currentMaxSequence + sequenceCounter; // Sequential assignment
-                newScopeProcess.wfrecon__Weight__c = process.wfrecon__Weight__c;
-                newScopeProcess.wfrecon__Job__c = jobId; // Associate with Job 
-                newScopeProcess.wfrecon__IsManual__c = false; // Mark as library process           
+                newScopeProcess.Process_Name__c = process.Process_Name__c;
+                newScopeProcess.Process_Type__c = process.Process_Type__c;
+                newScopeProcess.Measurement_Type__c = process.Measurement_Type__c;
+                newScopeProcess.Sequence__c = currentMaxSequence + sequenceCounter; // Sequential assignment
+                newScopeProcess.Weight__c = process.Weight__c;
+                newScopeProcess.Job__c = jobId; // Associate with Job 
+                newScopeProcess.IsManual__c = false; // Mark as library process           
                 
                 scopeEntryProcesses.add(newScopeProcess);
                 sequenceCounter++;
@@ -428,14 +449,14 @@ public with sharing class SovJobScopeController {
 
             Integer relatedLocationsCount = [
                 SELECT COUNT()
-                FROM wfrecon__Location_Scope_Entry__c
-                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
+                FROM Location_Scope_Entry__c
+                WHERE Scope_Entry__c = :scopeEntryId
                 WITH USER_MODE
             ];
 
             if (relatedLocationsCount > 0) {
-                Map<Id, wfrecon__Scope_Entry__c> entryMap = new Map<Id, wfrecon__Scope_Entry__c>(
-                    [SELECT Id, wfrecon__Contract_Value__c FROM wfrecon__Scope_Entry__c WHERE Id = :scopeEntryId]
+                Map<Id, Scope_Entry__c> entryMap = new Map<Id, Scope_Entry__c>(
+                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId]
                 );
                 recalculateLocationProcessesBulk(entryMap);
             }
@@ -459,12 +480,12 @@ public with sharing class SovJobScopeController {
         List<String> processTypes = new List<String>();
         try {
             List<AggregateResult> results = [
-                SELECT wfrecon__Process_Type__c
-                FROM wfrecon__Process__c
-                WHERE wfrecon__Process_Type__c != null
+                SELECT Process_Type__c
+                FROM Process__c
+                WHERE Process_Type__c != null
                 WITH USER_MODE
-                GROUP BY wfrecon__Process_Type__c
-                ORDER BY wfrecon__Process_Type__c ASC
+                GROUP BY Process_Type__c
+                ORDER BY Process_Type__c ASC
                
             ];
             
@@ -491,14 +512,14 @@ public with sharing class SovJobScopeController {
     @AuraEnabled
     public static Map<String, Object> getLocationsByScopeEntry(Id scopeEntryId) {
         Map<String, Object> result = new Map<String, Object>();
-        List<wfrecon__Location__c> allLocations = new List<wfrecon__Location__c>();
+        List<Location__c> allLocations = new List<Location__c>();
         List<Id> selectedLocationIds = new List<Id>();
         
         try {
             // First get the job ID from the scope entry
-            List<wfrecon__Scope_Entry__c> scopeEntries = [
-                SELECT Id, wfrecon__Job__c
-                FROM wfrecon__Scope_Entry__c
+            List<Scope_Entry__c> scopeEntries = [
+                SELECT Id, Job__c
+                FROM Scope_Entry__c
                 WHERE Id = :scopeEntryId
                 WITH USER_MODE
                 LIMIT 1
@@ -512,28 +533,28 @@ public with sharing class SovJobScopeController {
                 return result;
             }
             
-            Id jobId = scopeEntries[0].wfrecon__Job__c;
+            Id jobId = scopeEntries[0].Job__c;
             
             // Get all locations for this job
             allLocations = [
-                SELECT Id, Name, wfrecon__Quantity__c, wfrecon__Unit_of_Measure__c, wfrecon__Job__c
-                FROM wfrecon__Location__c
-                WHERE wfrecon__Job__c = :jobId
+                SELECT Id, Name, Quantity__c, Unit_of_Measure__c, Job__c
+                FROM Location__c
+                WHERE Job__c = :jobId
                 WITH USER_MODE
                 ORDER BY Name ASC
             ];
             
             // Get selected location IDs using the junction object
-            List<wfrecon__Location_Scope_Entry__c> locationScopeEntries = [
-                SELECT wfrecon__Location__c
-                FROM wfrecon__Location_Scope_Entry__c
-                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
+            List<Location_Scope_Entry__c> locationScopeEntries = [
+                SELECT Location__c
+                FROM Location_Scope_Entry__c
+                WHERE Scope_Entry__c = :scopeEntryId
                 WITH USER_MODE
             ];
             
-            for (wfrecon__Location_Scope_Entry__c lse : locationScopeEntries) {
-                if (lse.wfrecon__Location__c != null) {
-                    selectedLocationIds.add(lse.wfrecon__Location__c);
+            for (Location_Scope_Entry__c lse : locationScopeEntries) {
+                if (lse.Location__c != null) {
+                    selectedLocationIds.add(lse.Location__c);
                 }
             }
             
@@ -592,29 +613,29 @@ public with sharing class SovJobScopeController {
                 return 'Error: Invalid or missing Contract Value on Scope Entry.';
 
             // Fetch all processes for this Scope Entry
-            List<wfrecon__Scope_Entry_Process__c> processes = [
-                SELECT Id, wfrecon__Weight__c, wfrecon__Sequence__c, wfrecon__Process_Library__c
-                FROM wfrecon__Scope_Entry_Process__c
-                WHERE wfrecon__Scope_Entry__c = :scopeEntryId
+            List<Scope_Entry_Process__c> processes = [
+                SELECT Id, Weight__c, Sequence__c, Process_Library__c
+                FROM Scope_Entry_Process__c
+                WHERE Scope_Entry__c = :scopeEntryId
                 WITH USER_MODE
-                ORDER BY wfrecon__Sequence__c ASC
+                ORDER BY Sequence__c ASC
                 
             ];
             if (processes.isEmpty()) return 'Error: No processes found for this Scope Entry.';
 
             // Calculate total process weight
             Decimal totalWeight = 0;
-            for (wfrecon__Scope_Entry_Process__c p : processes)
-                totalWeight += (p.wfrecon__Weight__c != null ? p.wfrecon__Weight__c : 0);
+            for (Scope_Entry_Process__c p : processes)
+                totalWeight += (p.Weight__c != null ? p.Weight__c : 0);
 
             if (totalWeight == 0) return 'Error: Total process weight cannot be zero.';
 
             // Fetch selected locations for recalculation
-            List<wfrecon__Location__c> selectedLocations = new List<wfrecon__Location__c>();
+            List<Location__c> selectedLocations = new List<Location__c>();
             if (!selectedLocationIds.isEmpty()) {
                 selectedLocations = [
                     SELECT Id, Quantity__c
-                    FROM wfrecon__Location__c
+                    FROM Location__c
                     WHERE Id IN :selectedLocationIds
                     WITH USER_MODE
                 ];
@@ -622,7 +643,7 @@ public with sharing class SovJobScopeController {
 
             Map<Id, Decimal> locationQtyMap = new Map<Id, Decimal>();
             Decimal totalQty = 0;
-            for (wfrecon__Location__c loc : selectedLocations) {
+            for (Location__c loc : selectedLocations) {
                 Decimal qty = loc.Quantity__c != null ? loc.Quantity__c : 0;
                 locationQtyMap.put(loc.Id, qty);
                 totalQty += qty;
@@ -630,27 +651,27 @@ public with sharing class SovJobScopeController {
             if (totalQty == 0) return 'Error: Total Quantity cannot be zero.';
 
             // Initialize record lists
-            List<wfrecon__Location_Scope_Entry__c> junctionsToCreate = new List<wfrecon__Location_Scope_Entry__c>();
-            List<wfrecon__Location_Scope_Entry__c> junctionsToDelete = new List<wfrecon__Location_Scope_Entry__c>();
-            List<wfrecon__Location_Process__c> processesToCreate = new List<wfrecon__Location_Process__c>();
-            List<wfrecon__Location_Process__c> processesToUpdate = new List<wfrecon__Location_Process__c>();
+            List<Location_Scope_Entry__c> junctionsToCreate = new List<Location_Scope_Entry__c>();
+            List<Location_Scope_Entry__c> junctionsToDelete = new List<Location_Scope_Entry__c>();
+            List<Location_Process__c> processesToCreate = new List<Location_Process__c>();
+            List<Location_Process__c> processesToUpdate = new List<Location_Process__c>();
 
             // Handle removals
             if (!removedLocationIds.isEmpty()) {
-                List<wfrecon__Location_Scope_Entry__c> existingJunctions = [
+                List<Location_Scope_Entry__c> existingJunctions = [
                     SELECT Id
-                    FROM wfrecon__Location_Scope_Entry__c
-                    WHERE wfrecon__Scope_Entry__c = :scopeEntryId
-                    AND wfrecon__Location__c IN :removedLocationIds
+                    FROM Location_Scope_Entry__c
+                    WHERE Scope_Entry__c = :scopeEntryId
+                    AND Location__c IN :removedLocationIds
                     WITH USER_MODE
                 ];
                 if (!existingJunctions.isEmpty()) junctionsToDelete.addAll(existingJunctions);
 
-                List<wfrecon__Location_Process__c> existingProcesses = [
+                List<Location_Process__c> existingProcesses = [
                     SELECT Id
-                    FROM wfrecon__Location_Process__c
-                    WHERE wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c = :scopeEntryId
-                    AND wfrecon__Location__c IN :removedLocationIds
+                    FROM Location_Process__c
+                    WHERE Scope_Entry_Process__r.Scope_Entry__c = :scopeEntryId
+                    AND Location__c IN :removedLocationIds
                     WITH USER_MODE
                 ];
                 if (!existingProcesses.isEmpty()) delete existingProcesses;
@@ -661,9 +682,9 @@ public with sharing class SovJobScopeController {
             // Handle additions
             if (!addedLocationIds.isEmpty()) {
                 for (String locId : addedLocationIds) {
-                    junctionsToCreate.add(new wfrecon__Location_Scope_Entry__c(
-                        wfrecon__Scope_Entry__c = scopeEntryId,
-                        wfrecon__Location__c = locId
+                    junctionsToCreate.add(new Location_Scope_Entry__c(
+                        Scope_Entry__c = scopeEntryId,
+                        Location__c = locId
                     ));
                 }
                 if (!junctionsToCreate.isEmpty()) insert junctionsToCreate;
@@ -677,9 +698,9 @@ public with sharing class SovJobScopeController {
 
                     // Get the current maximum sequence for this location
                     List<AggregateResult> maxSequenceResult = [
-                        SELECT MAX(wfrecon__Sequence__c) maxSeq
-                        FROM wfrecon__Location_Process__c
-                        WHERE wfrecon__Location__c = :locId
+                        SELECT MAX(Sequence__c) maxSeq
+                        FROM Location_Process__c
+                        WHERE Location__c = :locId
                         WITH USER_MODE
                     ];
                     
@@ -689,14 +710,14 @@ public with sharing class SovJobScopeController {
                     }
 
                     Integer sequenceCounter = startingSequence;
-                    for (wfrecon__Scope_Entry_Process__c p : processes) {
-                        Decimal weightShare = (p.wfrecon__Weight__c != null ? p.wfrecon__Weight__c : 0) / totalWeight;
-                        processesToCreate.add(new wfrecon__Location_Process__c(
-                            wfrecon__Location__c = locId,
-                            wfrecon__Scope_Entry_Process__c = p.Id,
-                            wfrecon__Process_Library__c = p.wfrecon__Process_Library__c,
-                            wfrecon__Sequence__c = sequenceCounter,
-                            wfrecon__Contract_Price__c = locValue * weightShare
+                    for (Scope_Entry_Process__c p : processes) {
+                        Decimal weightShare = (p.Weight__c != null ? p.Weight__c : 0) / totalWeight;
+                        processesToCreate.add(new Location_Process__c(
+                            Location__c = locId,
+                            Scope_Entry_Process__c = p.Id,
+                            Process_Library__c = p.Process_Library__c,
+                            Sequence__c = sequenceCounter,
+                            Contract_Price__c = locValue * weightShare
                         ));
                         sequenceCounter++;
                     }
@@ -706,24 +727,24 @@ public with sharing class SovJobScopeController {
 
             // Handle updates (recalculate existing ones)
             if (hasChanges && !selectedLocationIds.isEmpty()) {
-                List<wfrecon__Location_Process__c> existingToUpdate = [
-                    SELECT Id, wfrecon__Location__c, wfrecon__Scope_Entry_Process__c
-                    FROM wfrecon__Location_Process__c
-                    WHERE wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c = :scopeEntryId
-                    AND wfrecon__Location__c IN :selectedLocationIds
+                List<Location_Process__c> existingToUpdate = [
+                    SELECT Id, Location__c, Scope_Entry_Process__c
+                    FROM Location_Process__c
+                    WHERE Scope_Entry_Process__r.Scope_Entry__c = :scopeEntryId
+                    AND Location__c IN :selectedLocationIds
                     WITH USER_MODE
                 ];
 
                 Map<Id, Decimal> weightMap = new Map<Id, Decimal>();
-                for (wfrecon__Scope_Entry_Process__c p : processes)
-                    weightMap.put(p.Id, p.wfrecon__Weight__c != null ? p.wfrecon__Weight__c : 0);
+                for (Scope_Entry_Process__c p : processes)
+                    weightMap.put(p.Id, p.Weight__c != null ? p.Weight__c : 0);
 
-                for (wfrecon__Location_Process__c lp : existingToUpdate) {
-                    Decimal locQty = locationQtyMap.get(lp.wfrecon__Location__c);
+                for (Location_Process__c lp : existingToUpdate) {
+                    Decimal locQty = locationQtyMap.get(lp.Location__c);
                     if (locQty == null) continue;
                     Decimal locShare = locQty / totalQty;
-                    Decimal weightShare = (weightMap.get(lp.wfrecon__Scope_Entry_Process__c) / totalWeight);
-                    lp.wfrecon__Contract_Price__c = scopeEntry.Contract_Value__c * locShare * weightShare;
+                    Decimal weightShare = (weightMap.get(lp.Scope_Entry_Process__c) / totalWeight);
+                    lp.Contract_Price__c = scopeEntry.Contract_Value__c * locShare * weightShare;
                     processesToUpdate.add(lp);
                 }
 
@@ -778,8 +799,8 @@ public with sharing class SovJobScopeController {
             }
     
             // Deserialize JSON string into a list of Scope Entry records
-            List<wfrecon__Scope_Entry__c> updatedScopeEntries =
-                (List<wfrecon__Scope_Entry__c>) JSON.deserialize(updatedScopeEntriesJson, List<wfrecon__Scope_Entry__c>.class);
+            List<Scope_Entry__c> updatedScopeEntries =
+                (List<Scope_Entry__c>) JSON.deserialize(updatedScopeEntriesJson, List<Scope_Entry__c>.class);
     
             if (updatedScopeEntries == null || updatedScopeEntries.isEmpty()) {
                 return 'Error: No scope entry records provided for update.';
@@ -791,35 +812,35 @@ public with sharing class SovJobScopeController {
             Map<Id, String> originalStatuses = new Map<Id, String>();
             List<Id> scopeEntryIds = new List<Id>();
     
-            for (wfrecon__Scope_Entry__c entry : updatedScopeEntries) {
+            for (Scope_Entry__c entry : updatedScopeEntries) {
                 scopeEntryIds.add(entry.Id);
             }
     
             // Fetch original contract values and statuses
-            for (wfrecon__Scope_Entry__c original : [
-                SELECT Id, wfrecon__Contract_Value__c, wfrecon__Scope_Entry_Status__c
-                FROM wfrecon__Scope_Entry__c
+            for (Scope_Entry__c original : [
+                SELECT Id, Contract_Value__c, Scope_Entry_Status__c
+                FROM Scope_Entry__c
                 WHERE Id IN :scopeEntryIds
                 WITH USER_MODE
             ]) {
-                originalContractValues.put(original.Id, original.wfrecon__Contract_Value__c);
-                originalStatuses.put(original.Id, original.wfrecon__Scope_Entry_Status__c);
+                originalContractValues.put(original.Id, original.Contract_Value__c);
+                originalStatuses.put(original.Id, original.Scope_Entry_Status__c);
             }
             
             // Set approval date for entries being approved (status changing from non-approved to approved)
             Date currentDate = Date.today();
-            for (wfrecon__Scope_Entry__c entry : updatedScopeEntries) {
+            for (Scope_Entry__c entry : updatedScopeEntries) {
                 String originalStatus = originalStatuses.get(entry.Id);
-                if (entry.wfrecon__Scope_Entry_Status__c == 'Approved' && originalStatus != 'Approved') {
+                if (entry.Scope_Entry_Status__c == 'Approved' && originalStatus != 'Approved') {
                     // Set approval date - use wfrecon namespace prefix
                     entry.put('wfrecon__Approved_Date__c', currentDate);
                 }
             }
     
             // Identify records where Contract_Value__c changed
-            for (wfrecon__Scope_Entry__c updatedEntry : updatedScopeEntries) {
+            for (Scope_Entry__c updatedEntry : updatedScopeEntries) {
                 Decimal oldVal = originalContractValues.get(updatedEntry.Id);
-                Decimal newVal = updatedEntry.wfrecon__Contract_Value__c;
+                Decimal newVal = updatedEntry.Contract_Value__c;
     
                 if ((oldVal == null && newVal != null) ||
                     (oldVal != null && newVal == null) ||
@@ -849,8 +870,8 @@ public with sharing class SovJobScopeController {
             // Prepare changed entries map for recalculation
             String recalcMessage = '';
             if (!scopeEntriesWithContractValueChanges.isEmpty()) {
-                Map<Id, wfrecon__Scope_Entry__c> changedEntries = new Map<Id, wfrecon__Scope_Entry__c>();
-                for (wfrecon__Scope_Entry__c se : updatedScopeEntries) {
+                Map<Id, Scope_Entry__c> changedEntries = new Map<Id, Scope_Entry__c>();
+                for (Scope_Entry__c se : updatedScopeEntries) {
                     if (scopeEntriesWithContractValueChanges.contains(se.Id)) {
                         changedEntries.put(se.Id, se);
                     }
@@ -887,11 +908,11 @@ public with sharing class SovJobScopeController {
     *********************************************************
     @description : Bulk recalculation of location processes for Scope Entries
                 Automatically handles creation of missing Location Processes
-    @param       : Map<Id, wfrecon__Scope_Entry__c> scopeEntries
+    @param       : Map<Id, Scope_Entry__c> scopeEntries
     @return      : String - Summary message
     *********************************************************
     */
-    public static String recalculateLocationProcessesBulk(Map<Id, wfrecon__Scope_Entry__c> scopeEntries) {
+    public static String recalculateLocationProcessesBulk(Map<Id, Scope_Entry__c> scopeEntries) {
         try {
             if (scopeEntries == null || scopeEntries.isEmpty()) {
                 return 'No scope entries provided for recalculation.';
@@ -900,61 +921,61 @@ public with sharing class SovJobScopeController {
             Set<Id> scopeEntryIds = scopeEntries.keySet();
 
             // Fetch all Scope Entry Processes
-            Map<Id, List<wfrecon__Scope_Entry_Process__c>> entryToProcesses = new Map<Id, List<wfrecon__Scope_Entry_Process__c>>();
-            for (wfrecon__Scope_Entry_Process__c proc : [
-                SELECT Id, wfrecon__Scope_Entry__c, wfrecon__Weight__c,
-                    wfrecon__Sequence__c, wfrecon__Process_Library__c
-                FROM wfrecon__Scope_Entry_Process__c
-                WHERE wfrecon__Scope_Entry__c IN :scopeEntryIds
+            Map<Id, List<Scope_Entry_Process__c>> entryToProcesses = new Map<Id, List<Scope_Entry_Process__c>>();
+            for (Scope_Entry_Process__c proc : [
+                SELECT Id, Scope_Entry__c, Weight__c,
+                    Sequence__c, Process_Library__c
+                FROM Scope_Entry_Process__c
+                WHERE Scope_Entry__c IN :scopeEntryIds
                 WITH USER_MODE
             ]) {
-                if (!entryToProcesses.containsKey(proc.wfrecon__Scope_Entry__c)) {
-                    entryToProcesses.put(proc.wfrecon__Scope_Entry__c, new List<wfrecon__Scope_Entry_Process__c>());
+                if (!entryToProcesses.containsKey(proc.Scope_Entry__c)) {
+                    entryToProcesses.put(proc.Scope_Entry__c, new List<Scope_Entry_Process__c>());
                 }
-                entryToProcesses.get(proc.wfrecon__Scope_Entry__c).add(proc);
+                entryToProcesses.get(proc.Scope_Entry__c).add(proc);
             }
 
             // Fetch all Location junctions
-            Map<Id, List<wfrecon__Location_Scope_Entry__c>> entryToJunctions = new Map<Id, List<wfrecon__Location_Scope_Entry__c>>();
-            for (wfrecon__Location_Scope_Entry__c junc : [
-                SELECT Id, wfrecon__Scope_Entry__c, wfrecon__Location__c,
-                    wfrecon__Location__r.Quantity__c
-                FROM wfrecon__Location_Scope_Entry__c
-                WHERE wfrecon__Scope_Entry__c IN :scopeEntryIds
+            Map<Id, List<Location_Scope_Entry__c>> entryToJunctions = new Map<Id, List<Location_Scope_Entry__c>>();
+            for (Location_Scope_Entry__c junc : [
+                SELECT Id, Scope_Entry__c, Location__c,
+                    Location__r.Quantity__c
+                FROM Location_Scope_Entry__c
+                WHERE Scope_Entry__c IN :scopeEntryIds
                 WITH USER_MODE
             ]) {
-                if (!entryToJunctions.containsKey(junc.wfrecon__Scope_Entry__c)) {
-                    entryToJunctions.put(junc.wfrecon__Scope_Entry__c, new List<wfrecon__Location_Scope_Entry__c>());
+                if (!entryToJunctions.containsKey(junc.Scope_Entry__c)) {
+                    entryToJunctions.put(junc.Scope_Entry__c, new List<Location_Scope_Entry__c>());
                 }
-                entryToJunctions.get(junc.wfrecon__Scope_Entry__c).add(junc);
+                entryToJunctions.get(junc.Scope_Entry__c).add(junc);
             }
 
             // Fetch existing Location Processes
-            Map<Id, List<wfrecon__Location_Process__c>> entryToLocProcesses = new Map<Id, List<wfrecon__Location_Process__c>>();
-            for (wfrecon__Location_Process__c lp : [
-                SELECT Id, wfrecon__Scope_Entry_Process__c, 
-                    wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c, 
-                    wfrecon__Location__c
-                FROM wfrecon__Location_Process__c
-                WHERE wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c IN :scopeEntryIds
+            Map<Id, List<Location_Process__c>> entryToLocProcesses = new Map<Id, List<Location_Process__c>>();
+            for (Location_Process__c lp : [
+                SELECT Id, Scope_Entry_Process__c, 
+                    Scope_Entry_Process__r.Scope_Entry__c, 
+                    Location__c
+                FROM Location_Process__c
+                WHERE Scope_Entry_Process__r.Scope_Entry__c IN :scopeEntryIds
                 WITH USER_MODE
             ]) {
-                Id entryId = lp.wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c;
+                Id entryId = lp.Scope_Entry_Process__r.Scope_Entry__c;
                 if (!entryToLocProcesses.containsKey(entryId)) {
-                    entryToLocProcesses.put(entryId, new List<wfrecon__Location_Process__c>());
+                    entryToLocProcesses.put(entryId, new List<Location_Process__c>());
                 }
                 entryToLocProcesses.get(entryId).add(lp);
             }
 
             // Prepare for insert/update
-            List<wfrecon__Location_Process__c> toInsert = new List<wfrecon__Location_Process__c>();
-            List<wfrecon__Location_Process__c> toUpdate = new List<wfrecon__Location_Process__c>();
+            List<Location_Process__c> toInsert = new List<Location_Process__c>();
+            List<Location_Process__c> toUpdate = new List<Location_Process__c>();
 
             for (Id entryId : scopeEntryIds) {
                 Scope_Entry__c entry = scopeEntries.get(entryId);
-                List<wfrecon__Scope_Entry_Process__c> processes = entryToProcesses.get(entryId);
-                List<wfrecon__Location_Scope_Entry__c> junctions = entryToJunctions.get(entryId);
-                List<wfrecon__Location_Process__c> locProcesses = entryToLocProcesses.get(entryId);
+                List<Scope_Entry_Process__c> processes = entryToProcesses.get(entryId);
+                List<Location_Scope_Entry__c> junctions = entryToJunctions.get(entryId);
+                List<Location_Process__c> locProcesses = entryToLocProcesses.get(entryId);
 
                 if (entry == null || processes == null || junctions == null) continue;
                 if (entry.Contract_Value__c == null || entry.Contract_Value__c == 0) continue;
@@ -962,8 +983,8 @@ public with sharing class SovJobScopeController {
                 // Calculate total process weight
                 Decimal totalWeight = 0;
                 Map<Id, Decimal> weightMap = new Map<Id, Decimal>();
-                for (wfrecon__Scope_Entry_Process__c p : processes) {
-                    Decimal w = p.wfrecon__Weight__c != null ? p.wfrecon__Weight__c : 0;
+                for (Scope_Entry_Process__c p : processes) {
+                    Decimal w = p.Weight__c != null ? p.Weight__c : 0;
                     totalWeight += w;
                     weightMap.put(p.Id, w);
                 }
@@ -972,27 +993,27 @@ public with sharing class SovJobScopeController {
                 // Calculate total location quantity
                 Decimal totalQty = 0;
                 Map<Id, Decimal> qtyMap = new Map<Id, Decimal>();
-                for (wfrecon__Location_Scope_Entry__c j : junctions) {
-                    Decimal q = j.wfrecon__Location__r.Quantity__c != null ? j.wfrecon__Location__r.Quantity__c : 0;
+                for (Location_Scope_Entry__c j : junctions) {
+                    Decimal q = j.Location__r.Quantity__c != null ? j.Location__r.Quantity__c : 0;
                     totalQty += q;
-                    qtyMap.put(j.wfrecon__Location__c, q);
+                    qtyMap.put(j.Location__c, q);
                 }
                 if (totalQty == 0) continue;
 
                 // Build existing location-process map for this entry
-                Map<String, wfrecon__Location_Process__c> existingMap = new Map<String, wfrecon__Location_Process__c>();
+                Map<String, Location_Process__c> existingMap = new Map<String, Location_Process__c>();
                 Map<Id, Integer> locationMaxSequence = new Map<Id, Integer>();
                 
                 if (locProcesses != null) {
-                    for (wfrecon__Location_Process__c lp : locProcesses) {
-                        String key = lp.wfrecon__Location__c + '_' + lp.wfrecon__Scope_Entry_Process__c;
+                    for (Location_Process__c lp : locProcesses) {
+                        String key = lp.Location__c + '_' + lp.Scope_Entry_Process__c;
                         existingMap.put(key, lp);
                         
                         // Track the maximum sequence number for each location
-                        Integer currentSeq = lp.wfrecon__Sequence__c != null ? lp.wfrecon__Sequence__c.intValue() : 0;
-                        Integer maxSeq = locationMaxSequence.get(lp.wfrecon__Location__c);
+                        Integer currentSeq = lp.Sequence__c != null ? lp.Sequence__c.intValue() : 0;
+                        Integer maxSeq = locationMaxSequence.get(lp.Location__c);
                         if (maxSeq == null || currentSeq > maxSeq) {
-                            locationMaxSequence.put(lp.wfrecon__Location__c, currentSeq);
+                            locationMaxSequence.put(lp.Location__c, currentSeq);
                         }
                     }
                 }
@@ -1000,45 +1021,45 @@ public with sharing class SovJobScopeController {
                 // Create or update each location-process combination
                 Map<Id, Integer> locationSequenceCounters = new Map<Id, Integer>();
                 
-                for (wfrecon__Scope_Entry_Process__c proc : processes) {
+                for (Scope_Entry_Process__c proc : processes) {
                     Decimal weight = weightMap.get(proc.Id);
                     if (weight == null || weight == 0) continue;
 
-                    for (wfrecon__Location_Scope_Entry__c junc : junctions) {
-                        Decimal locQty = qtyMap.get(junc.wfrecon__Location__c);
+                    for (Location_Scope_Entry__c junc : junctions) {
+                        Decimal locQty = qtyMap.get(junc.Location__c);
                         if (locQty == null || locQty == 0) continue;
 
                         Decimal locShare = locQty / totalQty;
                         Decimal weightShare = weight / totalWeight;
                         Decimal newPrice = entry.Contract_Value__c * locShare * weightShare;
 
-                        String key = junc.wfrecon__Location__c + '_' + proc.Id;
+                        String key = junc.Location__c + '_' + proc.Id;
                         if (existingMap.containsKey(key)) {
                             // Update existing - preserve existing sequence, only update price
-                            toUpdate.add(new wfrecon__Location_Process__c(
+                            toUpdate.add(new Location_Process__c(
                                 Id = existingMap.get(key).Id,
-                                wfrecon__Contract_Price__c = newPrice
+                                Contract_Price__c = newPrice
                                 // Note: Deliberately NOT updating sequence to preserve existing sequence
                             ));
                         } else {
                             // Create missing Location Process with next available sequence for this location
-                            if (!locationSequenceCounters.containsKey(junc.wfrecon__Location__c)) {
+                            if (!locationSequenceCounters.containsKey(junc.Location__c)) {
                                 // Initialize counter with max existing sequence + 1
-                                Integer maxSeq = locationMaxSequence.get(junc.wfrecon__Location__c);
-                                locationSequenceCounters.put(junc.wfrecon__Location__c, 
+                                Integer maxSeq = locationMaxSequence.get(junc.Location__c);
+                                locationSequenceCounters.put(junc.Location__c, 
                                     maxSeq != null ? maxSeq + 1 : 1);
                             }
                             
-                            toInsert.add(new wfrecon__Location_Process__c(
-                                wfrecon__Location__c = junc.wfrecon__Location__c,
-                                wfrecon__Scope_Entry_Process__c = proc.Id,
-                                wfrecon__Process_Library__c = proc.wfrecon__Process_Library__c,
-                                wfrecon__Sequence__c = locationSequenceCounters.get(junc.wfrecon__Location__c),
-                                wfrecon__Contract_Price__c = newPrice
+                            toInsert.add(new Location_Process__c(
+                                Location__c = junc.Location__c,
+                                Scope_Entry_Process__c = proc.Id,
+                                Process_Library__c = proc.Process_Library__c,
+                                Sequence__c = locationSequenceCounters.get(junc.Location__c),
+                                Contract_Price__c = newPrice
                             ));
                             // Increment sequence counter for this location
-                            locationSequenceCounters.put(junc.wfrecon__Location__c, 
-                                locationSequenceCounters.get(junc.wfrecon__Location__c) + 1);
+                            locationSequenceCounters.put(junc.Location__c, 
+                                locationSequenceCounters.get(junc.Location__c) + 1);
                         }
                     }
                 }

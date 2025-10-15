@@ -904,7 +904,7 @@
     top: 0;
     bottom: 0;
     width: 4px;
-    background-color: rgba(94, 90, 219, 1);
+    background-color: #F0AD4E !important;
     border-radius: 0 0.25rem 0.25rem 0;
 }
 

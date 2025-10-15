@@ -30,6 +30,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track modifiedProcessEntriesByScopeEntry = new Map(); // Map<scopeEntryId, Set<processId>>
     @track fieldPicklistOptions = new Map(); // Map<fieldName, Array<{label, value}>>
     @track scopeEntryProcessMap = new Map(); // Map<scopeEntryId, Array<processData>> - stores preloaded process data
+    @track scopeEntryLocationCounts = new Map(); // Map<scopeEntryId, Integer> - stores location counts for each scope entry
 
     @track sortField = '';
     @track sortOrder = '';
@@ -907,6 +908,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                         });
                     }
                     
+                    // Store the location counts
+                    this.scopeEntryLocationCounts = new Map();
+                    if (result.scopeEntryLocationCounts) {
+                        Object.keys(result.scopeEntryLocationCounts).forEach(scopeEntryId => {
+                            this.scopeEntryLocationCounts.set(scopeEntryId, result.scopeEntryLocationCounts[scopeEntryId]);
+                        });
+                    }
+                    
                     this.applyFilters();
                     this.isLoading = false;
                     
@@ -919,6 +928,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.filteredContractEntries = [];
                     this.filteredChangeOrderEntries = [];
                     this.scopeEntryProcessMap = new Map();
+                    this.scopeEntryLocationCounts = new Map();
                     this.isLoading = false;
                     throw new Error(result.error || 'Unable to load scope data');
                 }
@@ -932,6 +942,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.filteredContractEntries = [];
                 this.filteredChangeOrderEntries = [];
                 this.scopeEntryProcessMap = new Map();
+                this.scopeEntryLocationCounts = new Map();
                 this.isLoading = false;
                 throw error; // Re-throw to allow caller to handle
             });
@@ -1165,16 +1176,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             const hasProcesses = this.scopeEntryProcessMap.has(scopeEntryId) && 
                                 this.scopeEntryProcessMap.get(scopeEntryId).length > 0;
 
-            // Check if scope entry has locations
-            let hasLocations = false;
-            try {
-                const locationResult = await getLocationsByScopeEntry({ scopeEntryId: scopeEntryId });
-                hasLocations = locationResult && locationResult.length > 0;
-            } catch (error) {
-                console.error('Error checking locations for scope entry:', error);
-                // If we can't check locations, we'll allow approval but show a warning
-                hasLocations = true;
-            }
+            console.log('hasProcesses ==> ' , hasProcesses);
+            
+            // Check if scope entry has locations using cached data
+            const locationCount = this.scopeEntryLocationCounts.get(scopeEntryId) || 0;
+            const hasLocations = locationCount > 0;
+
+            console.log('hasLocations ==> ' , hasLocations);
+            console.log('locationCount ==> ' , locationCount);
 
             if (!hasProcesses && !hasLocations) {
                 return {
@@ -1227,6 +1236,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         });
 
         await Promise.all(validationPromises);
+
+        console.log('invalidEntries ==> ' , invalidEntries);
+        
 
         if (invalidEntries.length > 0) {
             const entryNames = invalidEntries.map(entry => entry.name).join(', ');
@@ -1283,6 +1295,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             
             // Clear preloaded data
             this.scopeEntryProcessMap.clear();
+            this.scopeEntryLocationCounts.clear();
             
             // Reset sorting to defaults
             if (this.scopeEntryColumns.length > 0) {
@@ -1407,6 +1420,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
             // Clear only the process-related data that needs to be refreshed
             this.scopeEntryProcessMap.clear();
+            this.scopeEntryLocationCounts.clear();
             
             // Fetch fresh scope entries data
             let res = await this.fetchScopeEntries();
@@ -2697,12 +2711,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
 
         this.isProcessSubmitting = true;
-        
+
+        const parsedSequnce = parseFloat(this.newProcess.sequence);
+        const parsedWeightage = parseFloat(this.newProcess.weightage);
+
         const processData = {
             processName: this.newProcess.processName.trim(),
-            sequence: this.newProcess.sequence,
+            sequence: parsedSequnce,
             processType: this.newProcess.processType,
-            weightage: this.newProcess.weightage,
+            weightage: parsedWeightage,
             scopeEntryId: this.selectedScopeEntryId,
             jobId: this.recordId
         };
@@ -3327,6 +3344,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result.includes('Success')) {
                     this.showToast('Success', 'Locations have been updated', 'success');
+                    
+                    // Update the location count cache immediately
+                    this.scopeEntryLocationCounts.set(scopeEntryId, this.selectedLocationIds.length);
+                    
                     this.handleCloseLocationModal();
                     // Use targeted refresh instead of complete refresh to maintain expanded state
                     this.performTargetedRefresh();
