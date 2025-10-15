@@ -1,10 +1,11 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { NavigationMixin } from 'lightning/navigation';
 import getBillingsData from '@salesforce/apex/BillingDetailsPageController.getBillingsData';
 import updateBillingDetails from '@salesforce/apex/BillingDetailsPageController.updateBillingDetails';
 import saveBillingLineItems from '@salesforce/apex/BillingDetailsPageController.saveBillingLineItems';
 
-export default class BillingDetailsPage extends LightningElement {
+export default class BillingDetailsPage extends NavigationMixin(LightningElement) {
     @api recordId;
     @track isLoading = true;
     @track billingRecord;
@@ -82,7 +83,7 @@ export default class BillingDetailsPage extends LightningElement {
     }
 
     get formattedCurrentPaymentDue() {
-        return this.formatCurrency(this.billingDetails.totalDueThisBilling);
+        return this.formatCurrency(this.billingDetails.TotalDueThisBilling);
     }
 
     get formattedJobRetainage() {
@@ -234,23 +235,27 @@ export default class BillingDetailsPage extends LightningElement {
             Id: item.Id,
             scopeEntryName: item.wfrecon__Scope_Entry__r.Name || '-',
             contractValue: this.formatCurrency(item.wfrecon__Scope_Contract_Value__c),
-            previousBilledPercent: this.formatPercent(item.wfrecon__Prev_Billed_Percent__c),
-            previousBilledAmount: this.formatCurrency(item.wfrecon__Previous_Billed_Amount__c),
-            currentCompletePercent: this.formatPercent(item.wfrecon__Current_Billing_Complete__c),
+            previousBilledPercent: this.formatPercent(item.wfrecon__Previous_Billed_Percent__c),
+            previousBilledAmount: this.formatCurrency(item.wfrecon__Previous_Billed_Value__c),
+            currentCompletePercent: this.formatPercent(item.wfrecon__Current_Process_Complete__c),
             thisBillingCompletePercent: this.formatPercent(item.wfrecon__This_Billing_Percent__c),
             totalCompleteAmount: this.formatCurrency(item.wfrecon__Total_Complete_Amount__c),
-            thisBillingAmount: this.formatCurrency(item.wfrecon__This_Billing_Amount__c),
+            thisBillingAmount: this.formatCurrency(item.wfrecon__This_Billing_Value__c),
+            retainagePercent: this.formatPercent(item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c),
             retainageAmount: this.formatCurrency(item.wfrecon__Retainage_Amount_on_Bill_Line_Item__c),
             dueThisBilling: this.formatCurrency(item.wfrecon__Due_This_Billing__c),
             isEditingThisBillingPercent: false,
+            isEditingRetainagePercent: false,
             rowClass: '',
             thisBillingPercentCellClass: 'editable-cell',
+            retainagePercentCellClass: 'editable-cell',
             
             // Raw values for calculations
             rawScopeContractValue: item.wfrecon__Scope_Contract_Value__c || 0,
             rawPreviousBilledAmount: item.wfrecon__Previous_Billed_Amount__c || 0,
             rawTotalCompleteAmount: item.wfrecon__Total_Complete_Amount__c || 0,
-            rawThisBillingAmount: item.wfrecon__This_Billing_Amount__c || 0,
+            rawThisBillingAmount: item.wfrecon__This_Billing_Value__c || 0,
+            rawRetainagePercent: item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0,
             rawRetainageAmount: item.wfrecon__Retainage_Amount_on_Bill_Line_Item__c || 0,
             rawDueThisBilling: item.wfrecon__Due_This_Billing__c || 0,
             rawThisBillingPercent: item.wfrecon__This_Billing_Percent__c || 0
@@ -400,8 +405,8 @@ export default class BillingDetailsPage extends LightningElement {
             if (this.billingDetails.RetainageOnBill !== this.originalBillingDetails.RetainageOnBill) {
                 fieldValues['RetainageOnBill'] = this.billingDetails.RetainageOnBill;
             }
-            if (this.billingDetails.wfrecon__Sent_Date__c !== this.originalBillingDetails.wfrecon__Sent_Date__c) {
-                fieldValues['wfrecon__Sent_Date__c'] = this.billingDetails.wfrecon__Sent_Date__c;
+            if (this.billingDetails.SentDate !== this.originalBillingDetails.SentDate) {
+                fieldValues['SentDate'] = this.billingDetails.SentDate;
             }
             if (this.billingDetails.BillingReferenceNumber !== this.originalBillingDetails.BillingReferenceNumber) {
                 fieldValues['BillingReferenceNumber'] = this.billingDetails.BillingReferenceNumber;
@@ -496,6 +501,8 @@ export default class BillingDetailsPage extends LightningElement {
         try {
             const recordId = event.target.dataset.recordId;
             const fieldName = event.target.dataset.fieldName;
+            console.log('Input Change - RecordId:', recordId, 'Field:', fieldName, 'New Value:', event.target.value);
+            
             const newValue = parseFloat(event.target.value) || 0;
             
             // Update the value in the appropriate array
@@ -554,9 +561,17 @@ export default class BillingDetailsPage extends LightningElement {
         const originalChangeOrderItem = this.originalChangeOrderItems?.find(item => item.Id === recordId);
         
         if (originalContractItem) {
-            return originalContractItem.rawThisBillingPercent;
+            if (fieldName === 'This_Billing_Percent__c') {
+                return originalContractItem.rawThisBillingPercent;
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                return originalContractItem.rawRetainagePercent;
+            }
         } else if (originalChangeOrderItem) {
-            return originalChangeOrderItem.rawThisBillingPercent;
+            if (fieldName === 'This_Billing_Percent__c') {
+                return originalChangeOrderItem.rawThisBillingPercent;
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                return originalChangeOrderItem.rawRetainagePercent;
+            }
         }
         
         return 0;
@@ -586,10 +601,18 @@ export default class BillingDetailsPage extends LightningElement {
         const changeOrderItem = this.changeOrderLineItems.find(item => item.Id === recordId);
         
         if (contractItem) {
-            contractItem.isEditingThisBillingPercent = isEditing;
+            if (fieldName === 'This_Billing_Percent__c') {
+                contractItem.isEditingThisBillingPercent = isEditing;
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                contractItem.isEditingRetainagePercent = isEditing;
+            }
             this.contractLineItems = [...this.contractLineItems];
         } else if (changeOrderItem) {
-            changeOrderItem.isEditingThisBillingPercent = isEditing;
+            if (fieldName === 'This_Billing_Percent__c') {
+                changeOrderItem.isEditingThisBillingPercent = isEditing;
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                changeOrderItem.isEditingRetainagePercent = isEditing;
+            }
             this.changeOrderLineItems = [...this.changeOrderLineItems];
         }
     }
@@ -606,14 +629,26 @@ export default class BillingDetailsPage extends LightningElement {
         const cellClass = isModified ? 'editable-cell modified-cell' : 'editable-cell';
         
         if (contractItem) {
-            contractItem.thisBillingCompletePercent = this.formatPercent(newValue);
-            contractItem.rawThisBillingPercent = newValue;
-            contractItem.thisBillingPercentCellClass = cellClass;
+            if (fieldName === 'This_Billing_Percent__c') {
+                contractItem.thisBillingCompletePercent = newValue;
+                contractItem.rawThisBillingPercent = newValue;
+                contractItem.thisBillingPercentCellClass = cellClass;
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                contractItem.retainagePercent = newValue;
+                contractItem.rawRetainagePercent = newValue;
+                contractItem.retainagePercentCellClass = cellClass;
+            }
             this.contractLineItems = [...this.contractLineItems];
         } else if (changeOrderItem) {
-            changeOrderItem.thisBillingCompletePercent = this.formatPercent(newValue);
-            changeOrderItem.rawThisBillingPercent = newValue;
-            changeOrderItem.thisBillingPercentCellClass = cellClass;
+            if (fieldName === 'This_Billing_Percent__c') {
+                changeOrderItem.thisBillingCompletePercent = newValue;
+                changeOrderItem.rawThisBillingPercent = newValue;
+                changeOrderItem.thisBillingPercentCellClass = cellClass;
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                changeOrderItem.retainagePercent = newValue;
+                changeOrderItem.rawRetainagePercent = newValue;
+                changeOrderItem.retainagePercentCellClass = cellClass;
+            }
             this.changeOrderLineItems = [...this.changeOrderLineItems];
         }
 
@@ -661,12 +696,22 @@ export default class BillingDetailsPage extends LightningElement {
      * @description: Tracks field modifications for contract and change order items.
      */
     trackModification(recordId, fieldName, newValue) {
+        console.log('Inside trackModification');
+        console.log('Record ID:', recordId);
+        console.log('Field Name:', fieldName);
+        console.log('New Value:', newValue);
+        
         const contractItem = this.contractLineItems.find(item => item.Id === recordId);
         const changeOrderItem = this.changeOrderLineItems.find(item => item.Id === recordId);
+        console.log('Contract item:', contractItem);
+        console.log('Change order item:', changeOrderItem);
         
         if (contractItem) {
             this.modifiedContractItems.set(recordId, { [fieldName]: newValue });
+            console.log('Modified Contract Items Map:', this.modifiedContractItems);
+            
             this.hasContractModifications = this.modifiedContractItems.size > 0;
+            console.log('Has Contract Modifications:', this.hasContractModifications);
         } else if (changeOrderItem) {
             this.modifiedChangeOrderItems.set(recordId, { [fieldName]: newValue });
             this.hasChangeOrderModifications = this.modifiedChangeOrderItems.size > 0;
@@ -680,16 +725,20 @@ export default class BillingDetailsPage extends LightningElement {
     handleSaveContractChanges() {
         try {
             if (this.modifiedContractItems.size === 0) return;
+            console.log(this.modifiedContractItems);
             
             this.isSavingContract = true;
+            this.isLoading = true;
             
             // Prepare line item updates
             const lineItemUpdates = [];
             for (let [recordId, modifications] of this.modifiedContractItems) {
                 const update = { Id: recordId };
                 for (let [fieldName, value] of Object.entries(modifications)) {
-                    if (fieldName === 'thisBillingPercent') {
+                    if (fieldName === 'This_Billing_Percent__c') {
                         update['wfrecon__This_Billing_Percent__c'] = value;
+                    } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                        update['wfrecon__Retainage_Percent_on_Bill_Line_Item__c'] = value;
                     }
                 }
                 lineItemUpdates.push(update);
@@ -715,9 +764,13 @@ export default class BillingDetailsPage extends LightningElement {
                 })
                 .finally(() => {
                     this.isSavingContract = false;
+                    this.isLoading = false;
                 });
         } catch (error) {
             console.error('Error in handleSaveContractChanges :: ', error);
+            this.showToast('Error', 'Failed to save contract changes', 'error');
+            this.isSavingContract = false;
+            this.isLoading = false;
         }
     }
 
@@ -743,14 +796,17 @@ export default class BillingDetailsPage extends LightningElement {
             if (this.modifiedChangeOrderItems.size === 0) return;
             
             this.isSavingChangeOrder = true;
+            this.isLoading = true;
             
             // Prepare line item updates
             const lineItemUpdates = [];
             for (let [recordId, modifications] of this.modifiedChangeOrderItems) {
                 const update = { Id: recordId };
                 for (let [fieldName, value] of Object.entries(modifications)) {
-                    if (fieldName === 'thisBillingPercent') {
+                    if (fieldName === 'This_Billing_Percent__c') {
                         update['wfrecon__This_Billing_Percent__c'] = value;
+                    } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                        update['wfrecon__Retainage_Percent_on_Bill_Line_Item__c'] = value;
                     }
                 }
                 lineItemUpdates.push(update);
@@ -776,9 +832,13 @@ export default class BillingDetailsPage extends LightningElement {
                 })
                 .finally(() => {
                     this.isSavingChangeOrder = false;
+                    this.isLoading = false;
                 });
         } catch (error) {
             console.error('Error in handleSaveChangeOrderChanges:', error);
+            this.showToast('Error', 'Failed to save change order changes', 'error');
+            this.isSavingChangeOrder = false;
+            this.isLoading = false;
         }
     }
 
@@ -848,8 +908,33 @@ export default class BillingDetailsPage extends LightningElement {
      * @description: Formats a numeric value as a percentage string with two decimal places.
      */
     formatPercent(value) {
-        if (value === null || value === undefined) return '0.00%';
-        return `${parseFloat(value).toFixed(2)}%`;
+        if (value === null || value === undefined) return '0.00';
+        return `${parseFloat(value).toFixed(2)}`;
+    }
+
+    openAIAForm(){
+        // Replace 'MyVfPage' with your actual Visualforce page name
+        const vfPageUrl = '/apex/AIA702FormPage?id=' + this.recordId;
+
+        // Opens in a new browser tab
+        window.open(vfPageUrl, '_blank');
+    }
+
+    /** 
+     * Method Name: navigateToRecord
+     * @description: Navigates to the specified record page.
+     */
+    navigateToRecord(event) {
+        const recordId = event.currentTarget.dataset.val;
+        if (recordId) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: recordId,
+                    actionName: 'view'
+                }
+            });
+        }
     }
 
     /** 

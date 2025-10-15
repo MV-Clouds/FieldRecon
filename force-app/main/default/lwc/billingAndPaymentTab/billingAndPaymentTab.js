@@ -285,6 +285,10 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         this.loadBillingData();
     }
 
+    /** 
+     * Method Name: loadJobData
+     * @description: Loads job data including job name, number, and retainage information.
+     */
     loadJobData() {
         try {
             getJobData({ jobId: this.recordId })
@@ -748,6 +752,10 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         this.createNewPaymentModal = true;
     }
 
+    /** 
+     * Method Name: closeNewPaymentModal
+     * @description: Closes the new payment modal and resets the payment form data.
+     */
     closeNewPaymentModal() {
         this.createNewPaymentModal = false;
         this.newPayment = {
@@ -757,6 +765,10 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         };
     }
 
+    /** 
+     * Method Name: handleDeleteRecord
+     * @description: Deletes a billing or payment record via Apex and refreshes the appropriate data.
+     */
     handleDeleteRecord() {
         try {
             if(!this.deleteRecordId || !this.deleteSObjectApiName){
@@ -794,11 +806,19 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         }
     }
 
+    /** 
+     * Method Name: handleNewPaymentChange
+     * @description: Handles input changes for new payment form fields.
+     */
     handleNewPaymentChange(event) {
         const { name, value } = event.target;
         this.newPayment = { ...this.newPayment, [name]: value }; 
     }
     
+    /** 
+     * Method Name: handleSaveNewPayment
+     * @description: Creates a new payment record via Apex and handles the response.
+     */
     handleSaveNewPayment() {
         try {
             console.log('Creating payment with data: ', this.newPayment);

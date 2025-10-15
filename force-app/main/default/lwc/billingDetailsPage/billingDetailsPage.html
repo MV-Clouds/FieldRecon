@@ -10,16 +10,46 @@
         <div class="billing-header-fixed">
             <div class="billing-header-info">
                 <div class="billing-name-section">
-                    <div class="billing-name-label">Billing Name</div>
-                    <div class="billing-name-value">{billingDetails.Name}</div>
+                    <div class="billing-name-label">Billing Number</div>
+                    <div class="billing-name-value">
+                        <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.Id} class="record-link">
+                            {billingDetails.Name}
+                        </a>
+                    </div>
+                </div>
+                <div class="billing-name-section">
+                    <div class="billing-name-label">Previous Billing Number</div>
+                    <div class="billing-name-value">
+                        <template if:true={billingDetails.PreviousBillId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.PreviousBillId} class="record-link">
+                                {billingDetails.PreviousBillName}
+                            </a>
+                        </template>
+                        <template if:false={billingDetails.PreviousBillId}>
+                            {billingDetails.PreviousBillName}
+                        </template>
+                    </div>
                 </div>
                 <div class="job-number-section">
                     <div class="job-number-label">Job Number</div>
-                    <div class="job-number-value">{billingDetails.JobNumber}</div>
+                    <div class="job-number-value">
+                        <template if:true={billingDetails.JobId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.JobId} class="record-link">
+                                {billingDetails.JobNumber}
+                            </a>
+                        </template>
+                        <template if:false={billingDetails.JobId}>
+                            {billingDetails.JobNumber}
+                        </template>
+                    </div>
                 </div>
                 <div class="payment-due-section">
-                    <div class="payment-due-label">Current Payment Due</div>
-                    <div class="payment-due-value">{formattedCurrentPaymentDue}</div>
+                    <div class="payment-due-label">Total Earned Less Retainage</div>
+                    <div class="payment-due-value">{formattedTotalEarnedLessRetainage}</div>
+                </div>
+                <div class="payment-due-section">
+                    <div class="payment-due-label">Balance to Finish + Retainage</div>
+                    <div class="payment-due-value">{formattedBalanceToFinish}</div>
                 </div>
             </div>
             <div class="billing-status-section">
@@ -63,7 +93,7 @@
                                 </template>
                                 {saveBillingButtonLabel}
                             </button>
-                            <button class="action-button form-btn">
+                            <button class="action-button form-btn" onclick={openAIAForm}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -109,6 +139,15 @@
                                         formatter="currency">
                                     </lightning-input>
                                 </div>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Sent Date"
+                                    type="date"
+                                    value={billingDetails.SentDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="sentDate">
+                                </lightning-input>
                             </div>
                         </div>
 
@@ -180,12 +219,12 @@
                                     <span class="financial-label">2. Net Change Orders:</span>
                                     <span class="financial-value">{formattedJobTotalChangeOrderValue}</span>
                                 </div>
-                                <div class="financial-item primary">
+                                <div class="financial-item">
                                     <span class="financial-label">3. Contract Sum to Date:</span>
                                     <span class="financial-value">{formattedContractSumToDate}</span>
                                 </div>
                                 <div class="financial-item">
-                                    <span class="financial-label">4. Total Completed:</span>
+                                    <span class="financial-label">4. Total Completed and Stored to Date:</span>
                                     <span class="financial-value">{formattedTotalCompleted}</span>
                                 </div>
                                 <div class="financial-item">
@@ -196,12 +235,12 @@
                                     <span class="financial-label">6. Total Earned Less Retainage:</span>
                                     <span class="financial-value">{formattedTotalEarnedLessRetainage}</span>
                                 </div>
-                                <div class="financial-item success">
+                                <div class="financial-item">
                                     <span class="financial-label">7. Current Payment Due:</span>
                                     <span class="financial-value">{formattedCurrentPaymentDue}</span>
                                 </div>
                                 <div class="financial-item">
-                                    <span class="financial-label">8. Balance to Finish:</span>
+                                    <span class="financial-label">8. Balance to Finish + Retainage:</span>
                                     <span class="financial-value">{formattedBalanceToFinish}</span>
                                 </div>
                             </div>
@@ -258,8 +297,9 @@
                                         <th class="header-cell">Previous Billed Amount</th>
                                         <th class="header-cell">Current Complete %</th>
                                         <th class="header-cell">This Billing Complete %</th>
-                                        <th class="header-cell">Total $ Complete</th>
-                                        <th class="header-cell">$ This Billing</th>
+                                        <th class="header-cell">This Billing Amount</th>
+                                        <th class="header-cell">Total Complete Amount</th>
+                                        <th class="header-cell">Retainage %</th>
                                         <th class="header-cell">Retainage</th>
                                         <th class="header-cell">Due This Billing</th>
                                     </tr>
@@ -269,9 +309,9 @@
                                         <tr key={item.Id} class={item.rowClass}>
                                             <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
                                             <td class="data-cell center-trancate-text">{item.contractValue}</td>
-                                            <td class="data-cell center-trancate-text">{item.previousBilledPercent}</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
                                             <td class="data-cell center-trancate-text">{item.previousBilledAmount}</td>
-                                            <td class="data-cell center-trancate-text">{item.currentCompletePercent}</td>
+                                            <td class="data-cell center-trancate-text">{item.currentCompletePercent}%</td>
                                             <td class="data-cell editable-cell" 
                                                 data-record-id={item.Id} 
                                                 data-field-name="This_Billing_Percent__c"
@@ -281,7 +321,7 @@
                                                 onmouseenter={handleCellMouseEnter}
                                                 onmouseleave={handleCellMouseLeave}>
                                                 <template if:false={item.isEditingThisBillingPercent}>
-                                                    <span class="cell-value">{item.thisBillingCompletePercent}</span>
+                                                    <span class="cell-value">{item.thisBillingCompletePercent}%</span>
                                                     <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -301,8 +341,37 @@
                                                         max="100">
                                                 </template>
                                             </td>
-                                            <td class="data-cell center-trancate-text">{item.totalCompleteAmount}</td>
                                             <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
+                                            <td class="data-cell center-trancate-text">{item.totalCompleteAmount}</td>
+                                            <td class="data-cell editable-cell" 
+                                                data-record-id={item.Id} 
+                                                data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                data-field-type="number"
+                                                data-editable="true"
+                                                onclick={handleCellClick}
+                                                onmouseenter={handleCellMouseEnter}
+                                                onmouseleave={handleCellMouseLeave}>
+                                                <template if:false={item.isEditingRetainagePercent}>
+                                                    <span class="cell-value">{item.retainagePercent}%</span>
+                                                    <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </template>
+                                                <template if:true={item.isEditingRetainagePercent}>
+                                                    <input type="number" 
+                                                        class="cell-input" 
+                                                        value={item.retainagePercent}
+                                                        data-record-id={item.Id}
+                                                        data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                        data-field-type="number"
+                                                        onchange={handleCellInputChange}
+                                                        onblur={handleCellInputBlur}
+                                                        step="0.01"
+                                                        min="0"
+                                                        max="100">
+                                                </template>
+                                            </td>
                                             <td class="data-cell center-trancate-text">{item.retainageAmount}</td>
                                             <td class="data-cell center-trancate-text">{item.dueThisBilling}</td>
                                         </tr>
@@ -315,8 +384,9 @@
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.previousBilledAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
-                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.totalCompleteAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.thisBillingAmount}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.totalCompleteAmount}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.retainageAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.dueThisBilling}</strong></td>
                                     </tr>
@@ -380,8 +450,9 @@
                                         <th class="header-cell">Previous Billed Amount</th>
                                         <th class="header-cell">Current Complete %</th>
                                         <th class="header-cell">This Billing Complete %</th>
-                                        <th class="header-cell">Total $ Complete</th>
-                                        <th class="header-cell">$ This Billing</th>
+                                        <th class="header-cell">This Billing Amount</th>
+                                        <th class="header-cell">Total Complete Amount</th>
+                                        <th class="header-cell">Retainage %</th>
                                         <th class="header-cell">Retainage</th>
                                         <th class="header-cell">Due This Billing</th>
                                     </tr>
@@ -391,9 +462,9 @@
                                         <tr key={item.Id} class={item.rowClass}>
                                             <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
                                             <td class="data-cell center-trancate-text">{item.contractValue}</td>
-                                            <td class="data-cell center-trancate-text">{item.previousBilledPercent}</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
                                             <td class="data-cell center-trancate-text">{item.previousBilledAmount}</td>
-                                            <td class="data-cell center-trancate-text">{item.currentCompletePercent}</td>
+                                            <td class="data-cell center-trancate-text">{item.currentCompletePercent}%</td>
                                             <td class={item.thisBillingPercentCellClass} 
                                                 data-record-id={item.Id} 
                                                 data-field-name="This_Billing_Percent__c"
@@ -403,7 +474,9 @@
                                                 onmouseenter={handleCellMouseEnter}
                                                 onmouseleave={handleCellMouseLeave}>
                                                 <template if:false={item.isEditingThisBillingPercent}>
-                                                    <span class="cell-value">{item.thisBillingCompletePercent}</span>
+                                                    <span class="cell-value">
+                                                        <lightning-formatted-number value={item.thisBillingCompletePercent} format-style="percent-fixed" maximum-fraction-digits="2"></lightning-formatted-number>
+                                                    </span>
                                                     <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -423,8 +496,37 @@
                                                         max="100">
                                                 </template>
                                             </td>
-                                            <td class="data-cell center-trancate-text">{item.totalCompleteAmount}</td>
                                             <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
+                                            <td class="data-cell center-trancate-text">{item.totalCompleteAmount}</td>
+                                            <td class="data-cell editable-cell" 
+                                                data-record-id={item.Id} 
+                                                data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                data-field-type="number"
+                                                data-editable="true"
+                                                onclick={handleCellClick}
+                                                onmouseenter={handleCellMouseEnter}
+                                                onmouseleave={handleCellMouseLeave}>
+                                                <template if:false={item.isEditingRetainagePercent}>
+                                                    <span class="cell-value">{item.retainagePercent}%</span>
+                                                    <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </template>
+                                                <template if:true={item.isEditingRetainagePercent}>
+                                                    <input type="number" 
+                                                        class="cell-input" 
+                                                        value={item.retainagePercent}
+                                                        data-record-id={item.Id}
+                                                        data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                        data-field-type="number"
+                                                        onchange={handleCellInputChange}
+                                                        onblur={handleCellInputBlur}
+                                                        step="0.01"
+                                                        min="0"
+                                                        max="100">
+                                                </template>
+                                            </td>
                                             <td class="data-cell center-trancate-text">{item.retainageAmount}</td>
                                             <td class="data-cell center-trancate-text">{item.dueThisBilling}</td>
                                         </tr>
@@ -437,8 +539,9 @@
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.previousBilledAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
-                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.totalCompleteAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.thisBillingAmount}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.totalCompleteAmount}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.retainageAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.dueThisBilling}</strong></td>
                                     </tr>

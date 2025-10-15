@@ -41,8 +41,7 @@ private class BillingAndPaymentTabControllerTest {
         // Create Billing Line Item
         Billing_Line_Item__c bli = new Billing_Line_Item__c(
             Billing__c = bill.Id,
-            Scope_Entry__c = se.Id,
-            Percent_Scope_Complete__c = 80
+            Scope_Entry__c = se.Id
         );
         insert bli;
 
