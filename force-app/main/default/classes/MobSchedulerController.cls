@@ -323,7 +323,7 @@ public with sharing class MobSchedulerController {
             return 'success';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'removeJobResource', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while removing a job resource.', 'apiResponse' => null});
-            return e.getMessage();
+            return 'Error occurred while removing a job resource.';
         }
     }
 
@@ -398,7 +398,7 @@ public with sharing class MobSchedulerController {
             return 'success';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'assignResourceToMob', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while assigning a single resource to a mobilization.', 'apiResponse' => null});
-            return e.getMessage();
+            return 'Error occurred while assigning a single resource to a mobilization.';
         }
     }
 
@@ -586,7 +586,7 @@ public with sharing class MobSchedulerController {
             ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'assignResourceToJob', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while assigning multiple resources across sibling mobilizations.', 'apiResponse' => null});
             return JSON.serialize(new Map<String, Object>{
                 'status' => 'ERROR',
-                'message' => e.getMessage()
+                'message' => 'Error occurred while assigning multiple resources across sibling mobilizations.'
             });
         }
     }
@@ -608,7 +608,7 @@ public with sharing class MobSchedulerController {
             return 'success';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'deleteMobilization', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while deleting mobilization and related resources.', 'apiResponse' => null});
-            return e.getMessage();
+            return 'Error occurred while deleting mobilization and related resources.';
         }
     }
 }
