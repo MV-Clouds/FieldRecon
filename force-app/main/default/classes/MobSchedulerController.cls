@@ -1,10 +1,24 @@
+/**
+ * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
+ * Created By: Kevin Suvagiya
+ * Created Date: 2025-10-06
+ * Last Modified By: Kevin Suvagiya
+ * Last Modified Date: 2025-10-15
+ * Last Changes: Removed Unused Code and Added the Exception Handlers
+ */
 public with sharing class MobSchedulerController {
+    private static final String CLASSNAME = 'MobSchedulerController';
 
+    /**
+     * Description: Returns mobilization entries within the date range for week view.
+     * Parameters: startDate (Date) - inclusive start; endDate (Date) - inclusive end.
+     * Return: Map<String,Object> with key 'weekEvents' -> List of event maps (job info, dates, status, resources).
+     */
     @AuraEnabled
     public static Map<String,Object> getMobilizationDetails(Date startDate, Date endDate) {
         Map<String,Object> result = new Map<String,Object>{'weekEvents' => null};
         try{
-            // Map to store data for LWC
+            // Instruction: Query mobilizations and shape data for LWC consumption.
     
             List<Mobilization__c> mobilizations = [
                 SELECT Id, Name, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Mobilization_Group__r.Name,
@@ -24,12 +38,10 @@ public with sharing class MobSchedulerController {
                 ORDER BY Start_Date__c
             ];
     
-            List<Map<String,Object>> employees = new List<Map<String,Object>>();
             List<Map<String,Object>> weekEvents = new List<Map<String,Object>>();
     
             for(Mobilization__c mob : mobilizations){
-                // Process members
-                // List<Map<String,Object>> membersAndAssets = new List<Map<String,Object>>();
+                // Instruction: Split members into Crew and SubContractor lists.
                 List<Map<String,Object>> crewMembersList = new List<Map<String,Object>>();
                 List<Map<String,Object>> subContractorsList = new List<Map<String,Object>>();
                 for(Mobilization_Member__c mem : mob.Mobilization_Members__r){
@@ -39,7 +51,6 @@ public with sharing class MobSchedulerController {
                         'type' => mem.Contact__r.RecordType.DeveloperName,
                         'junctionId' => mem.Id
                     };
-                    // membersAndAssets.add(member);
                     if(mem.Contact__r.RecordType.DeveloperName == 'Employee_WF_Recon'){
                         crewMembersList.add(member);
                     }else if(mem.Contact__r.RecordType.DeveloperName == 'Sub_Contractor_WF_Recon'){
@@ -55,13 +66,13 @@ public with sharing class MobSchedulerController {
                         'name' => asset.Equipment__r.Name,
                         'junctionId' => asset.Id
                     };
-                    // membersAndAssets.add(assetToUse);
                     assetsList.add(assetToUse);
                 }
     
-                // For week view
+                // Instruction: Build event payload for week view card rendering.
                 weekEvents.add(new Map<String,Object>{
                     'id' => mob.Id,
+                    'jId' => mob.Job__c,
                     'jobId' => mob.Job__r.Name,
                     'jobName' => mob.Job__r.Job_Name__c,
                     'location' => mob.Job__r.Address__c,
@@ -73,53 +84,35 @@ public with sharing class MobSchedulerController {
                     'assets' => assetsList
                 });
     
-                // For employee view: create entry per employee
-                // for(Map<String,Object> member : membersAndAssets){
-                //     String empId = (String)member.get('id');
-                //     Map<String,Object> empData;
-                //     if(!result.containsKey(empId)){
-                //         empData = new Map<String,Object>{
-                //             'id' => empId,
-                //             'name' => (String)member.get('name'),
-                //             'days' => new List<Map<String,Object>>() // will fill in LWC per week
-                //         };
-                //         result.put(empId, empData);
-                //     } else {
-                //         empData = (Map<String,Object>)result.get(empId);
-                //     }
-                // }
             }
     
             result.put('weekEvents', weekEvents);
         }catch (Exception e){
-            System.debug('MobSchedulerController.getMobilizationDetails(): ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getMobilizationDetails', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching mobilization details for calendar.', 'apiResponse' => null});
         }
         return result;
     }
 
+    /**
+     * Description: Fetches default job time configuration.
+     * Parameters: none.
+     * Return: Job_Default_Times__c record or null if none found/error.
+     */
     @AuraEnabled
     public static Job_Default_Times__c getDefaultValues(){
         try {
             return [SELECT Id, Name, Start_Time__c, End_Time__c, Include_Saturday__c, Include_Sunday__c FROM Job_Default_Times__c WITH USER_MODE];
         } catch (Exception e) {
-            System.debug('MobSchedulerController.getDefaultValues(): ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getDefaultValues', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching default job time values.', 'apiResponse' => null});
             return null;
         }
     }
 
-    // @AuraEnabled
-    // public static Map<String, Object> getAllResources(){
-    //     Map<String, Object> resources = new Map<String, Object>{'crew' => null, 'subcontractors' => null, 'assets' => null};
-    //     try {
-    //         resources.put('crew', [SELECT Id, Name FROM Contact WHERE RecordType.DeveloperName = 'Employee_WF_Recon' WITH USER_MODE]);
-    //         resources.put('subcontractors', [SELECT Id, Name FROM Contact WHERE RecordType.DeveloperName = 'Sub_Contractor_WF_Recon' WITH USER_MODE]);
-    //         resources.put('assets', [SELECT Id, Name FROM Equipment__c WITH USER_MODE]);
-    //     } catch (Exception e) {
-    //         System.debug('MobSchedulerController.getDefaultValues(): ' + e.getMessage());
-    //     }
-    //     return resources;
-    // }
-
+    /**
+     * Description: Returns all resources with an availability flag for the selected date.
+     * Parameters: selectedDate (Date) - date to evaluate availability.
+     * Return: Map with keys 'crew', 'subcontractors', 'assets' each as List<Map> with id, name, isAvailable.
+     */
     @AuraEnabled
     public static Map<String, Object> getAllResources(Date selectedDate) {
         Map<String, Object> resources = new Map<String, Object>{
@@ -129,7 +122,7 @@ public with sharing class MobSchedulerController {
         };
 
         try {
-            // 1️⃣ Find which crew/subcontractors/assets are busy on the selected date
+            // Instruction: Build busy sets from mobilizations on selected date then mark availability per resource.
             Set<Id> busyCrewIds = new Set<Id>();
             Set<Id> busySubcontractorIds = new Set<Id>();
             Set<Id> busyAssetIds = new Set<Id>();
@@ -150,10 +143,8 @@ public with sharing class MobSchedulerController {
                 WITH USER_MODE
             ];
 
-            System.debug('The Active One Are :: ' + activeMobs.size());
-            // 3️⃣ Collect all busy resource IDs
+            // Instruction: Collect all busy resource IDs.
             for (Mobilization__c mob : activeMobs) {
-                System.debug('The Active One Are :: ' + mob.Mobilization_Members__r.size());
                 for (Mobilization_Member__c mem : mob.Mobilization_Members__r) {
                     if (mem.Contact__r.RecordType.DeveloperName == 'Employee_WF_Recon') {
                         busyCrewIds.add(mem.Contact__c);
@@ -171,6 +162,7 @@ public with sharing class MobSchedulerController {
                 SELECT Id, Name
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
+                AND User__r.IsActive = true
                 WITH USER_MODE
             ]) {
                 crewMembers.add(new Map<String, Object>{
@@ -185,6 +177,7 @@ public with sharing class MobSchedulerController {
                 SELECT Id, Name
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Sub_Contractor_WF_Recon'
+                AND User__r.IsActive = true
                 WITH USER_MODE
             ]) {
                 subContractors.add(new Map<String, Object>{
@@ -213,14 +206,17 @@ public with sharing class MobSchedulerController {
             resources.put('assets', assets);
 
         } catch (Exception e) {
-            System.debug('MobSchedulerController.getAllResources(): ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getAllResources', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching all resources and availability.', 'apiResponse' => null});
         }
 
         return resources;
     }
 
-
-
+    /**
+     * Description: Lists resource assignments for a given type within a date range.
+     * Parameters: startDate (Date), endDate (Date), resourceType (String: 'Crew'|'SubContractor'|'Asset').
+     * Return: List<Map<String,Object>> of resource entries (id, name, job info, dates, status, junctionId).
+     */
     @AuraEnabled
     public static List<Map<String,Object>> getResourceDetails(Date startDate, Date endDate, String resourceType) {
         List<Map<String,Object>> result = new List<Map<String,Object>>();
@@ -244,7 +240,7 @@ public with sharing class MobSchedulerController {
 
             if(fetchAssets){
                 mobilizations = [
-                    SELECT Id, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c,
+                    SELECT Id, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c, Mobilization_Status__c,
                         (SELECT Id, Equipment__c, Equipment__r.Name
                             FROM Mobilization_Assets__r 
                             ORDER BY Mobilization__r.Start_Date__c)
@@ -256,7 +252,7 @@ public with sharing class MobSchedulerController {
                 ];
             } else {
                 mobilizations = [
-                    SELECT Id, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c,
+                    SELECT Id, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c, Mobilization_Status__c,
                         (SELECT Id, Contact__c, Contact__r.Name
                             FROM Mobilization_Members__r
                             WHERE Contact__r.RecordType.DeveloperName = :memberRecordType
@@ -275,6 +271,8 @@ public with sharing class MobSchedulerController {
                         result.add(new Map<String,Object>{
                             'id' => asset.Equipment__c,
                             'name' => asset.Equipment__r.Name,
+                            'jId' => mob.Job__c,
+                            'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
                             'jobName' => mob.Job__r.Job_Name__c,
                             'junctionId' => asset.Id,
@@ -288,6 +286,8 @@ public with sharing class MobSchedulerController {
                         result.add(new Map<String,Object>{
                             'id' => mem.Contact__c,
                             'name' => mem.Contact__r.Name,
+                            'jId' => mob.Job__c,
+                            'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
                             'jobName' => mob.Job__r.Job_Name__c,
                             'junctionId' => mem.Id,
@@ -299,12 +299,17 @@ public with sharing class MobSchedulerController {
                 }
             }
         } catch (Exception e) {
-            System.debug('MobSchedulerController.getMobilizationDetails(): ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getResourceDetails', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching resource details.', 'apiResponse' => null});
         }
         
         return result;
     }
 
+    /**
+     * Description: Removes a resource assignment (member or asset) by junction Id.
+     * Parameters: id (String) - junction Id; type (String) - 'Crew'|'SubContractor'|'Asset'.
+     * Return: 'success' on delete; otherwise error message.
+     */
     @AuraEnabled
     public static string removeJobResource(String id, String type){
         try {
@@ -317,11 +322,16 @@ public with sharing class MobSchedulerController {
             }
             return 'success';
         } catch (Exception e) {
-            System.debug('MobSchedulerController.removeJobResource(): ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'removeJobResource', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while removing a job resource.', 'apiResponse' => null});
             return e.getMessage();
         }
     }
 
+    /**
+     * Description: Assigns a single resource to a mobilization with optional overlap check.
+     * Parameters: assignmentData (Map) - { resourceId, mobId, type, allowOverlap }.
+     * Return: 'success' if assigned; 'OVERLAP' if conflict; otherwise error message.
+     */
     @AuraEnabled
     public static String assignResourceToMob(Map<String,Object> assignmentData) {
         try {
@@ -387,173 +397,16 @@ public with sharing class MobSchedulerController {
 
             return 'success';
         } catch (Exception e) {
-            System.debug('MobSchedulerController.assignResourceToMob(): ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'assignResourceToMob', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while assigning a single resource to a mobilization.', 'apiResponse' => null});
             return e.getMessage();
         }
     }
 
-    // @AuraEnabled
-    // public static String assignResourceToJob(Map<String, Object> assignmentData) {
-    //     try {
-    //         List<String> resourceIds = String.valueOf((assignmentData.get('resourceIds'))).split(',');
-    //         String mobId = (String) assignmentData.get('mobId');
-    //         String type = (String) assignmentData.get('type');
-    //         Boolean allowOverlap = (Boolean) assignmentData.get('allowOverlap');
-    //         Boolean noOverlap = (Boolean) assignmentData.get('noOverlap');
-    //         Map<String, Boolean> allowOverlapMap = new Map<String, Boolean>();
-    //         Map<Object, Object> untypedMap = (Map<Object, Object>) assignmentData.get('allowOverlapMap');
-
-
-    //         // 1️⃣ Get mobilization details + parent Job
-    //         Mobilization__c selectedMob = [
-    //             SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
-    //             FROM Mobilization__c
-    //             WHERE Id = :mobId
-    //             WITH USER_MODE
-    //             LIMIT 1
-    //         ];
-
-    //         if (selectedMob == null) {
-    //             return JSON.serialize(new Map<String, Object>{
-    //                 'status' => 'ERROR',
-    //                 'message' => 'Mobilization not found'
-    //             });
-    //         }
-
-    //         // 2️⃣ Get all sibling mobilizations under the same Job
-    //         List<Mobilization__c> siblingMobs = [
-    //             SELECT Id, Start_Date__c, Job__r.Job_Name__c
-    //             FROM Mobilization__c
-    //             WHERE Job__c = :selectedMob.Job__c
-    //             AND Mobilization_Group__c = :selectedMob.Mobilization_Group__c
-    //             AND DAY_ONLY(Start_Date__c) >= :selectedMob.Start_Date__c.date()
-    //             WITH USER_MODE
-    //         ];
-
-    //         if (siblingMobs.isEmpty()) {
-    //             return JSON.serialize(new Map<String, Object>{
-    //                 'status' => 'ERROR',
-    //                 'message' => 'No sibling mobilizations found'
-    //             });
-    //         }
-
-    //         // 🟡 Track overlapping mobilizations
-    //         List<Map<String, Object>> overlapDetails = new List<Map<String, Object>>();
-
-    //         if (!allowOverlap) {
-    //             // 3️⃣ Gather all sibling mobilization Ids
-    //             Set<Id> siblingMobIds = new Set<Id>();
-    //             for (Mobilization__c mob : siblingMobs) {
-    //                 siblingMobIds.add(mob.Id);
-    //             }
-
-    //             // 4️⃣ Query existing resource assignments across sibling mobilizations
-    //             List<SObject> overlappingAssignments = new List<SObject>();
-
-    //             if (type == 'Crew' || type == 'SubContractor') {
-    //                 overlappingAssignments = [
-    //                     SELECT Id, Mobilization__c
-    //                     FROM Mobilization_Member__c
-    //                     WHERE Contact__c IN :resourceIds
-    //                     AND Mobilization__c IN :siblingMobIds
-    //                     WITH USER_MODE
-    //                 ];
-    //             } else if (type == 'Asset') {
-    //                 overlappingAssignments = [
-    //                     SELECT Id, Mobilization__c
-    //                     FROM Mobilization_Asset__c
-    //                     WHERE Equipment__c IN :resourceIds
-    //                     AND Mobilization__c IN :siblingMobIds
-    //                     WITH USER_MODE
-    //                 ];
-    //             }
-
-    //             // 5️⃣ Build overlap map if found (deduplicated)
-    //             if (!overlappingAssignments.isEmpty()) {
-    //                 // Create a quick lookup for Start Dates and Job Names
-    //                 // Map<Id, Mobilization__c> mobMap = new Map<Id, Mobilization__c>();
-    //                 // for (Mobilization__c mob : siblingMobs) {
-    //                 //     mobMap.put(mob.Id, mob);
-    //                 // }
-
-    //                 // // Use a set to track which mobilization Ids we already added
-    //                 // Set<Id> addedMobIds = new Set<Id>();
-
-    //                 // for (SObject overlap : overlappingAssignments) {
-    //                 //     Id overlappingMobId = (Id) overlap.get('Mobilization__c');
-                        
-    //                 //     // Only add if not already added
-    //                 //     if (!addedMobIds.contains(overlappingMobId)) {
-    //                 //         addedMobIds.add(overlappingMobId);
-                            
-    //                 //         Mobilization__c mob = mobMap.get(overlappingMobId);
-    //                 //         if (mob != null) {
-    //                 //             overlapDetails.add(new Map<String, Object>{
-    //                 //                 'Id' => overlappingMobId,
-    //                 //                 'label' => mob.Job__r.Job_Name__c + ' (' + mob.Start_Date__c.format() + ')'
-    //                 //             });
-    //                 //         }
-    //                 //     }
-    //                 // }
-
-    //                 return JSON.serialize(new Map<String, Object>{
-    //                     'status' => 'OVERLAP',
-    //                     'overlaps' => null
-    //                 });
-    //             }
-    //         // }else{
-    //         //     for (Object key : untypedMap.keySet()) {
-    //         //         if (key instanceof String && untypedMap.get(key) instanceof Boolean) {
-    //         //             allowOverlapMap.put((String) key, (Boolean) untypedMap.get(key));
-    //         //         }
-    //         //     }
-    //         }
-
-    //         // 6️⃣ No overlaps → Assign resource to all sibling mobilizations
-    //         List<SObject> newAssignments = new List<SObject>();
-    //         for (Mobilization__c mob : siblingMobs) {
-    //             // Boolean canAssign = true;
-    //             // if (allowOverlapMap != null && allowOverlapMap.containsKey(mob.Id)) {
-    //             //     canAssign = allowOverlapMap.get(mob.Id);
-    //             // }
-
-
-    //             if (!noOverlap) {
-    //                 if (type == 'Crew' || type == 'SubContractor') {
-    //                     for (String resourceId : resourceIds) {
-    //                         newAssignments.add(new Mobilization_Member__c(
-    //                             Mobilization__c = mob.Id,
-    //                             Contact__c = resourceId
-    //                         ));
-    //                     }
-    //                 } else if (type == 'Asset') {
-    //                     for (String resourceId : resourceIds) {
-    //                         newAssignments.add(new Mobilization_Asset__c(
-    //                             Mobilization__c = mob.Id,
-    //                             Equipment__c = resourceId
-    //                         ));
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-
-    //         if (!newAssignments.isEmpty()) {
-    //             insert as user newAssignments;
-    //         }
-
-    //         return JSON.serialize(new Map<String, Object>{
-    //             'status' => 'SUCCESS'
-    //         });
-    //     } catch (Exception e) {
-    //         System.debug('MobSchedulerController.assignResourceToJob(): Exception => ' + e.getMessage());
-    //         return JSON.serialize(new Map<String, Object>{
-    //             'status' => 'ERROR',
-    //             'message' => e.getMessage()
-    //         });
-    //     }
-    // }
-
+    /**
+     * Description: Assigns multiple resources to sibling mobilizations from a selected mobilization.
+     * Parameters: assignmentData (Map) - { resourceIds (csv), mobId, type, allowOverlap (Bool), overlapMode ('ALL'|'SKIP') }.
+     * Return: JSON string { status: 'SUCCESS'|'OVERLAP'|'ERROR', overlaps?: List, message?: String }.
+     */
     @AuraEnabled
     public static String assignResourceToJob(Map<String, Object> assignmentData) {
         try {
@@ -563,7 +416,7 @@ public with sharing class MobSchedulerController {
             Boolean allowOverlap = (Boolean) assignmentData.get('allowOverlap');
             String overlapMode = (String) assignmentData.get('overlapMode'); // "ALL" or "SKIP"
 
-            // 🟢 Validate input
+            // Validate input
             if (resourceIds == null || resourceIds.isEmpty()) {
                 return JSON.serialize(new Map<String, Object>{
                     'status' => 'ERROR',
@@ -571,7 +424,7 @@ public with sharing class MobSchedulerController {
                 });
             }
 
-            // 1️⃣ Get mobilization details + parent Job
+            // Get mobilization details + parent Job
             Mobilization__c selectedMob = [
                 SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
                 FROM Mobilization__c
@@ -587,7 +440,7 @@ public with sharing class MobSchedulerController {
                 });
             }
 
-            // 2️⃣ Get all sibling mobilizations
+            // Get all sibling mobilizations
             List<Mobilization__c> siblingMobs = [
                 SELECT Id, Start_Date__c, Job__r.Job_Name__c
                 FROM Mobilization__c
@@ -614,7 +467,7 @@ public with sharing class MobSchedulerController {
 
             List<Map<String, Object>> overlapDetails = new List<Map<String, Object>>();
 
-            // 3️⃣ If overlap not allowed, check before inserting
+            // If overlap not allowed, check before inserting
             if (!allowOverlap) {
                 for (String resourceId : resourceIds) {
                     List<SObject> overlaps = new List<SObject>();
@@ -656,7 +509,7 @@ public with sharing class MobSchedulerController {
                 }
             }
 
-            // 4️⃣ Proceed with assignment
+            // Proceed with assignment
             List<SObject> newAssignments = new List<SObject>();
 
             for (String resourceId : resourceIds) {
@@ -695,8 +548,7 @@ public with sharing class MobSchedulerController {
                     }
                 }
 
-                System.debug('Overlapping Mob Ids :: '+ overlappingMobIds);
-                System.debug('Overlapping Mob Dates :: '+ overlappingMobDates);
+                // Instruction: Use calculated overlappingMobDates to control assignment on SKIP mode.
 
                 for (Mobilization__c mob : siblingMobs) {
                     Boolean shouldAssign = true;
@@ -705,7 +557,6 @@ public with sharing class MobSchedulerController {
                         shouldAssign = false;
                     }
 
-                    System.debug(' Assigning :: ' + shouldAssign + ' :: ' + mob.Id + ' :: ' + resourceId + ' :: ' + type);
                     if (shouldAssign) {
                         if (type == 'Crew' || type == 'SubContractor') {
                             newAssignments.add(new Mobilization_Member__c(
@@ -722,8 +573,7 @@ public with sharing class MobSchedulerController {
                 }
             }
 
-            System.debug('Assignments :: '+ newAssignments);
-            // 5️⃣ Insert all assignments
+            // Instruction: Insert new assignments in user mode when any prepared.
             if (!newAssignments.isEmpty()) {
                 insert as user newAssignments;
             }
@@ -733,7 +583,7 @@ public with sharing class MobSchedulerController {
             });
 
         } catch (Exception e) {
-            System.debug('MobSchedulerController.assignResourceToJob(): Exception => ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'assignResourceToJob', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while assigning multiple resources across sibling mobilizations.', 'apiResponse' => null});
             return JSON.serialize(new Map<String, Object>{
                 'status' => 'ERROR',
                 'message' => e.getMessage()
@@ -741,7 +591,11 @@ public with sharing class MobSchedulerController {
         }
     }
 
-
+    /**
+     * Description: Deletes a mobilization and its related member and asset junction records.
+     * Parameters: mobId (String) - Mobilization Id.
+     * Return: 'success' on delete; otherwise error message.
+     */
     @AuraEnabled
     public static string deleteMobilization(String mobId){
         try {
@@ -753,7 +607,7 @@ public with sharing class MobSchedulerController {
             delete as user mob;
             return 'success';
         } catch (Exception e) {
-            System.debug('MobSchedulerController.deleteMobilization(): ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'deleteMobilization', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while deleting mobilization and related resources.', 'apiResponse' => null});
             return e.getMessage();
         }
     }
