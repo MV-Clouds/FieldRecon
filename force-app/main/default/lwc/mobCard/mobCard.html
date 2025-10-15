@@ -1,14 +1,11 @@
 <template>
-    <div key={mobDetails.id} class={modeClass}>
+    <div key={mobDetails.id} class="event-card">
         <div class="job-card-header">
             <div class="job-header-detail">
                 <div class="job-card-name">{mobDetails.jobName}</div>
-                <div class="job-card-description">{mobDetails.jobId}</div>
+                <div class="job-card-description record-nav-link" onclick={handleRecordNavigation}>{mobDetails.jobId}</div>
             </div>
             <div class="action-btns">
-                <!-- <div class="assign-btn btn" onclick={handleJobCardEdit}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
-                </div> -->
                 <div class="edit-btn btn action-btn" data-past={mobDetails.isPast} onclick={handleJobCardEdit}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
                 </div>
@@ -38,7 +35,7 @@
                     <template if:true={section.items.length}>
                         <template for:each={section.items} for:item="item">
                             <div class="tile" key={item.id}>
-                                <div class="slds-truncate" title={item.name}>{item.name}</div>
+                                <div class="slds-truncate record-nav-link" title={item.name} data-id={item.id} onclick={handleResourceNavigation}>{item.name}</div>
                                 <svg class="remove-btn-svg" data-past={mobDetails.isPast} data-job={mobDetails.id} data-id={item.junctionId} data-type={section.type} onclick={handleRemoveSpecificResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
                                     <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
                                 </svg>
@@ -54,52 +51,8 @@
                 </div>
             </div>
         </template>
-
-        <!-- <div class="crew">
-            <div class="list-label">
-                Crew:
-            </div>
-            <div class="crew-tiles crew-tiles selected-record-tiles">
-                <template for:each={mobDetails.crew} for:item="member">
-                    <div class="crew-member tile" key={member.Id}>
-                        <div class="slds-truncate" title={member.name}>{member.name}</div>
-                        <svg class="remove-btn-svg" data-job={mobDetails.id} data-id={member.junctionId} data-type="Crew" onclick={handleRemoveSpecificResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
-                    </div>
-                </template>
-                <div class="no-resource-text-div" if:false={mobDetails.crew.length}>
-                    Assigned Crew Members Will Be Displayed Here...
-                </div>
-            </div>
-        </div>
-        <div class="assets">
-            <div class="list-label">
-                Assets:
-            </div>
-            <div class="crew-tiles selected-record-tiles">
-                <template for:each={mobDetails.assets} for:item="asset">
-                    <span class="asset-item tile" key={asset.id}>
-                        <div class="slds-truncate" title={asset.name}>{asset.name}</div>
-                        <svg class="remove-btn-svg" data-job={mobDetails.id} data-id={asset.junctionId} data-type="Asset" onclick={handleRemoveSpecificResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
-                    </span>
-                </template>
-            </div>
-        </div>
-        <div class="subcontractors">
-            <div class="list-label">
-                Sub Contractors:
-            </div>
-            <div class="crew-tiles selected-record-tiles">
-                <template for:each={mobDetails.subcontractors} for:item="subcontractor">
-                    <span class="subcontractor-item tile" key={subcontractor.id}>
-                        <div class="slds-truncate" title={subcontractor.name}>{subcontractor.name}</div>
-                        <svg class="remove-btn-svg" data-job={mobDetails.id} data-id={subcontractor.junctionId} data-type="SubContractor" onclick={handleRemoveSpecificResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
-                    </span>
-                </template>
-            </div>
-        </div> -->
         <div class="bottom-btn" data-past={mobDetails.isPast}>
             <button class="assign-btn btn" onclick={handleAssignResources}>+ Assign Resources</button>
         </div>
-        <!-- <div><button class="assign-btn">+ Assign Resources</button></div> -->
     </div>
 </template>

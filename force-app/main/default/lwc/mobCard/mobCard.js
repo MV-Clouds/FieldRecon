@@ -1,31 +1,9 @@
 import { LightningElement, api, track } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 
-export default class MobCard extends LightningElement {
+
+export default class MobCard extends NavigationMixin(LightningElement) {
     @api mobDetails;
-    @api mode; // New API variable for mode flag (small or full)
-
-    // Selected Records Lists
-    @track selectedCrewMembers = [];
-    @track selectedAssets = [];
-    @track selectedSubContractors = [];
-
-    // Selected Junction ObjectIds
-    selectedCrewMemberJIds = [];
-    selectedAssetJIds = [];
-    selectedSubContractorJIds = [];
-
-    // Filters
-    // crewMemberFilters = [
-    //     {field : 'wfrecon__Contact__r.RecordType.DeveloperName', operator : 'eq', value : 'Employee_WF_Recon'},
-    // ];
-
-    get modeClass() {
-        return this.mode === 'small' ? 'event-card small' : 'event-card full';
-    }
-
-    get isFullCard(){
-        return this.mode === 'full';
-    }
 
     get resourceSections() {
         return [
@@ -53,53 +31,6 @@ export default class MobCard extends LightningElement {
         ];
     }
 
-    connectedCallback(){
-        try {
-            // console.log('Connected Callback :: ', this.mobDetails);
-            this.selectedCrewMemberJIds = this.mobDetails.crew?.map(opt => opt.junctionId) || [];
-            this.selectedAssetJIds = this.mobDetails.assets?.map(opt => opt.junctionId) || [];
-            this.selectedSubContractorJIds = this.mobDetails.subcontractors?.map(opt => opt.junctionId) || [];
-
-
-            // console.log('selectedCrewMemberJIds :: ', this.selectedCrewMemberJIds);
-            // console.log('selectedAssetJIds :: ', this.selectedAssetJIds);
-            // console.log('selectedSubContractorJIds :: ', this.selectedSubContractorJIds);
-            
-        } catch (e) {
-            console.log('TemplatePreviewModalV2', 'connectedCallback', e, 'warn');
-            
-        }
-    }
-
-    onRecordSelect(event){
-        try {
-            let name  = event.currentTarget.dataset.name;
-            let junction = event.currentTarget.dataset.junction;
-            let fieldToPush = event.currentTarget.dataset.field;
-
-            // console.log('Name :: ', name, ' Field :: ', fieldToPush);
-            
-            if(event.detail && event.detail.length){
-                // console.log('Selected Records are : ', event.detail);
-                this[junction] = event.detail.map(rec => rec[fieldToPush])
-                // this.selectedRecordId = event.detail[0].Id;
-                this[name] = event.detail;
-            }
-            else{
-                this[junction] = [];
-                this[name] = [];
-            }
-            console.log('Details is :: ', this[name]);
-            
-        } catch (error) {
-            console.log('TemplatePreviewModalV2', 'onRecordSelect', error, 'warn');
-        }
-    }
-
-    handleRecordPickerError(event){
-        console.log('TemplatePreviewModalV2', 'handleRecordPickerError', {'message' : event.detail}, 'warn');
-    }
-
     handleJobCardEdit(){
         this.dispatchEvent(new CustomEvent('edit', { detail: this.mobDetails?.id}));
     }
@@ -118,13 +49,34 @@ export default class MobCard extends LightningElement {
 
     handleRemoveSpecificResource(event){
         try {
-            console.log('event to be is :: ', event.currentTarget);
-            
             let id = event.currentTarget.dataset.id;
             let type = event.currentTarget.dataset.type;
             this.dispatchEvent(new CustomEvent('remove', { detail: {id: id, type: type}}));
         } catch (e) {
             console.log('Error in function handleRemoveSpecificResource:::', e.message);
+        }
+    }
+
+    handleRecordNavigation(){
+        this.navigateToRecord(this.mobDetails?.jId);
+    }
+
+    handleResourceNavigation(event){
+        let id = event.currentTarget.dataset.id;
+        id && this.navigateToRecord(id);
+    }
+
+    navigateToRecord(recordId) {
+        try {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: recordId,
+                    actionName: 'view',
+                },
+            });
+        } catch (e) {
+            console.error('error in navigateToRecord:', e.message);
         }
     }
 }

@@ -22,6 +22,7 @@
     max-height: 50rem;
     overflow: auto;
     scrollbar-width: none;
+    box-shadow: 0 3px 6px #5a5adb60;
 }
 
 .event-card:hover .job-card-name{
@@ -118,16 +119,6 @@
     color: var(--primary-theme-color, #5e5adb);
 }
 
-/* .status-tile[data-status="Confirmed"]{
-    background: #00800036;
-    color: green;
-}
-
-.status-tile[data-status="Pending"]{
-    background: #F2933936;
-    color: #f8902c;
-} */
-
 .list-label{
     font-weight: 600;
 }
@@ -183,4 +174,18 @@
     font-size: 10px;
     color: gray;
     line-height: 12px;
+}
+
+
+/* Navigation Link */
+
+.record-nav-link{
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    width: fit-content;
+}
+
+.record-nav-link:hover{
+    color: var(--primary-theme-color, #5a5adb);
+    text-decoration: underline;
 }
