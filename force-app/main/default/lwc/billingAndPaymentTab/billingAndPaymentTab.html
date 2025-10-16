@@ -87,7 +87,7 @@
                                                             </template>                                            
                                                             <template if:false={val.isActions}>
                                                                 <template if:true={val.recordLink}>
-                                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={billing.billId}>
+                                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
                                                                         <div class="cell-content" title={val.value}>
                                                                             {val.value}
                                                                         </div>
@@ -183,7 +183,7 @@
         
                                                             <template if:false={val.isActions}>
                                                                 <template if:true={val.recordLink}>
-                                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={payment.paymentId}>
+                                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
                                                                         <div class="cell-content" title={val.value}>
                                                                             {val.value}
                                                                         </div>
@@ -264,6 +264,24 @@
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <div class="form-group">
+                                    <div class="input-column">
+                                        <label class="select-label">Select Previous Approved Billing (Optional)</label>
+                                        <div class="select-wrapper">
+                                            <lightning-combobox name="prevBillId" label="Select Previous Approved Billing" variant="label-hidden" placeholder="Select a Previous Billing" value={newBill.prevBillId} options={approvedBillingOptionsForNew} onchange={handleNewBillChange}></lightning-combobox>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="input-column">
+                                        <label class="select-label">Billing Type</label>
+                                        <div class="select-wrapper">
+                                            <lightning-combobox name="billingType" label="Billing Type" variant="label-hidden" placeholder="Select Billing Type" value={newBill.billingType} options={billingTypeOptions} onchange={handleNewBillChange}></lightning-combobox>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div class="form-group">
                                     <div class="input-column">
@@ -282,17 +300,7 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="form-group">
-                                    <div class="input-column checkbox-row">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" name="Is_Retainage_Billing__c" checked={newBill.Is_Retainage_Billing__c} onchange={handleNewBillChange}></input>
-                                            <span>Is Retainage Billing</span>
-                                        </label>
-                                    </div>
-                                </div>
                             </div>
-
                         </div>
 
                         <!-- Footer -->

@@ -1,6 +1,10 @@
-import { LightningElement, api, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import { getPicklistValues } from 'lightning/uiObjectInfoApi';
+import BILLING_OBJECT from '@salesforce/schema/Billing__c';
+import STATUS_FIELD from '@salesforce/schema/Billing__c.Status__c';
 import getBillingsData from '@salesforce/apex/BillingDetailsPageController.getBillingsData';
 import updateBillingDetails from '@salesforce/apex/BillingDetailsPageController.updateBillingDetails';
 import saveBillingLineItems from '@salesforce/apex/BillingDetailsPageController.saveBillingLineItems';
@@ -29,16 +33,41 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     @track isEditingStatus = false;
     @track isSavingBillingInfo = false;
     @track hasBillingChanges = false;
-    
-    // Status options for combobox
-    @track statusOptions = [
-        { label: 'Draft', value: 'Draft' },
-        { label: 'Sent', value: 'Sent' },
-        { label: 'Approved', value: 'Approved' },
-        { label: 'Paid', value: 'Paid' }
-    ];
+    @track statusOptions = [];
+
+    // Get object metadata (to access record type ID)
+    @wire(getObjectInfo, { objectApiName: BILLING_OBJECT })
+    objectInfo;
+
+    // Get picklist values for Status__c
+    @wire(getPicklistValues, {
+        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
+        fieldApiName: STATUS_FIELD
+    })
+
+    /** 
+     * Method Name: wiredStatusValues
+     * @description: Wires picklist values for Status__c and prepares options including 'All'.
+     */
+    wiredStatusValues({ data, error }) {
+        if (data) {
+            this.statusOptions = [
+                { label: 'All', value: 'All' },
+                ...data.values.map(item => ({
+                    label: item.label,
+                    value: item.value
+                }))
+            ];
+        } else if (error) {
+            console.error('Error fetching picklist values:', error);
+        }
+    }
 
     get isSaveBillingDisabled() {
+        return !this.hasBillingChanges || this.isSavingBillingInfo;
+    }
+
+    get isBillingButtonsDisabled() {
         return !this.hasBillingChanges || this.isSavingBillingInfo;
     }
 
@@ -59,11 +88,11 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     }
 
     get contractSaveButtonLabel() {
-        return this.isSavingContract ? 'Saving...' : 'Save Changes';
+        return this.isSavingContract ? 'Saving...' : 'Save';
     }
 
     get changeOrderSaveButtonLabel() {
-        return this.isSavingChangeOrder ? 'Saving...' : 'Save Changes';
+        return this.isSavingChangeOrder ? 'Saving...' : 'Save';
     }
 
     get isDraftSelected() {
@@ -210,6 +239,15 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 }
             });
 
+            // Add serial numbers to each group individually
+            contractItems.forEach((item, index) => {
+                item.SerialNumber = index + 1;
+            });
+
+            changeOrderItems.forEach((item, index) => {
+                item.SerialNumber = index + 1;
+            });
+
             this.contractLineItems = contractItems;
             this.changeOrderLineItems = changeOrderItems;
             
@@ -252,7 +290,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             
             // Raw values for calculations
             rawScopeContractValue: item.wfrecon__Scope_Contract_Value__c || 0,
-            rawPreviousBilledAmount: item.wfrecon__Previous_Billed_Amount__c || 0,
+            rawPreviousBilledAmount: item.wfrecon__Previous_Billed_Value__c || 0,
             rawTotalCompleteAmount: item.wfrecon__Total_Complete_Amount__c || 0,
             rawThisBillingAmount: item.wfrecon__This_Billing_Value__c || 0,
             rawRetainagePercent: item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0,
@@ -444,6 +482,22 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         } catch (error) {
             console.error('Error in handleSaveBillingInfo:', error);
             this.isSavingBillingInfo = false;
+        }
+    }
+
+    /** 
+     * Method Name: handleDiscardBillingChanges
+     * @description: Discards billing information changes and reverts to original values.
+     */
+    handleDiscardBillingChanges() {
+        try {
+            // Revert billing details to original values
+            this.billingDetails = { ...this.originalBillingDetails };
+            this.hasBillingChanges = false;
+            this.showToast('Success', 'Billing changes discarded', 'success');
+        } catch (error) {
+            console.error('Error in handleDiscardBillingChanges:', error);
+            this.showToast('Error', 'Error discarding billing changes', 'error');
         }
     }
 

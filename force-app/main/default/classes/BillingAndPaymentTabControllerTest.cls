@@ -33,7 +33,6 @@ private class BillingAndPaymentTabControllerTest {
             Status__c = 'Approved',
             Start_Date__c = Date.today(),
             End_Date__c = Date.today().addDays(30),
-            Amount__c = 1000,
             Billing_Reference_Number__c = 'BR001'
         );
         insert bill;
@@ -103,7 +102,21 @@ private class BillingAndPaymentTabControllerTest {
     @IsTest
     static void testCreateBilling() {
         Job__c job = [SELECT Id FROM Job__c WHERE Job_Name__c = 'J001' LIMIT 1];
-        String result = BillingAndPaymentTabController.createBilling(job.Id, Date.today(), Date.today().addDays(30), false);
+        String result = BillingAndPaymentTabController.createBilling(job.Id, Date.today(), Date.today().addDays(30), 'Regular Bill', null);
+    }
+    
+    @IsTest
+    static void testCreateBillingWithPreviousBill() {
+        Job__c job = [SELECT Id, Account__c FROM Job__c WHERE Job_Name__c = 'J001' LIMIT 1];
+        Billing__c existingBill = [SELECT Id FROM Billing__c WHERE Job__c = :job.Id LIMIT 1];
+        
+        String result = BillingAndPaymentTabController.createBilling(
+            job.Id, 
+            Date.today(), 
+            Date.today().addDays(30), 
+            'Retainage Bill', 
+            existingBill.Id
+        );
     }
 
     @IsTest

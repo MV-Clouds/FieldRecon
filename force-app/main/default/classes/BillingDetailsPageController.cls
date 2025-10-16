@@ -8,7 +8,7 @@ public with sharing class BillingDetailsPageController {
             // Query Billing record
             wfrecon__Billing__c bill = [
                 SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Retainage__c, wfrecon__Retainage_on_Bill__c, wfrecon__Job__r.wfrecon__Total_Contract_Price__c, wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c, 
-                       wfrecon__Contract_Sum_to_Date__c, wfrecon__Total_Completed_and_Stored_to_Date__c, Total_Billed_Amount__c, wfrecon__Amount__c, wfrecon__Total_Amount_Earned_Less_Retainage__c,
+                       wfrecon__Contract_Sum_to_Date__c, Total_Billed_Amount__c, wfrecon__Total_Amount_Earned_Less_Retainage__c,
                        wfrecon__Current_Payment_Amount_Due__c, wfrecon__Balance_to_Finish_Retainage__c, wfrecon__Account__r.Name, wfrecon__Application_Number__c, wfrecon__Billing_Reference_Number__c,
                        wfrecon__Is_Retainage_Billing__c, wfrecon__Previous_Bill__c, wfrecon__Previous_Bill__r.Name, wfrecon__Previous_Billed_Amount__c, wfrecon__Sent_Date__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Status__c,
                        wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Account__r.Name, wfrecon__Payment_Due_Date__c, Retainage_Completed_to_Date__c
@@ -29,7 +29,6 @@ public with sharing class BillingDetailsPageController {
             wrapper.billDetails.EndDate = bill.wfrecon__End_Date__c;
             wrapper.billDetails.SentDate = bill.wfrecon__Sent_Date__c;
             wrapper.billDetails.AccountName = (bill.wfrecon__Account__r != null && String.isNotBlank(bill.wfrecon__Account__r.Name)) ? bill.wfrecon__Account__r.Name : '-';
-            wrapper.billDetails.Amount = bill.wfrecon__Amount__c != null ? bill.wfrecon__Amount__c : 0.00;
             wrapper.billDetails.RetainageOnBill = bill.wfrecon__Retainage_on_Bill__c != null ? bill.wfrecon__Retainage_on_Bill__c : 0.00;
             wrapper.billDetails.TotalEarnedLessRetainage = bill.wfrecon__Total_Amount_Earned_Less_Retainage__c != null ? bill.wfrecon__Total_Amount_Earned_Less_Retainage__c : 0.00;
             wrapper.billDetails.TotalCompletedAndStoredToDate = bill.Total_Billed_Amount__c != null ? bill.Total_Billed_Amount__c : 0.00;
@@ -207,7 +206,6 @@ public with sharing class BillingDetailsPageController {
         @AuraEnabled public Date EndDate;
         @AuraEnabled public Date SentDate;
         @AuraEnabled public String AccountName;
-        @AuraEnabled public Decimal Amount;
         @AuraEnabled public Decimal RetainageOnBill;
         @AuraEnabled public Decimal TotalEarnedLessRetainage;
         @AuraEnabled public Decimal TotalCompletedAndStoredToDate;

@@ -77,6 +77,17 @@
                     <div class="billing-info-header">
                         <h3 class="billing-info-title">Billing Information</h3>
                         <div class="billing-info-actions">
+                            <button 
+                                class="action-button discard-btn"
+                                onclick={handleDiscardBillingChanges}
+                                disabled={isBillingButtonsDisabled}
+                                title="Discard unsaved changes">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Discard
+                            </button>
                             <button class="action-button save-button" onclick={handleSaveBillingInfo} disabled={isSaveBillingDisabled}>
                                 <template if:true={isSavingBillingInfo}>
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -129,14 +140,14 @@
                                 </div>
                                 <div class="field-group">
                                     <lightning-input
-                                        label="Billing Retainage"
+                                        label="Billing Retainage (%)"
                                         type="number"
                                         value={billingDetails.RetainageOnBill}
                                         onchange={handleBillingFieldChange}
                                         data-field-name="retainage"
                                         step="0.01"
                                         min="0"
-                                        formatter="currency">
+                                        max="100">
                                     </lightning-input>
                                 </div>
                             </div>
@@ -262,7 +273,7 @@
                                     <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Discard Changes
+                                Discard
                             </button>
                             <button 
                                 class="action-button save-button"
@@ -291,6 +302,7 @@
                             <table class="custom-data-table">
                                 <thead class="table-header">
                                     <tr>
+                                        <th class="header-cell">Sr No.</th>
                                         <th class="header-cell">Scope Entry Name</th>
                                         <th class="header-cell">Contract Value</th>
                                         <th class="header-cell">Previous Billed %</th>
@@ -307,6 +319,7 @@
                                 <tbody class="table-body">
                                     <template for:each={contractLineItems} for:item="item">
                                         <tr key={item.Id} class={item.rowClass}>
+                                            <td class="data-cell center-trancate-text">{item.SerialNumber}</td>
                                             <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
                                             <td class="data-cell center-trancate-text">{item.contractValue}</td>
                                             <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
@@ -378,6 +391,7 @@
                                     </template>
                                     <!-- Totals Row -->
                                     <tr class="totals-row">
+                                        <td class="data-cell totals-label"></td>
                                         <td class="data-cell totals-label"><strong>Total</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.contractValue}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
@@ -415,7 +429,7 @@
                                     <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Discard Changes
+                                Discard
                             </button>
                             <button 
                                 class="action-button save-button"
@@ -444,6 +458,7 @@
                             <table class="custom-data-table">
                                 <thead class="table-header">
                                     <tr>
+                                        <th class="header-cell">Sr No.</th>
                                         <th class="header-cell">Scope Entry Name</th>
                                         <th class="header-cell">Contract Value</th>
                                         <th class="header-cell">Previous Billed %</th>
@@ -460,6 +475,7 @@
                                 <tbody class="table-body">
                                     <template for:each={changeOrderLineItems} for:item="item">
                                         <tr key={item.Id} class={item.rowClass}>
+                                            <td class="data-cell center-trancate-text">{item.SerialNumber}</td>
                                             <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
                                             <td class="data-cell center-trancate-text">{item.contractValue}</td>
                                             <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
@@ -533,6 +549,7 @@
                                     </template>
                                     <!-- Totals Row -->
                                     <tr class="totals-row">
+                                        <td class="data-cell totals-label"></td>
                                         <td class="data-cell totals-label"><strong>Total</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.contractValue}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>

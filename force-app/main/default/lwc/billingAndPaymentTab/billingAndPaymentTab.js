@@ -25,7 +25,12 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     @track paymentListRaw = [];
     @track filteredPaymentList = [];
     @track approvedBillingOptions = [];
+    @track approvedBillingOptionsForNew = [];
     @track statusOptions = [];
+    @track billingTypeOptions = [
+        { label: 'Regular Bill', value: 'Regular Bill' },
+        { label: 'Retainage Bill', value: 'Retainage Bill' }
+    ];
     @track selectedStatus = 'All';
     @track searchTerm = '';
     @track jobDetailsMap = {
@@ -36,7 +41,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     @track newBill = {
         Start_Date__c: null,
         End_Date__c: null,
-        Is_Retainage_Billing__c: false
+        prevBillId: null,
+        billingType: 'Regular Bill'
     };
     @track newPayment = {
         Payment_Received_Date__c: null,
@@ -66,6 +72,13 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             isLink: true,
             recordIdField: 'Id', 
             style: 'width: 10rem'
+        },
+        { 
+            label: 'Previous Billing', 
+            fieldName: 'wfrecon__Previous_Bill__c',
+            isLink: true,
+            recordIdField: 'wfrecon__Previous_Bill__c', 
+            style: 'width: 12rem'
         },
         { label: 'Status', fieldName: 'wfrecon__Status__c', style: 'width: 15rem' },
         { label: 'Bill Reference Number', fieldName: 'wfrecon__Billing_Reference_Number__c', style: 'width: 15rem' },
@@ -177,6 +190,22 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                             let value = bill;
                             parts.forEach(p => value = value ? value[p] : null);
                             cell.value = value || '';
+                        } else if (col.fieldName === 'wfrecon__Previous_Bill__c') {
+                            // Handle Previous Billing field specially
+                            if (bill.wfrecon__Previous_Bill__c) {
+                                // Try to get the name from the relationship field, fall back to a generic name
+                                if (bill.wfrecon__Previous_Bill__r && bill.wfrecon__Previous_Bill__r.Name) {
+                                    cell.value = bill.wfrecon__Previous_Bill__r.Name;
+                                } else {
+                                    // If no relationship data, create a display name from the ID
+                                    cell.value = `Previous Bill (${bill.wfrecon__Previous_Bill__c.substring(0, 8)}...)`;
+                                }
+                                if (col.isLink) {
+                                    cell.recordLink = `/${bill.wfrecon__Previous_Bill__c}`;
+                                }
+                            } else {
+                                cell.value = '-';
+                            }
                         } else {
                             cell.value = bill[col.fieldName] || '';
                             if (col.isLink && col.recordIdField) {
@@ -329,13 +358,31 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         this.isBillCreatable = true;
                         this.billingListRaw = result.billings;
                         this.filteredBillingList = result.billings;
+                        
+                        // Prepare approved billing options for new billing creation
+                        this.approvedBillingOptionsForNew = [
+                            { label: 'None', value: null }
+                        ];
+                        if (result.billings && result.billings.length > 0) {
+                            const approvedBillings = result.billings.filter(bill => 
+                                bill.wfrecon__Status__c === 'Approved'
+                            );
+                            approvedBillings.forEach(bill => {
+                                this.approvedBillingOptionsForNew.push({
+                                    label: bill.Name,
+                                    value: bill.Id
+                                });
+                            });
+                        }
                     } else if(result && result.hasApprovedScopeEntries == false) {
                         this.isBillCreatable = false;
                         this.billingListRaw = [];
                         this.filteredBillingList = [];
+                        this.approvedBillingOptionsForNew = [{ label: 'None', value: null }];
                     } else {
                         this.billingListRaw = [];
                         this.filteredBillingList = [];
+                        this.approvedBillingOptionsForNew = [{ label: 'None', value: null }];
                         this.isBillCreatable = false;
                         this.showToast('Error', 'Failed to load billing data. Please contact system admin.', 'error');
                     }
@@ -651,8 +698,10 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     */
     handleLinkClick(event) {
         try {
-            const recordId = event.currentTarget.dataset.link;
-            if (recordId) {
+            const linkData = event.currentTarget.dataset.link;
+            if (linkData) {
+                // Extract record ID from link path (remove leading slash)
+                const recordId = linkData.startsWith('/') ? linkData.substring(1) : linkData;
                 this[NavigationMixin.Navigate]({
                     type: 'standard__recordPage',
                     attributes: {
@@ -677,7 +726,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             this.newBill = {
                 Start_Date__c: null,
                 End_Date__c: null,
-                Is_Retainage_Billing__c: false
+                prevBillId: null,
+                billingType: 'Regular Bill'
             };
         } catch (error) {
             console.error('Error in handleCreateBilling :: ', error);
@@ -690,11 +740,6 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
      */
     handleNewBillChange(event) {
         const { name, value } = event.target;
-        
-        if (name === 'Is_Retainage_Billing__c') {
-            this.newBill.Is_Retainage_Billing__c = event.target.checked;
-            return;
-        }
         this.newBill = { ...this.newBill, [name]: value };
     }
 
@@ -707,7 +752,13 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             this.isLoading = true;
             console.log('Creating billing with data: ', this.newBill);
             
-            createBilling({ jobId: this.recordId, startDate: this.newBill.Start_Date__c || null, endDate: this.newBill.End_Date__c || null, isRetainage: this.newBill.Is_Retainage_Billing__c || false })
+            createBilling({ 
+                jobId: this.recordId, 
+                startDate: this.newBill.Start_Date__c || null, 
+                endDate: this.newBill.End_Date__c || null, 
+                billingType: this.newBill.billingType || 'Regular Bill',
+                prevBill: this.newBill.prevBillId || null
+            })
                 .then((result) => {
                     if(result == 'SUCCESS') {
                         this.showToast('Success', 'Billing record created successfully.', 'success');
@@ -740,7 +791,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         this.newBill = {
             Start_Date__c: null,
             End_Date__c: null,
-            Is_Retainage_Billing__c: false
+            prevBillId: null,
+            billingType: 'Regular Bill'
         };
     }
 
