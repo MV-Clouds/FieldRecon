@@ -40,7 +40,7 @@
       </div>
 
       <!-- Period navigation -->
-      <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-center slds-grid--align-spread slds-wrap">
+      <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-end slds-grid--align-spread slds-wrap">
         <div class="tabs sub-tabs tab-navigation" if:true={isResourceView}>
           <button class="nav-tab-btn" data-selected={resourceType} name="Crew" onclick={selectResourceType}>Crew</button>
           <button class="nav-tab-btn" data-selected={resourceType} name="SubContractor" onclick={selectResourceType}>Sub
@@ -48,11 +48,22 @@
           <button class="nav-tab-btn" data-selected={resourceType} name="Asset" onclick={selectResourceType}>Assets</button>
         </div>
         <div class="filters-and-nav slds-grid slds-wrap slds-grid--vertical-align-center">
+          <lightning-record-edit-form
+            class="nav-bar-element"
+            density="compact"
+            object-api-name="wfrecon__Mobilization__c">
+            <lightning-input-field 
+              variant="label-hidden"
+              field-name="wfrecon__Mobilization_Status__c"
+              value={selectedStatusFilter}
+              onchange={handleStatusFilterChange}
+            ></lightning-input-field>
+          </lightning-record-edit-form>
           <lightning-input
             class="nav-bar-element"
             type="search"
             variant="label-hidden"
-            placeholder="Search Job/Resource"
+            placeholder="Search..."
             onchange={handleSearchValueChange}
           ></lightning-input>
           <lightning-input
@@ -79,7 +90,7 @@
           <div class="events">
             <template for:each={dayView.events} for:item="ev">
               <div key={ev.id} class="mob-card-container">
-                <c-mob-card class="mob-card" mode="full" mob-details={ev} onedit={handleJobCardEdit}
+                <c-mob-card class="mob-card" mob-details={ev} onedit={handleJobCardEdit}
                   ondelete={handleJobCardDelete} onassign={handleEditResource} onremove={handleRemoveResourceFromCard}></c-mob-card>
               </div>
             </template>
@@ -114,7 +125,7 @@
                 <div class="events">
                   <template for:each={day.events} for:item="ev">
                     <div key={ev.id} class="mob-card-container">
-                      <c-mob-card class="mob-card" mode="small" mob-details={ev} onedit={handleJobCardEdit}
+                      <c-mob-card class="mob-card" mob-details={ev} onedit={handleJobCardEdit}
                         ondelete={handleJobCardDelete} onassign={handleEditResource} onremove={handleRemoveResourceFromCard}></c-mob-card>
                     </div>
                   </template>
@@ -136,21 +147,6 @@
 
     <!-- Resource View -->
     <template if:true={isResourceView}>
-      <!-- Resource type tabs -->
-      <!-- <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-center slds-grid--align-spread slds-wrap">
-        <div class="tabs sub-tabs tab-navigation">
-          <button class={crewTabClass} name="Crew" onclick={selectResourceType}>Crew</button>
-          <button class={subcontractorTabClass} name="SubContractor" onclick={selectResourceType}>Sub
-            Contractors</button>
-          <button class={assetTabClass} name="Asset" onclick={selectResourceType}>Assets</button>
-        </div>
-        <div class="btns-div">
-          <div class="assign-new-btn">
-            <button class="assign-btn nav-btn" onclick={handleAssignResource}>Assign Resource</button>
-          </div>
-        </div>
-      </div> -->
-
       <div class="resource-calendar-container">
         <div class="calendar">
           <div class="resource-header">
@@ -171,22 +167,14 @@
 
           <template for:each={filteredResources} for:item="res">
             <div class="resource-row" key={res.id}>
-              <div class="cell resource-col">{res.name}</div>
+              <div class="cell resource-col record-nav-link" data-id={res.id} onclick={handleRecordNavigation}>{res.name}</div>
               <template for:each={res.days} for:item="day">
                 <div class="cell day-col" key={day.iso}>
                   <template for:each={day.events} for:item="ev">
                     <div class="event" key={ev.id}>
-                      <!-- <div class="resource-job-name">
-                        <div class="job-name-text">
-                          {ev.jobName}
-                        </div>
-                        <div class="job-id-text">
-                          {ev.jobId}
-                        </div>
-                      </div> -->
                       <div class="job-header-detail">
                           <div class="job-card-name">{ev.jobName}</div>
-                          <div class="job-card-description">{ev.jobId}</div>
+                          <div class="job-card-description record-nav-link" data-id={ev.jId} onclick={handleRecordNavigation}>{ev.jobId}</div>
                       </div>
                       <svg data-id={ev.id} onclick={handleRemoveAssignment} class="remove-assignment-btn" data-past={ev.isPast}
                         xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
@@ -195,9 +183,6 @@
                       </svg>
                     </div>
                   </template>
-                  <!-- <div class="assign-resource-btn" data-iso={day.iso} data-resource={res.id} onclick={handleAssignResource} if:false={day.events.length}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="gray"><path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/></svg>
-                  </div> -->
                 </div>
               </template>
             </div>
@@ -262,22 +247,7 @@
           <!-- Form To Assign resource to single Mobilization -->
           <lightning-record-edit-form  onload={handleFormLoaded} lwc:elseif={isAssignForm}>
             <div class="assign-resource-div">
-              <!-- <c-custom-record-picker
-                      placeholder="Select Crew Members..."
-                      name="selectedResourceId"
-                      onchange={handleResourceItemUpdate}
-                      onerror={handleRecordPickerError}
-                      multiselect="false"
-                      dropdown-position="center"
-                      query-object-api="Contact"
-                      label-field-api="Name"
-                      label-field-type="text"
-                      description-field-api="CreatedBy.Name"
-                      search-by-fields="Name"
-                      show-footer-button="false"
-                      additional-fields="FirstName,LastName"
-                    ></c-custom-record-picker> -->
-              <lightning-record-picker label="Select Resource" placeholder="Search Here..."
+              <lightning-record-picker label="Select Resource" placeholder="Search Resource..."
                 object-api-name={resourceObjectApi} display-info={displayResource} matching-info={matchingResource} filter={filterResource} name="selectedResourceId"
                 onchange={handleResourceItemUpdate} required></lightning-record-picker>
               <lightning-record-picker label="Select Job" placeholder="Search Job..." object-api-name="wfrecon__Job__c"
@@ -293,42 +263,6 @@
             </div>
           </lightning-record-edit-form>
 
-
-          <!-- Form To Assign resource to Multiple Mobilization -->
-          <!-- <div class="main-resource-edit-div">
-          <lightning-record-edit-form  onload={handleFormLoaded} lwc:elseif={isResourcesEditForm}>
-              <template for:each={resourceFields} for:item="field">
-                <div class="field-div" key={field.name}>
-                  <div class="select-and-add-div">
-                    <lightning-record-picker 
-                      label={field.label}
-                      placeholder={field.placeholder}
-                      object-api-name={field.objName}
-                      filter={field.filters}
-                      display-info={field.displayInfo}
-                      matching-info={field.matchingInfo}
-                      name={field.name}
-                      class="slds-grow"
-                      onchange={handleResourceItemUpdate}
-                    ></lightning-record-picker>
-                    <div class="add-btn" data-type={field.type} data-name={field.name} onclick={addResourceForAssignment} lwc:if={field.value}>
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="white"><path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/></svg>
-                    </div>
-                    <div class="add-btn disabled" lwc:else>
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="white"><path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/></svg>
-                    </div>
-                  </div>
-                  <div class="selected-record-tiles">
-                    <template for:each={field.selectedTiles} for:item="tile">
-                        <span class="subcontractor-item tile" key={tile.id}>
-                            <div class="slds-truncate" title={tile.name}>{tile.name}</div>
-                            <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.junctionId} data-type={field.type} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
-                        </span>
-                    </template>
-                  </div>
-                </div>
-              </template>
-            </div> -->
             <div class="main-resources-edit-div" lwc:elseif={isResourcesEditForm}>
               <div class="tabs sub-tabs tab-navigation">
                 <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Crew" data-for="assign" onclick={selectResourceType}>Crew</button>
@@ -344,57 +278,51 @@
                   onchange={handleResourceSearch}
                 ></lightning-input>
               </div>
-              <!-- <template for:each={resourcesDisplay} for:item="field">
-                <div class="field-div" key={field.name}>
-                  <div class="section-label">{field.label}</div> -->
-                  <div class="select-and-add-div slds-grow">
-                    <div class="resource-list-div">
-                      <template for:each={resourceOptionsToShow} for:item="opt">
-                        <div key={opt.id} class="checkboxes-select">
-                          <lightning-input 
-                            class="resource-option-checkbox"
-                            type="checkbox"
-                            label={opt.name}
-                            data-available={opt.isAvailable}
-                            data-id={opt.id}
-                            checked={opt.isSelected}
-                            onchange={handleSelectResourceOption}
-                          ></lightning-input>
-                        </div>
-                      </template>
-                      <template if:false={resourceOptionsToShow.length}>
-                        <div class="empty-state-msg">
-                          <img src="/resource/wfrecon__emptyState" alt="empty state">
-                          <div class="empty-state-msg-text">
-                            No Resources To Display!
-                          </div>
-                        </div>
-                      </template>
+              <div class="select-and-add-div slds-grow">
+                <div class="resource-list-div">
+                  <template for:each={resourceOptionsToShow} for:item="opt">
+                    <div key={opt.id} class="checkboxes-select">
+                      <input 
+                        class="resource-option-checkbox"
+                        type="checkbox"
+                        data-id={opt.id}
+                        checked={opt.isSelected}
+                        onchange={handleSelectResourceOption}
+                        id={opt.name}
+                      ></input>
+                      <label class="checkbox-option-label" for={opt.name} data-available={opt.isAvailable}>{opt.name}</label>
                     </div>
-                  </div>
-                  <div class="add-btn" onclick={addResourceForAssignment}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="white"><path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/></svg>
-                  </div>
-                  <div class="selected-tiles-heading">
-                    <b>Selected Resources: </b>
-                  </div>
-                  <div class="selected-record-tiles">
-                    <template for:each={addedResources} for:item="tile">
-                        <span class="subcontractor-item tile" key={tile.id}>
-                            <div class="slds-truncate" title={tile.name}>{tile.name}</div>
-                            <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.junctionId} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
-                        </span>
-                    </template>
-                    <template if:false={addedResources.length}>
-                        <div class="no-resource-text-div">
-                            No {resourceTypeForAssign} has been assigned yet.
-                        </div>
-                    </template>
-                  </div>
-                <!-- </div>
-              </template> -->
+                  </template>
+                  <template if:false={resourceOptionsToShow.length}>
+                    <div class="empty-state-msg">
+                      <img src="/resource/wfrecon__emptyState" alt="empty state">
+                      <div class="empty-state-msg-text">
+                        No Resources To Display!
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div class="add-btn" onclick={addResourceForAssignment}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="white"><path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/></svg>
+              </div>
+              <div class="selected-tiles-heading">
+                <b>Selected Resources: </b>
+              </div>
+              <div class="selected-record-tiles">
+                <template for:each={addedResources} for:item="tile">
+                    <span class="subcontractor-item tile" key={tile.id}>
+                        <div class="slds-truncate" title={tile.name}>{tile.name}</div>
+                        <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.junctionId} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
+                    </span>
+                </template>
+                <template if:false={addedResources.length}>
+                    <div class="no-resource-text-div">
+                        No {resourceTypeForAssign} has been assigned yet.
+                    </div>
+                </template>
+              </div>
             </div>
-          <!-- </lightning-record-edit-form> -->
         </div>
       </div>
     </section>
@@ -410,19 +338,6 @@
           </header>
           <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
             <p>{confirmationMessage}</p>
-            <!-- <div class="select-overlapping-dates">
-              <template for:each={jobAssignmentInfo.overlappingDates} for:item="olData">
-                <div class="confirm-overlap-checkbox" key={olData.Id}>
-                  <lightning-input 
-                    type="checkbox" 
-                    label={olData.label} 
-                    data-id={olData.Id}
-                    checked={olData.allowOverlap}
-                    onchange={handleOverlapChange}
-                  ></lightning-input>
-                </div>
-              </template>
-            </div> -->
             <div class="slds-grid slds-grid--align-center slds-p-top--medium confirm-popup-btns">
               <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleConfirmationAction}>Cancel</button>
               <button class="save-btn" name="noOverlap" title="Assign resources only if they are not overlapping on specific date." onclick={handleConfirmationAction} if:true={isOverlapJob}>Assign Only Available</button>

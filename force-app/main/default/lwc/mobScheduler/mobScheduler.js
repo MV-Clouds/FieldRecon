@@ -1,4 +1,5 @@
 import { LightningElement, track } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getMobilizationDetails from '@salesforce/apex/MobSchedulerController.getMobilizationDetails';
 import getResourceDetails from '@salesforce/apex/MobSchedulerController.getResourceDetails';
@@ -9,7 +10,7 @@ import deleteMobilization from '@salesforce/apex/MobSchedulerController.deleteMo
 import getDefaultValues from '@salesforce/apex/MobSchedulerController.getDefaultValues';
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
 
-export default class Scheduler extends LightningElement {
+export default class MobScheduler extends NavigationMixin(LightningElement) {
     showSpinner = false;
 
     @track isDayView = true;
@@ -32,6 +33,9 @@ export default class Scheduler extends LightningElement {
     currentWeekStart;
     searchKey = '';
     resourceSearchKey = '';
+
+    // Filter Variables
+    selectedStatusFilter = null;
 
     defaultMobGValues = {
         'wfrecon__Start_Time__c': null,
@@ -160,97 +164,6 @@ export default class Scheduler extends LightningElement {
         }
     }
 
-    selectedCrewId = [];
-    selectedAssetId = [];
-    selectedSubContractorId = [];
-    get resourceFields(){
-        let fieldsList = [
-            {
-                name: 'selectedCrewId',
-                label: 'Select Crew',
-                value: this.selectedCrewId,
-                type: 'Crew',
-                placeholder: 'Search Crew...',
-                objName: 'Contact',
-                filters: {
-                            criteria: [
-                                {
-                                    fieldPath: 'RecordType.DeveloperName',
-                                    operator: 'eq',
-                                    value: 'Employee_WF_Recon',
-                                }
-                            ]
-                        },
-                displayInfo: null,
-                matchingInfo: null,
-                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.crew : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.crew)) || []
-            },
-            {
-                name: 'selectedAssetId',
-                label: 'Select Asset',
-                value: this.selectedAssetId,
-                type: 'Asset',
-                placeholder: 'Search Asset...',
-                objName: 'wfrecon__Equipment__c',
-                filters: null,
-                displayInfo: null,
-                matchingInfo: null,
-                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.assets : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.assets)) || []
-            },
-            {
-                name: 'selectedSubContractorId',
-                label: 'Select Sub Contractor',
-                value: this.selectedSubContractorId,
-                type: 'SubContractor',
-                placeholder: 'Search Sub Contractor...',
-                objName: 'Contact',
-                filters: {
-                            criteria: [
-                                {
-                                    fieldPath: 'RecordType.DeveloperName',
-                                    operator: 'eq',
-                                    value: 'Sub_Contractor_WF_Recon',
-                                }
-                            ]
-                        },
-                displayInfo: null,
-                matchingInfo: null,
-                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.subcontractors : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.subcontractors)) || []
-            }
-        ];
-        return fieldsList;
-    }
-
-    get resourcesDisplay(){
-        let resourceInfo = [
-            {
-                type:'Crew',
-                name: 'selectedCrewId',
-                label: 'Select Crew Members',
-                options: this.allCrewMembers,
-                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.crew : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.crew)) || []
-            },
-            {
-                type:'Asset',
-                name: 'selectedAssetId',
-                label: 'Select Assets',
-                options: this.allAssets,
-                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.assets : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.assets)) || []
-            },
-            {
-                type:'SubContractor',
-                name: 'selectedSubContractorId',
-                label: 'Select Sub Contractors',
-                options: this.allSubContractors,
-                selectedTiles: (this.isDayView ? this.dayView?.events?.find(ev => ev.id === this.mobIdForResources)?.subcontractors : this.weekDays?.flatMap(day => day.events)?.filter(event => event.id === this.mobIdForResources)?.flatMap(event => event.subcontractors)) || []
-            }
-        ]
-
-        console.log('New Info is :: ' , resourceInfo);
-        
-        return resourceInfo.filter(res => res.type === this.resourceType);
-    }
-
     get resourceOptionsToShow() {
         let resources = [];
         if (this.resourceTypeForAssign === 'Crew') {
@@ -293,34 +206,27 @@ export default class Scheduler extends LightningElement {
         if(this.isMobEditForm) return 'Edit Mobilization';
         if(this.isAssignForm) return `Assign ${this.resourceType}`;
         return 'Assign Resources';
-        // return this.isMobEditForm || this.isMobGroupCreate ? 'Edit Mobilization' : `Assign ${this.resourceType}`;
-    }
-
-    get currentWeekEnd(){
-        return 
     }
 
     connectedCallback() {
         this.showLoading(true);
         this.initDay(new Date());
         this.loadDefaultMobGroupValues();
-        // this.loadAllResources();
     }
 
     loadDefaultMobGroupValues(){
         try {
             getDefaultValues()
             .then(result =>{
-                console.log('Result is :: ', result);
                 this.defaultMobGValues = result;
                 this.defaultMobGValues.wfrecon__Start_Time__c = this.convertToTodayDateTime(result.wfrecon__Start_Time__c);
                 this.defaultMobGValues.wfrecon__End_Time__c = this.convertToTodayDateTime(result.wfrecon__End_Time__c);
             })
             .catch(e => {
-                console.log('Error In loadDefaultMobGroupValues > getDefaultValues :: ', e.message);
+                console.error('MobScheduler.loadDefaultMobGroupValues apex:getDefaultValues error:', e?.body?.message || e?.message);
             })
-        } catch (error) {
-            console.log('Error loadDefaultMobGroupValues :: ', e.message);
+        } catch (e) {
+            console.error('MobScheduler.loadDefaultMobGroupValues error:', e?.message);
         }
     }
 
@@ -338,16 +244,15 @@ export default class Scheduler extends LightningElement {
                 this.allSubContractors = [...(result.subcontractors || [])].sort(sortByAvailability);
                 this.allAssets = [...(result.assets || [])].sort(sortByAvailability);
 
-                console.log('Fetched resources :: ', result);
                 this.showLoading(false);
             })
             .catch((e) => {
                 this.showToast('Error', 'Could not fetch resources, please try again...');
-                console.log('Error fetching resources.', e.message);
+                console.error('MobScheduler.loadAllResources apex:getAllResources error:', e?.body?.message || e?.message);
             })
         } catch (e) {
             this.showToast('Error', 'Could not fetch resources, please try again...');
-            console.log('Error in function loadAllResources:::', e.message);
+            console.error('MobScheduler.loadAllResources error:', e?.message);
         }
     }
 
@@ -387,7 +292,6 @@ export default class Scheduler extends LightningElement {
         this.isDayView = false;
         this.currentWeekStart = this.currentWeekStart || new Date();
         this.initWeek(this.currentWeekStart);
-        // this.loadData('week');
     };
     showDayView() {
         this.isResourceView = false;
@@ -413,7 +317,6 @@ export default class Scheduler extends LightningElement {
 
     // Period navigation
     prevPeriod() {
-        console.log('Prev Button');
         if (this.isWeekView || this.isResourceView) {
             const prev = new Date(this.currentWeekStart);
             prev.setDate(prev.getDate() - 7);
@@ -426,7 +329,6 @@ export default class Scheduler extends LightningElement {
     };
 
     nextPeriod() {
-        console.log('Next Button');
         
         if (this.isWeekView || this.isResourceView) {
             const next = new Date(this.currentWeekStart);
@@ -441,30 +343,38 @@ export default class Scheduler extends LightningElement {
 
     handleDateToGoTo(event){
         try{
-            console.log('The Values is :: ', event.currentTarget.value);
-            if(!event.currentTarget.value) return;
-            this.currentWeekStart = new Date(event.currentTarget.value);
+            let val = event.currentTarget?.value;
+            if(!val) return;
+            this.currentWeekStart = new Date(val);
             this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
         }catch(e){
-            console.log('Error is :: ', e.message);
+            console.error('MobScheduler.handleDateToGoTo error:', e?.message);
+        }
+    }
+
+    handleStatusFilterChange(event){
+        try {
+            this.selectedStatusFilter = event.detail?.value;
+            this.applySearchFilter();
+        } catch (e) {
+            console.error('MobScheduler.handleStatusFilterChange error:', e?.message);
         }
     }
 
     handleSearchValueChange(event){
         try {
-            this.searchKey = event.currentTarget.value;
-            console.log('Search Key :: ', this.searchKey);
+            this.searchKey = event.currentTarget?.value || '';
             this.applySearchFilter();
         } catch (e) {
-            console.log('Error in function handleSearchValueChange:::', e.message);
+            console.error('MobScheduler.handleSearchValueChange error:', e?.message);
         }
     }
 
     handleResourceSearch(event){
         try {
-            this.resourceSearchKey = event.currentTarget.value;
+            this.resourceSearchKey = event.currentTarget?.value || '';
         } catch (e) {
-            console.log('Error in function handleResourceSearch:::', e.message);
+            console.error('MobScheduler.handleResourceSearch error:', e?.message);
         }
     }
 
@@ -539,8 +449,8 @@ export default class Scheduler extends LightningElement {
                 this.applySearchFilter();
                 mode === 'week' ? this.mapWeekData() : this.mapDayData(selectedDate);
             })
-            .catch(error => {
-                console.error(error);
+            .catch(e => {
+                console.error('MobScheduler.loadData apex:getMobilizationDetails error:', e?.body?.message || e?.message);
                 this.showLoading(false);
             });
     }
@@ -552,8 +462,6 @@ export default class Scheduler extends LightningElement {
         const end = new Date(this.currentWeekStart);
         end.setDate(end.getDate() + 6);
 
-        console.log('loadResourceData :: ', resourceType, selectedDate, start, end);
-        
         const startDateStr = start.toISOString().slice(0,10);
         const endDateStr = (selectedDate || end).toISOString().slice(0,10);
 
@@ -579,50 +487,45 @@ export default class Scheduler extends LightningElement {
                     }
                     const dayIso = new Date(item.start).toISOString().slice(0,10);
                     const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
-                    if (dayObj) dayObj.events.push({ id: item.junctionId, jobName: item.jobName, jobId: item.jobId, isPast: new Date(item.end) < new Date() });
+                    if (dayObj) dayObj.events.push({ id: item.junctionId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, isPast: new Date(item.end) < new Date() });
                 });
 
                 this.resources = Object.values(resMap);
-                console.log('Resource Map :: ', this.resources);
                 this.applySearchFilter();
                 
                 this.showLoading(false);
             })
-            .catch(error => {
-                console.error(error);
+            .catch(e => {
+                console.error('MobScheduler.loadResourceData apex:getResourceDetails error:', e?.body?.message || e?.message);
                 this.showLoading(false);
             });
     }
 
     applySearchFilter() {
-        try{
-            console.log('Search key is :: ', this.resources);
-            
-            if (!this.searchKey) {
-                if(!this.isResourceView){
+        try {
+            const key = this.searchKey?.toLowerCase();
+            const statusFilter = this.selectedStatusFilter; // null or specific status
+
+            if (!key && !statusFilter) {
+                if (!this.isResourceView) {
                     this.filteredEvents = JSON.parse(JSON.stringify(this.weekEvents));
                     this.isWeekView ? this.mapWeekData() : this.mapDayData(this.currentWeekStart);
                     return;
-                }else{
+                } else {
                     this.filteredResources = JSON.parse(JSON.stringify(this.resources));
                     return;
                 }
             }
-    
-            const key = this.searchKey.toLowerCase();
-            console.log('Checking 1');
-            
-            if(this.isResourceView){
-                console.log('Check 2');
-                
-                this.filteredResources = this.resources.map(resource => {                
-                    const keyLower = key.toLowerCase();
+
+            if (this.isResourceView) {
+                this.filteredResources = this.resources.map(resource => {
+                    const keyLower = key;
 
                     // check if resource name matches
                     const isResourceMatch = resource.name?.toLowerCase().includes(keyLower);
 
                     // if resource name matches, return it as is (all days, all events)
-                    if (isResourceMatch) return { ...resource, days: resource.days };
+                    if (isResourceMatch && !statusFilter) return { ...resource, days: resource.days };
 
                     let anyDayMatched = false;
 
@@ -630,8 +533,8 @@ export default class Scheduler extends LightningElement {
                     const updatedDays = resource.days.map(day => {
                         // filter matching events for this day
                         const filteredEvents = day.events.filter(event =>
-                            event.jobName?.toLowerCase().includes(keyLower) ||
-                            event.jobId?.toLowerCase().includes(keyLower)
+                            event.status == statusFilter && (isResourceMatch || (event.jobName?.toLowerCase().includes(keyLower) ||
+                            event.jobId?.toLowerCase().includes(keyLower)))
                         );
 
                         // if any events matched, mark the flag
@@ -644,47 +547,47 @@ export default class Scheduler extends LightningElement {
                         return { ...day, events: [] };
                     });
 
-                    // include resource only if at least one day had a match
                     if (anyDayMatched) {
                         return { ...resource, days: updatedDays };
                     }
 
-                    // no matches at all
                     return null;
-                })
-                .filter(r => r !== null);
+                }).filter(r => r !== null);
 
                 return;
             }
-            console.log('CP4');
-    
+
+            // Event view (week/day)
             this.filteredEvents = this.weekEvents.filter(event => {
+                // First, check status if filter applied
+                if (statusFilter && event.status !== statusFilter) return false;
+
                 // Match Job Name or Location
                 if ((event.jobId && event.jobId.toLowerCase().includes(key)) ||
                     (event.jobName && event.jobName.toLowerCase().includes(key)) ||
                     (event.location && event.location.toLowerCase().includes(key))) {
                     return true;
                 }
-    
+
                 // Match Crew
                 if (event.crew?.some(c => c.name.toLowerCase().includes(key))) return true;
-    
+
                 // Match Assets
                 if (event.assets?.some(a => a.name.toLowerCase().includes(key))) return true;
-    
+
                 // Match Subcontractors
                 if (event.subcontractors?.some(s => s.name.toLowerCase().includes(key))) return true;
-    
-    
+
                 return false; // no match
             });
-    
-            this.isWeekView ? this.mapWeekData() : this.mapDayData(this.currentWeekStart);
-        }catch(e){
-            console.log('Error in applySearchFilter :: ', e);
-        }
 
+            this.isWeekView ? this.mapWeekData() : this.mapDayData(this.currentWeekStart);
+
+        } catch(e) {
+            console.error('MobScheduler.applySearchFilter error:', e?.message);
+        }
     }
+
 
 
     // Map week data
@@ -695,9 +598,7 @@ export default class Scheduler extends LightningElement {
                 return evIso === day.iso;
             }).map(ev => this.normalizeEvent(ev));
             return { ...day, events: dayEvents };
-        });        
-        console.log('mapWeekData :: ', this.weekDays);
-        
+        });
         this.showLoading(false);
     }
 
@@ -710,8 +611,6 @@ export default class Scheduler extends LightningElement {
         }).map(ev => this.normalizeEvent(ev));
 
         this.dayView = { ...this.dayView, events: dayEvents };
-        console.log('mapDayData :: ', this.dayView);
-        
         this.showLoading(false);
     }
 
@@ -719,14 +618,10 @@ export default class Scheduler extends LightningElement {
     normalizeEvent(ev) {
         const startTime = new Date(ev.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         const endTime = new Date(ev.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        let statusClass = 'status scheduled';
-        switch(ev.status?.toLowerCase()) {
-            case 'pending': statusClass = 'status pending'; break;
-            case 'completed': statusClass = 'status completed'; break;
-            case 'cancelled': statusClass = 'status cancelled'; break;
-        }
+
         return {
             id: ev.id,
+            jId: ev.jId,
             jobId: ev.jobId,
             jobName: ev.jobName,
             location: ev.location,
@@ -734,7 +629,6 @@ export default class Scheduler extends LightningElement {
             date: new Date(ev.start).toISOString().slice(0,10),
             end: endTime,
             status: ev.status,
-            statusClass,
             crew: ev.crew || [],
             assets: ev.assets || [],
             subcontractors: ev.subcontractors || [],
@@ -747,13 +641,11 @@ export default class Scheduler extends LightningElement {
 
     handleAddMobilizationGroup(){
         try{
-            console.log('Open MG Popup');
             this.handleClosePopup();
             this.showFormPopup = true;
             this.isMobGroupCreate  = true;
         }catch(e){
-            console.log('Error in handleAddMobilizationGroup :: ', e.message);
-            
+            console.error('MobScheduler.handleAddMobilizationGroup error:', e?.message);
         }
     }
 
@@ -774,7 +666,7 @@ export default class Scheduler extends LightningElement {
                 this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
             }
         } catch (e) {
-            console.log('Error in function handleCreateMobSubmitted:::', e.message);
+            console.error('MobScheduler.handleCreateMobSubmitted error:', e?.message);
         }
     }
 
@@ -782,7 +674,7 @@ export default class Scheduler extends LightningElement {
         try {
             let id = event.currentTarget.dataset.id;
             if(!id){
-                console.log('Error in function handleRemoveAssignment:::: id is not defined');
+                console.error('MobScheduler.handleRemoveAssignment error: id is not defined');
                 return;
             } else if(this.resourceType){
                 this.isRemove = true;
@@ -792,7 +684,7 @@ export default class Scheduler extends LightningElement {
                 this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
             }
         } catch (e) {
-            console.log('Error in function handleRemoveAssignment:::', e.message);
+            console.error('MobScheduler.handleRemoveAssignment error:', e?.message);
         }
     }
 
@@ -801,23 +693,21 @@ export default class Scheduler extends LightningElement {
             this.showLoading(true);
             removeJobResource({ id: id, type: type })
             .then(result => {
-                console.log('result is :: ', result);
                 if(result === 'success'){
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
                 }else{
-                    console.log('Error in function handleRemoveAssignment:::', result);
                     this.showToast('Error', 'Could not remove job, please try again...', 'error');
                     this.showLoading(false);
                 }
             })
             .catch(error => {
                 this.showToast('Error', 'Could not remove job, please try again...', 'error');
-                console.log('Error in function handleRemoveAssignment:::', error);
+                console.error('MobScheduler.removeJobAssignment apex:removeJobResource error:', error?.body?.message || error?.message);
                 this.showLoading(false);
             })
         } catch(e){
             this.showToast('Error', 'Could not remove job, please try again...', 'error');
-            console.log('Error in function handleRemoveAssignment:::', e.message);
+            console.error('MobScheduler.removeJobAssignment error:', e?.message);
             this.showLoading(false);
         }
     }
@@ -826,8 +716,6 @@ export default class Scheduler extends LightningElement {
         try{
             let iso = event.currentTarget.dataset.iso;
             let resource = event.currentTarget.dataset.resource;
-            console.log('iso Data is :: ', iso);
-            console.log('resource Data is :: ', resource);
 
             this.handleClosePopup();
             this.selectedMobId = iso;
@@ -836,7 +724,7 @@ export default class Scheduler extends LightningElement {
             this.isAssetAssignment = this.resourceType == 'Asset' ? true : false;
             this.showFormPopup = true;
         } catch (e) {
-            console.log('Error in function handleAssignResource:::', e.message);
+            console.error('MobScheduler.handleAssignResource error:', e?.message);
             this.showLoading(false);
             this.showToast('Error', 'Could not assign job, please try again...', 'error');
         }
@@ -845,20 +733,18 @@ export default class Scheduler extends LightningElement {
     handleEditResource(event){
         try {
             this.handleClosePopup();
-            console.log('Editing :: ', event.detail);
             this.loadAllResources(event.detail.date);
             
             this.mobIdForResources = event.detail.id;
             this.showFormPopup = true;
             this.isResourcesEditForm = true;
         } catch (e) {
-            console.log('Error in function handleEditResource:::', e.message);
+            console.error('MobScheduler.handleEditResource error:', e?.message);
         }
     }
 
     handleSelectResourceOption(event){
         try {
-            // let name = event.currentTarget.name;
             let name = 'selectedResourceIdsForAssign';
             let id = event.currentTarget.dataset.id;
             let checked = event.currentTarget.checked;
@@ -868,9 +754,8 @@ export default class Scheduler extends LightningElement {
                 this[name] = this[name].filter(item => item !== id);
             }
             
-            console.log('Selected Resources are :: ', name, this[name]);
         } catch (e) {
-            console.log('Error in function handleSelectResourceOption:::', e.message);
+            console.error('MobScheduler.handleSelectResourceOption error:', e?.message);
         }
     }
 
@@ -880,33 +765,30 @@ export default class Scheduler extends LightningElement {
             this.isMobDelete = true;
             this.askConfirmation('Delete Mobilization!', 'Are you sure you want to delete this mobilization for selected day?', 'Delete');
         } catch (e) {
-            console.log('Error in function handleJobCardDelete:::', e.message);
+            console.error('MobScheduler.handleJobCardDelete error:', e?.message);
         }
     }
 
     deleteMob(id){
         try {
             this.showLoading(true);
-            console.log('Deleting the Mobilization Id: ', id);
             deleteMobilization({ mobId: id })
             .then(result => {
-                console.log('result is :: ', result);
                 if(result === 'success'){
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
                 }else{
-                    console.log('Error in function deleteMobilization:::', result);
                     this.showToast('Error', 'Could not delete mobilization, please try again...', 'error');
                     this.showLoading(false);
                 }
             })
             .catch(error => {
                 this.showToast('Error', 'Could not delete mobilization, please try again...');
-                console.log('Error in function deleteMobilization:::', error);
+                console.error('MobScheduler.deleteMobilization apex:deleteMobilization error:', error?.body?.message || error?.message);
             })
             
         } catch (e) {
             this.showToast('Error', 'Could not delete mobilization, please try again...');
-            console.log('Error in function deleteMob:::', e.message);
+            console.error('MobScheduler.deleteMob error:', e?.message);
         }
     }
 
@@ -916,8 +798,6 @@ export default class Scheduler extends LightningElement {
             this.handleClosePopup();
             this.showLoading(true);
             this.mobIdToEdit = event.detail;
-            console.log('mobIdToEdit :: ', this.mobIdToEdit);
-            
             this.isMobEditForm = true;
             this.showFormPopup = true;
         } catch (e) {
@@ -939,14 +819,13 @@ export default class Scheduler extends LightningElement {
         this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
     }
 
-    handleFormLoaded(event) {
-        console.log('Form Loaded :: ', event.detail);
+    handleFormLoaded() {
         this.showLoading(false);
     }
 
     handleError(event) {
-        console.log('Error in function handleError:::', event.detail);
-        
+        const msg = event?.detail ? JSON.stringify(event.detail) : 'Unknown error';
+        console.error('MobScheduler.handleError error:', msg);
         this.showToast('Error', 'Something went wrong, please try again...', 'error');
     }
 
@@ -954,13 +833,9 @@ export default class Scheduler extends LightningElement {
     handleResourceItemUpdate(event){
         try {
             let name = event.currentTarget.name;
-            console.log('The Whole detail is :: ', event.detail);
-            
             this[name] = event.detail.recordId;
-            console.log('Name :: ', name, ' Value :: ', this[name]);
-            
         } catch (e) {
-            console.log('Error in function handleResourceItemUpdate:::', e.message);
+            console.error('MobScheduler.handleResourceItemUpdate error:', e?.message);
         }
     }
 
@@ -979,7 +854,6 @@ export default class Scheduler extends LightningElement {
                 }
                 assignResourceToMob({assignmentData: assignmentData})
                 .then(result => {
-                    console.log('result is :: ', result);
                     if(result == 'OVERLAP'){
                         this.isOverlap = true;
                         this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. Do you still want to assign?', 'Assign')
@@ -999,15 +873,11 @@ export default class Scheduler extends LightningElement {
                 })
                 .catch(error => {
                     this.showToast('Error', 'Could not assign job, please try again...', 'error');
-                    console.log('Error in function handleSaveChanges:::', error);
+                    console.error('MobScheduler.handleSaveChanges apex:assignResourceToMob error:', error?.body?.message || error?.message);
                 });
             }
-            // console.log('Save Changes :: ', event.detail);
-            // this.showLoading(true);
-            // this.showToast('Success', 'Changes saved successfully.', 'success');
-            
         } catch (e) {
-            console.log('Error in function handleSaveChanges:::', e.message);
+            console.error('MobScheduler.handleSaveChanges error:', e?.message);
         }
     }
 
@@ -1018,8 +888,6 @@ export default class Scheduler extends LightningElement {
             this.showLoading(true);
 
             if(event){
-                console.log('Going Into the Event');
-                
                 let name = 'selectedResourceIdsForAssign';
                 let type = this.resourceTypeForAssign;
     
@@ -1032,45 +900,23 @@ export default class Scheduler extends LightningElement {
                 }
             }
 
-            // let allowOverlapMap = {};
-            // console.log('this.jobAssignmentInfo.overlappingDates ::' , this.jobAssignmentInfo.overlappingDates);
-            
-            // if (this.jobAssignmentInfo.overlappingDates) {
-            //     this.jobAssignmentInfo.overlappingDates?.forEach(ol => {
-            //         allowOverlapMap[ol.Id] = ol.allowOverlap || false;
-            //     });
-            // }
-
-            // this.jobAssignmentInfo.allowOverlapMap = allowOverlapMap;
-
-            console.log('Result is :: ', this.jobAssignmentInfo);
-            
             assignResourceToJob({ assignmentData: this.jobAssignmentInfo })
             .then(result => {
-                // console.log('Raw Apex result:', result);
-
                 // Parse the JSON string returned from Apex
                 let parsedResult;
                 try {
                     parsedResult = JSON.parse(result);
                 } catch (e) {
-                    console.error('Invalid JSON returned from Apex:', e);
+                    console.error('MobScheduler.addResourceForAssignment apex:assignResourceToJob invalid JSON:', e?.message);
                     this.showToast('Error', 'Unexpected response format from server.', 'error');
                     return;
                 }
-
-                console.log('Parsed Result:', parsedResult);
 
                 // Check result status
                 const status = parsedResult?.status;
 
                 if (status === 'OVERLAP') {
                     this.isOverlapJob = true;
-                    // const overlaps = parsedResult?.overlaps || [];
-
-                    // const message = `Select resources to overlap and assign(other's will not get assigned):`;
-                    // this.jobAssignmentInfo.overlappingDates = overlaps.map(ol => ({ ...ol, allowOverlap: false}));
-                    // console.log('Overlapping Mobilizations:', this.jobAssignmentInfo.overlappingDates);
                     // Show confirmation popup
                     this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign');
 
@@ -1090,53 +936,47 @@ export default class Scheduler extends LightningElement {
                 }
             })
             .catch(error => {
-                console.error('Error in assignResourceToJob:', error);
+                console.error('MobScheduler.addResourceForAssignment apex:assignResourceToJob error:', error?.body?.message || error?.message);
                 this.showToast('Error', 'Could not assign job, please try again...', 'error');
             });
-            this.selectedCrewId = [];
-            this.selectedAssetId = [];
-            this.selectedSubContractorId = [];
         } catch (e) {
-            console.log('Error in function addResourceForAssignment:::', e.message);
+            console.error('MobScheduler.addResourceForAssignment error:', e?.message);
         }
     }
-
-    // handleOverlapChange(event){
-    //     let id = event.currentTarget.dataset.id;
-    //     let allowOverlap = event.currentTarget.checked;
-    //     this.jobAssignmentInfo.overlappingDates.find(ol => ol.Id == id).allowOverlap = allowOverlap;
-    // }
 
     handleRemoveJobResource(event){
         try {
             let id = event.currentTarget.dataset.id;
             let type = event.currentTarget.dataset.type;
-
-            console.log('Removing :: ', id, type);
             
             this.isRemove = true;
             this.resourceIdToRemove = id;
             this.typeOfResourceToRemove = type;
             this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
-            // this.removeJobAssignment(id, type); 
         } catch (e) {
-            console.log('Error in function handleRemoveJobResource:::', e.message);
+            console.error('MobScheduler.handleRemoveJobResource error:', e?.message);
         }
     }
 
     handleRemoveResourceFromCard(event){
         try {
-            console.log('Event details is:: ', event.detail);
-            
             let id = event.detail.id;
             let type = event.detail.type;
             this.isRemove = true;
             this.resourceIdToRemove = id;
             this.typeOfResourceToRemove = type;
             this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
-            // this.removeJobAssignment(id, type);
         } catch (e) {
-            console.log('Error in function handleRemoveResourceFromCard:::', e.message);
+            console.error('MobScheduler.handleRemoveResourceFromCard error:', e?.message);
+        }
+    }
+
+    handleRecordNavigation(event){
+        try {
+            let id = event.currentTarget.dataset.id;
+            id && this.navigateToRecord(id);
+        } catch (e) {
+            console.error('MobScheduler.handleRecordNavigation error:', e?.message);
         }
     }
 
@@ -1154,6 +994,20 @@ export default class Scheduler extends LightningElement {
             mode: 'dismissable'
         });
         this.dispatchEvent(evt);
+    }
+
+    navigateToRecord(recordId) {
+        try {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: recordId,
+                    actionName: 'view',
+                },
+            });
+        } catch (e) {
+            console.error('error in navigateToRecord:', e.message);
+        }
     }
 
     handleClosePopup(){
@@ -1177,8 +1031,6 @@ export default class Scheduler extends LightningElement {
     }
     handleConfirmationAction(event){
         try {
-            console.log('jobAssignmentInfo :: ', this.jobAssignmentInfo);
-            
             let name = event.currentTarget.name;
             if(name == 'confirm'){
                 if(this.isOverlap){
@@ -1222,7 +1074,7 @@ export default class Scheduler extends LightningElement {
             this.confirmationMessage = 'Are you sure, you want to proceed';
             this.confirmationBtnLabel = 'Confirm';
         } catch (e) {
-            console.log('Error in function handleConfirmationAction:::', e.message);
+            console.error('MobScheduler.handleConfirmationAction error:', e?.message);
         }
     }
 }
