@@ -108,6 +108,11 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     fieldPath: 'RecordType.DeveloperName',
                     operator: 'eq',
                     value: this.resourceType == 'Crew' ? 'Employee_WF_Recon' : 'Sub_Contractor_WF_Recon',
+                },
+                {
+                    fieldPath: 'wfrecon__User__r.IsActive',
+                    operator: 'eq',
+                    value: true,
                 }
             ]
         }
@@ -174,12 +179,14 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             resources = this.allSubContractors || [];
         }
 
+        let addedResourcesForMob = this.addedResources?.map(res => res.id);
         const search = this.resourceSearchKey?.toLowerCase() || '';
         return resources
             .filter(rs => !search || rs.name?.toLowerCase().includes(search))
             .map(res => ({
                 ...res,
-                isSelected: this.selectedResourceIdsForAssign?.includes(res.id)
+                isSelected: this.selectedResourceIdsForAssign?.includes(res.id),
+                isAddedForMob: addedResourcesForMob.includes(res.id)
             }));
     }
 
@@ -197,9 +204,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     // Main tab classes
-    get resourceTabClass() { return this.isResourceView ? 'nav-tab-btn active' : 'nav-tab-btn'; }
-    get weekTabClass() { return this.isWeekView ? 'nav-tab-btn active' : 'nav-tab-btn'; }
-    get dayTabClass() { return this.isDayView ? 'nav-tab-btn active' : 'nav-tab-btn'; }
+    get resourceTabClass() { return this.isResourceView ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn'; }
+    get weekTabClass() { return this.isWeekView ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn border-inline-nav-btn'; }
+    get dayTabClass() { return this.isDayView ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn'; }
 
     get popupHeader(){
         if(this.isMobGroupCreate) return 'Create Mobilization Group';
@@ -236,8 +243,18 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             getAllResources({selectedDate: selectedDate})
             .then((result) => {
                 const sortByAvailability = (a, b) => {
-                    // true > false, so reverse for available first
-                    return (a.isAvailable === b.isAvailable) ? 0 : a.isAvailable ? -1 : 1;
+                    // First: sort by availability (available first)
+                    if (a.isAvailable !== b.isAvailable) {
+                        return a.isAvailable ? -1 : 1;
+                    }
+
+                    // Then: sort by name (alphabetically, case-insensitive)
+                    const nameA = (a.name || '').toLowerCase();
+                    const nameB = (b.name || '').toLowerCase();
+
+                    if (nameA < nameB) return -1;
+                    if (nameA > nameB) return 1;
+                    return 0;
                 };
 
                 this.allCrewMembers = [...(result.crew || [])].sort(sortByAvailability);
@@ -843,6 +860,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         try {
             this.showLoading(true);
             if(!this.selectedResourceId || !this.selectedJobId || !this.selectedMobId){
+                const inputs = this.template.querySelectorAll('.assign-form-picker') || [];
+                for(let i = 0; i < inputs.length; i++){
+                    inputs[i].reportValidity();
+                }
                 this.showToast('Error', 'Please select all the required fields.', 'error');
                 return;
             }else{
@@ -854,7 +875,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 }
                 assignResourceToMob({assignmentData: assignmentData})
                 .then(result => {
-                    if(result == 'OVERLAP'){
+                    if(result == 'ASSIGNED'){
+                        this.showToast('Already Assigned!', 'Resource is already been assigned to this job on selected day.', 'error');
+                    }else if(result == 'OVERLAP'){
                         this.isOverlap = true;
                         this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. Do you still want to assign?', 'Assign')
                         // this.showConfirmationPopup = true;
@@ -1014,13 +1037,17 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         this.showFormPopup = false;
         this.isMobEditForm = false;
         this.isMobGroupCreate = false;
+
         this.isAssignForm = false;
+        this.selectedJobId = null;
+        this.selectedResourceId = null;
+        this.selectedMobId = null;
+        
         this.isResourcesEditForm = false;
         this.selectedResourceIdsForAssign = [];
     }
 
     // Confirmation
-
     askConfirmation(title, message, confirmLabel){
         this.showLoading(false);
         this.confirmationTitle = title;
@@ -1036,6 +1063,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 if(this.isOverlap){
                     this.isAllowOverLap = true;
                     this.handleSaveChanges();
+                    this.isAllowOverLap = false;
                 } else if(this.isOverlapJob){
                     this.jobAssignmentInfo.allowOverlap = true;
                     this.jobAssignmentInfo.overlapMode = 'ALL';

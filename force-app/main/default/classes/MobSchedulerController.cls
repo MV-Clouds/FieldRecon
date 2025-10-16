@@ -28,10 +28,10 @@ public with sharing class MobSchedulerController {
                        (SELECT Id, Contact__r.RecordType.DeveloperName, Contact__c, Contact__r.Name
                         FROM Mobilization_Members__r
                         WHERE Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
-                        ORDER BY Mobilization__r.Start_Date__c),
+                        ORDER BY CreatedDate DESC),
                        (SELECT Id, Equipment__c, Equipment__r.Name
                         FROM Mobilization_Assets__r 
-                        ORDER BY Mobilization__r.Start_Date__c)
+                        ORDER BY CreatedDate DESC)
                 FROM Mobilization__c
                 WHERE DAY_ONLY(Start_Date__c) >= :startDate
                   AND DAY_ONLY(End_Date__c) <= :endDate
@@ -344,12 +344,21 @@ public with sharing class MobSchedulerController {
             if(!allowOverlap){
                 // Get the mobilization dates for the new assignment
                 Mobilization__c mob = [
-                    SELECT Id, Start_Date__c, End_Date__c
+                    SELECT Id, Start_Date__c, End_Date__c, (SELECT Id, Contact__c FROM Mobilization_Members__r), (SELECT Id, Equipment__c FROM Mobilization_Assets__r)
                     FROM Mobilization__c
                     WHERE Id = :mobId
                     WITH USER_MODE
                     LIMIT 1
                 ];
+
+                if(mob != null && (mob.Mobilization_Members__r?.size() > 0 || mob.Mobilization_Assets__r?.size() > 0)){
+                    List<SObject> ovlRess = (type == 'Asset' ? (List<SObject>) mob.Mobilization_Assets__r : (List<SObject>) mob.Mobilization_Members__r);
+                    for (SObject ovlRes : ovlRess) {
+                        if((type == 'Asset' ? (ovlRes.get('Equipment__c') == resourceId) : (ovlRes.get('Contact__c') == resourceId))) {
+                            return 'ASSIGNED';
+                        }
+                    }
+                }
     
                 Date newStart = mob.Start_Date__c.date();
                 DateTime newEnd   = mob.End_Date__c;
@@ -359,18 +368,20 @@ public with sharing class MobSchedulerController {
     
                 if (type == 'Crew' || type == 'SubContractor') {
                     overlappingMobs = [
-                        SELECT Id
+                        SELECT Id, Mobilization__c
                         FROM Mobilization_Member__c
                         WHERE Contact__c = :resourceId
                         AND DAY_ONLY(Mobilization__r.Start_Date__c) = :newStart
+                        AND Mobilization__c != :mobId
                         WITH USER_MODE
                     ];
                 } else if (type == 'Asset') {
                     overlappingMobs = [
-                        SELECT Id
+                        SELECT Id, Mobilization__c
                         FROM Mobilization_Asset__c
                         WHERE Equipment__c = :resourceId
                         AND DAY_ONLY(Mobilization__r.Start_Date__c) = :newStart
+                        AND Mobilization__c != :mobId
                         WITH USER_MODE
                     ];
                 }
@@ -470,34 +481,49 @@ public with sharing class MobSchedulerController {
 
             // If overlap not allowed, check before inserting
             if (!allowOverlap) {
-                for (String resourceId : resourceIds) {
-                    List<SObject> overlaps = new List<SObject>();
+                // Move SOQL query outside of loop
+                List<SObject> allOverlaps = new List<SObject>();
+                
+                if (type == 'Crew' || type == 'SubContractor') {
+                    allOverlaps = [
+                        SELECT Id, Mobilization__c, Contact__c
+                        FROM Mobilization_Member__c
+                        WHERE Contact__c IN :resourceIds
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        AND Mobilization__c NOT IN :siblingMobIds
+                        WITH USER_MODE
+                    ];
+                } else if (type == 'Asset') {
+                    allOverlaps = [
+                        SELECT Id, Mobilization__c, Equipment__c
+                        FROM Mobilization_Asset__c
+                        WHERE Equipment__c IN :resourceIds
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        AND Mobilization__c NOT IN :siblingMobIds
+                        WITH USER_MODE
+                    ];
+                }
 
-                    if (type == 'Crew' || type == 'SubContractor') {
-                        overlaps = [
-                            SELECT Id, Mobilization__c
-                            FROM Mobilization_Member__c
-                            WHERE Contact__c = :resourceId
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
-                            WITH USER_MODE
-                        ];
-                    } else if (type == 'Asset') {
-                        overlaps = [
-                            SELECT Id, Mobilization__c
-                            FROM Mobilization_Asset__c
-                            WHERE Equipment__c = :resourceId
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
-                            WITH USER_MODE
-                        ];
+                // Process overlaps after collecting all data
+                Map<String, Integer> overlapCounts = new Map<String, Integer>();
+                for (SObject overlap : allOverlaps) {
+                    String resourceId = (type == 'Crew' || type == 'SubContractor') ? 
+                        String.valueOf(overlap.get('Contact__c')) : 
+                        String.valueOf(overlap.get('Equipment__c'));
+                    
+                    if (!overlapCounts.containsKey(resourceId)) {
+                        overlapCounts.put(resourceId, 0);
                     }
+                    overlapCounts.put(resourceId, overlapCounts.get(resourceId) + 1);
+                }
 
-                    if (!overlaps.isEmpty()) {
-                        // Only report one overlapping mobilization per resource
+                for (String resourceId : resourceIds) {
+                    if (overlapCounts.containsKey(resourceId)) {
                         overlapDetails.add(new Map<String, Object>{
                             'resourceId' => resourceId,
-                            'count' => overlaps.size()
+                            'count' => overlapCounts.get(resourceId)
                         });
                     }
                 }
@@ -513,48 +539,97 @@ public with sharing class MobSchedulerController {
             // Proceed with assignment
             List<SObject> newAssignments = new List<SObject>();
 
-            for (String resourceId : resourceIds) {
-                // Get existing overlaps (needed only for overlapMode == SKIP)
-                Set<Id> overlappingMobIds = new Set<Id>();
-                Set<Date> overlappingMobDates = new Set<Date>();
-                if (allowOverlap && overlapMode == 'SKIP') {
-                    if (type == 'Crew' || type == 'SubContractor') {
-                        List<Mobilization_Member__c> overlaps = [
-                            SELECT Mobilization__c, Mobilization__r.Start_Date__c
-                            FROM Mobilization_Member__c
-                            WHERE Contact__c = :resourceId
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
-                            WITH USER_MODE
-                        ];
+            // ✅ Step: Preload existing assignments to prevent duplicates
+            Map<String, Set<Id>> existingAssignmentsMap = new Map<String, Set<Id>>();
 
-                        for (Mobilization_Member__c o : overlaps) {
-                            overlappingMobIds.add(o.Mobilization__c);
-                            overlappingMobDates.add(o.Mobilization__r.Start_Date__c.date());
-                        }
-                    } else if (type == 'Asset') {
-                        List<Mobilization_Asset__c> overlaps = [
-                            SELECT Mobilization__c, Mobilization__r.Start_Date__c
-                            FROM Mobilization_Asset__c
-                            WHERE Equipment__c = :resourceId
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                            AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
-                            WITH USER_MODE
-                        ];
+            // Move SOQL query outside of loop
+            List<SObject> existingAssignments = new List<SObject>();
+            
+            if (type == 'Crew' || type == 'SubContractor') {
+                existingAssignments = [
+                    SELECT Mobilization__c, Contact__c
+                    FROM Mobilization_Member__c
+                    WHERE Mobilization__c IN :siblingMobIds
+                    AND Contact__c IN :resourceIds
+                    WITH USER_MODE
+                ];
+            } else if (type == 'Asset') {
+                existingAssignments = [
+                    SELECT Mobilization__c, Equipment__c
+                    FROM Mobilization_Asset__c
+                    WHERE Mobilization__c IN :siblingMobIds
+                    AND Equipment__c IN :resourceIds
+                    WITH USER_MODE
+                ];
+            }
 
-                        for (Mobilization_Asset__c o : overlaps) {
-                            overlappingMobIds.add(o.Mobilization__c);
-                            overlappingMobDates.add(o.Mobilization__r.Start_Date__c.date());
-                        }
-                    }
+            // Process existing assignments
+            for (SObject ea : existingAssignments) {
+                String resourceId = (type == 'Crew' || type == 'SubContractor') ? 
+                    String.valueOf(ea.get('Contact__c')) : 
+                    String.valueOf(ea.get('Equipment__c'));
+                
+                if (!existingAssignmentsMap.containsKey(resourceId)) {
+                    existingAssignmentsMap.put(resourceId, new Set<Id>());
+                }
+                existingAssignmentsMap.get(resourceId).add((Id)ea.get('Mobilization__c'));
+            }
+
+            // Handle overlapMode == SKIP scenario
+            Map<String, Set<Date>> overlappingMobDatesMap = new Map<String, Set<Date>>();
+            
+            if (allowOverlap && overlapMode == 'SKIP') {
+                // Move SOQL query outside of loop
+                List<SObject> allOverlapsForSkip = new List<SObject>();
+                
+                if (type == 'Crew' || type == 'SubContractor') {
+                    allOverlapsForSkip = [
+                        SELECT Mobilization__c, Mobilization__r.Start_Date__c, Contact__c
+                        FROM Mobilization_Member__c
+                        WHERE Contact__c IN :resourceIds
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        WITH USER_MODE
+                    ];
+                } else if (type == 'Asset') {
+                    allOverlapsForSkip = [
+                        SELECT Mobilization__c, Mobilization__r.Start_Date__c, Equipment__c
+                        FROM Mobilization_Asset__c
+                        WHERE Equipment__c IN :resourceIds
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        WITH USER_MODE
+                    ];
                 }
 
-                // Instruction: Use calculated overlappingMobDates to control assignment on SKIP mode.
+                // Process overlaps for SKIP mode
+                for (SObject overlap : allOverlapsForSkip) {
+                    String resourceId = (type == 'Crew' || type == 'SubContractor') ? 
+                        String.valueOf(overlap.get('Contact__c')) : 
+                        String.valueOf(overlap.get('Equipment__c'));
+                    
+                    Date overlapDate = (Date)overlap.get('Mobilization__r.Start_Date__c');
+                    
+                    if (!overlappingMobDatesMap.containsKey(resourceId)) {
+                        overlappingMobDatesMap.put(resourceId, new Set<Date>());
+                    }
+                    overlappingMobDatesMap.get(resourceId).add(overlapDate);
+                }
+            }
 
+            // Now process assignments
+            for (String resourceId : resourceIds) {
                 for (Mobilization__c mob : siblingMobs) {
                     Boolean shouldAssign = true;
 
-                    if (allowOverlap && overlapMode == 'SKIP' && overlappingMobDates.contains(mob.Start_Date__c.date())) {
+                    if (existingAssignmentsMap.containsKey(resourceId) && 
+                        existingAssignmentsMap.get(resourceId).contains(mob.Id)) {
+                        shouldAssign = false;
+                    }
+
+                    if (allowOverlap && overlapMode == 'SKIP' && 
+                        overlappingMobDatesMap.containsKey(resourceId) && 
+                        overlappingMobDatesMap.get(resourceId).contains(mob.Start_Date__c.date())) {
                         shouldAssign = false;
                     }
 

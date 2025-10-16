@@ -11,7 +11,7 @@
       </div>
       <!-- Main Tabs -->
       <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-center slds-grid--align-spread slds-wrap">
-        <div class="tab-navigation">
+        <div class="header-tab-navigation tab-navigation">
           <button class={dayTabClass} onclick={showDayView}>Day</button>
           <button class={weekTabClass} onclick={showWeekView}>Week</button>
           <button class={resourceTabClass} onclick={showResourceView}>Resources</button>
@@ -231,29 +231,33 @@
 
           <!-- Form To Create The Mobilization Group -->
           <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate}>
-            <lightning-messages></lightning-messages>
-            <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
-            <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.wfrecon__Start_Time__c} required></lightning-input-field>
-            <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__End_Date__c" value={defaultMobGValues.wfrecon__End_Time__c} min={defaultMobGValues.wfrecon__Start_Time__c} required></lightning-input-field>
-            <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.wfrecon__Include_Saturday__c}></lightning-input-field>
-            <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.wfrecon__Include_Sunday__c}></lightning-input-field>
-            <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
-            <!-- Control buttons -->
-            <div class="slds-grid slds-grid--align-center slds-p-top--medium">
-              <button class="save-btn" type="submit">Save</button>
+            <div class="main-mob-creation-form-div">
+              <div class="slds-grow slds-scrollable--y">
+                <lightning-messages></lightning-messages>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.wfrecon__Start_Time__c} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__End_Date__c" value={defaultMobGValues.wfrecon__End_Time__c} min={defaultMobGValues.wfrecon__Start_Time__c} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.wfrecon__Include_Saturday__c}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.wfrecon__Include_Sunday__c}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
+              </div>
+              <!-- Control buttons -->
+              <div class="slds-grid slds-grid--align-center slds-p-top--medium">
+                <button class="save-btn" type="submit">Save</button>
+              </div>
             </div>
           </lightning-record-edit-form>
 
           <!-- Form To Assign resource to single Mobilization -->
-          <lightning-record-edit-form  onload={handleFormLoaded} lwc:elseif={isAssignForm}>
+          <lightning-record-edit-form onload={handleFormLoaded} lwc:elseif={isAssignForm}>
             <div class="assign-resource-div">
-              <lightning-record-picker label="Select Resource" placeholder="Search Resource..."
+              <lightning-record-picker class="assign-form-picker" label="Select Resource" placeholder="Search Resource..."
                 object-api-name={resourceObjectApi} display-info={displayResource} matching-info={matchingResource} filter={filterResource} name="selectedResourceId"
                 onchange={handleResourceItemUpdate} required></lightning-record-picker>
-              <lightning-record-picker label="Select Job" placeholder="Search Job..." object-api-name="wfrecon__Job__c"
+              <lightning-record-picker class="assign-form-picker" label="Select Job" placeholder="Search Job..." object-api-name="wfrecon__Job__c"
                 display-info={displayJobs} matching-info={matchingJobs} name="selectedJobId" filter={jobFilters}
                 onchange={handleResourceItemUpdate} required></lightning-record-picker>
-              <lightning-record-picker label="Select Date" placeholder="Search Date..."
+              <lightning-record-picker class="assign-form-picker" label="Select Date" placeholder="Search Date..."
                 object-api-name="wfrecon__Mobilization__c" filter={filterDates} display-info={displayMobs}
                 matching-info={matchingMobs} name="selectedMobId" onchange={handleResourceItemUpdate}
                 if:true={selectedJobId} required></lightning-record-picker>
@@ -273,6 +277,7 @@
               <div class="search-resources-div slds-size--1-of-1">
                 <lightning-input
                   type="search"
+                  value={resourceSearchKey}
                   variant="label-hidden"
                   placeholder="Search Resource Name"
                   onchange={handleResourceSearch}
@@ -290,7 +295,7 @@
                         onchange={handleSelectResourceOption}
                         id={opt.name}
                       ></input>
-                      <label class="checkbox-option-label" for={opt.name} data-available={opt.isAvailable}>{opt.name}</label>
+                      <label class="checkbox-option-label" for={opt.name} data-available={opt.isAvailable} data-is-added={opt.isAddedForMob}>{opt.name}</label>
                     </div>
                   </template>
                   <template if:false={resourceOptionsToShow.length}>
