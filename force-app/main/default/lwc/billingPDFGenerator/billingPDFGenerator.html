@@ -1,0 +1,66 @@
+<template>
+    <!-- Loading Spinner -->
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading" variant="brand"></lightning-spinner>
+    </template>
+
+    <!-- Modal Dialog -->
+    <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+        aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_large">
+        <div class="slds-modal__container custom-modal-container">
+            <!-- Modal Header -->
+            <header class="slds-modal__header custom-modal-header">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse custom-close-button" title="Close"
+                    onclick={handleClose}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" size="small" class="custom-icon"></lightning-icon>
+                    <span class="slds-assistive-text">Close</span>
+                </button>
+                <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate custom-modal-title">
+                    <lightning-icon icon-name="doctype:pdf" size="small" class="slds-m-right_x-small custom-icon"></lightning-icon>
+                    PDF Preview
+                </h2>
+            </header>
+
+            <!-- Modal Body -->
+            <div class="slds-modal__content slds-p-around_medium custom-modal-content" id="modal-content-id-1">
+
+                <!-- PDF Preview Container -->
+                <div class="pdf-preview-container">
+                    <div class="preview-wrapper slds-box slds-theme_shade">
+                        <div class="preview-header slds-p-around_small slds-border_bottom">
+                            <lightning-icon icon-name="standard:file" size="small"
+                                class="slds-m-right_x-small"></lightning-icon>
+                            <span class="preview-title">Document Preview</span>
+                        </div>
+                        <div class="preview-content" lwc:dom="manual"></div>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <template if:true={errorMessage}>
+                    <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_medium custom-error-container" role="alert">
+                        <span class="slds-assistive-text">error</span>
+                        <lightning-icon icon-name="utility:error" variant="error" size="x-small"
+                            class="slds-m-right_x-small custom-icon"></lightning-icon>
+                        <h2>{errorMessage}</h2>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Modal Footer -->
+            <footer class="slds-modal__footer custom-modal-footer">
+                <div class="custom-button-wrapper">
+                    <lightning-button variant="neutral" label="Cancel" onclick={handleClose} class="slds-m-right_x-small">
+                    </lightning-button>
+                </div>
+                <div class="custom-button-wrapper">
+                    <lightning-button variant="brand" label="Download PDF" icon-name="utility:download"
+                        onclick={handleDownloadPDF} disabled={isDownloadDisabled}>
+                    </lightning-button>
+                </div>
+            </footer>
+
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open custom-backdrop" role="presentation"></div>
+</template>
