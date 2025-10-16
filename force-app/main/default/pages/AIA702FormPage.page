@@ -1,6 +1,550 @@
-<apex:page >
-<!-- Begin Default Content REMOVE THIS -->
-<h1>Congratulations</h1>
-This is your new Page
-<!-- End Default Content REMOVE THIS -->
+<apex:page controller="AIA702FormController" renderAs="{!IF($CurrentPage.parameters.renderAs == 'pdf', 'pdf', '')}" applyBodyTag="false" showHeader="false" sideBar="false" standardStylesheets="false">
+    <html>
+        <head>
+            <style>
+                @page {
+                    size: 8.5in 11in;
+                    margin: 0.5in;
+                }
+                
+                body {
+                    font-family: "Times New Roman", Times, serif;
+                    font-size: 10pt;
+                    margin: 0;
+                    padding: 0;
+                    color: #000;
+                    line-height: 1.2;
+                }
+                
+                /* Header Section */
+                .document-header {
+                    text-align: center;
+                    margin-bottom: 15px;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 5px;
+                }
+                
+                .document-title {
+                    font-size: 14pt;
+                    font-weight: bold;
+                    margin-bottom: 3px;
+                }
+                
+                .document-subtitle {
+                    font-size: 10pt;
+                    font-weight: bold;
+                }
+                
+                /* Main Information Table */
+                .info-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 15px;
+                    font-size: 9pt;
+                }
+                
+                .info-table td {
+                    border: 1px solid #000;
+                    padding: 5px 8px;
+                    vertical-align: top;
+                }
+                
+                .info-label {
+                    font-weight: bold;
+                    white-space: nowrap;
+                }
+                
+                .info-content {
+                    border-bottom: 1px solid #000;
+                    min-height: 14px;
+                    width: 100%;
+                }
+                
+                /* Application Section */
+                .application-title {
+                    background-color: #000;
+                    color: #fff;
+                    font-weight: bold;
+                    padding: 4px 8px;
+                    font-size: 10pt;
+                    margin-top: 15px;
+                    margin-bottom: 5px;
+                }
+                
+                .application-note {
+                    font-size: 8pt;
+                    margin-bottom: 10px;
+                    font-style: italic;
+                }
+                
+                .line-items {
+                    width: 100%;
+                    margin-bottom: 15px;
+                }
+                
+                .line-item {
+                    margin-bottom: 5px;
+                    display: table;
+                    width: 100%;
+                }
+                
+                .line-label {
+                    display: table-cell;
+                    width: 70%;
+                    padding: 2px 5px;
+                    font-size: 9pt;
+                }
+                
+                .line-value {
+                    display: table-cell;
+                    width: 30%;
+                    text-align: right;
+                    border-bottom: 1px solid #000;
+                    padding: 2px 5px;
+                    font-size: 9pt;
+                }
+                
+                .line-subitem {
+                    padding-left: 20px;
+                }
+                
+                /* Change Order Table */
+                .change-order-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 10px;
+                    font-size: 9pt;
+                }
+                
+                .change-order-table th {
+                    background-color: #fff;
+                    border: 1px solid #000;
+                    padding: 4px;
+                    font-weight: bold;
+                    text-align: center;
+                }
+                
+                .change-order-table td {
+                    border: 1px solid #000;
+                    padding: 4px;
+                    text-align: right;
+                }
+                
+                .change-order-table td.label {
+                    text-align: left;
+                    width: 60%;
+                }
+                
+                .totals-row {
+                    background-color: #f0f0f0;
+                }
+                
+                /* Certification Sections */
+                .certification-section {
+                    margin-top: 20px;
+                }
+                
+                .cert-text {
+                    font-size: 8pt;
+                    line-height: 1.3;
+                }
+                
+                .signature-area {
+                    margin-top: 15px;
+                    font-size: 9pt;
+                }
+                
+                .signature-line {
+                    border-bottom: 1px solid #000;
+                    display: inline-block;
+                    min-width: 150px;
+                    margin: 0 5px;
+                }
+                
+                /* Schedule of Values */
+                .schedule-header {
+                    margin-bottom: 10px;
+                    margin-top: 20px;
+                }
+                
+                .schedule-info {
+                    display: table;
+                    width: 100%;
+                    margin-bottom: 10px;
+                    font-size: 9pt;
+                }
+                
+                .schedule-left {
+                    display: table-cell;
+                    width: 50%;
+                }
+                
+                .schedule-right {
+                    display: table-cell;
+                    width: 50%;
+                    text-align: right;
+                }
+                
+                .schedule-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 10px;
+                    font-size: 7pt;
+                }
+                
+                .schedule-table th {
+                    border: 1px solid #000;
+                    padding: 3px;
+                    background-color: #fff;
+                    font-weight: bold;
+                    text-align: center;
+                    vertical-align: top;
+                }
+                
+                .schedule-table td {
+                    border: 1px solid #000;
+                    padding: 3px;
+                    text-align: right;
+                }
+                
+                .schedule-table td.desc {
+                    text-align: left;
+                }
+                
+                .schedule-table td.center {
+                    text-align: center;
+                }
+                
+                .schedule-total {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                }
+                
+                /* Page Management */
+                .page-break {
+                    page-break-before: always;
+                }
+                
+                .footer-text {
+                    font-size: 6pt;
+                    text-align: center;
+                    margin-top: 20px;
+                    border-top: 1px solid #000;
+                    padding-top: 5px;
+                }
+                
+                /* PDF Button */
+                .pdf-button {
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    z-index: 1000;
+                    background: #007bff;
+                    color: white;
+                    padding: 10px 20px;
+                    border: none;
+                    cursor: pointer;
+                }
+                
+                @media print {
+                    .pdf-button {
+                        display: none;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <!-- PDF Generation Button -->
+            <apex:outputPanel rendered="{!$CurrentPage.parameters.renderAs != 'pdf'}">
+                <apex:form>
+                    <apex:commandButton value="Generate PDF" action="{!generatePDF}" styleClass="pdf-button"/>
+                </apex:form>
+            </apex:outputPanel>
+            
+            <!-- PAGE 1 -->
+            <div class="document-header">
+                <div class="document-title">APPLICATION AND CERTIFICATE FOR PAYMENT</div>
+                <div class="document-subtitle">AIA DOCUMENT G702</div>
+            </div>
+            
+            <!-- Main Information Table -->
+            <table class="info-table">
+                <tr>
+                    <td style="width: 50%;">
+                        <div class="info-label">TO CONTRACTOR:</div>
+                        <div class="info-content">{!formData.contractorName}</div>
+                        <div class="info-content">{!formData.contractorAddress}</div>
+                        
+                        <div style="margin-top: 15px;">
+                            <div class="info-label">FROM SUBCONTRACTOR:</div>
+                            <div class="info-content">Applied Flooring, Inc</div>
+                            <div class="info-content">P.O. Box 161</div>
+                            <div class="info-content">Mason, MI 48854-0161</div>
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <div class="info-label">CONTRACT FOR:</div>
+                            <div class="info-content"></div>
+                        </div>
+                    </td>
+                    <td style="width: 50%;">
+                        <div class="info-label">PROJECT:</div>
+                        <div class="info-content">{!formData.projectName}</div>
+                        
+                        <div style="margin-top: 15px;">
+                            <div class="info-label">VIA ARCHITECT:</div>
+                            <div class="info-content"></div>
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <div class="info-label">APPLICATION NO:</div>
+                            <div class="info-content">{!formData.applicationNumber}</div>
+                        </div>
+                        
+                        <div class="info-label">PERIOD TO:</div>
+                        <div class="info-content">{!formData.periodTo}</div>
+                        
+                        <div class="info-label">PROJECT NO:</div>
+                        <div class="info-content">{!formData.projectNumber}</div>
+                        
+                        <div class="info-label">CONTRACT DATE:</div>
+                        <div class="info-content">{!formData.contractDate}</div>
+                        
+                        <div style="margin-top: 15px;">
+                            <div class="info-label">DISTRIBUTION TO:</div>
+                            <div class="info-content"></div>
+                            <div class="info-content">OWNER</div>
+                            <div class="info-content">ARCHITECT</div>
+                            <div class="info-content">GENERAL</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Contractor's Application for Payment -->
+            <div class="application-title">CONTRACTOR'S APPLICATION FOR PAYMENT</div>
+            
+            <div class="application-note">
+                Continuation Sheet, AIA Document G703, is attached.<br/>
+                Application is made for payment, as shown below, in connection with the Contract.
+            </div>
+            
+            <div class="line-items">
+                <div class="line-item">
+                    <div class="line-label">1. ORIGINAL CONTRACT SUM</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.originalContractSum, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">2. Net change by Change Orders</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.netChangeByChangeOrders, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">3. CONTRACT SUM TO DATE (Line 1 ± 2)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.contractSumToDate, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">4. TOTAL COMPLETED &amp; STORED TO DATE<br/>&nbsp;&nbsp;&nbsp;(Column G on G703)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.totalCompletedAndStoredToDate, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">5. RETAINAGE</div>
+                    <div class="line-value"></div>
+                </div>
+                
+                <div class="line-item line-subitem">
+                    <div class="line-label">a. 10 % of completed work<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Column D + E on G703)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.totalOfCompletedWork, 2))}</div>
+                </div>
+                
+                <div class="line-item line-subitem">
+                    <div class="line-label">b. % of Stored Material<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Column F on G703)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.totalOfStoredMaterial, 2))}</div>
+                </div>
+                
+                <div class="line-item line-subitem">
+                    <div class="line-label">Total of Retainage (Lines 5a + 5b or<br/>&nbsp;&nbsp;&nbsp;Total in Column I of G703)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.totalRetainage, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">6. TOTAL EARNED LESS RETAINAGE<br/>&nbsp;&nbsp;&nbsp;(Line 4 Less Line 5 Total)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.totalEarnedLessRetainage, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">7. LESS PREVIOUS CERTIFICATES FOR PAYMENT<br/>&nbsp;&nbsp;&nbsp;(Line 6 from prior Certificate)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.lessRetainageFromPriorCertificate, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">8. CURRENT PAYMENT DUE</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.currentPaymentDue, 2))}</div>
+                </div>
+                
+                <div class="line-item">
+                    <div class="line-label">9. BALANCE TO FINISH, INCLUDING RETAINAGE<br/>&nbsp;&nbsp;&nbsp;(Line 3 less line 6)</div>
+                    <div class="line-value">${!TEXT(ROUND(formData.balanceToFinishIncludingRetainage, 2))}</div>
+                </div>
+            </div>
+            
+            <!-- Change Order Summary -->
+            <table class="change-order-table">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; width: 60%;">CHANGE ORDER SUMMARY</th>
+                        <th style="width: 20%;">ADDITIONS</th>
+                        <th style="width: 20%;">DEDUCTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="label">Total changes approved in previous months by Owner</td>
+                        <td>${!TEXT(ROUND(formData.totalChangesApprovedInPreviousMonths, 2))}</td>
+                        <td>$0.00</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Total approved this Month</td>
+                        <td>${!TEXT(ROUND(formData.totalApprovedThisMonth, 2))}</td>
+                        <td>$0.00</td>
+                    </tr>
+                    <tr class="totals-row">
+                        <td class="label"><strong>TOTALS</strong></td>
+                        <td><strong>${!TEXT(ROUND(formData.totals, 2))}</strong></td>
+                        <td><strong>$0.00</strong></td>
+                    </tr>
+                    <tr class="totals-row">
+                        <td class="label"><strong>NET CHANGES by Change Order</strong></td>
+                        <td><strong>${!TEXT(ROUND(formData.netChangesByChangeOrder, 2))}</strong></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Contractor Certification -->
+            <div class="certification-section">
+                <div class="cert-text">
+                    The Undersigned Contractor certifies that to the best of the Contractor's knowledge information,
+                    and belief the Work covered by this Application for Payment has been completed in accordance
+                    with the Contract Documents, that all amounts have been paid by the Contractor for Work for
+                    which previous Certificates for Payment were issued and payments received from the Owner,
+                    and that current payment shown herein is now due.
+                </div>
+                
+                <div class="signature-area">
+                    <strong>SUBCONTRACTOR:</strong> Applied Flooring, Inc<br/><br/>
+                    
+                    By: <span class="signature-line"></span> Date: <span class="signature-line" style="width: 100px;"></span><br/><br/>
+                    
+                    State of: <span class="signature-line" style="width: 120px;"></span> County of: <span class="signature-line" style="width: 120px;"></span><br/><br/>
+                    
+                    Subscribed and sworn to before me this <span class="signature-line" style="width: 60px;"></span> day of <span class="signature-line" style="width: 120px;"></span><br/><br/>
+                    
+                    Notary Public: <span class="signature-line"></span><br/><br/>
+                    
+                    My Commission Expires On: <span class="signature-line"></span>
+                </div>
+            </div>
+            
+            <!-- Architect's Certificate -->
+            <div class="application-title" style="margin-top: 20px;">ARCHITECT'S CERTIFICATE FOR PAYMENT</div>
+            
+            <div class="cert-text">
+                In accordance with the Contract Documents, based on on-site observations and the data comprising the above application, the Architect certifies to the Owner that to the best of the Architect's knowledge, information and belief the Work has
+                progressed as indicated, the quality of the Work is in accordance with the Contract Documents, and the Contractor is entitled to payment of the AMOUNT CERTIFIED.
+            </div>
+            
+            <div class="signature-area">
+                AMOUNT CERTIFIED <span class="signature-line" style="width: 200px;"></span><br/><br/>
+                
+                (Attach explanation if amount certified differs from the amount applied. Initial all figures on this Application and on the Continuation Sheet that are changed to conform with the amount certified.)<br/><br/>
+                
+                ARCHITECT: <span class="signature-line"></span><br/><br/>
+                
+                By: <span class="signature-line"></span> Date: <span class="signature-line" style="width: 100px;"></span><br/><br/>
+                
+                This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the Contractor named herein. Issuance, payment and acceptance of payment are without prejudice to any rights of the Owner or Contractor under this Contract.
+            </div>
+            
+            <!-- PAGE 2 - Schedule of Values -->
+            <div class="page-break">
+                <div class="application-title">SCHEDULE OF VALUES</div>
+                
+                <div class="schedule-header">
+                    <div class="schedule-info">
+                        <div class="schedule-left">
+                            <strong>Project:</strong> {!formData.projectName}<br/>
+                            <strong>Subcontract:</strong> Applied Flooring, Inc.<br/>
+                            <strong>Vendor ID:</strong>
+                        </div>
+                        <div class="schedule-right">
+                            <strong>Application #:</strong> {!formData.applicationNumber}<br/>
+                            <strong>Period To:</strong> {!formData.periodTo}<br/>
+                            <strong>Application Date:</strong>
+                        </div>
+                    </div>
+                    <div style="font-size: 8pt; margin-top: 5px;">
+                        Subcontractor Application for Payment containing Subcontractor's signature is attached.
+                    </div>
+                </div>
+                
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25px;">A<br/>Item<br/>No.</th>
+                            <th style="width: 180px;">B<br/>Description of Work</th>
+                            <th style="width: 70px;">C<br/>Scheduled<br/>Value</th>
+                            <th style="width: 70px;">D<br/>From Previous<br/>Applications<br/>(WORK<br/>COMPLETED)</th>
+                            <th style="width: 70px;">E<br/>This Period In<br/>Place (WORK<br/>COMPLETED)</th>
+                            <th style="width: 70px;">F<br/>Materials<br/>Presently<br/>Stored (Not in<br/>D or E)</th>
+                            <th style="width: 70px;">G<br/>Total<br/>Completed<br/>and Stored To<br/>Date (D+E+F)</th>
+                            <th style="width: 50px;">H<br/>%(G/C)</th>
+                            <th style="width: 70px;">I<br/>Balance To<br/>Finish (C-G)</th>
+                            <th style="width: 60px;">J<br/>Retainage</th>
+                            <th style="width: 60px;">K<br/>Retainage<br/>Previous<br/>Application</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <apex:repeat value="{!formData.scheduleOfValues}" var="item">
+                            <tr>
+                                <td class="center">{!item.itemNumber}</td>
+                                <td class="desc">{!item.description}</td>
+                                <td>${!TEXT(ROUND(item.scheduledValue, 2))}</td>
+                                <td>${!TEXT(ROUND(item.fromPreviousApplication, 2))}</td>
+                                <td>${!TEXT(ROUND(item.thisPeriodInPlace, 2))}</td>
+                                <td>${!TEXT(ROUND(item.materialsPresently, 2))}</td>
+                                <td>${!TEXT(ROUND(item.totalCompleted, 2))}</td>
+                                <td class="center">{!TEXT(ROUND(item.percentGC, 2))}%</td>
+                                <td>${!TEXT(ROUND(item.balanceToFinish, 2))}</td>
+                                <td>${!TEXT(ROUND(item.retainage, 2))}</td>
+                                <td>${!TEXT(ROUND(item.retainageFromPrevious, 2))}</td>
+                            </tr>
+                        </apex:repeat>
+                        
+                        <tr class="schedule-total">
+                            <td class="center">TOTALS</td>
+                            <td></td>
+                            <td>${!TEXT(ROUND(formData.totalScheduledValue, 2))}</td>
+                            <td>${!TEXT(ROUND(formData.totalFromPreviousApplication, 2))}</td>
+                            <td>${!TEXT(ROUND(formData.totalThisPeriodInPlace, 2))}</td>
+                            <td>${!TEXT(ROUND(formData.totalMaterialsPresently, 2))}</td>
+                            <td>${!TEXT(ROUND(formData.totalCompleted, 2))}</td>
+                            <td class="center">0.00%</td>
+                            <td>${!TEXT(ROUND(formData.totalBalanceToFinish, 2))}</td>
+                            <td>${!TEXT(ROUND(formData.totalRetainageAmount, 2))}</td>
+                            <td>${!TEXT(ROUND(formData.totalRetainageFromPrevious, 2))}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="footer-text">
+                    AIA DOCUMENT G702 - APPLICATION AND CERTIFICATION FOR PAYMENT - 1992 EDITION - AIA® - © 1992 THE AMERICAN INSTITUTE OF ARCHITECTS, 1735 NEW YORK AVE., N.W., WASHINGTON,DC 20006-5292<br/>
+                    Users may obtain validation of this document by requesting a completed AIA Document D401 - Certification of Document's Authenticity from the Licensee.
+                </div>
+            </div>
+        </body>
+    </html>
 </apex:page>
