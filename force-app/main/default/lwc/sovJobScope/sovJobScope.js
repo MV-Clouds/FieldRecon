@@ -4620,4 +4620,3 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
 }
-    

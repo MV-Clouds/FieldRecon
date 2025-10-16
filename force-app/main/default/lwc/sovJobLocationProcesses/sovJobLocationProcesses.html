@@ -155,15 +155,17 @@
                                                 </template>
                                                 <template if:false={field.isPercent}>
                                                     <template if:true={field.isNameField}>
-                                                        <a href={process.recordUrl} target="_blank" class="name-link">
+                                                        <!-- <a href={process.recordUrl} target="_blank" class="name-link">
                                                             {field.value}
-                                                        </a>
+                                                        </a> -->
+                                                        <span>{field.value}</span>
                                                     </template>
                                                     <template if:false={field.isNameField}>
                                                         <template if:true={field.isLocationField}>
-                                                            <a href={process.locationUrl} target="_blank" class="name-link">
+                                                            <!-- <a href={process.locationUrl} target="_blank" class="name-link">
                                                                 {field.value}
-                                                            </a>
+                                                            </a> -->
+                                                            <span>{field.value}</span>
                                                         </template>
                                                         <template if:false={field.isLocationField}>
                                                             <template if:true={field.hasValue}>
