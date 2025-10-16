@@ -105,7 +105,7 @@
 }
 
 .custom-data-table td {
-    padding: 10px;
+    padding: 10px 10px;
     text-align: center;
     max-width: 200px;
     word-wrap: break-word;
@@ -1013,8 +1013,18 @@
 /* Modified location cell highlighting */
 .modified-location-cell {
     background-color: #FFF3CD !important;
-    border-left: 4px solid #F0AD4E !important;
     position: relative;
+}
+
+.modified-location-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #F0AD4E;
+    z-index: 1;
 }
 
 /* Edit Indicator */

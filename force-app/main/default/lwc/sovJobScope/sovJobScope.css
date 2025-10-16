@@ -209,8 +209,18 @@
 /* Modified cell highlighting */
 .modified-scope-cell {
     background-color: #FFF3CD !important;
-    border-left: 4px solid #F0AD4E !important;
     position: relative;
+}
+
+.modified-scope-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #F0AD4E;
+    z-index: 1;
 }
 
 /* Edit Indicator */
@@ -1782,8 +1792,18 @@
 /* Modified scope cell highlighting */
 .modified-scope-cell {
     background-color: #FFF3CD !important;
-    border-left: 4px solid #F0AD4E !important;
     position: relative;
+}
+
+.modified-scope-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #F0AD4E;
+    z-index: 1;
 }
 
 /* Edit Indicator */
@@ -1910,8 +1930,18 @@
 /* Modified process cell highlighting */
 .modified-process-cell {
     background-color: #FFF3CD !important;
-    border-left: 3px solid #F0AD4E !important;
     position: relative;
+}
+
+.modified-process-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: #F0AD4E;
+    z-index: 1;
 }
 
 /* Process table specific styles */
