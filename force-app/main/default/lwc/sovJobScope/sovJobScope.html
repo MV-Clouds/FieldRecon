@@ -258,17 +258,19 @@
                                             </td>
                                             <td class="center-trancate-text actions-column">
                                                 <div class="action-icons">
-                                                    <button class="icon-button add-location-btn" 
-                                                            title="Add Location" 
-                                                            onclick={handleAddLocation}
-                                                            data-record-id={entry.Id}>
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
-                                                            <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
-                                                            <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
-                                                            <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
-                                                        </svg>
-                                                    </button>
+                                                    <template if:false={entry.isScopeEntryApproved}>
+                                                        <button class="icon-button add-location-btn" 
+                                                                title="Add Location" 
+                                                                onclick={handleAddLocation}
+                                                                data-record-id={entry.Id}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
+                                                                <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                                <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
+                                                                <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
+                                                            </svg>
+                                                        </button>
+                                                    </template>
                                                     <button class="icon-button child-records-btn" 
                                                             title="View Process Details" 
                                                             onclick={handleToggleProcessDetails}
@@ -276,12 +278,12 @@
                                                             data-expanded={entry.showProcessDetails}>
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                             <template if:true={entry.showProcessDetails}>
-                                                                <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <!-- Chevron Up - Indicates collapse -->
+                                                                <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                             </template>
                                                             <template if:false={entry.showProcessDetails}>
-                                                                <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
+                                                                <!-- Chevron Down - Indicates expand -->
+                                                                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                             </template>
                                                         </svg>
                                                     </button>
@@ -782,17 +784,19 @@
                                             </td>
                                             <td class="center-trancate-text actions-column">
                                                 <div class="action-icons">
-                                                    <button class="icon-button add-location-btn" 
-                                                            title="Add Location" 
-                                                            onclick={handleAddLocation}
-                                                            data-record-id={entry.Id}>
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
-                                                            <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
-                                                            <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
-                                                            <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
-                                                        </svg>
-                                                    </button>
+                                                    <template if:false={entry.isScopeEntryApproved}>
+                                                        <button class="icon-button add-location-btn" 
+                                                                title="Add Location" 
+                                                                onclick={handleAddLocation}
+                                                                data-record-id={entry.Id}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
+                                                                <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                                <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
+                                                                <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
+                                                            </svg>
+                                                        </button>
+                                                    </template>
                                                     <button class="icon-button child-records-btn" 
                                                             title="View Process Details" 
                                                             onclick={handleToggleProcessDetails}
@@ -800,12 +804,12 @@
                                                             data-expanded={entry.showProcessDetails}>
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                             <template if:true={entry.showProcessDetails}>
-                                                                <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <!-- Chevron Up - Indicates collapse -->
+                                                                <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                             </template>
                                                             <template if:false={entry.showProcessDetails}>
-                                                                <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/>
+                                                                <!-- Chevron Down - Indicates expand -->
+                                                                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                             </template>
                                                         </svg>
                                                     </button>
@@ -841,7 +845,6 @@
                                                                     data-record-id={entry.Id}
                                                                     data-field-name={field.key}
                                                                     data-field-type="picklist"
-                                                                    value={field.selectedValue}
                                                                     onchange={handleScopeSelectChange}
                                                                     onblur={handleScopeCellInputBlur}>
                                                                     <option value="">--Select--</option>

@@ -338,34 +338,43 @@
 }
 
 .icon-button.child-records-btn {
-    border-color: #17a2b8;
-    color: #17a2b8;
+    border-color: rgba(94, 90, 219, 0.6);
+    color: rgba(94, 90, 219, 0.6);
+    transition: all 0.2s ease;
+    position: relative;
 }
 
 .icon-button.child-records-btn:hover {
-    background-color: #17a2b8;
+    background-color: rgba(94, 90, 219, 0.6);
     color: white;
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
+/* Enhanced styling for expanded state */
 .child-records-btn[data-expanded="true"] {
-    background-color: rgba(94, 90, 219, 1) !important;
+    background-color: rgba(94, 90, 219, 0.8) !important;
     color: white !important;
-    border-color: rgba(94, 90, 219, 1) !important;
+    border-color: rgba(94, 90, 219, 0.8) !important;
 }
 
 .child-records-btn[data-expanded="true"]:hover {
-    background-color: rgba(94, 90, 219, 0.9) !important;
-    border-color: rgba(94, 90, 219, 0.9) !important;
+    background-color: rgba(94, 90, 219, 1) !important;
+    border-color: rgba(94, 90, 219, 1) !important;
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .child-records-btn[data-expanded="false"] {
-    border-color: #17a2b8;
-    color: #17a2b8;
+    border-color: rgba(94, 90, 219, 0.6);
+    color: rgba(94, 90, 219, 0.6);
 }
 
 .child-records-btn[data-expanded="false"]:hover {
-    background-color: #17a2b8;
+    background-color: rgba(94, 90, 219, 0.6);
     color: white;
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 /* Form Styles */

@@ -2082,6 +2082,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const scopeEntryId = event.currentTarget.dataset.recordId;
         const entry = this.getEntryById(scopeEntryId);
         
+        // Check if scope entry is approved
+        if (entry && entry.wfrecon__Scope_Entry_Status__c === 'Approved') {
+            this.showToast('Warning', 'Cannot add locations to approved scope entries.', 'warning');
+            return;
+        }
+        
         this.openModal('location', {
             scopeEntryId: scopeEntryId,
             scopeEntryName: entry ? entry.Name : ''
