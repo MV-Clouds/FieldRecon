@@ -135,28 +135,28 @@
                     </div>
                 </lightning-accordion-section>
                 <lightning-accordion-section name="timesheetDetails" label="Current Week's Timesheet Details">
-                    <div class="summary-cards-container">
-                        <div class="summary-card">
-                            <div class="summary-card-title">
-                                Total Travel Time
-                            </div>
-                            <div class="summary-card-value">
-                                <lightning-formatted-number value={currentWeekTravelTime} format-style="decimal" maximum-fraction-digits="2"></lightning-formatted-number>
-                            </div>
-                            <div class="summary-card-subtitle"></div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-card-title">
-                                Total Work Hours
-                            </div>
-                            <div class="summary-card-value">
-                                <lightning-formatted-number value={currentTotalWorkHours} format-style="decimal" maximum-fraction-digits="2"></lightning-formatted-number>
-                            </div>
-                            <div class="summary-card-subtitle"></div>
-                        </div>
-                    </div>
                     <div class="timesheet-details">
                         <template if:true={timesheetDetailsRaw.length}>
+                            <div class="summary-cards-container">
+                                <div class="summary-card">
+                                    <div class="summary-card-title">
+                                        Total Travel Time
+                                    </div>
+                                    <div class="summary-card-value">
+                                        <lightning-formatted-number value={currentWeekTravelTime} format-style="decimal" maximum-fraction-digits="2"></lightning-formatted-number>
+                                    </div>
+                                    <div class="summary-card-subtitle"></div>
+                                </div>
+                                <div class="summary-card">
+                                    <div class="summary-card-title">
+                                        Total Work Hours
+                                    </div>
+                                    <div class="summary-card-value">
+                                        <lightning-formatted-number value={currentTotalWorkHours} format-style="decimal" maximum-fraction-digits="2"></lightning-formatted-number>
+                                    </div>
+                                    <div class="summary-card-subtitle"></div>
+                                </div>
+                            </div>
                             <div class="table-content timesheet-table">
                                 <table class="slds-table">
                                     <thead>
@@ -221,45 +221,44 @@
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Clock In Time
+                    </div>
+
+                    <!-- Body -->
                     <div class="slds-modal__content pop-up" id="modal-content-id-2">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Clock In Time
-                        </div>
-
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
-                            <div>
-                                <div class="clock-in-container">
-                                    <div class="input-column">
-                                        <div class="select-person-container">
-                                            <label class="select-label required">Select Cost Code</label>
-                                            <div class="select-wrapper">
-                                                <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
-                                                    <option value="">-- Select a cost code --</option>
-                                                    <template for:each={costCodeOptions} for:item="option">
-                                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                                    </template>
-                                                </select>
-                                            </div>
+                        <div class="popUpBody">
+                            <div class="clock-in-container">
+                                <div class="input-column">
+                                    <div class="select-person-container">
+                                        <label class="select-label required">Select Cost Code</label>
+                                        <div class="select-wrapper">
+                                            <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
+                                                <option value="">-- Select a cost code --</option>
+                                                <template for:each={costCodeOptions} for:item="option">
+                                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                                </template>
+                                            </select>
                                         </div>
                                     </div>
-                                    
-                                    <div class="input-column">
-                                        <div class="datetime-container">
-                                            <label class="datetime-label required">Clock In DateTime</label>
-                                            <div class="datetime-wrapper">
-                                                <input type="datetime-local" class="custom-datetime" data-field="clockIn" value={clockInTime} onchange={handleInputChange}/>
-                                            </div>
+                                </div>
+                                
+                                <div class="input-column">
+                                    <div class="datetime-container">
+                                        <label class="datetime-label required">Clock In DateTime</label>
+                                        <div class="datetime-wrapper">
+                                            <input type="datetime-local" class="custom-datetime" data-field="clockIn" value={clockInTime} onchange={handleInputChange}/>
                                         </div>
-                                    </div>
-
-                                    <div class="button-container">
-                                        <button class="clock-in-button" onclick={saveClockIn}>Clock In</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={saveClockIn}>Clock In</button>
                     </div>
                 </div>
             </section>
@@ -274,39 +273,38 @@
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
-                    <div class="slds-modal__content pop-up" id="modal-content-id">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Clock Out Time
-                        </div>
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Clock Out Time
+                    </div>
 
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
-                            <div>
-                                <div class="clock-in-container">
-                                    <div class="form-wrapper">
-                                        <div class="input-column">
-                                            <div class="datetime-container">
-                                                <label class="datetime-label required">Clock Out DateTime</label>
-                                                <div class="datetime-wrapper">
-                                                    <input type="datetime-local" class="custom-datetime" data-field="clockOut" value={clockOutTime} onchange={handleInputChange}/>
-                                                </div>
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id">
+                        <div class="popUpBody">
+                            <div class="clock-in-container">
+                                <div class="form-wrapper">
+                                    <div class="input-column">
+                                        <div class="datetime-container">
+                                            <label class="datetime-label required">Clock Out DateTime</label>
+                                            <div class="datetime-wrapper">
+                                                <input type="datetime-local" class="custom-datetime" data-field="clockOut" value={clockOutTime} onchange={handleInputChange}/>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <template if:true={previousClockInTime}>
-                                        <div class="info-message">
-                                            Clock In Time : {previousClockInTime}
-                                        </div>
-                                    </template>
-
-                                    <div class="button-container">
-                                        <button class="clock-in-button" onclick={saveClockOut}>Clock Out</button>
-                                    </div>
                                 </div>
+
+                                <template if:true={previousClockInTime}>
+                                    <div class="info-message">
+                                        Clock In Time : {previousClockInTime}
+                                    </div>
+                                </template>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={saveClockOut}>Clock Out</button>
                     </div>
                 </div>
             </section>

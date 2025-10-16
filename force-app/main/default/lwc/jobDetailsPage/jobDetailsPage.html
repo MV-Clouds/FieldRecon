@@ -25,9 +25,17 @@
 
             <template if:false={isCustomView}>
                 <div class="date-filter">
-                    <button class="arrow-button" onclick={handlePreviousDate}>&lt;</button>
+                    <button class="arrow-button" onclick={handlePreviousDate}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18L9 12L15 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                     <span class="filter-date">{formattedSelectedDate}</span>
-                    <button class="arrow-button" onclick={handleNextDate}>&gt;</button>
+                    <button class="arrow-button" onclick={handleNextDate}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18L15 12L9 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                 </div>
             </template>
 
@@ -138,14 +146,14 @@
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
-                    <div class="slds-modal__content pop-up" id="modal-content-id-2">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Manage Crew Clock In/Out
-                        </div>
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Manage Crew Clock In/Out
+                    </div>
 
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-2">
+                        <div class="popUpBody">
                             <div>
                                 <!-- Tab Navigation -->
                                 <div class="tab-navigation">
@@ -207,10 +215,6 @@
                                                             User already clocked in for the day, continue to clock in for this job again.
                                                         </div>
                                                     </template>
-                                                    
-                                                    <div class="button-container">
-                                                        <button class="clock-in-button" onclick={handleClockIn}>Clock In</button>
-                                                    </div>
                                                 </div>
                                             </template>
                                             <template if:false={clockInList.length}>
@@ -258,10 +262,6 @@
                                                             Clock In Time : {previousClockInTime}
                                                         </div>
                                                     </template>
-                                                    
-                                                    <div class="button-container">
-                                                        <button class="clock-in-button" onclick={handleClockOut}>Clock Out</button>
-                                                    </div>
                                                 </div>
                                             </template>
                                             <template if:false={clockOutList.length}>
@@ -278,6 +278,23 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Footer -->
+                    <template if:true={isClockInActive}>
+                        <template if:true={clockInList.length}>
+                            <div class="popUpFooter">
+                                <button class="clock-in-button" onclick={handleClockIn}>Clock In</button>
+                            </div>
+                        </template>
+                    </template>
+
+                    <template if:true={isClockOutActive}>
+                        <template if:true={clockOutList.length}>
+                            <div class="popUpFooter">
+                                <button class="clock-in-button" onclick={handleClockOut}>Clock Out</button>
+                            </div>
+                        </template>
+                    </template>
                 </div>
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>
@@ -292,23 +309,22 @@
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Timesheet Information
+                    </div>
+
+                    <!-- Body -->
                     <div class="slds-modal__content pop-up" id="modal-content-id">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Timesheet Information
-                        </div>
-
-                        <div class="btnContainer">
-                            <button class="addTimesheetBtn" onclick={handleAddTimesheet}>
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
-                                </svg>
-                                Add Timesheet
-                            </button>
-                        </div>
-
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
+                        <div class="popUpBody">
+                            <div class="btnContainer">
+                                <button class="addTimesheetBtn" onclick={handleAddTimesheet}>
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
+                                    </svg>
+                                    Add Timesheet
+                                </button>
+                            </div>
                             <div>
                                 <template if:true={timesheetDetailsRaw.length}>
                                     <div class="table-content timesheet-table">
@@ -336,7 +352,7 @@
                                                                                     <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                                 </svg>
                                                                             </button>
-                                                                            <button class="delete-icon-btn" title="Edit Timesheet" data-id={timesheet.id} onclick={handleDeleteTimesheetClick}>
+                                                                            <button class="delete-icon-btn" title="Delete Timesheet" data-id={timesheet.id} onclick={handleDeleteTimesheetClick}>
                                                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" lwc-6an4lceoh93="">
                                                                                     <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
                                                                                     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
@@ -370,14 +386,15 @@
                                 </template>
                             </div>
 
-                            <!-- Footer -->
-                            <template if:true={isTravelTimeEdited}>
-                                <div class="popUpFooter">
-                                    <button class="clock-in-button" onclick={saveTravelTimeInTimesheet}>Save</button>
-                                </div>
-                            </template>
                         </div>
                     </div>
+
+                    <!-- Footer -->
+                    <template if:true={isTravelTimeEdited}>
+                        <div class="popUpFooter">
+                            <button class="clock-in-button" onclick={saveTravelTimeInTimesheet}>Save</button>
+                        </div>
+                    </template>
                 </div>
             </section>
         </template>
@@ -391,14 +408,14 @@
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
-                    <div class="slds-modal__content pop-up" id="modal-content-id-3">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            New Timesheet Entry
-                        </div>
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        New Timesheet Entry
+                    </div>
 
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-3">
+                        <div class="popUpBody">
                             <div>
                                 <div class="form-container">
                                     <div class="form-group">
@@ -471,10 +488,11 @@
                             </div>
 
                         </div>
-                        <!-- Footer -->
-                        <div class="popUpFooter">
-                            <button class="clock-in-button" onclick={createManualTimesheet}>Create</button>
-                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={createManualTimesheet}>Create</button>
                     </div>
                 </div>
             </section>
@@ -489,14 +507,14 @@
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
-                    <div class="slds-modal__content pop-up" id="modal-content-id-4">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Edit Timesheet Entry
-                        </div>
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Edit Timesheet Entry
+                    </div>
 
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-4">
+                        <div class="popUpBody">
                             <div>
                                 <div class="form-container">
                                     <!-- Full Name (Read Only) -->
@@ -565,11 +583,12 @@
                                 </div>
                             </div>
 
-                            <!-- Footer -->
-                            <div class="popUpFooter">
-                                <button class="clock-in-button" onclick={handleSaveTSEL}>Save</button>
-                            </div>
                         </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={handleSaveTSEL}>Save</button>
                     </div>
                 </div>
             </section>
@@ -584,23 +603,23 @@
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
-                    <div class="slds-modal__content pop-up" id="modal-content-id-5">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Delete Timesheet Entry
-                        </div>
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Delete Timesheet Entry
+                    </div>
 
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-5">
+                        <div class="popUpBody">
                             <div>
                                 Are you sure you want to delete this timesheet entry?
                             </div>
-
-                            <!-- Footer -->
-                            <div class="popUpFooter">
-                                <button class="clock-in-button" onclick={handleDeleteConfirmTSEL}>Confirm Delete</button>
-                            </div>
                         </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={handleDeleteConfirmTSEL}>Confirm Delete</button>
                     </div>
                 </div>
             </section>
