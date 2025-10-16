@@ -99,22 +99,22 @@ public with sharing class SovJobLocationProcessesControllerTest {
         Job__c testJob = [SELECT Id FROM Job__c LIMIT 1];
         
         Test.startTest();
-        List<wfrecon__Location_Process__c> result = SovJobLocationProcessesController.getJobLocationProcesses(testJob.Id);
+        List<Location_Process__c> result = SovJobLocationProcessesController.getJobLocationProcesses(testJob.Id);
         Test.stopTest();
         
         // Requery to ensure all necessary fields are available
-        List<wfrecon__Location_Process__c> rechecked = [
-            SELECT Id, wfrecon__Scope_Entry_Process__c, wfrecon__Location__c, wfrecon__Contract_Price__c
-            FROM wfrecon__Location_Process__c
+        List<Location_Process__c> rechecked = [
+            SELECT Id, Scope_Entry_Process__c, Location__c, Contract_Price__c
+            FROM Location_Process__c
             WHERE Id IN :result
         ];
         
         System.assert(!rechecked.isEmpty(), 'Expected some location processes to be returned.');
         
-        wfrecon__Location_Process__c sample = rechecked[0];
-        System.assertNotEquals(null, sample.wfrecon__Scope_Entry_Process__c, 'Each location process should have a linked Scope Entry Process.');
-        System.assertNotEquals(null, sample.wfrecon__Location__c, 'Each location process should have a linked Location.');
-        System.assert(sample.wfrecon__Contract_Price__c > 0, 'Contract price should be greater than 0.');
+        Location_Process__c sample = rechecked[0];
+        System.assertNotEquals(null, sample.Scope_Entry_Process__c, 'Each location process should have a linked Scope Entry Process.');
+        System.assertNotEquals(null, sample.Location__c, 'Each location process should have a linked Location.');
+        System.assert(sample.Contract_Price__c > 0, 'Contract price should be greater than 0.');
     }
 
     /**
@@ -122,14 +122,14 @@ public with sharing class SovJobLocationProcessesControllerTest {
      */
     @IsTest
     static void testBatchUpdateProcessCompletion() {
-        List<wfrecon__Location_Process__c> existingProcesses = [
-            SELECT Id, wfrecon__Completed_Percentage__c 
-            FROM wfrecon__Location_Process__c 
+        List<Location_Process__c> existingProcesses = [
+            SELECT Id, Completed_Percentage__c 
+            FROM Location_Process__c 
             LIMIT 2
         ];
         
         List<SovJobLocationProcessesController.ProcessUpdateWrapper> updates = new List<SovJobLocationProcessesController.ProcessUpdateWrapper>();
-        for (wfrecon__Location_Process__c proc : existingProcesses) {
+        for (Location_Process__c proc : existingProcesses) {
             SovJobLocationProcessesController.ProcessUpdateWrapper updateWrapper = 
                 new SovJobLocationProcessesController.ProcessUpdateWrapper();
             updateWrapper.processId = proc.Id;
@@ -145,13 +145,13 @@ public with sharing class SovJobLocationProcessesControllerTest {
         System.assertEquals(updates.size(), result.successCount, 'All processes should have been updated successfully.');
         System.assertEquals(0, result.errorCount, 'No errors should occur during batch update.');
         
-        List<wfrecon__Location_Process__c> updatedProcesses = [
-            SELECT wfrecon__Completed_Percentage__c 
-            FROM wfrecon__Location_Process__c 
+        List<Location_Process__c> updatedProcesses = [
+            SELECT Completed_Percentage__c 
+            FROM Location_Process__c 
             WHERE Id IN :existingProcesses
         ];
-        for (wfrecon__Location_Process__c p : updatedProcesses) {
-            System.assertEquals(90, p.wfrecon__Completed_Percentage__c, 'Completion percentage should be updated to 90.');
+        for (Location_Process__c p : updatedProcesses) {
+            System.assertEquals(90, p.Completed_Percentage__c, 'Completion percentage should be updated to 90.');
         }
     }
 
@@ -172,11 +172,20 @@ public with sharing class SovJobLocationProcessesControllerTest {
 
     @IsTest
     static void testBatchUpdateProcessCompletionValidationFailure() {
+        // Create a temporary record and delete it to get a non-existing ID
+        Location_Process__c tempProcess = new Location_Process__c(
+            Location__c = [SELECT Id FROM Location__c LIMIT 1].Id,
+            Scope_Entry_Process__c = [SELECT Id FROM Scope_Entry_Process__c LIMIT 1].Id,
+            Sequence__c = 999
+        );
+        insert tempProcess;
+        Id invalidId = tempProcess.Id;
+        delete tempProcess;
 
         // Prepare update wrapper
         SovJobLocationProcessesController.ProcessUpdateWrapper updateWrapper = 
             new SovJobLocationProcessesController.ProcessUpdateWrapper();
-        updateWrapper.processId = '012000000000000AAA'; // Non-existent ID
+        updateWrapper.processId = invalidId; // Non-existent ID
         updateWrapper.completionPercentage = 100; 
         List<SovJobLocationProcessesController.ProcessUpdateWrapper> updates = new List<SovJobLocationProcessesController.ProcessUpdateWrapper>{ updateWrapper };
 
@@ -184,6 +193,101 @@ public with sharing class SovJobLocationProcessesControllerTest {
         SovJobLocationProcessesController.BatchUpdateResult result = SovJobLocationProcessesController.batchUpdateProcessCompletion(updates);
         Test.stopTest();
 
+        System.assertEquals(false, result.isSuccess, 'Expected failure when invalid process ID is used.');
+        System.assertEquals(1, result.errorCount, 'Expected 1 error for invalid process ID.');
+        System.assertEquals(0, result.successCount, 'Expected 0 successful updates.');
+    }
+
+    /**
+     * @description Test for getJobLocationProcesses() with null Job ID
+     */
+    @IsTest
+    static void testGetJobLocationProcessesWithNullJobId() {
+        Test.startTest();
+        List<Location_Process__c> result = SovJobLocationProcessesController.getJobLocationProcesses(null);
+        Test.stopTest();
+        
+        System.assertEquals(0, result.size(), 'Expected empty list when null Job ID is passed.');
+    }
+
+    /**
+     * @description Test for getJobLocationProcesses() with invalid Job ID
+     */
+    @IsTest
+    static void testGetJobLocationProcessesWithInvalidJobId() {
+        // Create a temporary job and delete it to get a non-existing ID
+        Job__c tempJob = new Job__c(Job_Name__c = 'Temp Job');
+        insert tempJob;
+        Id invalidId = tempJob.Id;
+        delete tempJob;
+        
+        Test.startTest();
+        List<Location_Process__c> result = SovJobLocationProcessesController.getJobLocationProcesses(invalidId);
+        Test.stopTest();
+        
+        System.assertEquals(0, result.size(), 'Expected empty list when invalid Job ID is passed.');
+    }
+
+    /**
+     * @description Test for batchUpdateProcessCompletion() with null list
+     */
+    @IsTest
+    static void testBatchUpdateProcessCompletionWithNullList() {
+        Test.startTest();
+        SovJobLocationProcessesController.BatchUpdateResult result = 
+            SovJobLocationProcessesController.batchUpdateProcessCompletion(null);
+        Test.stopTest();
+
+        System.assertEquals(false, result.isSuccess, 'Expected failure when null list is passed.');
+        System.assert(result.errorDetails != null && result.errorDetails.size() > 0, 'Error details should be populated.');
+        System.assert(result.errorDetails[0].containsIgnoreCase('No processes provided'), 'Expected missing data message.');
+    }
+
+    /**
+     * @description Test for batchUpdateProcessCompletion() with mixed valid and invalid IDs
+     */
+    @IsTest
+    static void testBatchUpdateProcessCompletionMixedValidInvalid() {
+        List<Location_Process__c> existingProcesses = [
+            SELECT Id, Completed_Percentage__c 
+            FROM Location_Process__c 
+            LIMIT 1
+        ];
+        
+        // Create a temporary process and delete it to get a non-existing ID
+        Location_Process__c tempProcess = new Location_Process__c(
+            Location__c = [SELECT Id FROM Location__c LIMIT 1].Id,
+            Scope_Entry_Process__c = [SELECT Id FROM Scope_Entry_Process__c LIMIT 1].Id,
+            Sequence__c = 888
+        );
+        insert tempProcess;
+        Id invalidId = tempProcess.Id;
+        delete tempProcess;
+        
+        List<SovJobLocationProcessesController.ProcessUpdateWrapper> updates = new List<SovJobLocationProcessesController.ProcessUpdateWrapper>();
+        
+        // Add valid process update
+        SovJobLocationProcessesController.ProcessUpdateWrapper validUpdate = 
+            new SovJobLocationProcessesController.ProcessUpdateWrapper();
+        validUpdate.processId = existingProcesses[0].Id;
+        validUpdate.completionPercentage = 75;
+        updates.add(validUpdate);
+        
+        // Add invalid process update
+        SovJobLocationProcessesController.ProcessUpdateWrapper invalidUpdate = 
+            new SovJobLocationProcessesController.ProcessUpdateWrapper();
+        invalidUpdate.processId = invalidId;
+        invalidUpdate.completionPercentage = 50;
+        updates.add(invalidUpdate);
+
+        Test.startTest();
+        SovJobLocationProcessesController.BatchUpdateResult result = 
+            SovJobLocationProcessesController.batchUpdateProcessCompletion(updates);
+        Test.stopTest();
+
+        System.assertEquals(false, result.isSuccess, 'Expected failure when mixed valid/invalid IDs are used.');
+        System.assertEquals(1, result.successCount, 'Expected 1 successful update.');
+        System.assertEquals(1, result.errorCount, 'Expected 1 error for invalid process ID.');
     }
 
 

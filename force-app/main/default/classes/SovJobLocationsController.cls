@@ -386,7 +386,7 @@ public with sharing class SovJobLocationsController {
         }
     }
 
-    private static String recalculateForChangedLocations(Set<Id> changedLocationIds) {
+    public static String recalculateForChangedLocations(Set<Id> changedLocationIds) {
         try {
             if (changedLocationIds == null || changedLocationIds.isEmpty()) {
                 return 'No locations changed for recalculation.';

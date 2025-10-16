@@ -63,10 +63,21 @@ public with sharing class SovJobScopeControllerTest {
         };
         insert locations;
 
-        // 5️⃣ Link Locations to Scope Entry via Location_Process__c
+        // 5️⃣ Create Location_Scope_Entry__c junction records to link locations to scope entry
+        List<Location_Scope_Entry__c> locationScopeEntries = new List<Location_Scope_Entry__c>();
+        for (Location__c loc : locations) {
+            locationScopeEntries.add(new Location_Scope_Entry__c(
+                Location__c = loc.Id,
+                Scope_Entry__c = scopeEntry.Id
+            ));
+        }
+        insert locationScopeEntries;
+
+        // 6️⃣ Link Locations to Scope Entry via Location_Process__c
         //    Each Location will get processes created for the existing Scope Entry Processes
         List<Location_Process__c> locationProcesses = new List<Location_Process__c>();
         for (Location__c loc : locations) {
+            Integer counter = 1;
             for (Scope_Entry_Process__c proc : scopeEntryProcesses) {
                 Decimal totalWeight = 0;
                 for (Scope_Entry_Process__c p : scopeEntryProcesses) {
@@ -81,24 +92,24 @@ public with sharing class SovJobScopeControllerTest {
                     Location__c = loc.Id,
                     Scope_Entry_Process__c = proc.Id,
                     Process_Library__c = null,
-                    Sequence__c = proc.Sequence__c,
+                    Sequence__c = counter++,
                     Contract_Price__c = contractPrice
                 ));
             }
         }
         insert locationProcesses;
 
-        // 6️⃣ Create Process Library records for testing
+        // 7️⃣ Create Process Library records for testing
         List<Process__c> processLibrary = new List<Process__c>{
             new Process__c(
-                wfrecon__Process_Name__c = 'Electrical Work',
+                Process_Name__c = 'Electrical Work',
                 Process_Type__c = 'Generic',
                 Weight__c = 1,
                 Measurement_Type__c = 'Square Feet',
                 Sequence__c = 1
             ),
             new Process__c(
-                wfrecon__Process_Name__c = 'Plumbing Work',
+                Process_Name__c = 'Plumbing Work',
                 Process_Type__c = 'Generic',
                 Weight__c = 2,
                 Measurement_Type__c = 'Square Feet',
@@ -224,9 +235,23 @@ public with sharing class SovJobScopeControllerTest {
     }
 
     @IsTest
+    static void testGetLocationsByScopeEntry() {
+        Scope_Entry__c scopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
+        
+        Test.startTest();
+        Map<String, Object> result = SovJobScopeController.getLocationsByScopeEntry(scopeEntry.Id);
+        Test.stopTest();
+        
+        System.assertEquals(true, (Boolean)result.get('success'), 'Expected getLocationsByScopeEntry to return success as true');
+    }
+
+    @IsTest
     static void testCreateLocationProcesses() {
         Scope_Entry__c scopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
         List<Location__c> locations = [SELECT Id FROM Location__c];
+        
+        // Delete existing junction records to test creation
+        delete [SELECT Id FROM Location_Scope_Entry__c WHERE Scope_Entry__c = :scopeEntry.Id];
         
         List<String> selectedLocationIds = new List<String>();
         for (Location__c loc : locations) {
@@ -247,6 +272,7 @@ public with sharing class SovJobScopeControllerTest {
         Test.stopTest();
         
         System.assertEquals(true, result.startsWith('Success'), 'Expected createLocationProcesses to return a success message');
+        
     }
 
     @IsTest
@@ -283,7 +309,7 @@ public with sharing class SovJobScopeControllerTest {
     @IsTest
     static void testGetPicklistValuesForField() {
         Test.startTest();
-        List<String> result = SovJobScopeController.getPicklistValuesForField('Scope_Entry__c', 'Type__c');
+        List<String> result = SovJobScopeController.getPicklistValuesForField('wfrecon__Scope_Entry__c', 'wfrecon__Type__c');
         Test.stopTest();
         
         System.assertEquals(true, result.size() >= 0, 'Expected getPicklistValuesForField to return a non-negative size');
@@ -366,6 +392,31 @@ public with sharing class SovJobScopeControllerTest {
         Test.stopTest();
         
         System.assertEquals(true, result.contains('No scope entry data provided'), 'Expected error message about no data provided');
+    }
+
+    @IsTest
+    static void testGetLocationsByScopeEntryWithInvalidId() {
+        // Create a temporary record and delete it to get a non-existing ID
+        Scope_Entry__c tempEntry = new Scope_Entry__c(Name = 'Temp', Job__c = [SELECT Id FROM Job__c LIMIT 1].Id);
+        insert tempEntry;
+        Id invalidId = tempEntry.Id;
+        delete tempEntry;
+        
+        Test.startTest();
+        Map<String, Object> result = SovJobScopeController.getLocationsByScopeEntry(invalidId);
+        Test.stopTest();
+        
+        System.assertEquals(false, (Boolean)result.get('success'), 'Expected getLocationsByScopeEntry with invalid ID to return success as false');
+    }
+
+    @IsTest
+    static void testGetLocationsByScopeEntryWithNullId() {
+        Test.startTest();
+        Map<String, Object> result = SovJobScopeController.getLocationsByScopeEntry(null);
+        Test.stopTest();
+        
+        // Should handle null gracefully
+        System.assertNotEquals(null, result, 'Expected result to not be null');
     }
 
 }
