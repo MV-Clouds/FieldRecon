@@ -7,31 +7,12 @@ public with sharing class EmailTemplateController {
      * @return String - The HTML body of the email template
      */
     @AuraEnabled
-    public static Map<String,String> getEmailTemplateBody(String templateName, String recordId) {
+    public static Map<String,String> getEmailTemplateBody(String recordId) {
         Map<String,String> result = new Map<String,String>();
         try {
-            if (String.isBlank(templateName)) {
-                throw new AuraHandledException('Template name is required');
-            }
-            
-            // Query the EmailTemplate by Name or DeveloperName
-            List<EmailTemplate> templates = [SELECT Id, DeveloperName, Subject, HtmlValue, Body, Markup FROM EmailTemplate WHERE Name = :templateName WITH USER_MODE LIMIT 1];
-            
-            if (templates.isEmpty()) {
-                throw new AuraHandledException('Email template not found: ' + templateName);
-            }
-            
-            EmailTemplate template = templates[0];
-            String htmlBody = '';
-            
-            // Get the HTML body or fallback to plain text
-            if (String.isNotBlank(template.HtmlValue)) {
-                htmlBody = template.HtmlValue;
-            } else if (String.isNotBlank(template.Markup)) {
-                htmlBody = template.Markup;
-            } else if (String.isNotBlank(template.Body)) {
-                htmlBody = '<div>' + template.Body + '</div>';
-            }
+            PageReference pageRef = Page.BillingPDF;
+            pageRef.getParameters().put('renderAsPDF', 'false');
+            String htmlBody = !Test.isRunningTest() ? pageRef.getContent().toString() : '<div>Test HTML</div>';
 
             result.put('body', htmlBody);
 
@@ -43,13 +24,23 @@ public with sharing class EmailTemplateController {
 
             return result;
 
-            // If recordId is provided, merge fields
-            // if (String.isNotBlank(recordId) && String.isNotBlank(htmlBody)) {
-            //     htmlBody = mergeTemplateFields(htmlBody, recordId);
-            // }
-
         } catch (Exception e) {
             throw new AuraHandledException('Error fetching email template: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String getVFPagePDF(String recordId) {
+        try {
+            PageReference pageRef = Page.BillingPDF;
+            pageRef.getParameters().put('renderAsPDF', 'true');
+            Blob pdfBlob = !Test.isRunningTest() ? pageRef.getContentAsPDF() : Blob.valueOf('Test PDF');
+            String base64Pdf = EncodingUtil.base64Encode(pdfBlob);
+            
+            return base64Pdf;
+        } catch (Exception e) {
+            System.debug('Error in getVFPagePDF: ' + e.getMessage());
+            throw new AuraHandledException('Failed to generate PDF: ' + e.getMessage());
         }
     }
 }

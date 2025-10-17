@@ -68,65 +68,6 @@
 
 .preview-content {
     padding: 2rem;
-    background: white;
-    min-height: 400px;
-    max-height: 600px;
-    overflow-y: auto;
-    font-family: 'Salesforce Sans', Arial, sans-serif;
-    line-height: 1.6;
-}
-
-/* Content Styling */
-.preview-content h1,
-.preview-content h2,
-.preview-content h3,
-.preview-content h4 {
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
-    color: #2d3748;
-}
-
-.preview-content h1 {
-    font-size: 2rem;
-    font-weight: 700;
-}
-
-.preview-content h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-
-.preview-content h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
-}
-
-.preview-content p {
-    margin-bottom: 1rem;
-    color: #4a5568;
-}
-
-.preview-content table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-}
-
-.preview-content table th,
-.preview-content table td {
-    border: 1px solid #e2e8f0;
-    padding: 0.75rem;
-    text-align: left;
-}
-
-.preview-content table th {
-    background-color: #f7fafc;
-    font-weight: 600;
-    color: #2d3748;
-}
-
-.preview-content table tr:nth-child(even) {
-    background-color: #f7fafc;
 }
 
 /* Custom Footer Styling */
