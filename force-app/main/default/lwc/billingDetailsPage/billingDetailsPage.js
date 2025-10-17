@@ -96,6 +96,27 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return this.isSavingChangeOrder ? 'Saving...' : 'Save';
     }
 
+    get isBillingApproved() {
+        const status = this.billingDetails && this.billingDetails.Status ? this.billingDetails.Status : '';
+        return status === 'Approved';
+    }
+
+    get contractActionsClass() {
+        return this.isBillingApproved ? 'table-actions hidden' : 'table-actions';
+    }
+
+    get changeOrderActionsClass() {
+        return this.isBillingApproved ? 'table-actions hidden' : 'table-actions';
+    }
+
+    get contractTableContainerClass() {
+        return this.isBillingApproved ? 'data-table-container read-only-table' : 'data-table-container';
+    }
+
+    get changeOrderTableContainerClass() {
+        return this.isBillingApproved ? 'data-table-container read-only-table' : 'data-table-container';
+    }
+
     get isDraftSelected() {
         return this.billingDetails.wfrecon__Status__c === 'Draft';
     }
@@ -514,6 +535,9 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      */
     handleCellClick(event) {
         try {
+            if (this.isBillingApproved) {
+                return;
+            }
             const recordId = event.currentTarget.dataset.recordId;
             const fieldName = event.currentTarget.dataset.fieldName;
             const cellKey = `${recordId}-${fieldName}`;
@@ -560,6 +584,9 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      */
     handleCellInputChange(event) {
         try {
+            if (this.isBillingApproved) {
+                return;
+            }
             const recordId = event.target.dataset.recordId;
             const fieldName = event.target.dataset.fieldName;
             console.log('Input Change - RecordId:', recordId, 'Field:', fieldName, 'New Value:', event.target.value);
@@ -853,6 +880,10 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      */
     handleSaveContractChanges() {
         try {
+            if (this.isBillingApproved) {
+                this.showToast('Info', 'Billing is approved; contract line items are read-only.', 'info');
+                return;
+            }
             if (this.modifiedContractItems.size === 0) return;
             console.log(this.modifiedContractItems);
             
@@ -922,6 +953,10 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      */
     handleSaveChangeOrderChanges() {
         try {
+            if (this.isBillingApproved) {
+                this.showToast('Info', 'Billing is approved; change order line items are read-only.', 'info');
+                return;
+            }
             if (this.modifiedChangeOrderItems.size === 0) return;
             
             this.isSavingChangeOrder = true;

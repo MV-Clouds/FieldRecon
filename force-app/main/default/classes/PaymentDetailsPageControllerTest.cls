@@ -38,7 +38,7 @@ public with sharing class PaymentDetailsPageControllerTest {
             Name = TEST_SCOPE_ENTRY_NAME + ' - Base Contract',
             wfrecon__Job__c = testJob.Id,
             wfrecon__Contract_Value__c = TEST_CONTRACT_VALUE,
-            wfrecon__Type__c = 'Base Contract',
+            wfrecon__Type__c = 'Contract',
             wfrecon__Scope_Entry_Status__c = 'Approved'
         );
         scopeEntries.add(baseContractEntry);
@@ -192,7 +192,7 @@ public with sharing class PaymentDetailsPageControllerTest {
     static void testSavePaymentLineItemsSuccess() {
         // Get test data
         List<wfrecon__Payment_Line_Item__c> paymentLineItems = [
-            SELECT Id, wfrecon__Amount_Received__c 
+            SELECT Id, wfrecon__Amount_Received__c, Payment__c 
             FROM wfrecon__Payment_Line_Item__c 
             ORDER BY wfrecon__Amount_Received__c DESC
         ];
@@ -219,7 +219,7 @@ public with sharing class PaymentDetailsPageControllerTest {
     static void testSavePaymentLineItemsWithNullValues() {
         // Get test data
         List<wfrecon__Payment_Line_Item__c> paymentLineItems = [
-            SELECT Id, wfrecon__Amount_Received__c 
+            SELECT Id, wfrecon__Amount_Received__c, wfrecon__Payment__c 
             FROM wfrecon__Payment_Line_Item__c 
             LIMIT 1
         ];

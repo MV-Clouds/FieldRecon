@@ -157,6 +157,19 @@ public with sharing class BillingAndPaymentTabController {
             ];
 
             // 2. Create new Billing record
+            Decimal billRetainage = job.Retainage__c;
+            if (String.isNotBlank(prevBill)) {
+                Billing__c previousBilling = [
+                    SELECT Id, Retainage_on_Bill__c
+                    FROM Billing__c
+                    WHERE Id = :prevBill
+                    LIMIT 1
+                ];
+                if (previousBilling.Retainage_on_Bill__c != null) {
+                    billRetainage = previousBilling.Retainage_on_Bill__c;
+                }
+            }
+
             Billing__c newBilling = new Billing__c();
             newBilling.Job__c = jobId;
             newBilling.Account__c = job.Account__c;
@@ -168,7 +181,7 @@ public with sharing class BillingAndPaymentTabController {
             // Set Billing_Type__c if field exists (optional)
             // newBilling.Billing_Type__c = billingType;
             
-            newBilling.Retainage_on_Bill__c = job.Retainage__c;
+            newBilling.Retainage_on_Bill__c = billRetainage;
             newBilling.Start_Date__c = startDate;
             newBilling.End_Date__c = endDate;
             if (String.isNotBlank(prevBill)) {
@@ -180,7 +193,7 @@ public with sharing class BillingAndPaymentTabController {
             Map<Id, Billing_Line_Item__c> prevBillItemMap = new Map<Id, Billing_Line_Item__c>();
             if (String.isNotBlank(prevBill)) {
                 for (Billing_Line_Item__c prevItem : [
-                    SELECT Id, Scope_Entry__c, Total_Complete_Percent__c, This_Billing_Percent__c, Remaining_Billing_Amount__c, Total_Retainage_Amount__c, Total_Billed_Value__c
+                    SELECT Id, Scope_Entry__c, Total_Complete_Percent__c, This_Billing_Percent__c, Remaining_Billing_Amount__c, Total_Retainage_Amount__c, Total_Billed_Value__c, Retainage_Percent_on_Bill_Line_Item__c
                     FROM Billing_Line_Item__c
                     WHERE Billing__c = :prevBill
                 ]) {
@@ -206,11 +219,14 @@ public with sharing class BillingAndPaymentTabController {
                 newItem.Scope_Entry__c = se.Id;
                 newItem.Scope_Contract_Amount__c = se.Contract_Value__c;
                 newItem.Scope_Complete__c = se.Completed_Percentage__c;
-                newItem.Retainage_Percent_on_Bill_Line_Item__c = job.Retainage__c;
+                Billing_Line_Item__c prevItem = prevBillItemMap.get(se.Id);
+                Decimal lineRetainagePercent = (prevItem != null && prevItem.Retainage_Percent_on_Bill_Line_Item__c != null)
+                    ? prevItem.Retainage_Percent_on_Bill_Line_Item__c
+                    : billRetainage;
+                newItem.Retainage_Percent_on_Bill_Line_Item__c = lineRetainagePercent;
                 
                 // If matching previous bill item exists
-                if (prevBillItemMap.containsKey(se.Id)) {
-                    Billing_Line_Item__c prevItem = prevBillItemMap.get(se.Id);
+                if (prevItem != null) {
                     System.debug('prevItem: ' + prevItem);
                     System.debug('prevItem: ' + JSON.serialize(prevItem));
                     newItem.Previous_Bill_Line_Item__c = prevItem.Id;
@@ -223,7 +239,7 @@ public with sharing class BillingAndPaymentTabController {
                     System.debug('prevItem.Remaining_Billing_Amount__c: ' + prevItem.Remaining_Billing_Amount__c);
                     System.debug('se.Completed_Percentage__c: ' + se.Completed_Percentage__c);
 
-                    newItem.This_Retainage_Amount__c = (prevItem.Remaining_Billing_Amount__c * newItem.Retainage_Percent_on_Bill_Line_Item__c) / 100;
+                    newItem.This_Retainage_Amount__c = (prevItem.Remaining_Billing_Amount__c * lineRetainagePercent) / 100;
                     newItem.Total_Retainage_Amount__c = prevItem.Total_Retainage_Amount__c + newItem.This_Retainage_Amount__c;
                     System.debug('newItem.Total_Retainage_Amount__c: ' + newItem.Total_Retainage_Amount__c);
 
@@ -249,7 +265,7 @@ public with sharing class BillingAndPaymentTabController {
                 } else {
                     // No previous bill item, use current completed percentage
                     newItem.This_Billing_Percent__c = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
-                    newItem.This_Retainage_Amount__c = (se.Contract_Value__c * newItem.Retainage_Percent_on_Bill_Line_Item__c) / 100;
+                    newItem.This_Retainage_Amount__c = (se.Contract_Value__c * lineRetainagePercent) / 100;
                     newItem.Total_Retainage_Amount__c = newItem.This_Retainage_Amount__c;
                     newItem.This_Billing_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.This_Retainage_Amount__c;
                     newItem.Total_Billed_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.Total_Retainage_Amount__c;

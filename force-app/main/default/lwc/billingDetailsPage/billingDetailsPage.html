@@ -146,7 +146,8 @@
                                     data-field-name="retainage"
                                     step="0.01"
                                     min="0"
-                                    max="100">
+                                    max="100"
+                                    disabled={isBillingApproved}>
                                 </lightning-input>
                             </div>
                             <div class="field-group">
@@ -156,7 +157,8 @@
                                     value={billingDetails.Status}
                                     placeholder="Select Status..."
                                     options={statusOptions}
-                                    onchange={handleStatusChange}>
+                                    onchange={handleStatusChange}
+                                    disabled={isBillingApproved}>
                                 </lightning-combobox>
                             </div>
                         </div>
@@ -269,7 +271,7 @@
                 <div class="table-section">
                     <div class="table-header-section">
                         <h2 class="table-title">Base Contract Line Items</h2>
-                        <div class="table-actions">
+                        <div class={contractActionsClass}>
                             <button 
                                 class="action-button discard-btn"
                                 onclick={handleDiscardContractChanges}
@@ -303,7 +305,7 @@
                         </div>
                     </div>
                     
-                    <div class="data-table-container">
+                    <div class={contractTableContainerClass}>
                         <template if:true={contractLineItems.length}>
                             <table class="custom-data-table">
                                 <thead class="table-header">
@@ -425,7 +427,7 @@
                 <div class="table-section">
                     <div class="table-header-section">
                         <h2 class="table-title">Change Orders</h2>
-                        <div class="table-actions">
+                        <div class={changeOrderActionsClass}>
                             <button 
                                 class="action-button discard-btn"
                                 onclick={handleDiscardChangeOrderChanges}
@@ -459,7 +461,7 @@
                         </div>
                     </div>
                     
-                    <div class="data-table-container">
+                    <div class={changeOrderTableContainerClass}>
                         <template if:true={changeOrderLineItems.length}>
                             <table class="custom-data-table">
                                 <thead class="table-header">

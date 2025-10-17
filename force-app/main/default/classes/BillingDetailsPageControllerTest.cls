@@ -29,7 +29,7 @@ public with sharing class BillingDetailsPageControllerTest {
             Name = 'Scope Entry',
             wfrecon__Job__c = jobRecord.Id,
             wfrecon__Contract_Value__c = 1000.0,
-            wfrecon__Type__c = 'Base Contract',
+            wfrecon__Type__c = 'Contract',
             wfrecon__Scope_Entry_Status__c = 'Approved'
         );
         insert scopeEntry;

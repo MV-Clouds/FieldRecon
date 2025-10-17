@@ -108,8 +108,19 @@ private class BillingAndPaymentTabControllerTest {
     @IsTest
     static void testCreateBillingWithPreviousBill() {
         Job__c job = [SELECT Id, Account__c FROM Job__c WHERE Job_Name__c = 'J001' LIMIT 1];
-        Billing__c existingBill = [SELECT Id FROM Billing__c WHERE Job__c = :job.Id LIMIT 1];
-        
+        Billing__c existingBill = [SELECT Id, Retainage_on_Bill__c FROM Billing__c WHERE Job__c = :job.Id LIMIT 1];
+        existingBill.Retainage_on_Bill__c = 17;
+        update existingBill;
+
+        Billing_Line_Item__c existingLine = [
+            SELECT Id, Retainage_Percent_on_Bill_Line_Item__c
+            FROM Billing_Line_Item__c
+            WHERE Billing__c = :existingBill.Id
+            LIMIT 1
+        ];
+        existingLine.Retainage_Percent_on_Bill_Line_Item__c = 12;
+        update existingLine;
+
         String result = BillingAndPaymentTabController.createBilling(
             job.Id, 
             Date.today(), 
@@ -117,6 +128,26 @@ private class BillingAndPaymentTabControllerTest {
             'Retainage Bill', 
             existingBill.Id
         );
+
+        System.assertEquals('SUCCESS', result, 'Expected billing creation to succeed.');
+
+        Billing__c newBill = [
+            SELECT Id, Retainage_on_Bill__c, Previous_Bill__c
+            FROM Billing__c
+            WHERE Previous_Bill__c = :existingBill.Id
+            ORDER BY CreatedDate DESC
+            LIMIT 1
+        ];
+        System.assertEquals(existingBill.Retainage_on_Bill__c, newBill.Retainage_on_Bill__c, 'New bill retainage should match previous bill retainage.');
+
+        Billing_Line_Item__c newLine = [
+            SELECT Retainage_Percent_on_Bill_Line_Item__c, Previous_Bill_Line_Item__c
+            FROM Billing_Line_Item__c
+            WHERE Billing__c = :newBill.Id
+            LIMIT 1
+        ];
+        System.assertEquals(existingLine.Retainage_Percent_on_Bill_Line_Item__c, newLine.Retainage_Percent_on_Bill_Line_Item__c, 'Line retainage percent should be copied from previous line item.');
+        System.assertEquals(existingLine.Id, newLine.Previous_Bill_Line_Item__c, 'New line should reference the previous bill line item.');
     }
 
     @IsTest

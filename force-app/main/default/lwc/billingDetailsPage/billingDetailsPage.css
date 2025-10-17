@@ -45,10 +45,13 @@
 }
 
 .spinner-container {
-    position: absolute;
+    position: fixed;
     height: 100%;
     z-index: 9999;
     width: 100%;
+    top: 0;
+    bottom: 0;
+    left: 0;
 }
 
 /* Table Section Styling */
@@ -81,6 +84,10 @@
     align-items: center;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* Data Table Container */
 .data-table-container {
     flex: 1;
@@ -88,6 +95,24 @@
     border-radius: 8px;
     background-color: white;
     max-height: 500px;
+}
+
+.read-only-table .editable-cell {
+    pointer-events: none;
+    cursor: default;
+}
+
+.read-only-table .editable-cell:hover {
+    background-color: inherit;
+}
+
+.read-only-table .editable-cell .edit-icon {
+    display: none;
+}
+
+.read-only-table .cell-input {
+    pointer-events: none;
+    background-color: #f4f4f4;
 }
 
 /* Table Styles */
@@ -211,8 +236,18 @@
 /* Modified Cell Highlighting */
 .modified-cell {
     background-color: #FFF3CD !important;
-    border-left: 4px solid #F0AD4E !important;
     position: relative;
+}
+
+.modified-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #F0AD4E !important;
+    border-radius: 0 0.25rem 0.25rem 0;
 }
 
 /* Center align This Billing % column in Change Order table */
@@ -264,6 +299,8 @@
 .action-button:hover:not(:disabled) {
     background-color: rgb(244, 244, 255);
     border-color: rgba(94, 90, 219, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .action-button:disabled {
@@ -290,6 +327,8 @@
 .save-button:hover:not(:disabled) {
     background-color: rgba(94, 90, 219, 0.9);
     border-color: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .save-button:disabled {
@@ -308,6 +347,8 @@
 .discard-btn:hover:not(:disabled) {
     background-color: #c82333;
     border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(200, 35, 51, 0.25);
 }
 
 .discard-btn:disabled {
@@ -453,11 +494,14 @@
     background-color: rgba(94, 90, 219, 1);
     color: white;
     border-color: rgba(94, 90, 219, 1);
+    transition: all 0.2s ease;
 }
 
 .form-btn:hover:not(:disabled) {
     background-color: rgba(94, 90, 219, 0.9);
     border-color: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .billing-info-content {

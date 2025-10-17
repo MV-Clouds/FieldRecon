@@ -28,8 +28,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     @track approvedBillingOptionsForNew = [];
     @track statusOptions = [];
     @track billingTypeOptions = [
-        { label: 'Regular Bill', value: 'Regular Bill' },
-        { label: 'Retainage Bill', value: 'Retainage Bill' }
+        { label: 'Regular Bill', value: 'Regular Bill' }
+        // { label: 'Retainage Bill', value: 'Retainage Bill' }
     ];
     @track selectedStatus = 'All';
     @track searchTerm = '';
