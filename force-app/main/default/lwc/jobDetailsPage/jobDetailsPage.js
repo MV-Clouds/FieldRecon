@@ -50,6 +50,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track enteredManualPerDiem = 0;
     defaultDate = new Date().toISOString();
     @track timesheetDetailsRaw = [];
+    @track currentJobStartDateTime;
+    @track currentJobEndDateTime;
 
     @track jobColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -282,6 +284,113 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return iso.slice(0, 16).replace('T', ' '); // "2025-10-05 07:00"
     }
 
+    extractDateKey(value) {
+        if (!value) {
+            return null;
+        }
+
+        if (value instanceof Date) {
+            return value.toISOString().slice(0, 10);
+        }
+
+        const str = value.toString().trim();
+        if (!str) {
+            return null;
+        }
+
+        if (str.length >= 10) {
+            return str.slice(0, 10);
+        }
+
+        return null;
+    }
+
+    addDaysToDateKey(dateKey, days) {
+        if (!dateKey || typeof dateKey !== 'string') {
+            return null;
+        }
+
+        const [year, month, day] = dateKey.split('-').map(Number);
+        if ([year, month, day].some(num => Number.isNaN(num))) {
+            return null;
+        }
+
+        const utcDate = new Date(Date.UTC(year, month - 1, day));
+        utcDate.setUTCDate(utcDate.getUTCDate() + days);
+        return utcDate.toISOString().slice(0, 10);
+    }
+
+    validateClockInDate(clockInValue, jobStartValue) {
+        const clockInDate = this.extractDateKey(clockInValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
+
+        if (clockInDate && jobStartDate && clockInDate !== jobStartDate) {
+            this.showToast('Error', 'Clock In time must be on the job start date', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    validateClockOutDate(clockOutValue, jobEndValue) {
+        const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobEndDate = this.extractDateKey(jobEndValue);
+
+        if (clockOutDate && jobEndDate) {
+            const nextDay = this.addDaysToDateKey(jobEndDate, 1);
+            if (clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
+                this.showToast('Error', 'Clock Out time must be on the job end date or the following day', 'error');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    get clockInMinBoundary() {
+        const reference = this.currentJobStartDateTime
+            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobStartTime : null)
+            || this.defaultStartTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+
+    get clockInMaxBoundary() {
+        const reference = this.currentJobStartDateTime
+            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobStartTime : null)
+            || this.defaultStartTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T23:59` : null;
+    }
+
+    get clockOutMinBoundary() {
+        const reference = this.currentJobEndDateTime
+            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobEndTime : null)
+            || this.defaultEndTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+
+    get clockOutMaxBoundary() {
+        const reference = this.currentJobEndDateTime
+            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobEndTime : null)
+            || this.defaultEndTime;
+        const dateKey = this.extractDateKey(reference);
+        if (!dateKey) {
+            return null;
+        }
+        const nextDay = this.addDaysToDateKey(dateKey, 1);
+        return nextDay ? `${nextDay}T23:59` : null;
+    }
+
+    getCurrentJobRecord() {
+        if (!this.jobId || !this.jobDetailsRaw || !Array.isArray(this.jobDetailsRaw)) {
+            return null;
+        }
+
+        return this.jobDetailsRaw.find(job => job.jobId === this.jobId || job.Id === this.jobId);
+    }
+
     /** 
     * Method Name: handleSearch 
     * @description: Method is used to handle the search
@@ -499,6 +608,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this.jobId = jobId;
             const mobId = event.currentTarget.dataset.mobid;
             this.mobId = mobId;
+
+            const jobRecord = this.getCurrentJobRecord();
+            if (jobRecord) {
+                this.currentJobStartDateTime = jobRecord.startDate;
+                this.currentJobEndDateTime = jobRecord.endDate;
+            }
             
             const actionType = event.currentTarget.dataset.action;
     
@@ -598,6 +713,18 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const selectedRecordDetails = this.clockInList.find(
                 record => record.contactId === this.selectedContactId
             );
+
+            if (!selectedRecordDetails) {
+                this.showToast('Error', 'Unable to determine job details for the selected contact', 'error');
+                this.isLoading = false;
+                return;
+            }
+
+            const jobStartReference = selectedRecordDetails?.jobStartTime || this.currentJobStartDateTime;
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
+                this.isLoading = false;
+                return;
+            }
 
             const params = {
                 actionType: 'clockIn',
@@ -721,8 +848,18 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 record => record.contactId === this.selectedContactId
             );
 
+            if (!selectedRecordDetails) {
+                this.showToast('Error', 'Unable to determine job details for the selected contact', 'error');
+                return;
+            }
+
             if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+
+            const jobEndReference = selectedRecordDetails?.jobEndTime || this.currentJobEndDateTime;
+            if (!this.validateClockOutDate(this.clockOutTime, jobEndReference)) {
                 return;
             }
             
@@ -852,6 +989,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this.showTimesheetModal = true;
             this.isLoading = true;
 
+            const jobRecord = this.getCurrentJobRecord();
+            if (jobRecord) {
+                this.currentJobStartDateTime = jobRecord.startDate;
+                this.currentJobEndDateTime = jobRecord.endDate;
+            }
+
             let jobStartDate = this.jobDetailsRaw.map(job => {
                 let dt = new Date(job.startDate); // parse ISO string
                 let year = dt.getFullYear();
@@ -965,6 +1108,24 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
             if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(this.clockInTime.replace(' ', 'T'))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+
+            const jobRecord = this.getCurrentJobRecord();
+            const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
+            const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
+
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
+                return;
+            }
+
+            if (!this.validateClockOutDate(this.clockOutTime, jobEndReference)) {
+                return;
+            }
+            console.log('this.enteredManualPerDiem  ::', this.enteredManualPerDiem );
+            
+            if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
+                this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
                 return;
             }
 
@@ -1179,6 +1340,18 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
             if(new Date(entry.ClockOut.replace(' ', 'T')) <= new Date(entry.ClockIn.replace(' ', 'T'))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+
+            const jobRecord = this.getCurrentJobRecord();
+            const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
+            const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
+
+            if (!this.validateClockInDate(entry.ClockIn, jobStartReference)) {
+                return;
+            }
+
+            if (!this.validateClockOutDate(entry.ClockOut, jobEndReference)) {
                 return;
             }
 

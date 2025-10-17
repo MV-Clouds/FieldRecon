@@ -28,6 +28,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     @track currentWeekTravelTime;
     @track currentTotalWorkHours;
     @track timesheetDetailsRaw = [];
+    @track currentModalJobStartDateTime;
+    @track currentModalJobEndDateTime;
     @track timesheetColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
         { label: 'Job Number', fieldName: 'jobNumber', style: 'width: 10rem' },
@@ -58,6 +60,97 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     
     get weekTabClass() {
         return this.activeTab === 'week' ? 'active' : '';
+    }
+
+    extractDateKey(value) {
+        if (!value) {
+            return null;
+        }
+
+        if (value instanceof Date) {
+            return value.toISOString().slice(0, 10);
+        }
+
+        const str = value.toString().trim();
+        if (!str) {
+            return null;
+        }
+
+        if (str.length >= 10) {
+            return str.slice(0, 10);
+        }
+
+        return null;
+    }
+
+    addDaysToDateKey(dateKey, days) {
+        if (!dateKey || typeof dateKey !== 'string') {
+            return null;
+        }
+
+        const [year, month, day] = dateKey.split('-').map(Number);
+        if ([year, month, day].some(num => Number.isNaN(num))) {
+            return null;
+        }
+
+        const utcDate = new Date(Date.UTC(year, month - 1, day));
+        utcDate.setUTCDate(utcDate.getUTCDate() + days);
+        return utcDate.toISOString().slice(0, 10);
+    }
+
+    validateClockInDate(clockInValue, jobStartValue) {
+        const clockInDate = this.extractDateKey(clockInValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
+
+        if (clockInDate && jobStartDate && clockInDate !== jobStartDate) {
+            this.showToast('Error', 'Clock In time must be on the job start date', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    validateClockOutDate(clockOutValue, jobEndValue) {
+        const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobEndDate = this.extractDateKey(jobEndValue);
+
+        if (clockOutDate && jobEndDate) {
+            const nextDay = this.addDaysToDateKey(jobEndDate, 1);
+            if (clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
+                this.showToast('Error', 'Clock Out time must be on the job end date or the following day', 'error');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    get clockInMinBoundary() {
+        const reference = this.currentModalJobStartDateTime || this.clockInTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+
+    get clockInMaxBoundary() {
+        const reference = this.currentModalJobStartDateTime || this.clockInTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T23:59` : null;
+    }
+
+    get clockOutMinBoundary() {
+        const reference = this.currentModalJobEndDateTime || this.clockOutTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+
+    get clockOutMaxBoundary() {
+        const reference = this.currentModalJobEndDateTime || this.clockOutTime;
+        const dateKey = this.extractDateKey(reference);
+        if (!dateKey) {
+            return null;
+        }
+        const nextDay = this.addDaysToDateKey(dateKey, 1);
+        return nextDay ? `${nextDay}T23:59` : null;
     }
 
     /** 
@@ -197,12 +290,16 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                 
                                 this.todayJobList = this.todayJobList.map(job => {
                                     console.log('job :: ', job);
+                                    const rawStart = job.jobStartTime;
+                                    const rawEnd = job.jobEndTime;
                                     
                                     return {
                                         ...job,
+                                        jobStartTimeIso: rawStart,
+                                        jobEndTimeIso: rawEnd,
                                         jobId: job.jobId,
-                                        jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
-                                        jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
+                                        jobStartTime: rawStart ? rawStart.slice(0, 16).replace('T', ' ') : '',
+                                        jobEndTime: rawEnd ? rawEnd.slice(0, 16).replace('T', ' ') : '',
                                         mapMarkers: [{
                                             location: {
                                                 Street: job.jobStreet || '',
@@ -264,6 +361,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 const date = new Date(key);
                 normalizedApexData[date.toDateString()] = apexData[key].map(job => ({
                     ...job,
+                    jobStartTimeIso: job.jobStartTime,
+                    jobEndTimeIso: job.jobEndTime,
                     jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
                     jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
                     mapMarkers: [{
@@ -377,6 +476,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             this.selectedMobilizationId = selectedMob.mobId;
             this.clockInTime = selectedMob.jobStartTime?.slice(0, 16);
             this.clockOutTime = selectedMob.jobEndTime?.slice(0, 16);
+            this.currentModalJobStartDateTime = selectedMob.jobStartTimeIso || selectedMob.jobStartTime;
+            this.currentModalJobEndDateTime = selectedMob.jobEndTimeIso || selectedMob.jobEndTime;
         }
     }
 
@@ -394,6 +495,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             this.clockInTime = selectedMob.jobStartTime?.slice(0, 16);
             this.clockOutTime = selectedMob.jobEndTime?.slice(0, 16);
             this.previousClockInTime = selectedMob.clockInTime.slice(0, 16).replace('T', ' ');
+            this.currentModalJobStartDateTime = selectedMob.jobStartTimeIso || selectedMob.jobStartTime;
+            this.currentModalJobEndDateTime = selectedMob.jobEndTimeIso || selectedMob.jobEndTime;
         }
     }
 
@@ -426,6 +529,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         this.previousClockInTime = null;
         this.clockInTime = null;
         this.clockOutTime = null;
+        this.currentModalJobStartDateTime = null;
+        this.currentModalJobEndDateTime = null;
     }
 
     /** 
@@ -440,6 +545,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         this.previousClockInTime = null;
         this.clockOutTime = null;
         this.clockInTime = null;
+        this.currentModalJobStartDateTime = null;
+        this.currentModalJobEndDateTime = null;
     }
 
     /** 
@@ -454,11 +561,21 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            this.isLoading = true;
-
             const selectedRecordDetails = this.todayJobList.find(
                 record => record.mobId === this.selectedMobilizationId
             );
+
+            if (!selectedRecordDetails) {
+                this.showToast('Error', 'Unable to determine job details for the selected record', 'error');
+                return;
+            }
+
+            const jobStartReference = selectedRecordDetails?.jobStartTimeIso || selectedRecordDetails?.jobStartTime;
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
+                return;
+            }
+
+            this.isLoading = true;
 
             const params = {
                 actionType: 'clockIn',
@@ -517,8 +634,18 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 record => record.mobId === this.selectedMobilizationId
             );
 
+            if (!selectedRecordDetails) {
+                this.showToast('Error', 'Unable to determine job details for the selected record', 'error');
+                return;
+            }
+
             if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+
+            const jobEndReference = selectedRecordDetails?.jobEndTimeIso || selectedRecordDetails?.jobEndTime;
+            if (!this.validateClockOutDate(this.clockOutTime, jobEndReference)) {
                 return;
             }
             this.isLoading = true;

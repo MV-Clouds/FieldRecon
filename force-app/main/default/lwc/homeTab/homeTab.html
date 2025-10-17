@@ -248,7 +248,7 @@
                                     <div class="datetime-container">
                                         <label class="datetime-label required">Clock In DateTime</label>
                                         <div class="datetime-wrapper">
-                                            <input type="datetime-local" class="custom-datetime" data-field="clockIn" value={clockInTime} onchange={handleInputChange}/>
+                                            <input type="datetime-local" class="custom-datetime" data-field="clockIn" value={clockInTime} onchange={handleInputChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
                                         </div>
                                     </div>
                                 </div>
@@ -287,7 +287,7 @@
                                         <div class="datetime-container">
                                             <label class="datetime-label required">Clock Out DateTime</label>
                                             <div class="datetime-wrapper">
-                                                <input type="datetime-local" class="custom-datetime" data-field="clockOut" value={clockOutTime} onchange={handleInputChange}/>
+                                                <input type="datetime-local" class="custom-datetime" data-field="clockOut" value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
                                             </div>
                                         </div>
                                     </div>
