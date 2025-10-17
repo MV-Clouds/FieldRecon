@@ -64,7 +64,7 @@ public with sharing class BillingAndPaymentTabController {
 
             // Step 2: Fetch billings if approved scope entries exist
             List<Billing__c> billings = [
-                SELECT Id, Name, Status__c, Job__r.Job_Name__c, Job__r.Retainage__c,
+                SELECT Id, Name, Status__c, Job__r.Job_Name__c, Job__r.Retainage__c, Previous_Bill__c, Previous_Bill__r.Name,
                        Start_Date__c, End_Date__c, Sent_Date__c, Billing_Reference_Number__c
                 FROM Billing__c
                 WHERE Job__c = :jobId

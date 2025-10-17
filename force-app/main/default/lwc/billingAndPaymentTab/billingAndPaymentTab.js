@@ -75,7 +75,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         },
         { 
             label: 'Previous Billing', 
-            fieldName: 'wfrecon__Previous_Bill__c',
+            fieldName: 'wfrecon__Previous_Bill__r.Name',
             isLink: true,
             recordIdField: 'wfrecon__Previous_Bill__c', 
             style: 'width: 12rem'

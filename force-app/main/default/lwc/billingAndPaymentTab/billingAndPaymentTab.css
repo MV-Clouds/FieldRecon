@@ -459,7 +459,10 @@
 /* Disabled state for approve button */
 .approve-icon-btn.disabled,
 .approve-icon-btn[disabled],
-.approve-icon-btn[aria-disabled="true"] {
+.approve-icon-btn[aria-disabled="true"],
+.delete-icon-btn.disabled,
+.delete-icon-btn[disabled],
+.delete-icon-btn[aria-disabled="true"] {
     background-color: #f3f3f3 !important;
     border-color: #e0e0e0 !important;
     color: #a0a0a0 !important;

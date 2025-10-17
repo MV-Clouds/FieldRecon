@@ -113,7 +113,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     }
 
     get formattedCurrentPaymentDue() {
-        return this.formatCurrency(this.billingDetails.TotalDueThisBilling);
+        return this.formatCurrency(this.billingDetails.CurrentPaymentDue);
     }
 
     get formattedJobRetainage() {
@@ -134,6 +134,10 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
     get formattedTotalCompleted() {
         return this.formatCurrency(this.billingDetails.TotalCompletedAndStoredToDate);
+    }
+
+    get formattedLessPreviousCertificatedforPayment() {
+        return this.formatCurrency(this.billingDetails.LessPreviousCertificatedforPayment);
     }
 
     get formattedRetainageCompleted() {
@@ -444,7 +448,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 fieldValues['Status'] = this.billingDetails.Status;
             }
             if (this.billingDetails.RetainageOnBill !== this.originalBillingDetails.RetainageOnBill) {
-                fieldValues['RetainageOnBill'] = this.billingDetails.RetainageOnBill;
+                fieldValues['RetainageOnBill'] = parseFloat(this.billingDetails.RetainageOnBill);
             }
             if (this.billingDetails.SentDate !== this.originalBillingDetails.SentDate) {
                 fieldValues['SentDate'] = this.billingDetails.SentDate;

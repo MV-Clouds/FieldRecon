@@ -52,7 +52,7 @@
                     <div class="payment-due-value">{formattedBalanceToFinish}</div>
                 </div>
             </div>
-            <div class="billing-status-section">
+            <!-- <div class="billing-status-section">
                 <div class="status-label">Status</div>
                 <div class="status-input-container">
                     <lightning-combobox
@@ -64,7 +64,7 @@
                         variant="label-hidden">
                     </lightning-combobox>
                 </div>
-            </div>
+            </div> -->
         </div>
 
         <!-- Scrollable Content -->
@@ -104,7 +104,7 @@
                                 </template>
                                 {saveBillingButtonLabel}
                             </button>
-                            <button class="action-button form-btn" onclick={openAIAForm}>
+                            <!-- <button class="action-button form-btn" onclick={openAIAForm}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -113,7 +113,7 @@
                                     <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                                 Display AIA 702 Form
-                            </button>
+                            </button> -->
                         </div>
                     </div>
                 
@@ -149,6 +149,16 @@
                                     max="100">
                                 </lightning-input>
                             </div>
+                            <div class="field-group">
+                                <lightning-combobox
+                                    name="status"
+                                    label="Status"
+                                    value={billingDetails.Status}
+                                    placeholder="Select Status..."
+                                    options={statusOptions}
+                                    onchange={handleStatusChange}>
+                                </lightning-combobox>
+                            </div>
                         </div>
 
                         <!-- Billing Period Section -->
@@ -172,25 +182,23 @@
                                     data-field-name="applicationNumber">
                                 </lightning-input>
                             </div>
-                            <div class="field-row">
-                                <div class="field-group">
-                                    <lightning-input
-                                        label="Start Date"
-                                        type="date"
-                                        value={billingDetails.StartDate}
-                                        onchange={handleBillingFieldChange}
-                                        data-field-name="startDate">
-                                    </lightning-input>
-                                </div>
-                                <div class="field-group">
-                                    <lightning-input
-                                        label="End Date"
-                                        type="date"
-                                        value={billingDetails.EndDate}
-                                        onchange={handleBillingFieldChange}
-                                        data-field-name="endDate">
-                                    </lightning-input>
-                                </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Start Date"
+                                    type="date"
+                                    value={billingDetails.StartDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="startDate">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="End Date"
+                                    type="date"
+                                    value={billingDetails.EndDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="endDate">
+                                </lightning-input>
                             </div>
                             <div class="field-group">
                                 <lightning-input
@@ -241,11 +249,15 @@
                                     <span class="financial-value">{formattedTotalEarnedLessRetainage}</span>
                                 </div>
                                 <div class="financial-item">
-                                    <span class="financial-label">7. Current Payment Due:</span>
+                                    <span class="financial-label">7. Less Previous Certificated for Payment:</span>
+                                    <span class="financial-value">{formattedLessPreviousCertificatedforPayment}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">8. Current Payment Due:</span>
                                     <span class="financial-value">{formattedCurrentPaymentDue}</span>
                                 </div>
                                 <div class="financial-item">
-                                    <span class="financial-label">8. Balance to Finish + Retainage:</span>
+                                    <span class="financial-label">9. Balance to Finish + Retainage:</span>
                                     <span class="financial-value">{formattedBalanceToFinish}</span>
                                 </div>
                             </div>
