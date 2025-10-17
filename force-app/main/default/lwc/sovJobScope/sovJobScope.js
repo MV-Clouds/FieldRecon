@@ -770,6 +770,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     font-weight: 600 !important;
                     border-radius: 4px;
                 }
+
+                .accordion-container .slds-accordion__summary-content {
+                    font-size: medium;
+                }
                 
             `;
             

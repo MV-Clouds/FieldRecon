@@ -193,6 +193,7 @@
 .action-button {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     border: 1px solid #d8d8d8;
@@ -200,7 +201,6 @@
     background-color: #ffffff;
     color: #333;
     cursor: pointer;
-    font-size: 0.875rem;
     font-weight: 600;
     transition: all 0.2s ease;
     position: relative;
@@ -212,12 +212,17 @@
 .action-button:hover {
     background-color: rgb(244, 244, 255);
     border-color: rgba(94, 90, 219, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .action-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
+    pointer-events: none;
 }
 
 .action-button:active:not(:disabled) {
@@ -226,6 +231,8 @@
 
 .action-button svg {
     flex-shrink: 0;
+    width: 16px;
+    height: 16px;
 }
 
 /* Button Variants */
@@ -275,9 +282,21 @@
 }
 
 .save-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
     background-color: rgba(94, 90, 219, 1);
     color: white;
-    border-color: rgba(94, 90, 219, 1);
+    border: 1px solid rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    height: 36px;
+    min-width: 108px;
 }
 
 .save-button:hover:not(:disabled) {
@@ -292,6 +311,8 @@
     color: #ffffff;
     border-color: #6c757d;
     opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* Badge and Count Styles */
@@ -304,6 +325,25 @@
 .action-button.delete-btn:disabled .selected-count-badge {
     background-color: transparent;
     color: #6c757d;
+}
+
+.action-button.discard-btn {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.action-button.discard-btn:hover:not(:disabled) {
+    background-color: #5a6268;
+    border-color: #545b62;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+}
+
+.action-button.discard-btn:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
 }
 
 /* Column Specific Styles */
@@ -475,6 +515,7 @@
     color: white;
     padding: 0.4rem 1rem;
     background: rgba(94, 90, 219, 1);
+    border-radius: 1.25rem 1.25rem 0 0;
 }
 
 .popUpBody {
@@ -492,13 +533,22 @@
     gap: 1rem;
     padding: 1rem;
     background: white;
+    border-radius: 0 0 1.25rem 1.25rem;
+    border-top: 1px solid #e0e0e0;
+}
 
+/* Modal Container Styles */
+.slds-modal__container {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.slds-modal__content {
+    border-radius: 0;
 }
 
 .save-btn {
-    font-size: 1rem;
-    font-weight: 400;
-    line-height: 35px;
+    font-weight: 600;
     text-align: center;
     border: 1px solid rgba(94, 90, 219, 1);
     padding: 0px 20px;
@@ -509,6 +559,9 @@
     min-width: 108px;
     cursor: pointer;
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .save-btn:hover:not(:disabled) {
@@ -521,12 +574,12 @@
     border: 1px solid lightgray;
     background: lightgray;
     cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 .close-btn {
-    font-size: 1rem;
-    font-weight: 400;
-    line-height: 35px;
+    font-weight: 600;
     text-align: center;
     padding: 0px 20px;
     background: #FFFFFF;
@@ -537,6 +590,9 @@
     min-width: 108px;
     cursor: pointer;
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .close-btn:hover {
@@ -905,24 +961,6 @@
     margin-left: 8px;
 }
 
-/* Nested Table Action Buttons */
-.nested-table-header .action-buttons {
-    gap: 0.5rem;
-}
-
-.nested-table-header .action-button {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.8rem;
-    height: 32px;
-}
-
-.nested-table-header .refresh-btn {
-    background-color: rgba(94, 90, 219, 0.8);
-}
-
-.nested-table-header .refresh-btn:hover {
-    background-color: rgba(94, 90, 219, 1);
-}
 
 /* Modified Cell Highlighting */
 .modified-cell {
