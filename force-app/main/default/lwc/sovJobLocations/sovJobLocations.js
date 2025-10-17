@@ -903,12 +903,19 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             .filter(entry => entry.showProcessDetails)
             .map(entry => entry.Id);
         
+        // Clear preloaded data maps to force fresh data fetch
+        this.locationProcessMap.clear();
+        
+        // Reset process sorting to defaults
+        this.processSortField = 'wfrecon__Sequence__c';
+        this.processSortOrder = 'asc';
+        
         // Fetch fresh data
         this.fetchLocationEntries()
             .then(() => {
-                // Restore expanded state for previously expanded locations
+                // Restore expanded state for previously expanded locations with fresh data
                 if (expandedLocationIds.length > 0) {
-                    this.restoreExpandedStates(expandedLocationIds);
+                    this.restoreExpandedStatesWithFreshData(expandedLocationIds);
                 }
                 
                 // Clear any highlighting
@@ -940,7 +947,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: refreshNestedProcessDetails
-     * @description: Refresh process details for a specific location using preloaded data
+     * @description: Refresh process details for a specific location using fresh data fetch
      */
     refreshNestedProcessDetails(locationId) {
         try {
@@ -949,6 +956,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             if (!locationEntry) {
                 return;
             }
+            
+            // Set loading state for this specific location
+            locationEntry.isLoadingProcesses = true;
             
             // Clear any modifications for this location's processes
             if (this.modifiedProcessesByLocation.has(locationId)) {
@@ -962,45 +972,73 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             // Update global modifications flag
             this.hasModifications = this.modifiedProcesses.size > 0;
             
+            // Clear the cached process data for this location to force fresh fetch
+            this.locationProcessMap.delete(locationId);
             
-            // Use preloaded process data and immediately update the display
-            const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
-            
-            this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
-                if (entry.Id === locationId) {
-                    const updatedEntry = { ...entry };
+            // Trigger a fetch of fresh location entries to get updated process data
+            this.fetchLocationEntries()
+                .then(() => {
+                    // Get the fresh process data after fetchLocationEntries completes
+                    const freshProcesses = this.locationProcessMap.get(locationId) || [];
                     
-                    if (preloadedProcesses.length > 0) {
-                        const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
-                        updatedEntry.processDetails = processedDetails;
-                        updatedEntry.isLoadingProcesses = false;
-                    } else {
-                        updatedEntry.processDetails = [];
-                        updatedEntry.isLoadingProcesses = false;
-                    }
+                    // Update the specific location with fresh processed data
+                    this.filteredLocationEntries = this.filteredLocationEntries.map(entry => {
+                        if (entry.Id === locationId) {
+                            const updatedEntry = { ...entry };
+                            
+                            if (freshProcesses.length > 0) {
+                                const processedDetails = this.processProcessDetailsForDisplay(freshProcesses);
+                                updatedEntry.processDetails = processedDetails;
+                                updatedEntry.isLoadingProcesses = false;
+                            } else {
+                                updatedEntry.processDetails = [];
+                                updatedEntry.isLoadingProcesses = false;
+                            }
+                            
+                            return updatedEntry;
+                        }
+                        return entry;
+                    });
                     
-                    return updatedEntry;
-                }
-                return entry;
-            });
-            
-            // Apply sorting after the data is loaded
-            if (this.processSortField) {
-                setTimeout(() => {
-                    this.sortProcessData(locationId);
-                    this.updateProcessSortIcons(locationId);
-                    this.updateSliderDisplays(locationId);
-                }, 0);
-            } else {
-                // Update slider displays even without sorting
-                setTimeout(() => {
-                    this.updateSliderDisplays(locationId);
-                }, 0);
-            }
-            
-            this.showToast('Success', `Process details refreshed for ${locationEntry.Name}`, 'success');
+                    // Also update the main locationEntries array
+                    this.locationEntries = this.locationEntries.map(entry => {
+                        if (entry.Id === locationId) {
+                            const updatedEntry = { ...entry };
+                            const freshProcesses = this.locationProcessMap.get(locationId) || [];
+                            
+                            if (freshProcesses.length > 0) {
+                                const processedDetails = this.processProcessDetailsForDisplay(freshProcesses);
+                                updatedEntry.processDetails = processedDetails;
+                                updatedEntry.isLoadingProcesses = false;
+                            } else {
+                                updatedEntry.processDetails = [];
+                                updatedEntry.isLoadingProcesses = false;
+                            }
+                            
+                            return updatedEntry;
+                        }
+                        return entry;
+                    });
+                    
+                    // Apply sorting and update displays after fresh data is loaded
+                    setTimeout(() => {
+                        if (this.processSortField) {
+                            this.sortProcessData(locationId);
+                            this.updateProcessSortIcons(locationId);
+                        }
+                        this.updateSliderDisplays(locationId);
+                    }, 50);
+                    
+                    this.showToast('Success', `Process details refreshed for ${locationEntry.Name}`, 'success');
+                })
+                .catch(error => {
+                    console.error('Error fetching fresh process data:', error);
+                    locationEntry.isLoadingProcesses = false;
+                    this.showToast('Error', 'Unable to refresh process details. Please try again.', 'error');
+                });
             
         } catch (error) {
+            console.error('Error in refreshNestedProcessDetails:', error);
             this.showToast('Error', 'Unable to refresh process details. Please try again.', 'error');
         }
     }
@@ -1050,6 +1088,56 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             }, 300); // Increased delay to ensure fresh data is fully processed
         } catch (error) {
             // Error handled silently
+        }
+    }
+
+    /**
+     * Method Name: restoreExpandedStatesWithFreshData
+     * @description: Restore expanded states with fresh process data fetch similar to sovJobScope approach
+     */
+    restoreExpandedStatesWithFreshData(locationIds) {
+        try {
+            locationIds.forEach(locationId => {
+                const locationEntry = this.locationEntries.find(entry => entry.Id === locationId);
+                if (locationEntry) {
+                    locationEntry.showProcessDetails = true;
+                    locationEntry.isLoadingProcesses = true;
+                    
+                    // Get fresh process details from preloaded data after fetchLocationEntries
+                    const preloadedProcesses = this.locationProcessMap.get(locationId) || [];
+                    
+                    if (preloadedProcesses.length > 0) {
+                        // Process the fresh data for display
+                        const processedDetails = this.processProcessDetailsForDisplay(preloadedProcesses);
+                        
+                        // Update the location entry with fresh processed data
+                        locationEntry.processDetails = processedDetails;
+                        locationEntry.isLoadingProcesses = false;
+                    } else {
+                        locationEntry.processDetails = [];
+                        locationEntry.isLoadingProcesses = false;
+                    }
+                }
+            });
+            
+            // Trigger reactivity with fresh data
+            this.locationEntries = [...this.locationEntries];
+            this.applyFilters();
+            
+            // Update displays for all expanded locations with fresh data processing
+            setTimeout(() => {
+                locationIds.forEach(locationId => {
+                    // Apply process sorting to fresh data
+                    if (this.processSortField) {
+                        this.sortProcessData(locationId);
+                        this.updateProcessSortIcons(locationId);
+                    }
+                    // Update slider displays with fresh data
+                    this.updateSliderDisplays(locationId);
+                });
+            }, 100); // Shorter delay since data is already fresh from fetchLocationEntries
+        } catch (error) {
+            console.error('Error restoring expanded states with fresh data:', error);
         }
     }
 
