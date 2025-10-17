@@ -49,11 +49,11 @@ public with sharing class BillingDetailsPageController {
 
             // Query Billing Line Items directly
             List<wfrecon__Billing_Line_Item__c> billLineItems = [
-                SELECT Id, wfrecon__Billing__c, wfrecon__Scope_Entry__c, wfrecon__Scope_Entry__r.Name, wfrecon__Scope_Entry_Type__c, wfrecon__Scope_Contract_Value__c,
+                SELECT Id, wfrecon__Billing__c, wfrecon__Scope_Entry__c, wfrecon__Scope_Entry__r.Name, wfrecon__Scope_Entry_Type__c, wfrecon__Scope_Contract_Amount__c,
                        Previous_Billed_Value__c, Previous_Billed_Percent__c, wfrecon__This_Billing_Percent__c,
-                       Current_Process_Complete__c, wfrecon__Total_Complete_Amount__c, This_Billing_Value__c,
+                       Scope_Complete__c, wfrecon__Total_Billing_Value_Retainage__c, This_Billing_Value__c,
                        wfrecon__Due_This_Billing__c, wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
-                       wfrecon__Retainage_Amount_on_Bill_Line_Item__c
+                       wfrecon__This_Retainage_Amount__c
                 FROM wfrecon__Billing_Line_Item__c
                 WHERE wfrecon__Billing__c = :billingId
             ];
@@ -133,42 +133,142 @@ public with sharing class BillingDetailsPageController {
                 return 'No records to update';
             }
 
-            // Query existing Billing Line Items
+            // Query existing Billing Line Items with all necessary fields for calculations
             List<wfrecon__Billing_Line_Item__c> lineItems = [
-                SELECT Id, wfrecon__Scope_Contract_Value__c
+                SELECT Id,
+                       wfrecon__Scope_Contract_Amount__c,
+                       wfrecon__This_Retainage_Amount__c,
+                       wfrecon__This_Billing_Percent__c,
+                       wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
+                       wfrecon__Previous_Billed_Value__c,
+                       wfrecon__Total_Billed_Value__c,
+                       wfrecon__Total_Retainage_Amount__c,
+                       wfrecon__This_Billing_Value__c,
+                       wfrecon__Due_This_Billing__c,
+                       wfrecon__Previous_Bill_Line_Item__c,
+                       wfrecon__Remaining_Billing_Amount__c,
+                       wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Retainage__c,
+                       wfrecon__Scope_Entry__r.wfrecon__Contract_Value__c
                 FROM wfrecon__Billing_Line_Item__c
                 WHERE Id IN :recordIds
             ];
+
+            Set<Id> previousItemIds = new Set<Id>();
+            for (wfrecon__Billing_Line_Item__c item : lineItems) {
+                if (item.wfrecon__Previous_Bill_Line_Item__c != null) {
+                    previousItemIds.add(item.wfrecon__Previous_Bill_Line_Item__c);
+                }
+            }
+
+            Map<Id, wfrecon__Billing_Line_Item__c> previousItemsMap = new Map<Id, wfrecon__Billing_Line_Item__c>();
+            if (!previousItemIds.isEmpty()) {
+                previousItemsMap = new Map<Id, wfrecon__Billing_Line_Item__c>([
+                    SELECT Id,
+                           wfrecon__Total_Billed_Value__c,
+                           wfrecon__Total_Retainage_Amount__c,
+                           wfrecon__Remaining_Billing_Amount__c
+                    FROM wfrecon__Billing_Line_Item__c
+                    WHERE Id IN :previousItemIds
+                ]);
+            }
 
             List<wfrecon__Billing_Line_Item__c> itemsToUpdate = new List<wfrecon__Billing_Line_Item__c>();
 
             for (wfrecon__Billing_Line_Item__c item : lineItems) {
                 Map<String, Object> updates = updateMap.get(item.Id);
-                Boolean hasUpdates = false;
-                
-                // Handle This Billing Percent
+                if (updates == null || updates.isEmpty()) {
+                    continue;
+                }
+
+                Decimal contractAmount = item.wfrecon__Scope_Contract_Amount__c != null ? item.wfrecon__Scope_Contract_Amount__c : 0;
+                if (contractAmount == 0 && item.wfrecon__Scope_Entry__r?.wfrecon__Contract_Value__c != null) {
+                    contractAmount = item.wfrecon__Scope_Entry__r.wfrecon__Contract_Value__c;
+                }
+                Decimal jobRetainagePercent = item.wfrecon__Billing__r?.wfrecon__Job__r?.wfrecon__Retainage__c != null
+                    ? item.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Retainage__c
+                    : 0;
+
+                Decimal updatedBillingPercent = item.wfrecon__This_Billing_Percent__c != null ? item.wfrecon__This_Billing_Percent__c : 0;
+                Decimal updatedRetainagePercent = item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c != null
+                    ? item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c
+                    : jobRetainagePercent;
+
+                Boolean billingPercentProvided = false;
                 if (updates.containsKey('wfrecon__This_Billing_Percent__c')) {
-                    Decimal percent = (Decimal) updates.get('wfrecon__This_Billing_Percent__c');
-                    if (percent != null && item.wfrecon__Scope_Contract_Value__c != null) {
-                        Decimal calculatedValue = (item.wfrecon__Scope_Contract_Value__c * percent) / 100;
-                        item.wfrecon__This_Billing_Percent__c = percent;
-                        item.wfrecon__This_Billing_Value__c = calculatedValue;
-                        hasUpdates = true;
+                    Decimal providedBillingPercent = (Decimal) updates.get('wfrecon__This_Billing_Percent__c');
+                    if (providedBillingPercent != null) {
+                        updatedBillingPercent = providedBillingPercent;
+                        billingPercentProvided = true;
                     }
                 }
-                
-                // Handle Retainage Percent
+
+                Boolean retainagePercentProvided = false;
                 if (updates.containsKey('wfrecon__Retainage_Percent_on_Bill_Line_Item__c')) {
-                    Decimal retainagePercent = (Decimal) updates.get('wfrecon__Retainage_Percent_on_Bill_Line_Item__c');
-                    if (retainagePercent != null) {
-                        item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c = retainagePercent;
-                        hasUpdates = true;
+                    Decimal providedRetainagePercent = (Decimal) updates.get('wfrecon__Retainage_Percent_on_Bill_Line_Item__c');
+                    if (providedRetainagePercent != null) {
+                        updatedRetainagePercent = providedRetainagePercent;
+                        retainagePercentProvided = true;
                     }
                 }
-                
-                if (hasUpdates) {
-                    itemsToUpdate.add(item);
+
+                if (!billingPercentProvided && !retainagePercentProvided) {
+                    continue;
                 }
+
+                Decimal previousTotalBilled = item.wfrecon__Previous_Billed_Value__c != null ? item.wfrecon__Previous_Billed_Value__c : 0;
+                Decimal previousTotalRetainage = 0;
+                Decimal previousRemainingAmount = 0;
+
+                if (item.wfrecon__Previous_Bill_Line_Item__c != null && previousItemsMap.containsKey(item.wfrecon__Previous_Bill_Line_Item__c)) {
+                    wfrecon__Billing_Line_Item__c prevItem = previousItemsMap.get(item.wfrecon__Previous_Bill_Line_Item__c);
+                    if (prevItem != null) {
+                        if (prevItem.wfrecon__Total_Billed_Value__c != null) {
+                            previousTotalBilled = prevItem.wfrecon__Total_Billed_Value__c;
+                        }
+                        if (prevItem.wfrecon__Total_Retainage_Amount__c != null) {
+                            previousTotalRetainage = prevItem.wfrecon__Total_Retainage_Amount__c;
+                        }
+                        if (prevItem.wfrecon__Remaining_Billing_Amount__c != null) {
+                            previousRemainingAmount = prevItem.wfrecon__Remaining_Billing_Amount__c;
+                        }
+                    }
+                }
+
+                if (previousTotalRetainage == 0 && item.wfrecon__Total_Retainage_Amount__c != null) {
+                    Decimal currentRetainage = item.wfrecon__This_Retainage_Amount__c != null ? item.wfrecon__This_Retainage_Amount__c : 0;
+                    Decimal inferredPreviousRetainage = item.wfrecon__Total_Retainage_Amount__c - currentRetainage;
+                    if (inferredPreviousRetainage > 0) {
+                        previousTotalRetainage = inferredPreviousRetainage;
+                    }
+                }
+
+                if (previousRemainingAmount == 0 && item.wfrecon__Remaining_Billing_Amount__c != null) {
+                    previousRemainingAmount = item.wfrecon__Remaining_Billing_Amount__c;
+                }
+
+                if (previousRemainingAmount == 0) {
+                    // Fallback to contract less previous billed amount when remaining is not available
+                    previousRemainingAmount = contractAmount - previousTotalBilled;
+                }
+                if (previousRemainingAmount < 0) {
+                    previousRemainingAmount = 0;
+                }
+
+                Decimal grossBillingAmount = (contractAmount * updatedBillingPercent) / 100;
+                Decimal retainageAmount = (previousRemainingAmount * updatedRetainagePercent) / 100;
+                Decimal totalRetainageAmount = previousTotalRetainage + retainageAmount;
+                Decimal thisBillingValue = grossBillingAmount - totalRetainageAmount - previousTotalBilled;
+                Decimal totalBilledValue = previousTotalBilled + thisBillingValue;
+
+                item.wfrecon__This_Billing_Percent__c = updatedBillingPercent;
+                item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c = updatedRetainagePercent;
+                item.wfrecon__This_Retainage_Amount__c = retainageAmount;
+                item.wfrecon__Total_Retainage_Amount__c = totalRetainageAmount;
+                item.wfrecon__This_Billing_Value__c = thisBillingValue;
+                item.wfrecon__Total_Billed_Value__c = totalBilledValue;
+                // item.wfrecon__Due_This_Billing__c = thisBillingValue;
+
+                itemsToUpdate.add(item);
             }
 
             if (!itemsToUpdate.isEmpty()) {

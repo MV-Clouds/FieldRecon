@@ -180,7 +180,7 @@ public with sharing class BillingAndPaymentTabController {
             Map<Id, Billing_Line_Item__c> prevBillItemMap = new Map<Id, Billing_Line_Item__c>();
             if (String.isNotBlank(prevBill)) {
                 for (Billing_Line_Item__c prevItem : [
-                    SELECT Id, Scope_Entry__c, Total_Complete_Percent__c
+                    SELECT Id, Scope_Entry__c, Total_Complete_Percent__c, This_Billing_Percent__c, Remaining_Billing_Amount__c, Total_Retainage_Amount__c, Total_Billed_Value__c
                     FROM Billing_Line_Item__c
                     WHERE Billing__c = :prevBill
                 ]) {
@@ -204,19 +204,57 @@ public with sharing class BillingAndPaymentTabController {
                 Billing_Line_Item__c newItem = new Billing_Line_Item__c();
                 newItem.Billing__c = newBilling.Id;
                 newItem.Scope_Entry__c = se.Id;
+                newItem.Scope_Contract_Amount__c = se.Contract_Value__c;
+                newItem.Scope_Complete__c = se.Completed_Percentage__c;
                 newItem.Retainage_Percent_on_Bill_Line_Item__c = job.Retainage__c;
-
+                
                 // If matching previous bill item exists
                 if (prevBillItemMap.containsKey(se.Id)) {
                     Billing_Line_Item__c prevItem = prevBillItemMap.get(se.Id);
+                    System.debug('prevItem: ' + prevItem);
+                    System.debug('prevItem: ' + JSON.serialize(prevItem));
                     newItem.Previous_Bill_Line_Item__c = prevItem.Id;
+                    
+                    // Set This Billing Percent as max of Previous Total Complete % and Current Completed %
+                    Decimal prevCompletePercent = prevItem.This_Billing_Percent__c != null ? prevItem.This_Billing_Percent__c : 0;
+                    Decimal currentCompletePercent = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
+                    newItem.This_Billing_Percent__c = Math.max(prevCompletePercent, currentCompletePercent);
 
-                    // Calculate Previous Billed Value
-                    if (se.Contract_Value__c != null && prevItem.Total_Complete_Percent__c != null) {
-                        newItem.Previous_Billed_Value__c = (se.Contract_Value__c * prevItem.Total_Complete_Percent__c) / 100;
-                    }
-                }
+                    System.debug('prevItem.Remaining_Billing_Amount__c: ' + prevItem.Remaining_Billing_Amount__c);
+                    System.debug('se.Completed_Percentage__c: ' + se.Completed_Percentage__c);
 
+                    newItem.This_Retainage_Amount__c = (prevItem.Remaining_Billing_Amount__c * newItem.Retainage_Percent_on_Bill_Line_Item__c) / 100;
+                    newItem.Total_Retainage_Amount__c = prevItem.Total_Retainage_Amount__c + newItem.This_Retainage_Amount__c;
+                    System.debug('newItem.Total_Retainage_Amount__c: ' + newItem.Total_Retainage_Amount__c);
+
+                    System.debug('se.Contract_Value__c: ' + se.Contract_Value__c);
+                    System.debug('newItem.This_Billing_Percent__c: ' + newItem.This_Billing_Percent__c);
+                    System.debug('newItem.This_Retainage_Amount__c: ' + newItem.This_Retainage_Amount__c);
+                    System.debug('prevItem.Total_Billed_Value__c: ' + prevItem.Total_Billed_Value__c);
+
+                    newItem.This_Billing_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.Total_Retainage_Amount__c - prevItem.Total_Billed_Value__c;
+                    
+                    System.debug('newItem.This_Billing_Value__c: ' + newItem.This_Billing_Value__c);
+
+                    newItem.Total_Billed_Value__c = prevItem.Total_Billed_Value__c + newItem.This_Billing_Value__c;
+                    
+                    System.debug('newItem.Total_Billed_Value__c: ' + newItem.Total_Billed_Value__c);
+                    newItem.Previous_Billed_Value__c = prevItem.Total_Billed_Value__c;
+                    
+                    System.debug('newItem.Previous_Billed_Value__c: ' + newItem.Previous_Billed_Value__c);
+
+                    System.debug('newItem.This_Retainage_Amount__c: ' + newItem.This_Retainage_Amount__c);
+                    System.debug('prevItem.Total_Retainage_Amount__c: ' + prevItem.Total_Retainage_Amount__c);
+                    
+                } else {
+                    // No previous bill item, use current completed percentage
+                    newItem.This_Billing_Percent__c = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
+                    newItem.This_Retainage_Amount__c = (se.Contract_Value__c * newItem.Retainage_Percent_on_Bill_Line_Item__c) / 100;
+                    newItem.Total_Retainage_Amount__c = newItem.This_Retainage_Amount__c;
+                    newItem.This_Billing_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.This_Retainage_Amount__c;
+                    newItem.Total_Billed_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.Total_Retainage_Amount__c;
+                }              
+                
                 billLinesToInsert.add(newItem);
             }
 

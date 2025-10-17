@@ -36,7 +36,7 @@ public with sharing class PaymentDetailsPageController {
             List<wfrecon__Payment_Line_Item__c> paymentLineItems = [
                 SELECT Id, wfrecon__Billing_Line_Item__c, wfrecon__Amount_Received__c,
                        wfrecon__Billing_Line_Item__r.wfrecon__Scope_Entry__r.Name,
-                       wfrecon__Billing_Line_Item__r.wfrecon__Scope_Contract_Value__c,
+                       wfrecon__Billing_Line_Item__r.wfrecon__Scope_Contract_Amount__c,
                        wfrecon__Billing_Line_Item__r.wfrecon__This_Billing_Value__c,
                        wfrecon__Billing_Line_Item__r.wfrecon__Scope_Entry_Type__c
                 FROM wfrecon__Payment_Line_Item__c

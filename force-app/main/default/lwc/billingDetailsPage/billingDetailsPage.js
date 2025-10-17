@@ -34,6 +34,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     @track isSavingBillingInfo = false;
     @track hasBillingChanges = false;
     @track statusOptions = [];
+    @track pdfTemplate = false;
 
     // Get object metadata (to access record type ID)
     @wire(getObjectInfo, { objectApiName: BILLING_OBJECT })
@@ -272,15 +273,15 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return {
             Id: item.Id,
             scopeEntryName: item.wfrecon__Scope_Entry__r.Name || '-',
-            contractValue: this.formatCurrency(item.wfrecon__Scope_Contract_Value__c),
+            contractValue: this.formatCurrency(item.wfrecon__Scope_Contract_Amount__c),
             previousBilledPercent: this.formatPercent(item.wfrecon__Previous_Billed_Percent__c),
             previousBilledAmount: this.formatCurrency(item.wfrecon__Previous_Billed_Value__c),
-            currentCompletePercent: this.formatPercent(item.wfrecon__Current_Process_Complete__c),
+            currentCompletePercent: this.formatPercent(item.wfrecon__Scope_Complete__c),
             thisBillingCompletePercent: this.formatPercent(item.wfrecon__This_Billing_Percent__c),
-            totalCompleteAmount: this.formatCurrency(item.wfrecon__Total_Complete_Amount__c),
+            totalCompleteAmount: this.formatCurrency(item.wfrecon__Total_Billing_Value_Retainage__c),
             thisBillingAmount: this.formatCurrency(item.wfrecon__This_Billing_Value__c),
             retainagePercent: this.formatPercent(item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c),
-            retainageAmount: this.formatCurrency(item.wfrecon__Retainage_Amount_on_Bill_Line_Item__c),
+            retainageAmount: this.formatCurrency(item.wfrecon__This_Retainage_Amount__c),
             dueThisBilling: this.formatCurrency(item.wfrecon__Due_This_Billing__c),
             isEditingThisBillingPercent: false,
             isEditingRetainagePercent: false,
@@ -289,14 +290,16 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             retainagePercentCellClass: 'editable-cell',
             
             // Raw values for calculations
-            rawScopeContractValue: item.wfrecon__Scope_Contract_Value__c || 0,
+            rawScopeContractValue: item.wfrecon__Scope_Contract_Amount__c || 0,
             rawPreviousBilledAmount: item.wfrecon__Previous_Billed_Value__c || 0,
-            rawTotalCompleteAmount: item.wfrecon__Total_Complete_Amount__c || 0,
+            rawTotalCompleteAmount: item.wfrecon__Total_Billing_Value_Retainage__c || 0,
             rawThisBillingAmount: item.wfrecon__This_Billing_Value__c || 0,
             rawRetainagePercent: item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0,
-            rawRetainageAmount: item.wfrecon__Retainage_Amount_on_Bill_Line_Item__c || 0,
+            rawRetainageAmount: item.wfrecon__This_Retainage_Amount__c || 0,
             rawDueThisBilling: item.wfrecon__Due_This_Billing__c || 0,
-            rawThisBillingPercent: item.wfrecon__This_Billing_Percent__c || 0
+            rawThisBillingPercent: item.wfrecon__This_Billing_Percent__c || 0,
+            rawPreviousBilledPercent: item.wfrecon__Previous_Billed_Percent__c || 0,
+            rawCurrentCompletePercent: item.wfrecon__Scope_Complete__c || 0
         };
     }
 
@@ -557,7 +560,10 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             const fieldName = event.target.dataset.fieldName;
             console.log('Input Change - RecordId:', recordId, 'Field:', fieldName, 'New Value:', event.target.value);
             
-            const newValue = parseFloat(event.target.value) || 0;
+            let newValue = parseFloat(event.target.value) || 0;
+            
+            // Apply validation based on field type
+            newValue = this.validateFieldValue(recordId, fieldName, newValue, event.target);
             
             // Update the value in the appropriate array
             this.updateItemValue(recordId, fieldName, newValue);
@@ -584,6 +590,67 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             this.calculateTotals();
         } catch (error) {
             console.error('Error in handleCellInputChange:', error);
+        }
+    }
+
+    /** 
+     * Method Name: validateFieldValue
+     * @description: Validates field values based on business rules and constraints.
+     */
+    validateFieldValue(recordId, fieldName, newValue, inputElement) {
+        try {
+            // Find the current item to get previous and current complete percentages
+            const contractItem = this.contractLineItems.find(item => item.Id === recordId);
+            const changeOrderItem = this.changeOrderLineItems.find(item => item.Id === recordId);
+            const currentItem = contractItem || changeOrderItem;
+            
+            if (!currentItem) {
+                return newValue;
+            }
+
+            // Apply constraints based on field type
+            if (fieldName === 'This_Billing_Percent__c') {
+                // This Billing Complete % validation
+                // Must be between 0% and 100%
+                if (newValue < 0) {
+                    newValue = 0;
+                    inputElement.value = newValue;
+                    this.showToast('Warning', 'This Billing Complete % cannot be less than 0%', 'warning');
+                } else if (newValue > 100) {
+                    newValue = 100;
+                    inputElement.value = newValue;
+                    this.showToast('Warning', 'This Billing Complete % cannot be more than 100%', 'warning');
+                } else {
+                    // Must be >= max(Previous Billed %, Current Complete %)
+                    const prevBilledPercent = currentItem.rawPreviousBilledPercent || 0;
+                    const currentCompletePercent = currentItem.rawCurrentCompletePercent || 0;
+                    const minAllowedPercent = Math.max(prevBilledPercent, currentCompletePercent);
+                    
+                    if (newValue < minAllowedPercent) {
+                        newValue = minAllowedPercent;
+                        inputElement.value = newValue;
+                        this.showToast('Warning', 
+                            `This Billing Complete % must be at least ${minAllowedPercent.toFixed(2)}% (max of Previous Billed % and Current Complete %)`, 
+                            'warning');
+                    }
+                }
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                // Retainage % validation - must be between 0% and 100%
+                if (newValue < 0) {
+                    newValue = 0;
+                    inputElement.value = newValue;
+                    this.showToast('Warning', 'Retainage % cannot be less than 0%', 'warning');
+                } else if (newValue > 100) {
+                    newValue = 100;
+                    inputElement.value = newValue;
+                    this.showToast('Warning', 'Retainage % cannot be more than 100%', 'warning');
+                }
+            }
+
+            return newValue;
+        } catch (error) {
+            console.error('Error in validateFieldValue:', error);
+            return newValue;
         }
     }
 
@@ -761,13 +828,17 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         console.log('Change order item:', changeOrderItem);
         
         if (contractItem) {
-            this.modifiedContractItems.set(recordId, { [fieldName]: newValue });
+            const existingModifications = this.modifiedContractItems.get(recordId) || {};
+            existingModifications[fieldName] = newValue;
+            this.modifiedContractItems.set(recordId, existingModifications);
             console.log('Modified Contract Items Map:', this.modifiedContractItems);
             
             this.hasContractModifications = this.modifiedContractItems.size > 0;
             console.log('Has Contract Modifications:', this.hasContractModifications);
         } else if (changeOrderItem) {
-            this.modifiedChangeOrderItems.set(recordId, { [fieldName]: newValue });
+            const existingModifications = this.modifiedChangeOrderItems.get(recordId) || {};
+            existingModifications[fieldName] = newValue;
+            this.modifiedChangeOrderItems.set(recordId, existingModifications);
             this.hasChangeOrderModifications = this.modifiedChangeOrderItems.size > 0;
         }
     }
@@ -968,10 +1039,15 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
     openAIAForm(){
         // Replace 'MyVfPage' with your actual Visualforce page name
-        const vfPageUrl = '/apex/AIA702FormPage?id=' + this.recordId;
+        // const vfPageUrl = '/apex/AIA702FormPage?id=' + this.recordId;
 
         // Opens in a new browser tab
-        window.open(vfPageUrl, '_blank');
+        // window.open(vfPageUrl, '_blank');
+        this.pdfTemplate = true;
+    }
+
+    handleClose() {
+        this.pdfTemplate = false;
     }
 
     /** 

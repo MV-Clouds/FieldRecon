@@ -133,31 +133,20 @@
                                 <label class="field-label">Address</label>
                                 <div class="field-value readonly">401 Weathervane Avenue, Ann Arbor, MI, 48</div>
                             </div>
-                            <div class="field-row">
-                                <div class="field-group">
-                                    <label class="field-label">Job Retainage</label>
-                                    <div class="field-value readonly">{formattedJobRetainage}</div>
-                                </div>
-                                <div class="field-group">
-                                    <lightning-input
-                                        label="Billing Retainage (%)"
-                                        type="number"
-                                        value={billingDetails.RetainageOnBill}
-                                        onchange={handleBillingFieldChange}
-                                        data-field-name="retainage"
-                                        step="0.01"
-                                        min="0"
-                                        max="100">
-                                    </lightning-input>
-                                </div>
+                            <div class="field-group">
+                                <label class="field-label">Job Retainage</label>
+                                <div class="field-value readonly">{formattedJobRetainage}</div>
                             </div>
                             <div class="field-group">
                                 <lightning-input
-                                    label="Sent Date"
-                                    type="date"
-                                    value={billingDetails.SentDate}
+                                    label="Billing Retainage (%)"
+                                    type="number"
+                                    value={billingDetails.RetainageOnBill}
                                     onchange={handleBillingFieldChange}
-                                    data-field-name="sentDate">
+                                    data-field-name="retainage"
+                                    step="0.01"
+                                    min="0"
+                                    max="100">
                                 </lightning-input>
                             </div>
                         </div>
@@ -165,10 +154,6 @@
                         <!-- Billing Period Section -->
                         <div class="billing-section">
                             <h4 class="section-title">Billing Period</h4>
-                            <div class="field-group">
-                                <label class="field-label">Recurring Billing</label>
-                                <div class="field-value readonly">Recurring Billing</div>
-                            </div>
                             <div class="field-group">
                                 <lightning-input
                                     label="Bill Ref"
@@ -214,6 +199,15 @@
                                     value={billingDetails.PaymentDueDate}
                                     onchange={handleBillingFieldChange}
                                     data-field-name="paymentDueDate">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Sent Date"
+                                    type="date"
+                                    value={billingDetails.SentDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="sentDate">
                                 </lightning-input>
                             </div>
                         </div>
@@ -386,7 +380,7 @@
                                                 </template>
                                             </td>
                                             <td class="data-cell center-trancate-text">{item.retainageAmount}</td>
-                                            <td class="data-cell center-trancate-text">{item.dueThisBilling}</td>
+                                            <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
                                         </tr>
                                     </template>
                                     <!-- Totals Row -->
@@ -402,7 +396,7 @@
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.totalCompleteAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.retainageAmount}</strong></td>
-                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.dueThisBilling}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.thisBillingAmount}</strong></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -544,7 +538,7 @@
                                                 </template>
                                             </td>
                                             <td class="data-cell center-trancate-text">{item.retainageAmount}</td>
-                                            <td class="data-cell center-trancate-text">{item.dueThisBilling}</td>
+                                            <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
                                         </tr>
                                     </template>
                                     <!-- Totals Row -->
@@ -560,7 +554,7 @@
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.totalCompleteAmount}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.retainageAmount}</strong></td>
-                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.dueThisBilling}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.thisBillingAmount}</strong></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -575,4 +569,8 @@
             </div> <!-- End scrollable-content -->
         </div>
     </div>
+
+    <template if:true={pdfTemplate}>
+        <c-billing-p-d-f-generator record-id={recordId} onclose={handleClose}></c-billing-p-d-f-generator>
+    </template>
 </template>
