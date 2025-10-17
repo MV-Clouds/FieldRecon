@@ -206,6 +206,7 @@
     position: relative;
     white-space: nowrap;
     height: 36px;
+    min-width: 108px;
 }
 
 .action-button:hover {
@@ -235,7 +236,9 @@
 }
 
 .action-button.add-btn:hover {
-    background-color: rgba(94, 90, 219, 0.9);
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
     border-color: rgba(94, 90, 219, 0.9);
 }
 
@@ -248,6 +251,8 @@
 .action-button.delete-btn:hover:not(:disabled) {
     background-color: #c82333;
     border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
 }
 
 .action-button.delete-btn:disabled {
@@ -263,7 +268,9 @@
 }
 
 .action-button.refresh-btn:hover {
-    background-color: rgba(94, 90, 219, 0.9);
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
     border-color: rgba(94, 90, 219, 0.9);
 }
 
@@ -274,7 +281,9 @@
 }
 
 .save-button:hover:not(:disabled) {
-    background-color: rgba(94, 90, 219, 0.9);
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
     border-color: rgba(94, 90, 219, 0.9);
 }
 
@@ -496,6 +505,16 @@
     background: rgba(94, 90, 219, 1);
     color: white;
     border-radius: 5px;
+    height: 36px;
+    min-width: 108px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .save-btn:disabled {
@@ -514,11 +533,17 @@
     border: 1px solid rgba(94, 90, 219, 1);
     color: rgba(94, 90, 219, 1);
     border-radius: 5px;
+    height: 36px;
+    min-width: 108px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .close-btn:hover {
     background: rgb(244, 244, 255);
     border-color: rgba(94, 90, 219, 0.8);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.2);
 }
 
 /* Nested Table Styles */

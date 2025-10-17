@@ -347,7 +347,8 @@
     transition: all 0.2s ease;
     position: relative;
     white-space: nowrap;
-    height: 32px;
+    height: 36px;
+    min-width: 108px;
 }
 
 .action-button:hover {
@@ -377,7 +378,9 @@
 
 .action-button.add-btn:hover:not(:disabled),
 .action-button.refresh-btn:hover:not(:disabled) {
-    background-color: rgba(94, 90, 219, 0.9);
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
     border-color: rgba(94, 90, 219, 0.9);
 }
 
@@ -397,6 +400,8 @@
 .action-button.delete-btn:hover:not(:disabled) {
     background-color: #c82333;
     border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
 }
 
 .action-button.delete-btn:disabled {
@@ -617,6 +622,16 @@
     background: rgba(94, 90, 219, 1);
     color: white;
     border-radius: 5px;
+    height: 36px;
+    min-width: 108px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .save-btn:disabled {
@@ -637,11 +652,17 @@
     border: 1px solid rgba(94, 90, 219, 1);
     color: rgba(94, 90, 219, 1);
     border-radius: 5px;
+    height: 36px;
+    min-width: 108px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .close-btn:hover {
     background: rgb(244, 244, 255);
     border-color: rgba(94, 90, 219, 0.8);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.2);
 }
 
 /* Process Modal Button Styles */
@@ -660,6 +681,16 @@
     color: white;
     border: 1px solid rgba(94, 90, 219, 1);
     border-radius: 5px;
+    height: 36px;
+    min-width: 108px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.save-btn.process-btn:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .save-btn.process-btn:disabled {
@@ -673,11 +704,17 @@
     border: 1px solid rgba(94, 90, 219, 1);
     color: rgba(94, 90, 219, 1);
     border-radius: 5px;
+    height: 36px;
+    min-width: 108px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .close-btn.process-btn:hover {
     background: rgb(244, 244, 255);
     border-color: rgba(94, 90, 219, 0.8);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.2);
 }
 
 /* Modal Size Variations */
@@ -1071,7 +1108,8 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    height: 32px;
+    height: 36px;
+    min-width: 108px;
     justify-content: center;
     white-space: nowrap;
 }
@@ -1092,6 +1130,8 @@
 .add-process-btn.refresh-btn:hover {
     background-color: #218838;
     border-color: #1e7e34;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
 }
 
 /* Delete button specific styling for process actions */
@@ -1104,6 +1144,8 @@
 .add-process-btn.delete-btn:hover:not(:disabled) {
     background-color: #c82333;
     border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
 }
 
 .add-process-btn.delete-btn:disabled {
@@ -1725,7 +1767,8 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    height: 32px;
+    height: 36px;
+    min-width: 108px;
     justify-content: center;
     white-space: nowrap;
     background-color: rgba(94, 90, 219, 1);
@@ -1734,7 +1777,9 @@
 }
 
 .save-button:hover:not(:disabled) {
-    background-color: rgba(94, 90, 219, 0.9);
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
     border-color: rgba(94, 90, 219, 0.9);
 }
 

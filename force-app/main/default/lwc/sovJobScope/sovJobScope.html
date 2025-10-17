@@ -1,6 +1,6 @@
 <template>
     <template if:true={isLoading}>
-        <lightning-spinner alternative-text="Loading"></lightning-spinner>
+        <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
     </template>
 
     <div class="main-card">
@@ -534,7 +534,7 @@
                                                         
                                                         <template if:true={entry.isLoadingProcesses}>
                                                             <div class="process-loading">
-                                                                <lightning-spinner alternative-text="Loading process details" size="small"></lightning-spinner>
+                                                                <lightning-spinner alternative-text="Loading process details" variant="brand" size="medium"></lightning-spinner>
                                                             </div>
                                                         </template>
                                                         
@@ -1063,7 +1063,7 @@
                                                         
                                                         <template if:true={entry.isLoadingProcesses}>
                                                             <div class="process-loading">
-                                                                <lightning-spinner alternative-text="Loading process details" size="small"></lightning-spinner>
+                                                                <lightning-spinner alternative-text="Loading process details" variant="brand" size="medium"></lightning-spinner>
                                                             </div>
                                                         </template>
                                                         
