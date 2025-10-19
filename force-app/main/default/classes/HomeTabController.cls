@@ -42,7 +42,7 @@ public with sharing class HomeTabController {
             }
 
             if(currentUserContact == null) {
-                throw new AuraHandledException('No associated Contact found for the current user.');
+                System.debug('No associated Contact found for the current user.');
             }
 
             // Compute start/end datetime
@@ -242,7 +242,7 @@ public with sharing class HomeTabController {
             }
 
             if(currentUserContact == null) {
-                throw new AuraHandledException('No associated Contact found for the current user.');
+                System.debug('No associated Contact found for the current user.');
             }
             
             Date todayDate = Date.today();

@@ -841,7 +841,7 @@ public with sharing class JobDetailsPageController {
                     utcDateTimeStr += ':00';
                 } else {
                     // Invalid format
-                    throw new AuraHandledException('Invalid datetime format: ' + utcDateTimeStr);
+                    System.debug('Invalid datetime format: ' + utcDateTimeStr);
                 }
             }
     
