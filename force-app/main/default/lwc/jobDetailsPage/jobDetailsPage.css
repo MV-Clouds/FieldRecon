@@ -39,7 +39,7 @@
     border-radius: 8px;
     height: 100%;
     background-color: transparent;
-    margin: 16px 0;
+    /* margin: 16px 0; */
     /* scroll-behavior: smooth;
     scrollbar-width: thin;
     scrollbar-color: rgba(94, 90, 219, 1) transparent; */
@@ -128,6 +128,51 @@
     width: 320px;
 }
 
+.header-tab-navigation.tab-navigation {
+    border: 1px solid var(--primary-theme-color, #5a5adb);
+    border-radius: 0.4rem;
+    overflow: hidden;
+    height: 36px;
+}
+
+.main-resources-edit-div .tab-navigation{
+    max-width: 100%;
+}
+
+.tab-navigation button {
+    background: transparent;
+    border: none;
+    padding-inline: 0.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 14px;
+    line-height: 1rem;
+    font-weight: 600;
+    color: #585858;
+    transition: all 0.1s ease;
+    white-space: nowrap;
+    min-width: fit-content;
+    position: relative;
+}
+
+.tab-navigation .header-tab-nav-btn.active {
+    color: white !important;
+    background: #5a5adb !important;
+    border: none !important;
+}
+
+.tab-navigation .border-inline-nav-btn{
+  border-inline: 1px solid  #5a5adb;
+}
+
+.tab-navigation button:hover {
+    background: #ebf3f6;
+    color: var(--primary-theme-color, #5a5adb);
+}
+
 /* Pop-up */
 .pop-up {
     scrollbar-width: none;
@@ -202,10 +247,6 @@
     width: 100%;
 }
 
-.header-container {
-    align-items: center;
-}
-
 .title {
     font-size: 24px;
     font-weight: 700;
@@ -234,11 +275,6 @@
     align-items: center;
     gap: 1rem;
     margin-right: 5rem;
-}
-
-.date-input {
-    border: 1px solid #d0d0ff;
-    color: #777777;
 }
 
 .arrow-button {
@@ -368,8 +404,7 @@
 .btnContainer {
     display: flex;
     justify-content: right;
-    margin-top: 1rem;
-    margin-right: 1rem;
+    margin-bottom: 1rem;
 }
 
 .addTimesheetBtn{

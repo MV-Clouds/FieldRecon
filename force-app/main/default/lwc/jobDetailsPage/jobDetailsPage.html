@@ -6,19 +6,7 @@
     </template>
 
     <div class="wrapper">
-        <div class="header-container">
-            <h1 class="title">Time Log Manager</h1>
-        </div>
-
         <div class="filter-bar">
-            <!-- <div class="search-button-container">
-                <div class="search-container">
-                    <div class="search-icon">
-                        <lightning-icon icon-name="utility:search" size="x-small"></lightning-icon>
-                    </div>
-                    <input type="search" class="slds-input" placeholder="Search Jobs by Name or Number" onkeyup={handleSearch} />
-                </div>
-            </div> -->
             <div class="search-div">
                 <lightning-input type="search" variant="label-hidden" placeholder="Search Jobs by Name or Number" onchange={handleSearch} value={searchTerm}></lightning-input>
             </div>
@@ -53,12 +41,10 @@
                 </div>
             </template>
 
-            <div class="view-toggle">
-                <lightning-button-group>
-                    <button class={dayClass} onclick={switchToDayView}>Day</button>
-                    <button class={weekClass} onclick={switchToWeekView}>Week</button>
-                    <button class={customClass} onclick={switchToCustomView}>Custom</button>
-                </lightning-button-group>
+            <div class="header-tab-navigation tab-navigation">
+                <button class={dayClass} onclick={switchToDayView}>Day</button>
+                <button class={weekClass} onclick={switchToWeekView}>Week</button>
+                <button class={customClass} onclick={switchToCustomView}>Custom</button>
             </div>
         </div>
 

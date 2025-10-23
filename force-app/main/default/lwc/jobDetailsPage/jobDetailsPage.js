@@ -176,15 +176,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
     get dayClass() {
-        return this.viewMode === 'day' ? 'dayViewBtn clock-in-button' : 'dayViewBtn close-btn';
+        return this.viewMode === 'day' ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn';
     }
 
     get weekClass() {
-        return this.viewMode === 'week' ? 'weekViewBtn clock-in-button' : 'weekViewBtn close-btn';
+        return this.viewMode === 'week' ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn border-inline-nav-btn';
     }
 
     get customClass() {
-        return this.viewMode === 'custom' ? 'customViewBtn clock-in-button' : 'customViewBtn close-btn';
+        return this.viewMode === 'custom' ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn';
     }
 
     /** 
