@@ -43,6 +43,7 @@
 .tab-navigation button:hover {
     background: rgb(244, 244, 255);
     color: rgba(94, 90, 219, 1);
+    --slds-s-icon-color-foreground: #5a5adb;
 }
 
 .tab-navigation button.active {
@@ -50,6 +51,7 @@
     border-top: 3px solid rgba(94, 90, 219, 1);
     background: rgb(244, 244, 255);
     font-weight: 700;
+    --slds-s-icon-color-foreground: #5a5adb;
 }
 
 .tab-icon {

@@ -111,8 +111,8 @@ export default class RecordConfigCmp extends LightningElement {
     fetchMetadata() {
         this.isLoading = true;
 
-        console.log('featureName', this.featureName);
-        console.log('objectApiName', this.objectApiName);
+        // console.log('featureName', this.featureName);
+        // console.log('objectApiName', this.objectApiName);
         
         getObjectFields({ objectApiName: this.objectApiName , featureName: this.featureName})
             .then((result) => {
@@ -121,6 +121,9 @@ export default class RecordConfigCmp extends LightningElement {
                     this.isLoading = false;
                     return;
                 }
+
+                // console.log('result ==> ', result);
+                
 
                 this.fieldOptions = result.fieldDetailsList;
                 this.fieldOptions = this.fieldOptions.map(option => ({
@@ -131,6 +134,8 @@ export default class RecordConfigCmp extends LightningElement {
                 
                 if (result.metadataRecords.length > 0) {
                     const fieldsData = JSON.parse(result.metadataRecords[0]);
+                    // console.log('fieldsData ', fieldsData);
+                    
                     this.items = fieldsData.map((item, index) => {
                         // Check if this field should be disabled (formula/rollup/audit)
                         const isEditableDisabled = this.getParentFieldEditableStatus(item.fieldName);
@@ -157,8 +162,8 @@ export default class RecordConfigCmp extends LightningElement {
                 this.filteredFieldOptions = this.fieldOptions;
             })
             .catch((error) => {
-                console.log('Error in fetchMetadata:', error);
-                console.log('Error Stack Trace:', error.stack);
+                // console.log('Error in fetchMetadata:', error);
+                // console.log('Error Stack Trace:', error.stack);
                 this.isLoading = false;
             });
     }
@@ -753,7 +758,7 @@ export default class RecordConfigCmp extends LightningElement {
 
     closeModal() {
         const parent = this.template.host.closest('c-record-config-body-cmp');
-        console.log('parent', parent);
+        // console.log('parent', parent);
         
         if (parent) {
             parent.handleDialogueClose();

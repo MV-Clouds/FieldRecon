@@ -120,6 +120,7 @@
     border-radius: 5px;
     cursor: pointer;
     transition: all 0.2s ease;
+    font-weight: 600;
 }
 
 .icon-button:hover {

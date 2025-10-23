@@ -26,7 +26,6 @@ public with sharing class SovJobScopeController {
     public static Map<String, Object> getScopeEntries(Id jobId) {
         Map<String, Object> result = new Map<String, Object>();
         List<SObject> scopeEntries = new List<SObject>();
-        Map<Id, Boolean> processSetupFlags = new Map<Id, Boolean>();
         Map<Id, List<Scope_Entry_Process__c>> scopeEntryProcessMap = new Map<Id, List<Scope_Entry_Process__c>>();
     
         try {
@@ -35,7 +34,7 @@ public with sharing class SovJobScopeController {
             String allJobFields = getAllFields('wfrecon__Job__c');
     
             if (String.isNotBlank(allScopeEntryFields)) {
-                // --- Dynamic SOQL for Scope Entries ---
+                // Dynamic SOQL for Scope Entries
                 String query = 'SELECT ' + allScopeEntryFields;
                 if (String.isNotBlank(allJobFields)) {
                     String jobRelationshipFields = convertToRelationshipFields(allJobFields, 'wfrecon__Job__r');
@@ -52,13 +51,13 @@ public with sharing class SovJobScopeController {
     
 
                 if (!rawScopeEntries.isEmpty()) {
-                    // --- Collect all Scope Entry IDs ---
+                    // Collect all Scope Entry IDs
                     Set<Id> scopeEntryIds = new Set<Id>();
                     for (SObject entry : rawScopeEntries) {
                         scopeEntryIds.add(entry.Id);
                     }
     
-                    // --- Fetch location counts for each scope entry ---
+                    // Fetch location counts for each scope entry
                     Map<Id, Integer> scopeEntryLocationCounts = new Map<Id, Integer>();
                     List<AggregateResult> locationCounts = [
                         SELECT Scope_Entry__c, COUNT(Id) locationCount
@@ -90,7 +89,7 @@ public with sharing class SovJobScopeController {
                     System.debug('All Scope Entry Processes: ' + allScopeEntryProcesses);
 
 
-                    // --- Group processes by scope entry ---
+                    // Group processes by scope entry
                     Map<Id, Set<Id>> scopeEntryToProcessIds = new Map<Id, Set<Id>>();
                     for (Scope_Entry_Process__c process : allScopeEntryProcesses) {
                         Id scopeEntryId = process.Scope_Entry__c;
@@ -107,21 +106,13 @@ public with sharing class SovJobScopeController {
                         }
                         scopeEntryToProcessIds.get(scopeEntryId).add(process.Id);
                     }
-    
-                    // --- Build setup flag map for each Scope Entry ---
-                    // Always allow adding processes regardless of location setup
-                    for (SObject entry : rawScopeEntries) {
-                        Id scopeEntryId = entry.Id;
-                        processSetupFlags.put(scopeEntryId, true); // Always allow process addition
-                    }
                     
-                    // --- Add location counts to result ---
+                    // Add location counts to result
                     result.put('scopeEntryLocationCounts', scopeEntryLocationCounts);
                 }
             }
     
             result.put('scopeEntries', scopeEntries);
-            result.put('processSetupFlags', processSetupFlags);
             result.put('scopeEntryProcessMap', scopeEntryProcessMap);
             result.put('scopeEntryLocationCounts', result.containsKey('scopeEntryLocationCounts') ? result.get('scopeEntryLocationCounts') : new Map<Id, Integer>());
             result.put('success', true);
@@ -130,7 +121,6 @@ public with sharing class SovJobScopeController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getScopeEntries', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Scope Entries dynamically (bulk-safe version).','apiResponse' => null});
     
             result.put('scopeEntries', new List<SObject>());
-            result.put('processSetupFlags', new Map<Id, Boolean>());
             result.put('scopeEntryProcessMap', new Map<Id, List<Scope_Entry_Process__c>>());
             result.put('scopeEntryLocationCounts', new Map<Id, Integer>());
             result.put('success', false);
@@ -215,7 +205,7 @@ public with sharing class SovJobScopeController {
         
         try {
             List<ScopeEntryConfigration__mdt> configs = [
-                SELECT FieldsData__c, PageSize__c 
+                SELECT Fields_Data__c, PageSize__c 
                 FROM ScopeEntryConfigration__mdt 
                 WITH USER_MODE 
                 LIMIT 1
@@ -223,7 +213,7 @@ public with sharing class SovJobScopeController {
 
             if (!configs.isEmpty()) {
                 ScopeEntryConfigration__mdt config = configs[0];
-                configData.put('fieldsData', config.FieldsData__c);
+                configData.put('fieldsData', config.Fields_Data__c);
                 configData.put('pageSize', config.PageSize__c);
             }
             else{
@@ -334,7 +324,7 @@ public with sharing class SovJobScopeController {
             if (relatedLocationsCount > 0) {
                 // Fetch entry for recalculation
                 Map<Id, Scope_Entry__c> entryMap = new Map<Id, Scope_Entry__c>(
-                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId]
+                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId WITH USER_MODE]
                 );
                 recalculateLocationProcessesBulk(entryMap);
             }            
@@ -456,7 +446,7 @@ public with sharing class SovJobScopeController {
 
             if (relatedLocationsCount > 0) {
                 Map<Id, Scope_Entry__c> entryMap = new Map<Id, Scope_Entry__c>(
-                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId]
+                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId WITH USER_MODE]
                 );
                 recalculateLocationProcessesBulk(entryMap);
             }
@@ -832,7 +822,6 @@ public with sharing class SovJobScopeController {
             for (Scope_Entry__c entry : updatedScopeEntries) {
                 String originalStatus = originalStatuses.get(entry.Id);
                 if (entry.Scope_Entry_Status__c == 'Approved' && originalStatus != 'Approved') {
-                    // Set approval date - use wfrecon namespace prefix
                     entry.put('wfrecon__Approved_Date__c', currentDate);
                 }
             }
@@ -883,8 +872,7 @@ public with sharing class SovJobScopeController {
             // Build final response
             String responseMessage = '';
             if (!failedRecords.isEmpty()) {
-                responseMessage = successCount + ' record(s) updated successfully. Failed records: ' +
-                                  String.join(failedRecords, ', ');
+                responseMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
                 if (!String.isBlank(recalcMessage)) {
                     responseMessage += ' Warnings: ' + recalcMessage;
                 }
@@ -1035,11 +1023,9 @@ public with sharing class SovJobScopeController {
 
                         String key = junc.Location__c + '_' + proc.Id;
                         if (existingMap.containsKey(key)) {
-                            // Update existing - preserve existing sequence, only update price
                             toUpdate.add(new Location_Process__c(
                                 Id = existingMap.get(key).Id,
                                 Contract_Price__c = newPrice
-                                // Note: Deliberately NOT updating sequence to preserve existing sequence
                             ));
                         } else {
                             // Create missing Location Process with next available sequence for this location
@@ -1066,7 +1052,9 @@ public with sharing class SovJobScopeController {
             }
 
             // DML operations
-            if (!toInsert.isEmpty()) insert toInsert;
+            if (!toInsert.isEmpty()) {
+                insert toInsert;
+            }
             if (!toUpdate.isEmpty()) update toUpdate;
 
             return 'Success: ' + toInsert.size() + ' new and ' + toUpdate.size() +

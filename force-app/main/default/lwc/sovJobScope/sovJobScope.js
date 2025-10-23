@@ -381,7 +381,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Process change order entries for table display
      */
     get displayedChangeOrderEntries() {
-        console.log('In getter');
+        // console.log('In getter');
         
         if (!this.filteredChangeOrderEntries || this.filteredChangeOrderEntries.length === 0) {
             return [];
@@ -1094,11 +1094,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     // If process details are missing but showProcessDetails is true, restore from preloaded map
                     if (entry.showProcessDetails && (!entry.processDetails || entry.processDetails.length === 0)) {
                         const processData = this.scopeEntryProcessMap.get(entry.Id) || [];
-                        console.log(`Restoring process details for entry ${entry.Id}: ${processData.length} processes found`);
+                        // console.log(`Restoring process details for entry ${entry.Id}: ${processData.length} processes found`);
                         try {
                             const processedDetails = this.processProcessDetailsForDisplay(processData);
                             entry.processDetails = processedDetails;
-                            console.log(`Successfully restored ${processedDetails.length} process details for entry ${entry.Id}`);
+                            // console.log(`Successfully restored ${processedDetails.length} process details for entry ${entry.Id}`);
                         } catch (error) {
                             console.error('Error processing process details during filter restore:', error);
                             entry.processDetails = [];
@@ -1180,14 +1180,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             const hasProcesses = this.scopeEntryProcessMap.has(scopeEntryId) && 
                                 this.scopeEntryProcessMap.get(scopeEntryId).length > 0;
 
-            console.log('hasProcesses ==> ' , hasProcesses);
+            // console.log('hasProcesses ==> ' , hasProcesses);
             
             // Check if scope entry has locations using cached data
             const locationCount = this.scopeEntryLocationCounts.get(scopeEntryId) || 0;
             const hasLocations = locationCount > 0;
 
-            console.log('hasLocations ==> ' , hasLocations);
-            console.log('locationCount ==> ' , locationCount);
+            // console.log('hasLocations ==> ' , hasLocations);
+            // console.log('locationCount ==> ' , locationCount);
 
             if (!hasProcesses && !hasLocations) {
                 return {
@@ -1241,7 +1241,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
         await Promise.all(validationPromises);
 
-        console.log('invalidEntries ==> ' , invalidEntries);
+        // console.log('invalidEntries ==> ' , invalidEntries);
         
 
         if (invalidEntries.length > 0) {
@@ -1323,9 +1323,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             let res = await this.fetchScopeEntries();
 
             // Log filtered entries after data fetch
-            console.log('filtered COntract -> ',this.filteredContractEntries);
-            console.log('filtered Change Order -> ',this.filteredChangeOrderEntries);
-            console.log('expandedScopeEntryIds -> ',expandedScopeEntryIds.size);
+            // console.log('filtered COntract -> ',this.filteredContractEntries);
+            // console.log('filtered Change Order -> ',this.filteredChangeOrderEntries);
+            // console.log('expandedScopeEntryIds -> ',expandedScopeEntryIds.size);
             
 
             if (res) {
@@ -1338,7 +1338,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             }
             
         } catch (error) {
-            console.log('Error ==> ' , error);
+            // console.log('Error ==> ' , error);
             
         } finally {
             this.isLoading = false;
@@ -1367,7 +1367,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     try {
                         const processedDetails = this.processProcessDetailsForDisplay(processData);
                         updatedEntry.processDetails = processedDetails;
-                        console.log(`Restored processDetails for contract ${entry.Id}:`, processedDetails.length, 'items');
+                        // console.log(`Restored processDetails for contract ${entry.Id}:`, processedDetails.length, 'items');
                     } catch (error) {
                         console.error('Error processing process details during state restoration:', error);
                         updatedEntry.processDetails = [];
@@ -1389,7 +1389,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     try {
                         const processedDetails = this.processProcessDetailsForDisplay(processData);
                         updatedEntry.processDetails = processedDetails;
-                        console.log(`Restored processDetails for change order ${entry.Id}:`, processedDetails.length, 'items');
+                        // console.log(`Restored processDetails for change order ${entry.Id}:`, processedDetails.length, 'items');
                     } catch (error) {
                         console.error('Error processing process details during state restoration:', error);
                         updatedEntry.processDetails = [];
@@ -1400,7 +1400,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return entry;
             });
 
-            console.log(`Restored expanded state for ${expandedScopeEntryIds.size} scope entries`);
+            // console.log(`Restored expanded state for ${expandedScopeEntryIds.size} scope entries`);
         } catch (error) {
             console.error('Error in restoreExpandedStates:', error);
         }
@@ -1436,7 +1436,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 // Force re-render of displayed entries
                 this.updateDisplayedEntries();
                 
-                console.log(`Targeted refresh completed. Restored ${expandedScopeEntryIds.size} expanded states.`);
+                // console.log(`Targeted refresh completed. Restored ${expandedScopeEntryIds.size} expanded states.`);
             }
             
         } catch (error) {
@@ -1956,7 +1956,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Get job's total contract price
             const totalBaseContractValue = this.totalContractValue || 0;
 
-            console.log('totalJobContractValue ==> ', this.totalJobContractValue);
+            // console.log('totalJobContractValue ==> ', this.totalJobContractValue);
             
 
             // Check if totals match
@@ -2019,7 +2019,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             return;
         }
 
-        console.log('Here');
+        // console.log('Here');
         
 
         if (!this.filteredChangeOrderEntries || this.filteredChangeOrderEntries.length === 0) {
@@ -2055,12 +2055,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
             const updatedEntriesJson = JSON.stringify(updatedEntries);
 
-            console.log('updatedEntriesJson ==> ' , updatedEntriesJson);
+            // console.log('updatedEntriesJson ==> ' , updatedEntriesJson);
             
 
             saveScopeEntryInlineEdits({ updatedScopeEntriesJson: updatedEntriesJson })
                 .then(result => {
-                    console.log(result);
+                    // console.log(result);
                     
                     if (result.includes('Success')) {
                         this.showToast('Success', `All change order entries have been approved`, 'success');
@@ -2074,7 +2074,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.isSavingScopeEntries = false;
                 });
 
-            console.log('Here 2');
+            // console.log('Here 2');
         } catch (error) {
             console.error('Error validating change order entries:', error);
             this.showToast('Error', 'Failed to validate change order entries. Please try again.', 'error');
@@ -2106,7 +2106,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     processEntriesForDisplay(entries) {
         const cols = this.tableColumns;     
         
-        console.log('cols ==> ' , cols);
+        // console.log('cols ==> ' , cols);
         
         
         return entries.map(entry => {
@@ -2118,7 +2118,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             row.showProcessDetails = entry.showProcessDetails || false;
             row.processDetails = entry.processDetails || null;
             
-            console.log(`Processing entry ${entry.Id}: showProcessDetails=${row.showProcessDetails}, processDetails=${row.processDetails ? row.processDetails.length : 'null'} items`);
+            // console.log(`Processing entry ${entry.Id}: showProcessDetails=${row.showProcessDetails}, processDetails=${row.processDetails ? row.processDetails.length : 'null'} items`);
             
             // Check if this specific scope entry is approved
             row.isScopeEntryApproved = entry.wfrecon__Scope_Entry_Status__c === 'Approved';
@@ -2344,10 +2344,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Process process details for nested table display with inline editing support
      */
     processProcessDetailsForDisplay(processDetails) {
-        console.log('processProcessDetailsForDisplay called with:', processDetails);
+        // console.log('processProcessDetailsForDisplay called with:', processDetails);
 
         if (!processDetails || processDetails.length === 0) {
-            console.log('No process details to display');
+            // console.log('No process details to display');
             return [];
         }
 
@@ -2360,32 +2360,32 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 `/lightning/r/${processData.Id}/view`;
             
             // Preserve selection state
-            console.log('processData.Id ==> ', processData.Id);
-            console.log('processData fields ==> ', Object.keys(processData));
-            console.log('Full processData ==> ', processData);
+            // console.log('processData.Id ==> ', processData.Id);
+            // console.log('processData fields ==> ', Object.keys(processData));
+            // console.log('Full processData ==> ', processData);
             
             // First try to get scope entry ID directly from process data
             let scopeEntryId = this.getFieldValue(processData, 'wfrecon__Scope_Entry__c');
-            console.log('Direct scope entry ID from wfrecon__Scope_Entry__c ==> ', scopeEntryId);
+            // console.log('Direct scope entry ID from wfrecon__Scope_Entry__c ==> ', scopeEntryId);
             
             // If not available, try the search method as fallback
             if (!scopeEntryId) {
                 scopeEntryId = this.getScopeEntryIdForProcess(processData.Id);
-                console.log('Scope entry ID from search method ==> ', scopeEntryId);
+                // console.log('Scope entry ID from search method ==> ', scopeEntryId);
             }
-            console.log('Final scopeEntryId ==> ', scopeEntryId);
+            // console.log('Final scopeEntryId ==> ', scopeEntryId);
             const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
             row.isSelected = selectedProcesses ? selectedProcesses.has(processData.Id) : false;
             
 
-            console.log('scopeEntryId ==> ', scopeEntryId);
+            // console.log('scopeEntryId ==> ', scopeEntryId);
             
             
             // Get parent scope entry to check approval status - search in all available arrays
             let parentEntry = this.scopeEntries.find(entry => entry.Id === scopeEntryId);
 
 
-            console.log('parentEntry ==> ', parentEntry);
+            // console.log('parentEntry ==> ', parentEntry);
             const isParentScopeEntryApproved = parentEntry && parentEntry.wfrecon__Scope_Entry_Status__c === 'Approved';
 
             
@@ -2414,7 +2414,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 // Check parent scope entry status for editing restrictions
                 // Use the already retrieved parent scope entry status
-                console.log('isParentScopeEntryApproved ==> ', isParentScopeEntryApproved);
+                // console.log('isParentScopeEntryApproved ==> ', isParentScopeEntryApproved);
                 
                 // If parent scope entry is 'Approved', only sequence column should be editable
                 if (isParentScopeEntryApproved) {
@@ -2424,12 +2424,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 return this.buildFieldDisplayData(processData, col, key, value, displayValue, isModified, isEditable, isBeingEdited);
             });
 
-            console.log('row.displayFields ==> ', row.displayFields);
+            // console.log('row.displayFields ==> ', row.displayFields);
             
             return row;
         });
         
-        console.log('processProcessDetailsForDisplay returning:', result.length, 'processed records');
+        // console.log('processProcessDetailsForDisplay returning:', result.length, 'processed records');
         return result;
     }
 
@@ -2562,20 +2562,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     if (updatedEntry.showProcessDetails) {
                         // Get process data from preloaded map
                         const processData = this.scopeEntryProcessMap.get(recordId) || [];
-                        console.log('Process data for scope entry', recordId, ':', processData);
+                        // console.log('Process data for scope entry', recordId, ':', processData);
                         
                         // Process the data for display
                         try {
                             const processedDetails = this.processProcessDetailsForDisplay(processData);
                             updatedEntry.processDetails = processedDetails;
-                            console.log(`Set processDetails for ${recordId}:`, processedDetails.length, 'items');
+                            // console.log(`Set processDetails for ${recordId}:`, processedDetails.length, 'items');
                         } catch (error) {
                             console.error('Error processing process details:', error);
                             updatedEntry.processDetails = [];
                         }
                     } else {
                         updatedEntry.processDetails = null;
-                        console.log(`Collapsed processDetails for ${recordId}`);
+                        // console.log(`Collapsed processDetails for ${recordId}`);
                     }
                     
                     return updatedEntry;
@@ -2590,19 +2590,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     if (updatedEntry.showProcessDetails) {
                         const processData = this.scopeEntryProcessMap.get(recordId) || [];
-                        console.log('Process data for scope entry', recordId, ':', processData);
+                        // console.log('Process data for scope entry', recordId, ':', processData);
                         
                         try {
                             const processedDetails = this.processProcessDetailsForDisplay(processData);
                             updatedEntry.processDetails = processedDetails;
-                            console.log(`Set processDetails for change order ${recordId}:`, processedDetails.length, 'items');
+                            // console.log(`Set processDetails for change order ${recordId}:`, processedDetails.length, 'items');
                         } catch (error) {
                             console.error('Error processing process details:', error);
                             updatedEntry.processDetails = [];
                         }
                     } else {
                         updatedEntry.processDetails = null;
-                        console.log(`Collapsed processDetails for change order ${recordId}`);
+                        // console.log(`Collapsed processDetails for change order ${recordId}`);
                     }
                     
                     return updatedEntry;
@@ -3869,8 +3869,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 if (column) {
 
-                    console.log(`Validating ${entryName} - ${column.label}:`, value);
-                    console.log('Type:', column.type);
+                    // console.log(`Validating ${entryName} - ${column.label}:`, value);
+                    // console.log('Type:', column.type);
                     
                     // Text field validation
                     if (column.type === 'text') {

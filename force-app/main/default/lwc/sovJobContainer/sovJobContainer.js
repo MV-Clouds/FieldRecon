@@ -1,4 +1,4 @@
-import { LightningElement, track , api} from 'lwc';
+import { LightningElement, track} from 'lwc';
 
 export default class SovJobContainer extends LightningElement {
     @track activeTab = 'scope';

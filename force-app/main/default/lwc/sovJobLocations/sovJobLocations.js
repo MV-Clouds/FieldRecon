@@ -2408,8 +2408,6 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 const column = this.tableColumns.find(col => col.fieldName === fieldName);
                 
                 if (column) {
-                    console.log(`Validating ${entryName} - ${column.label}:`, value);
-                    console.log('Type:', column.type);
                     
                     // Text field validation
                     if (column.type === 'text') {

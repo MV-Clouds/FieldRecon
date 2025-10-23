@@ -440,7 +440,6 @@
     white-space: nowrap;
     height: 36px;
     min-width: 108px;
-    font-family: inherit;
     transition: all 0.2s ease;
 }
 
