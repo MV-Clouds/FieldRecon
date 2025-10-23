@@ -1,7 +1,7 @@
 <template>
   <div class="scheduler-container">
 
-    <div class="spinner-container slds-is-absolute" if:true={showSpinner}>
+    <div class="spinner-container slds-is-fixed" if:true={showSpinner}>
       <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
     </div>
 
@@ -224,7 +224,7 @@
             <lightning-input-field class="slds-size--1-of-1"
               field-name="wfrecon__Mobilization_Status__c" required></lightning-input-field>
             <!-- Control buttons -->
-            <div class="slds-grid slds-grid--align-center slds-p-top--medium">
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
               <button class="save-btn" type="submit">Save</button>
             </div>
           </lightning-record-edit-form>
@@ -242,7 +242,7 @@
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
               </div>
               <!-- Control buttons -->
-              <div class="slds-grid slds-grid--align-center slds-p-top--medium">
+              <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
                 <button class="save-btn" type="submit">Save</button>
               </div>
             </div>
@@ -262,7 +262,7 @@
                 matching-info={matchingMobs} name="selectedMobId" onchange={handleResourceItemUpdate}
                 if:true={selectedJobId} required></lightning-record-picker>
             </div>
-            <div class="slds-grid slds-grid--align-center slds-p-top--medium">
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
               <button class="save-btn" type="submit" onclick={handleSaveChanges}>Save</button>
             </div>
           </lightning-record-edit-form>
@@ -342,8 +342,8 @@
             <h2 class="slds-text-heading_medium slds-hyphenate">{confirmationTitle}</h2>
           </header>
           <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
-            <p>{confirmationMessage}</p>
-            <div class="slds-grid slds-grid--align-center slds-p-top--medium confirm-popup-btns">
+            <p class="slds-p-bottom--medium">{confirmationMessage}</p>
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium confirm-popup-btns bottom-footer-btn">
               <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleConfirmationAction}>Cancel</button>
               <button class="save-btn" name="noOverlap" title="Assign resources only if they are not overlapping on specific date." onclick={handleConfirmationAction} if:true={isOverlapJob}>Assign Only Available</button>
               <button class="save-btn" name="confirm" title="Assign" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>

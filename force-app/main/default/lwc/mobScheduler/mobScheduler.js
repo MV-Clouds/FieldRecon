@@ -676,7 +676,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             const end = Date.parse(details.wfrecon__End_Date__c);
 
             if (start < new Date()) {
-                this.showToast('Error', 'Start date can not be in past.', 'error');
+                this.showToast('Error', 'Start date/time can not be in past.', 'error');
             }else if (start > end) {
                 this.showToast('Error', 'End date should be after the start date.', 'error');
             }else{
