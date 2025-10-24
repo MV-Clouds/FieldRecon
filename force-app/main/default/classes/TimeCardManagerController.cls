@@ -1,6 +1,7 @@
 public with sharing class TimeCardManagerController {
     
     public static TimeZone userTz = UserInfo.getTimeZone();
+    public static final String CLASSNAME = 'TimeCardManagerController';
 
     /*
     *********************************************************
@@ -13,8 +14,6 @@ public with sharing class TimeCardManagerController {
     @AuraEnabled
     public static List<ContactWrapper> getAllContactsWithDetails(Date customStartDate, Date customEndDate) {
         try {
-            System.debug('customStartDate in apex: ' + customStartDate);
-            System.debug('customEndDate in apex: ' + customEndDate);
             DateTime startOfDay;
             DateTime endOfDay;
 
@@ -28,7 +27,7 @@ public with sharing class TimeCardManagerController {
                 endOfDay   = DateTime.newInstance(today, Time.newInstance(23,59,59,999));
             }
 
-            // 1. Fetch mobilization members with
+            // Fetch mobilization members with
             List<Mobilization_Member__c> mobilizationMembers = [
                 SELECT Id, Contact__c, Contact__r.Name, Contact__r.RecordType.DeveloperName, 
                        Contact__r.Can_Clock_In_Out__c, Contact__r.Email, Contact__r.Phone,
@@ -49,7 +48,7 @@ public with sharing class TimeCardManagerController {
                 return new List<ContactWrapper>();
             }
 
-            // 2. Group data by contact
+            // Group data by contact
             Map<Id, ContactWrapper> contactMap = new Map<Id, ContactWrapper>();
             Set<Id> contactIds = new Set<Id>();
             Set<Id> jobIds = new Set<Id>();
@@ -116,7 +115,7 @@ public with sharing class TimeCardManagerController {
                 }
             }
 
-            // 3. Calculate total man hours for each contact-job combination (across all dates in range)
+            // Calculate total man hours for each contact-job combination (across all dates in range)
             Map<String, Decimal> contactJobManHoursMap = new Map<String, Decimal>();
             for (AggregateResult ar : [
                 SELECT Timesheet_Entry__r.TimeSheet__r.Contact__c contactId,
@@ -140,7 +139,7 @@ public with sharing class TimeCardManagerController {
                 contactJobManHoursMap.put(contactJobKey, totalHours);
             }
 
-            // 4. Update mobilization groups with contact-job specific man hours and calculate contact totals
+            // Update mobilization groups with contact-job specific man hours and calculate contact totals
             for (ContactWrapper contact : contactMap.values()) {
                 Decimal contactTotalHours = 0.00;
                 
@@ -148,14 +147,16 @@ public with sharing class TimeCardManagerController {
                     String key = contact.contactId + '_' + mobGroup.jobId;
                     if (contactJobManHoursMap.containsKey(key)) {
                         mobGroup.totalManHours = contactJobManHoursMap.get(key);
-                        contactTotalHours += mobGroup.totalManHours;
+                    } else {
+                        mobGroup.totalManHours = 0.00;
                     }
+                    contactTotalHours += mobGroup.totalManHours;
                 }
                 
                 contact.totalManHours = contactTotalHours;
             }
 
-            // 5. Fetch related timesheet entries for these contacts
+            // Fetch related timesheet entries for these contacts
             if (!contactIds.isEmpty()) {
                 List<Timesheet_Entry_Item__c> timesheetEntryItems = [
                     SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Cost_Code__c, Cost_Code__r.Name,
@@ -166,11 +167,14 @@ public with sharing class TimeCardManagerController {
                            Timesheet_Entry__r.TimeSheet__r.Job__r.Name
                     FROM Timesheet_Entry_Item__c
                     WHERE Timesheet_Entry__r.TimeSheet__r.Contact__c IN :contactIds
-                    AND Clock_In_Time__c >= :startOfDay
-                    AND Clock_In_Time__c <= :endOfDay
+                    AND Timesheet_Entry__r.TimeSheet__r.Job__c IN :jobIds
+                    AND Clock_In_Date__c >= :customStartDate
+                    AND Clock_In_Date__c <= :customEndDate
+                    AND Clock_In_Date__c != null
                     WITH USER_MODE
                     ORDER BY Clock_In_Time__c DESC
                 ];
+
                 
                 // Group timesheet entries by contact
                 for (Timesheet_Entry_Item__c item : timesheetEntryItems) {
@@ -195,12 +199,14 @@ public with sharing class TimeCardManagerController {
                     }
                 }
             }
+
+            System.debug('contactMap: ' + contactMap);
             
             return contactMap.values();
             
         } catch (Exception e) {
-            System.debug('Error in getAllContactsWithDetails: ' + e.getMessage());
-            throw new AuraHandledException('Error fetching contact details: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getAllContactsWithDetails','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching data.',  'apiResponse' => null});
+            return new List<ContactWrapper>();
         }
     }
 

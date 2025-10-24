@@ -49,7 +49,7 @@
                                 <template for:each={contact.values} for:item="val">
                                     <td key={val.fieldName} class="center-trancate-text" style={val.style}>
                                         <template if:true={val.recordLink}>
-                                            <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={contact.contactId}>
+                                            <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-record-id={contact.contactId}>
                                                 <div class="cell-content" title={val.value}>
                                                     {val.value}
                                                 </div>
@@ -60,7 +60,7 @@
                                                 <template if:true={val.isAction}>
                                                     <div class="action-icons">
                                                         <button class="icon-button child-records-btn" 
-                                                                title="View Mobilization Details" 
+                                                                title="View Job Details" 
                                                                 onclick={handleToggleMobilization}
                                                                 data-contact-id={contact.contactId}
                                                                 data-expanded={contact.showMobilizationDetails}>
@@ -96,7 +96,7 @@
                                     <td colspan="100%" class="nested-table-container">
                                         <div class="nested-table-wrapper">
                                             <div class="nested-table-header">
-                                                <h4 class="nested-table-title">Mobilization Details for {contact.contactName}</h4>
+                                                <h4 class="nested-table-title">Job Details for {contact.contactName}</h4>
                                             </div>
                                             
                                             <template if:true={contact.mobilizationGroups}>
@@ -135,8 +135,7 @@
                                                                                 <a class="record-link job-link" 
                                                                                    href="javascript:void(0);" 
                                                                                    onclick={handleLinkClick} 
-                                                                                   data-link={mobilization.jobId}
-                                                                                   data-job-id="true">
+                                                                                   data-record-id={mobilization.jobId} >
                                                                                     <div class="cell-content" title={field.value}>
                                                                                         {field.value}
                                                                                     </div>
@@ -165,8 +164,8 @@
                                                     <div class="no-mobilization-data">
                                                         <div class="empty-state">
                                                             <div class="empty-state__content">
-                                                                <div class="empty-state__message">No mobilization details found for this contact</div>
-                                                                <div class="empty-state__subtitle">Mobilization details will appear here when available</div>
+                                                                <div class="empty-state__message">No Job details found for this contact</div>
+                                                                <div class="empty-state__subtitle">Job details will appear here when available</div>
                                                             </div>
                                                         </div>
                                                     </div>

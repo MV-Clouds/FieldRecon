@@ -16,6 +16,7 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         { label: 'S.No.', fieldName: 'serialNumber' },
         { label: 'Actions', fieldName: 'actions'},
         { label: 'Contact Name', fieldName: 'contactName', recordLink: true },
+        { label: 'Contact Type', fieldName: 'contactType' },
         { label: 'Email', fieldName: 'email' },
         { label: 'Phone', fieldName: 'phone' },
         { label: 'Total Man Hours', fieldName: 'totalManHours' }
@@ -29,7 +30,7 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         { label: 'Job Name', fieldName: 'jobName' },
         { label: 'Start Date Time', fieldName: 'startDate', isDateTime: true },
         { label: 'End Date Time', fieldName: 'endDate', isDateTime: true },
-        { label: 'Total Man Hours', fieldName: 'totalManHours', isNumber: true },
+        { label: 'Man Hours Per Job', fieldName: 'totalManHours', isNumber: true },
         { label: 'Job Address', fieldName: 'jobAddress' },
         { label: 'Status', fieldName: 'jobStatus' },
         { label: 'Description', fieldName: 'jobDescription' }
@@ -39,16 +40,17 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     @track isTimesheetModalOpen = false;
     @track selectedTimesheetEntries = [];
     @track timesheetColumns = [
-        { label: 'Sr. No.', fieldName: 'serialNumber', style: 'width: 6rem' },
-        { label: 'Contact Name', fieldName: 'contactName', style: 'width: 12rem' },
-        { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 10rem' },
-        { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
-        { label: 'Work Hours', fieldName: 'workHours', style: 'width: 6rem' },
-        { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
-        { label: 'Per Diem', fieldName: 'perDiem', style: 'width: 6rem' },
-        { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
-        { label: 'Premium', fieldName: 'premium', style: 'width: 6rem' },
-        { label: 'Cost Code', fieldName: 'costCode', style: 'width: 8rem' }
+        { label: 'Sr. No.', fieldName: 'serialNumber' },
+        { label: 'Contact Name', fieldName: 'contactName' },
+        { label: 'Contact Type', fieldName: 'contactType' },
+        { label: 'Clock In Time', fieldName: 'clockInTime' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime' },
+        { label: 'Work Hours', fieldName: 'workHours'},
+        { label: 'Travel Time', fieldName: 'travelTime'},
+        { label: 'Per Diem', fieldName: 'perDiem'},
+        { label: 'Total Time', fieldName: 'totalTime'},
+        { label: 'Premium', fieldName: 'premium'},
+        { label: 'Cost Code', fieldName: 'costCode'}
     ];
 
     /**
@@ -114,6 +116,10 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             customEndDate: endDate 
         })
         .then(result => {
+
+            console.log('Result ==> ', result);
+            
+            
             if (result && Array.isArray(result)) {
                 this.contactDetails = result.map(contact => ({
                     ...contact,
@@ -188,6 +194,23 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: formatContactType
+     * @description: Format contact type based on developer name
+     */
+    formatContactType(developerName) {
+        if (!developerName) return '--';
+        
+        switch (developerName) {
+            case 'Employee_WF_Recon':
+                return 'Employee';
+            case 'Sub_Contractor_WF_Recon':
+                return 'Sub Contractor';
+            default:
+                return developerName;
+        }
+    }
+
+    /**
      * Method Name: processContactRow
      * @description: Helper method to process a single contact row
      */
@@ -208,6 +231,9 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 case 'contactName':
                     value = contact.contactName || '--';
                     recordLink = col.recordLink || false;
+                    break;
+                case 'contactType':
+                    value = this.formatContactType(contact.developerName);
                     break;
                 case 'email':
                     value = contact.email || '--';
@@ -250,7 +276,7 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 return this.processContactRow(contact, index);
             });
 
-            this.filteredContactDetails = processedData;
+            this.filteredContactDetails = processedData;            
             this.applySearch();
         } catch (error) {
             this.filteredContactDetails = [];
@@ -266,16 +292,8 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         if (!dateValue) return '--';
         
         try {
-            const date = new Date(dateValue);
-            if (isNaN(date.getTime())) return '--';
-            
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = date.getHours();
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            
-            return `${year}-${month}-${day} ${hours}:${minutes}`;
+            const iso = new Date(dateValue).toISOString();
+            return iso.slice(0, 16).replace('T', ' '); // "2025-10-05 07:00"
         } catch (error) {
             return '--';
         }
@@ -362,28 +380,17 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
      * @description: Handle contact or job link clicks
      */
     handleLinkClick(event) {
-        const recordId = event.target.dataset.link;
-        const isJobId = event.target.dataset.jobId;
+        const recordId = event.currentTarget.dataset.recordId;
 
-        if (isJobId) {
-            // Navigate to job record
-            this[NavigationMixin.Navigate]({
-                type: 'standard__recordPage',
-                attributes: {
-                    recordId: recordId,
-                    actionName: 'view'
-                }
-            });
-        } else {
-            // Navigate to contact record
-            this[NavigationMixin.Navigate]({
-                type: 'standard__recordPage',
-                attributes: {
-                    recordId: recordId,
-                    actionName: 'view'
-                }
-            });
-        }
+        this[NavigationMixin.GenerateUrl]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: recordId,
+                actionName: 'view'
+            }
+        }).then(url => {
+            window.open(url, "_blank");
+        });
     }
 
     /**
@@ -441,11 +448,15 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         const mobilization = contact?.mobilizationGroups?.find(m => m.mobilizationId === mobilizationId);
         
         if (contact && mobilization) {
-            // Filter timesheet entries for this specific contact, job, and date range
-            const mobilizationDate = new Date(mobilization.startDate).toDateString();
+            // Filter timesheet entries for this specific contact and job within the date range
+            const mobilizationStartDate = new Date(mobilization.startDate);
+            const mobilizationEndDate = new Date(mobilization.endDate);
+            
             const filteredEntries = contact.timesheetEntries.filter(entry => {
-                const entryDate = new Date(entry.clockInTime).toDateString();
-                return entry.jobId === jobId && entryDate === mobilizationDate;
+                const entryDate = new Date(entry.clockInTime);
+                return entry.jobId === jobId && 
+                       entryDate >= mobilizationStartDate && 
+                       entryDate <= mobilizationEndDate;
             });
 
             // Process timesheet entries for display using existing TimesheetEntryWrapper structure
@@ -461,6 +472,10 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                             break;
                         case 'contactName':
                             value = contact.contactName || '--';
+                            displayValue = value;
+                            break;
+                        case 'contactType':
+                            value = this.formatContactType(contact.developerName);
                             displayValue = value;
                             break;
                         case 'clockInTime':
