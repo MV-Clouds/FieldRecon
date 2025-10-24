@@ -352,6 +352,17 @@ public with sharing class JobDetailsPageController {
         try {
             Map<String, Object> paramsMap = (Map<String, Object>) JSON.deserializeUntyped(params);
             System.debug(paramsMap);
+
+            String jobId = (String)paramsMap.get('jobId');
+            String mobId = (String)paramsMap.get('mobId');
+            String mobGroupId;
+            List<Mobilization__c> mobRec = [
+                SELECT Id, Name, Mobilization_Group__r.Start_Date__c, Mobilization_Group__r.End_Date__c 
+                FROM Mobilization__c 
+                WHERE Id = :mobId
+                WITH USER_MODE
+            ];
+            mobGroupId = mobRec[0].Mobilization_Group__r.Id;
             
             List<Mobilization_Member__c> mobMemberRecs = [SELECT Id, Contact__c, Mobilization__r.Mobilization_Group__r.Start_Date__c, Mobilization__r.Mobilization_Group__r.End_Date__c FROM Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
 
@@ -365,9 +376,10 @@ public with sharing class JobDetailsPageController {
                 if(paramsMap.get('isTimeSheetNull') == true) {
                     Timesheet__c timesheetRec = new Timesheet__c();
                     timesheetRec.Contact__c = mobMemberRecs[0].Contact__c;
-                    timesheetRec.Job__c = (String)paramsMap.get('jobId');
+                    timesheetRec.Job__c = jobId;
                     timesheetRec.Timesheet_Start_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.Start_Date__c.date();
                     timesheetRec.Timesheet_End_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.End_Date__c.date();
+                    timesheetRec.Mobilization_Group__c = mobGroupId;
                     timesheetRec.Do_Not_Execute__c = true;
                     insert timesheetRec;
     
@@ -375,6 +387,7 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.Timesheet__c = timesheetRec.Id;
                     timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
                     timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
+                    timesheetEntryRec.Mobilization__c = mobId;
                     timesheetEntryRec.Do_Not_Execute__c = true;
                     insert timesheetEntryRec;
                 } else {
@@ -384,6 +397,7 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
                     timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
                     timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
+                    timesheetEntryRec.Mobilization__c = mobId;
                     timesheetEntryRec.Do_Not_Execute__c = true;
                     insert timesheetEntryRec;
                 }
@@ -419,6 +433,7 @@ public with sharing class JobDetailsPageController {
                                     Timesheet__c = tsId,
                                     Clock_In_Time__c = clkInUserTz,
                                     Clock_Out_Time__c = firstDayEnd,
+                                    Mobilization__c = mobId,
                                     Do_Not_Execute__c = true
                                 );
                                 insert entryDay1;
@@ -436,6 +451,7 @@ public with sharing class JobDetailsPageController {
                                     Timesheet__c = tsId,
                                     Clock_In_Time__c = secondDayStart,
                                     Clock_Out_Time__c = clkOutUserTz,
+                                    Mobilization__c = mobId,
                                     Do_Not_Execute__c = true
                                 );
                                 insert entryDay2;
@@ -453,6 +469,7 @@ public with sharing class JobDetailsPageController {
                                 timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
                                 timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
                                 timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
+                                timesheetEntryRec.Mobilization__c = mobId;
                                 timesheetEntryRec.Do_Not_Execute__c = true;
                                 insert timesheetEntryRec;
         
@@ -496,6 +513,7 @@ public with sharing class JobDetailsPageController {
                                 Clock_In_Time__c = secondDayStart,
                                 Clock_Out_Time__c = clkOutUserTz,
                                 Cost_Code__c = existing.Cost_Code__c,
+                                Mobilization__c = mobId,
                                 Do_Not_Execute__c = true
                             );
                             insert entryDay2;
@@ -594,6 +612,14 @@ public with sharing class JobDetailsPageController {
             Date jobEndDate = Date.valueOf((String)paramsMap.get('jobEndDate'));
             Double travelTime = Double.valueOf((String)paramsMap.get('travelTime'));
             Integer perDiem = Integer.valueOf((String)paramsMap.get('perDiem'));
+            String mobGroupId;
+            List<Mobilization__c> mobRec = [
+                SELECT Id, Name, Mobilization_Group__r.Start_Date__c, Mobilization_Group__r.End_Date__c 
+                FROM Mobilization__c 
+                WHERE Id = :mobId
+                WITH USER_MODE
+            ];
+            mobGroupId = mobRec[0].Mobilization_Group__r.Id;
 
             List<Timesheet__c> tsList = [
                 SELECT Id, Contact__c, Timesheet_Start_Date__c, Timesheet_End_Date__c
@@ -608,19 +634,14 @@ public with sharing class JobDetailsPageController {
             Timesheet__c tsRec = new Timesheet__c();
 
             if(tsList.size() == 0) {
-                List<Mobilization__c> mobRec = [
-                    SELECT Id, Name, Mobilization_Group__r.Start_Date__c, Mobilization_Group__r.End_Date__c 
-                    FROM Mobilization__c 
-                    WHERE Id = :mobId
-                    WITH USER_MODE
-                ];
 
                 Timesheet__c timesheetRec = new Timesheet__c();
                 timesheetRec.Contact__c = contactId;
-                timesheetRec.Job__c = (String)paramsMap.get('jobId');
+                timesheetRec.Job__c = jobId;
                 timesheetRec.Timesheet_Start_Date__c = mobRec[0].Mobilization_Group__r.Start_Date__c.date();
                 timesheetRec.Timesheet_End_Date__c = mobRec[0].Mobilization_Group__r.End_Date__c.date();
                 timesheetRec.Do_Not_Execute__c = true;
+                timesheetRec.Mobilization_Group__c = mobGroupId;
                 insert timesheetRec;
 
                 tsRec = timesheetRec;
@@ -640,6 +661,7 @@ public with sharing class JobDetailsPageController {
                     Clock_In_Time__c = clkInUserTz,
                     Clock_Out_Time__c = firstDayEnd,
                     Cost_Code__c = costCodeId,
+                    Mobilization__c = mobId,
                     Do_Not_Execute__c = true
                 );
                 insert entryDay1;
@@ -661,6 +683,7 @@ public with sharing class JobDetailsPageController {
                     Clock_In_Time__c = secondDayStart,
                     Clock_Out_Time__c = clkOutUserTz,
                     Cost_Code__c = costCodeId,
+                    Mobilization__c = mobId,
                     Do_Not_Execute__c = true
                 );
                 insert entryDay2;
@@ -681,6 +704,7 @@ public with sharing class JobDetailsPageController {
                 timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
                 timesheetEntryRec.Cost_Code__c = costCodeId;
                 timesheetEntryRec.Do_Not_Execute__c = true;
+                timesheetEntryRec.Mobilization__c = mobId;
                 insert as user timesheetEntryRec;
 
                 Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
