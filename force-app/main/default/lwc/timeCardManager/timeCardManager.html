@@ -112,8 +112,8 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody class="table-body">
-                                                            <template for:each={contact.mobilizationGroups} for:item="mobilization">
-                                                                <tr key={mobilization.mobilizationId} class="nested-table-row">
+                                                            <template for:each={contact.mobilizationGroups} for:item="mobilization" for:index="mobIndex">
+                                                                <tr key={mobilization.jobId} class="nested-table-row">
                                                                     <template for:each={mobilization.displayFields} for:item="field">
                                                                         <td key={field.key} class="center-trancate-text">
                                                                             <template if:true={field.isAction}>

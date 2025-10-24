@@ -445,18 +445,33 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         
         // Find the contact and mobilization
         const contact = this.contactDetails.find(c => c.contactId === contactId);
-        const mobilization = contact?.mobilizationGroups?.find(m => m.mobilizationId === mobilizationId);
+        
+        // Try to find mobilization by either mobilizationId, mobilizationGroupId, or by jobId
+        const mobilization = contact?.mobilizationGroups?.find(m => 
+            (m.mobilizationId === mobilizationId) || 
+            (m.mobilizationGroupId === mobilizationId) ||
+            (m.jobId === jobId && (!mobilizationId || mobilizationId === 'undefined' || mobilizationId === 'null'))
+        );
         
         if (contact && mobilization) {
-            // Filter timesheet entries for this specific contact and job within the date range
-            const mobilizationStartDate = new Date(mobilization.startDate);
-            const mobilizationEndDate = new Date(mobilization.endDate);
+            // Filter timesheet entries for this specific contact and job
+            // Use the custom date range instead of mobilization dates for better filtering
+            const customStartDate = new Date(this.customStartDate);
+            const customEndDate = new Date(this.customEndDate);
+            customEndDate.setHours(23, 59, 59, 999); // End of day
             
             const filteredEntries = contact.timesheetEntries.filter(entry => {
-                const entryDate = new Date(entry.clockInTime);
-                return entry.jobId === jobId && 
-                       entryDate >= mobilizationStartDate && 
-                       entryDate <= mobilizationEndDate;
+                if (entry.jobId !== jobId) {
+                    return false;
+                }
+                
+                // If clockInTime exists, use it for date filtering
+                if (entry.clockInTime) {
+                    const entryDate = new Date(entry.clockInTime);
+                    return entryDate >= customStartDate && entryDate <= customEndDate;
+                }
+                
+                return true; // Include entries without clockInTime
             });
 
             // Process timesheet entries for display using existing TimesheetEntryWrapper structure
