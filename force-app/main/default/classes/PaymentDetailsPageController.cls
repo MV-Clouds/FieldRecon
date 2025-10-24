@@ -38,7 +38,9 @@ public with sharing class PaymentDetailsPageController {
                        wfrecon__Billing_Line_Item__r.wfrecon__Scope_Entry__r.Name,
                        wfrecon__Billing_Line_Item__r.wfrecon__Scope_Contract_Amount__c,
                        wfrecon__Billing_Line_Item__r.wfrecon__This_Billing_Value__c,
-                       wfrecon__Billing_Line_Item__r.wfrecon__Scope_Entry_Type__c
+                       wfrecon__Billing_Line_Item__r.wfrecon__Scope_Entry_Type__c,
+                       wfrecon__Billing_Line_Item__r.Bill_Item_Type__c,
+                       wfrecon__Billing_Line_Item__r.wfrecon__Total_Retainage_Amount__c
                 FROM wfrecon__Payment_Line_Item__c
                 WHERE wfrecon__Payment__c = :paymentId
                 WITH USER_MODE

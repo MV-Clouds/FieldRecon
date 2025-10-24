@@ -405,7 +405,6 @@
 .btnContainer {
     display: flex;
     justify-content: right;
-    margin-top: 1rem;
 }
 
 .createBillingBtn, .receivePaymentBtn{

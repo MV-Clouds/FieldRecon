@@ -30,6 +30,19 @@
                         </template>
                     </div>
                 </div>
+                <div class="job-number-section">
+                    <div class="job-number-label">Job Number</div>
+                    <div class="job-number-value">
+                        <template if:true={paymentDetails.JobId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={paymentDetails.JobId} class="record-link">
+                                {paymentDetails.JobNumber}
+                            </a>
+                        </template>
+                        <template if:false={paymentDetails.JobId}>
+                            {paymentDetails.JobNumber}
+                        </template>
+                    </div>
+                </div>
                 <div class="payment-due-section">
                     <div class="payment-due-label">Total Paid Amount</div>
                     <div class="payment-due-value">{formattedTotalPaidAmount}</div>
@@ -70,16 +83,13 @@
                         <!-- Left Column - 50% width -->
                         <div class="payment-left-column">
                             <div class="field-group">
-                                <label class="field-label">Job Name</label>
-                                <div class="field-value readonly">{paymentDetails.JobName}</div>
+                                <lightning-input label="Job Name" type="text" value={paymentDetails.JobName} disabled></lightning-input>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Account Name</label>
-                                <div class="field-value readonly">{paymentDetails.AccountName}</div>
+                                <lightning-input label="Account Name" type="text" value={paymentDetails.AccountName} disabled></lightning-input>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Address</label>
-                                <div class="field-value readonly">{paymentDetails.Address}</div>
+                                <lightning-input label="Address" type="text" value={paymentDetails.Address} disabled></lightning-input>
                             </div>
                         </div>
                         

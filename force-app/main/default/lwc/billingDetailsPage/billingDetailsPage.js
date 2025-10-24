@@ -13,6 +13,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     @api recordId;
     @track isLoading = true;
     @track billingRecord;
+    @track isRegularBilling = true;
     @track contractLineItems = [];
     @track changeOrderLineItems = [];
     @track originalContractItems = [];
@@ -54,10 +55,12 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         if (data) {
             this.statusOptions = [
                 { label: 'All', value: 'All' },
-                ...data.values.map(item => ({
-                    label: item.label,
-                    value: item.value
-                }))
+                ...data.values
+                    .filter(item => item.value !== 'Approved')
+                    .map(item => ({
+                        label: item.label,
+                        value: item.value
+                    }))
             ];
         } else if (error) {
             console.error('Error fetching picklist values:', error);
@@ -99,6 +102,11 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     get isBillingApproved() {
         const status = this.billingDetails && this.billingDetails.Status ? this.billingDetails.Status : '';
         return status === 'Approved';
+    }
+
+    get isBillingApprovedOrRegular() {
+        const status = this.billingDetails && this.billingDetails.Status ? this.billingDetails.Status : '';
+        return status === 'Approved' || this.isRegularBilling === false;
     }
 
     get contractActionsClass() {
@@ -183,7 +191,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      */
     connectedCallback() {
         try {
-            console.log('Record Id in Billing Details Page: ' + this.recordId);
             this.loadBillingData();
         } catch (error) {
             console.error('Error in connectedCallback:', error);
@@ -200,10 +207,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             getBillingsData({ billingId: this.recordId })
                 .then(result => {
                     console.log('getBillingsData result: ', result);
-                    
                     this.billingRecord = result;
-                    console.log('Billing Record: ', this.billingRecord);
-
                     this.processBillingDetails(result.billDetails);
                     this.processLineItems(result.billLineItems);
                 })
@@ -240,6 +244,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             
             this.billingDetails = { ...processedDetails };
             this.originalBillingDetails = { ...processedDetails };
+            this.isRegularBilling = this.billingDetails.BillType === 'Regular';
         } catch (error) {
             console.error('Error in processBillingDetails:', error);
         }
@@ -308,6 +313,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             retainagePercent: this.formatPercent(item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c),
             retainageAmount: this.formatCurrency(item.wfrecon__This_Retainage_Amount__c),
             dueThisBilling: this.formatCurrency(item.wfrecon__Due_This_Billing__c),
+            thisBillRetainageAmount: this.formatCurrency(item.wfrecon__Total_Retainage_Amount__c),
             isEditingThisBillingPercent: false,
             isEditingRetainagePercent: false,
             rowClass: '',
@@ -319,6 +325,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             rawPreviousBilledAmount: item.wfrecon__Previous_Billed_Value__c || 0,
             rawTotalCompleteAmount: item.wfrecon__Total_Billing_Value_Retainage__c || 0,
             rawThisBillingAmount: item.wfrecon__This_Billing_Value__c || 0,
+            rawThisBillRetainageAmount: item.wfrecon__Total_Retainage_Amount__c || 0,
             rawRetainagePercent: item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0,
             rawRetainageAmount: item.wfrecon__This_Retainage_Amount__c || 0,
             rawDueThisBilling: item.wfrecon__Due_This_Billing__c || 0,
@@ -354,6 +361,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             acc.previousBilledAmount += item.rawPreviousBilledAmount;
             acc.totalCompleteAmount += item.rawTotalCompleteAmount;
             acc.thisBillingAmount += item.rawThisBillingAmount;
+            acc.thisBillRetainageAmount += item.rawThisBillRetainageAmount;
             acc.retainageAmount += item.rawRetainageAmount;
             acc.dueThisBilling += item.rawDueThisBilling;
             return acc;
@@ -362,6 +370,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             previousBilledAmount: 0,
             totalCompleteAmount: 0,
             thisBillingAmount: 0,
+            thisBillRetainageAmount: 0,
             retainageAmount: 0,
             dueThisBilling: 0
         });
@@ -372,6 +381,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             previousBilledAmount: this.formatCurrency(totals.previousBilledAmount),
             totalCompleteAmount: this.formatCurrency(totals.totalCompleteAmount),
             thisBillingAmount: this.formatCurrency(totals.thisBillingAmount),
+            thisBillRetainageAmount: this.formatCurrency(totals.thisBillRetainageAmount),
             retainageAmount: this.formatCurrency(totals.retainageAmount),
             dueThisBilling: this.formatCurrency(totals.dueThisBilling)
         };
@@ -385,8 +395,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         try {
             this.billingDetails.Status = event.detail.value;
             this.checkBillingChanges();
-
-            console.log('Updated Billing Details:', this.billingDetails);
         } catch (error) {
             console.error('Error in handleStatusChange:', error);
         }
@@ -404,9 +412,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                     (parseFloat(event.target.value) || 0) : 
                     event.target.value);
 
-            console.log('Field Name:', fieldName);
-            console.log('Value:', value);
-            
             // Update the billing details object
             switch(fieldName) {
                 case 'retainage':
@@ -432,8 +437,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                     break;
             }
 
-            console.log('Updated Billing Details:', this.billingDetails);
-            
             this.checkBillingChanges();
         } catch (error) {
             console.error('Error in handleBillingFieldChange:', error);
@@ -589,7 +592,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             }
             const recordId = event.target.dataset.recordId;
             const fieldName = event.target.dataset.fieldName;
-            console.log('Input Change - RecordId:', recordId, 'Field:', fieldName, 'New Value:', event.target.value);
             
             let newValue = parseFloat(event.target.value) || 0;
             
@@ -803,12 +805,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             }
             this.changeOrderLineItems = [...this.changeOrderLineItems];
         }
-
-        console.log('Updated item:', contractItem || changeOrderItem);
-        console.log('Contract items:', this.contractLineItems);
-        console.log('Change order items:', this.changeOrderLineItems);
-        console.log('Modified contract items:', this.modifiedContractItems);
-        console.log('Modified change order items:', this.modifiedChangeOrderItems);
     }
 
     /** 
@@ -848,24 +844,14 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      * @description: Tracks field modifications for contract and change order items.
      */
     trackModification(recordId, fieldName, newValue) {
-        console.log('Inside trackModification');
-        console.log('Record ID:', recordId);
-        console.log('Field Name:', fieldName);
-        console.log('New Value:', newValue);
-        
         const contractItem = this.contractLineItems.find(item => item.Id === recordId);
         const changeOrderItem = this.changeOrderLineItems.find(item => item.Id === recordId);
-        console.log('Contract item:', contractItem);
-        console.log('Change order item:', changeOrderItem);
         
         if (contractItem) {
             const existingModifications = this.modifiedContractItems.get(recordId) || {};
             existingModifications[fieldName] = newValue;
             this.modifiedContractItems.set(recordId, existingModifications);
-            console.log('Modified Contract Items Map:', this.modifiedContractItems);
-            
             this.hasContractModifications = this.modifiedContractItems.size > 0;
-            console.log('Has Contract Modifications:', this.hasContractModifications);
         } else if (changeOrderItem) {
             const existingModifications = this.modifiedChangeOrderItems.get(recordId) || {};
             existingModifications[fieldName] = newValue;
@@ -885,7 +871,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 return;
             }
             if (this.modifiedContractItems.size === 0) return;
-            console.log(this.modifiedContractItems);
             
             this.isSavingContract = true;
             this.isLoading = true;
@@ -906,7 +891,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
             console.log('lineItemUpdates:', lineItemUpdates);
 
-            
             saveBillingLineItems({
                 billingId: this.recordId,
                 lineItemUpdates: lineItemUpdates
@@ -977,7 +961,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             }
 
             console.log('lineItemUpdates:', lineItemUpdates);
-            
             
             saveBillingLineItems({
                 billingId: this.recordId,

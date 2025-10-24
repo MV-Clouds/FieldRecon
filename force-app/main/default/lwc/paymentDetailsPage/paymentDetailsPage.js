@@ -61,9 +61,9 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
      */
     connectedCallback() {
         console.log('PaymentDetailsPage connected with recordId:', this.recordId);
-        // if (this.recordId) {
+        if (this.recordId) {
             this.loadPaymentData();
-        // }
+        }
     }
 
     /** 
@@ -73,7 +73,7 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
     loadPaymentData() {
         try {
             this.isLoading = true;
-            getPaymentData({ paymentId: 'a0dKY000003BE76YAG' })
+            getPaymentData({ paymentId: this.recordId })
                 .then(result => {
                     console.log('Payment data loaded:', result);
                     this.paymentRecord = result;
@@ -167,11 +167,11 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
         return {
             Id: item.Id,
             ScopeEntryName: item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Entry__r?.Name || '-',
-            ContractValue: item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Contract_Value__c || 0,
-            TotalBilledAmount: item.wfrecon__Billing_Line_Item__r?.wfrecon__This_Billing_Value__c || 0,
+            ContractValue: item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Contract_Amount__c || 0,
+            TotalBilledAmount: item.wfrecon__Billing_Line_Item__r.wfrecon__Bill_Item_Type__c == 'Regular' ? item.wfrecon__Billing_Line_Item__r?.wfrecon__This_Billing_Value__c || 0 : item.wfrecon__Billing_Line_Item__r?.wfrecon__Total_Retainage_Amount__c || 0,
             AmountReceived: item.wfrecon__Amount_Received__c || 0,
-            FormattedContractValue: this.formatCurrency(item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Contract_Value__c || 0),
-            FormattedTotalBilledAmount: this.formatCurrency(item.wfrecon__Billing_Line_Item__r?.wfrecon__This_Billing_Value__c || 0),
+            FormattedContractValue: this.formatCurrency(item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Contract_Amount__c || 0),
+            FormattedTotalBilledAmount: item.wfrecon__Billing_Line_Item__r.wfrecon__Bill_Item_Type__c == 'Regular' ? this.formatCurrency(item.wfrecon__Billing_Line_Item__r?.wfrecon__This_Billing_Value__c || 0) : this.formatCurrency(item.wfrecon__Billing_Line_Item__r?.wfrecon__Total_Retainage_Amount__c || 0),
             FormattedAmountReceived: this.formatCurrency(item.wfrecon__Amount_Received__c || 0),
             IsEditingAmountReceived: false
         };
@@ -219,8 +219,6 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
         const fieldName = event.target.dataset.fieldName;
         const newValue = event.target.value;
         
-        console.log('Payment field changed:', fieldName, newValue);
-
         // Map field names to payment details properties
         let propertyName;
         if (fieldName === 'paymentReference') {
@@ -269,7 +267,7 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
         }
 
         updatePaymentDetails({ 
-            paymentId: 'a0dKY000003BE76YAG', 
+            paymentId: this.recordId, 
             fieldValues: fieldValues 
         })
         .then(result => {
@@ -300,8 +298,6 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
     handleCellClick(event) {
         const recordId = event.currentTarget.dataset.recordId;
         const fieldName = event.currentTarget.dataset.field;
-        
-        console.log('Cell clicked:', recordId, fieldName);
         
         if (!recordId || !fieldName) return;
         
@@ -342,8 +338,6 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
         const recordId = event.target.dataset.recordId;
         const fieldName = event.target.dataset.field;
         const newValue = event.target.value;
-        
-        console.log('Cell input changed:', recordId, fieldName, newValue);
         
         // Update the item value
         this.updateItemValue(recordId, fieldName, newValue);
@@ -407,8 +401,6 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
     handleCellInputBlur(event) {
         const recordId = event.target.dataset.recordId;
         const fieldName = event.target.dataset.field;
-        
-        console.log('Cell input blur:', recordId, fieldName);
         
         // Disable editing for this cell
         this.updateItemEditingState(recordId, fieldName, false);

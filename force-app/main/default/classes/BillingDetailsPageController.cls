@@ -8,8 +8,8 @@ public with sharing class BillingDetailsPageController {
             // Query Billing record
             wfrecon__Billing__c bill = [
                 SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Retainage__c, wfrecon__Retainage_on_Bill__c, wfrecon__Job__r.wfrecon__Total_Contract_Price__c, wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c, 
-                       wfrecon__Contract_Sum_to_Date__c, Total_Billed_Amount__c, wfrecon__Total_Amount_Earned_Less_Retainage__c, Current_Payment_Due_FM__c,
-                       wfrecon__Balance_to_Finish_Retainage__c, wfrecon__Account__r.Name, wfrecon__Application_Number__c, wfrecon__Billing_Reference_Number__c,
+                       wfrecon__Contract_Sum_to_Date__c, Total_Billed_Amount__c, wfrecon__Total_Amount_Earned_Less_Retainage__c, Current_Payment_Due_FM__c, Bill_Type__c, Account__c, wfrecon__Account__r.BillingStreet, wfrecon__Account__r.BillingCity,
+                       wfrecon__Account__r.BillingState, wfrecon__Account__r.BillingPostalCode, wfrecon__Balance_to_Finish_Retainage__c, wfrecon__Account__r.Name, wfrecon__Application_Number__c, wfrecon__Billing_Reference_Number__c,
                        wfrecon__Is_Retainage_Billing__c, wfrecon__Previous_Bill__c, wfrecon__Previous_Bill__r.Name, wfrecon__Previous_Billed_Amount__c, wfrecon__Sent_Date__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Status__c,
                        wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Account__r.Name, wfrecon__Payment_Due_Date__c, Retainage_Completed_to_Date__c, Less_Previous_Certificated_for_Payment__c
                 FROM wfrecon__Billing__c
@@ -22,12 +22,14 @@ public with sharing class BillingDetailsPageController {
             wrapper.billDetails = new BillWrapper();
             wrapper.billDetails.Id = bill.Id;
             wrapper.billDetails.Name = String.isNotBlank(bill.Name) ? bill.Name : '-';
+            wrapper.billDetails.BillType = String.isNotBlank(bill.Bill_Type__c) ? bill.Bill_Type__c : 'Regular';
             wrapper.billDetails.BillingReferenceNumber = String.isNotBlank(bill.wfrecon__Billing_Reference_Number__c) ? bill.wfrecon__Billing_Reference_Number__c : '-';
             wrapper.billDetails.ApplicationNumber = String.isNotBlank(bill.wfrecon__Application_Number__c) ? bill.wfrecon__Application_Number__c : '-';
             wrapper.billDetails.Status = String.isNotBlank(bill.wfrecon__Status__c) ? bill.wfrecon__Status__c : '-';
             wrapper.billDetails.StartDate = bill.wfrecon__Start_Date__c;
             wrapper.billDetails.EndDate = bill.wfrecon__End_Date__c;
             wrapper.billDetails.SentDate = bill.wfrecon__Sent_Date__c;
+            wrapper.billDetails.Address = buildAddress(bill.wfrecon__Account__r);
             wrapper.billDetails.AccountName = (bill.wfrecon__Account__r != null && String.isNotBlank(bill.wfrecon__Account__r.Name)) ? bill.wfrecon__Account__r.Name : '-';
             wrapper.billDetails.RetainageOnBill = bill.wfrecon__Retainage_on_Bill__c != null ? bill.wfrecon__Retainage_on_Bill__c : 0.00;
             wrapper.billDetails.TotalEarnedLessRetainage = bill.wfrecon__Total_Amount_Earned_Less_Retainage__c != null ? bill.wfrecon__Total_Amount_Earned_Less_Retainage__c : 0.00;
@@ -52,7 +54,7 @@ public with sharing class BillingDetailsPageController {
             // Query Billing Line Items directly
             List<wfrecon__Billing_Line_Item__c> billLineItems = [
                 SELECT Id, wfrecon__Billing__c, wfrecon__Scope_Entry__c, wfrecon__Scope_Entry__r.Name, wfrecon__Scope_Entry_Type__c, wfrecon__Scope_Contract_Amount__c,
-                       Previous_Billed_Value__c, Previous_Billed_Percent__c, wfrecon__This_Billing_Percent__c,
+                       Previous_Billed_Value__c, Previous_Billed_Percent__c, wfrecon__This_Billing_Percent__c, wfrecon__Total_Retainage_Amount__c,
                        Scope_Complete__c, wfrecon__Total_Billing_Value_Retainage__c, This_Billing_Value__c,
                        wfrecon__Due_This_Billing__c, wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
                        wfrecon__This_Retainage_Amount__c
@@ -95,7 +97,7 @@ public with sharing class BillingDetailsPageController {
                 retainageChanged = true;
             }
             if (fieldValues.containsKey('SentDate')) {
-                billing.wfrecon__Sent_Date__c = (Date) fieldValues.get('SentDate');
+                billing.wfrecon__Sent_Date__c = Date.valueOf((String) fieldValues.get('SentDate'));
             }
             if (fieldValues.containsKey('BillingReferenceNumber')) {
                 billing.wfrecon__Billing_Reference_Number__c = (String) fieldValues.get('BillingReferenceNumber');
@@ -104,13 +106,13 @@ public with sharing class BillingDetailsPageController {
                 billing.wfrecon__Application_Number__c = (String) fieldValues.get('ApplicationNumber');
             }
             if (fieldValues.containsKey('StartDate')) {
-                billing.wfrecon__Start_Date__c = (Date) fieldValues.get('StartDate');
+                billing.wfrecon__Start_Date__c = Date.valueOf((String) fieldValues.get('StartDate'));
             }
             if (fieldValues.containsKey('EndDate')) {
-                billing.wfrecon__End_Date__c = (Date) fieldValues.get('EndDate');
+                billing.wfrecon__End_Date__c = Date.valueOf((String) fieldValues.get('EndDate'));
             }
             if (fieldValues.containsKey('PaymentDueDate')) {
-                billing.wfrecon__Payment_Due_Date__c = (Date) fieldValues.get('PaymentDueDate');
+                billing.wfrecon__Payment_Due_Date__c = Date.valueOf((String) fieldValues.get('PaymentDueDate'));
             }
             
             update billing;
@@ -314,6 +316,27 @@ public with sharing class BillingDetailsPageController {
         }
     }
 
+    private static String buildAddress(Account acc) {
+        if (acc == null) return '-';
+        
+        List<String> addressParts = new List<String>();
+        
+        if (String.isNotBlank(acc.BillingStreet)) {
+            addressParts.add(acc.BillingStreet);
+        }
+        if (String.isNotBlank(acc.BillingCity)) {
+            addressParts.add(acc.BillingCity);
+        }
+        if (String.isNotBlank(acc.BillingState)) {
+            addressParts.add(acc.BillingState);
+        }
+        if (String.isNotBlank(acc.BillingPostalCode)) {
+            addressParts.add(acc.BillingPostalCode);
+        }
+        
+        return !addressParts.isEmpty() ? String.join(addressParts, ', ') : '-';
+    }
+
     // ---------------------------
     // Top-level wrapper classes
     // ---------------------------
@@ -330,6 +353,8 @@ public with sharing class BillingDetailsPageController {
     public class BillWrapper {
         @AuraEnabled public Id Id;
         @AuraEnabled public String Name;
+        @AuraEnabled public String BillType;
+        @AuraEnabled public String Address;
         @AuraEnabled public String PreviousBillName;
         @AuraEnabled public String BillingReferenceNumber;
         @AuraEnabled public String ApplicationNumber;

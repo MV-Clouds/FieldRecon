@@ -38,10 +38,12 @@
 }
 
 .spinner-container {
-    position: absolute;
+    /* position: absolute; */
     height: 100%;
     z-index: 9999;
     width: 100%;
+    top: 0;
+    left: 0;
 }
 
 /* Table Section Styling */
@@ -324,14 +326,14 @@
 }
 
 .billing-name-value {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: rgba(94, 90, 219, 1);
 }
 
 .job-number-value {
     font-size: 1.25rem;
-    font-weight: 600;
+    font-weight: 700;
     color: #333;
 }
 

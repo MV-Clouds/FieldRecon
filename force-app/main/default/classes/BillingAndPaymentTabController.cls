@@ -64,8 +64,8 @@ public with sharing class BillingAndPaymentTabController {
 
             // Step 2: Fetch billings if approved scope entries exist
             List<Billing__c> billings = [
-                SELECT Id, Name, Status__c, Job__r.Job_Name__c, Job__r.Retainage__c, Previous_Bill__c, Previous_Bill__r.Name,
-                       Start_Date__c, End_Date__c, Sent_Date__c, Billing_Reference_Number__c
+                SELECT Id, Name, Status__c, Job__r.Job_Name__c, Job__r.Retainage__c, Previous_Bill__c, Previous_Bill__r.Name, Retainage_Completed_to_Date__c,
+                       Start_Date__c, End_Date__c, Sent_Date__c, Billing_Reference_Number__c, Bill_Type__c, Current_Payment_Due_FM__c
                 FROM Billing__c
                 WHERE Job__c = :jobId
                 WITH USER_MODE
@@ -156,8 +156,13 @@ public with sharing class BillingAndPaymentTabController {
                 LIMIT 1
             ];
 
-            // 2. Create new Billing record
+            // 2. Determine retainage, previous bill details and approved scope entries
             Decimal billRetainage = job.Retainage__c;
+            Boolean isRetainageBill = (billingType != null && billingType.equalsIgnoreCase('Retainage Bill'));
+
+            Map<Id, Billing_Line_Item__c> prevBillItemMap = new Map<Id, Billing_Line_Item__c>();
+            List<Billing_Line_Item__c> previousBillItems = new List<Billing_Line_Item__c>();
+
             if (String.isNotBlank(prevBill)) {
                 Billing__c previousBilling = [
                     SELECT Id, Retainage_on_Bill__c
@@ -168,19 +173,97 @@ public with sharing class BillingAndPaymentTabController {
                 if (previousBilling.Retainage_on_Bill__c != null) {
                     billRetainage = previousBilling.Retainage_on_Bill__c;
                 }
+
+                previousBillItems = [
+                    SELECT Id, Scope_Entry__c, Total_Complete_Percent__c, This_Billing_Percent__c, Remaining_Billing_Amount__c,
+                           Total_Retainage_Amount__c, Total_Billed_Value__c, Retainage_Percent_on_Bill_Line_Item__c
+                    FROM Billing_Line_Item__c
+                    WHERE Billing__c = :prevBill
+                ];
+
+                for (Billing_Line_Item__c prevItem : previousBillItems) {
+                    if (prevItem.Scope_Entry__c != null) {
+                        prevBillItemMap.put(prevItem.Scope_Entry__c, prevItem);
+                    }
+                }
             }
 
+            List<Scope_Entry__c> scopeEntries = [
+                SELECT Id, Name, Contract_Value__c, Type__c, Scope_Entry_Status__c, Job__c, Completed_Percentage__c, Current_Complete_Value__c 
+                FROM Scope_Entry__c 
+                WHERE Job__c = :jobId AND Scope_Entry_Status__c = 'Approved'
+                WITH USER_MODE
+            ];
+
+            Decimal hundred = 100;
+            Boolean hasScopedLines = false;
+            Boolean allPrevItemsComplete = true;
+            for (Billing_Line_Item__c prevItem : previousBillItems) {
+                if (prevItem.Scope_Entry__c == null) {
+                    continue;
+                }
+                hasScopedLines = true;
+                Decimal percent = prevItem.This_Billing_Percent__c;
+                if (percent == null || percent != 100) {
+                    allPrevItemsComplete = false;
+                }
+            }
+
+            Set<Id> currentScopeEntryIds = new Set<Id>();
+            for (Scope_Entry__c se : scopeEntries) {
+                currentScopeEntryIds.add(se.Id);
+            }
+
+            Boolean hasNewScopeEntries = false;
+            Boolean hasMissingScopeEntries = false;
+            Boolean scopeEntriesMatch = true;
+
+            if (String.isNotBlank(prevBill)) {
+                Set<Id> prevScopeEntryIds = new Set<Id>(prevBillItemMap.keySet());
+
+                Set<Id> newScopeEntries = currentScopeEntryIds.clone();
+                newScopeEntries.removeAll(prevScopeEntryIds);
+                hasNewScopeEntries = !newScopeEntries.isEmpty();
+
+                Set<Id> missingScopeEntries = prevScopeEntryIds.clone();
+                missingScopeEntries.removeAll(currentScopeEntryIds);
+                hasMissingScopeEntries = !missingScopeEntries.isEmpty();
+
+                scopeEntriesMatch = !hasNewScopeEntries && !hasMissingScopeEntries;
+            }
+
+            if (isRetainageBill) {
+                if (String.isBlank(prevBill)) {
+                    return 'Select a previous approved billing before creating a retainage bill.';
+                }
+
+                if (!hasScopedLines) {
+                    return 'Retainage bill can only be created when the selected previous billing has scope line items.';
+                }
+
+                if (!allPrevItemsComplete) {
+                    return 'Retainage bill can only be created when all previous billing line items are 100% complete.';
+                }
+
+                if (hasNewScopeEntries) {
+                    return 'Retainage bill can only be created when no new scope entries have been added since the previous billing.';
+                }
+
+                if (hasMissingScopeEntries) {
+                    return 'Retainage bill can only be created when scope entries match the previous billing.';
+                }
+            } else if (String.isNotBlank(prevBill)) {
+                if (hasScopedLines && allPrevItemsComplete && scopeEntriesMatch) {
+                    return 'Previous billing is fully complete with no new approved scope entries. Please create a retainage bill instead of a regular bill.';
+                }
+            }
+
+            // 3. Create new Billing record
             Billing__c newBilling = new Billing__c();
             newBilling.Job__c = jobId;
             newBilling.Account__c = job.Account__c;
             newBilling.Status__c = 'Draft';
-            
-            // Set Is_Retainage_Billing__c based on billingType
-            newBilling.Is_Retainage_Billing__c = (billingType == 'Retainage Bill');
-            
-            // Set Billing_Type__c if field exists (optional)
-            // newBilling.Billing_Type__c = billingType;
-            
+            newBilling.Bill_Type__c = isRetainageBill ? 'Retainage' : 'Regular';
             newBilling.Retainage_on_Bill__c = billRetainage;
             newBilling.Start_Date__c = startDate;
             newBilling.End_Date__c = endDate;
@@ -189,33 +272,12 @@ public with sharing class BillingAndPaymentTabController {
             }
             insert newBilling;
 
-            // 3. Prepare Previous Bill Line Item mapping
-            Map<Id, Billing_Line_Item__c> prevBillItemMap = new Map<Id, Billing_Line_Item__c>();
-            if (String.isNotBlank(prevBill)) {
-                for (Billing_Line_Item__c prevItem : [
-                    SELECT Id, Scope_Entry__c, Total_Complete_Percent__c, This_Billing_Percent__c, Remaining_Billing_Amount__c, Total_Retainage_Amount__c, Total_Billed_Value__c, Retainage_Percent_on_Bill_Line_Item__c
-                    FROM Billing_Line_Item__c
-                    WHERE Billing__c = :prevBill
-                ]) {
-                    if (prevItem.Scope_Entry__c != null) {
-                        prevBillItemMap.put(prevItem.Scope_Entry__c, prevItem);
-                    }
-                }
-            }
-
-            // 4. Get Approved Scope Entries
-            List<Scope_Entry__c> scopeEntries = [
-                SELECT Id, Name, Contract_Value__c, Type__c, Scope_Entry_Status__c, Job__c, Completed_Percentage__c, Current_Complete_Value__c 
-                FROM Scope_Entry__c 
-                WHERE Job__c = :jobId AND Scope_Entry_Status__c = 'Approved'
-                WITH USER_MODE
-            ];
-
-            // 5. Create Billing Line Items
+            // 4. Create Billing Line Items
             List<Billing_Line_Item__c> billLinesToInsert = new List<Billing_Line_Item__c>();
             for (Scope_Entry__c se : scopeEntries) {
                 Billing_Line_Item__c newItem = new Billing_Line_Item__c();
                 newItem.Billing__c = newBilling.Id;
+                newItem.Bill_Item_Type__c = isRetainageBill ? 'Retainage' : 'Regular';
                 newItem.Scope_Entry__c = se.Id;
                 newItem.Scope_Contract_Amount__c = se.Contract_Value__c;
                 newItem.Scope_Complete__c = se.Completed_Percentage__c;
@@ -282,7 +344,8 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'createBilling', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            system.debug(e.getMessage());
+            return e.getMessage();
         }
     }
 
@@ -354,7 +417,7 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'approveBilling', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return e.getMessage();
         }
     }
 

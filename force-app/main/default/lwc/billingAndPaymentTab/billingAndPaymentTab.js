@@ -28,8 +28,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     @track approvedBillingOptionsForNew = [];
     @track statusOptions = [];
     @track billingTypeOptions = [
-        { label: 'Regular Bill', value: 'Regular Bill' }
-        // { label: 'Retainage Bill', value: 'Retainage Bill' }
+        { label: 'Regular Bill', value: 'Regular Bill' },
+        { label: 'Retainage Bill', value: 'Retainage Bill' }
     ];
     @track selectedStatus = 'All';
     @track searchTerm = '';
@@ -81,8 +81,9 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             style: 'width: 12rem'
         },
         { label: 'Status', fieldName: 'wfrecon__Status__c', style: 'width: 15rem' },
+        { label: 'Bill Type', fieldName: 'wfrecon__Bill_Type__c', style: 'width: 10rem' },
         { label: 'Bill Reference Number', fieldName: 'wfrecon__Billing_Reference_Number__c', style: 'width: 15rem' },
-        { label: 'Bill Amount', fieldName: 'wfrecon__Amount__c', style: 'width: 15rem' },
+        { label: 'Bill Amount', fieldName: 'wfrecon__Current_Payment_Due_FM__c', style: 'width: 15rem' },
         { label: 'Start Date', fieldName: 'wfrecon__Start_Date__c', style: 'width: 10rem' },
         { label: 'End Date', fieldName: 'wfrecon__End_Date__c', style: 'width: 10rem' },
         { label: 'Sent Date', fieldName: 'wfrecon__Sent_Date__c', style: 'width: 10rem' }
@@ -217,7 +218,12 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                             cell.value = cell.value.slice(0, 16).replace('T', ' ');
                         }
 
-                        if(col.fieldName === 'wfrecon__Amount__c') {
+                        if(col.fieldName === 'wfrecon__Current_Payment_Due_FM__c') {
+                            if(bill.wfrecon__Bill_Type__c === 'Retainage') {
+                                cell.value = bill.wfrecon__Retainage_Completed_to_Date__c || '';
+                            } else {
+                                cell.value = bill.wfrecon__Current_Payment_Due_FM__c || '';
+                            }
                             if(cell.value != '') {
                                 cell.value = '$' + cell.value
                             } else {
@@ -286,6 +292,14 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                             }
                         }
 
+                        if(col.fieldName === 'wfrecon__Payable_Amount_Received__c') {
+                            if(cell.value != '') {
+                                cell.value = '$' + cell.value
+                            } else {
+                                cell.value = '$0.00';
+                            }
+                        }
+
                         if (col.fieldName === 'wfrecon__Payment_Received_Date__c') {
                             cell.value = cell.value.slice(0, 16).replace('T', ' ');
                         }
@@ -309,7 +323,6 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
      */
     connectedCallback() {
         this.isLoading = true;
-        console.log(this.recordId);
         this.loadJobData();
         this.loadBillingData();
     }
@@ -493,7 +506,6 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         try {
             const recordId = event.currentTarget.dataset.id;
             const actionType = event.currentTarget.dataset.action;
-            console.log(recordId, actionType);
             
             if (actionType === 'deleteBilling') {
                 this.deleteRecordId = recordId;
@@ -559,14 +571,6 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             } else if(this.popupProperties.action === 'approveBilling'){
                 this.handleApproveBilling();
             }
-
-            this.popupProperties = {
-                heading: '',
-                body: '',
-                buttonLabel: '',
-                action: ''
-            };
-            this.billId = null;
         } catch (error) {
             console.error('Error in handleConfirmClick :: ', error);
         }
@@ -578,20 +582,49 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
      */
     handleApproveBilling() {
         try {
+            const bill = this.billDetails.find(b => b.billId === this.billId);
+            if (!bill) {
+                console.error('Bill not found with id:', this.billId);
+                return;
+            }
+
+            const startDate = bill.values.find(v => v.key === 'wfrecon__Start_Date__c')?.value;
+            const endDate = bill.values.find(v => v.key === 'wfrecon__End_Date__c')?.value;
+
+            // Check if dates are valid
+            if (!startDate || startDate === '-' || !endDate || endDate === '-') {
+                this.showToast('Error', 'Please fill both Start and End dates before approving.', 'error');
+                return; // Stop further execution
+            }
+
             this.isLoading = true;
             approveBillingRecord({ billingId: this.billId })
                 .then((result) => {
-                    if(result == 'SUCCESS') {
+                    if(result === 'SUCCESS') {
                         this.showToast('Success', 'Billing approved successfully', 'success');
                         this.closeConfirmModal();
                         this.loadBillingData();
+                        this.popupProperties = {
+                            heading: '',
+                            body: '',
+                            buttonLabel: '',
+                            action: ''
+                        };
+                        this.billId = null;
                     } else {
-                        this.showToast('Error', 'Failed to approve billing. Please contact system admin.', 'error');
+                        const message = result || 'Failed to approve billing. Please contact system admin.';
+                        this.showToast('Error', message, 'error');
                     }
                 })
                 .catch((error) => {
                     console.error('Error approving billing:', error);
-                    this.showToast('Error', 'Failed to approve billing. Please contact system admin.', 'error');
+                    let message = 'Failed to approve billing. Please contact system admin.';
+                    if (error && error.body && error.body.message) {
+                        message = error.body.message;
+                    } else if (error && error.message) {
+                        message = error.message;
+                    }
+                    this.showToast('Error', message, 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
@@ -723,9 +756,24 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     handleCreateBilling() {
         try {
             this.createNewBillModal = true;
+            const today = new Date();
+
+            // First day of current month
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            // Last day of current month
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+            // Format as YYYY-MM-DD (for <input type="date">)
+            const formatDate = date => {
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            };
+
             this.newBill = {
-                Start_Date__c: null,
-                End_Date__c: null,
+                Start_Date__c: formatDate(firstDay),
+                End_Date__c: formatDate(lastDay),
                 prevBillId: null,
                 billingType: 'Regular Bill'
             };
@@ -765,7 +813,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         this.closeNewBillModal();
                         this.loadBillingData();
                     } else {
-                        this.showToast('Error', 'Failed to create billing record. Please contact system admin.', 'error');
+                        this.showToast('Error', result, 'error');
                     }
                 })
                 .catch((error) => {
@@ -840,6 +888,13 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                             this.loadPaymentData();
                         }
                         this.closeConfirmModal();
+                        this.popupProperties = {
+                            heading: '',
+                            body: '',
+                            buttonLabel: '',
+                            action: ''
+                        };
+                        this.billId = null;
                     } else {
                         this.showToast('Error', 'Failed to delete record. Please contact system admin.', 'error');
                     }
@@ -873,7 +928,6 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
      */
     handleSaveNewPayment() {
         try {
-            console.log('Creating payment with data: ', this.newPayment);
             if(this.newPayment.billId == null) {
                 this.showToast('Error', 'Please select a billing for the payment.', 'error');
                 return;
