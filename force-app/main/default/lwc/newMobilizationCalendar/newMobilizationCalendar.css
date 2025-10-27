@@ -4,6 +4,11 @@
   scrollbar-color: #5e5adb #5e5adb20;
 }
 
+:host{
+  --primary-theme-color: #5e5adb;
+  --primary-theme-color-shade-20: #5e5adb20;
+}
+
 .fullcalendarjs{
     margin-inline: 1rem;
 }
@@ -58,14 +63,14 @@
 }
 
 .mob-popup-header, .confirm-popup-header{
-  background-color: #5e5adb;
+  background-color: var(--primary-theme-color, #5e5adb);
   color: white;
   border: none;
 }
 
 
 .save-btn, .nav-btn, .add-btn, .create-btn{
-    background-color: #5a5adb;
+    background-color: var(--primary-theme-color, #5a5adb);
     color: white;
     border: none;
     border-radius: 4px;
@@ -86,12 +91,12 @@
 
 .confirmation-cancel-btn{
   background: white;
-  border: 1px solid #5a5adb;
-  color: #5a5adb;
+  border: 1px solid var(--primary-theme-color, #5a5adb);
+  color: var(--primary-theme-color, #5a5adb);
 }
 
 .confirmation-cancel-btn:hover{
-  background:shade-20, #5e5adb20;
+  background: var(--primary-theme-color-shade-20, #5e5adb20);
 }
 
 .confirm-popup-btns{
@@ -118,7 +123,7 @@
 }
 
 .footer-btn{
-    background-color: #5a5adb;
+    background-color: var(--primary-theme-color, #5a5adb);
     color: white;
     border: none;
     border-radius: 4px;
@@ -167,7 +172,7 @@
     display: flex;
     max-width: 100%;
     flex-grow: 1;
-    border-bottom: 2px solid #5a5adb;
+    border-bottom: 2px solid var(--primary-theme-color, #5a5adb);
 }
 
 .tab-navigation button {
@@ -192,16 +197,16 @@
 
 .tab-navigation button:hover {
     background: #ebf3f6;
-    color: #5a5adb;
+    color: var(--primary-theme-color, #5a5adb);
 }
 
 .nav-tab-btn[data-selected="Crew"].nav-tab-btn[name="Crew"], 
 .nav-tab-btn[data-selected="Asset"].nav-tab-btn[name="Asset"],
 .nav-tab-btn[data-selected="SubContractor"].nav-tab-btn[name="SubContractor"], 
 .tab-navigation button.active{
-    color: #5a5adb;
-    border-top: 3px solid #5a5adb;
-    background:shade-20, #5e5adb20;
+    color: var(--primary-theme-color, #5a5adb);
+    border-top: 3px solid var(--primary-theme-color, #5a5adb);
+    background: var(--primary-theme-color-shade-20, #5e5adb20);
     font-weight: 700;
 }
 

@@ -382,24 +382,27 @@ export default class NewMobilizationCalendar extends LightningElement {
         this.showToast('Success', 'Record created successfully!', 'success');
         this.refreshCalendar();
     }
-
-
-    handleDateClick(info) {
-        console.log('Date clicked');
-        
-        this.selectedStartDate = info.dateStr;
-        this.selectedEndDate = info.dateStr;
-        this.openModal = true;
-    }
     
     handleDateRangeSelect(start, end) {
         try {
             this.isSpinner = true;
+            this.selectedEventId = '';
             this.status = 'Confirmed';
             this.Heading = 'Create Mobilization';
 
             const startDate = new Date(start); // UTC from FullCalendar
             const endDate = new Date(end);
+
+            // Convert both to local time for comparison
+            const now = new Date();
+
+            // ❌ Prevent creation for past start dates (compare local time)
+            if (startDate < now.setHours(0, 0, 0, 0)) {
+                this.isSpinner = false;
+                this.showToast('Warning', 'Cannot create events in the past.','warn');
+                console.warn('Cannot create events in the past.');
+                return; // Exit early
+            }
         
             // Subtract 1 day from end to make it inclusive
             endDate.setDate(endDate.getDate() - 1);
@@ -419,6 +422,7 @@ export default class NewMobilizationCalendar extends LightningElement {
 
                 // Format for lightning-input using helper
                 this.startDateTime = this.formatForInput(startDate);
+                
                 this.endDateTime   = this.formatForInput(endDate);
                 // Include Saturday/Sunday checkboxes
                 this.includeSaturday = defaults.IncludeSaturday;
@@ -474,56 +478,11 @@ export default class NewMobilizationCalendar extends LightningElement {
         });
     }
 
-    handleSave() {
-        if (!this.jobId) {
-            this.showToast('Error', 'Please select a job!', 'error');
-            return;
-        }
-        if (!this.startDateTime || !this.endDateTime) {
-            this.showToast('Error', 'Start and End date/time are required!', 'error');
-            return;
-        }
-
-        const start = new Date(this.startDateTime);
-        const end = new Date(this.endDateTime);
-
-        if (start >= end) {
-            this.showToast('Error', 'End date/time should be after Start date/time!', 'error');
-            return;
-        }
-
-        this.isSpinner = true;
-
-        // Prepare wrapper object same as Aura
-        const mgp = {
-            id: this.selectedEventId || null,
-            jobId: this.jobId,
-            startDate: this.startDateTime,
-            endDate: this.endDateTime,
-            status: this.status || '',
-            description: this.description || '',
-            includeSaturday: this.includeSaturday,
-            includeSunday: this.includeSunday
-        };
-        console.log(mgp);
-        saveJobSchedule({ mgp: mgp })
-            .then(result => {
-                if (result === 'SUCCESS') {
-                    this.showToast('Success', 'Record saved successfully!', 'success');
-                    this.openModal = false;
-                    this.resetTempVariables();
-                    this.refreshCalendar();
-                } else {
-                    this.showToast('Error', 'Something went wrong!', 'error');
-                }
-            })
-            .catch(error => {
-                console.error(error);
-                this.showToast('Error', 'Error saving record: ' + error.body?.message, 'error');
-            })
-            .finally(() => {
-                this.isSpinner = false;
-            });
+    handleSuccess(){
+        this.showToast('Success', 'Record saved successfully!', 'success');
+        this.openModal = false;
+        this.resetTempVariables();
+        this.refreshCalendar();
     }
 
     resetTempVariables() {
@@ -534,6 +493,7 @@ export default class NewMobilizationCalendar extends LightningElement {
         this.description = '';
         this.jobName = '';
         this.groupId = '';
+        this.selectedEventId = '';
     }
 
     handleDeleteMobilization() {

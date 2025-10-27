@@ -64,87 +64,22 @@
             <div class="slds-modal__content slds-p-around_medium mob-popup-body">
                 
                 <!-- Lookup Field (e.g., Job) -->
-
-                <lightning-record-picker
-                if:false={isEdit}
-                label="Jobs"
-                placeholder="Search Jobs..."
-                object-api-name="wfrecon__Job__c"
-                display-info={displayJobs}
-                matching-info={matchingJobs}
-                name="jobId"
-                onchange={handleResourceItemUpdate}
-                required>
-                </lightning-record-picker>
-                
-                <!-- Start Date/Time -->
-                <lightning-input 
-                    type="datetime-local" 
-                    label="Start Date & Time" 
-                    value={startDateTime} 
-                    onchange={handleStartDateTimeChange}
-                    required>
-                </lightning-input>
-                
-                <!-- End Date/Time -->
-                <lightning-input 
-                    type="datetime-local" 
-                    label="End Date & Time" 
-                    value={endDateTime} 
-                    onchange={handleEndDateTimeChange}
-                    required>
-                </lightning-input>
-                
-                <!-- Include Saturday -->
-                <lightning-input 
-                    type="checkbox" 
-                    label="Include Saturday?" 
-                    checked={includeSaturday} 
-                    onchange={handleIncludeSaturdayChange}>
-                </lightning-input>
-                
-                <!-- Include Sunday -->
-                <lightning-input 
-                    type="checkbox" 
-                    label="Include Sunday?" 
-                    checked={includeSunday} 
-                    onchange={handleIncludeSundayChange}>
-                </lightning-input>
-                
-                <!-- Status Dropdown -->
-                <!-- <lightning-combobox 
-                    label="Status" 
-                    value={status} 
-                    options={statusOptions} 
-                    onchange={handleStatusChange}
-                    required>
-                </lightning-combobox> -->
-                <lightning-record-edit-form
-                class="nav-bar-element"
-                density="compact"
-                object-api-name="wfrecon__Mobilization__c">
-                  <label class="slds-form-element__label">Mobilization Status</label>
-                  <lightning-input-field 
-                    variant="label-hidden"
-                    field-name="wfrecon__Mobilization_Status__c"
-                    value={status}
-                    onchange={handleStatusChange}
-                  ></lightning-input-field>
-                </lightning-record-edit-form>
-                
-                <!-- Description -->
-                <lightning-textarea 
-                    label="Description" 
-                    value={description} 
-                    onchange={handleDescriptionChange}>
-                </lightning-textarea>
-
+            <lightning-record-edit-form
+                object-api-name="wfrecon__Mobilization_Group__c" record-id={selectedEventId} onsuccess={handleSuccess}>
+                <lightning-input-field field-name="wfrecon__Job__c" if:false={isEdit} value={jobId}> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Include_Saturday__c"> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Include_Sunday__c"> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Mobilization_Status__c"> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Description__c"> </lightning-input-field>
+                <footer class="mob-modal-footer slds-grid slds-grid--align-center">
+                    <button class="assign-btn footer-btn" onclick={handleResourceAssign}>Assign Resources</button>
+                    <button class="slds-m-left--small delete-btn footer-btn" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>
+                    <button class="slds-m-left--small save-btn footer-btn" type="submit">Save</button>
+                </footer>
+            </lightning-record-edit-form>
             </div>
-            <footer class="mob-modal-footer slds-modal__footer slds-grid slds-grid--align-center slds-border--top">
-                <button class="assign-btn footer-btn" onclick={handleResourceAssign}>Assign Resources</button>
-                <button class="slds-m-left--small delete-btn footer-btn" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>
-                <button class="slds-m-left--small save-btn footer-btn" onclick={handleSave}>Save</button>
-            </footer>
         </div>
     </section>
     <div class="slds-backdrop slds-backdrop_open"></div>
