@@ -178,10 +178,10 @@ public with sharing class TimeCardManagerController {
                                     ? mobilizations[0].End_Date__c.addSeconds(userTz.getOffset(mobilizations[0].End_Date__c)/1000)
                                     : null;
                             } else {
-                                mg.mobilizationId = ts.Mobilization_Group__c; // Use group ID as fallback
+                                mg.mobilizationId = ts.Mobilization_Group__c; 
                             }
                         } else {
-                            mg.mobilizationId = ts.Mobilization_Group__c; // Use group ID as fallback
+                            mg.mobilizationId = ts.Mobilization_Group__c; 
                         }
                         
                         mg.jobId = ts.Mobilization_Group__r.Job__c;
@@ -200,8 +200,7 @@ public with sharing class TimeCardManagerController {
 
             Map<String, Decimal> contactJobManHoursMap = new Map<String, Decimal>();
 
-            // Get all timesheet hours with a single query to avoid double-counting
-            // Using a unified approach where we prioritize Mobilization Job over Timesheet Job
+            // Get all timesheet hours with a single query
             for (AggregateResult ar : [
                 SELECT Timesheet_Entry__r.TimeSheet__r.Contact__c contactId,
                        Timesheet_Entry__r.TimeSheet__r.Job__c timesheetJobId,
@@ -298,7 +297,7 @@ public with sharing class TimeCardManagerController {
                     tw.workHours = item.Total_Time__c != null ? item.Total_Time__c : 0;
                     tw.travelTime = item.Travel_Time__c != null ? item.Travel_Time__c : 0;
                     tw.perDiem = item.Per_Diem__c != null ? Integer.valueOf(item.Per_Diem__c) : 0;
-                    tw.totalTime = item.Total_Time__c != null ? item.Total_Time__c : 0; // Use actual Total_Time__c value
+                    tw.totalTime = item.Total_Time__c != null ? item.Total_Time__c : 0;
                     tw.premium = item.Premium__c != null ? item.Premium__c : false;
                     contactMap.get(cId).timesheetEntries.add(tw);
                 }
@@ -331,8 +330,8 @@ public with sharing class TimeCardManagerController {
     }
 
     public class MobilizationGroupWrapper {
-        @AuraEnabled public Id mobilizationGroupId { get; set; } // The Mobilization Group ID
-        @AuraEnabled public Id mobilizationId { get; set; } // Individual Mobilization ID (for backward compatibility)
+        @AuraEnabled public Id mobilizationGroupId { get; set; }
+        @AuraEnabled public Id mobilizationId { get; set; }
         @AuraEnabled public Id jobId { get; set; }
         @AuraEnabled public String jobName { get; set; }
         @AuraEnabled public String jobNumber { get; set; }
