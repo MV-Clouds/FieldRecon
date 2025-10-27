@@ -381,6 +381,9 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
             }
             return 0;
         });
+        
+        // Update sort icons after sorting
+        this.updateSortIcons();
     }
 
     /**
