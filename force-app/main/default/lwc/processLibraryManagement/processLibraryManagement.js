@@ -12,6 +12,12 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     @track sortOrder = 'asc';
     @track showCreateModal = false;
     @track isCreateModalLoading = false;
+    
+    // Pagination properties
+    @track currentPage = 1;
+    @track pageSize = 30;
+    @track visiblePages = 5;
+    @track shownProcessedData = [];
 
     // Process table columns configuration
     @track processTableColumns = [
@@ -28,13 +34,16 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      * @description: Process library processes for table display
      */
     get displayedProcesses() {
-        if (!this.filteredProcesses || this.filteredProcesses.length === 0) {
+        if (!this.shownProcessedData || this.shownProcessedData.length === 0) {
             return [];
         }
 
-        return this.filteredProcesses.map((processRecord, index) => {
+        return this.shownProcessedData.map((processRecord, index) => {
             const row = { ...processRecord };
             row.recordUrl = `/lightning/r/${processRecord.Id}/view`;
+            
+            // Calculate the correct serial number based on current page
+            const serialNumber = (this.currentPage - 1) * this.pageSize + index + 1;
             
             row.displayFields = this.processTableColumns.map(col => {
                 const key = col.fieldName;
@@ -42,7 +51,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                 
                 // Handle serial number field
                 if (col.isSerialNumber) {
-                    value = index + 1;
+                    value = serialNumber;
                 } else {
                     value = this.getFieldValue(processRecord, key);
                 }
@@ -64,11 +73,142 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     }
 
     /**
+     * Method Name: get totalItems
+     * @description: Get total number of filtered processes
+     */
+    get totalItems() {
+        return this.filteredProcesses ? this.filteredProcesses.length : 0;
+    }
+
+    /**
+     * Method Name: get totalPages
+     * @description: Calculate total number of pages
+     */
+    get totalPages() {
+        return Math.ceil(this.totalItems / this.pageSize);
+    }
+
+    /**
+     * Method Name: get isFirstPage
+     * @description: Check if current page is first page
+     */
+    get isFirstPage() {
+        return this.currentPage === 1;
+    }
+
+    /**
+     * Method Name: get isLastPage
+     * @description: Check if current page is last page
+     */
+    get isLastPage() {
+        return this.currentPage === this.totalPages;
+    }
+
+    /**
+     * Method Name: get startIndex
+     * @description: Get start index for current page
+     */
+    get startIndex() {
+        return (this.currentPage - 1) * this.pageSize + 1;
+    }
+
+    /**
+     * Method Name: get endIndex
+     * @description: Get end index for current page
+     */
+    get endIndex() {
+        return Math.min(this.currentPage * this.pageSize, this.totalItems);
+    }
+
+    /**
+     * Method Name: get pageNumbers
+     * @description: Generate array of page numbers for pagination display
+     */
+    get pageNumbers() {
+        const pages = [];
+        const totalPages = this.totalPages;
+        
+        if (totalPages <= this.visiblePages) {
+            // Show all pages if total pages is less than or equal to visible pages
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push({
+                    number: i,
+                    isActive: i === this.currentPage,
+                    isEllipsis: false,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                });
+            }
+        } else {
+            // Show pages with ellipsis
+            const startPage = Math.max(1, this.currentPage - Math.floor(this.visiblePages / 2));
+            const endPage = Math.min(totalPages, startPage + this.visiblePages - 1);
+            
+            // Add first page and ellipsis if needed
+            if (startPage > 1) {
+                pages.push({
+                    number: 1,
+                    isActive: false,
+                    isEllipsis: false,
+                    cssClass: 'pagination-button'
+                });
+                
+                if (startPage > 2) {
+                    pages.push({
+                        number: '...',
+                        isActive: false,
+                        isEllipsis: true,
+                        cssClass: ''
+                    });
+                }
+            }
+            
+            // Add visible pages
+            for (let i = startPage; i <= endPage; i++) {
+                pages.push({
+                    number: i,
+                    isActive: i === this.currentPage,
+                    isEllipsis: false,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                });
+            }
+            
+            // Add last page and ellipsis if needed
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pages.push({
+                        number: '...',
+                        isActive: false,
+                        isEllipsis: true,
+                        cssClass: ''
+                    });
+                }
+                
+                pages.push({
+                    number: totalPages,
+                    isActive: false,
+                    isEllipsis: false,
+                    cssClass: 'pagination-button'
+                });
+            }
+        }
+        
+        return pages;
+    }
+
+    /**
+     * Method Name: get showEllipsis
+     * @description: Check if ellipsis should be shown in pagination
+     */
+    get showEllipsis() {
+        return this.totalPages > this.visiblePages;
+    }
+
+    /**
      * Method Name: get isDataAvailable
      * @description: Check if data is available to display
      */
     get isDataAvailable() {
-        return this.filteredProcesses && this.filteredProcesses.length > 0;
+        return this.shownProcessedData && this.shownProcessedData.length > 0;
     }
 
     /**
@@ -149,6 +289,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             
             this.filteredProcesses = filtered;
             this.sortData();
+            this.updateShownData();
         } catch (error) {
             console.error('Error applying filters:', error);
         }
@@ -160,6 +301,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      */
     handleSearch(event) {
         this.searchTerm = event.target.value;
+        this.currentPage = 1; // Reset to first page when searching
         this.applyFilters();
     }
 
@@ -187,6 +329,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     handleSaveSuccess(event) {
         this.showToast('Success', 'Process created successfully', 'success');
         this.handleCloseModal();
+        this.currentPage = 1; // Reset to first page
         this.fetchProcesses(); // Refresh the list
     }
 
@@ -215,6 +358,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                 this.sortOrder = 'asc';
             }
             
+            this.currentPage = 1; // Reset to first page when sorting
             this.sortData();
             this.updateSortIcons();
         } catch (error) {
@@ -248,6 +392,8 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                 
                 return this.sortOrder === 'desc' ? -result : result;
             });
+            
+            this.updateShownData();
         } catch (error) {
             console.error('Error sorting data:', error);
         }
@@ -312,5 +458,58 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             variant
         });
         this.dispatchEvent(event);
+    }
+
+    /**
+     * Method Name: updateShownData
+     * @description: Update the shownProcessedData when pagination is applied
+     */
+    updateShownData() {
+        try {
+            if (!this.filteredProcesses || this.filteredProcesses.length === 0) {
+                this.shownProcessedData = [];
+                return;
+            }
+
+            const startIndex = (this.currentPage - 1) * this.pageSize;
+            const endIndex = startIndex + this.pageSize;
+            this.shownProcessedData = this.filteredProcesses.slice(startIndex, endIndex);
+        } catch (error) {
+            console.error('Error updating shown data:', error);
+        }
+    }
+
+    /**
+     * Method Name: handlePrevious
+     * @description: Handle the previous button click in pagination
+     */
+    handlePrevious() {
+        if (this.currentPage > 1) {
+            this.currentPage = this.currentPage - 1;
+            this.updateShownData();
+        }
+    }
+
+    /**
+     * Method Name: handleNext
+     * @description: Handle the next button click in pagination
+     */
+    handleNext() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage = this.currentPage + 1;
+            this.updateShownData();
+        }
+    }
+
+    /**
+     * Method Name: handlePageChange
+     * @description: Handle direct click on page number
+     */
+    handlePageChange(event) {
+        const selectedPage = parseInt(event.target.dataset.page);
+        if (selectedPage && selectedPage !== this.currentPage) {
+            this.currentPage = selectedPage;
+            this.updateShownData();
+        }
     }
 }

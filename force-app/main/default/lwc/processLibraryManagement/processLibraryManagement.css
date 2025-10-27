@@ -144,13 +144,6 @@
     justify-content: center;
 }
 
-.empty-state__subtitle {
-    color: #666;
-    font-size: 14px;
-    font-style: italic;
-    margin-top: 0.5rem;
-}
-
 /* Sortable Header Styles */
 .sortable-header {
     cursor: pointer;
@@ -330,6 +323,64 @@
     border-top: 1px solid #d8dde6;
 }
 
+/* Pagination Styles */
+.pagination-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 0;
+}
+
+.pagination-container {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.pagination-button {
+    background-color: #ffffff;
+    border: 1px solid #d8d8d8;
+    color: #333;
+    padding: 6px 12px;
+    margin: 0 2px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    border-radius: 0.3rem;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.pagination-button svg {
+    fill: black;
+    width: 0.7rem;
+    height: 0.7rem;
+    flex-shrink: 0;
+}
+
+.pagination-button:hover {
+    background-color: #f0f0f0;
+}
+
+.pagination-button.active {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    margin: 0 5px;
+    color: #666;
+    font-size: 14px;
+}
+
 /* Responsive adjustments */
 @media only screen and (max-width: 900px) {
     .filter-search-container {
@@ -355,6 +406,17 @@
         flex: 1;
         justify-content: flex-start;
     }
+    
+    .pagination-section {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .pagination-container {
+        order: 2;
+    }
+    
 }
 
 @media only screen and (max-width: 768px) {
@@ -396,18 +458,10 @@
     }
 }
 
-@media only screen and (max-width: 600px) {
-    .search-bar lightning-input {
-        width: 100%;
-        min-width: 250px;
-    }
-}
-
 @media only screen and (max-width: 480px) {
     .action-button {
         padding: 0.4rem 0.6rem;
         font-size: 12px;
         gap: 0.3rem;
     }
-    
 }
