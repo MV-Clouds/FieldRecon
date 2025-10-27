@@ -71,38 +71,59 @@
                         <template for:each={displayedProcesses} for:item="processRecord">
                             <tr key={processRecord.Id}>
                                 <template for:each={processRecord.displayFields} for:item="field">
-                                    <td key={field.key} class="center-trancate-text">
+                                    <td key={field.key} class="center-trancate-text" title={field.value}>
                                         <template if:true={field.isSerialNumber}>
                                             {field.value}
                                         </template>
+                                        <template if:true={field.isActions}>
+                                            <div class="process-action-button-container">
+                                                <button class="process-edit-icon-btn" title="Edit Process" data-record-id={processRecord.Id} onclick={handleEditProcess}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </button>
+                                                <button class="process-delete-icon-btn" title="Delete Process" data-record-id={processRecord.Id} onclick={handleDeleteProcess}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
                                         <template if:false={field.isSerialNumber}>
-                                            <template if:true={field.isNumber}>
-                                                <template if:true={field.hasValue}>
-                                                    <lightning-formatted-number 
-                                                        value={field.numberValue} 
-                                                        format-style="decimal"
-                                                        maximum-fraction-digits="2">
-                                                    </lightning-formatted-number>
-                                                </template>
-                                                <template if:false={field.hasValue}>--</template>
-                                            </template>
-                                            <template if:false={field.isNumber}>
-                                                <template if:true={field.isNameField}>
+                                            <template if:false={field.isActions}>
+                                                <template if:true={field.isNumber}>
                                                     <template if:true={field.hasValue}>
-                                                        <a href={field.recordUrl} 
-                                                           class="name-link" 
-                                                           data-record-id={processRecord.Id}
-                                                           onclick={handleNavigateToRecord}>
-                                                            {field.value}
-                                                        </a>
+                                                        <lightning-formatted-number 
+                                                            value={field.numberValue} 
+                                                            format-style="decimal"
+                                                            maximum-fraction-digits="2">
+                                                        </lightning-formatted-number>
                                                     </template>
                                                     <template if:false={field.hasValue}>--</template>
                                                 </template>
-                                                <template if:false={field.isNameField}>
-                                                    <template if:true={field.hasValue}>
-                                                        {field.value}
+                                                <template if:false={field.isNumber}>
+                                                    <template if:true={field.isNameField}>
+                                                        <template if:true={field.hasValue}>
+                                                            <a href={field.recordUrl} 
+                                                               class="name-link" 
+                                                               data-record-id={processRecord.Id}
+                                                               onclick={handleNavigateToRecord}
+                                                               title={field.value}>
+                                                                {field.value}
+                                                            </a>
+                                                        </template>
+                                                        <template if:false={field.hasValue}>--</template>
                                                     </template>
-                                                    <template if:false={field.hasValue}>--</template>
+                                                    <template if:false={field.isNameField}>
+                                                        <template if:true={field.hasValue}>
+                                                            <span title={field.value}>{field.value}</span>
+                                                        </template>
+                                                        <template if:false={field.hasValue}>--</template>
+                                                    </template>
                                                 </template>
                                             </template>
                                         </template>
@@ -175,54 +196,61 @@
     <!-- Create Process Modal -->
     <template if:true={showCreateModal}>
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
-            <div class="slds-modal__container">
-                <header class="slds-modal__header">
+            <div class="slds-modal__container process-popup">
+                <!-- Modal header -->
+                <header class="slds-modal__header process-popup-header">
                     <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
                             title="Close" onclick={handleCloseModal}>
-                        <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close"
+                                        class="slds-button__icon slds-button__icon_large"></lightning-icon>
                         <span class="slds-assistive-text">Close</span>
                     </button>
-                    <h2 class="slds-text-heading_medium slds-hyphenate">Create New Process</h2>
+                    <h2 class="slds-text-heading_medium">{modalTitle}</h2>
                 </header>
-                <div class="slds-modal__content slds-p-around_medium">
+
+                <!-- Modal content -->
+                <div class="slds-modal__content slds-p-around--medium process-popup-body">
                     <lightning-record-edit-form 
                         object-api-name="wfrecon__Process__c" 
+                        record-id={recordIdToEdit}
                         onsuccess={handleSaveSuccess}
                         onerror={handleSaveError}>
                         
                         <lightning-messages></lightning-messages>
                         
-                        <div class="slds-grid slds-wrap slds-gutters">
-                            <!-- <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                <lightning-input-field field-name="Name" required></lightning-input-field>
-                            </div> -->
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                <lightning-input-field field-name="wfrecon__Process_Name__c"></lightning-input-field>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                <lightning-input-field field-name="wfrecon__Weight__c"></lightning-input-field>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                <lightning-input-field field-name="wfrecon__Unit_of_Measure__c"></lightning-input-field>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1">
-                                <lightning-input-field field-name="wfrecon__Process_Type__c"></lightning-input-field>
-                            </div>
-                        </div>
+                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Process_Name__c" required></lightning-input-field>
+                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Weight__c" required></lightning-input-field>
+                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Unit_of_Measure__c" required></lightning-input-field>
+                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Process_Type__c" required></lightning-input-field>
                         
-                        <div class="slds-modal__footer">
-                            <button class="slds-button slds-button_neutral" onclick={handleCloseModal}>Cancel</button>
-                            <button class="slds-button slds-button_brand" type="submit" disabled={isCreateModalLoading}>
+                        <!-- Control buttons -->
+                        <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+                            <button class="save-btn" type="submit" disabled={isCreateModalLoading}>
                                 <template if:true={isCreateModalLoading}>
                                     <lightning-spinner size="small" alternative-text="Saving..."></lightning-spinner>
                                 </template>
-                                Save Process
+                                {saveButtonLabel}
                             </button>
                         </div>
                     </lightning-record-edit-form>
                 </div>
             </div>
         </section>
+        <!-- Modal Backdrop -->
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
+
+    <!-- Confirmation Modal -->
+    <c-generic-confirmation-modal
+        show-modal={showConfirmationModal}
+        title={confirmationModalTitle}
+        message={confirmationModalMessage}
+        confirm-button-label="Delete"
+        confirm-button-variant="destructive"
+        cancel-button-label="Cancel"
+        icon="utility:warning"
+        icon-variant="warning"
+        onconfirm={handleConfirmationModalConfirm}
+        oncancel={handleConfirmationModalCancel}>
+    </c-generic-confirmation-modal>
 </template>

@@ -2,6 +2,7 @@ import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import getProcessLibraries from '@salesforce/apex/ManagementTabController.getProcessLibraries';
+import deleteProcess from '@salesforce/apex/ManagementTabController.deleteProcess';
 
 export default class ProcessLibraryManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -12,6 +13,14 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     @track sortOrder = 'asc';
     @track showCreateModal = false;
     @track isCreateModalLoading = false;
+    @track isEditMode = false;
+    @track recordIdToEdit = null;
+    
+    // Confirmation modal properties
+    @track showConfirmationModal = false;
+    @track confirmationModalTitle = 'Confirm Action';
+    @track confirmationModalMessage = 'Are you sure you want to proceed?';
+    @track pendingDeleteRecordId = null;
     
     // Pagination properties
     @track currentPage = 1;
@@ -22,6 +31,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     // Process table columns configuration
     @track processTableColumns = [
         { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false },
+        { label: 'Actions', fieldName: 'Actions', type: 'text', isActions: true, sortable: false },
         { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
         { label: 'Process Name', fieldName: 'wfrecon__Process_Name__c', type: 'text', sortable: true },
         { label: 'Weight', fieldName: 'wfrecon__Weight__c', type: 'number', sortable: true },
@@ -62,6 +72,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                     hasValue: value !== null && value !== undefined && value !== '',
                     isNameField: col.isNameField || false,
                     isSerialNumber: col.isSerialNumber || false,
+                    isActions: col.isActions || false,
                     isNumber: col.type === 'number',
                     numberValue: col.type === 'number' ? parseFloat(value) || 0 : null,
                     recordUrl: row.recordUrl
@@ -212,6 +223,22 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     }
 
     /**
+     * Method Name: get modalTitle
+     * @description: Get modal title based on mode
+     */
+    get modalTitle() {
+        return this.isEditMode ? 'Edit Process' : 'Create New Process';
+    }
+
+    /**
+     * Method Name: get saveButtonLabel
+     * @description: Get save button label based on mode
+     */
+    get saveButtonLabel() {
+        return this.isEditMode ? 'Update' : 'Save';
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load processes on component load
      */
@@ -310,6 +337,8 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      * @description: Open create new process modal
      */
     handleCreateNew() {
+        this.isEditMode = false;
+        this.recordIdToEdit = null;
         this.showCreateModal = true;
     }
 
@@ -320,6 +349,8 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     handleCloseModal() {
         this.showCreateModal = false;
         this.isCreateModalLoading = false;
+        this.isEditMode = false;
+        this.recordIdToEdit = null;
     }
 
     /**
@@ -327,7 +358,8 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      * @description: Handle successful process creation
      */
     handleSaveSuccess(event) {
-        this.showToast('Success', 'Process created successfully', 'success');
+        const actionLabel = this.isEditMode ? 'updated' : 'created';
+        this.showToast('Success', `Process ${actionLabel} successfully`, 'success');
         this.handleCloseModal();
         this.currentPage = 1; // Reset to first page
         this.fetchProcesses(); // Refresh the list
@@ -338,8 +370,9 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      * @description: Handle process creation error
      */
     handleSaveError(event) {
-        console.error('Error creating process:', event.detail);
-        this.showToast('Error', 'Failed to create process', 'error');
+        console.error('Error saving process:', event.detail);
+        const actionLabel = this.isEditMode ? 'update' : 'create';
+        this.showToast('Error', `Failed to ${actionLabel} process`, 'error');
         this.isCreateModalLoading = false;
     }
 
@@ -411,14 +444,18 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                     const fieldName = header.dataset.sortField;
                     const icon = header.querySelector('.sort-icon svg');
                     
+                    // Remove active-sort class from all headers first
+                    header.classList.remove('active-sort');
+                    
                     if (fieldName === this.sortField) {
+                        // Add active-sort class to current sorted field
                         header.classList.add('active-sort');
                         if (icon) {
                             icon.classList.remove('rotate-asc', 'rotate-desc');
                             icon.classList.add(this.sortOrder === 'asc' ? 'rotate-asc' : 'rotate-desc');
                         }
                     } else {
-                        header.classList.remove('active-sort');
+                        // Reset rotation for non-active columns
                         if (icon) {
                             icon.classList.remove('rotate-asc', 'rotate-desc');
                         }
@@ -432,32 +469,94 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
 
     /**
      * Method Name: handleNavigateToRecord
-     * @description: Navigate to process record page
+     * @description: Navigate to process record page in new tab
      */
     handleNavigateToRecord(event) {
         event.preventDefault();
-        const recordId = event.target.dataset.recordId;
+        const recordId = event.currentTarget.dataset.recordId;
         
-        this[NavigationMixin.Navigate]({
+        this[NavigationMixin.GenerateUrl]({
             type: 'standard__recordPage',
             attributes: {
                 recordId: recordId,
                 actionName: 'view'
             }
+        }).then(url => {
+            window.open(url, '_blank');
         });
     }
 
     /**
-     * Method Name: showToast
-     * @description: Show toast message
+     * Method Name: handleEditProcess
+     * @description: Handle edit process action
      */
-    showToast(title, message, variant) {
-        const event = new ShowToastEvent({
-            title,
-            message,
-            variant
-        });
-        this.dispatchEvent(event);
+    handleEditProcess(event) {
+        event.preventDefault();
+        const recordId = event.currentTarget.dataset.recordId;
+        this.isEditMode = true;
+        this.recordIdToEdit = recordId;
+        this.showCreateModal = true;
+    }
+
+    /**
+     * Method Name: handleDeleteProcess
+     * @description: Handle delete process action
+     */
+    handleDeleteProcess(event) {
+        event.preventDefault();
+        const recordId = event.currentTarget.dataset.recordId;
+        
+        // Store the record ID and show confirmation modal
+        this.pendingDeleteRecordId = recordId;
+        this.confirmationModalTitle = 'Delete Process';
+        this.confirmationModalMessage = 'Are you sure you want to delete this process? This action cannot be undone.';
+        this.showConfirmationModal = true;
+    }
+
+    /**
+     * Method Name: handleConfirmationModalConfirm
+     * @description: Handle confirmation modal confirm action
+     */
+    handleConfirmationModalConfirm() {
+        this.showConfirmationModal = false;
+        if (this.pendingDeleteRecordId) {
+            this.deleteProcessRecord(this.pendingDeleteRecordId);
+            this.pendingDeleteRecordId = null;
+        }
+    }
+
+    /**
+     * Method Name: handleConfirmationModalCancel
+     * @description: Handle confirmation modal cancel action
+     */
+    handleConfirmationModalCancel() {
+        this.showConfirmationModal = false;
+        this.pendingDeleteRecordId = null;
+    }
+
+    /**
+     * Method Name: deleteProcessRecord
+     * @description: Delete process record via Apex
+     */
+    deleteProcessRecord(recordId) {
+        this.isLoading = true;
+        
+        deleteProcess({ processId: recordId })
+            .then(result => {
+                if (result === 'Success') {
+                    this.showToast('Success', 'Process deleted successfully', 'success');
+                    this.fetchProcesses(); // Refresh the list
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting process:', error);
+                this.showToast('Error', 'Failed to delete process', 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
     }
 
     /**
@@ -512,4 +611,18 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             this.updateShownData();
         }
     }
+
+    /**
+     * Method Name: showToast
+     * @description: Show toast message
+     */
+    showToast(title, message, variant) {
+        const event = new ShowToastEvent({
+            title,
+            message,
+            variant
+        });
+        this.dispatchEvent(event);
+    }
+
 }
