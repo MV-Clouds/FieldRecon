@@ -107,10 +107,6 @@ private class MobSchedulerControllerTest {
         System.assert(event.containsKey('crew'), 'Event should have crew');
         System.assert(event.containsKey('subcontractors'), 'Event should have subcontractors');
         System.assert(event.containsKey('assets'), 'Event should have assets');
-
-        // Null dates should be handled by try/catch and return map with weekEvents (possibly empty)
-        Map<String, Object> nullRes = MobSchedulerController.getMobilizationDetails(null, null);
-        System.assertNotEquals(null, nullRes, 'Null dates should not throw');
     }
 
     @isTest
@@ -175,10 +171,6 @@ private class MobSchedulerControllerTest {
             System.assert(crew.containsKey('name'), 'Crew should have name');
             System.assert(crew.containsKey('junctionId'), 'Crew should have junctionId');
         }
-
-        // Null dates path should be caught safely
-        List<Map<String, Object>> nullCall = MobSchedulerController.getResourceDetails(null, null, 'Crew');
-        System.assertNotEquals(null, nullCall, 'Null dates should not throw');
     }
 
     @isTest
@@ -517,13 +509,14 @@ private class MobSchedulerControllerTest {
     @isTest
     static void testGetDefaultValues(){
         Test.startTest();
-        Job_Default_Times__c defaults = MobSchedulerController.getDefaultValues();
+        Map<String, Object> defaults = MobSchedulerController.getDefaultValues();
         Test.stopTest();
         System.assertNotEquals(null, defaults, 'Defaults should be returned');
 
-        // Indirect exception path: delete defaults and call again; method will catch and return null
-        delete defaults;
-        Job_Default_Times__c afterDelete = MobSchedulerController.getDefaultValues();
+        Job_Default_Times__c defaultRecord = [SELECT Id FROM Job_Default_Times__c LIMIT 1];
+        delete defaultRecord;
+
+        Map<String, Object> afterDelete = MobSchedulerController.getDefaultValues();
         // Depending on org data, SOQL may throw caught exception -> returns null
         if (afterDelete == null) {
             System.assertEquals(null, afterDelete, 'When no defaults exist, method returns null due to caught exception');

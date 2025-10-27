@@ -1,14 +1,16 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 92% (2025-10-23)
+ * Test Class: MobSchedulerControllerTest - 90% (2025-10-27)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
  * Last Modified By: Kevin Suvagiya
  * Last Modified Date: 2025-10-15
  * Last Changes: Removed Unused Code and Added the Exception Handlers
+ * Update: 27/10/2025 - Updated the logic for the start and end date to fix timezone based issues
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
+    private static Map<String, Mobilization_Status_Color__c> statusColorMap = Mobilization_Status_Color__c.getAll();
 
     /**
      * Description: Returns mobilization entries within the date range for week view.
@@ -18,6 +20,10 @@ public with sharing class MobSchedulerController {
     @AuraEnabled
     public static Map<String,Object> getMobilizationDetails(Date startDate, Date endDate) {
         Map<String,Object> result = new Map<String,Object>{'weekEvents' => null};
+
+        DateTime startOfDay = DateTime.newInstance(startDate, Time.newInstance(0,0,0,0));
+        DateTime endOfDay = DateTime.newInstance(endDate.addDays(1), Time.newInstance(23,59,59,999));
+
         try{
             // Instruction: Query mobilizations and shape data for LWC consumption.
     
@@ -33,8 +39,8 @@ public with sharing class MobSchedulerController {
                         FROM Mobilization_Assets__r 
                         ORDER BY CreatedDate DESC)
                 FROM Mobilization__c
-                WHERE DAY_ONLY(Start_Date__c) >= :startDate
-                  AND DAY_ONLY(End_Date__c) <= :endDate
+                WHERE Start_Date__c >= :startOfDay
+                  AND End_Date__c <= :endOfDay
                 WITH USER_MODE
                 ORDER BY Start_Date__c
             ];
@@ -75,14 +81,16 @@ public with sharing class MobSchedulerController {
                     'id' => mob.Id,
                     'jId' => mob.Job__c,
                     'jobId' => mob.Job__r.Name,
-                    'jobName' => mob.Job__r.Job_Name__c,
-                    'location' => mob.Job__r.Address__c,
+                    'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
+                    'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
                     'start' => mob.Start_Date__c.format(),
                     'end' => mob.End_Date__c.format(),
                     'status' => mob.Mobilization_Status__c,
                     'crew' => crewMembersList,
                     'subcontractors' => subContractorsList,
-                    'assets' => assetsList
+                    'assets' => assetsList,
+                    'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#5a5adb20',
+                    'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000'
                 });
     
             }
@@ -100,14 +108,82 @@ public with sharing class MobSchedulerController {
      * Return: Job_Default_Times__c record or null if none found/error.
      */
     @AuraEnabled
-    public static Job_Default_Times__c getDefaultValues(){
+    public static Map<String, Object> getDefaultValues() {
+        Map<String, Object> defaultValues = new Map<String, Object>{'time' => null, 'status' => null, 'result' => null};
+
         try {
-            return [SELECT Id, Name, Start_Time__c, End_Time__c, Include_Saturday__c, Include_Sunday__c FROM Job_Default_Times__c WITH USER_MODE];
+            List<Job_Default_Times__c> timeDefaults = [
+                SELECT Id, Name, Start_Time__c, End_Time__c, Include_Saturday__c, Include_Sunday__c 
+                FROM Job_Default_Times__c 
+                WITH USER_MODE
+            ];
+            List<Mobilization_Status_Color__c> statusDefaults = [
+                SELECT Id, Name, Color__c, Background_Color__c 
+                FROM Mobilization_Status_Color__c 
+                WITH USER_MODE
+            ];
+
+            if(timeDefaults != null && !timeDefaults.isEmpty()) {
+                Map<String, Object> defaultMap = new Map<String, Object>{'start' => null, 'end' => null, 'includeSaturday' => timeDefaults[0].Include_Saturday__c, 'includeSunday' => timeDefaults[0].Include_Sunday__c};
+                
+                // Get today's date
+                Date today = Date.today();
+                
+                // Start Time
+                String startTimeStr = timeDefaults[0].Start_Time__c; // e.g., "07:00 AM"
+                if(startTimeStr != null) {
+                    List<String> startParts = startTimeStr.split(' ');
+                    List<String> hm = startParts[0].split(':');
+                    Integer hour = Integer.valueOf(hm[0]);
+                    Integer minute = Integer.valueOf(hm[1]);
+                    String modifier = startParts[1];
+                    
+                    if(modifier == 'PM' && hour < 12) hour += 12;
+                    if(modifier == 'AM' && hour == 12) hour = 0;
+                    
+                    defaultMap.put('start', DateTime.newInstance(today, Time.newInstance(hour, minute, 0, 0)));
+                }
+                
+                // End Time
+                String endTimeStr = timeDefaults[0].End_Time__c; // e.g., "06:20 PM"
+                if(endTimeStr != null) {
+                    List<String> endParts = endTimeStr.split(' ');
+                    List<String> hm = endParts[0].split(':');
+                    Integer hour = Integer.valueOf(hm[0]);
+                    Integer minute = Integer.valueOf(hm[1]);
+                    String modifier = endParts[1];
+                    
+                    if(modifier == 'PM' && hour < 12) hour += 12;
+                    if(modifier == 'AM' && hour == 12) hour = 0;
+                    
+                    defaultMap.put('end', DateTime.newInstance(today, Time.newInstance(hour, minute, 0, 0)));
+                }
+
+                defaultValues.put('time', defaultMap);
+            }
+
+            if(statusDefaults != null && !statusDefaults.isEmpty()) {
+                defaultValues.put('status', statusDefaults);
+            }
+
+            defaultValues.put('result', 'SUCCESS');
+
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getDefaultValues', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching default job time values.', 'apiResponse' => null});
-            return null;
+            ExceptionHandler.logException(new Map<String, Object>{ 
+                'className' => CLASSNAME, 
+                'methodName' => 'getDefaultValues', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e, 
+                'moreDetails' => 'Error occurred while fetching default job time values.', 
+                'apiResponse' => null
+            });
+            defaultValues.put('result', e.getMessage());
         }
+
+        return defaultValues;
     }
+
 
     /**
      * Description: Returns all resources with an availability flag for the selected date.
@@ -116,6 +192,9 @@ public with sharing class MobSchedulerController {
      */
     @AuraEnabled
     public static Map<String, Object> getAllResources(Date selectedDate) {
+
+        DateTime startOfDay = DateTime.newInstance(selectedDate, Time.newInstance(0,0,0,0));
+        DateTime endOfDay = DateTime.newInstance(selectedDate, Time.newInstance(23,59,59,999));
         Map<String, Object> resources = new Map<String, Object>{
             'crew' => new List<Map<String, Object>>(),
             'subcontractors' => new List<Map<String, Object>>(),
@@ -140,7 +219,8 @@ public with sharing class MobSchedulerController {
                     (SELECT Equipment__c 
                         FROM Mobilization_Assets__r)
                 FROM Mobilization__c
-                WHERE DAY_ONLY(Start_Date__c) = :selectedDate
+                WHERE Start_Date__c >= :startOfDay
+                AND Start_Date__c <= :endOfDay
                 WITH USER_MODE
             ];
 
@@ -220,7 +300,10 @@ public with sharing class MobSchedulerController {
      */
     @AuraEnabled
     public static List<Map<String,Object>> getResourceDetails(Date startDate, Date endDate, String resourceType) {
+
         List<Map<String,Object>> result = new List<Map<String,Object>>();
+        DateTime startOfDay = DateTime.newInstance(startDate, Time.newInstance(0,0,0,0));
+        DateTime endOfDay = DateTime.newInstance(endDate, Time.newInstance(23,59,59,999));
         try {
             if(resourceType == null) return result;
 
@@ -246,8 +329,8 @@ public with sharing class MobSchedulerController {
                             FROM Mobilization_Assets__r 
                             ORDER BY Mobilization__r.Start_Date__c)
                     FROM Mobilization__c
-                    WHERE DAY_ONLY(Start_Date__c) >= :startDate
-                    AND DAY_ONLY(End_Date__c) <= :endDate
+                    WHERE Start_Date__c >= :startOfDay
+                    AND End_Date__c <= :endOfDay
                     WITH USER_MODE
                     ORDER BY Start_Date__c
                 ];
@@ -259,8 +342,8 @@ public with sharing class MobSchedulerController {
                             WHERE Contact__r.RecordType.DeveloperName = :memberRecordType
                             ORDER BY Mobilization__r.Start_Date__c)
                     FROM Mobilization__c
-                    WHERE DAY_ONLY(Start_Date__c) >= :startDate
-                    AND DAY_ONLY(End_Date__c) <= :endDate
+                    WHERE Start_Date__c >= :startOfDay
+                    AND End_Date__c <= :endOfDay
                     WITH USER_MODE
                     ORDER BY Start_Date__c
                 ];
@@ -275,11 +358,14 @@ public with sharing class MobSchedulerController {
                             'jId' => mob.Job__c,
                             'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
-                            'jobName' => mob.Job__r.Job_Name__c,
+                            'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
                             'junctionId' => asset.Id,
-                            'location' => mob.Job__r.Address__c,
+                            'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
                             'start' => mob.Start_Date__c.format(),
-                            'end' => mob.End_Date__c.format()
+                            'end' => mob.End_Date__c.format(),
+                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff',
+                            'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
                         });
                     }
                 } else {
@@ -290,11 +376,14 @@ public with sharing class MobSchedulerController {
                             'jId' => mob.Job__c,
                             'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
-                            'jobName' => mob.Job__r.Job_Name__c,
+                            'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
                             'junctionId' => mem.Id,
-                            'location' => mob.Job__r.Address__c,
+                            'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
                             'start' => mob.Start_Date__c.format(),
-                            'end' => mob.End_Date__c.format()
+                            'end' => mob.End_Date__c.format(),
+                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#5a5adb20',
+                            'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
                         });
                     }
                 }

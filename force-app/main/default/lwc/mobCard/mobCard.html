@@ -22,7 +22,7 @@
         </div>
         <div class="slds-grid slds-grid--vertical-align-center">
             <svg class="slds-p-right--xx-small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="16" width="16" fill="#5a5adb" stroke-width="1"><path fill-rule="evenodd" d="M3.464 3.464C2 4.93 2 7.286 2 12c0 4.714 0 7.071 1.464 8.535C4.93 22 7.286 22 12 22c4.714 0 7.071 0 8.535 -1.465C22 19.072 22 16.714 22 12s0 -7.071 -1.465 -8.536C19.072 2 16.714 2 12 2S4.929 2 3.464 3.464ZM12.75 8a0.75 0.75 0 0 0 -1.5 0v4c0 0.199 0.079 0.39 0.22 0.53l2.5 2.5a0.75 0.75 0 1 0 1.06 -1.06l-2.28 -2.28V8Z" clip-rule="evenodd"></path></svg>
-            {mobDetails.start} - {mobDetails.end}
+            {mobDetails.startDayTime} - {mobDetails.endDayTime}
         </div>
         <div class="status-tile" data-status={mobDetails.status}>{mobDetails.status}</div>
         <template for:each={resourceSections} for:item="section">

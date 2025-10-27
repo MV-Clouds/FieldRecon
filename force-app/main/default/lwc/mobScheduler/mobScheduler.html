@@ -71,6 +71,7 @@
             class="nav-bar-element"
             variant="label-hidden"
             placeholder="Select Date"
+            value={selectedDateToShow}
             onchange={handleDateToGoTo}
           ></lightning-input>
         </div>
@@ -171,7 +172,7 @@
               <template for:each={res.days} for:item="day">
                 <div class="cell day-col" key={day.iso}>
                   <template for:each={day.events} for:item="ev">
-                    <div class="event" key={ev.id}>
+                    <div class="event" key={ev.id} style={ev.statusStyle}>
                       <div class="job-header-detail">
                           <div class="job-card-name">{ev.jobName}</div>
                           <div class="job-card-description record-nav-link" data-id={ev.jId} onclick={handleRecordNavigation}>{ev.jobId}</div>
@@ -235,10 +236,10 @@
               <div class="slds-grow slds-scrollable--y">
                 <lightning-messages></lightning-messages>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.wfrecon__Start_Time__c} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__End_Date__c" value={defaultMobGValues.wfrecon__End_Time__c} min={defaultMobGValues.wfrecon__Start_Time__c} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.wfrecon__Include_Saturday__c}></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.wfrecon__Include_Sunday__c}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
               </div>
               <!-- Control buttons -->

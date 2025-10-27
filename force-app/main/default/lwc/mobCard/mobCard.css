@@ -1,6 +1,8 @@
 :host{
     --primary-theme-color: #5e5adb;
     --primary-theme-color-shade-20: #5e5adb20;
+
+    --card-bg-color: var(--primary-theme-color-shade-20, #ffffff);
 }
 
 .event-card {
@@ -11,7 +13,7 @@
     flex-direction: column;
     gap: 0.5rem;
     width: 100%;
-    background: #ffffff;
+    background: color(from var(--card-bg-color, #ffffff) srgb r g b / 0.1);
     overflow: hidden;
     max-height: 3.4rem;
     transition: all 0.3s ease-in-out;
@@ -55,7 +57,7 @@
 
 .job-card-description{
     font-size: 0.7rem;
-    color: darkgray;
+    color: #5a5adb90;
 }
 
 .action-btns{
@@ -96,7 +98,6 @@
 
 .truncate-location svg {
     flex: 0 0 auto;
-    margin-right: 0.25rem;
 }
 
 .truncate-location .location-text {

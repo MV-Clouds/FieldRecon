@@ -31,6 +31,12 @@ export default class MobCard extends NavigationMixin(LightningElement) {
         ];
     }
 
+    connectedCallback(){        
+        if(this.mobDetails && this.mobDetails.bgColor){
+            this.template.host.style.setProperty('--card-bg-color', this.mobDetails.bgColor);
+        }
+    }
+
     handleJobCardEdit(){
         this.dispatchEvent(new CustomEvent('edit', { detail: this.mobDetails?.id}));
     }
