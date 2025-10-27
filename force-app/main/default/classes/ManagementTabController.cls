@@ -68,4 +68,37 @@ public with sharing class ManagementTabController {
             return 'Error: ' + e.getMessage();
         }
     }
+
+    @AuraEnabled
+    public static List<wfrecon__Cost_Code__c> getCostCodes() {
+        List<wfrecon__Cost_Code__c> costCodes = new List<wfrecon__Cost_Code__c>();
+        
+        try {
+            costCodes = [
+                SELECT Id, Name, wfrecon__Classification_Type__c, wfrecon__Code__c, wfrecon__Level_Code__c
+                FROM wfrecon__Cost_Code__c
+                WITH USER_MODE
+                ORDER BY CreatedDate DESC
+            ];
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCostCodes', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching Cost Codes : ' + e.getMessage(), 'apiResponse' => null});
+        }
+
+        return costCodes;
+    }
+
+    @AuraEnabled
+    public static String deleteCostCode(String costCodeId) {
+        try {
+            if (costCodeId != null) {
+                delete as user (new wfrecon__Cost_Code__c(Id = costCodeId));
+                return 'Success';
+            } else {
+                return 'Cost Code not found';
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'deleteCostCode', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error deleting Cost Code : ' + e.getMessage(), 'apiResponse' => null});
+            return 'Error: ' + e.getMessage();
+        }
+    }
 }
