@@ -4,10 +4,10 @@ export default class ManagementTab extends LightningElement {
     @track activeTab = 'crew';
 
     allTabs = [
-        { label: 'Manage Crew', value: 'crew' },
+        { label: 'Crew', value: 'crew' },
         { label: 'Cost Code', value: 'costcode' },
-        { label: 'Process Library', value: 'processlibrary' },
-        { label: 'Employee', value: 'employee' }
+        { label: 'Process Library', value: 'processlibrary' }
+        // { label: 'Employee', value: 'employee' }
     ];
 
     get tabs() {

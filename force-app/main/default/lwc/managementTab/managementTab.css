@@ -92,12 +92,6 @@
 .tab-panel {
     animation: fadeIn 0.3s ease-in-out;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #585858;
-    font-size: 16px;
-    font-weight: 500;
 }
 
 @keyframes fadeIn {

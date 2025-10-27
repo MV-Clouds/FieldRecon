@@ -17,17 +17,17 @@
                         <div key={tab.value} class="tab-panel">
                             <template if:true={tab.isCrew}>
                                 <!-- Crew Tab Content -->
-                                <p>Manage crew content here...</p>
+                                <c-crew-management></c-crew-management>
                             </template>
 
                             <template if:true={tab.isCostCode}>
                                 <!-- Cost Code Tab Content -->
-                                <p>Cost code content here...</p>
+                                <c-cost-code-management></c-cost-code-management>
                             </template>
 
                             <template if:true={tab.isProcessLibrary}>
                                 <!-- Process Library Tab Content -->
-                                <p>Process library content here...</p>
+                                <c-process-library-management></c-process-library-management>
                             </template>
 
                             <template if:true={tab.isEmployee}>
