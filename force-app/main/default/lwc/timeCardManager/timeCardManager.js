@@ -116,9 +116,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             customEndDate: endDate 
         })
         .then(result => {
-
-            console.log('Result ==> ', result);
-            
             
             if (result && Array.isArray(result)) {
                 this.contactDetails = result.map(contact => ({
@@ -422,19 +419,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: showToast
-     * @description: Show toast message
-     */
-    showToast(title, message, variant) {
-        const event = new ShowToastEvent({
-            title,
-            message,
-            variant
-        });
-        this.dispatchEvent(event);
-    }
-
-    /**
      * Method Name: handleViewTimesheet
      * @description: Handle view timesheet button click
      */
@@ -554,5 +538,18 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     closeTimesheetModal() {
         this.isTimesheetModalOpen = false;
         this.selectedTimesheetEntries = [];
+    }
+
+     /**
+     * Method Name: showToast
+     * @description: Show toast message
+     */
+    showToast(title, message, variant) {
+        const event = new ShowToastEvent({
+            title,
+            message,
+            variant
+        });
+        this.dispatchEvent(event);
     }
 }

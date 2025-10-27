@@ -277,6 +277,8 @@
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: scroll;
+    position: relative;
+    z-index: 1;
 }
 
 .nested-table-header {
@@ -442,7 +444,7 @@
 
 /* Table Styles for Modal */
 .timesheet-table .slds-table {
-    table-layout: fixed;
+    table-layout: auto;
     min-width: 100%;
     border-collapse: collapse;
     background-color: #fff;
