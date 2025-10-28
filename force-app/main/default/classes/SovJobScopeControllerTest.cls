@@ -226,15 +226,6 @@ public with sharing class SovJobScopeControllerTest {
     }
 
     @IsTest
-    static void testGetProcessTypes() {
-        Test.startTest();
-        List<String> result = SovJobScopeController.getProcessTypes();
-        Test.stopTest();
-        
-        System.assertEquals(true, result.size() >= 0, 'Expected getProcessTypes to return a non-negative size');
-    }
-
-    @IsTest
     static void testGetLocationsByScopeEntry() {
         Scope_Entry__c scopeEntry = [SELECT Id FROM Scope_Entry__c LIMIT 1];
         

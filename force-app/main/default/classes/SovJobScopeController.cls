@@ -460,39 +460,6 @@ public with sharing class SovJobScopeController {
 
     /*
     *********************************************************
-    @description     : Method is used to get unique Process Types for filter
-    @return          : List<String> - List of unique Process Types
-    @author          : Rachit Shah
-    ********************************************************
-    */
-    @AuraEnabled
-    public static List<String> getProcessTypes() {
-        List<String> processTypes = new List<String>();
-        try {
-            List<AggregateResult> results = [
-                SELECT Process_Type__c
-                FROM Process__c
-                WHERE Process_Type__c != null
-                WITH USER_MODE
-                GROUP BY Process_Type__c
-                ORDER BY Process_Type__c ASC
-               
-            ];
-            
-            for (AggregateResult result : results) {
-                String processType = (String) result.get('wfrecon__Process_Type__c');
-                if (String.isNotBlank(processType)) {
-                    processTypes.add(processType);
-                }
-            }
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProcessTypes','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Process Types.','apiResponse' => null});
-        }
-        return processTypes;
-    }
-
-    /*
-    *********************************************************
     @description     : Method to get locations related to a scope entry using junction object
     @param           : Id scopeEntryId - Scope Entry Id
     @return          : Map<String, Object> - Map containing all locations from the job and selected location IDs
@@ -941,7 +908,7 @@ public with sharing class SovJobScopeController {
             // Fetch existing Location Processes
             Map<Id, List<Location_Process__c>> entryToLocProcesses = new Map<Id, List<Location_Process__c>>();
             for (Location_Process__c lp : [
-                SELECT Id, Scope_Entry_Process__c, 
+                SELECT Id, Scope_Entry_Process__c, Sequence__c, 
                     Scope_Entry_Process__r.Scope_Entry__c, 
                     Location__c
                 FROM Location_Process__c

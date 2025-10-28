@@ -9,13 +9,14 @@ import { CurrentPageReference } from 'lightning/navigation';
 import createScopeEntryProcess from '@salesforce/apex/SovJobScopeController.createScopeEntryProcess';
 import getProcessLibraryRecords from '@salesforce/apex/SovJobScopeController.getProcessLibraryRecords';
 import createScopeEntryProcessesFromLibrary from '@salesforce/apex/SovJobScopeController.createScopeEntryProcessesFromLibrary';
-import getProcessTypes from '@salesforce/apex/SovJobScopeController.getProcessTypes';
 import getLocationsByScopeEntry from '@salesforce/apex/SovJobScopeController.getLocationsByScopeEntry';
 import createLocationProcesses from '@salesforce/apex/SovJobScopeController.createLocationProcesses';
 import saveScopeEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveScopeEntryInlineEdits';
 import saveProcessEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveProcessEntryInlineEdits';
 import getPicklistValuesForField from '@salesforce/apex/SovJobScopeController.getPicklistValuesForField';
 import deleteSelectedScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.deleteSelectedScopeEntryProcesses';
+import { getPicklistValues } from "lightning/uiObjectInfoApi";
+import PROCESSTYPE_FIELD from '@salesforce/schema/Process__c.Process_Type__c'
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track recordId;
@@ -157,8 +158,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         weightage: null,
     };
 
-
-
     // Process Type Options
     @track processTypeOptions = [];
 
@@ -220,9 +219,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track confirmationButtonLabel = 'Confirm';
     @track confirmationButtonVariant = 'brand';
     @track confirmationData = null;
-
-
-
 
     /**
      * Method Name: get contractSectionLabel
@@ -301,28 +297,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get isAllSelected
-     * @description: Check if all visible rows are selected
-     */
-    get isAllSelected() {
-        return this.filteredScopeEntries.length > 0 && 
-               this.filteredScopeEntries.every(entry => this.selectedRows.includes(entry.Id));
-    }
-
-    /**
      * Method Name: get isDeleteDisabled
      * @description: Check if delete button should be disabled
      */
     get isDeleteDisabled() {
         return this.selectedRows.length === 0 || this.isLoading || this.isSavingScopeEntries;
-    }
-
-    /**
-     * Method Name: get isDataAvailable
-     * @description: Check if data is available to display
-     */
-    get isDataAvailable() {
-        return this.filteredScopeEntries && this.filteredScopeEntries.length > 0;
     }
 
     /**
@@ -489,30 +468,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get hasSelectedProcesses
-     * @description: Check if any processes are selected for deletion
-     */
-    get hasSelectedProcesses() {
-        return this.selectedProcesses.length > 0;
-    }
-
-    /**
-     * Method Name: get selectedProcessesCount
-     * @description: Get count of selected processes
-     */
-    get selectedProcessesCount() {
-        return this.selectedProcesses.length;
-    }
-
-    /**
-     * Method Name: get isDeleteProcessDisabled
-     * @description: Check if delete process button should be disabled
-     */
-    get isDeleteProcessDisabled() {
-        return this.selectedProcesses.length === 0 || this.isProcessSubmitting || this.isSavingProcessEntries;
-    }
-
-    /**
      * Method Name: get isApproveAllDisabled
      * @description: Check if approve all button should be disabled
      */
@@ -665,74 +620,34 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: hasSelectedProcessesForEntry
-     * @description: Check if any processes are selected for a specific scope entry
+     * Method Name: setCurrentPageReference
+     * @description: Get record Id from recordpage
      */
-    hasSelectedProcessesForEntry(scopeEntryId) {
-        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
-        return selectedProcesses && selectedProcesses.size > 0;
-    }
-
-    /**
-     * Method Name: getSelectedProcessesCountForEntry
-     * @description: Get count of selected processes for a specific scope entry
-     */
-    getSelectedProcessesCountForEntry(scopeEntryId) {
-        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
-        return selectedProcesses ? selectedProcesses.size : 0;
-    }
-
-    /**
-     * Method Name: areAllProcessesSelectedForEntry
-     * @description: Check if all processes are selected for a specific scope entry
-     */
-    areAllProcessesSelectedForEntry(scopeEntryId) {
-        // Find the entry to get its process count
-        const entry = this.getEntryById(scopeEntryId);
-        
-        // If no entry found or no process details, return false
-        if (!entry || !entry.processDetails || entry.processDetails.length === 0) {
-            return false;
-        }
-        
-        // Get selected processes for this scope entry
-        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
-        
-        // If no processes are selected, return false
-        if (!selectedProcesses || selectedProcesses.size === 0) {
-            return false;
-        }
-        
-        // Check if all processes are selected
-        return selectedProcesses.size === entry.processDetails.length;
-    }
-
-    /**
-     * Method Name: isDeleteProcessDisabledForEntry
-     * @description: Check if delete process button should be disabled for a specific scope entry
-     */
-    isDeleteProcessDisabledForEntry(scopeEntryId) {
-        return !this.hasSelectedProcessesForEntry(scopeEntryId);
-    }
-    
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
     }
 
     /**
-     * Method Name: getDefaultScopeEntryType
-     * @description: Determine default type for new scope entry based on approved status
-     * @return: String - 'Contract' or 'Change Order'
+     * Method Name: wiredProcessTypeValues
+     * @description: Get picklist value for process type
      */
-    getDefaultScopeEntryType() {
-        // Check if any scope entry has approved status
-        const hasApprovedEntry = this.scopeEntries && this.scopeEntries.some(entry => 
-            entry.wfrecon__Scope_Entry_Status__c === 'Approved'
-        );
-        
-        // If any scope entry is approved, default to Change Order, otherwise Contract
-        return hasApprovedEntry ? 'Change Order' : 'Contract';
+    @wire(getPicklistValues, { recordTypeId: '012000000000000AAA', fieldApiName: PROCESSTYPE_FIELD })
+    wiredProcessTypeValues({ data, error }) {
+        if (data) {
+            
+            this.processTypeOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value
+            }));
+
+            this.processTypeCategoryOptions = [
+                { label: 'All', value: '' },
+                ...this.processTypeOptions
+            ];
+        } else if (error) {
+            console.error('Error loading process type picklist:', error);
+        }
     }
 
     /**
@@ -785,7 +700,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             }
             
         } catch (error) {
-            // Error styling accordion - silently continue
+            console.log('Error ==> ', error);
+            
         }
     }
 
@@ -825,6 +741,72 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: hasSelectedProcessesForEntry
+     * @description: Check if any processes are selected for a specific scope entry
+     */
+    hasSelectedProcessesForEntry(scopeEntryId) {
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        return selectedProcesses && selectedProcesses.size > 0;
+    }
+
+    /**
+     * Method Name: getSelectedProcessesCountForEntry
+     * @description: Get count of selected processes for a specific scope entry
+     */
+    getSelectedProcessesCountForEntry(scopeEntryId) {
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        return selectedProcesses ? selectedProcesses.size : 0;
+    }
+
+    /**
+     * Method Name: areAllProcessesSelectedForEntry
+     * @description: Check if all processes are selected for a specific scope entry
+     */
+    areAllProcessesSelectedForEntry(scopeEntryId) {
+        // Find the entry to get its process count
+        const entry = this.getEntryById(scopeEntryId);
+        
+        // If no entry found or no process details, return false
+        if (!entry || !entry.processDetails || entry.processDetails.length === 0) {
+            return false;
+        }
+        
+        // Get selected processes for this scope entry
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        
+        // If no processes are selected, return false
+        if (!selectedProcesses || selectedProcesses.size === 0) {
+            return false;
+        }
+        
+        // Check if all processes are selected
+        return selectedProcesses.size === entry.processDetails.length;
+    }
+
+    /**
+     * Method Name: isDeleteProcessDisabledForEntry
+     * @description: Check if delete process button should be disabled for a specific scope entry
+     */
+    isDeleteProcessDisabledForEntry(scopeEntryId) {
+        return !this.hasSelectedProcessesForEntry(scopeEntryId);
+    }
+
+    /**
+     * Method Name: getDefaultScopeEntryType
+     * @description: Determine default type for new scope entry based on approved status
+     * @return: String - 'Contract' or 'Change Order'
+     */
+    getDefaultScopeEntryType() {
+        // Check if any scope entry has approved status
+        const hasApprovedEntry = this.scopeEntries && this.scopeEntries.some(entry => 
+            entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        );
+        
+        // If any scope entry is approved, default to Change Order, otherwise Contract
+        return hasApprovedEntry ? 'Change Order' : 'Contract';
+    }
+
+    /**
      * Method Name: fetchScopeConfiguration
      * @description: Fetch configuration and then load scope entries
      */
@@ -858,7 +840,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.fetchScopeEntries();
                 this.loadProcessLibraryData();
             })
-            .catch(error => {
+            .catch(() => {
                 this.scopeEntryColumns = this.defaultColumns;
                 // Set default sorting
                 if (this.scopeEntryColumns.length > 0) {
@@ -1138,19 +1120,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: showToast
-     * @description: Show toast message
-     */
-    showToast(title, message, variant) {
-        const event = new ShowToastEvent({
-            title,
-            message,
-            variant
-        });
-        this.dispatchEvent(event);
-    }
-
-    /**
      * Method Name: validateScopeEntryForApproval
      * @description: Validate if a scope entry can be approved by checking if it has processes and locations
      * @param {String} scopeEntryId - The ID of the scope entry to validate
@@ -1243,7 +1212,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
         // console.log('invalidEntries ==> ' , invalidEntries);
         
-
         if (invalidEntries.length > 0) {
             const entryNames = invalidEntries.map(entry => entry.name).join(', ');
             return {
@@ -1407,48 +1375,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: performTargetedRefresh
-     * @description: Targeted refresh that maintains expanded states and only updates necessary data
-     */
-    async performTargetedRefresh() {
-        try {
-            this.isLoading = true;
-            
-            // Store current expanded states before refresh
-            const expandedScopeEntryIds = new Set();
-            [...(this.filteredContractEntries || []), ...(this.filteredChangeOrderEntries || [])].forEach(entry => {
-                if (entry.showProcessDetails) {
-                    expandedScopeEntryIds.add(entry.Id);
-                }
-            });
-
-            // Clear only the process-related data that needs to be refreshed
-            this.scopeEntryProcessMap.clear();
-            this.scopeEntryLocationCounts.clear();
-            
-            // Fetch fresh scope entries data
-            let res = await this.fetchScopeEntries();
-
-            if (res) {
-                // Restore expanded states immediately after data load
-                this.restoreExpandedStates(expandedScopeEntryIds);
-                
-                // Force re-render of displayed entries
-                this.updateDisplayedEntries();
-                
-                // console.log(`Targeted refresh completed. Restored ${expandedScopeEntryIds.size} expanded states.`);
-            }
-            
-        } catch (error) {
-            console.error('Error in performTargetedRefresh:', error);
-            // Fall back to complete refresh if targeted refresh fails
-            this.performCompleteRefresh();
-        } finally {
-            this.isLoading = false;
-        }
-    }
-
-    /**
      * Method Name: clearAllHighlighting
      * @description: Clear all cell highlighting and clean up approved entries from selection
      */
@@ -1520,6 +1446,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.showProcessDeleteConfirmation(processIds, scopeEntryId);
     }
 
+    /**
+     * Method Name: showProcessDeleteConfirmation
+     * @description: Show confirmation modal for deleting selected processes
+     */
     showProcessDeleteConfirmation(processIds, scopeEntryId) {
         const processCount = processIds.length;
         this.confirmationTitle = 'Delete Processes';
@@ -1543,8 +1473,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result && result.startsWith('Success')) {
                     this.showToast('Success', 'Processes deleted successfully', 'success');
-                    // Use targeted refresh instead of complete refresh to maintain expanded state
-                    this.performTargetedRefresh();
+                    this.performCompleteRefresh();
                 }
             })
             .catch(error => {
@@ -1555,6 +1484,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
+    /**
+     * Method Name: openModal
+     * @description: Open modal based on type and initialize default values
+     */
     openModal(modalType, options = {}) {
         switch (modalType) {
             case 'scopeEntry':
@@ -1595,6 +1528,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
+    /**
+     * Method Name: closeModal
+     * @description: Close modal and reset to default state
+     */
     closeModal(modalType) {
         switch (modalType) {
             case 'scopeEntry':
@@ -1637,10 +1574,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
+    /**
+     * Method Name: handleAddScopeEntry
+     * @description: Handle opening add scope entry modal
+     */
     handleAddScopeEntry() {
         this.openModal('scopeEntry');
     }
 
+    /**
+     * Method Name: handleCloseModal
+     * @description: Handle closing any open modal
+     */
     handleCloseModal() {
         this.closeModal('scopeEntry');
     }
@@ -1899,6 +1844,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.showConfirmationModal = true;
     }
 
+    
     proceedWithDeletion(entriesToDelete) {
         this.isLoading = true;
         const entryIds = entriesToDelete.map(entry => entry.Id);
@@ -2741,7 +2687,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.handleCloseProcessModal();
 
                     // Use targeted refresh instead of complete refresh to maintain expanded state
-                    this.performTargetedRefresh();
+                    this.performCompleteRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
@@ -2920,27 +2866,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Load process library records and process types
      */
     loadProcessLibraryData() {
-        // Load process types for filter
-        getProcessTypes()
-            .then(result => {
-
-                this.processTypeOptions = (result || []).map(type => ({
-                        label: type,
-                        value: type
-                }));
-
-                // Create separate category options with "All" option for filter dropdown
-                this.processTypeCategoryOptions = [
-                    { label: 'All', value: '' },
-                    ...this.processTypeOptions
-                ];
-
-            })
-            .catch(error => {
-                this.processTypeOptions = [];
-                this.processTypeCategoryOptions = [{ label: 'All', value: '' }];
-            });
-    
         // Load process library records
         getProcessLibraryRecords()
             .then(result => {
@@ -3129,8 +3054,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result === 'Success') {
                     this.showToast('Success', 'Processes have been added from library', 'success');
                     this.handleCloseProcessLibraryModal();
-                    // Use targeted refresh instead of complete refresh to maintain expanded state
-                    this.performTargetedRefresh();
+                    this.performCompleteRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
@@ -3360,7 +3284,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     this.handleCloseLocationModal();
                     // Use targeted refresh instead of complete refresh to maintain expanded state
-                    this.performTargetedRefresh();
+                    this.performCompleteRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
@@ -4116,9 +4040,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return `Discard ${count} unsaved process change(s)`;
     }
 
-
-
-
     /**
      * Method Name: handleProcessCellClick
      * @description: Handle cell click for inline editing of process entries
@@ -4610,16 +4531,28 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
+    /*
+     * Method Name : handleConfirmationCancel
+     * @description : Method to cancel confirmation modal
+     */
     handleConfirmationCancel() {
         this.showConfirmationModal = false;
         this.resetConfirmationState();
     }
 
+    /*
+     * Method Name : handleConfirmationClose
+     * @description : Method to close confirmation modal
+     */
     handleConfirmationClose() {
         this.showConfirmationModal = false;
         this.resetConfirmationState();
     }
 
+    /**
+     * Method Name : resetConfirmationState
+     * @description : Method to reset confirmation state
+     */
     resetConfirmationState() {
         this.confirmationTitle = '';
         this.confirmationMessage = '';
@@ -4627,6 +4560,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.confirmationButtonLabel = 'Confirm';
         this.confirmationButtonVariant = 'brand';
         this.confirmationData = null;
+    }
+
+    /**
+     * Method Name: showToast
+     * @description: Show toast message
+     */
+    showToast(title, message, variant) {
+        const event = new ShowToastEvent({
+            title,
+            message,
+            variant
+        });
+        this.dispatchEvent(event);
     }
 
 }
