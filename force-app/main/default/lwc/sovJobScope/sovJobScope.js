@@ -175,6 +175,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track modifiedProcessEntries = new Map();
     @track hasProcessModifications = false;
     @track isSavingProcessEntries = false;
+    @track isSavingProcessEntriesByScopeEntry = new Map(); // Map<scopeEntryId, boolean> - tracks saving state per scope entry
     @track editingProcessCells = new Set();
     @track selectedProcessesByScopeEntry = new Map();
 
@@ -1243,6 +1244,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.modifiedProcessEntries.clear();
             this.hasProcessModifications = false;
             this.isSavingProcessEntries = false;
+            this.isSavingProcessEntriesByScopeEntry.clear(); // Clear entry-specific saving states
             this.editingProcessCells.clear();
             
             // Clear scope entry modifications and editing states
@@ -2072,8 +2074,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Calculate if all processes are selected for this entry
             row.isAllProcessesSelected = this.areAllProcessesSelectedForEntry(entry.Id);
             
-            row.isProcessButtonsDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
-            row.isProcessSaveDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
+            // Entry-specific button states - use entry-specific saving state instead of global
+            const isEntrySaving = this.isSavingProcessEntriesByScopeEntry.get(entry.Id) || false;
+            row.isProcessButtonsDisabled = !this.hasProcessModificationsForEntry(entry.Id) || isEntrySaving;
+            row.isProcessSaveDisabled = !this.hasProcessModificationsForEntry(entry.Id) || isEntrySaving;
+            row.isSavingProcessEntries = isEntrySaving; // Add entry-specific saving flag for template use
             row.processSaveButtonLabel = this.getProcessSaveButtonLabelForEntry(entry.Id);
             row.processDiscardButtonTitle = this.getProcessDiscardButtonTitleForEntry(entry.Id);
             
@@ -4018,7 +4023,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     * @description: Get dynamic process save button label for specific entry
     */
     getProcessSaveButtonLabelForEntry(scopeEntryId) {
-        if (this.isSavingProcessEntries) {
+        const isEntrySaving = this.isSavingProcessEntriesByScopeEntry.get(scopeEntryId) || false;
+        if (isEntrySaving) {
             return 'Saving...';
         }
         const count = this.getProcessModificationCountForEntry(scopeEntryId);
@@ -4329,14 +4335,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save all modified process entries in a single batch
      */
     handleSaveProcessChanges(event) {
-        // Prevent double-click by checking if already processing
-        if (this.isSavingProcessEntries || this.isProcessSubmitting) {
-            return;
-        }
-
         // Get scope entry ID from button click
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
         
+        // Prevent double-click by checking if already processing for this entry
+        const isEntrySaving = this.isSavingProcessEntriesByScopeEntry.get(scopeEntryId) || false;
+        if (isEntrySaving || this.isProcessSubmitting) {
+            return;
+        }
+
         if (!this.hasProcessModificationsForEntry(scopeEntryId)) {
             return;
         }
@@ -4348,7 +4355,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             return;
         }
 
-        this.isSavingProcessEntries = true;
+        // Set saving state for this specific entry
+        this.isSavingProcessEntriesByScopeEntry.set(scopeEntryId, true);
         
         // Get only the processes for this scope entry
         const processIdsToUpdate = this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId);
@@ -4389,7 +4397,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'Failed to update process entries', 'error');
             })
             .finally(() => {
-                this.isSavingProcessEntries = false;
+                // Clear saving state for this specific entry
+                this.isSavingProcessEntriesByScopeEntry.set(scopeEntryId, false);
             });
     }
     
