@@ -39,6 +39,52 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
+    public static String saveCrew(Map<String, Object> crewData) {
+        try {
+            if (crewData == null || crewData.isEmpty()) {
+                return 'Error: Crew details are required.';
+            }
+
+            String crewName = (String)crewData.get('Name');
+            if (String.isBlank(crewName)) {
+                return 'Error: Crew name is required.';
+            }
+
+            Id crewId = (Id)crewData.get('Id');
+
+            Crew__c crewRecord = new Crew__c();
+            crewRecord.Name = crewName;
+
+            if (crewId != null) {
+                crewRecord.Id = crewId;
+            }
+
+            if (crewData.containsKey('Description__c')) {
+                crewRecord.Description__c = (String)crewData.get('Description__c');
+            }
+
+            if (crewData.containsKey('Color_Code__c')) {
+                String colorCode = (String)crewData.get('Color_Code__c');
+                if (!String.isBlank(colorCode) && !colorCode.startsWith('#')) {
+                    colorCode = '#' + colorCode;
+                }
+                crewRecord.Color_Code__c = colorCode;
+            }
+
+            if (crewRecord.Id == null) {
+                insert crewRecord;
+            } else {
+                update crewRecord;
+            }
+
+            return 'SUCCESS';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveCrew', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving Crew : ' + e.getMessage(), 'apiResponse' => null});
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
+    @AuraEnabled
     public static String deleteProcess(String processId) {
         try {
             
@@ -51,6 +97,21 @@ public with sharing class ManagementTabController {
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'deleteProcess', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error deleting Process : ' + e.getMessage(), 'apiResponse' => null});
             return 'Error: ' + e.getMessage();
+        }
+    }
+
+    @AuraEnabled
+    public static Process__c upsertProcess(Process__c processRecord) {
+        try {
+            if (processRecord != null) {
+                upsert as user processRecord;
+                return processRecord;
+            } else {
+                throw new AuraHandledException('Process record is null');
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertProcess', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Process : ' + e.getMessage(), 'apiResponse' => null});
+            throw new AuraHandledException('Error saving process: ' + e.getMessage());
         }
     }
 
@@ -70,13 +131,13 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static List<wfrecon__Cost_Code__c> getCostCodes() {
-        List<wfrecon__Cost_Code__c> costCodes = new List<wfrecon__Cost_Code__c>();
+    public static List<Cost_Code__c> getCostCodes() {
+        List<Cost_Code__c> costCodes = new List<Cost_Code__c>();
         
         try {
             costCodes = [
-                SELECT Id, Name, wfrecon__Classification_Type__c, wfrecon__Code__c, wfrecon__Level_Code__c
-                FROM wfrecon__Cost_Code__c
+                SELECT Id, Name, Classification_Type__c, Code__c, Level_Code__c
+                FROM Cost_Code__c
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC
             ];
@@ -91,7 +152,7 @@ public with sharing class ManagementTabController {
     public static String deleteCostCode(String costCodeId) {
         try {
             if (costCodeId != null) {
-                delete as user (new wfrecon__Cost_Code__c(Id = costCodeId));
+                delete as user (new Cost_Code__c(Id = costCodeId));
                 return 'Success';
             } else {
                 return 'Cost Code not found';

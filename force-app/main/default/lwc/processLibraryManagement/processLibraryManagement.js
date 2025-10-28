@@ -1,8 +1,12 @@
-import { LightningElement, track } from 'lwc';
+import { LightningElement, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
+import { getPicklistValues } from 'lightning/uiObjectInfoApi';
+import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/Process__c.Unit_of_Measure__c';
+import PROCESS_TYPE_FIELD from '@salesforce/schema/Process__c.Process_Type__c';
 import getProcessLibraries from '@salesforce/apex/ManagementTabController.getProcessLibraries';
 import deleteProcess from '@salesforce/apex/ManagementTabController.deleteProcess';
+import upsertProcess from '@salesforce/apex/ManagementTabController.upsertProcess';
 
 export default class ProcessLibraryManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -16,6 +20,16 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     @track isEditMode = false;
     @track recordIdToEdit = null;
     
+    // Form fields
+    @track processName = '';
+    @track weight = '';
+    @track unitOfMeasure = '';
+    @track processType = '';
+    
+    // Picklist options
+    @track unitOfMeasureOptions = [];
+    @track processTypeOptions = [];
+    
     // Confirmation modal properties
     @track showConfirmationModal = false;
     @track confirmationModalTitle = 'Confirm Action';
@@ -27,6 +41,31 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     @track pageSize = 30;
     @track visiblePages = 5;
     @track shownProcessedData = [];
+
+    // Wire services for picklist values
+    @wire(getPicklistValues, { recordTypeId: '012000000000000AAA', fieldApiName: UNIT_OF_MEASURE_FIELD })
+    wiredUnitOfMeasurePicklist({ error, data }) {
+        if (data) {
+            this.unitOfMeasureOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value
+            }));
+        } else if (error) {
+            console.error('Error fetching Unit of Measure picklist:', error);
+        }
+    }
+
+    @wire(getPicklistValues, { recordTypeId: '012000000000000AAA', fieldApiName: PROCESS_TYPE_FIELD })
+    wiredProcessTypePicklist({ error, data }) {
+        if (data) {
+            this.processTypeOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value
+            }));
+        } else if (error) {
+            console.error('Error fetching Process Type picklist:', error);
+        }
+    }
 
     // Process table columns configuration
     @track processTableColumns = [
@@ -64,6 +103,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                     value = serialNumber;
                 } else {
                     value = this.getFieldValue(processRecord, key);
+                    
                 }
                 
                 return {
@@ -144,9 +184,8 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             for (let i = 1; i <= totalPages; i++) {
                 pages.push({
                     number: i,
-                    isActive: i === this.currentPage,
-                    isEllipsis: false,
-                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
                 });
             }
         } else {
@@ -158,17 +197,14 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             if (startPage > 1) {
                 pages.push({
                     number: 1,
-                    isActive: false,
-                    isEllipsis: false,
-                    cssClass: 'pagination-button'
+                    cssClass: '1' === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
                 });
-                
                 if (startPage > 2) {
                     pages.push({
                         number: '...',
-                        isActive: false,
-                        isEllipsis: true,
-                        cssClass: ''
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
                     });
                 }
             }
@@ -177,9 +213,8 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             for (let i = startPage; i <= endPage; i++) {
                 pages.push({
                     number: i,
-                    isActive: i === this.currentPage,
-                    isEllipsis: false,
-                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
                 });
             }
             
@@ -188,17 +223,14 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                 if (endPage < totalPages - 1) {
                     pages.push({
                         number: '...',
-                        isActive: false,
-                        isEllipsis: true,
-                        cssClass: ''
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
                     });
                 }
-                
                 pages.push({
                     number: totalPages,
-                    isActive: false,
-                    isEllipsis: false,
-                    cssClass: 'pagination-button'
+                    cssClass: totalPages === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
                 });
             }
         }
@@ -339,6 +371,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     handleCreateNew() {
         this.isEditMode = false;
         this.recordIdToEdit = null;
+        this.clearFormFields();
         this.showCreateModal = true;
     }
 
@@ -351,29 +384,143 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
         this.isCreateModalLoading = false;
         this.isEditMode = false;
         this.recordIdToEdit = null;
+        this.clearFormFields();
     }
 
     /**
-     * Method Name: handleSaveSuccess
-     * @description: Handle successful process creation
+     * Method Name: clearFormFields
+     * @description: Clear all form fields
      */
-    handleSaveSuccess(event) {
-        const actionLabel = this.isEditMode ? 'updated' : 'created';
-        this.showToast('Success', `Process ${actionLabel} successfully`, 'success');
-        this.handleCloseModal();
-        this.currentPage = 1; // Reset to first page
-        this.fetchProcesses(); // Refresh the list
+    clearFormFields() {
+        this.processName = '';
+        this.weight = '';
+        this.unitOfMeasure = '';
+        this.processType = '';
     }
 
     /**
-     * Method Name: handleSaveError
-     * @description: Handle process creation error
+     * Method Name: populateFormFields
+     * @description: Populate form fields for editing
      */
-    handleSaveError(event) {
-        console.error('Error saving process:', event.detail);
-        const actionLabel = this.isEditMode ? 'update' : 'create';
-        this.showToast('Error', `Failed to ${actionLabel} process`, 'error');
-        this.isCreateModalLoading = false;
+    populateFormFields(processRecord) {
+        this.processName = processRecord.wfrecon__Process_Name__c || '';
+        this.weight = processRecord.wfrecon__Weight__c || '';
+        this.unitOfMeasure = processRecord.wfrecon__Unit_of_Measure__c || '';
+        this.processType = processRecord.wfrecon__Process_Type__c || '';
+    }
+
+    /**
+     * Method Name: handleInputChange
+     * @description: Handle input field changes
+     */
+    handleInputChange(event) {
+        const fieldName = event.target.dataset.field;
+        let value = event.target.value;
+        
+        switch (fieldName) {
+            case 'processName':
+                this.processName = value;
+                break;
+            case 'weight':
+                this.weight = value;
+                break;
+            case 'unitOfMeasure':
+                this.unitOfMeasure = value;
+                break;
+            case 'processType':
+                this.processType = value;
+                break;
+        }
+    }
+
+    /**
+     * Method Name: handleSave
+     * @description: Handle save button click
+     */
+    handleSave() {
+        if (!this.validateForm()) {
+            return;
+        }
+
+        this.isCreateModalLoading = true;
+
+        const processRecord = {
+            Id: this.isEditMode ? this.recordIdToEdit : null,
+            wfrecon__Process_Name__c: this.processName,
+            wfrecon__Weight__c: parseFloat(this.weight),
+            wfrecon__Unit_of_Measure__c: this.unitOfMeasure,
+            wfrecon__Process_Type__c: this.processType
+        };
+
+        upsertProcess({ processRecord: processRecord })
+            .then(result => {
+                const actionLabel = this.isEditMode ? 'updated' : 'created';
+                this.showToast('Success', `Process ${actionLabel} successfully`, 'success');
+                this.handleCloseModal();
+                this.currentPage = 1; // Reset to first page
+                this.fetchProcesses(); // Refresh the list
+            })
+            .catch(error => {
+                console.error('Error saving process:', error);
+                const actionLabel = this.isEditMode ? 'update' : 'create';
+                this.showToast('Error', `Failed to ${actionLabel} process: ${error.body?.message || error.message}`, 'error');
+            })
+            .finally(() => {
+                this.isCreateModalLoading = false;
+            });
+    }
+
+    /**
+     * Method Name: validateForm
+     * @description: Validate form fields
+     */
+    validateForm() {
+        let isValid = true;
+        const errorMessages = [];
+
+        // Process Name validation
+        if (!this.processName || this.processName.trim() === '') {
+            errorMessages.push('Process Name is required');
+            isValid = false;
+        } else if (this.processName.trim().length > 255) {
+            errorMessages.push('Process Name cannot exceed 255 characters');
+            isValid = false;
+        }
+
+        // Weight validation - integer only, max 5 digits (99999)
+        if (!this.weight || this.weight.trim() === '') {
+            errorMessages.push('Weight is required');
+            isValid = false;
+        } else {
+            // Check if it's a valid integer
+            const weightValue = this.weight.trim();
+            if (!/^\d+$/.test(weightValue)) {
+                errorMessages.push('Weight must be a valid integer (no decimals allowed)');
+                isValid = false;
+            } else {
+                const weightNumber = parseInt(weightValue, 10);
+                if (weightNumber < 0) {
+                    errorMessages.push('Weight cannot be negative');
+                    isValid = false;
+                }
+            }
+        }
+
+        if (!this.unitOfMeasure) {
+            errorMessages.push('Unit of Measure is required');
+            isValid = false;
+        }
+
+        if (!this.processType) {
+            errorMessages.push('Process Type is required');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            this.showToast('Validation Error', errorMessages.join(', '), 'error');
+        }
+
+        return isValid;
     }
 
     /**
@@ -493,9 +640,15 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     handleEditProcess(event) {
         event.preventDefault();
         const recordId = event.currentTarget.dataset.recordId;
-        this.isEditMode = true;
-        this.recordIdToEdit = recordId;
-        this.showCreateModal = true;
+        
+        // Find the process record to edit
+        const processToEdit = this.processes.find(process => process.Id === recordId);
+        if (processToEdit) {
+            this.isEditMode = true;
+            this.recordIdToEdit = recordId;
+            this.populateFormFields(processToEdit);
+            this.showCreateModal = true;
+        }
     }
 
     /**
@@ -565,11 +718,6 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      */
     updateShownData() {
         try {
-            if (!this.filteredProcesses || this.filteredProcesses.length === 0) {
-                this.shownProcessedData = [];
-                return;
-            }
-
             const startIndex = (this.currentPage - 1) * this.pageSize;
             const endIndex = startIndex + this.pageSize;
             this.shownProcessedData = this.filteredProcesses.slice(startIndex, endIndex);
@@ -584,7 +732,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      */
     handlePrevious() {
         if (this.currentPage > 1) {
-            this.currentPage = this.currentPage - 1;
+            this.currentPage--;
             this.updateShownData();
         }
     }
@@ -595,7 +743,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      */
     handleNext() {
         if (this.currentPage < this.totalPages) {
-            this.currentPage = this.currentPage + 1;
+            this.currentPage++;
             this.updateShownData();
         }
     }
@@ -624,5 +772,4 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
         });
         this.dispatchEvent(event);
     }
-
 }

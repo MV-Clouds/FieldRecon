@@ -210,29 +210,70 @@
 
                 <!-- Modal content -->
                 <div class="slds-modal__content slds-p-around--medium process-popup-body">
-                    <lightning-record-edit-form 
-                        object-api-name="wfrecon__Process__c" 
-                        record-id={recordIdToEdit}
-                        onsuccess={handleSaveSuccess}
-                        onerror={handleSaveError}>
-                        
-                        <lightning-messages></lightning-messages>
-                        
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Process_Name__c" required></lightning-input-field>
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Weight__c" required></lightning-input-field>
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Unit_of_Measure__c" required></lightning-input-field>
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Process_Type__c" required></lightning-input-field>
+                    <form onsubmit={handleSave}>
+                        <!-- Process Name Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-input
+                                type="text"
+                                label="Process Name"
+                                value={processName}
+                                data-field="processName"
+                                onchange={handleInputChange}
+                                max-length="255"
+                                required>
+                            </lightning-input>
+                        </div>
+
+                        <!-- Weight Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-input
+                                type="number"
+                                label="Weight"
+                                value={weight}
+                                data-field="weight"
+                                onchange={handleInputChange}
+                                min="0"
+                                max="99999"
+                                max-length="5"
+                                step="1"
+                                required>
+                            </lightning-input>
+                        </div>
+
+                        <!-- Unit of Measure Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-combobox
+                                label="Unit of Measure"
+                                value={unitOfMeasure}
+                                options={unitOfMeasureOptions}
+                                data-field="unitOfMeasure"
+                                onchange={handleInputChange}
+                                required>
+                            </lightning-combobox>
+                        </div>
+
+                        <!-- Process Type Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-combobox
+                                label="Process Type"
+                                value={processType}
+                                options={processTypeOptions}
+                                data-field="processType"
+                                onchange={handleInputChange}
+                                required>
+                            </lightning-combobox>
+                        </div>
                         
                         <!-- Control buttons -->
                         <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
-                            <button class="save-btn" type="submit" disabled={isCreateModalLoading}>
+                            <button class="save-btn" type="button" onclick={handleSave} disabled={isCreateModalLoading}>
                                 <template if:true={isCreateModalLoading}>
                                     <lightning-spinner size="small" alternative-text="Saving..."></lightning-spinner>
                                 </template>
                                 {saveButtonLabel}
                             </button>
                         </div>
-                    </lightning-record-edit-form>
+                    </form>
                 </div>
             </div>
         </section>
