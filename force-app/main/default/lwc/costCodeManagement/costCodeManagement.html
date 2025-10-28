@@ -218,28 +218,59 @@
 
                 <!-- Modal content -->
                 <div class="slds-modal__content slds-p-around--medium costcode-popup-body">
-                    <lightning-record-edit-form 
-                        object-api-name="wfrecon__Cost_Code__c" 
-                        record-id={recordIdToEdit}
-                        onsuccess={handleSaveSuccess}
-                        onerror={handleSaveError}>
-                        
-                        <lightning-messages></lightning-messages>
-                        
-                        <lightning-input-field class="slds-size--1-of-1" field-name="Name" required></lightning-input-field>
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Classification_Type__c" required></lightning-input-field>
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Level_Code__c" required></lightning-input-field>
+                    <form onsubmit={handleSave}>
+                        <!-- Cost Code Name Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-input
+                                label="Cost Code Name"
+                                name="costCodeName"
+                                value={costCodeName}
+                                onchange={handleInputChange}
+                                required
+                                max-length="255"
+                                class="slds-size--1-of-1">
+                            </lightning-input>
+                        </div>
+
+                        <!-- Classification Type Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-combobox
+                                label="Classification Type"
+                                name="classificationType"
+                                value={classificationType}
+                                options={classificationTypeOptions}
+                                onchange={handleInputChange}
+                                required
+                                class="slds-size--1-of-1">
+                            </lightning-combobox>
+                        </div>
+
+                        <!-- Level Code Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-input
+                                label="Level Code"
+                                name="levelCode"
+                                type="number"
+                                value={levelCode}
+                                onchange={handleInputChange}
+                                required
+                                min="0"
+                                step="1"
+                                max-length="5"
+                                class="slds-size--1-of-1">
+                            </lightning-input>
+                        </div>
                         
                         <!-- Control buttons -->
                         <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
-                            <button class="save-btn" type="submit" disabled={isCreateModalLoading}>
+                            <button class="save-btn" type="button" onclick={handleSave} disabled={isCreateModalLoading}>
                                 <template if:true={isCreateModalLoading}>
                                     <lightning-spinner alternative-text="Saving..." size="xx-small"></lightning-spinner>
                                 </template>
                                 {saveButtonLabel}
                             </button>
                         </div>
-                    </lightning-record-edit-form>
+                    </form>
                 </div>
             </div>
         </section>

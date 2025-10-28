@@ -399,7 +399,7 @@
     border-top: 1px solid lightgray;
     gap: 1rem;
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     align-items: center;
     padding: 1rem;
 }

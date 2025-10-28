@@ -1,8 +1,11 @@
-import { LightningElement, track } from 'lwc';
+import { LightningElement, track, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { getPicklistValues } from 'lightning/uiObjectInfoApi';
 import getCostCodes from '@salesforce/apex/ManagementTabController.getCostCodes';
 import deleteCostCode from '@salesforce/apex/ManagementTabController.deleteCostCode';
+import upsertCostCode from '@salesforce/apex/ManagementTabController.upsertCostCode';
+import CLASSIFICATION_TYPE_FIELD from '@salesforce/schema/Cost_Code__c.Classification_Type__c';
 
 export default class CostCodeManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -16,6 +19,14 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
     @track isEditMode = false;
     @track recordIdToEdit = null;
     
+    // Form fields
+    @track costCodeName = '';
+    @track classificationType = '';
+    @track levelCode = '';
+    
+    // Picklist options
+    @track classificationTypeOptions = [];
+    
     // Confirmation modal properties
     @track showConfirmationModal = false;
     @track confirmationModalTitle = 'Confirm Action';
@@ -27,6 +38,19 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
     @track pageSize = 30;
     @track visiblePages = 5;
     @track shownCostCodeData = [];
+
+    // Wire services for picklist values
+    @wire(getPicklistValues, { recordTypeId: '012000000000000AAA', fieldApiName: CLASSIFICATION_TYPE_FIELD })
+    wiredClassificationTypePicklist({ error, data }) {
+        if (data) {
+            this.classificationTypeOptions = data.values.map(option => ({
+                label: option.label,
+                value: option.value
+            }));
+        } else if (error) {
+            console.error('Error fetching classification type picklist:', error);
+        }
+    }
 
     // Cost Code table columns configuration
     @track costCodeTableColumns = [
@@ -301,6 +325,7 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
     handleCreateNew() {
         this.isEditMode = false;
         this.recordIdToEdit = null;
+        this.clearFormFields();
         this.showCreateModal = true;
     }
 
@@ -312,26 +337,121 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
         this.showCreateModal = false;
         this.isEditMode = false;
         this.recordIdToEdit = null;
+        this.clearFormFields();
     }
 
     /**
-     * Method Name: handleSaveSuccess
-     * @description: Handle successful cost code creation
+     * Method Name: clearFormFields
+     * @description: Clear all form fields
      */
-    handleSaveSuccess(event) {
-        this.showCreateModal = false;
-        this.showToast('Success', `Cost Code ${this.isEditMode ? 'updated' : 'created'} successfully!`, 'success');
-        this.fetchCostCodes(); // Refresh the data
+    clearFormFields() {
+        this.costCodeName = '';
+        this.classificationType = '';
+        this.levelCode = '';
     }
 
     /**
-     * Method Name: handleSaveError
-     * @description: Handle cost code creation error
+     * Method Name: populateFormFields
+     * @description: Populate form fields for editing
      */
-    handleSaveError(event) {
-        console.error('Save error:', event.detail);
-        this.showToast('Error', 'Error saving cost code: ' + event.detail?.message, 'error');
+    populateFormFields(costCodeRecord) {
+        this.costCodeName = costCodeRecord.Name || '';
+        this.classificationType = costCodeRecord.wfrecon__Classification_Type__c || '';
+        this.levelCode = costCodeRecord.wfrecon__Level_Code__c || '';
     }
+
+    /**
+     * Method Name: handleInputChange
+     * @description: Handle input field changes
+     */
+    handleInputChange(event) {
+        const fieldName = event.target.name;
+        const value = event.target.value;
+        
+        switch(fieldName) {
+            case 'costCodeName':
+                this.costCodeName = value;
+                break;
+            case 'classificationType':
+                this.classificationType = value;
+                break;
+            case 'levelCode':
+                this.levelCode = value;
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Method Name: handleSave
+     * @description: Handle save button click
+     */
+    handleSave() {
+        if (!this.validateForm()) {
+            return;
+        }
+
+        this.isCreateModalLoading = true;
+
+        const costCodeRecord = {
+            Name: this.costCodeName,
+            Classification_Type__c: this.classificationType,
+            Level_Code__c: parseInt(this.levelCode) || null
+        };
+
+        if (this.isEditMode && this.recordIdToEdit) {
+            costCodeRecord.Id = this.recordIdToEdit;
+        }
+
+        upsertCostCode({ costCodeRecord })
+            .then(result => {
+                this.showCreateModal = false;
+                this.showToast('Success', `Cost Code ${this.isEditMode ? 'updated' : 'created'} successfully!`, 'success');
+                this.fetchCostCodes(); // Refresh the data
+                this.clearFormFields();
+                this.isCreateModalLoading = false;
+            })
+            .catch(error => {
+                console.error('Error saving cost code:', error);
+                this.showToast('Error', 'Error saving cost code: ' + error.body?.message, 'error');
+                this.isCreateModalLoading = false;
+            });
+    }
+
+    /**
+     * Method Name: validateForm
+     * @description: Validate form fields
+     */
+    validateForm() {
+        let isValid = true;
+        const requiredFields = [
+            { value: this.costCodeName, name: 'Cost Code Name' },
+            { value: this.classificationType, name: 'Classification Type' },
+            { value: this.levelCode, name: 'Level Code' }
+        ];
+
+        // Check for empty required fields
+        for (const field of requiredFields) {
+            if (!field.value || field.value.trim() === '') {
+                this.showToast('Error', `${field.name} is required.`, 'error');
+                isValid = false;
+                break;
+            }
+        }
+
+        // Validate level code is a number
+        if (isValid && this.levelCode) {
+            const levelCodeNum = parseInt(this.levelCode);
+            if (isNaN(levelCodeNum) || levelCodeNum < 0) {
+                this.showToast('Error', 'Level Code must be a valid positive number.', 'error');
+                isValid = false;
+            }
+        }
+
+        return isValid;
+    }
+
 
     /**
      * Method Name: handleSortClick
@@ -445,9 +565,14 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
      */
     handleEditCostCode(event) {
         const recordId = event.currentTarget.dataset.recordId;
-        this.isEditMode = true;
-        this.recordIdToEdit = recordId;
-        this.showCreateModal = true;
+        const costCodeRecord = this.costCodes.find(record => record.Id === recordId);
+        
+        if (costCodeRecord) {
+            this.isEditMode = true;
+            this.recordIdToEdit = recordId;
+            this.populateFormFields(costCodeRecord);
+            this.showCreateModal = true;
+        }
     }
 
     /**

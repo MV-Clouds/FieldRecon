@@ -162,4 +162,19 @@ public with sharing class ManagementTabController {
             return 'Error: ' + e.getMessage();
         }
     }
+
+    @AuraEnabled
+    public static Cost_Code__c upsertCostCode(Cost_Code__c costCodeRecord) {
+        try {
+            if (costCodeRecord != null) {
+                upsert as user costCodeRecord;
+                return costCodeRecord;
+            } else {
+                throw new AuraHandledException('Cost Code record is null');
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertCostCode', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});
+            throw new AuraHandledException('Error saving cost code: ' + e.getMessage());
+        }
+    }
 }
