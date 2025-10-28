@@ -1,0 +1,174 @@
+/* Container for specificity and scope */
+.fullcalendarjs {
+    /* Main Background */
+    background-color: #f7f7f7;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    height: 100%;
+    width: 100%;
+}
+
+.fc-view, .fc-view>table{
+    border-radius: 1rem 1rem 0 0;
+    overflow: hidden;
+}
+
+.fc .fc-row .fc-content-skeleton table, .fc .fc-row .fc-content-skeleton td, .fc .fc-row .fc-helper-skeleton td{
+    padding: 0.2rem;
+}
+
+.fc-unthemed .fc-content{
+    font-size: 0.8rem;
+    padding: 0.4rem;
+}
+
+.fullcalendarjs .fc-list-heading td.fc-widget-header{
+    background: #5a5adb20;
+}
+
+.fullcalendarjs .fc-list-heading td.fc-widget-header a, .fc-popover .fc-header .fc-title{
+    color: #5a5adb !important;
+}
+
+/* Header (Title and Buttons) - Mimics a Pulse Header */
+.fullcalendarjs .fc-toolbar {
+    padding: 10px 15px;
+    background: white; /* Purple/Blue Gradient */
+    border-radius: 0.5rem;
+    color: black; /* Text color in header */
+    border: none;
+}
+
+/* Title in Header */
+.fullcalendarjs .fc-toolbar h2 {
+    color: black;
+    font-weight: 500;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.fullcalendarjs .fc-center{
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fullcalendarjs .fc-button-group{
+    margin-left: 0;
+    border: 1px solid #5a5adb;
+    border-radius: 0.4rem;
+    overflow: hidden;
+}
+
+/* Buttons (Previous, Next, Today, View Buttons) */
+
+.fullcalendarjs .fc-button {
+    background-color: #5e5adb; /* Solid button color */
+    background-image: none;
+    color: white;
+    text-shadow: none;
+    height: 2.25rem;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    height: 36px;
+    width: 36px;
+    box-shadow: none;
+}
+
+.fullcalendarjs .fc-month-button, .fullcalendarjs .fc-basicWeek-button, .fullcalendarjs .fc-listMonth-button, .fullcalendarjs .fc-basicDay-button, .fullcalendarjs .fc-today-button{
+    padding-inline: 1rem;
+    background: white;
+    color: #585858;
+    font-weight: 600;
+    padding: 0 2.2rem;
+    border: none;
+}
+
+.fullcalendarjs .fc-today-button{
+    padding: 0 3.6rem;
+    background-color: #5a5adb;
+    color: White;
+}
+
+.fullcalendarjs .fc-today-button.fc-state-disabled{
+    filter: grayscale(1);
+    cursor: not-allowed;
+}
+
+.fullcalendarjs .fc-basicWeek-button, .fullcalendarjs .fc-month-button {
+    border-inline: 1px solid #5a5adb;
+}
+
+.fullcalendarjs .fc-listMonth-button {
+    border-left: 1px solid #5a5adb;
+}
+
+.fullcalendarjs .fc-button:hover {
+    background-color: #5a5adb20; /* Lighter hover */
+    color: #5a5adb;
+}
+
+.fullcalendarjs .fc-today-button:hover, .fullcalendarjs .fc-next-button:hover, .fullcalendarjs .fc-prev-button:hover{
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+    color: white;
+}
+
+/* Active/Selected Buttons (e.g., selected view) */
+.fullcalendarjs .fc-state-active,
+.fullcalendarjs .fc-state-down {
+    background-color: #5a5adb !important; /* Darker active state */
+    color: white !important;
+}
+
+/* Day Headers (Mon, Tue, Wed...) */
+.fullcalendarjs .fc-widget-header {
+    background-color: #5a5adb;
+    border: 1px solid #5a5adb20;
+    font-weight: bold;
+    color: white;
+    padding: 0.4rem;
+}
+
+.fullcalendarjs .fc-widget-header a{
+    color: white;
+}
+
+/* Calendar Body Cells (Borders) */
+.fullcalendarjs .fc-widget-content {
+    border: 1px solid #c0c0c0;
+}
+
+/* Today's Cell */
+.fullcalendarjs .fc-today a {
+    background-color: #ffffff30;
+    border-radius: 0.4rem;
+    padding: 0.5rem;
+}
+
+/* Events - Standard Pulse Blue/Purple */
+.fullcalendarjs .fc-event {
+    background-color: #6a5acd; /* Event background color */
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-weight: 500;
+    border: none;
+}
+
+.fullcalendarjs td.fc-list-item-time {
+    display: none;
+}
+
+.fullcalendarjs .fc-sat.fc-widget-content, .fullcalendarjs .fc-sun.fc-widget-content{
+    background-color: #e3e3e3;
+}
+
+/* Disable default jQuery UI theming classes (important if you rely on them: true) */
+/* You may not need these if you correctly use themeSystem: 'jquery-ui' and load the CSS */
+/* .fullcalendarjs .ui-widget-header { background: none; } */
+/* .fullcalendarjs .ui-state-default { background: none; } */

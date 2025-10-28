@@ -1,0 +1,15 @@
+<aura:component
+    access="global"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:attribute name="recordId" type="String" description="Record to which the files should be attached" />
+    <aura:attribute name="fileLists" type="list" />
+    <lightning:fileUpload
+        name="fileUploader"
+        multiple="true"
+        accept=".pdf, .png, .jpg, .jpeg"
+        recordId="{!v.recordId}"
+        onuploadfinished="{!c.handleUploadFinished}"
+    />
+</aura:component>

@@ -1,0 +1,19 @@
+<template>
+    <lightning-layout class="slds-var-m-around_medium">
+        <lightning-layout-item size="6">
+            <div class="slds-text-align_left slds-text-color_weak slds-text-body_small">
+                Page : {currentPageNo}/{totalPages} &nbsp;&nbsp;&nbsp;| &nbsp;&nbsp;&nbsp;  Total Records : {totalRecords}
+            </div>
+        </lightning-layout-item>
+        <lightning-layout-item size="6" class="slds-text-align_right">
+            <lightning-button-group>
+                <lightning-button-icon alternative-text="Previous Page" variant="container" type="button" 
+                        icon-name="utility:chevronleft" size="medium" value="previous"
+                        onclick={handleNavigation} disabled={pageIsOne}></lightning-button-icon>
+                <lightning-button-icon alternative-text="Next Page" variant="container" type="button" 
+                        icon-name="utility:chevronright" size="medium" value="next"
+                        onclick={handleNavigation} disabled={isThereNoRecordsId}></lightning-button-icon>
+            </lightning-button-group>
+        </lightning-layout-item>
+    </lightning-layout>
+</template>

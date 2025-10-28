@@ -1,0 +1,45 @@
+<aura:component description="Component used for creating list elements for records" extends="c:lib_base">
+     
+    <!--Declare Attributes-->
+    <aura:attribute name="record" type="Object" required="true"
+                    description="Holds the single record instance"/>
+     
+    <aura:attribute name="subHeadingFieldsAPI" type="String[]"
+                    description="Holds the field API names to show as meta entity in list"/>
+     
+    <aura:attribute name="subHeadingFieldValues" type="String"
+                    description="Used to construct the meta entity value. Works as subheading in record option"/>
+     
+    <aura:attribute name="iconCategoryName" type="String"
+                    description="Lightning icon category and icon name to show with each record element"/>
+     
+    <!--Declare Events-->
+    <aura:registerEvent name="lookupSelect" type="c:LookupHelperEvt"
+                        description="Event used to send the selected record Id and Name to Lookup component"/>
+     
+    <!--Declare Handlers-->
+    <aura:handler name="init" value="{!this}" action="{!c.getValues}"
+                  description="standard init event to prepare the sub heading mete entity value"/>
+     
+    <aura:attribute name="namespaceWithUnderscore" type="string" access="public"/>            
+    <!--Component-->
+    <li role="presentation" class="slds-listbox__item" onclick="{!c.handleSelect}">
+        <span class="slds-media slds-listbox__option slds-listbox__option_entity slds-listbox__option_has-meta"
+              role="option">
+            <!--Lightning Icon-->
+            <span class="slds-media__figure">
+                <lightning:icon iconName="{!v.iconCategoryName}" size="small" alternativeText="{!v.record.Name}"/>
+            </span>
+            <!--Option-->
+            <span class="slds-media__body">
+                <span class="slds-listbox__option-text slds-listbox__option-text_entity">
+                    {!v.record.Name} 
+                </span>
+                <!-- Option sub heading -->
+                <span class="slds-listbox__option-meta slds-listbox__option-meta_entity">
+                    {!v.subHeadingFieldValues}
+                </span>
+            </span>
+        </span>
+    </li>
+</aura:component>

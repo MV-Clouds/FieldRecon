@@ -1,0 +1,73 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-21-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class="slds-align_absolute-center slds-text-heading_large slds-p-around_small slds-border_bottom" ><b>Set Colors For Mobilizations </b> </div>
+    <div class="slds-scrollable">
+        <template if:true={isLoading} class="slds-is-relative" >
+            <lightning-spinner
+                alternative-text="Loading..." variant="brand">
+            </lightning-spinner>
+        </template>
+        <br />
+        <table class="slds-table_edit_container slds-table_cell-buffer " >
+            <thead>
+                <tr class="slds-line-height_reset">
+                        <th  scope="col" class={className1}>
+                            <div class="slds-truncate slds-text-heading_medium" title="Mobilization Status">Mobilization Status</div>
+                        </th>
+                        <th  scope="col" class={className2}>
+                            <div class="slds-truncate slds-text-heading_medium" title="Color">Text Color</div>
+                        </th>
+                        <th  scope="col" class={className3}>
+                            <div class="slds-truncate slds-text-heading_medium" title="Background Color">Background Color</div>
+                        </th>                   
+                </tr>
+            </thead>
+            <tbody>
+                <template for:each={mobilizationStatus} for:item="status"  for:index="index">
+                    <tr key={status.apiName} class="slds-hint-parent">
+                        <template if:true={status.edit}>
+                            <td data-label="Mobilization Status"   >
+                                <lightning-input class="slds-m-around_x-small" title="statusName" type="text" value={status.statusName} onchange={handleEditCells} data-index={index} ></lightning-input>
+                            </td>
+                        </template>
+                        <template if:false={status.edit}>
+                            <td onclick={updateRowNameToEdit} aria-selected="true" class="slds-cell-edit slds-text-heading_medium" role="gridcell" title={status.apiName} data-label="Mobilization Status">{status.statusName}
+                                <lightning-button-icon icon-name="utility:edit" icon-class="slds-button__icon_edit" variant="bare" class="slds-cell-edit__button slds-m-left_x-small" disabled ></lightning-button-icon>
+                            </td>
+                        </template>
+                            <td  data-label="Color"><lightning-input title="color" type="color" name="input-color"  value={status.color}  data-index={index} onchange={handleEditCells}></lightning-input></td>
+                            <td data-label="Background Color"><lightning-input title="bkColor" type="color" name="input-color"  value={status.bkColor}  data-index={index} onchange={handleEditCells}></lightning-input></td>
+                            <td><lightning-button-icon onclick={handleDeleteValue} icon-name="utility:delete" value={status.statusName} variant="container" alternative-text="Delete"   class="slds-m-left_xx-small" title="Delete"></lightning-button-icon></td>   
+                    </tr>
+                </template>
+                <template for:each={newPickListValues} for:item="newVal"  for:index="index">
+                    <tr key={newVal.apiName} class="slds-hint-parent">
+                        <td data-label="Mobilization Status" ><lightning-input class="slds-m-around_x-small" title="statusName" type="text" value={newVal.statusName} onchange={handleNewCells} data-index={index} required ></lightning-input></td>
+                        <td data-label="Color"><lightning-input title="color" type="color" name="input-color"  value={newVal.color}  data-index={index} onchange={handleNewCells}></lightning-input></td>
+                        <td data-label="Background Color"><lightning-input title="bkColor" type="color" name="input-color"  value={newVal.bkColor}  data-index={index} onchange={handleNewCells}></lightning-input></td>
+                        <td><lightning-button-icon onclick={handleDeleteNewValue} icon-name="utility:delete" value={newVal.color} variant="container" data-index={index} alternative-text="Delete"   class="slds-m-left_xx-small" title="Delete"></lightning-button-icon></td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+        <div class="slds-p-around_small">
+            <lightning-button variant="base" label="Add new value" icon-name="utility:add" onclick={handleNewRow} class="slds-m-left_x-small"></lightning-button>
+        </div>
+        <div class="slds-align_absolute-center slds-p-around_small">
+            <template if:true={isDataToSave}>
+                <lightning-button variant="brand" label="Save" icon-name="utility:save" class="slds-m-left_x-small" onclick={updateValues}></lightning-button>
+                <lightning-button variant="brand-outline" label="Cancel" onclick={cancelChanges} class="slds-m-left_x-small"></lightning-button>
+            </template>
+            <template if:false={isDataToSave}>
+                <lightning-button variant="brand" label="Save" icon-name="utility:save" class="slds-m-left_x-small" disabled></lightning-button>
+                <lightning-button variant="brand-outline" label="Cancel" class="slds-m-left_x-small" disabled></lightning-button>
+            </template>
+        </div>
+    </div>
+</template>

@@ -1,0 +1,291 @@
+<template>
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+    </template>
+
+    <div class="main-card">
+        <!-- Header Section -->
+        <div class="filter-search-container">
+            <div class="search-bar">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search by Cost Code Name..."
+                    value={searchTerm}
+                    onchange={handleSearch}
+                    class="search-bar-input">
+                </lightning-input>
+            </div>
+
+            <div class="right-controls">
+                <!-- Create New Cost Code Button -->
+                <div class="action-buttons">
+                    <button 
+                        class="action-button create-button"
+                        onclick={handleCreateNew}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Create New Cost Code
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table Container -->
+        <div class="data-table-container">
+            <template if:true={isDataAvailable}>
+                <table class="custom-data-table">
+                    <thead class="table-header">
+                        <tr>
+                            <template for:each={costCodeTableColumns} for:item="column">
+                                <template if:true={column.sortable}>
+                                    <th key={column.fieldName} 
+                                        class="header-cell center-trancate-head sortable-header" 
+                                        data-id={column.fieldName}
+                                        data-sort-field={column.fieldName}
+                                        onclick={handleSortClick}>
+                                        <div class="sort-header-content">
+                                            <span class="column-label">{column.label}</span>
+                                            <div class="sort-icon">
+                                                <svg width="16" height="16" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M374.6 246.6C368.4 252.9 360.2 256 352 256s-16.38-3.125-22.62-9.375L224 141.3V448c0 17.69-14.33 31.1-31.1 31.1S160 465.7 160 448V141.3L54.63 246.6c-12.5 12.5-32.75 12.5-45.25 0s-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0l160 160C387.1 213.9 387.1 234.1 374.6 246.6z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </th>
+                                </template>
+                                <template if:false={column.sortable}>
+                                    <th key={column.fieldName} 
+                                        class="header-cell center-trancate-head non-sortable-header">
+                                        <div class="header-content">
+                                            <span class="column-label">{column.label}</span>
+                                        </div>
+                                    </th>
+                                </template>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <template for:each={displayedCostCodes} for:item="costCodeRecord">
+                            <tr key={costCodeRecord.Id}>
+                                <template for:each={costCodeTableColumns} for:item="column">
+                                    <td key={column.fieldName} class="center-trancate-text">
+                                        <template if:true={column.isSerialNumber}>
+                                            {costCodeRecord.SerialNumber}
+                                        </template>
+                                        <template if:true={column.isActions}>
+                                            <div class="costcode-action-button-container">
+                                                <button class="costcode-edit-icon-btn" title="Edit Cost Code" data-record-id={costCodeRecord.Id} onclick={handleEditCostCode}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </button>
+                                                <button class="costcode-delete-icon-btn" title="Delete Cost Code" data-record-id={costCodeRecord.Id} onclick={handleDeleteCostCode}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template if:true={column.isNameField}>
+                                            <a 
+                                                href="javascript:void(0)" 
+                                                class="name-link"
+                                                data-record-id={costCodeRecord.Id}
+                                                onclick={handleNavigateToRecord}>
+                                                {costCodeRecord.Name}
+                                            </a>
+                                        </template>
+                                        <template if:false={column.isSerialNumber}>
+                                            <template if:false={column.isActions}>
+                                                <template if:false={column.isNameField}>
+                                                    <!-- wfrecon__Code__c Field -->
+                                                    <template lwc:if={column.isCodeField}>
+                                                        <template lwc:if={costCodeRecord.wfrecon__Code__c}>
+                                                            {costCodeRecord.wfrecon__Code__c}
+                                                        </template>
+                                                        <template lwc:else>
+                                                            --
+                                                        </template>
+                                                    </template>
+                                                    <!-- Classification_Type__c Field -->
+                                                    <template lwc:elseif={column.isClassificationField}>
+                                                        <template lwc:if={costCodeRecord.wfrecon__Classification_Type__c}>
+                                                            {costCodeRecord.wfrecon__Classification_Type__c}
+                                                        </template>
+                                                        <template lwc:else>
+                                                            --
+                                                        </template>
+                                                    </template>
+                                                    <!-- Level_Code__c Field -->
+                                                    <template lwc:elseif={column.isLevelCodeField}>
+                                                        <template lwc:if={costCodeRecord.wfrecon__Level_Code__c}>
+                                                            {costCodeRecord.wfrecon__Level_Code__c}
+                                                        </template>
+                                                        <template lwc:else>
+                                                            --
+                                                        </template>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <template if:false={isDataAvailable}>
+                <div class="no-prop">
+                    <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            </div>
+                            <div class="empty-state__message">No cost codes found in the library</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Pagination Section -->
+        <template if:true={isDataAvailable}>
+            <div class="pagination-section">
+                <div class="pagination-container">
+                    <button 
+                        class="pagination-button" 
+                        onclick={handlePrevious} 
+                        disabled={isFirstPage}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Previous
+                    </button>
+                    
+                    <template for:each={pageNumbers} for:item="page">
+                        <template if:false={page.isEllipsis}>
+                            <button 
+                                key={page.number}
+                                class={page.cssClass}
+                                data-page={page.number}
+                                onclick={handlePageChange}>
+                                {page.number}
+                            </button>
+                        </template>
+                        <template if:true={page.isEllipsis}>
+                            <span key={page.number} class="pagination-ellipsis">...</span>
+                        </template>
+                    </template>
+                    
+                    <button 
+                        class="pagination-button" 
+                        onclick={handleNext} 
+                        disabled={isLastPage}>
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                
+            </div>
+        </template>
+    </div>
+
+    <!-- Create Cost Code Modal -->
+    <template if:true={showCreateModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container costcode-popup">
+                <!-- Modal header -->
+                <header class="slds-modal__header costcode-popup-header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
+                            title="Close" onclick={handleCloseModal}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close"
+                                        class="slds-button__icon slds-button__icon_large"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-text-heading_medium">{modalTitle}</h2>
+                </header>
+
+                <!-- Modal content -->
+                <div class="slds-modal__content slds-p-around--medium costcode-popup-body">
+                    <form onsubmit={handleSave}>
+                        <!-- Cost Code Name Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-input
+                                label="Cost Code Name"
+                                name="costCodeName"
+                                value={costCodeName}
+                                onchange={handleInputChange}
+                                required
+                                max-length="255"
+                                class="slds-size--1-of-1">
+                            </lightning-input>
+                        </div>
+
+                        <!-- Classification Type Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-combobox
+                                label="Classification Type"
+                                name="classificationType"
+                                value={classificationType}
+                                options={classificationTypeOptions}
+                                onchange={handleInputChange}
+                                required
+                                class="slds-size--1-of-1">
+                            </lightning-combobox>
+                        </div>
+
+                        <!-- Level Code Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-input
+                                label="Level Code"
+                                name="levelCode"
+                                type="number"
+                                value={levelCode}
+                                onchange={handleInputChange}
+                                required
+                                min="0"
+                                step="1"
+                                max-length="5"
+                                class="slds-size--1-of-1">
+                            </lightning-input>
+                        </div>
+                        
+                        <!-- Control buttons -->
+                        <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+                            <button class="save-btn" type="button" onclick={handleSave} disabled={isLoading}>
+                                {saveButtonLabel}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+        <!-- Modal Backdrop -->
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Confirmation Modal -->
+    <c-generic-confirmation-modal
+        show-modal={showConfirmationModal}
+        title={confirmationModalTitle}
+        message={confirmationModalMessage}
+        confirm-button-label="Delete"
+        confirm-button-variant="destructive"
+        cancel-button-label="Cancel"
+        icon="utility:warning"
+        icon-variant="warning"
+        onconfirm={handleConfirmationModalConfirm}
+        oncancel={handleConfirmationModalCancel}>
+    </c-generic-confirmation-modal>
+</template>

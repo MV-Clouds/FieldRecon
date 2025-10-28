@@ -1,0 +1,277 @@
+<template>
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+    </template>
+
+    <div class="crew-main-card">
+        <!-- Header Section -->
+        <div class="crew-filter-search-container">
+            <div class="crew-search-bar">
+                <lightning-input type="search" variant="label-hidden" placeholder="Search by Crew Name..." value={searchTerm} onchange={handleSearch} class="crew-search-bar-input"></lightning-input>
+            </div>
+
+            <div class="crew-right-controls">
+                <div class="crew-action-buttons">
+                    <button class="crew-action-button crew-create-button" onclick={handleCreateNew}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        Create New Crew
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table Container -->
+        <div class="crew-data-table-container">
+            <template if:true={isDataAvailable}>
+                <table class="crew-custom-data-table">
+                    <thead class="crew-table-header">
+                        <tr>
+                            <template for:each={crewTableColumns} for:item="column">
+                                <template if:true={column.sortable}>
+                                    <th key={column.fieldName} class="crew-header-cell crew-center-truncate-head crew-sortable-header" data-id={column.fieldName} data-sort-field={column.fieldName} onclick={handleSortClick}>
+                                        <div class="crew-sort-header-content">
+                                            <span class="crew-column-label">{column.label}</span>
+                                            <div class="crew-sort-icon">
+                                                <svg width="16" height="16" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M374.6 246.6C368.4 252.9 360.2 256 352 256s-16.38-3.125-22.62-9.375L224 141.3V448c0 17.69-14.33 31.1-31.1 31.1S160 465.7 160 448V141.3L54.63 246.6c-12.5 12.5-32.75 12.5-45.25 0s-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0l160 160C387.1 213.9 387.1 234.1 374.6 246.6z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </th>
+                                </template>
+                                <template if:false={column.sortable}>
+                                    <th key={column.fieldName} class="crew-header-cell crew-center-truncate-head crew-non-sortable-header">
+                                        <div class="crew-header-content">
+                                            <span class="crew-column-label">{column.label}</span>
+                                        </div>
+                                    </th>
+                                </template>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="crew-table-body">
+                        <template for:each={displayedCrews} for:item="crewRecord">
+                            <tr key={crewRecord.Id}>
+                                <template for:each={crewRecord.displayFields} for:item="field">
+                                    <td key={field.key} class="crew-center-truncate-text" title={field.value}>
+                                        <template if:true={field.isSerialNumber}>
+                                            {field.value}
+                                        </template>
+                                        <template if:true={field.isActions}>
+                                            <div class="crew-action-button-container">
+                                                <button class="crew-edit-icon-btn" title="Edit Crew" data-record-id={crewRecord.Id} onclick={handleEditCrew}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                    </svg>
+                                                </button>
+                                                <button class="crew-delete-icon-btn" title="Delete Crew" data-record-id={crewRecord.Id} onclick={handleDeleteCrew}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template if:false={field.isSerialNumber}>
+                                            <template if:false={field.isActions}>
+                                                <template if:true={field.isNumber}>
+                                                    <template if:true={field.hasValue}>
+                                                        <lightning-formatted-number value={field.numberValue} format-style="decimal" maximum-fraction-digits="2"></lightning-formatted-number>
+                                                    </template>
+                                                    <template if:false={field.hasValue}>--</template>
+                                                </template>
+                                                <template if:false={field.isNumber}>
+                                                    <template if:true={field.isNameField}>
+                                                        <template if:true={field.hasValue}>
+                                                            <a href={field.recordUrl} class="crew-name-link" data-record-id={crewRecord.Id} onclick={handleNavigateToRecord} title={field.value}>
+                                                                {field.value}
+                                                            </a>
+                                                        </template>
+                                                        <template if:false={field.hasValue}>--</template>
+                                                    </template>
+                                                    <template if:false={field.isNameField}>
+                                                        <template if:true={field.hasValue}>
+                                                            <span title={field.value}>{field.value}</span>
+                                                        </template>
+                                                        <template if:false={field.hasValue}>--</template>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <template if:false={isDataAvailable}>
+                <div class="crew-no-records">
+                    <div class="crew-empty-state">
+                        <div class="crew-empty-state__content">
+                            <div class="crew-empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            </div>
+                            <div class="crew-empty-state__message">No crews available to show</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Pagination Section -->
+        <template if:true={isDataAvailable}>
+            <div class="crew-pagination-section">
+                <div class="crew-pagination-container">
+                    <button class="crew-pagination-button" onclick={handlePrevious} disabled={isFirstPage}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        Previous
+                    </button>
+
+                    <template for:each={pageNumbers} for:item="page">
+                        <template if:false={page.isEllipsis}>
+                            <button key={page.number} class={page.cssClass} data-page={page.number} onclick={handlePageChange}>
+                                {page.number}
+                            </button>
+                        </template>
+                        <template if:true={page.isEllipsis}>
+                            <span key={page.number} class="crew-pagination-ellipsis">...</span>
+                        </template>
+                    </template>
+
+                    <button class="crew-pagination-button" onclick={handleNext} disabled={isLastPage}>
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Create Crew Modal -->
+    <template if:true={showCreateModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container crew-popup">
+                <header class="slds-modal__header crew-popup-header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close" class="slds-button__icon slds-button__icon_large"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-text-heading_medium">{modalTitle}</h2>
+                </header>
+
+                <div class="slds-modal__content slds-p-around--medium crew-popup-body">
+                    <lightning-input label="Name" value={crewData.Name} data-field="Name" onchange={handleInputChange} required></lightning-input>
+
+                    <lightning-input label="Description" value={crewData.Description__c} data-field="Description__c" onchange={handleInputChange}></lightning-input>
+
+                    <lightning-input type="color" label="Select a Color" value={crewData.Color_Code__c} data-field="Color_Code__c" onchange={handleInputChange}></lightning-input>
+
+                    <div class="crew-member-section">
+                        <div class="crew-member-section__header">
+                            <span class="crew-member-section__title">Add Crew Members</span>
+                            <lightning-input
+                                class="crew-member-search"
+                                type="search"
+                                value={memberSearchTerm}
+                                variant="label-hidden"
+                                placeholder="Search crew member..."
+                                onchange={handleCrewMemberSearchChange}>
+                            </lightning-input>
+                        </div>
+                        <div class="crew-member-selection">
+                            <div class="crew-member-available">
+                                <div class="crew-member-list-title">Available Contacts</div>
+                                <div class="crew-member-list">
+                                    <template if:true={filteredCrewContacts.length}>
+                                        <template for:each={filteredCrewContacts} for:item="contact">
+                                            <div key={contact.id} class="checkboxes-select">
+                                                <input
+                                                    class="resource-option-checkbox"
+                                                    type="checkbox"
+                                                    data-id={contact.id}
+                                                    onchange={handleCrewMemberSelect}
+                                                    id={contact.id} />
+                                                <label class="checkbox-option-label" for={contact.id} data-available={contact.availableFlag} title={contact.assignedCrewNames}>
+                                                    <span class="crew-member-name">{contact.name}</span>
+                                                    <template if:true={contact.assignedCrewNames}>
+                                                        <span class="crew-member-assigned-info">({contact.assignedCrewNames})</span>
+                                                    </template>
+                                                </label>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <template if:false={filteredCrewContacts.length}>
+                                        <div class="no-resource-text-div">No contacts available.</div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="crew-member-selected">
+                                <div class="crew-member-list-title">Selected Members</div>
+                                <div class="selected-record-tiles">
+                                    <template if:true={selectedCrewMembers.length}>
+                                        <template for:each={selectedCrewMembers} for:item="member">
+                                            <span class="tile" key={member.id} title={member.assignedCrewNames}>
+                                                <div class="slds-truncate" title={member.name}>{member.name}</div>
+                                                <svg
+                                                    class="remove-btn-svg"
+                                                    data-id={member.id}
+                                                    onclick={handleRemoveCrewMember}
+                                                    onkeydown={handleRemoveCrewMemberKeydown}
+                                                    role="button"
+                                                    tabindex="0"
+                                                    focusable="true"
+                                                    aria-label={member.removeAriaLabel}
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 640 640"
+                                                    width="16"
+                                                    height="16"
+                                                    fill="#5a5adb">
+                                                    <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
+                                                </svg>
+                                            </span>
+                                        </template>
+                                    </template>
+                                    <template if:false={selectedCrewMembers.length}>
+                                        <div class="no-resource-text-div">No crew members selected yet.</div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="slds-grid slds-grid--align-center slds-p-vertical--medium crew-bottom-footer-btn">
+                        <button class="crew-save-btn" onclick={handleSaveCrew} disabled={isLoading}>
+                            {saveButtonLabel}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <c-generic-confirmation-modal
+        show-modal={showConfirmationModal}
+        title={confirmationModalTitle}
+        message={confirmationModalMessage}
+        confirm-button-label={confirmationConfirmLabel}
+        confirm-button-variant={confirmationConfirmVariant}
+        cancel-button-label={confirmationCancelLabel}
+        icon={confirmationIcon}
+        icon-variant={confirmationIconVariant}
+        onconfirm={handleConfirmationModalConfirm}
+        oncancel={handleConfirmationModalCancel}>
+    </c-generic-confirmation-modal>
+</template>

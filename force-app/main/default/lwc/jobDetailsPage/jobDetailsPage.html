@@ -1,0 +1,614 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <div class="filter-bar">
+            <div class="search-div">
+                <lightning-input type="search" variant="label-hidden" placeholder="Search Jobs by Name or Number" onchange={handleSearch} value={searchTerm}></lightning-input>
+            </div>
+
+            <template if:false={isCustomView}>
+                <div class="date-filter">
+                    <button class="arrow-button" onclick={handlePreviousDate}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="24" height="24" fill="#ffffff" lwc-4jhr3lo26vr="">
+                            <path d="M201.4 297.4C188.9 309.9 188.9 330.2 201.4 342.7L361.4 502.7C373.9 515.2 394.2 515.2 406.7 502.7C419.2 490.2 419.2 469.9 406.7 457.4L269.3 320L406.6 182.6C419.1 170.1 419.1 149.8 406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3L201.3 297.3z" lwc-4jhr3lo26vr=""></path>
+                        </svg>
+                    </button>
+                    <span class="filter-date">{formattedSelectedDate}</span>
+                    <button class="arrow-button" onclick={handleNextDate}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="24" height="24" fill="#ffffff" lwc-4jhr3lo26vr="">
+                            <path d="M439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C266.6 515.2 246.3 515.2 233.8 502.7C221.3 490.2 221.3 469.9 233.8 457.4L371.2 320L233.9 182.6C221.4 170.1 221.4 149.8 233.9 137.3C246.4 124.8 266.7 124.8 279.2 137.3L439.2 297.3z" lwc-4jhr3lo26vr=""></path>
+                        </svg>
+                    </button>
+                </div>
+            </template>
+
+            <template if:true={isCustomView}>
+                <div class="custom-date-filter">
+                    <div class="date-container">
+                        <div class="date-label">Start Date</div>
+                        <input type="date" class="slds-input date-input" min="2000-01-01" max="9999-12-31" value={customStartDate} onchange={handleCustomDateChange} data-field="filterStart"></input>
+                    </div>
+                    
+                    <div class="date-container">
+                        <div class="date-label">End Date</div>
+                        <input type="date" class="slds-input date-input" min="2000-01-01" max="9999-12-31" value={customEndDate} onchange={handleCustomDateChange} data-field="filterEnd"></input>
+                    </div>
+                </div>
+            </template>
+
+            <div class="header-tab-navigation tab-navigation">
+                <button class={dayClass} onclick={switchToDayView}>Day</button>
+                <button class={weekClass} onclick={switchToWeekView}>Week</button>
+                <button class={customClass} onclick={switchToCustomView}>Custom</button>
+            </div>
+        </div>
+
+        <template if:true={jobDetails.length}>
+            <div class="table-content">
+                <table class="slds-table">
+                    <thead>
+                        <tr>
+                            <template for:each={jobColumns} for:item="col">
+                                <th key={col.fieldName} scope="col" style={col.style}>
+                                    <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={jobDetails} for:item="job" for:index="index">
+                            <tr key={job.Id}>
+                                <template for:each={job.values} for:item="val">
+                                    <td key={val} style={val.style}>
+                                        <template if:true={val.isActions}>
+                                            <!-- Two action buttons in one column -->
+                                             
+                                            <div class="action-button-container">
+                                                <button class="clock-icon" title="Clock In/Out" data-job={job.jobId} data-mobid={job.key} data-action="clock" onclick={handleActionClick}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                                                        <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" fill="none"/>
+                                                    </svg>
+                                                </button>
+                                                
+                                                <button class="timesheet-icon" title="Timesheet" data-job={job.jobId} data-mobid={job.key} data-action="list" onclick={handleActionClick}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <line x1="8" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
+                                                        <line x1="8" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2"/>
+                                                        <line x1="8" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2"/>
+                                                        <circle cx="4" cy="6" r="1" fill="currentColor"/>
+                                                        <circle cx="4" cy="12" r="1" fill="currentColor"/>
+                                                        <circle cx="4" cy="18" r="1" fill="currentColor"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+
+                                        <template if:false={val.isActions}>
+                                            <template if:true={val.recordLink}>
+                                                <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                                    <div class="cell-content" title={val.value}>
+                                                        {val.value}
+                                                    </div>
+                                                </a>
+                                            </template>
+                                            <template if:false={val.recordLink}>
+                                                <div class="cell-content" style={val.style} title={val.value}>
+                                                    {val.value}
+                                                </div>
+                                            </template>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+        <template if:false={jobDetails.length}>
+            <div class="no-records-message">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">No data available to show</div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template if:true={showClockInOutModal}>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeClockInOutModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Manage Crew Clock In/Out
+                    </div>
+
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-2">
+                        <div class="popUpBody">
+                            <div>
+                                <!-- Tab Navigation -->
+                                <div class="tab-navigation">
+                                    <button class={clockInTabClass} onclick={handleClockInTab} data-tab="clockin">
+                                        Clock In
+                                    </button>
+                                    <button class={clockOutTabClass} onclick={handleClockOutTab} data-tab="clockout">
+                                        Clock Out
+                                    </button>
+                                </div>
+
+                                <!-- Tab Content -->
+                                <div class="tab-content">
+                                    <template if:true={isClockInActive}>
+                                        <div class="tab-panel">
+                                            <template if:true={clockInList.length}>
+                                                <div class="clock-in-container">
+                                                    <div class="clock-in-title">Clock In Employee</div>
+                                                    
+                                                    <div class="input-column">
+                                                        <div class="select-person-container">
+                                                            <label class="select-label required">Select Person</label>
+                                                            <div class="select-wrapper">
+                                                                <select class="custom-select" data-field="clockIn" onchange={handleInputChange}>
+                                                                    <option value="">-- Select a person --</option>
+                                                                    <template for:each={clockInOptions} for:item="option">
+                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                    </template>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="input-column">
+                                                        <div class="select-person-container">
+                                                            <label class="select-label required">Select Cost Code</label>
+                                                            <div class="select-wrapper">
+                                                                <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
+                                                                    <option value="">-- Select a cost code --</option>
+                                                                    <template for:each={costCodeOptions} for:item="option">
+                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                    </template>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="input-column">
+                                                        <div class="datetime-container">
+                                                            <label class="datetime-label required">Clock In DateTime</label>
+                                                            <div class="datetime-wrapper">
+                                                                <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime" value={clockInTime} onchange={handleInputChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <template if:true={isSelectedContactClockedIn}>
+                                                        <div class="info-message">
+                                                            User already clocked in for the day, continue to clock in for this job again.
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template if:false={clockInList.length}>
+                                                <div class="empty-state-container">
+                                                    <div class="empty-state-content">
+                                                        <div class="empty-state-title">No Pending Clock Ins</div>
+                                                        <div class="empty-state-message">All assigned people have already clocked in for this job.</div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template if:true={isClockOutActive}>
+                                        <div class="tab-panel">
+                                            <template if:true={clockOutList.length}>
+                                                <div class="clock-in-container">
+                                                    <div class="clock-in-title">Clock Out Employee</div>
+                                                    
+                                                    <div class="input-column">
+                                                        <div class="select-person-container">
+                                                            <label class="select-label required">Select Person</label>
+                                                            <div class="select-wrapper">
+                                                                <select class="custom-select" data-field="clockOut" onchange={handleInputChange}>
+                                                                    <option value="">-- Select a person --</option>
+                                                                    <template for:each={clockOutOptions} for:item="option">
+                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                    </template>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="input-column">
+                                                        <div class="datetime-container">
+                                                            <label class="datetime-label required">Clock Out DateTime</label>
+                                                            <div class="datetime-wrapper">
+                                                                <input type="datetime-local" class="custom-datetime" data-field="clockOutDateTime" value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <template if:true={previousClockInTime}>
+                                                        <div class="info-message">
+                                                            Clock In Time : {previousClockInTime}
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template if:false={clockOutList.length}>
+                                                <div class="empty-state-container">
+                                                    <div class="empty-state-content">
+                                                        <div class="empty-state-title">No Pending Clock Outs</div>
+                                                        <div class="empty-state-message">No employees are currently clocked in for this job.</div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <template if:true={isClockInActive}>
+                        <template if:true={clockInList.length}>
+                            <div class="popUpFooter">
+                                <button class="clock-in-button" onclick={handleClockIn}>Clock In</button>
+                            </div>
+                        </template>
+                    </template>
+
+                    <template if:true={isClockOutActive}>
+                        <template if:true={clockOutList.length}>
+                            <div class="popUpFooter">
+                                <button class="clock-in-button" onclick={handleClockOut}>Clock Out</button>
+                            </div>
+                        </template>
+                    </template>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <template if:true={showTimesheetModal}>
+            <div class="slds-backdrop slds-backdrop_open main-backdrop"></div>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open main-modal">
+                <div class="slds-modal__container timesheet-popup">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeTimesheetModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Timesheet Information
+                    </div>
+
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id">
+                        <div class="popUpBody">
+                            <div class="btnContainer">
+                                <button class="addTimesheetBtn" onclick={handleAddTimesheet}>
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
+                                    </svg>
+                                    Add Timesheet
+                                </button>
+                            </div>
+                            <div>
+                                <template if:true={timesheetDetailsRaw.length}>
+                                    <div class="table-content timesheet-table">
+                                        <table class="slds-table">
+                                            <thead>
+                                                <tr>
+                                                    <template for:each={timesheetColumns} for:item="col">
+                                                        <th key={col.fieldName} scope="col" style={col.style}>
+                                                            <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                                        </th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={timesheetDetails} for:item="timesheet" for:index="index">
+                                                    <tr key={timesheet.id}>
+                                                        <template for:each={timesheet.values} for:item="val">
+                                                            <td key={val} style={val.style}>
+                                                                <div class="slds-truncate cell-wrapper" title={val.value}>
+                                                                    <template if:true={val.isActions}>
+                                                                        <div class="action-button-container">
+                                                                            <button class="edit-icon-btn" title="Edit Timesheet" data-id={timesheet.id} onclick={handleEditTimesheetClick}>
+                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                    <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                </svg>
+                                                                            </button>
+                                                                            <button class="delete-icon-btn" title="Delete Timesheet" data-id={timesheet.id} onclick={handleDeleteTimesheetClick}>
+                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" lwc-6an4lceoh93="">
+                                                                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
+                                                                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
+                                                                                    <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
+                                                                                    <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                        </div>
+                                                                    </template>                                                                    
+                                                                    <template if:false={val.isActions}>
+                                                                        <div class="cell-content" title={val.value}>
+                                                                            {val.value}
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+                                <template if:false={timesheetDetailsRaw.length}>
+                                    <div class="empty-state-container">
+                                        <div class="empty-state-content">
+                                            <div class="empty-state-title">No Timesheet Entries</div>
+                                            <div class="empty-state-message">No completed timesheet entries found for this job.</div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <template if:true={isTravelTimeEdited}>
+                        <div class="popUpFooter">
+                            <button class="clock-in-button" onclick={saveTravelTimeInTimesheet}>Save</button>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </template>
+
+        <template if:true={manualTimesheetEntry}>
+            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
+                <div class="slds-modal__container">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeManualTimesheetModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        New Timesheet Entry
+                    </div>
+
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-3">
+                        <div class="popUpBody">
+                            <div>
+                                <div class="form-container">
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="select-person-container">
+                                                <label class="select-label required">Select Person</label>
+                                                <lightning-combobox value={selectedManualPerson} data-field="manualContact" options={allContacts} onchange={handleInputChange} placeholder="Select Person" variant="label-hidden"></lightning-combobox>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="datetime-container">
+                                                <label class="datetime-label required">Clock In DateTime</label>
+                                                <div class="datetime-wrapper">
+                                                    <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime"  value={clockInTime} onchange={handleInputChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="datetime-container">
+                                                <label class="datetime-label required">Clock Out DateTime</label>
+                                                <div class="datetime-wrapper">
+                                                    <input type="datetime-local" class="custom-datetime" data-field="clockOutDateTime" value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="select-person-container">
+                                                <label class="select-label required">Select Cost Code</label>
+                                                <div class="select-wrapper">
+                                                    <select class="custom-select-costcode width-100" data-field="costCode" onchange={handleInputChange}>
+                                                        <option value="">-- Select a cost code --</option>
+                                                        <template for:each={costCodeOptions} for:item="option">
+                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Travel Time -->
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Travel Time</label>
+                                            <div class="select-wrapper">
+                                                <input type="number" step="0.01" min="0.01" data-field="TravelTime" class="custom-select width-100" value={enteredManualTravelTime} onchange={handleInputChange} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Per Diem -->
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Per Diem</label>
+                                            <div class="select-wrapper">    
+                                                <input type="number" step="1" max="1" min="0" data-field="PerDiem" class="custom-select width-100" value={enteredManualPerDiem} onchange={handleInputChange} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={createManualTimesheet}>Create</button>
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <template if:true={editTimesheetEntry}>
+            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
+                <div class="slds-modal__container">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeEditTimesheetModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Edit Timesheet Entry
+                    </div>
+
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-4">
+                        <div class="popUpBody">
+                            <div>
+                                <div class="form-container">
+                                    <!-- Full Name (Read Only) -->
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Full Name</label>
+                                            <div class="datetime-wrapper">
+                                                {editableTimesheetEntry.FullName}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Clock In -->
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="datetime-container">
+                                                <label class="datetime-label required">Clock In Time</label>
+                                                <div class="datetime-wrapper">
+                                                    <input type="datetime-local" data-field="ClockIn" class="custom-datetime" value={editableTimesheetEntry.ClockIn} onchange={handleEditTSELFieldChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Clock Out -->
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <div class="datetime-container">
+                                                <label class="datetime-label required">Clock Out Time</label>
+                                                <div class="datetime-wrapper">
+                                                    <input type="datetime-local" data-field="ClockOut" class="custom-datetime" value={editableTimesheetEntry.ClockOut} onchange={handleEditTSELFieldChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Travel Time -->
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Travel Time</label>
+                                            <div class="select-wrapper">
+                                                <input type="number" step="0.01" min="0.01" data-field="TravelTime" class="custom-select width-100" value={editableTimesheetEntry.TravelTime} onchange={handleEditTSELFieldChange} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Per Diem -->
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Per Diem</label>
+                                            <div class="select-wrapper">    
+                                                <input type="number" step="1" data-field="PerDiem" class="custom-select width-100" value={editableTimesheetEntry.PerDiem} onchange={handleEditTSELFieldChange} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Premium -->
+                                    <div class="form-group">
+                                        <div class="premium-col">
+                                            <label class="premium-label">Premium</label>
+                                            <div class="premium-div">    
+                                                <input type="checkbox" data-field="premium" checked={editableTimesheetEntry.premium} onchange={handleEditTSELFieldChange} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={handleSaveTSEL}>Save</button>
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <template if:true={showDeleteConfirmModal}>
+            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
+                <div class="slds-modal__container">
+                    <!-- Close Button -->
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeDeleteConfirmModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                    </button>
+
+                    <!-- Heading -->
+                    <div class="pop-heading">
+                        Delete Timesheet Entry
+                    </div>
+
+                    <!-- Body -->
+                    <div class="slds-modal__content pop-up" id="modal-content-id-5">
+                        <div class="popUpBody">
+                            <div>
+                                Are you sure you want to delete this timesheet entry?
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="popUpFooter">
+                        <button class="clock-in-button" onclick={handleDeleteConfirmTSEL}>Confirm Delete</button>
+                    </div>
+                </div>
+            </section>
+        </template>
+    </div>
+</template>

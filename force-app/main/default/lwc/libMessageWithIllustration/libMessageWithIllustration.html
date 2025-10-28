@@ -1,0 +1,16 @@
+<template>
+    <lightning-card>
+        <div class="slds-illustration slds-illustration_small">            
+            <img src={imageUrl} class="slds-illustration__svg slds-m-top_none"/>
+
+            <div class="slds-text-longform">
+                <div style="text-align : center;font-weight: bold;">{title}</div> 
+                <p class="slds-text-body_regular">
+                    <span class={messageCSS}>                        
+                        {message}
+                    </span>                    
+                </p>                
+            </div>
+        </div> 
+    </lightning-card>
+</template>

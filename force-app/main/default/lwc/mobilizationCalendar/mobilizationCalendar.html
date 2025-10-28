@@ -1,0 +1,65 @@
+<template>
+    <!-- When Setup is not complete -->
+    <template if:true={showNoData}>
+        <div class="centerAlign">
+            <img src={emptyStateImage} width="500" height="500" />
+            <div class="marginTop">
+                Please complete the essential application configuration.
+                <a href={sfDomain}>(Navigate To App Setup)</a>
+            </div>
+        </div>
+    </template>
+
+    <!-- When Feature Access is missing -->
+    <template if:true={showFeatureAccess}>
+        <div class="centerAlign">
+            <img src={emptyStateImage} width="500" height="500" />
+            <div class="marginTop titleFeature">Feature Upgrade Required</div>
+            <div style="color:red;">
+                Second Level Feature Pack Required! Please Contact Your Admin!
+            </div>
+        </div>
+    </template>
+
+    <!-- Calendar with data -->
+    <template if:true={showCalendar}>
+        <div class="floatingHeaderTable headerdata slds-card full-width">
+            <lightning-combobox
+                value={statusNew}
+                options={statusOptions}
+                onchange={handleStatusChange}>
+            </lightning-combobox>
+
+            <lightning-input
+                type="text"
+                label="Job"
+                value={job}
+                onchange={handleJobChange}>
+            </lightning-input>
+
+            <lightning-button
+                label="Search"
+                onclick={refreshEvents}>
+            </lightning-button>
+        </div>
+
+        <!-- Notes Section -->
+        <div class="notes-area">
+            <lightning-textarea
+                label="Notes"
+                value={notes}
+                onchange={handleNotesChange}>
+            </lightning-textarea>
+            <lightning-button
+                label="Save Notes"
+                variant="brand"
+                onclick={handleSaveNotes}>
+            </lightning-button>
+        </div>
+
+        <!-- Calendar -->
+        <div class="slds-card slds-box content full-width">
+            <div lwc:dom="manual" class="calendar-container"></div>
+        </div>
+    </template>
+</template>

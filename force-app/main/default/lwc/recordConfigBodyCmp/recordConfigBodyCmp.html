@@ -1,0 +1,32 @@
+<template>
+    <template if:false={isModalOpen}>
+        <button onclick={openModal} class="icon-button">Configure Settings</button>
+    </template>
+    <template if:true={isModalOpen}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="modal-heading-01"
+            class="slds-modal slds-fade-in-open slds-modal_large">
+            <div class="slds-modal__container">
+
+                <div class="slds-modal__header blue-header">
+                    <h1 id="modal-heading-01" class="slds-modal__title slds-hyphenate" tabindex="-1">
+                        Configure Settings
+                    </h1>
+                </div>
+                <div class="slds-modal__content background_css custom-modal-container"
+                    id="modal-content-id-1">
+                        <div class="main-div">
+                            <div class="body-div">
+                                <div class="content-section">
+                                    <div class="cmp-cover">
+                                        <c-record-config-cmp object-api-name={selectedTabObject} feature-name={featureName}></c-record-config-cmp>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+    </template>
+</template>

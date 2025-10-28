@@ -1,0 +1,606 @@
+<template>
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+    </template>
+
+    <div class="main-card">
+        <!-- Header Section -->
+        <div class="filter-search-container">
+            <div class="search-bar">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search locations..."
+                    value={searchTerm}
+                    onchange={handleSearch}
+                    class="search-bar-input">
+                </lightning-input>
+            </div>
+            
+            <div class="header-actions">
+                <button class="action-button refresh-btn" onclick={handleRefresh}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4V10H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 20V14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 20L8 16C9 15 10 14 12 14C14 14 15 15 16 16L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 4L16 8C15 9 14 10 12 10C10 10 9 9 8 8L4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Refresh
+                </button>
+                
+                <button class="action-button add-btn" onclick={handleAddLocation}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Add Location
+                </button>
+                
+                <button class="action-button delete-btn" onclick={handleMassDelete} disabled={isDeleteDisabled}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Delete Selected
+                    <template if:true={showSelectedCount}>
+                        <span class="selected-count-badge">({selectedRecordsCount})</span>
+                    </template>
+                </button>
+
+                <div>
+                    <c-record-config-body-cmp 
+                        feature-name="LocationEntry"
+                        onconfigurationupdated={handleConfigurationUpdated}>
+                    </c-record-config-body-cmp>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-control">
+            <div class="sort-description-container">
+                <template if:true={sortDescription}>
+                    <div class="sort-description">
+                        <div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 14H2M8 10H2M6 6H2M12 18H2M19 20V4M19 20L22 17M19 20L16 17M19 4L22 7M19 4L16 7" 
+                                      stroke="#5e5adb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" 
+                                      fill="none"/>
+                            </svg>
+                        </div>
+                        <div class="sort-text">{sortDescription}</div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="action-buttons location-edit-actions">
+                <button 
+                    class="action-button"
+                    onclick={handleDiscardLocationChanges}
+                    disabled={isLocationButtonsDisabled}
+                    title={locationDiscardButtonTitle}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Discard Changes
+                </button>
+                <button 
+                    class="action-button save-button"
+                    onclick={handleSaveLocationChanges}
+                    disabled={isLocationSaveDisabled}>
+                    <template if:true={isSavingLocations}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </template>
+                    <template if:false={isSavingLocations}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </template>
+                    {locationSaveButtonLabel}
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Table Container -->
+        <div class="data-table-container">
+            <template if:true={isDataAvailable}>
+                <table class="custom-data-table">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="header-cell center-trancate-head checkbox-column">
+                                <input type="checkbox" 
+                                        checked={isAllSelected}
+                                        onchange={handleSelectAll}
+                                        data-type="select-all">
+                            </th>
+                            <th class="header-cell center-trancate-head actions-column">Actions</th>
+                            <template for:each={tableColumns} for:item="column">
+                                <th key={column.fieldName} 
+                                    class="header-cell center-trancate-head sortable-header" 
+                                    data-id={column.fieldName}
+                                    data-sort-field={column.fieldName}
+                                    onclick={handleSortClick}>
+                                    <div class="sort-header-content">
+                                        <span class="column-label">{column.label}</span>
+                                        <div class="sort-icon">
+                                            <svg width="16" height="16" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M374.6 246.6C368.4 252.9 360.2 256 352 256s-16.38-3.125-22.62-9.375L224 141.3V448c0 17.69-14.33 31.1-31.1 31.1S160 465.7 160 448V141.3L54.63 246.6c-12.5 12.5-32.75 12.5-45.25 0s-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0l160 160C387.1 213.9 387.1 234.1 374.6 246.6z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <template for:each={displayedLocationEntries} for:item="entry">
+                            <tr key={entry.Id}>
+                                <td class="center-trancate-text checkbox-column">
+                                    <input type="checkbox" 
+                                            checked={entry.isSelected}
+                                            onchange={handleRowSelection}
+                                            data-row-id={entry.Id}
+                                            data-type="row-checkbox">
+                                </td>
+                                <td class="center-trancate-text actions-column">
+                                    <div class="action-icons">
+                                        <button class="icon-button child-records-btn" 
+                                                title="View Process Details" 
+                                                onclick={handleToggleProcessDetails}
+                                                data-record-id={entry.Id}
+                                                data-expanded={entry.showProcessDetails}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <template if:true={entry.showProcessDetails}>
+                                                    <!-- Chevron Up - Indicates collapse -->
+                                                    <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </template>
+                                                <template if:false={entry.showProcessDetails}>
+                                                    <!-- Chevron Down - Indicates expand -->
+                                                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </template>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <template for:each={entry.displayFields} for:item="field">
+                                    <td key={field.key} 
+                                        class={field.cellClass}
+                                        data-record-id={entry.Id}
+                                        data-field-name={field.key}
+                                        data-field-type={field.type}
+                                        data-editable={field.isEditable}
+                                        onclick={handleCellClick}>
+                                        
+                                        <template if:true={field.isBeingEdited}>
+                                            <!-- Date field editing -->
+                                            <template if:true={field.isDate}>
+                                                <input type="date" 
+                                                       class="inline-edit-input date-input"
+                                                       value={field.dateValue}
+                                                       data-record-id={entry.Id}
+                                                       data-field-name={field.key}
+                                                       data-field-type="date"
+                                                       oninput={handleCellInputChange}
+                                                       onblur={handleCellInputBlur}>
+                                            </template>
+                                            
+                                            <!-- Picklist field editing -->
+                                            <template if:true={field.isPicklist}>
+                                                <template if:false={field.isDate}>
+                                                    <select 
+                                                        class="inline-edit-select"
+                                                        data-record-id={entry.Id}
+                                                        data-field-name={field.key}
+                                                        data-field-type="picklist"
+                                                        onchange={handleSelectChange}
+                                                        onblur={handleCellInputBlur}>
+                                                        <option value="">--Select--</option>
+                                                        <template for:each={field.picklistOptions} for:item="option">
+                                                            <option key={option.value} 
+                                                                    value={option.value}
+                                                                    selected={option.selected}>
+                                                                {option.label}
+                                                            </option>
+                                                        </template>
+                                                    </select>
+                                                </template>
+                                            </template>
+                                            
+                                            <!-- Number field editing (excluding date) -->
+                                            <template if:true={field.isNumber}>
+                                                <template if:false={field.isDate}>
+                                                    <template if:false={field.isPicklist}>
+                                                        <input type="number" 
+                                                               class="inline-edit-input"
+                                                               value={field.rawValue}
+                                                               data-record-id={entry.Id}
+                                                               data-field-name={field.key}
+                                                               data-field-type="number"
+                                                               oninput={handleCellInputChange}
+                                                               onblur={handleCellInputBlur}
+                                                               step="1"
+                                                               min="0">
+                                                    </template>
+                                                </template>
+                                            </template>
+                                            
+                                            <!-- Text field editing (excluding date, number, picklist) -->
+                                            <template if:false={field.isNumber}>
+                                                <template if:false={field.isDate}>
+                                                    <template if:false={field.isPicklist}>
+                                                        <input type="text" 
+                                                               class="inline-edit-input"
+                                                               value={field.value}
+                                                               data-record-id={entry.Id}
+                                                               data-field-name={field.key}
+                                                               data-field-type="text"
+                                                               oninput={handleCellInputChange}
+                                                               onblur={handleCellInputBlur}>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </template>
+                                        
+                                        <template if:false={field.isBeingEdited}>
+                                            <!-- Regular cell display -->
+                                            <div class={field.contentClass}>
+                                                <template if:true={field.isCurrency}>
+                                                    <lightning-formatted-number 
+                                                        value={field.currencyValue} 
+                                                        format-style="currency" 
+                                                        currency-code="USD">
+                                                    </lightning-formatted-number>
+                                                </template>
+                                                <template if:false={field.isCurrency}>
+                                                    <template if:true={field.isPercent}>
+                                                        <lightning-formatted-number 
+                                                            value={field.rawValue} 
+                                                            format-style="percent-fixed" 
+                                                            maximum-fraction-digits="2">
+                                                        </lightning-formatted-number>
+                                                    </template>
+                                                    <template if:false={field.isPercent}>
+                                                        <template if:true={field.isDate}>
+                                                            <template if:true={field.hasValue}>
+                                                                <lightning-formatted-date-time 
+                                                                    value={field.rawValue} 
+                                                                    year="numeric" 
+                                                                    month="short" 
+                                                                    day="2-digit">
+                                                                </lightning-formatted-date-time>
+                                                            </template>
+                                                            <template if:false={field.hasValue}>
+                                                                <span>--</span>
+                                                            </template>
+                                                        </template>
+                                                        <template if:false={field.isDate}>
+                                                            <template if:true={field.isNameField}>
+                                                                <!-- <a href={entry.recordUrl} target="_blank" class="name-link">
+                                                                    {field.value}
+                                                                </a> -->
+                                                                <span>{field.value}</span>
+                                                            </template>
+                                                            <template if:false={field.isNameField}>
+                                                                <template if:true={field.hasValue}>
+                                                                    <span>{field.value}</span>
+                                                                </template>
+                                                                <template if:false={field.hasValue}>
+                                                                    <span>--</span>
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                    </template>
+                                                </template>
+                                                
+                                                <!-- Edit indicator icon -->
+                                                <template if:true={field.isEditable}>
+                                                    <svg class="edit-indicator" width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+                            
+                            <!-- Nested Process Details Table -->
+                            <template if:true={entry.showProcessDetails}>
+                                <tr key={entry.Id} class="nested-row">
+                                    <td colspan="100%" class="nested-table-container">
+                                        <div class="nested-table-wrapper">
+                                            <div class="nested-table-header">
+                                                <h4 class="nested-table-title">Process Details for {entry.Name}</h4>
+                                                <!-- Save/Discard Actions -->
+                                                <div class="action-buttons">
+                                                    <button 
+                                                        class="action-button refresh-btn"
+                                                        onclick={handleNestedRefresh}
+                                                        data-location-id={entry.Id}
+                                                        title="Refresh process details">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M4 4V10H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M20 20V14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M4 20L8 16C9 15 10 14 12 14C14 14 15 15 16 16L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M20 4L16 8C15 9 14 10 12 10C10 10 9 9 8 8L4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                        Refresh
+                                                    </button>
+                                                    <button 
+                                                        class="action-button"
+                                                        onclick={handleDiscardChanges}
+                                                        data-location-id={entry.Id}
+                                                        disabled={entry.isProcessButtonsDisabled}
+                                                        title={entry.processDiscardButtonTitle}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                        Discard Changes
+                                                    </button>
+                                                    <button 
+                                                        class="action-button save-button"
+                                                        onclick={handleSaveChanges}
+                                                        data-location-id={entry.Id}
+                                                        disabled={entry.isProcessSaveDisabled}>
+                                                        <template if:true={isSaving}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                                                <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </template>
+                                                        <template if:false={isSaving}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </template>
+                                                        {entry.processSaveButtonLabel}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <template if:true={entry.isLoadingProcesses}>
+                                                <div class="process-loading">
+                                                    <lightning-spinner alternative-text="Loading process details" size="medium"></lightning-spinner>
+                                                </div>
+                                            </template>
+                                            
+                                            <template if:false={entry.isLoadingProcesses}>
+                                                <template if:true={entry.processDetails}>
+                                                    <template if:true={entry.processDetails.length}>
+                                                        <table class="custom-data-table nested-table">
+                                                            <thead class="table-header">
+                                                                <tr>
+                                                                    <template for:each={processTableColumns} for:item="column">
+                                                                        <template if:false={column.isSortable}>
+                                                                            <th key={column.fieldName} 
+                                                                                class="header-cell center-trancate-head">
+                                                                                <div class="sort-header-content">
+                                                                                    <span class="column-label">{column.label}</span>
+                                                                                </div>
+                                                                            </th>
+                                                                        </template>
+                                                                        <template if:true={column.isSortable}>
+                                                                            <th key={column.fieldName} 
+                                                                                class="header-cell center-trancate-head process-sortable-header" 
+                                                                                data-id={column.fieldName}
+                                                                                data-process-sort-field={column.fieldName}
+                                                                                data-location-id={entry.Id}
+                                                                                onclick={handleProcessSortClick}>
+                                                                                <div class="sort-header-content">
+                                                                                    <span class="column-label">{column.label}</span>
+                                                                                    <div class="process-sort-icon">
+                                                                                        <svg width="16" height="16" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg">
+                                                                                            <path d="M374.6 246.6C368.4 252.9 360.2 256 352 256s-16.38-3.125-22.62-9.375L224 141.3V448c0 17.69-14.33 31.1-31.1 31.1S160 465.7 160 448V141.3L54.63 246.6c-12.5 12.5-32.75 12.5-45.25 0s-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0l160 160C387.1 213.9 387.1 234.1 374.6 246.6z" />
+                                                                                        </svg>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </th>
+                                                                        </template>
+                                                                    </template>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody class="table-body">
+                                                                <template for:each={entry.processDetails} for:item="process">
+                                                                    <tr key={process.Id} class="nested-table-row">
+                                                                        <template for:each={process.displayFields} for:item="field">
+                                                                            <td key={field.key} class="center-trancate-text">
+                                                                                <template if:true={field.isCurrency}>
+                                                                                    <template if:true={field.hasValue}>
+                                                                                        <lightning-formatted-number 
+                                                                                            value={field.currencyValue} 
+                                                                                            format-style="currency" 
+                                                                                            currency-code="USD">
+                                                                                        </lightning-formatted-number>
+                                                                                    </template>
+                                                                                    <template if:false={field.hasValue}>--</template>
+                                                                                </template>
+                                                                                <template if:false={field.isCurrency}>
+                                                                                    <template if:true={field.isSlider}>
+                                                                                        <div class="slider-container">
+                                                                                            <input type="range" 
+                                                                                                   min="0" 
+                                                                                                   max="100" 
+                                                                                                   step="1"
+                                                                                                   value={field.rawValue}
+                                                                                                   data-process-id={process.Id}
+                                                                                                   data-location-id={entry.Id}
+                                                                                                   data-original-value={field.rawValue}
+                                                                                                   onchange={handleSliderChange}
+                                                                                                   oninput={handleSliderInput}
+                                                                                                   style={field.progressStyle}
+                                                                                                   class="completion-slider">
+                                                                                            <div class="slider-value">{field.rawValue}%</div>
+                                                                                        </div>
+                                                                                    </template>
+                                                                                    <template if:false={field.isSlider}>
+                                                                                        <template if:true={field.isPercent}>
+                                                                                            <template if:true={field.hasValue}>
+                                                                                                <lightning-formatted-number 
+                                                                                                    value={field.percentValue} 
+                                                                                                    format-style="percent-fixed"
+                                                                                                    maximum-fraction-digits="2">
+                                                                                                </lightning-formatted-number>
+                                                                                            </template>
+                                                                                            <template if:false={field.hasValue}>0%</template>
+                                                                                        </template>
+                                                                                        <template if:false={field.isPercent}>
+                                                                                            <template if:true={field.isNameField}>
+                                                                                                <!-- <a href={process.recordUrl} target="_blank" class="name-link">
+                                                                                                    {field.value}
+                                                                                                </a> -->
+                                                                                                <span>{field.value}</span>
+                                                                                            </template>
+                                                                                            <template if:false={field.isNameField}>
+                                                                                                <template if:true={field.hasValue}>
+                                                                                                    {field.value}
+                                                                                                </template>
+                                                                                                <template if:false={field.hasValue}>
+                                                                                                    --
+                                                                                                </template>
+                                                                                            </template>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </template>
+                                                                            </td>
+                                                                        </template>
+                                                                    </tr>
+                                                                </template>
+                                                            </tbody>
+                                                        </table>
+                                                    </template>
+                                                    <template if:false={entry.processDetails.length}>
+                                                        <div class="no-process-data">
+                                                            <div class="empty-state">
+                                                                <div class="empty-state__content">
+                                                                    <div class="empty-state__message">No process details found for this location</div>
+                                                                    <div class="empty-state__subtitle">Process details will appear here when available</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <template if:false={isDataAvailable}>
+                <div class="no-prop">
+                    <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            </div>
+                            <div class="empty-state__message">No locations found for this job</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Add Location Modal -->
+    <template if:true={showAddModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+
+                <div class="pop-heading">
+                    Add New Location
+                </div>
+
+                <div class="slds-modal__content pop-up" id="modal-content-id-1">
+                    <div class="popUpBody slds-p-around--medium">
+                        <div class="form-container">
+                            <!-- Name field -->
+                            <div class="form-group full-width">
+                                <label class="form-label required">Name</label>
+                                <input type="text" 
+                                       class="form-input" 
+                                       placeholder="Enter location name"
+                                       value={newLocation.name}
+                                       data-field="name"
+                                       oninput={handleInputChange}
+                                       maxlength="80">
+                            </div>
+
+                            <!-- Two column layout -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label required">Quantity</label>
+                                    <input type="number" 
+                                           class="form-input" 
+                                           placeholder="Enter quantity"
+                                           step="0.01"
+                                           min="0"
+                                           value={newLocation.quantity}
+                                           data-field="quantity"
+                                           oninput={handleInputChange}>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label required">Unit of Measure</label>
+                                    <lightning-combobox
+                                        name="unitOfMeasure"
+                                        variant="label-hidden"
+                                        placeholder="Select Unit of Measure"
+                                        options={unitOfMeasureOptions}
+                                        value={newLocation.unitOfMeasure}
+                                        data-field="unitOfMeasure"
+                                        onchange={handleInputChange}>
+                                    </lightning-combobox>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>               
+                <div class="popUpFooter">
+                    <button class="save-btn" 
+                            onclick={handleSaveLocation}
+                            disabled={isSubmitting}>
+                        <template if:true={isSubmitting}>Saving...</template>
+                        <template if:false={isSubmitting}>Save</template>
+                    </button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Generic Confirmation Modal -->
+    <template if:true={showConfirmationModal}>
+        <c-generic-confirmation-modal
+            title={confirmationTitle}
+            message={confirmationMessage}
+            confirm-button-label={confirmationButtonLabel}
+            cancel-button-label="Cancel"
+            confirm-button-variant={confirmationButtonVariant}
+            is-processing={isConfirmationProcessing}
+            show-modal={showConfirmationModal}
+            size="medium"
+            onconfirm={handleConfirmationConfirm}
+            oncancel={handleConfirmationCancel}
+            onclose={handleConfirmationClose}>
+        </c-generic-confirmation-modal>
+    </template>
+</template>

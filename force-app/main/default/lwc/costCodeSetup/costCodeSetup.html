@@ -1,0 +1,103 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-23-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class="container">
+        <div class="slds-align_absolute-center slds-text-heading_large slds-p-around_small slds-border_bottom "><b>Cost Codes</b> </div>
+        
+        <template if:true={loader}>
+            <!--<lightning-spinner alternative-text="Loading..." size="small"></lightning-spinner>-->
+            <div  style="height:30rem;position:relative;background-color:white;">
+                <div class="slds-spinner_container">
+                    <div role="status" class="slds-spinner slds-spinner_medium slds-spinner_brand">
+                        <span class="slds-assistive-text">Loading...</span>
+                        <div class="slds-spinner__dot-a"></div>
+                        <div class="slds-spinner__dot-b"></div>
+                    </div>
+                </div>
+            </div>
+        </template>
+        <lightning-card title="Available Cost Codes">
+            <lightning-button label="New" slot="actions" onclick={handleNew}></lightning-button>
+            <div class="slds-m-around_medium">
+                <template if:true={ccList}>
+                    <lightning-datatable data={ccList} columns={columns} key-field="Id" hide-checkbox-column="true">
+                    </lightning-datatable>
+                </template>
+                <template if:true={error}>
+                    {error}
+                </template>
+            </div>
+            <template if:true={isDisplayNoRecords}>
+                <div class="slds-align_absolute-center">
+                    <br />
+                    No records found
+                </div>
+            </template>
+            <br />
+
+            <!-- Pagination -->
+            <template if:true={hasDataToDisplay}>
+                <c-custom-paginator all-record-ids={ccList} current-page={currentPage} onpagechanged={onPageChanged} page-size={pageSize}>
+                </c-custom-paginator>
+            </template>
+            <!-- /Pagination -->
+
+
+        </lightning-card>
+
+        <template if:true={isModalOpen}>
+
+            <div class="demo-only" style="height: 640px;">
+                <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+                    aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <header class="slds-modal__header">
+                            <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                title="Close" onclick={closeModal}>
+                                <lightning-icon icon-name="utility:close" size="medium">
+                                </lightning-icon>
+                                <span class="slds-assistive-text">Close</span>
+                            </button>
+                            <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate"> New Cost Code
+                            </h2>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+
+
+                            <lightning-record-edit-form object-api-name={ccObjectName} onload={handleOnLoad}
+                                onsuccess={handleSuccess}>
+                                <lightning-messages></lightning-messages>
+                                <template if:true={isLoading}>
+                                    <lightning-spinner alternative-text="Loading..."></lightning-spinner>
+                                </template>
+                                <div class="slds-m-around_medium">
+
+                                    <lightning-input-field field-name={ccName} required="true"></lightning-input-field>
+                                    <lightning-input-field field-name={ccClassificationType}>
+                                    </lightning-input-field>
+                                    <lightning-input-field field-name={ccDefaultCostCode}>
+                                    </lightning-input-field>
+
+                                </div>
+
+                                <footer class="slds-modal__footer">
+                                    <lightning-button label="Cancel" variant="neutral" onclick={closeModal}>
+                                    </lightning-button>&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <lightning-button label="Save" type="submit" variant="brand" onsubmit={saveMethod}>
+                                    </lightning-button>
+                                </footer>
+
+                            </lightning-record-edit-form>
+                        </div>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </div>
+        </template>
+    </div>
+</template>

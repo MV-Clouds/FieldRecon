@@ -1,0 +1,49 @@
+<template>
+    <div class="sov-container">
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button 
+                class={scopeTabClass} 
+                onclick={handleScopeTab}
+                data-tab="scope">
+                <lightning-icon icon-name="utility:layers" size="x-small" class="tab-icon"></lightning-icon>
+                Scope
+            </button>
+            <button 
+                class={locationsTabClass} 
+                onclick={handleLocationsTab}
+                data-tab="locations">
+                <lightning-icon icon-name="utility:location" size="x-small" class="tab-icon"></lightning-icon>
+                Locations
+            </button>
+            <button 
+                class={processesTabClass} 
+                onclick={handleProcessesTab}
+                data-tab="processes">
+                <lightning-icon icon-name="utility:process" size="x-small" class="tab-icon"></lightning-icon>
+                Location Processes
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <template if:true={isScopeActive}>
+                <div class="tab-panel">
+                    <c-sov-job-scope></c-sov-job-scope>
+                </div>
+            </template>
+
+            <template if:true={isLocationsActive}>
+                <div class="tab-panel">
+                    <c-sov-job-locations></c-sov-job-locations>
+                </div>
+            </template>
+
+            <template if:true={isProcessesActive}>
+                <div class="tab-panel">
+                    <c-sov-job-location-processes></c-sov-job-location-processes>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

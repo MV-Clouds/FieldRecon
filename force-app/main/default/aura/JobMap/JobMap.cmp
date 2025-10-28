@@ -1,0 +1,119 @@
+<aura:component
+    access="global"
+    controller="JobController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction,lightning:actionOverride"
+    extends="c:lib_base"
+>
+    <!-- attributes -->
+    <aura:attribute name="mapMarkers" type="Object" />
+    <aura:attribute name="center" type="Object" />
+    <aura:attribute name="zoomLevel" type="Integer" default="4" />
+    <aura:attribute name="markersTitle" type="String" />
+    <aura:attribute name="showFooter" type="Boolean" default="true" />
+
+    <aura:attribute name="filterValue" type="String" default="count" />
+
+    <aura:attribute name="latitude" type="Double" default="" />
+    <aura:attribute name="longitude" type="Double" default="" />
+    <aura:attribute name="isLocated" type="Boolean" default="false" />
+
+    <aura:attribute name="namespaceLoaded" type="Boolean" default="false" />
+    <aura:attribute name="namespaceWithUnderscore" type="String" />
+
+    <!-- handlers-->
+    <aura:handler name="init" value="{! this }" action="{! c.init }" />
+    <div class="slds-card">
+        <aura:if isTrue="{!$Browser.isPhone}">
+            <lightning:select name="select1" label="Job Filter" value="{!v.filterValue}">
+                <option value="count">State wise count</option>
+                <option value="nearby">Near by</option>
+                <option value="update">Recently Updated</option>
+                <option value="view">Recently Viewed</option>
+            </lightning:select>
+
+            <lightning:button
+                label="Go"
+                iconName="utility:search"
+                iconPosition="left"
+                variant="brand"
+                onclick="{!c.Search}"
+            />
+            <lightning:button
+                label="Search Jobs of GA"
+                iconName="utility:search"
+                iconPosition="left"
+                value="GA"
+                variant="brand"
+                onclick="{!c.SearchStateJobs}"
+            />
+
+            <aura:if isTrue="{!v.mapMarkers.length > 0}">
+                <lightning:map
+                    aura:id="mapComponent"
+                    mapMarkers="{! v.mapMarkers }"
+                    center="{! v.center }"
+                    markersTitle="{! v.markersTitle }"
+                    showFooter="{ !v.showFooter }"
+                    zoomLevel="{! v.zoomLevel }"
+                    listView="visible"
+                >
+                </lightning:map>
+            </aura:if>
+            <aura:set attribute="else">
+                <div class="slds-grid slds-box slds-theme_default" style="padding-top: 0px; padding-bottom: 0px;">
+                    <div class="slds-col slds-size_1-of-4">
+                        <div
+                            class="slds-grid slds-gutters"
+                            style="margin-top: 16px; margin-right: 16px; margin-left: 0px;"
+                        >
+                            <div class="slds-col slds-size_2-of-3">
+                                <lightning:select name="select1" label="Job Filter" value="{!v.filterValue}">
+                                    <option value="count">State wise count</option>
+                                    <option value="nearby">Near by</option>
+                                    <option value="update">Recently Updated</option>
+                                    <option value="view">Recently Viewed</option>
+                                </lightning:select>
+                            </div>
+                            <div class="slds-col slds-size_1-of-3" style="margin-top: 1.5rem; text-align: right;">
+                                <lightning:button
+                                    label="Go"
+                                    iconName="utility:search"
+                                    iconPosition="left"
+                                    variant="brand"
+                                    onclick="{!c.Search}"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <aura:if isTrue="{!v.mapMarkers.length > 0}">
+                        <div class="slds-col slds-size_3-of-4" aura:id="mapContainer" style="margin: auto;">
+                            <lightning:map
+                                aura:id="mapComponent"
+                                mapMarkers="{! v.mapMarkers }"
+                                center="{! v.center }"
+                                markersTitle="{! v.markersTitle }"
+                                showFooter="{ !v.showFooter }"
+                                zoomLevel="{! v.zoomLevel }"
+                                listView="visible"
+                            >
+                            </lightning:map>
+                        </div>
+                    </aura:if>
+                </div>
+            </aura:set>
+        </aura:if>
+    </div>
+    <div class="slds-card" title="">
+        <aura:if isTrue="{!v.namespaceLoaded}">
+            <lightning:listView
+                objectApiName="{! v.namespaceWithUnderscore + 'Job__c'}"
+                listName="{! v.namespaceWithUnderscore + 'All'}"
+                rows="5"
+                showSearchBar="true"
+                showActionBar="true"
+                enableInlineEdit="true"
+                showRowLevelActions="true"
+            />
+        </aura:if>
+    </div>
+</aura:component>

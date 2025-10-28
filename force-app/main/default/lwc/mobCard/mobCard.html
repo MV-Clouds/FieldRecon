@@ -1,0 +1,58 @@
+<template>
+    <div key={mobDetails.id} class="event-card">
+        <div class="job-card-header">
+            <div class="job-header-detail">
+                <div class="job-card-name">{mobDetails.jobName}</div>
+                <div class="job-card-description record-nav-link" onclick={handleRecordNavigation}>{mobDetails.jobId}</div>
+            </div>
+            <div class="action-btns">
+                <div class="edit-btn btn action-btn" data-past={mobDetails.isPast} onclick={handleJobCardEdit}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
+                </div>
+                <div class="delete-btn btn action-btn" onclick={handleJobCardDelete}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"/></svg>
+                </div>
+            </div>
+        </div>
+        <div class="truncate-location" title={mobDetails.location}>
+            <svg class="slds-p-right--xx-small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" height="16" width="16" fill="#5a5adb" stroke-width="0">
+                <path d="M8.727695833333332 15.487666666666666c1.5751374999999999 -1.9712249999999998 5.167558333333333 -6.7488416666666655 5.167558333333333 -9.432408333333333C13.895254166666668 2.800583333333333 11.254670833333332 0.15999999999999998 8 0.15999999999999998S2.1047416666666665 2.800583333333333 2.1047416666666665 6.055258333333333c0 2.6835666666666667 3.5924249999999995 7.461183333333333 5.1675625 9.432408333333333 0.37766666666666665 0.46977916666666664 1.077725 0.46977916666666664 1.4553916666666666 0ZM8 4.0901708333333335c1.5127249999999999 0 2.4581749999999998 1.6375708333333332 1.7018125 2.9476291666666663 -0.3510416666666667 0.6080249999999999 -0.999725 0.982575 -1.7018125 0.9825416666666666 -1.5127249999999999 0.00006666666666666667 -2.4581625 -1.6374625 -1.7018583333333333 -2.94755 0.35101666666666664 -0.6080458333333333 0.9997708333333333 -0.9826208333333333 1.7018583333333333 -0.9826208333333333Z"></path>
+            </svg>
+            <div class="location-text"> {mobDetails.location}</div>
+        </div>
+        <div class="slds-grid slds-grid--vertical-align-center">
+            <svg class="slds-p-right--xx-small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="16" width="16" fill="#5a5adb" stroke-width="1"><path fill-rule="evenodd" d="M3.464 3.464C2 4.93 2 7.286 2 12c0 4.714 0 7.071 1.464 8.535C4.93 22 7.286 22 12 22c4.714 0 7.071 0 8.535 -1.465C22 19.072 22 16.714 22 12s0 -7.071 -1.465 -8.536C19.072 2 16.714 2 12 2S4.929 2 3.464 3.464ZM12.75 8a0.75 0.75 0 0 0 -1.5 0v4c0 0.199 0.079 0.39 0.22 0.53l2.5 2.5a0.75 0.75 0 1 0 1.06 -1.06l-2.28 -2.28V8Z" clip-rule="evenodd"></path></svg>
+            {mobDetails.startDayTime} - {mobDetails.endDayTime}
+        </div>
+        <div class="status-tile" data-status={mobDetails.status}>{mobDetails.status}</div>
+        <template for:each={resourceSections} for:item="section">
+            <div key={section.key} class="resource-section">
+                <div class="list-label">
+                    {section.label}:
+                </div>
+
+                <div class="selected-record-tiles">
+                    <template if:true={section.items.length}>
+                        <template for:each={section.items} for:item="item">
+                            <div class="tile" key={item.id}>
+                                <div class="slds-truncate record-nav-link" title={item.name} data-id={item.id} onclick={handleResourceNavigation}>{item.name}</div>
+                                <svg class="remove-btn-svg" data-past={mobDetails.isPast} data-job={mobDetails.id} data-id={item.junctionId} data-type={section.type} onclick={handleRemoveSpecificResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
+                                    <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
+                                </svg>
+                            </div>
+                        </template>
+                    </template>
+
+                    <template if:false={section.items.length}>
+                        <div class="no-resource-text-div">
+                            {section.emptyText}
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+        <div class="bottom-btn" data-past={mobDetails.isPast}>
+            <button class="assign-btn btn" onclick={handleAssignResources}>+ Assign Resources</button>
+        </div>
+    </div>
+</template>

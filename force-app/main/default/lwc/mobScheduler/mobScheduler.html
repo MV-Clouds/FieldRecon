@@ -1,0 +1,390 @@
+<template>
+  <div class="scheduler-container">
+
+    <div class="spinner-container slds-is-fixed" if:true={showSpinner}>
+      <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+    </div>
+
+    <div class="header-fixed-div">
+      <div class="header-text-div">
+        Mobilization Scheduler
+      </div>
+      <!-- Main Tabs -->
+      <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-center slds-grid--align-spread slds-wrap">
+        <div class="header-tab-navigation tab-navigation">
+          <button class={dayTabClass} onclick={showDayView}>Day</button>
+          <button class={weekTabClass} onclick={showWeekView}>Week</button>
+          <button class={resourceTabClass} onclick={showResourceView}>Resources</button>
+        </div>
+        <div class="nav slds-grow">
+          <button class="prev-btn nav-btn" onclick={prevPeriod}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="24" height="24" fill="#ffffff">
+              <path
+                d="M201.4 297.4C188.9 309.9 188.9 330.2 201.4 342.7L361.4 502.7C373.9 515.2 394.2 515.2 406.7 502.7C419.2 490.2 419.2 469.9 406.7 457.4L269.3 320L406.6 182.6C419.1 170.1 419.1 149.8 406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3L201.3 297.3z" />
+            </svg>
+          </button>
+          <div class="week-range">{periodRangeLabel}</div>
+          <button class="next-btn nav-btn" onclick={nextPeriod}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="24" height="24" fill="#ffffff">
+              <path
+                d="M439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C266.6 515.2 246.3 515.2 233.8 502.7C221.3 490.2 221.3 469.9 233.8 457.4L371.2 320L233.9 182.6C221.4 170.1 221.4 149.8 233.9 137.3C246.4 124.8 266.7 124.8 279.2 137.3L439.2 297.3z" />
+            </svg>
+          </button>
+        </div>
+        <div class="btns-div">
+          <!-- <div class="assign-new-btn"> -->
+          <div class="assign-btn nav-btn" onclick={handleAssignResource} if:true={isResourceView}>Assign Resource</div>
+          <!-- </div> -->
+          <div class="create-btn" onclick={handleAddMobilizationGroup}>Add Mobilization Group</div>
+        </div>
+      </div>
+
+      <!-- Period navigation -->
+      <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-end slds-grid--align-spread slds-wrap">
+        <div class="tabs sub-tabs tab-navigation" if:true={isResourceView}>
+          <button class="nav-tab-btn" data-selected={resourceType} name="Crew" onclick={selectResourceType}>Crew</button>
+          <button class="nav-tab-btn" data-selected={resourceType} name="SubContractor" onclick={selectResourceType}>Sub
+            Contractors</button>
+          <button class="nav-tab-btn" data-selected={resourceType} name="Asset" onclick={selectResourceType}>Assets</button>
+        </div>
+        <div class="filters-and-nav slds-grid slds-wrap slds-grid--vertical-align-center">
+          <lightning-record-edit-form
+            class="nav-bar-element"
+            density="compact"
+            object-api-name="wfrecon__Mobilization__c">
+            <lightning-input-field 
+              variant="label-hidden"
+              field-name="wfrecon__Mobilization_Status__c"
+              value={selectedStatusFilter}
+              onchange={handleStatusFilterChange}
+            ></lightning-input-field>
+          </lightning-record-edit-form>
+          <lightning-input
+            class="nav-bar-element"
+            type="search"
+            variant="label-hidden"
+            placeholder="Search..."
+            onchange={handleSearchValueChange}
+          ></lightning-input>
+          <lightning-input
+            type="date"
+            class="nav-bar-element"
+            variant="label-hidden"
+            placeholder="Select Date"
+            value={selectedDateToShow}
+            onchange={handleDateToGoTo}
+          ></lightning-input>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day View -->
+    <template if:true={isDayView}>
+      <div class="day-view">
+        <div class="day-column">
+          <div class="day-header">
+            <div class="day-display-div slds-text-color--inverse-weak slds-text-heading_label">
+              {dayView.day}
+            </div>
+            <div class="date-display-div">{dayView.date}</div>
+          </div>
+          <div class="events">
+            <template for:each={dayView.events} for:item="ev">
+              <div key={ev.id} class="mob-card-container">
+                <c-mob-card class="mob-card" mob-details={ev} onedit={handleJobCardEdit}
+                  ondelete={handleJobCardDelete} onassign={handleEditResource} onremove={handleRemoveResourceFromCard}></c-mob-card>
+              </div>
+            </template>
+            <template if:false={dayView.events.length}>
+              <div class="empty-state-msg" if:false={showSpinner}>
+                <img src="/resource/wfrecon__emptyState" alt="empty state">
+                <div class="empty-state-msg-text">
+                  No Jobs To Display!
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Week View -->
+    <template if:true={isWeekView}>
+      <div class="main-calendar-container">
+        <div class="week-view">
+          <div class="week-days">
+            <template for:each={weekDays} for:item="day">
+              <div class="week-day" key={day.iso}>
+                <div class="day-header">
+                  <div class="day-display-div slds-text-color--inverse-weak slds-text-heading_label">
+                    {day.day}
+                  </div>
+                  <div class="date-display-div">
+                    {day.date}
+                  </div>
+                </div>
+                <div class="events">
+                  <template for:each={day.events} for:item="ev">
+                    <div key={ev.id} class="mob-card-container">
+                      <c-mob-card class="mob-card" mob-details={ev} onedit={handleJobCardEdit}
+                        ondelete={handleJobCardDelete} onassign={handleEditResource} onremove={handleRemoveResourceFromCard}></c-mob-card>
+                    </div>
+                  </template>
+                  <template if:false={day.events.length}>
+                    <div class="empty-state-msg" if:false={showSpinner}>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="48" height="48" fill="#5a5adb"><path d="M224 64C241.7 64 256 78.3 256 96L256 128L384 128L384 96C384 78.3 398.3 64 416 64C433.7 64 448 78.3 448 96L448 128L480 128C515.3 128 544 156.7 544 192L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 192C96 156.7 124.7 128 160 128L192 128L192 96C192 78.3 206.3 64 224 64zM387.9 284.1C378.5 274.7 363.3 274.7 354 284.1L320.1 318L286.2 284.1C276.8 274.7 261.6 274.7 252.3 284.1C243 293.5 242.9 308.7 252.3 318L286.2 351.9L252.3 385.8C242.9 395.2 242.9 410.4 252.3 419.7C261.7 429 276.9 429.1 286.2 419.7L320.1 385.8L354 419.7C363.4 429.1 378.6 429.1 387.9 419.7C397.2 410.3 397.3 395.1 387.9 385.8L354 351.9L387.9 318C397.3 308.6 397.3 293.4 387.9 284.1z"/></svg>
+                      <div class="empty-state-msg-text">
+                        No Jobs To Show!
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Resource View -->
+    <template if:true={isResourceView}>
+      <div class="resource-calendar-container">
+        <div class="calendar">
+          <div class="resource-header">
+            <div class="cell resource-col">Resource</div>
+            <template for:each={weekDays} for:item="day">
+              <div class="cell day-col" key={day.iso}>
+                <div class="day-header">
+                  <div class="day-display-div slds-text-color--inverse-weak slds-text-heading_label">
+                    {day.day}
+                  </div>
+                  <div class="date-display-div">
+                    {day.date}
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <template for:each={filteredResources} for:item="res">
+            <div class="resource-row" key={res.id}>
+              <div class="cell resource-col record-nav-link" data-id={res.id} onclick={handleRecordNavigation}>{res.name}</div>
+              <template for:each={res.days} for:item="day">
+                <div class="cell day-col" key={day.iso}>
+                  <template for:each={day.events} for:item="ev">
+                    <div class="event" key={ev.id} style={ev.statusStyle}>
+                      <div class="job-header-detail">
+                          <div class="job-card-name">{ev.jobName}</div>
+                          <div class="job-card-description record-nav-link" data-id={ev.jId} onclick={handleRecordNavigation}>{ev.jobId}</div>
+                      </div>
+                      <svg data-id={ev.id} onclick={handleRemoveAssignment} class="remove-assignment-btn" data-past={ev.isPast}
+                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
+                        <path
+                          d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z" />
+                      </svg>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+          <template if:false={filteredResources.length}>
+            <div class="empty-state-msg">
+              <img src="/resource/wfrecon__emptyState" alt="empty state">
+              <div class="empty-state-msg-text" if:false={showSpinner}>
+                No Resources Allocated To Display!
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Modal Popups -->
+  <template if:true={showFormPopup}>
+    <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+      <div class="slds-modal__container mob-popup">
+        <!-- Modal header -->
+        <header class="slds-modal__header mob-popup-header">
+          <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
+            onclick={handleCancelEdit}>
+            <lightning-icon icon-name="utility:close" size="small" alternative-text="close"
+              class="slds-button__icon slds-button__icon_large"></lightning-icon>
+            <span class="slds-assistive-text">Close</span>
+          </button>
+          <h2 class="slds-text-heading_medium">{popupHeader}</h2>
+        </header>
+
+        <!-- Modal content -->
+        <div class="slds-modal__content slds-p-around--medium mob-popup-body">
+
+          <!-- Form To Update The Mobilization -->
+          <lightning-record-edit-form object-api-name="wfrecon__Mobilization__c" onload={handleFormLoaded} record-id={mobIdToEdit} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobEditForm}>
+            <lightning-messages></lightning-messages>
+            <lightning-input-field class="slds-size--1-of-1"
+              field-name="wfrecon__Mobilization_Status__c" required></lightning-input-field>
+            <!-- Control buttons -->
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+              <button class="save-btn" type="submit">Save</button>
+            </div>
+          </lightning-record-edit-form>
+
+          <!-- Form To Create The Mobilization Group -->
+          <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate}>
+            <div class="main-mob-creation-form-div">
+              <div class="slds-grow slds-scrollable--y">
+                <lightning-messages></lightning-messages>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
+              </div>
+              <!-- Control buttons -->
+              <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+                <button class="save-btn" type="submit">Save</button>
+              </div>
+            </div>
+          </lightning-record-edit-form>
+
+          <!-- Form To Assign resource to single Mobilization -->
+          <lightning-record-edit-form onload={handleFormLoaded} lwc:elseif={isAssignForm}>
+            <div class="assign-resource-div">
+              <lightning-record-picker class="assign-form-picker" label="Select Resource" placeholder="Search Resource..."
+                object-api-name={resourceObjectApi} display-info={displayResource} matching-info={matchingResource} filter={filterResource} name="selectedResourceId"
+                onchange={handleResourceItemUpdate} required></lightning-record-picker>
+              <lightning-record-picker class="assign-form-picker" label="Select Job" placeholder="Search Job..." object-api-name="wfrecon__Job__c"
+                display-info={displayJobs} matching-info={matchingJobs} name="selectedJobId" filter={jobFilters}
+                onchange={handleResourceItemUpdate} required></lightning-record-picker>
+              <lightning-record-picker class="assign-form-picker" label="Select Date" placeholder="Search Date..."
+                object-api-name="wfrecon__Mobilization__c" filter={filterDates} display-info={displayMobs}
+                matching-info={matchingMobs} name="selectedMobId" onchange={handleResourceItemUpdate}
+                if:true={selectedJobId} required></lightning-record-picker>
+            </div>
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+              <button class="save-btn" type="submit" onclick={handleSaveChanges}>Save</button>
+            </div>
+          </lightning-record-edit-form>
+
+            <div class="main-resources-edit-div" lwc:elseif={isResourcesEditForm}>
+              <div class="tabs sub-tabs tab-navigation">
+                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Crew" data-for="assign" onclick={selectResourceType}>Crew</button>
+                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="SubContractor" data-for="assign" onclick={selectResourceType}>Sub
+                  Contractors</button>
+                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Asset" data-for="assign" onclick={selectResourceType}>Assets</button>
+              </div>
+              <div class="search-resources-div slds-size--1-of-1">
+                <lightning-input
+                  type="search"
+                  value={resourceSearchKey}
+                  variant="label-hidden"
+                  placeholder="Search Resource Name"
+                  onchange={handleResourceSearch}
+                ></lightning-input>
+              </div>
+              <div class="select-and-add-div slds-grow">
+                <div class="resource-list-div">
+                  <template for:each={resourceOptionsToShow} for:item="opt" lwc:if={isCrewAssignOpen}>
+                    <div key={opt.id} class="checkboxes-select options-with-crew-and-members" style={opt.bgStyle}>
+                      <div class="whole-crew-selection-checkbox">
+                        <input 
+                          class="resource-option-checkbox"
+                          type="checkbox"
+                          data-id={opt.id}
+                          checked={opt.isSelected}
+                          onchange={handleSelectWholeCrew}
+                          id={opt.name}
+                        ></input>
+                        <label class="checkbox-option-label whole-crew-title-checkbox" title={opt.name} for={opt.name} data-available={opt.isAvailable} data-is-added={opt.isAddedForMob}>{opt.name}</label>
+                      </div>
+                      <div class="crew-members-list slds-grid slds-grid--vertical">
+                        <template for:each={opt.members} for:item="member">
+                          <div key={member.id} class="checkboxes-select">
+                            <input 
+                              class="resource-option-checkbox"
+                              type="checkbox"
+                              data-id={member.id}
+                              data-crewid={opt.id}
+                              data-type="Crew"
+                              checked={member.isSelected}
+                              onchange={handleSelectResourceOption}
+                              id={member.name}
+                            ></input>
+                            <label class="checkbox-option-label" for={member.name} data-available={member.isAvailable} data-is-added={member.isAddedForMob}>{member.name}</label>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <template for:each={resourceOptionsToShow} for:item="opt" lwc:else>
+                    <div key={opt.id} class="checkboxes-select">
+                      <input 
+                        class="resource-option-checkbox"
+                        type="checkbox"
+                        data-id={opt.id}
+                        checked={opt.isSelected}
+                        onchange={handleSelectResourceOption}
+                        id={opt.name}
+                      ></input>
+                      <label class="checkbox-option-label" for={opt.name} data-available={opt.isAvailable} data-is-added={opt.isAddedForMob}>{opt.name}</label>
+                    </div>
+                  </template>
+                  <template if:false={resourceOptionsToShow.length}>
+                    <div class="empty-state-msg">
+                      <img src="/resource/wfrecon__emptyState" alt="empty state">
+                      <div class="empty-state-msg-text">
+                        No Resources To Display!
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div class="add-btn" onclick={addResourceForAssignment}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="white"><path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"/></svg>
+              </div>
+              <div class="selected-tiles-heading">
+                <b>Selected Resources: </b>
+              </div>
+              <div class="selected-record-tiles">
+                <template for:each={addedResources} for:item="tile">
+                    <span class="subcontractor-item tile" key={tile.id}>
+                        <div class="slds-truncate" title={tile.name}>{tile.name}</div>
+                        <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.junctionId} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
+                    </span>
+                </template>
+                <template if:false={addedResources.length}>
+                    <div class="no-resource-text-div">
+                        No {resourceTypeForAssign} has been assigned yet.
+                    </div>
+                </template>
+              </div>
+            </div>
+        </div>
+      </div>
+    </section>
+    <!-- Modal Backdrop -->
+    <div class="slds-backdrop slds-backdrop_open"></div>
+  </template>
+  <template if:true={showConfirmationPopup}>
+    <div class="slds-container_small confirm-popup">
+      <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container">
+          <header class="slds-modal__header confirm-popup-header">
+            <h2 class="slds-text-heading_medium slds-hyphenate">{confirmationTitle}</h2>
+          </header>
+          <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
+            <p class="slds-p-bottom--medium">{confirmationMessage}</p>
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium confirm-popup-btns bottom-footer-btn">
+              <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleConfirmationAction}>Cancel</button>
+              <button class="save-btn" name="noOverlap" title="Assign resources only if they are not overlapping on specific date." onclick={handleConfirmationAction} if:true={isOverlapJob}>Assign Only Available</button>
+              <button class="save-btn" name="confirm" title="Assign" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
+    </div>
+  </template>
+</template>

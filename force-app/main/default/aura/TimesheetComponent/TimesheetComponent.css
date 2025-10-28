@@ -1,0 +1,22 @@
+.THIS .selected{
+    border:1px solid #007bff;
+    border-radius:50px;
+    background-color:#007bff;
+    color:white;
+}
+.THIS .ulclass li{
+    width:13.71%; 
+    text-align:center;
+}
+.THIS .slds-card+.slds-card {
+    margin-top:0%
+}
+.THIS .back svg{
+    fill: red;
+}
+.THIS .forward svg{
+    fill: green;
+}
+.THIS .slds-select_container .slds-select {
+    border:none;
+}

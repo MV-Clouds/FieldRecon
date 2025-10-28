@@ -1,0 +1,209 @@
+/* Generic Confirmation Modal Styles aligned with Manage Crew modal */
+:host {
+    --primary-theme-color: rgba(94, 90, 219, 1);
+    --primary-theme-color-hover: rgba(94, 90, 219, 0.9);
+    --primary-theme-color-shadow: rgba(94, 90, 219, 0.3);
+    display: block;
+}
+
+.generic-modal.slds-modal {
+    z-index: 99999;
+}
+
+.generic-modal + .slds-backdrop {
+    z-index: 99998;
+}
+
+.generic-modal .slds-modal__container {
+    border-radius: 1.25rem;
+    overflow: hidden;
+    background: transparent;
+}
+
+.generic-modal.slds-modal_medium .slds-modal__container {
+    max-width: 40rem;
+    width: 40rem;
+}
+
+.generic-modal.slds-modal_large .slds-modal__container {
+    max-width: 60rem;
+    width: 60rem;
+}
+
+.close-icon {
+    --sds-c-icon-color-foreground-default: #fff;
+}
+
+.pop-heading {
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 50px;
+    font-weight: 400;
+    color: white;
+    padding: 0.4rem 1rem;
+    background: var(--primary-theme-color, #5e5adb);
+    border-radius: 1.25rem 1.25rem 0 0;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.pop-up {
+    scrollbar-width: none;
+    overflow-y: auto;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.popUpBody {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    min-height: 0;
+}
+
+.modal-message {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 500;
+    color: #585858;
+}
+
+.popUpFooter {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    flex-shrink: 0;
+    border-radius: 0 0 1.25rem 1.25rem;
+}
+
+.close-btn {
+    border: 1px solid var(--primary-theme-color, #5e5adb);
+    border-radius: 3px;
+    color: #080707;
+    padding: 0.3rem 0.9rem;
+    font-size: 14px;
+    background: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 120px;
+}
+
+.close-btn:hover:not(:disabled) {
+    background: #ebf3f6;
+}
+
+.close-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.clock-in-button {
+    background-color: var(--primary-theme-color, #5e5adb);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    height: 36px;
+    padding: 5px 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    min-width: 140px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.clock-in-button:hover:not(:disabled) {
+    background: var(--primary-theme-color-hover, rgba(94, 90, 219, 0.9));
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px var(--primary-theme-color-shadow, rgba(94, 90, 219, 0.3));
+}
+
+.clock-in-button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.2);
+}
+
+.clock-in-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.clock-in-button.destructive {
+    background-color: #c23934;
+}
+
+.clock-in-button.destructive:hover:not(:disabled) {
+    background-color: #a61e1a;
+    box-shadow: 0 2px 4px rgba(194, 57, 52, 0.4);
+}
+
+.clock-in-button.neutral {
+    background: #ffffff;
+    color: #585858;
+    border: 1px solid #d0d0ff;
+}
+
+.button-spinner {
+    margin-right: 0.25rem;
+}
+
+.pop-up::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pop-up::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pop-up::-webkit-scrollbar-thumb {
+    background-color: rgba(94, 90, 219, 0.4);
+    border-radius: 3px;
+}
+
+.generic-modal .slds-modal__close {
+    color: white;
+}
+
+.generic-modal .slds-modal__close:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px white;
+}
+
+.generic-modal.slds-modal:focus {
+    outline: none;
+}
+
+@media (max-width: 768px) {
+    .generic-modal .slds-modal__container {
+        margin: 1rem;
+        max-width: calc(100vw - 2rem);
+        width: calc(100vw - 2rem);
+    }
+
+    .popUpFooter {
+        flex-direction: column;
+    }
+
+    .close-btn,
+    .clock-in-button {
+        width: 100%;
+        max-width: 220px;
+    }
+}

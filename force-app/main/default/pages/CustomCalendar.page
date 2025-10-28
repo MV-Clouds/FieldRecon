@@ -1,0 +1,511 @@
+<!--
+  @description       : 
+  @author            : Concret.io
+  @group             : 
+  @last modified on  : 04-23-2021
+  @last modified by  : Concret.io
+  Modifications Log 
+  Ver   Date         Author       Modification
+  1.0   04-23-2021   Concret.io   Initial Version
+-->
+<apex:page showHeader="false" standardStylesheets="false" controller="CalendarClass"
+    docType="html-5.0" lightningStyleSheets="true">
+    <apex:stylesheet value="{!URLFOR($Resource.Customcalendar, '/packages/core/main.css')}"
+    />
+    <apex:stylesheet value="{!URLFOR($Resource.Customcalendar, '/packages/daygrid/main.css')}"
+    />
+    <apex:stylesheet value="{!URLFOR($Resource.Customcalendar, '/packages/timegrid/main.css')}"
+    />
+    <apex:stylesheet value="{!URLFOR($Resource.Customcalendar, '/packages/core/main.css')}"
+    />
+    <apex:stylesheet value="{!URLFOR($Resource.Customcalendar, '/packages/list/main.css')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/jquery.min.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/core/main.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/interaction/main.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/interaction/main.min.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/daygrid/main.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/timegrid/main.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/list/main.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/moment/main.min.js')}"
+    />
+    <apex:includeScript value="{!URLFOR($Resource.Customcalendar, '/packages/moment/main.js')}"
+    />
+    <apex:includeScript value="/lightning/lightning.out.js" />
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <style>
+        body {
+            margin: 40px 10px;
+            padding: 0;
+            font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
+            font-size: 14px;
+        }
+
+        .text-align-right {
+            text-align: right;
+        }
+
+        .fc-scroller {
+            height: unset!important;
+        }
+        
+        #calendar {
+            margin: 0 auto;
+        }
+
+        .slds-card.full-width {
+            width: 98%;
+        }
+
+        .fc-list-item-time {
+            display:none;
+        }
+
+        td .fc-event-container{
+            padding-top:4px;
+        }
+        div .fc-next-button{
+            margin-left:20px;
+        }
+        .fc-center div{
+            display: inline-flex;
+        }
+        div .fc-prev-button{
+            margin-right:20px;
+            
+        }
+        .fc-toolbar.fc-header-toolbar{
+           margin-top:40px; 
+        }
+        .headerdata {
+            padding: 10px 16px;
+            background: #555;
+            color: #f1f1f1;
+            background:hidden;
+            position:fixed;
+            z-index:1;
+        }
+            
+        .content {
+            padding: 16px;
+             overflow:auto;
+             position:absolute;
+             z-index:0;
+        }
+        .centerAlign{
+            text-align: center;
+        }
+        .noData{
+            display: none;
+        }
+        .calenderHasData{
+            display: none;
+        }
+        .marginTop{
+            margin-top: -10%;
+        }
+        .titleFeature{
+            font-weight: bold;
+        }
+            
+        /*.sticky {*/
+        /*    position: fixed;*/
+        /*    top: 0;*/
+        /*    width: 100%;*/
+        /*}*/
+            
+        /*.sticky + .content{*/
+        /*    padding-top: 102px;*/
+            /*visibility:hidden;*/
+        /*}*/
+    </style>
+
+    <body>
+    <div class="calenderHasData" id='hasData'>
+        <div class="floatingHeaderTable headerdata" id="myHeader" style="margin-bottom:25px;border:2px solid black;border-radius:5px; background: #555;margin-top:-30px">
+            <apex:form >
+                <!--{!mobList}-->
+                <!--{!Status}-->
+                <!--<div>-->
+
+                <!--</div>-->
+                <table width="15%">
+                    <tr>
+                        <td>
+                            <apex:selectList size="1" value="{!StatusNew}">
+                                <apex:selectOptions value="{!selectedmobStatusfields}"></apex:selectOptions>
+                            </apex:selectList>
+                        </td>
+                        <td style="padding-left:40px">
+                            <!--<apex:selectList size="1" value="{!JobIdnew}">-->
+                                <!--<apex:actionSupport event="onchange" action="{!getmobList}" rerender="calendar"/>-->
+                                <!--<apex:selectOption value="-- NONE --" ></apex:selectOption>-->
+                            <!--    <apex:selectOptions value="{!selectedmobjobfields}"></apex:selectOptions>-->
+                            <!--</apex:selectList>-->
+                            
+                            <apex:inputField value="{!mobilizationGroup.Job__c}" id="JobIdnew" required="false"/>
+                            <!--{!mobilizationGroup.Job__c}-->
+                        </td>
+
+                        <!--<apex:input type="datetime" value="{!StartDateTime}" />-->
+                        <!--<apex:input type="datetime" value="{!EndDateTime}" />-->
+                        <td style="padding-left:40px">
+                            <apex:commandButton action="{!getmobList}"  value="Search" onclick="refreshEvent();"
+                            />
+                            <apex:actionFunction name="refreshEvent" rerender="calendar" />
+                        </td> 
+                    </tr>
+                    <tr>
+                        <td>
+                            
+                        </td>
+                    </tr>
+                </table>
+                <!--<apex:commandButton onclick="getMonth();" value="Search"  />-->
+                    
+            </apex:form>
+        </div>
+                <div style="margin-left: 85%">
+                    <textarea id="NotesTextArea" onblur="handleNotesChange();" value="{!notes}"> {!notes}</textarea>
+                    </div>
+        <div class="slds-card slds-box content full-width">
+            
+        <div id="modelpupup"></div>
+        <div id="calendar"></div>
+        <div id="eventContent" title="Event Details">
+            <div id="eventInfo"></div>
+            <!--<p><strong><a id="eventLink" target="_blank">Read More</a></strong></p>-->
+        </div>
+        </div>
+    </div>
+    <div class="noData centerAlign" id="imageIllustration">
+        <apex:image url="{!URLFOR($Resource.svg_illustrations, '/empty-state-no-access.svg')}" width="500" height="500" />
+        <div class="marginTop">
+            Please complete the essential application configuration. 
+            <apex:outputlink value="{!sfDomain}">
+                (Navigate To App Setup)
+            </apex:outputlink>
+
+        </div>
+    </div>
+    <div class="noData" id="featureAccess">
+        <div class="centerAlign">
+            <apex:image url="{!URLFOR($Resource.svg_illustrations, '/empty-state-no-access.svg')}" width="500" height="500" />
+            <div class="marginTop titleFeature">
+                Feature Upgrade Required
+            </div>
+            <div style="color: red;">
+                Second Level Feature Pack Required! Please Contact Your Admin!
+            </div>
+        </div>
+    </div>
+        <script type="text/javascript">
+            document.addEventListener('DOMContentLoaded', function() {
+                var calendarEl = document.getElementById('calendar');
+                console.log('{!setupComplete}');
+                if('{!setupComplete}' == 'false'){
+                    document.getElementById('imageIllustration').style = 'display:block;'
+                    return;
+                }
+                if('{!secondLevelAccess}' == 'false'){
+                    document.getElementById('featureAccess').style = 'display:block;'
+                    return;
+                }
+                document.getElementById('hasData').style = 'display:block;';
+                var today = new Date();
+                var calendar = new FullCalendar.Calendar(calendarEl, {
+                    plugins: ['interaction', 'dayGrid',
+                        'timeGrid', 'list',
+                        'interactionPlugin'
+                    ],
+                    defaultView: "{!$User.UITheme}" == 'Theme4t' ? 'listMonth' :'dayGridWeek',
+                    header: {
+                        left: 'today',
+                        center: 'prev,title,next',
+                        right: 'dayGridMonth,dayGridWeek,listMonth'
+                    },
+                   
+                    defaultDate: today,
+                    navLinks: true, // can click day/week names to navigate views
+                    selectable: true,
+                    selectMirror: true,
+                    select    : function(arg) {
+                        $Lightning.use("{!JSENCODE(namespace)}:calendarApp",
+                            function() {
+                                var comapp = $Lightning
+                                    .createComponent(
+                                        "{!JSENCODE(namespace)}:Modalpopup", {},
+                                        "modelpupup",
+                                        function(component) {
+                                            $A.eventService.addHandler({
+                                                event: 'force:showToast',
+                                                handler: function(event) {
+                                                    var messageParams = {
+                                                        type: event.getParams().type,
+                                                        message: event.getParams().message,  
+                                                        mode: event.getParams().mode
+                                                    }; 
+                                                    //parent.postMessage(messageParams, "*");
+                                                }
+                                            });
+                                            
+                                            var startDateTIme = {!JSENCODE(StartTimeHour)};
+                                            var StartTimeMinute = {!JSENCODE(StartTimeMinute)};
+                                            
+                                            var EndTimeHour = {!JSENCODE(EndTimeHour)};
+                                            var EndTimeMinute = {!JSENCODE(EndTimeMinute)};
+
+                                            var startdateFormat = arg.start;
+                                            var enddateFormat = arg.end;
+                            
+                                            var StartFullDate = new Date(startdateFormat.getFullYear(),startdateFormat.getMonth(),startdateFormat.getDate(),startDateTIme,StartTimeMinute);
+                                            var EndFullDate = new Date(enddateFormat.getFullYear(),enddateFormat.getMonth(),enddateFormat.getDate() - 1,EndTimeHour,EndTimeMinute);
+                                            /*var stDate = new Date(StartFullDate.toLocaleString("en-US", {timeZone: $A.get("$Locale.timezone")}));
+                                            var etDate = new Date(EndFullDate.toLocaleString("en-US", {timeZone: $A.get("$Locale.timezone")}));
+                                            var stHours = Math.abs((StartFullDate > stDate ? StartFullDate : stDate) - (StartFullDate < stDate ? StartFullDate : stDate)) / 36e5
+                                            var etHours = Math.abs((EndFullDate > etDate ? EndFullDate : etDate) - (EndFullDate < etDate ? EndFullDate : etDate)) / 36e5;
+                                            StartFullDate > stDate ? StartFullDate.setHours(StartFullDate.getHours() + stHours ) : StartFullDate.setHours(StartFullDate.getHours() - stHours );
+                                            EndFullDate > etDate ? EndFullDate.setHours(EndFullDate.getHours() + etHours): EndFullDate.setHours(EndFullDate.getHours() -etHours );
+                                            stHours != 0 ? StartFullDate.setMinutes(StartFullDate.getMinutes() + 30) : '';
+                                            etHours != 0 ? EndFullDate.setMinutes(EndFullDate.getMinutes() + 30) : '';*/
+                                            
+                                            component.set(
+                                                'v.mobilizationGrpObject.startDate',
+                                                StartFullDate.toISOString()
+                                            );
+                                            component.set(
+                                                'v.mobilizationGrpObject.includeSaturday',
+                                                {!includeSaturday}
+                                            );
+                                            component.set(
+                                                'v.mobilizationGrpObject.includeSunday',
+                                                {!includeSunday}
+                                            );
+                                            component.set(
+                                                'v.mobilizationGrpObject.endDate',
+                                                EndFullDate.toISOString()
+                                            );
+                                            component.set(
+                                                'v.isModalOpen',
+                                                true
+                                            );
+                                           
+                                        });
+                            });
+                        calendar.unselect()
+                    },
+                    businessHours: true,
+                    editable: true,
+                    eventLimit: true,
+                    droppable: true,
+                    dragScroll: true,
+                    draggable: true,
+                    eventResizableFromStart: true,
+                    eventDurationEditable:true,
+                    events: {!events},   
+                    eventOrder: "-status",
+                    eventClick: function(arg) {
+                        /*Open Sweet Alert*/
+                        $Lightning.use("{!JSENCODE(namespace)}:calendarApp",
+                            function() {
+                                var comapp = $Lightning
+                                    .createComponent(
+                                        "{!JSENCODE(namespace)}:Modalpopup", {},
+                                        "modelpupup",
+                                        function(component) {
+                                            $A.eventService.addHandler({
+                                                event: 'force:showToast',
+                                                handler: function(event) { 
+                                                    var messageParams = {
+                                                        type: event.getParams().type,
+                                                        message: event.getParams().message,  
+                                                        mode: event.getParams().mode
+                                                    }; 
+                                                    parent.postMessage(messageParams, document.referrer);
+                                                }
+                                            });
+                                            var recordId = arg.event.id; 
+                                            
+                                            component.set(
+                                                'v.recordId',
+                                                recordId
+                                            );
+                                            component.set(
+                                                'v.isModalOpen',
+                                                true
+                                            );
+                                            
+                                        });
+                            });
+                    },
+
+                    eventDrop: function(arg) {
+                        //   var startDate = arg.start.toISOString();
+                        console.log(arg.oldEvent.start);
+                        console.log(arg);
+                        var startDate = arg.event.start.toISOString();
+
+                        var startdatenew = arg.event.end.toISOString();
+                        // var endDateNew = arg.event.end.toISOString();
+                        console.log(startdatenew);
+                        var mobid = arg.event.id;
+                        console.log('id==>>' + arg);
+                        //   function updateRecords(){
+                        paraFunction(startDate,
+                            startdatenew, mobid);
+                        //   }
+                        
+                    },
+
+                    eventPositioned : function(info) {
+                        if (info.view.type === 'listMonth') {
+                            let prevSibling = info.el.previousElementSibling;
+                            console.log(prevSibling);
+                            if(prevSibling && prevSibling.children && prevSibling.children[0]) {
+                                let header = prevSibling.children[0];
+                                if(header.classList.contains('fc-widget-header')) {
+                                    if("{!JSENCODE($User.UITheme)}" != 'Theme4t') {
+                                        header.setAttribute('colspan', 5);
+                                    } else {
+                                        header.setAttribute('colspan', 3);
+                                    }
+                                }
+                            }
+                            console.log(info);
+                        }
+                    },
+
+                    eventRender : function(info) {
+                        if (info.view.type === 'listMonth') {
+                            var toInject = [];
+                            let extendedProps = info.event.extendedProps || {};
+                            let eventTime = extendedProps['timeStart'] + ' - ' + extendedProps['timeEnd'];
+
+                            // Only add these columns if not in mobile
+                            if("{!JSENCODE($User.UITheme)}" != 'Theme4t') {
+                                // Add status column
+                                toInject.push({ 
+                                    label: 'Status',
+                                    value: extendedProps['status'] ? extendedProps['status'] : 'N/A'
+                                });
+
+                                // Add job location field
+                                toInject.push({
+                                    label: 'Location',
+                                    value: extendedProps['jobLocation'] ? extendedProps['jobLocation'] : 'N/A'
+                                });
+                            }
+
+                            // Add time column
+                            toInject.push({ 
+                                label: 'Time',
+                                value: eventTime.toLowerCase(),
+                                class: 'text-align-right'
+                            });
+
+                            for (var i = 0; i < toInject.length; i++) {
+                                var columnElement = document.createElement('td');
+                                columnElement.textContent = getTextContent(toInject[i]);
+                                columnElement.classList.add('fc-widget-content');
+                                if(toInject[i].class) {
+                                    columnElement.classList.add(toInject[i].class);
+                                }
+                                info.el.append(columnElement);
+                            }
+
+                            function getTextContent(obj) {
+                                return obj.label ? obj.label + ' - ' + obj.value : obj.value
+                            }
+                        }
+                    },
+                    // eventRender: function(arg) {
+                    //     arg.event.append( "<span class='closeon'>X</span>" );
+                    //     arg.event.find(".closeon").click(function() {
+                    //     $('#calendar').fullCalendar('removeEvents',arg.event.id);
+                    //     });
+                    // }   
+                   eventResize: function(arg) {
+                        //  console.log(arg.oldEvent.start);
+                        console.log('arguments '+arg.event.start);
+                        var startDateResize = arg.event.start.toISOString();
+
+                        var EndDateResize = arg.event.end.toISOString();
+                        // var endDateNew = arg.event.end.toISOString();
+                        console.log(EndDateResize);
+                        var mobid = arg.event.id;
+                        console.log('id==>>' + arg);
+                        //   function updateRecords(){
+                        parameterFunction(startDateResize,
+                            EndDateResize, mobid);
+                    },
+                   
+
+                });
+
+                calendar.render();
+            });
+            function convertUTCDateToLocalDate(date) {
+                var newDate = new Date(date.getTime()+date.getTimezoneOffset()*60*1000);
+
+                var offset = date.getTimezoneOffset() / 60;
+                var hours = date.getHours();
+
+                newDate.setHours(hours - offset);
+
+                return newDate;   
+            }
+            function getMonth() {
+                var date = $("#calendar").fullCalendar('getDate');
+                var month_int = date.getMonth();
+                alert(month_int);
+                //you now have the visible month as an integer from 0-11
+            }
+    
+    function handleNotesChange() {
+        updateNotes(document.getElementById("NotesTextArea").value);
+        }
+// <script>
+// window.onscroll = function() {myFunction()};
+
+// var header = document.getElementById("myHeader");
+// var sticky = header.offsetTop;
+
+// function myFunction() {
+//   if (window.pageYOffset > sticky) {
+//     header.classList.add("sticky");
+//   } else {
+//     header.classList.remove("sticky");
+//   }
+// }
+
+        </script>
+        <apex:form >
+            <apex:actionFunction name="paraFunction" action="{!updateRecords}" rerender="calendar">
+                <apex:param assignTo="{!startDate}" name="startDate" value="startDate" />
+
+                <apex:param assignTo="{!startDateNew}" name="startdatenew" value="startdatenew" />
+                <!--<apex:param assignTo="{!endDateNew}" name="endDateNew" value="endDateNew" />-->
+                <apex:param assignTo="{!mobId}" name="mobid" value="" />
+            </apex:actionFunction>
+            <apex:actionFunction name="parameterFunction" action="{!updateRecordsNew}" rerender="calendar">
+                <apex:param assignTo="{!startDateResize}" name="startDateResize" value="startDateResize" />
+
+                <apex:param assignTo="{!EndDateResize}" name="EndDateResize" value="EndDateResize" />
+                <!--<apex:param assignTo="{!endDateNew}" name="endDateNew" value="endDateNew" />-->
+                <apex:param assignTo="{!mobId}" name="mobid" value="" />
+            </apex:actionFunction>
+                            <apex:actionFunction action="{!updateNotes}" name="updateNotes" rerender="calendar">
+            				<apex:param assignTo="{!notes}" name="notes" value=""/>
+            				</apex:actionFunction>
+        </apex:form>
+
+    </body>
+
+</apex:page>

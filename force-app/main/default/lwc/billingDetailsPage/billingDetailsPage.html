@@ -1,0 +1,632 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <!-- Fixed Billing Header -->
+        <div class="billing-header-fixed">
+            <div class="billing-header-info">
+                <div class="billing-name-section">
+                    <div class="billing-name-label">Billing Number</div>
+                    <div class="billing-name-value">
+                        <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.Id} class="record-link">
+                            {billingDetails.Name}
+                        </a>
+                    </div>
+                </div>
+                <div class="billing-name-section">
+                    <div class="billing-name-label">Previous Billing Number</div>
+                    <div class="billing-name-value">
+                        <template if:true={billingDetails.PreviousBillId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.PreviousBillId} class="record-link">
+                                {billingDetails.PreviousBillName}
+                            </a>
+                        </template>
+                        <template if:false={billingDetails.PreviousBillId}>
+                            {billingDetails.PreviousBillName}
+                        </template>
+                    </div>
+                </div>
+                <div class="job-number-section">
+                    <div class="job-number-label">Job Number</div>
+                    <div class="job-number-value">
+                        <template if:true={billingDetails.JobId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.JobId} class="record-link">
+                                {billingDetails.JobNumber}
+                            </a>
+                        </template>
+                        <template if:false={billingDetails.JobId}>
+                            {billingDetails.JobNumber}
+                        </template>
+                    </div>
+                </div>
+                <div class="payment-due-section">
+                    <div class="payment-due-label">Total Earned Less Retainage</div>
+                    <div class="payment-due-value">{formattedTotalEarnedLessRetainage}</div>
+                </div>
+                <div class="payment-due-section">
+                    <div class="payment-due-label">Balance to Finish + Retainage</div>
+                    <div class="payment-due-value">{formattedBalanceToFinish}</div>
+                </div>
+            </div>
+            <!-- <div class="billing-status-section">
+                <div class="status-label">Status</div>
+                <div class="status-input-container">
+                    <lightning-combobox
+                        name="status"
+                        value={billingDetails.Status}
+                        placeholder="Select Status..."
+                        options={statusOptions}
+                        onchange={handleStatusChange}
+                        variant="label-hidden">
+                    </lightning-combobox>
+                </div>
+            </div> -->
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="scrollable-content">
+            <!-- Billing Information Section-->
+            <div class="billing-info-section">
+
+                <!-- Billing Information Content -->
+                <div class="billing-info-content">
+                    <div class="billing-info-header">
+                        <h3 class="billing-info-title">Billing Information</h3>
+                        <div class="billing-info-actions">
+                            <button 
+                                class="action-button discard-btn"
+                                onclick={handleDiscardBillingChanges}
+                                disabled={isBillingButtonsDisabled}
+                                title="Discard unsaved changes">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Discard
+                            </button>
+                            <button class="action-button save-button" onclick={handleSaveBillingInfo} disabled={isSaveBillingDisabled}>
+                                <template if:true={isSavingBillingInfo}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                        <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </template>
+                                <template if:false={isSavingBillingInfo}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </template>
+                                {saveBillingButtonLabel}
+                            </button>
+                            <button class="action-button form-btn" onclick={openAIAForm}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Display AIA 702 Form
+                            </button>
+                        </div>
+                    </div>
+                
+                    <div class="billing-info-grid">
+                        <!-- Bill Details Section -->
+                        <div class="billing-section">
+                            <h4 class="section-title">Bill Details</h4>
+                            <div class="field-group">
+                                <lightning-input label="Job Name" type="text" value={billingDetails.JobName} disabled></lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input label="Account" type="text" value={billingDetails.AccountName} disabled></lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input label="Address" type="text" value={billingDetails.Address} disabled></lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input label="Job Retainage (%)" type="text" value={billingDetails.jobRetainage} disabled></lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Billing Retainage (%)"
+                                    type="number"
+                                    value={billingDetails.RetainageOnBill}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="retainage"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    disabled={isBillingApprovedOrRegular}>
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-combobox
+                                    name="status"
+                                    label="Status"
+                                    value={billingDetails.Status}
+                                    placeholder="Select Status..."
+                                    options={statusOptions}
+                                    onchange={handleStatusChange}
+                                    disabled={isBillingApproved}>
+                                </lightning-combobox>
+                            </div>
+                        </div>
+
+                        <!-- Billing Period Section -->
+                        <div class="billing-section">
+                            <h4 class="section-title">Billing Period</h4>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Bill Ref"
+                                    type="text"
+                                    value={billingDetails.BillingReferenceNumber}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="billRef">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Application Number"
+                                    type="text"
+                                    value={billingDetails.ApplicationNumber}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="applicationNumber">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Start Date"
+                                    type="date"
+                                    value={billingDetails.StartDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="startDate">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="End Date"
+                                    type="date"
+                                    value={billingDetails.EndDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="endDate">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Payment Due Date"
+                                    type="date"
+                                    value={billingDetails.PaymentDueDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="paymentDueDate">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input
+                                    label="Sent Date"
+                                    type="date"
+                                    value={billingDetails.SentDate}
+                                    onchange={handleBillingFieldChange}
+                                    data-field-name="sentDate">
+                                </lightning-input>
+                            </div>
+                        </div>
+
+                        <!-- Financial Values Section -->
+                        <div class="billing-section">
+                            <h4 class="section-title">Financial Values</h4>
+                            <div class="financial-grid">
+                                <div class="financial-item">
+                                    <span class="financial-label">1. Original Contract:</span>
+                                    <span class="financial-value">{formattedJobTotalContractPrice}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">2. Net Change Orders:</span>
+                                    <span class="financial-value">{formattedJobTotalChangeOrderValue}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">3. Contract Sum to Date:</span>
+                                    <span class="financial-value">{formattedContractSumToDate}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">4. Total Completed and Stored to Date:</span>
+                                    <span class="financial-value">{formattedTotalCompleted}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">5. Retainage Completed:</span>
+                                    <span class="financial-value">{formattedRetainageCompleted}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">6. Total Earned Less Retainage:</span>
+                                    <span class="financial-value">{formattedTotalEarnedLessRetainage}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">7. Less Previous Certificated for Payment:</span>
+                                    <span class="financial-value">{formattedLessPreviousCertificatedforPayment}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">8. Current Payment Due:</span>
+                                    <span class="financial-value">{formattedCurrentPaymentDue}</span>
+                                </div>
+                                <div class="financial-item">
+                                    <span class="financial-label">9. Balance to Finish + Retainage:</span>
+                                    <span class="financial-value">{formattedBalanceToFinish}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Base Contract Line Items Table -->
+                <div class="table-section">
+                    <div class="table-header-section">
+                        <h2 class="table-title">Base Contract Line Items</h2>
+                        <template if:true={isRegularBilling}>
+                            <div class={contractActionsClass}>
+                                <button 
+                                    class="action-button discard-btn"
+                                    onclick={handleDiscardContractChanges}
+                                    disabled={isContractButtonsDisabled}
+                                    title="Discard unsaved changes">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Discard
+                                </button>
+                                <button 
+                                    class="action-button save-button"
+                                    onclick={handleSaveContractChanges}
+                                    disabled={isContractSaveDisabled}>
+                                    <template if:true={isSavingContract}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </template>
+                                    <template if:false={isSavingContract}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </template>
+                                    {contractSaveButtonLabel}
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div class={contractTableContainerClass}>
+                        <template if:true={contractLineItems.length}>
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell">Sr No.</th>
+                                        <th class="header-cell">Scope Entry Name</th>
+                                        <th class="header-cell">Contract Value</th>
+                                        <th class="header-cell">Previous Billed %</th>
+                                        <th class="header-cell">Previous Billed Amount</th>
+                                        <template if:true={isRegularBilling}>
+                                            <th class="header-cell">Current Complete %</th>
+                                            <th class="header-cell">This Billing Complete %</th>
+                                            <th class="header-cell">This Billing Amount</th>
+                                        </template>
+                                        <template if:false={isRegularBilling}>
+                                            <td class="header-cell">This Billing Amount (Retainage Amount)</td>
+                                        </template>
+                                        <th class="header-cell">Total Complete Amount</th>
+                                        <template if:true={isRegularBilling}>
+                                            <th class="header-cell">Retainage %</th>
+                                            <th class="header-cell">Retainage</th>
+                                            <th class="header-cell">Due This Billing</th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={contractLineItems} for:item="item">
+                                        <tr key={item.Id} class={item.rowClass}>
+                                            <td class="data-cell center-trancate-text">{item.SerialNumber}</td>
+                                            <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
+                                            <td class="data-cell center-trancate-text">{item.contractValue}</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledAmount}</td>
+                                            <template if:true={isRegularBilling}>
+                                                <td class="data-cell center-trancate-text">{item.currentCompletePercent}%</td>
+                                                <td class="data-cell editable-cell" 
+                                                    data-record-id={item.Id} 
+                                                    data-field-name="This_Billing_Percent__c"
+                                                    data-field-type="number"
+                                                    data-editable="true"
+                                                    onclick={handleCellClick}
+                                                    onmouseenter={handleCellMouseEnter}
+                                                    onmouseleave={handleCellMouseLeave}>
+                                                    <template if:false={item.isEditingThisBillingPercent}>
+                                                        <span class="cell-value">{item.thisBillingCompletePercent}%</span>
+                                                        <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </template>
+                                                    <template if:true={item.isEditingThisBillingPercent}>
+                                                        <input type="number" 
+                                                            class="cell-input" 
+                                                            value={item.thisBillingCompletePercent}
+                                                            data-record-id={item.Id}
+                                                            data-field-name="This_Billing_Percent__c"
+                                                            data-field-type="number"
+                                                            onchange={handleCellInputChange}
+                                                            onblur={handleCellInputBlur}
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100">
+                                                    </template>
+                                                </td>
+                                                <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
+                                            </template>
+                                            <template if:false={isRegularBilling}>
+                                                <td class="data-cell center-trancate-text">{item.thisBillRetainageAmount}</td>
+                                            </template>
+                                            <td class="data-cell center-trancate-text">{item.totalCompleteAmount}</td>
+                                            <template if:true={isRegularBilling}>
+                                                <td class="data-cell editable-cell" 
+                                                    data-record-id={item.Id} 
+                                                    data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                    data-field-type="number"
+                                                    data-editable="true"
+                                                    onclick={handleCellClick}
+                                                    onmouseenter={handleCellMouseEnter}
+                                                    onmouseleave={handleCellMouseLeave}>
+                                                    <template if:false={item.isEditingRetainagePercent}>
+                                                        <span class="cell-value">{item.retainagePercent}%</span>
+                                                        <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </template>
+                                                    <template if:true={item.isEditingRetainagePercent}>
+                                                        <input type="number" 
+                                                            class="cell-input" 
+                                                            value={item.retainagePercent}
+                                                            data-record-id={item.Id}
+                                                            data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                            data-field-type="number"
+                                                            onchange={handleCellInputChange}
+                                                            onblur={handleCellInputBlur}
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100">
+                                                    </template>
+                                                </td>
+                                                <td class="data-cell center-trancate-text">{item.retainageAmount}</td>
+                                                <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                    <!-- Totals Row -->
+                                    <tr class="totals-row">
+                                        <td class="data-cell totals-label"></td>
+                                        <td class="data-cell totals-label"><strong>Total</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.contractValue}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.previousBilledAmount}</strong></td>
+                                        <template if:true={isRegularBilling}>
+                                            <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>{contractTotals.thisBillingAmount}</strong></td>
+                                        </template>
+                                        <template if:false={isRegularBilling}>
+                                            <td class="data-cell center-trancate-text"><strong>{contractTotals.thisBillRetainageAmount}</strong></td>
+                                        </template>
+                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.totalCompleteAmount}</strong></td>
+                                        <template if:true={isRegularBilling}>
+                                            <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>{contractTotals.retainageAmount}</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>{contractTotals.thisBillingAmount}</strong></td>
+                                        </template>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={contractLineItems.length}>
+                            <div class="no-data-message">
+                                <p>No Base Contract Line Items found.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Change Orders Line Items Table -->
+                <div class="table-section">
+                    <div class="table-header-section">
+                        <h2 class="table-title">Change Orders</h2>
+                        <template if:true={isRegularBilling}>
+                            <div class={changeOrderActionsClass}>
+                                <button 
+                                    class="action-button discard-btn"
+                                    onclick={handleDiscardChangeOrderChanges}
+                                    disabled={isChangeOrderButtonsDisabled}
+                                    title="Discard unsaved changes">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Discard
+                                </button>
+                                <button 
+                                    class="action-button save-button"
+                                    onclick={handleSaveChangeOrderChanges}
+                                    disabled={isChangeOrderSaveDisabled}>
+                                    <template if:true={isSavingChangeOrder}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </template>
+                                    <template if:false={isSavingChangeOrder}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </template>
+                                    {changeOrderSaveButtonLabel}
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div class={changeOrderTableContainerClass}>
+                        <template if:true={changeOrderLineItems.length}>
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell">Sr No.</th>
+                                        <th class="header-cell">Scope Entry Name</th>
+                                        <th class="header-cell">Contract Value</th>
+                                        <th class="header-cell">Previous Billed %</th>
+                                        <th class="header-cell">Previous Billed Amount</th>
+                                        <template if:true={isRegularBilling}>
+                                            <th class="header-cell">Current Complete %</th>
+                                            <th class="header-cell">This Billing Complete %</th>
+                                            <th class="header-cell">This Billing Amount</th>
+                                        </template>
+                                        <template if:false={isRegularBilling}>
+                                            <td class="header-cell">This Billing Amount (Retainage Amount)</td>
+                                        </template>
+                                        <th class="header-cell">Total Complete Amount</th>
+                                        <template if:true={isRegularBilling}>
+                                            <th class="header-cell">Retainage %</th>
+                                            <th class="header-cell">Retainage</th>
+                                            <th class="header-cell">Due This Billing</th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={changeOrderLineItems} for:item="item">
+                                        <tr key={item.Id} class={item.rowClass}>
+                                            <td class="data-cell center-trancate-text">{item.SerialNumber}</td>
+                                            <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
+                                            <td class="data-cell center-trancate-text">{item.contractValue}</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledAmount}</td>
+                                            <template if:true={isRegularBilling}>
+                                                <td class="data-cell center-trancate-text">{item.currentCompletePercent}%</td>
+                                                <td class={item.thisBillingPercentCellClass} 
+                                                    data-record-id={item.Id} 
+                                                    data-field-name="This_Billing_Percent__c"
+                                                    data-field-type="number"
+                                                    data-editable="true"
+                                                    onclick={handleCellClick}
+                                                    onmouseenter={handleCellMouseEnter}
+                                                    onmouseleave={handleCellMouseLeave}>
+                                                    <template if:false={item.isEditingThisBillingPercent}>
+                                                        <span class="cell-value">
+                                                            <lightning-formatted-number value={item.thisBillingCompletePercent} format-style="percent-fixed" maximum-fraction-digits="2"></lightning-formatted-number>
+                                                        </span>
+                                                        <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </template>
+                                                    <template if:true={item.isEditingThisBillingPercent}>
+                                                        <input type="number" 
+                                                            class="cell-input" 
+                                                            value={item.thisBillingCompletePercent}
+                                                            data-record-id={item.Id}
+                                                            data-field-name="This_Billing_Percent__c"
+                                                            data-field-type="number"
+                                                            onchange={handleCellInputChange}
+                                                            onblur={handleCellInputBlur}
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100">
+                                                    </template>
+                                                </td>
+                                                <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
+                                            </template>
+                                            <template if:false={isRegularBilling}>
+                                                <td class="data-cell center-trancate-text">{item.thisBillRetainageAmount}</td>
+                                            </template>
+                                            <td class="data-cell center-trancate-text">{item.totalCompleteAmount}</td>
+                                            <template if:true={isRegularBilling}>
+                                                <td class="data-cell editable-cell" 
+                                                    data-record-id={item.Id} 
+                                                    data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                    data-field-type="number"
+                                                    data-editable="true"
+                                                    onclick={handleCellClick}
+                                                    onmouseenter={handleCellMouseEnter}
+                                                    onmouseleave={handleCellMouseLeave}>
+                                                    <template if:false={item.isEditingRetainagePercent}>
+                                                        <span class="cell-value">{item.retainagePercent}%</span>
+                                                        <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </template>
+                                                    <template if:true={item.isEditingRetainagePercent}>
+                                                        <input type="number" 
+                                                            class="cell-input" 
+                                                            value={item.retainagePercent}
+                                                            data-record-id={item.Id}
+                                                            data-field-name="Retainage_Percent_on_Bill_Line_Item__c"
+                                                            data-field-type="number"
+                                                            onchange={handleCellInputChange}
+                                                            onblur={handleCellInputBlur}
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100">
+                                                    </template>
+                                                </td>
+                                                <td class="data-cell center-trancate-text">{item.retainageAmount}</td>
+                                                <td class="data-cell center-trancate-text">{item.thisBillingAmount}</td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                    <!-- Totals Row -->
+                                    <tr class="totals-row">
+                                        <td class="data-cell totals-label"></td>
+                                        <td class="data-cell totals-label"><strong>Total</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.contractValue}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.previousBilledAmount}</strong></td>
+                                        <template if:true={isRegularBilling}>
+                                            <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.thisBillingAmount}</strong></td>
+                                        </template>
+                                        <template if:false={isRegularBilling}>
+                                            <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.thisBillRetainageAmount}</strong></td>
+                                        </template>
+                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.totalCompleteAmount}</strong></td>
+                                        <template if:true={isRegularBilling}>
+                                            <td class="data-cell center-trancate-text"><strong>-</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.retainageAmount}</strong></td>
+                                            <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.thisBillingAmount}</strong></td>
+                                        </template>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={changeOrderLineItems.length}>
+                            <div class="no-data-message">
+                                <p>No Change Order Line Items found.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div> <!-- End scrollable-content -->
+        </div>
+    </div>
+
+    <template if:true={pdfTemplate}>
+        <c-billing-p-d-f-generator record-id={recordId} onclose={handleClose}></c-billing-p-d-f-generator>
+    </template>
+</template>

@@ -1,0 +1,337 @@
+<aura:component
+    access="global"
+    controller="ControllerCustomWizard"
+    implements="flexipage:availableForRecordHome,flexipage:availableForAllPageTypes,force:hasRecordId,force:appHostable"
+    extends="c:lib_base"
+>
+    <!-- attributes -->
+    <aura:attribute name="users" type="List" />
+    <aura:attribute name="steps" type="List" />
+    <aura:attribute name="deviceType" type="String" />
+    <aura:attribute name="isModalOpen" type="boolean" default="false" />
+    <aura:attribute name="isUserModalOpen" type="boolean" default="false" />
+    <aura:attribute name="isPassModalOpen" type="boolean" default="false" />
+    <!--<aura:attribute
+        name="orgDetail"
+        type="Map"
+        default="{'sobjectType' : 'Organization',
+                    'Name' : '',
+                    'Phone' : '',
+                    'Fax' : '',
+                    'TimeZoneSidKey' : '',
+                    'DefaultLocaleSidKey' : '',
+                    'LanguageLocaleKey' : ''
+                }"
+    />-->
+    <aura:attribute
+        name="userDetail"
+        type="Map"
+        default="{
+            'firstName' : '',
+            'lastName' : '',
+            'email' : '',
+            'phone' : '',
+            'timezone' : '',
+            'locale' : '',
+            'languageLocale' : '',
+            'profileId' : '',
+            'userRoleId' : '',
+            'uname' : '',
+            'communityNickname' : '',
+            'alias' : '',
+            'emailEncodingKey' : '',
+            'crewUser' : false
+        }"
+    />
+    <aura:attribute name="emailField" type="String" />
+
+    <aura:attribute
+        name="basicDetail"
+        type="Map"
+        default="{
+            'firstName' : '',
+            'lastName' : '',
+            'email' : '',
+            'phone' : '',
+            'profileId' : '',
+            'uname' : '',
+            'communityNickname' : '',
+            'alias' : ''
+        }"
+    />
+    <aura:attribute name="orgTimeZone" type="String" />
+    <aura:attribute name="orgLocale" type="String" />
+    <aura:attribute name="orgLan" type="String" />
+    <aura:attribute name="selectLocale" type="String" />
+    <aura:attribute name="selectLanguage" type="String" />
+    <aura:attribute name="selectTimeZone" type="String" />
+    <aura:attribute name="selectUserLocale" type="String" />
+    <aura:attribute name="selectUserLanguage" type="String" />
+    <aura:attribute name="selectUserTimeZone" type="String" />
+    <aura:attribute name="selectRole" type="String" />
+    <aura:attribute name="selectProfile" type="String" />
+    <aura:attribute name="selectUserLicense" type="String" />
+    <aura:attribute name="selectEmailEncoding" type="String" />
+    <aura:attribute name="finished" type="Boolean" default="false" />
+    <aura:attribute name="currentStep" type="String" default="Step1" />
+    <aura:attribute name="listOfAllUsers" type="List" />
+    <aura:attribute name="listOfAllUsersMain" type="List" />
+    <aura:attribute name="listOfAllUsersForFilter" type="List" />
+    <aura:attribute name="listOfAllUserRoles" type="List" />
+    <aura:attribute name="listOfAllUserLicense" type="List" />
+    <aura:attribute name="listOfAllUserProfile" type="List" />
+    <aura:attribute name="listOfAllTimeZone" type="List" />
+    <aura:attribute name="listOfAllLocale" type="List" />
+    <aura:attribute name="listOfAllLanguage" type="List" />
+    <aura:attribute name="listOfAllEmailEncoding" type="List" />
+    <aura:attribute name="selectedCount" type="integer" default="0" description="selected Records Count" />
+
+    <aura:attribute name="selectedUser" type="String" />
+    <aura:attribute name="activeUser" type="List" />
+    <aura:attribute name="inactiveUser" type="List" />
+
+    <aura:attribute name="bNoRecordsFound" type="boolean" />
+    <aura:attribute
+        name="pictureSrc"
+        type="String"
+        default="https://s3-us-west-1.amazonaws.com/sfdc-demo/image-placeholder.png"
+    />
+    <aura:attribute name="recordId" type="Id" />
+    <aura:attribute name="message" type="String" default="Drag profile picture here" />
+    <aura:attribute name="activeInActive" type="Boolean" default="true" />
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    <aura:attribute name="key" type="String" />
+
+    <aura:attribute name="filter" type="String" />
+    <aura:attribute name="filterProcess" type="String" />
+    <aura:attribute
+        name="jobReimbursement"
+        type="Map"
+        default="{'driverReimbursement': '', 'passengerReimbursement': ''}"/>
+    <aura:attribute
+        name="DefalutValues"
+        type="Map"
+        default="{'maxIndicatorDistance' : ''}"/>
+    <aura:attribute
+        name="StartWeekDay"
+        type="Map"
+        default="{'weekStartDay' : ''}"/>
+
+    <aura:attribute name="pageNumber" type="Integer" default="1" />
+    <aura:attribute name="pageSize" type="Integer" default="15" />
+    <aura:attribute name="totalPage" type="Integer" default="0" />
+    <aura:attribute name="isLastPage" type="Boolean" default="false" />
+    <aura:attribute name="dataSize" type="Integer" default="0" />
+
+    <!--handlers-->
+    <aura:registerEvent name="fileSelectedEvent" type="c:inputFileEvent" />
+
+    <aura:handler name="init" value="{! this }" action="{! c.init }" />
+
+    <!--WORKS IN DESKTOP VERSION ONLY-->
+
+    <aura:if isTrue="{!v.deviceType == 'DESKTOP'}">
+        <aura:if isTrue="{!v.finished == false}">
+            <div>
+                <article class="slds-card">
+                    <div class="slds-card__body slds-card__body_inner">
+                        <div class="slds-path">
+                            <div class="slds-grid slds-path__track">
+                                <div class="slds-grid slds-path__scroller-container">
+                                    <div class="slds-path__scroller" role="application">
+                                        <div class="slds-path__scroller_inner">
+                                            <lightning:progressIndicator
+                                                aura:id="path"
+                                                currentStep="{!v.currentStep}"
+                                                type="path"
+                                                variant="base"
+                                            >
+                                                <lightning:progressStep
+                                                    label="Scheduler Color Combination"
+                                                    value="Step1"
+                                                    onclick="{!c.handleSchedulerProgressBar}"
+                                                />
+                                                <lightning:progressStep
+                                                    label="Company Settings"
+                                                    value="Step2"
+                                                    onclick="{!c.handleSDefaultProgressBar}"
+                                                />
+                                            </lightning:progressIndicator>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                <br />
+                <aura:if isTrue="{!v.currentStep == 'Step1'}">
+                    <lightning:card>
+                        <aura:renderIf isTrue="{!v.showSpinner}">
+                            <lightning:spinner variant="brand" size="large" alternativeText="Loading, Please Wait..." />
+                        </aura:renderIf>
+                        <aura:set attribute="title">
+                            <fieldset class="slds-box slds-theme--default">
+                                <lightning:layout multipleRows="true">
+                                    <lightning:layoutItem size="12" padding="around-small">
+                                        <c:ScheduleSetup />
+                                    </lightning:layoutItem>
+                                    <lightning:layoutItem
+                                        size="12"
+                                        padding="around-small"
+                                        class="slds-align_absolute-center"
+                                    >
+                                        <lightning:button
+                                            label="Previous"
+                                            value="{!v.currentStep}"
+                                            onclick="{!c.handlePrevious}"
+                                        />
+                                        <lightning:button
+                                            class="slds-button slds-button_brand"
+                                            label="Next"
+                                            value="{!v.currentStep}"
+                                            onclick="{!c.handleDefaultValue}"
+                                        />
+                                    </lightning:layoutItem>
+                                </lightning:layout>
+                            </fieldset>
+                        </aura:set>
+                    </lightning:card>
+                </aura:if>
+
+                <aura:if isTrue="{!v.currentStep == 'Step2'}">
+                    <lightning:card>
+                        <aura:renderIf isTrue="{!v.showSpinner}">
+                            <lightning:spinner variant="brand" size="large" alternativeText="Loading, Please Wait..." />
+                        </aura:renderIf>
+                        <aura:set attribute="title">
+                            <fieldset class="slds-box slds-theme--default">
+                                <div class="slds-section slds-is-open">
+                                    <b
+                                        class="slds-section__title slds-section__title-action slds-section__title"
+                                        style="font-size: 14px; background-color: #3097d1;"
+                                    >
+                                        <span class="slds-truncate" title="Section Title" style="color: #fff;"
+                                            >Company logo</span
+                                        >
+                                    </b>
+                                    <lightning:layout multipleRows="true">
+                                        <lightning:layoutItem size="6" padding="around-small">
+                                            <c:uploadFileComponent />
+                                        </lightning:layoutItem>
+                                    </lightning:layout>
+                                </div>
+                                <div class="slds-section slds-is-open">
+                                    <b
+                                        class="slds-section__title slds-section__title-action slds-section__title"
+                                        style="font-size: 14px; background-color: #3097d1;"
+                                    >
+                                        <span class="slds-truncate" title="Section Title" style="color: #fff;"
+                                            >Maximum distance indicator (Used in Clock In/Out timesheet)</span
+                                        >
+                                    </b>
+                                    <div
+                                        aria-hidden="false"
+                                        class="slds-section__content"
+                                        id="reimbursement-details-id"
+                                    >
+                                        <table>
+                                            <tr>
+                                                <td>
+                                                    <div
+                                                        class="slds-col"
+                                                        style="text-align: left !important; margin-left: 15px;"
+                                                    >
+                                                        <span>
+                                                            <lightning:input
+                                                                type="number"
+                                                                step="0.01"
+                                                                name="Max_Indicator_Distance"
+                                                                html-autocomplete="off"
+                                                                label="Max allow distance (mile)"
+                                                                required="true"
+                                                                id="maxdistance"
+                                                                styleClass="slds-input form-control"
+                                                                value="{!v.DefalutValues.maxIndicatorDistance}"
+                                                            />
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="slds-section slds-is-open">
+                                    <b
+                                        class="slds-section__title slds-section__title-action slds-section__title"
+                                        style="font-size: 14px; background-color: #3097d1; margin-top: 25px;"
+                                    >
+                                        <span class="slds-truncate" title="Section Title" style="color: #fff;"
+                                            >Week Starting Day of your Job</span
+                                        >
+                                    </b>
+                                    <div
+                                        aria-hidden="false"
+                                        class="slds-section__content"
+                                        id="reimbursement-details-id"
+                                    >
+                                        <table>
+                                            <tr>
+                                                <td>
+                                                    <div
+                                                        class="slds-col"
+                                                        style="text-align: left !important; margin-left: 15px;"
+                                                    >
+                                                        <span>
+                                                            <lightning:select
+                                                                name="Week_Start_Day"
+                                                                label="Week Start Day"
+                                                                required="true"
+                                                                value="{!v.DefalutValues.weekStartDay}"
+                                                            >
+                                                                <option value="">---Select---</option>
+                                                                <option value="Monday">Monday</option>
+                                                                <option value="Tuesday">Tuesday</option>
+                                                                <option value="Wednesday">Wednesday</option>
+                                                                <option value="Thursday">Thursday</option>
+                                                                <option value="Friday">Friday</option>
+                                                                <option value="Saturday">Saturday</option>
+                                                                <option value="Sunday">Sunday</option>
+                                                            </lightning:select>
+                                                        </span>
+                                                        <div style="margin: 8px 0;">
+                                                            <lightning:button
+                                                                aura:Id="ContactField"
+                                                                variant="brand"
+                                                                label="save"
+                                                                onclick="{!c.Save_MaxIndicatorDistance_StartWeekDay}"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </fieldset>
+                        </aura:set>
+                    </lightning:card>
+                </aura:if>
+            </div>
+        </aura:if>
+
+        <aura:if isTrue="{!v.finished}">
+            <br /><br /><br /><br /><br /><br /><br />
+            <lightning:card>
+                <aura:set attribute="title"> FINISHED </aura:set>
+            </lightning:card>
+        </aura:if>
+
+        <aura:set attribute="else">
+            <div style="text-align: center; margin: 4%;">
+                Sorry!!<br />
+                Admin Panel is not available for the Mobile version yet!
+            </div>
+        </aura:set>
+    </aura:if>
+</aura:component>

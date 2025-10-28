@@ -1,0 +1,192 @@
+:host{
+    --primary-theme-color: #5e5adb;
+    --primary-theme-color-shade-20: #5e5adb20;
+
+    --card-bg-color: var(--primary-theme-color-shade-20, #ffffff);
+}
+
+.event-card {
+    border: 1px solid lightgray;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    background: color(from var(--card-bg-color, #ffffff) srgb r g b / 0.1);
+    overflow: hidden;
+    max-height: 3.4rem;
+    transition: all 0.3s ease-in-out;
+}
+
+.event-card:hover{
+    height: fit-content;
+    max-height: 50rem;
+    overflow: auto;
+    scrollbar-width: none;
+    box-shadow: 0 3px 6px #5a5adb60;
+}
+
+.event-card:hover .job-card-name{
+    white-space: break-spaces;
+}
+
+.event-card svg{
+    min-width: 16px;
+}
+
+.job-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.job-header-detail {
+    flex: 1;
+    min-width: 0;
+}
+
+.job-card-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.job-card-description{
+    font-size: 0.7rem;
+    color: #5a5adb90;
+}
+
+.action-btns{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.action-btns svg{
+    fill: #5a5adb;
+    width: 1rem;
+    height: 1rem;
+}
+
+.action-btns .action-btn{
+    display: grid;
+    place-items: center;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    background: var(--primary-theme-color-shade-20, #5a5adb20);
+    border-radius: 0.4rem;
+    padding: 0.2rem;
+}
+
+.action-btns .action-btn:hover{
+    scale: 1.1;
+}
+
+.truncate-location {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.truncate-location svg {
+    flex: 0 0 auto;
+}
+
+.truncate-location .location-text {
+    flex: 1 1 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+.status-tile{
+    font-weight: 600;
+    padding: 0.3rem 0.5rem;
+    border-radius: 2rem;
+    text-transform: uppercase;
+    width: fit-content;
+    font-size: 0.6rem;
+    line-height: 0.6rem;
+    background: var(--primary-theme-color-shade-20, #5e5adb20);
+    color: var(--primary-theme-color, #5e5adb);
+}
+
+.list-label{
+    font-weight: 600;
+}
+
+.selected-record-tiles{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.selected-record-tiles .tile{
+    background: var(--primary-theme-color-shade-20, #5a5adb20);
+    color: var(--primary-theme-color, #5a5adb);
+    border-radius: 4px;
+    height: 1.5rem;
+    padding-inline: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 100%;
+}
+
+.remove-btn-svg:hover {
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    scale: 1.1;
+}
+
+.assign-btn{
+    background-color: var(--primary-theme-color, #5a5adb);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    width: fit-content;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+}
+
+.assign-btn:hover{
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.bottom-btn[data-past="true"], .edit-btn[data-past="true"], .remove-btn-svg[data-past="true"]{
+    display: none !important;
+}
+
+.no-resource-text-div {
+    font-size: 10px;
+    color: gray;
+    line-height: 12px;
+}
+
+
+/* Navigation Link */
+
+.record-nav-link{
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    width: fit-content;
+}
+
+.record-nav-link:hover{
+    color: var(--primary-theme-color, #5a5adb);
+    text-decoration: underline;
+}

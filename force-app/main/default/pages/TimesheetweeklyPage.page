@@ -1,0 +1,299 @@
+<apex:page sidebar="false" showHeader="false" title="WeeklyTimesheet" id="thePage"
+    controller="TimesheetWeeklyController" standardStylesheets="false" applyHtmlTag="false"
+    applyBodyTag="false" renderAs="pdf" contentType="application/pdf#xyz.pdf">
+
+    <head>
+        <style>
+            @page: first{
+                size: 11.69in 8.27in;
+                /* width height */
+                margin-left: 0in;
+                margin-right: 0in;
+                margin-top: 1cm;
+                margin-bottom: 2cm;
+                border: 5px;
+                @top-center {
+                    content: element(header);
+                }
+                @bottom-left {
+                    content: element(footer);
+                }
+                @bottom-center {
+                    content: counter(page);
+                }
+            }
+            
+            @page {
+                size: 11.69in 8.27in;
+                /* width height */
+                margin-left: 0in;
+                margin-right: 0in;
+                margin-top: 4cm;
+                margin-bottom: 1.6cm;
+                border: 5px;
+                @top-center {
+                    content: element(header);
+                }
+                @bottom-left {
+                    content: element(footer);
+                }
+                @bottom-center {
+                    content: counter(page);
+                }
+            }
+            
+            div.header {
+                padding-top: 0cm;
+                margin-top: 0cm;
+                margin-left: 0.1cm;
+                margin-right: 0.1cm;
+                background-color: white;
+                /*padding-bottom: 10px;*/
+                height: 2.3cm;
+                width: 11.69in;
+                color: white;
+                /*text-align: center;*/
+                /*font-size: 30px;*/
+                position: running(header);
+            }
+            
+            div.footer {
+                display: block;
+                height: 1cm;
+                width: 11.69in;
+                margin-left: 0.3cm;
+                /*padding: 5px;*/
+                position: running(footer);
+            }
+            
+            div.content {
+                width: 8.5in;
+                margin-left: -0.2cm;
+                padding-top: 0px;
+                float: left;
+                font-family: sans-serif;
+            }
+            
+            .page-break {
+                display: block;
+                page-break-after: always;
+            }
+            
+            .pagecount:after {
+                content: counter(pages);
+            }
+            
+            .pagenumber:before {
+                content: counter(page);
+                padding-left: 7px;
+            }
+            
+            .col1 {
+                width: 10.55%;
+                text-align: center;
+                padding:10px;
+               
+            }
+            
+            .col3 {
+                width: 15%!important;
+                text-align: left;
+            }
+            
+            .col2 {
+                width: 5%;
+            }
+            
+            .col4 {
+                width: 25%;
+                text-align: left;
+                padding: 5px;
+            }
+            .pagebreak{
+                page-break-inside:avoid;
+            }
+            
+            .nobreak{
+                page-break-inside:avoid;
+            }
+
+        </style>
+
+    </head>
+    <!--<div style="margin-top:0px;height:auto;width:100%">-->
+        <div class="header" style="text-align:center">
+            <apex:repeat value="{!documentList}" var="document">
+                <apex:image id="theImage" value="{!'/servlet/servlet.FileDownload?file=' & document.Id}" height="100px" width="auto"
+                     />
+            </apex:repeat>
+        </div>
+    <!--</div>-->
+
+    <div class="content" style="width:95%;margin-left:30px">
+       <apex:outputText rendered="{!Totalsize > 0}">
+        <apex:repeat value="{!jbdateTimeMap}" var="fieldKey0">
+            <div class="pagebreak">
+            <table width="100%">
+                <tr>
+                    <td>
+                        <table width="100%">
+                            <tr style="background-color:#D4D5D4;padding:10px;width:100%;margin-bottom:20px;border:none">
+                                <td style="color:balck;font-size:15px;font-weight:bold;padding-left:20px;height:30px;border:none"
+                                    colspan="9">Employee's Detail</td>
+                            </tr>
+                            <tr style="margin-top:30px">
+                                <td class="col4"><b>Name:</b></td>
+                                <td class="col4"> {!UserListName[fieldKey0].Name}</td>
+                                <td class="col4"><b>About Me:</b></td>
+                                <td class="col4">{!UserListName[fieldKey0].AboutMe}</td>
+                            </tr>
+                            <tr>
+                                <td class="col4"><b>Company Name:</b></td>
+                                <td class="col4">{!UserListName[fieldKey0].CompanyName}</td>
+                                <td class="col4"><b>Department:</b></td>
+                                <td class="col4">{!UserListName[fieldKey0].Department}</td>
+                            </tr>
+                            <tr>
+                                <td class="col4"><b>Phone:</b></td>
+                                <td class="col4">{!UserListName[fieldKey0].MobilePhone}</td>
+                                <td class="col4"><b>Email:</b></td>
+                                <td class="col4">{!UserListName[fieldKey0].Email}</td>
+                            </tr><br/>
+
+                        </table>
+                        <table width="100%">
+                            <tr style="background-color:#D4D5D4;padding:10px;width:100%;margin-bottom:20px;border:none">
+                                <td style="color:balck;font-size:15px;font-weight:bold;padding-left:20px;height:30px;border:none"
+                                    colspan="9">Weekly TimeSheet Detail</td>
+                            </tr>
+                            <tr width="100%">
+                                <td>
+                                    
+                                    <table width="100%" cellspacing="0" border="1px" cellpadding="6" style="margin-top:30px">
+                                        <tr class="nobreak">
+                                            <td  rowspan="2" width="20%">
+                                                <b>Job</b>
+                                            </td>
+                                            <apex:repeat value="{!weekDaysList}" var="da">
+                                                <td class="col1">
+                                                    <b>{!da} </b>
+                                                </td>
+                                            </apex:repeat>
+                                            <td class="col1" rowspan="2" style="background-color:#747272;color:white">
+                                                <b>Total Time:<br/>(hr)</b>
+                                            </td>
+                                        </tr>
+                                        <tr class="nobreak">
+                                            <apex:repeat value="{!weekDateList}" var="dateList">
+                                                <td class="col1">
+                                                    <b>{!dateList}</b>
+                                                </td>
+                                            </apex:repeat>
+                                        </tr>
+                                        <apex:variable value="{!1}" var="i" />
+                                      
+                                        <apex:repeat value="{!jbdateTimeMap[fieldKey0]}" var="fieldKey1">
+                                            <tr style="background-color:{!IF(mod(i,2)==0, 'white', '#f2f2f2')};height:30px;padding-top:20px!important" class="nobreak">
+                                                <td  width="20%" >
+                                                    <b>{!jobName[fieldKey1]}</b>
+                                                </td>
+                                                <apex:variable value="{!0}" var="rowTotal" />
+                                                <apex:repeat value="{!jbdateTimeMap[fieldKey0][fieldKey1]}" var="fieldKey2">
+                                                    <apex:variable value="{!1}" var="rowNum" />
+                                                    <td class="col1"> {!If((jbdateTimeMap[fieldKey0][fieldKey1][fieldKey2].Total_Clock_In_Time__c
+                                                        == null), 0,jbdateTimeMap[fieldKey0][fieldKey1][fieldKey2].Total_Clock_In_Time__c
+                                                        )}
+                                                    </td>
+                                                    <apex:variable value="{!rowTotal+ If((jbdateTimeMap[fieldKey0][fieldKey1][fieldKey2].Total_Clock_In_Time__c
+                                                        == null), 0,jbdateTimeMap[fieldKey0][fieldKey1][fieldKey2].Total_Clock_In_Time__c
+                                                        )}" var="rowTotal" />
+                                                </apex:repeat>
+                                            
+                                                <td class="col1" style="background-color:#747272;color:white">
+                                                   <b>{!rowTotal}</b> 
+                                                </td>
+                                              
+                                                <!--<td>{!totalTime}</td>-->
+                                            </tr>
+                                            <apex:variable value="{!i+1}" var="i" />
+                                        </apex:repeat>
+                                      <apex:variable value="{!0}" var="Total"/>
+                                        <tr style="background-color:#747272;color:white" class="nobreak">
+                                            <td class="col1"><b>Total Time:<br/>(hr)</b></td>
+                                            
+                                            <apex:repeat value="{!TotalSumMap[fieldKey0]}" var="key1">
+                                            <td class="col1">{!IF((TotalSumMap[fieldKey0][key1] == null),0,TotalSumMap[fieldKey0][key1])}</td> 
+                                            <apex:variable value="{!Total + IF((TotalSumMap[fieldKey0][key1] == null),0,TotalSumMap[fieldKey0][key1])}" var="Total" />
+                                           </apex:repeat>
+                                        
+                                        <td class="col1" style="background-color:#2A2A2A "><b>{!Total} hr</b></td>
+                                        </tr>
+                                    </table>
+                                    
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+            </div>
+            <div class="footer">
+                <span class="pagenumber"/> of <span class="pagecount"/>
+                <div  style="float:right;padding-right:30px;margin-bottom:20px">
+                    <span>___________________</span>
+                    <p>{!UserListName[fieldKey0].Name}</p>
+                </div>
+            </div>
+        </apex:repeat>
+        </apex:outputText>
+        <apex:outputText rendered="{!Totalsize == 0}">
+            <apex:repeat value="{!UserListName}" var="key3">
+            <table width="100%">
+                            <tr style="background-color:#D4D5D4;padding:10px;width:100%;margin-bottom:20px;border:none">
+                                <td style="color:balck;font-size:15px;font-weight:bold;padding-left:20px;height:30px;border:none"
+                                    colspan="9">Employee's Detail</td>
+                            </tr>
+                            <tr style="margin-top:30px">
+                                <td class="col4"><b>Name:</b></td>
+                                <td class="col4"> {!UserListName[key3].Name}</td>
+                                <td class="col4"><b>About Me:</b></td>
+                                <td class="col4">{!UserListName[key3].AboutMe}</td>
+                            </tr>
+                            <tr>
+                                <td class="col4"><b>Company Name:</b></td>
+                                <td class="col4">{!UserListName[key3].CompanyName}</td>
+                                <td class="col4"><b>Department:</b></td>
+                                <td class="col4">{!UserListName[key3].Department}</td>
+                            </tr>
+                            <tr>
+                                <td class="col4"><b>Phone:</b></td>
+                                <td class="col4">{!UserListName[key3].MobilePhone}</td>
+                                <td class="col4"><b>Email:</b></td>
+                                <td class="col4">{!UserListName[key3].Email}</td>
+                            </tr><br/>
+
+                        </table>
+             
+             <table width="100%">
+             <tr style="background-color:#D4D5D4;padding:10px;width:100%;margin-bottom:20px;border:none">
+                                <td style="color:balck;font-size:15px;font-weight:bold;padding-left:20px;height:30px;border:none"
+                                    colspan="9">Weekly TimeSheet Detail</td>
+                            </tr>
+             </table>
+            <h4 style="padding-left:10px"><b>No Timesheet Available!</b></h4>
+            <div class="footer">
+                <span class="pagenumber"/> of <span class="pagecount"/>
+                <div  style="float:right;padding-right:30px;margin-bottom:20px">
+                    <span>___________________</span>
+                    <p>{!UserListName[key3].Name}</p>
+                </div>
+            </div>
+            </apex:repeat>
+        </apex:outputText>
+        <apex:outputText rendered="{! AND(Totalsize == 0,TotalUser == 0)}">
+            <h2>No User is Assigned for this Job as well as Time!</h2>
+        </apex:outputText>
+    </div>
+
+</apex:page>

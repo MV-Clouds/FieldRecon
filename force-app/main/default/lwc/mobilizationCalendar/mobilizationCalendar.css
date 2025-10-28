@@ -1,0 +1,119 @@
+:host {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.calendar-container {
+    width: 100%;
+    height: 650px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.fc-scroller {
+    height: unset !important;
+}
+
+.slds-card.full-width {
+    width: 98%;
+}
+
+.centerAlign {
+    text-align: center;
+}
+
+.marginTop {
+    margin-top: -10%;
+}
+
+.titleFeature {
+    font-weight: bold;
+}
+
+.notes-area {
+    margin: 1rem;
+}
+
+.notes-area textarea {
+    width: 100%;
+    min-height: 80px;
+}
+
+  /* Calendar Background */
+  .fc {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  /* Header Buttons */
+  .fc button {
+    background-color: #e83e8c !important;  /* Pulse pink */
+    border: none !important;
+    color: #fff !important;
+    border-radius: 6px !important;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .fc button:hover {
+    background-color: #d63384 !important;
+  }
+
+  .fc-state-active,
+  .fc-button-active {
+    background-color: #be2f73 !important;
+    box-shadow: 0 0 0 0.2rem rgba(232,62,140,0.25);
+  }
+
+  /* Calendar Header Toolbar */
+  .fc-toolbar {
+    background: linear-gradient(90deg, #e83e8c 0%, #6610f2 100%);
+    color: #fff;
+    border-radius: 6px 6px 0 0;
+    padding: 10px;
+  }
+
+  .fc-center h2 {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Day Grid */
+  .fc-day-header {
+    background-color: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  .fc-day-number {
+    color: #212529;
+    font-weight: 500;
+  }
+
+  /* Event Styles */
+  .fc-event {
+    background-color: #6610f2 !important;  /* Pulse purple */
+    border: none !important;
+    color: #fff !important;
+    border-radius: 4px;
+    padding: 2px 4px;
+  }
+
+  .fc-event:hover {
+    background-color: #520dc2 !important;
+  }
+
+  /* Today Highlight */
+  .fc-today {
+    background-color: rgba(232,62,140,0.1) !important;
+  }
+
+  /* Hover effect on day cells */
+  .fc-day:hover {
+    background-color: rgba(232,62,140,0.05);
+  }

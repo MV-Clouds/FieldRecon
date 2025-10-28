@@ -1,0 +1,103 @@
+<apex:page renderAs="pdf" applyBodyTag="false" showHeader="false" sidebar="false" standardStylesheets="false">
+<head>
+    <title>AIA G702 Application for Payment</title>
+    <style type="text/css" media="print">
+        @page {
+            size: A4 landscape; /* You can adjust paper size and orientation */
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            color: #333;
+        }
+        .main-container {
+            width: 950px; /* Adjusted for landscape view if needed */
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px;">
+        <div style="text-transform: uppercase; font-size: 11px; font-weight: bold;">APPLICATION AND CERTIFICATE FOR PAYMENT</div>
+        <div style="font-size: 12px; font-weight: bold;">AIA DOCUMENT G702</div>
+    </div>
+
+    <table style="width: 100%; border-bottom: 2px solid #000; padding-bottom: 12px; font-size: 9px; line-height: 1.4;">
+        <tr>
+            <td style="width: 30%; vertical-align: top;">
+                <div style="height: 35px;"><b>TO CONTRACTOR:</b><br/>The Christman Company<br/>720 East Shiawassee Street,<br/>Lansing, MI 48912</div>
+                <div><b>FROM SUBCONTRACTOR:</b><br/>Applied Flooring, Inc<br/>P.O. Box 161<br/>Mason, MI 48854-0161</div>
+                <div><b>CONTRACT FOR:</b>&nbsp;</div>
+            </td>
+            <td style="width: 70%; vertical-align: top; padding-left: 15px;">
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="width: 45%; vertical-align: top;">
+                            <div style="height: 35px;"><b>PROJECT:</b><br/>NEOGEN LANSING OPERATIONS-PROJECT ACORN-INTERIORS</div>
+                            <div><b>VIA ARCHITECT:</b>&nbsp;</div>
+                        </td>
+                        <td style="width: 30%; vertical-align: top;">
+                            <div><b>APPLICATION NO:</b>&nbsp;</div>
+                            <div><b>PERIOD TO:</b>&nbsp;</div>
+                            <div><b>PROJECT NO:</b> JOB-003318</div>
+                            <div><b>CONTRACT DATE:</b> 10/10/2025</div>
+                        </td>
+                        <td style="width: 25%; vertical-align: top;">
+                             <b>DISTRIBUTION TO:</b><br/>
+                             OWNER <input type="checkbox" /><br/>
+                             ARCHITECT <input type="checkbox" /><br/>
+                             GENERAL <input type="checkbox" />
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table style="width: 100%; margin-top: 20px;">
+        <tr>
+            <td style="width: 55%; vertical-align: top; padding-right: 15px; font-size: 9px;">
+                <div style="font-size: 11px; font-weight: bold; margin-bottom: 10px;">CONTRACTOR'S APPLICATION FOR PAYMENT</div>
+                <p>Application is made for payment, as shown below, in connection with the Contract.<br/>Continuation Sheet, AIA Document G703, is attached.</p>
+                
+                <table style="width: 100%; font-size: 9px; line-height: 1.5;">
+                    <tr><td style="width: 70%;">1. ORIGINAL CONTRACT SUM</td><td style="text-align: right;"></td></tr>
+                    <tr><td>2. Net change by Change Orders</td><td style="text-align: right;">$0.00</td></tr>
+                    <tr><td><b>3. CONTRACT SUM TO DATE (Line 1 ± 2)</b></td><td style="text-align: right;"></td></tr>
+                    <tr><td><b>4. TOTAL COMPLETED &amp; STORED TO DATE</b><br/><span style="font-size: 8px; font-weight: normal;">(Column G on G703)</span></td><td style="text-align: right; vertical-align: bottom;">$121.00</td></tr>
+                    <tr><td colspan="2" style="padding-top: 5px;">5. RETAINAGE:</td></tr>
+                    <tr><td style="padding-left: 15px; font-size: 8px;">a. 10% of completed work (Column D + E on G703)</td><td style="text-align: right;">$0.00</td></tr>
+                    <tr><td style="padding-left: 15px; font-size: 8px;">b. % of Stored Material (Column F on G703)</td><td style="text-align: right;">$0.00</td></tr>
+                    <tr><td style="padding-left: 15px;"><b>Total Retainage</b> <span style="font-size: 8px; font-weight: normal;">(Lines 5a + 5b...)</span></td><td style="text-align: right; font-weight: bold;">$0.00</td></tr>
+                    <tr><td><b>6. TOTAL EARNED LESS RETAINAGE</b><br/><span style="font-size: 8px; font-weight: normal;">(Line 4 Less Line 5 Total)</span></td><td style="text-align: right; vertical-align: bottom;">$0.00</td></tr>
+                    <tr><td><b>7. LESS PREVIOUS CERTIFICATES FOR PAYMENT</b><br/><span style="font-size: 8px; font-weight: normal;">(Line 6 from prior Certificate)</span></td><td style="text-align: right; vertical-align: bottom;">$0.00</td></tr>
+                    <tr><td><b>8. CURRENT PAYMENT DUE</b></td><td style="text-align: right;"></td></tr>
+                    <tr><td><b>9. BALANCE TO FINISH, INCLUDING RETAINAGE</b><br/><span style="font-size: 8px; font-weight: normal;">(Line 3 less line 6)</span></td><td style="text-align: right; vertical-align: bottom;"></td></tr>
+                </table>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 9px;">
+                    <thead style="background-color: #f0f0f0; font-weight: bold;">
+                        <tr><th style="border: 1px solid #000; padding: 4px; text-align: left;">CHANGE ORDER SUMMARY</th><th style="border: 1px solid #000; padding: 4px; width: 80px;">ADDITIONS</th><th style="border: 1px solid #000; padding: 4px; width: 80px;">DEDUCTIONS</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="border: 1px solid #000; padding: 4px;">Total changes approved in previous months by Owner</td><td style="border: 1px solid #000; text-align: right; padding: 4px;">$0.00</td><td style="border: 1px solid #000; text-align: right; padding: 4px;">$0.00</td></tr>
+                        <tr><td style="border: 1px solid #000; padding: 4px;">Total approved this Month</td><td style="border: 1px solid #000; text-align: right; padding: 4px;">$0.00</td><td style="border: 1px solid #000; text-align: right; padding: 4px;">$0.00</td></tr>
+                        <tr style="font-weight: bold;"><td style="border: 1px solid #000; padding: 4px;">TOTALS</td><td style="border: 1px solid #000; text-align: right; padding: 4px;">$0.00</td><td style="border: 1px solid #000; text-align: right; padding: 4px;">$0.00</td></tr>
+                        <tr><td style="border: 1px solid #000; padding: 4px;">NET CHANGES by Change Order</td><td style="border: 1px solid #000; text-align: right; padding: 4px;">$0.00</td><td style="border: 1px solid #000;"></td></tr>
+                    </tbody>
+                </table>
+            </td>
+
+            <td style="width: 45%; vertical-align: top; padding-left: 15px;">
+                <p style="font-size: 8px; line-height: 1.3;">The Undersigned Contractor certifies that to the best of the Contractor's knowledge...</p>
+                <div style="font-size: 9px;">SUBCONTRACTOR: Applied Flooring, Inc</div>
+                <p>...</p>
+            </td>
+        </tr>
+    </table>
+</div>
+
+</body>
+</apex:page>

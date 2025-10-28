@@ -1,0 +1,716 @@
+<aura:component
+    access="global"
+    controller="HomepageController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction,lightning:actionOverride"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <aura:attribute name="Job" type="List" />
+    <aura:attribute name="mapMarkersData" type="Object" />
+    <!-- <aura:attribute name="timesheet" type="List" /> -->
+    <aura:attribute name="columns" type="List" />
+    <aura:attribute name="weekDays" type="String" />
+    <aura:attribute name="mapCenter" type="Object" />
+    <aura:attribute name="zoomlevel" type="Integer" default="10" />
+    <aura:attribute name="markersTitle" type="String" />
+    <aura:attribute name="totalJob" type="decimal" />
+    <!-- <aura:attribute name="totalTimesheet" type="Integer" /> -->
+    <aura:attribute name="totalWeeklyJob" type="Integer" />
+    <aura:attribute name="accountlist" type="List" />
+    <aura:attribute name="showFooter" type="Boolean" default="false" />
+    <aura:attribute name="buttonstate" type="Boolean" default="false" />
+    <aura:attribute name="varientcolor" type="String" default="success" />
+    <aura:attribute name="marker" type="Object" />
+    <aura:attribute name="mapCenterData" type="Object" />
+    <aura:attribute name="showSpinner" type="Boolean" default="false" />
+    <aura:attribute name="markersTitleData" type="String" />
+    <aura:attribute name="Weekly" type="List" />
+    <aura:attribute name="crew" type="List" />
+    <aura:attribute name="brokerFields" type="String[]" default="Name,Title__c,Phone__c,Email__c" />
+    <aura:attribute name="isModalOpen" type="boolean" default="false" />
+    <aura:attribute name="JobId" type="String" />
+    <aura:attribute type="String" name="expandDescRow" />
+    <aura:attribute type="String" name="expandWeekDay" />
+    <aura:attribute name="isButtonActive" type="Boolean" default="false" />
+    <aura:attribute name="secondLevelAccess" type="Boolean" default="false" />
+
+    <aura:if isTrue="{!v.secondLevelAccess}">
+        <lightning:card title="" class="lcard">
+        <lightning:tabset>
+            <!--Todays DATA-->
+            <lightning:tab label="Today's Job" id="one">
+                <aura:renderIf isTrue="{!v.showSpinner}">
+                    <lightning:spinner variant="brand" size="large" alternativeText="Loading, Please Wait..." />
+                </aura:renderIf>
+
+                <!--TODAY JOB'S LIST FOR MOBILE-->
+                <aura:if isTrue="{!$Browser.isPhone}">
+                    <aura:if isTrue="{!v.Job.length > 0 }">
+                        <lightning:card class="slds-card-style">
+                            <aura:if isTrue="{!and(v.mapMarkersData.length > 0,$Browser.isPhone)}">
+                                <div class="">
+                                    <!--div class="slds-align_absolute-center">
+                                        <lightning:map
+                                            mapMarkers="{! v.mapMarkersData}"
+                                            center="{!v.mapCenter}"
+                                            markersTitle="{! v.markersTitle }"
+                                            showFooter="false"
+                                            listView="hidden"
+                                            zoomLevel="{!v.zoomlevel}"
+                                            class="responsive"
+                                        />
+                                    </div-->
+                                    <div class="slds-align_absolute-center">
+                                        <lightning:button
+                                            class="googleButton"
+                                            label="Open in Google Maps"
+                                            variant="brand"
+                                            onclick="{!c.openingoogle}"
+                                        />
+                                    </div>
+                                </div>
+                            </aura:if>
+                        </lightning:card>
+
+                        <aura:iteration items="{!v.Job}" var="job">
+                            <lightning:card aura:id="card" title="" class="background">
+                                <div class="slds-wrap slds-grid slds-grid--pull-padded">
+                                    <div
+                                        class="slds-text-heading_small slds-col slds-size_1-of-1 slds-col--padded slds-medium-size--1-of-1 slds-large-size--1-of-2"
+                                        style="padding-left: 26px; padding-right: 20px;"
+                                    >
+                                        <div class="slds-float_right" style="padding-right: 10px;">
+                                            <lightning:button
+                                                value="{!job.JobId}"
+                                                class="slds-m-around_x-small success font"
+                                                aura:id="varientbutton"
+                                                variant="brand"
+                                                label="Clock Time"
+                                                onclick="{! c.handleClick }"
+                                            />
+                                        </div>
+                                        <div class="slds-page-header">
+                                            <div class="slds-page-header__row">
+                                                <div class="slds-page-header__col-title">
+                                                    <div class="slds-media">
+                                                        <div class="slds-media__figure">
+                                                            <span
+                                                                class="slds-icon_container slds-icon-standard-opportunity"
+                                                                title=""
+                                                            >
+                                                                <lightning:icon
+                                                                    iconName="standard:job_profile"
+                                                                    alternativeText="JOB"
+                                                                />
+                                                            </span>
+                                                        </div>
+                                                        <div class="slds-media__body">
+                                                            <div class="slds-page-header__name">
+                                                                <div class="slds-page-header__name-title">
+                                                                    <h1>
+                                                                        <span
+                                                                            class="slds-page-header__title slds-truncate"
+                                                                            title="Today's JOB"
+                                                                            ><span class="font slds-text-Wrap"
+                                                                                ><a
+                                                                                    href="{!'/'+job.JobId}"
+                                                                                    target="_blank"
+                                                                                    >{!job.JobName} -
+                                                                                    ({!job.JobNumber})</a
+                                                                                ></span
+                                                                            ><br />
+                                                                            <span class="font slds-text-Wrap"
+                                                                                ><a
+                                                                                    href="{!'/'+job.JobId}"
+                                                                                    target="_blank"
+                                                                                    >({!job.JobNumber})</a
+                                                                                ></span
+                                                                            ></span
+                                                                        >
+                                                                    </h1>
+
+                                                                    <h1 style="font-size: 72%;">
+                                                                        ( {!job.todayTime} - {!job.todayTime1} )
+                                                                    </h1>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <br />
+
+                                        <div style="margin-left: 50%;">
+                                            <lightning:buttonIcon
+                                                iconName="utility:chevrondown"
+                                                variant="bare"
+                                                value="{!job.JobId}"
+                                                alternativeText="View More"
+                                                onclick="{!c.expandDesc}"
+                                            />
+                                        </div>
+                                        <div
+                                            class="my"
+                                            title="testTitle"
+                                            id="{!job.JobId}"
+                                            style="text-align: justify; display: none;"
+                                        >
+                                            <div class="slds-col slds-size_12-of-12 slds-dl_horizontal__label fontsize">
+                                                Description: <br /> <br /><span
+                                                    class="font"
+                                                    id="{!job.JobId}"
+                                                    style="text-align: justify;"
+                                                    >{!job.JobDesc}
+                                                    <div style="margin-left: 50%;">
+                                                        <lightning:buttonIcon
+                                                            iconName="utility:chevronup"
+                                                            variant="bare"
+                                                            value="{!job.JobId}"
+                                                            alternativeText="View More"
+                                                            onclick="{!c.expandDesc}"
+                                                        /></div
+                                                ></span>
+                                            </div>
+                                        </div>
+                                        <br />
+                                    </div>
+                                </div> </lightning:card
+                            ><br />
+                        </aura:iteration>
+                        <aura:set attribute="else">
+                            <div>
+                                <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                                    <img
+                                        src="/img/chatter/OpenRoad.svg"
+                                        class="slds-illustration__svg"
+                                        alt="No Assigned Jobs"
+                                    />
+                                    <div class="slds-text-color_weak">
+                                        <h3 class="slds-text-heading_medium">No Jobs for Today!</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </aura:set>
+                    </aura:if>
+
+                    <!--TODAY JOB'S LIST FOR DESKTOP-->
+
+                    <aura:set attribute="else">
+                        <div class="slds-wrap slds-grid slds-grid--pull-padded">
+                            <div
+                                class="slds-text-heading_small slds-col slds-size_1-of-2 slds-col--padded slds-scrollable_y"
+                                style="max-height: 500px;"
+                            >
+                                <aura:if isTrue="{!v.Job.length > 0 }">
+                                    <aura:iteration items="{!v.Job}" var="job">
+                                        <lightning:card class="slds-card-style font">
+                                            <aura:set attribute="title">
+                                                <lightning:icon iconName="custom:custom57" size="small" /> &nbsp;
+                                                <a href="{!'/'+job.JobId}" target="_blank"
+                                                    >{!job.JobName} ({!job.JobNumber})</a
+                                                >
+                                            </aura:set>
+                                            <aura:set attribute="actions">
+                                                <lightning:button
+                                                    class="slds-button slds-button--neutral slds-max-small-button--stretch"
+                                                    value="{!job.JobId}"
+                                                    aura:id="varientbutton"
+                                                    variant="brand"
+                                                    label="Clock In"
+                                                    onclick="{! c.handleClick }"
+                                                />
+                                            </aura:set>
+
+                                            <div class="slds-grid slds-gutters">
+                                                <div class="slds-col slds-size_1-of-4" style="text-align: right;">
+                                                    Start-Time:
+                                                </div>
+                                                <div class="slds-col slds-size_1-of-4">{!job.todayTime}</div>
+                                                <div
+                                                    class="slds-col slds-size_1-of-4 slds-float_right"
+                                                    style="text-align: right;"
+                                                >
+                                                    End-Time:
+                                                </div>
+                                                <div class="slds-col slds-size_1-of-4">{!job.todayTime1}</div>
+                                            </div>
+
+                                            <div class="slds-grid slds-gutters">
+                                                <div class="slds-col slds-size_1-of-4" style="text-align: right;">
+                                                    Date:
+                                                </div>
+                                                <div class="slds-col slds-size_1-of-4">
+                                                    <ui:outputDate value="{!job.todayDate}" format="MM-DD-YYYY" />
+                                                </div>
+                                                <div class="slds-col slds-size_1-of-4" style="text-align: right;"></div>
+                                            </div>
+
+                                            <div class="slds-grid slds-gutters">
+                                                <div
+                                                    class="slds-col slds-size_1-of-4 slds-float_right"
+                                                    style="text-align: right;"
+                                                >
+                                                    Co-Workers:
+                                                </div>
+                                                <div class="slds-col slds-size_1-of-4">
+                                                    <aura:iteration items="{!job.crewWrap}" var="crewmem" indexVar="c">
+                                                        <span class="slds-dl_horizontal__detail font"
+                                                            ><a href="{!'/'+crewmem.coworkerId}" target="_blank">
+                                                                {!crewmem.coworker}{!job.crewWrap.length == (c + 1) ? ''
+                                                                : ', &nbsp;'}
+                                                            </a></span
+                                                        >
+                                                    </aura:iteration>
+                                                </div>
+                                                <div class="slds-col slds-size_1-of-4" style="text-align: right;">
+                                                    Assets:
+                                                </div>
+                                                <div class="slds-col slds-size_1-of-4 slds-scrollable">
+                                                    <aura:iteration items="{!job.AssetWrap}" var="asst" indexVar="d">
+                                                        <span class="slds-dl_horizontal__detail font"
+                                                            ><a href="{!'/'+asst.assetId}" target="_blank"
+                                                                >{!asst.asset}{!job.AssetWrap.length == (d + 1) ? '' :
+                                                                ', &nbsp;'}</a
+                                                            ></span
+                                                        >
+                                                    </aura:iteration>
+                                                </div>
+                                            </div>
+
+                                            <div class="slds-grid slds-gutters">
+                                                <div
+                                                    class="slds-col slds-size_1-of-4"
+                                                    style="text-align: right; margin-top: 0.5%;"
+                                                >
+                                                    Job Description:
+                                                </div>
+                                                <div class="slds-col slds-size_3-of-4">
+                                                    <div
+                                                        class="font"
+                                                        style="text-align: justify; margin-right: 2%; margin-top: 0.5%;"
+                                                    >
+                                                        {!job.JobDesc}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </lightning:card>
+                                    </aura:iteration>
+                                </aura:if>
+                            </div>
+                            <aura:if isTrue="{!v.Job.length == 0 }">
+                                <div
+                                    class="slds-float_right slds-text-heading_small slds-col slds-size_1-of-1 slds-col--padded"
+                                >
+                                    <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                                        <img
+                                            src="/img/chatter/OpenRoad.svg"
+                                            class="slds-illustration__svg"
+                                            alt="No Assigned Jobs"
+                                        />
+                                        <div class="slds-text-color_weak">
+                                            <h3 class="slds-text-heading_medium">No Jobs for Today!</h3>
+                                        </div>
+                                    </div>
+                                    <h1></h1>
+                                </div>
+                            </aura:if>
+                            <aura:if isTrue="{!v.Job.length > 0 }">
+                                <div
+                                    class="slds-float_right slds-text-heading_small slds-col slds-size_1-of-2 slds-col--padded"
+                                >
+                                    <lightning:card class="slds-card">
+                                        <aura:if isTrue="{!v.mapMarkersData.length > 0}">
+                                            <div class="slds-m-around_xx-small">
+                                                <lightning:map
+                                                    mapMarkers="{! v.mapMarkersData}"
+                                                    center="{!v.mapCenter}"
+                                                    markersTitle="{! v.markersTitle }"
+                                                    listView="hidden"
+                                                    zoomLevel="{!v.zoomlevel}"
+                                                />
+                                            </div>
+                                        </aura:if>
+                                        <aura:if isTrue="{!v.Job.length == 1}">
+                                            <div class="slds-align_absolute-center slds-m-top_small">
+                                                <lightning:button
+                                                    label="Open in Google Maps"
+                                                    variant="brand"
+                                                    onclick="{!c.openingoogle}"
+                                                />
+                                            </div>
+                                        </aura:if>
+                                    </lightning:card>
+                                </div>
+                            </aura:if>
+                        </div>
+                    </aura:set>
+                </aura:if>
+            </lightning:tab>
+
+            <!--WEEKLY JOB'S LIST FOR MOBILE PHONE-->
+            <lightning:tab label="Weekly Jobs" id="two">
+                <aura:if isTrue="{!$Browser.isPhone}">
+                    <lightning:card>
+                        <!--aura:if isTrue="{!and(v.marker.length > 0,$Browser.isPhone)}">
+                            <div class="slds-align_absolute-center">
+                                <lightning:map
+                                    mapMarkers="{! v.marker}"
+                                    center="{!v.mapCenterData}"
+                                    markersTitle="{! v.markersTitleData }"
+                                    showFooter="false"
+                                    listView="hidden"
+                                    zoomlevel="{!v.zoomlevel}"
+                                />
+                            </div>
+                        </aura:if-->
+                    </lightning:card>
+                    <aura:if isTrue="{!v.Weekly.length > 0 }">
+                        <aura:iteration items="{!v.Weekly}" var="job">
+                            <lightning:card class="background1">
+                                <div data-id="{!job.dayName}" onclick="{!c.expand}">
+                                    <div class="slds-page-header">
+                                        <div class="slds-media">
+                                            <div class="slds-media__figure">
+                                                <span
+                                                    class="slds-icon_container slds-icon-standard-opportunity"
+                                                    title="Description of icon when needed"
+                                                >
+                                                    <lightning:icon
+                                                        iconName="standard:job_profile"
+                                                        alternativeText="JOB"
+                                                    />
+                                                </span>
+                                            </div>
+                                            <div class="slds-media__body">
+                                                <div class="slds-page-header__name">
+                                                    <div class="slds-page-header__name-title">
+                                                        <h1
+                                                            class="slds-page-header__title slds-truncate slds-align-middle"
+                                                            style="font-size: 15px; margin-top: 9px;"
+                                                            title="Rohde Corp - 80,000 Widgets"
+                                                        >
+                                                            {!job.dayName}
+                                                        </h1>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </lightning:card>
+                            <aura:if isTrue="{!v.expandWeekDay == job.dayName}">
+                                <aura:iteration items="{!job.jobLocationWrapperList}" var="weeklyjob">
+                                    <lightning:card class="background" title="">
+                                        <div class="slds-wrap slds-grid" style="font-size: 85%; margin-left: 10px;">
+                                            <div style="width: 35%; font-weight: bold;">JobName:</div>
+                                            <div style="width: 62%;">
+                                                <a href="{!'/'+weeklyjob.JobId}" target="_blank"
+                                                    >{!weeklyjob.JobName}&nbsp;&nbsp;({!weeklyjob.JobNumber})</a
+                                                >
+                                            </div>
+                                        </div>
+                                        <div class="slds-wrap slds-grid" style="font-size: 85%; margin-left: 10px;">
+                                            <div style="width: 35%; font-weight: bold;">Start-Time:</div>
+                                            <div style="width: 62%;">{!weeklyjob.todayTime}</div>
+                                        </div>
+                                        <div class="slds-wrap slds-grid" style="font-size: 85%; margin-left: 10px;">
+                                            <div style="width: 35%; font-weight: bold;">End-Time:</div>
+                                            <div style="width: 62%;">{!weeklyjob.todayTime1}</div>
+                                        </div>
+                                        <div class="slds-wrap slds-grid" style="font-size: 85%; margin-left: 10px;">
+                                            <div style="width: 35%; font-weight: bold;">Date:</div>
+                                            <div style="width: 62%;">{!weeklyjob.todayDate}</div>
+                                        </div>
+                                        <div class="slds-wrap slds-grid" style="font-size: 85%; margin-left: 10px;">
+                                            <div style="width: 35%; font-weight: bold;">Co-Worker:</div>
+                                            <div style="width: 62%;">
+                                                <aura:iteration items="{!weeklyjob.crewWrap}" var="crewmem"
+                                                    >{!crewmem.coworker},</aura:iteration
+                                                >
+                                            </div>
+                                        </div> </lightning:card
+                                    ><br />
+                                </aura:iteration>
+                                <aura:if isTrue="{!job.jobLocationWrapperList.length == 0}">
+                                    <lightning:card class="slds-card-style" title="" iconName="">
+                                        <div style="text-align: center;">No Jobs for {!job.dayName} !</div>
+                                    </lightning:card>
+                                </aura:if>
+                            </aura:if>
+                        </aura:iteration>
+
+                        <aura:set attribute="else">
+                            <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                                <img
+                                    src="/img/chatter/OpenRoad.svg"
+                                    class="slds-illustration__svg"
+                                    alt="No Assigned Jobs"
+                                />
+                                <div class="slds-text-color_weak">
+                                    <h3 class="slds-text-heading_medium">No Assigned Jobs!</h3>
+                                </div>
+                            </div>
+                        </aura:set>
+
+                        <aura:set attribute="else">
+                            <div>
+                                <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                                    <img
+                                        src="/img/chatter/OpenRoad.svg"
+                                        class="slds-illustration__svg"
+                                        alt="No Assigned Jobs"
+                                    />
+                                    <div class="slds-text-color_weak">
+                                        <h3 class="slds-text-heading_medium">No Assigned job for this week!</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </aura:set>
+                    </aura:if>
+                    <div></div>
+
+                    <!--WEEKLY JOB'S LIST FOR DESKTOP-->
+                    <aura:set attribute="else">
+                        <div class="slds-wrap slds-grid slds-grid--pull-padded">
+                            <div
+                                class="slds-text-heading_small slds-col slds-size_1-of-2 slds-col--padded slds-scrollable_y"
+                                style="max-height: 500px;"
+                            >
+                                <aura:if isTrue="{!v.Weekly.length > 0 }">
+                                    <aura:iteration items="{!v.Weekly}" var="job">
+                                        <div data-Id="{!job.dayName}" onclick="{!c.expand}">
+                                            <lightning:card class="" title="" iconName="">
+                                                <aura:set attribute="title">
+                                                    <lightning:icon iconName="action:google_news" size="xx-small" />
+                                                    &nbsp;
+                                                    <span style="font-size: 17px;">{!job.dayName}</span>
+                                                </aura:set>
+                                            </lightning:card>
+                                        </div>
+                                        <aura:if isTrue="{!v.expandWeekDay == job.dayName}">
+                                            <aura:iteration items="{!job.jobLocationWrapperList}" var="weeklyjob">
+                                                <lightning:card class="slds-card-style font">
+                                                    <aura:set attribute="title">
+                                                        <lightning:icon iconName="custom:custom57" size="small" />
+                                                        &nbsp;
+                                                        <a
+                                                            href="{!'/'+weeklyjob.JobId}"
+                                                            target="_blank"
+                                                            style="font-size: 15px;"
+                                                            >{!weeklyjob.JobName} ({!weeklyjob.JobNumber})</a
+                                                        >
+                                                    </aura:set>
+                                                    <aura:set attribute="actions"> </aura:set>
+
+                                                    <div class="slds-grid slds-gutters">
+                                                        <div
+                                                            class="slds-col slds-size_1-of-4"
+                                                            style="text-align: right;"
+                                                        >
+                                                            Start-Time:
+                                                        </div>
+                                                        <div class="slds-col slds-size_1-of-4">
+                                                            {!weeklyjob.todayTime}
+                                                        </div>
+                                                        <div
+                                                            class="slds-col slds-size_1-of-4 slds-float_right"
+                                                            style="text-align: right;"
+                                                        >
+                                                            End-Time:
+                                                        </div>
+                                                        <div class="slds-col slds-size_1-of-4">
+                                                            {!weeklyjob.todayTime1}
+                                                        </div>
+                                                    </div>
+                                                    <div class="slds-grid slds-gutters">
+                                                        <div
+                                                            class="slds-col slds-size_1-of-4"
+                                                            style="text-align: right;"
+                                                        >
+                                                            Date:
+                                                        </div>
+                                                        <div class="slds-col slds-size_1-of-4">
+                                                            {!weeklyjob.todayDate}
+                                                        </div>
+                                                        <div
+                                                            class="slds-col slds-size_1-of-4"
+                                                            style="text-align: right;"
+                                                        ></div>
+                                                    </div>
+                                                    <div class="slds-grid slds-gutters">
+                                                        <div
+                                                            class="slds-col slds-size_1-of-4 slds-float_right"
+                                                            style="text-align: right;"
+                                                        >
+                                                            Co-Workers:
+                                                        </div>
+                                                        <div class="slds-col slds-size_1-of-4">
+                                                            <aura:iteration
+                                                                items="{!weeklyjob.crewWrap}"
+                                                                var="crewmem"
+                                                                indexVar="a"
+                                                            >
+                                                                <span class="slds-dl_horizontal__detail font"
+                                                                    ><a
+                                                                        href="{!'/'+crewmem.coworkerId}"
+                                                                        target="_blank"
+                                                                    >
+                                                                        {!crewmem.coworker}{!weeklyjob.crewWrap.length
+                                                                        == (a + 1) ? '' : ', &nbsp;'}</a
+                                                                    ></span
+                                                                >
+                                                            </aura:iteration>
+                                                        </div>
+
+                                                        <div
+                                                            class="slds-col slds-size_1-of-4"
+                                                            style="text-align: right;"
+                                                        >
+                                                            Assets:
+                                                        </div>
+                                                        <div class="slds-col slds-size_1-of-4">
+                                                            <aura:iteration
+                                                                items="{!weeklyjob.AssetWrap}"
+                                                                var="asst"
+                                                                indexVar="b"
+                                                            >
+                                                                <span class="slds-dl_horizontal__detail font"
+                                                                    ><a href="{!'/'+asst.assetId}" target="_blank"
+                                                                        >{!asst.asset}{!weeklyjob.AssetWrap.length == (b
+                                                                        + 1) ? '' : ', &nbsp;'}</a
+                                                                    ></span
+                                                                >
+                                                            </aura:iteration>
+                                                        </div>
+                                                    </div>
+                                                    <div class="slds-grid slds-gutters">
+                                                        <div
+                                                            class="slds-col slds-size_1-of-4"
+                                                            style="text-align: right;"
+                                                        >
+                                                            Job Description:
+                                                        </div>
+                                                        <div class="slds-col slds-size_3-of-4">
+                                                            {!weeklyjob.JobDesc}
+                                                        </div>
+                                                    </div>
+                                                </lightning:card>
+                                            </aura:iteration>
+                                            <aura:if isTrue="{!job.jobLocationWrapperList.length == 0}">
+                                                <lightning:card class="slds-card-style" title="" iconName="">
+                                                    <div style="text-align: center;">No Jobs for {!job.dayName} !</div>
+                                                </lightning:card>
+                                            </aura:if>
+                                        </aura:if>
+                                    </aura:iteration>
+                                </aura:if>
+                            </div>
+                            <aura:if isTrue="{!v.Weekly.length == 0 }">
+                                <div
+                                    class="slds-float_right slds-text-heading_small slds-col slds-size_1-of-1 slds-col--padded"
+                                >
+                                    <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                                        <img
+                                            src="/img/chatter/OpenRoad.svg"
+                                            class="slds-illustration__svg"
+                                            alt="No Assigned Jobs"
+                                        />
+                                        <div class="slds-text-color_weak">
+                                            <h3 class="slds-text-heading_medium">No Assigned Job For This Week!</h3>
+                                        </div>
+                                    </div>
+                                    <h1></h1>
+                                </div>
+                            </aura:if>
+                            <div
+                                class="slds-float_right slds-text-heading_small slds-col slds-size_1-of-2 slds-col--padded"
+                            >
+                                <lightning:card>
+                                    <aura:if isTrue="{!v.marker.length > 0}">
+                                        <!-- the map component -->
+                                        <lightning:map
+                                            mapMarkers="{! v.marker}"
+                                            center="{!v.mapCenterData}"
+                                            markersTitle="{! v.markersTitleData }"
+                                            showFooter="false"
+                                            listView="hidden"
+                                        />
+                                    </aura:if>
+                                </lightning:card>
+                            </div>
+                        </div>
+                    </aura:set>
+                </aura:if>
+            </lightning:tab>
+        </lightning:tabset>
+    </lightning:card>
+
+    <aura:if isTrue="{!v.isModalOpen}">
+        <aura:if isTrue="{!$Browser.isPhone}">
+            <!-- Modal/Popup Box starts here-->
+            <section
+                role="dialog"
+                tabindex="-1"
+                aria-labelledby="modal-heading-01"
+                aria-modal="true"
+                aria-describedby="modal-content-id-1"
+                class="slds-modal slds-fade-in-open"
+                style="margin-top : 50%;"             
+            >
+                <div class="slds-modal__container center" style="height: auto !important; background: transparent;">
+                    <!-- Modal/Popup Box Header Starts here-->
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon
+                            iconName="utility:close"
+                            onclick="{! c.closeModel }"
+                            alternativeText="close"
+                            variant="bare-inverse"
+                            class="slds-modal__close"
+                        />
+                        <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Clock In-Out</h2>
+                    </header>
+                    <!--Modal/Popup Box Body Starts here-->
+                    <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                        <c:ClockInOut recordId="{!v.JobId}" />
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+            <aura:set attribute="else">
+                <section
+                    role="dialog"
+                    tabindex="-1"
+                    aria-labelledby="modal-heading-01"
+                    aria-modal="true"
+                    aria-describedby="modal-content-id-1"
+                    class="slds-modal slds-fade-in-open"
+                >
+                    <div class="slds-modal__container">
+                        <!-- Modal/Popup Box Header Starts here-->
+                        <header class="slds-modal__header">
+                            <lightning:buttonIcon
+                                iconName="utility:close"
+                                onclick="{! c.closeModel }"
+                                alternativeText="close"
+                                variant="bare-inverse"
+                                class="slds-modal__close"
+                            />
+                            <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Clock In-Out</h2>
+                        </header>
+                        <!--Modal/Popup Box Body Starts here-->
+                        <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                            <c:ClockInOut recordId="{!v.JobId}" />
+                        </div>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </aura:set>
+        </aura:if>
+    </aura:if>
+    <aura:set attribute="else">
+        <c:headerSectionCmp title="Home Page" /> 
+        <c:libMessageWithIllustration message="Second Level Feature Pack Required! Please Contact Your Admin!" /> 
+    </aura:set>
+    </aura:if>    
+</aura:component>

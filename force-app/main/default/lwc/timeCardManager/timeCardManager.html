@@ -1,0 +1,259 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <div class="filter-bar">
+            <div class="search-div">
+                <lightning-input 
+                    type="search" 
+                    variant="label-hidden" 
+                    placeholder="Search Contacts by Name" 
+                    onchange={handleSearch} 
+                    value={searchTerm}>
+                </lightning-input>
+            </div>
+            
+            <div class="custom-date-filter">
+                <div class="date-container">
+                    <div class="date-label">Start Date:</div>
+                    <input type="date" class="slds-input date-input" value={customStartDate} onchange={handleCustomStartDateChange}></input>
+                </div>
+                
+                <div class="date-container">
+                    <div class="date-label">End Date:</div>
+                    <input type="date" class="slds-input date-input" value={customEndDate} onchange={handleCustomEndDateChange}></input>
+                </div>
+            </div>
+        </div>
+
+        <template if:true={filteredContactDetails.length}>
+            <div class="table-content">
+                <table class="custom-data-table">
+                    <thead class="table-header">
+                        <tr>
+                            <template for:each={contactColumns} for:item="col">
+                                <th key={col.fieldName} class="header-cell center-trancate-head" style={col.style}>
+                                    <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <template for:each={filteredContactDetails} for:item="contact">
+                            <!-- Main Contact Row -->
+                            <tr key={contact.contactId}>
+                                <template for:each={contact.values} for:item="val">
+                                    <td key={val.fieldName} class="center-trancate-text" style={val.style}>
+                                        <template if:true={val.recordLink}>
+                                            <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-record-id={contact.contactId}>
+                                                <div class="cell-content" title={val.value}>
+                                                    {val.value}
+                                                </div>
+                                            </a>
+                                        </template>
+                                        <template if:false={val.recordLink}>
+                                            <template if:true={val.fieldName}>
+                                                <template if:true={val.isAction}>
+                                                    <div class="action-icons">
+                                                        <button class="icon-button child-records-btn" 
+                                                                title="View Job Details" 
+                                                                onclick={handleToggleMobilization}
+                                                                data-contact-id={contact.contactId}
+                                                                data-expanded={contact.showMobilizationDetails}>
+                                                            <template if:true={contact.showMobilizationDetails}>
+                                                                <!-- Chevron Up - Indicates collapse -->
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </svg>
+                                                            </template>
+                                                            <template if:false={contact.showMobilizationDetails}>
+                                                                <!-- Chevron Down - Indicates expand -->
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </svg>
+                                                            </template>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <template if:false={val.isAction}>
+                                                    <div class="cell-content" title={val.value}>
+                                                        {val.value}
+                                                    </div>
+                                                </template>
+                                            </template>
+                                        </template>
+                                    </td>
+                                </template>
+                            </tr>
+
+                            <!-- Nested Mobilization Details Row -->
+                            <template if:true={contact.showMobilizationDetails}>
+                                <tr key={contact.contactId} class="nested-row">
+                                    <td colspan="100%" class="nested-table-container">
+                                        <div class="nested-table-wrapper">
+                                            <div class="nested-table-header">
+                                                <h4 class="nested-table-title">Job Details for {contact.contactName}</h4>
+                                            </div>
+                                            
+                                            <template if:true={contact.mobilizationGroups}>
+                                                <template if:true={contact.mobilizationGroups.length}>
+                                                    <table class="custom-data-table nested-table">
+                                                        <thead class="table-header">
+                                                            <tr>
+                                                                <template for:each={mobilizationColumns} for:item="column">
+                                                                    <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                                        <div class="slds-truncate" title={column.label}>{column.label}</div>
+                                                                    </th>
+                                                                </template>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="table-body">
+                                                            <template for:each={contact.mobilizationGroups} for:item="mobilization" for:index="mobIndex">
+                                                                <tr key={mobilization.jobId} class="nested-table-row">
+                                                                    <template for:each={mobilization.displayFields} for:item="field">
+                                                                        <td key={field.key} class="center-trancate-text">
+                                                                            <template if:true={field.isAction}>
+                                                                                <div class="action-icons">
+                                                                                    <button class="icon-button timesheet-btn" 
+                                                                                            title="View Timesheet Entries" 
+                                                                                            onclick={handleViewTimesheet}
+                                                                                            data-contact-id={contact.contactId}
+                                                                                            data-mobilization-id={mobilization.mobilizationId}
+                                                                                            data-job-id={mobilization.jobId}>
+                                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                            <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" stroke-width="2"/>
+                                                                                            <path d="M2.458 12C3.732 7.943 7.523 5 12 5C16.478 5 20.268 7.943 21.542 12C20.268 16.057 16.478 19 12 19C7.523 19 3.732 16.057 2.458 12Z" stroke="currentColor" stroke-width="2"/>
+                                                                                        </svg>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </template>
+                                                                            <template if:true={field.isJobLink}>
+                                                                                <a class="record-link job-link" 
+                                                                                   href="javascript:void(0);" 
+                                                                                   onclick={handleLinkClick} 
+                                                                                   data-record-id={mobilization.jobId} >
+                                                                                    <div class="cell-content" title={field.value}>
+                                                                                        {field.value}
+                                                                                    </div>
+                                                                                </a>
+                                                                            </template>
+                                                                            <template if:false={field.isJobLink}>
+                                                                                <template if:false={field.isAction}>
+                                                                                    <template if:true={field.hasValue}>
+                                                                                        <div class="cell-content" title={field.value}>
+                                                                                            {field.value}
+                                                                                        </div>
+                                                                                    </template>
+                                                                                    <template if:false={field.hasValue}>
+                                                                                        <div class="cell-content">--</div>
+                                                                                    </template>
+                                                                                </template>
+                                                                            </template>
+                                                                        </td>
+                                                                    </template>
+                                                                </tr>
+                                                            </template>
+                                                        </tbody>
+                                                    </table>
+                                                </template>
+                                                <template if:false={contact.mobilizationGroups.length}>
+                                                    <div class="no-mobilization-data">
+                                                        <div class="empty-state">
+                                                            <div class="empty-state__content">
+                                                                <div class="empty-state__message">No Job details found for this contact</div>
+                                                                <div class="empty-state__subtitle">Job details will appear here when available</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+
+        <template if:false={filteredContactDetails.length}>
+            <div class="no-records-message">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">No data available to show</div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Timesheet Modal -->
+    <template if:true={isTimesheetModalOpen}>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container timesheet-popup">
+                <!-- Close Button -->
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeTimesheetModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+
+                <!-- Heading -->
+                <div class="pop-heading">
+                    Timesheet Entries
+                </div>
+
+                <!-- Body -->
+                <div class="slds-modal__content pop-up" id="modal-content-id-1">
+                    <div class="popUpBody">
+                        <template if:true={selectedTimesheetEntries.length}>
+                            <div class="table-content timesheet-table">
+                                <table class="slds-table">
+                                    <thead>
+                                        <tr>
+                                            <template for:each={timesheetColumns} for:item="col">
+                                                <th key={col.fieldName} scope="col" style={col.style}>
+                                                    <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                                </th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={selectedTimesheetEntries} for:item="timesheet" for:index="index">
+                                            <tr key={timesheet.entryId}>
+                                                <template for:each={timesheet.values} for:item="val">
+                                                    <td key={val.key} style={val.style}>
+                                                        <div class="slds-truncate cell-wrapper" title={val.value}>
+                                                            <div class="cell-content" title={val.value}>
+                                                                {val.value}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                        <template if:false={selectedTimesheetEntries.length}>
+                            <div class="empty-state-container">
+                                <div class="empty-state-content">
+                                    <div class="empty-state-title">No Timesheet Entries</div>
+                                    <div class="empty-state-message">No completed timesheet entries found for this job.</div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </template>
+</template>

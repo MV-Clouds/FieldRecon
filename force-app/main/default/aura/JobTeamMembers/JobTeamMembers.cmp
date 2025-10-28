@@ -1,0 +1,50 @@
+<aura:component
+    access="global"
+    controller="JobTeamMembersController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" action="{!c.handleInit}" value="{!this}" />
+    <aura:attribute name="jobTeamMembers" type="List" />
+    <aura:attribute name="recordId" type="Id" />
+    <aura:attribute name="secondLevelAccess" type="Boolean" default="false" />
+
+    <aura:if isTrue="{!v.secondLevelAccess}">
+        <lightning:card title="Employees" iconName="utility:user">
+        <aura:if isTrue="{!v.jobTeamMembers.length > 0}">
+            <table style="text-align: center;" class="slds-table slds-table_cell-buffer slds-table_bordered">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th class="" scope="col" style="text-align: center;">User Name</th>
+                        <th class="" scope="col" style="text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <aura:iteration items="{!v.jobTeamMembers}" var="member">
+                        <tr class="slds-hint-parent" style="">
+                            <th class="" scope="col" style="text-align: center;">
+                                <lightning:formattedText value="{!member.name}" /> <sup> </sup>
+                            </th>
+                            <th class="" scope="col" style="text-align: center;">
+                                <lightning:formattedText value="{!member.status}" />
+                            </th>
+                            <th class="" scope="col" style="text-align: center;">
+                                <img
+                                    src="{!member.status == 'Clocked In' ? $Resource.Online_png : member.status == 'Clocked Out' ? $Resource.Offline_png : $Resource.Another_online }"
+                                    style="height: 15px; margin-left: 2px;"
+                                />
+                            </th>
+                        </tr>
+                    </aura:iteration>
+                </tbody>
+            </table>
+            <aura:set attribute="else">
+                <div>No Team Members</div>
+            </aura:set>
+        </aura:if>
+    </lightning:card>
+    <aura:set attribute="else">
+        <c:libMessageWithIllustration message="Second Level Feature Pack Required! Please Contact Your Admin!" /> 
+    </aura:set>
+    </aura:if>
+</aura:component>

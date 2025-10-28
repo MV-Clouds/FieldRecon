@@ -1,0 +1,55 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-23-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div class="slds-align_absolute-center slds-text-heading_large slds-p-around_small slds-border_bottom" ><b>Company Information</b> </div>
+    <div class = "slds-grid slds-wrap" >
+        <template if:true={isLoading} class="slds-is-relative" >
+            <lightning-spinner
+                alternative-text="Loading..." variant="brand">
+            </lightning-spinner>
+        </template>
+
+        <div  class = "slds-col slds-size_4-of-12 slds-m-left_xx-large slds-m-top_small">
+            <span class="form-element-label"><lightning-formatted-text value="Name Of Organization" ></lightning-formatted-text></span>
+        </div>
+
+        <div  class = "slds-col slds-size_5-of-12 slds-float_left slds-m-top_xx-small">
+            <span class="form-element-value"><lightning-input type="text" variant="label-hidden" style="width: 100%;" name="orgName" value={orgFields.orgName} onchange={handleChangeForFields}></lightning-input></span>
+        </div>
+               
+        <div  class = "slds-col slds-size_12-of-12  slds-m-left_xx-large">
+            <lightning-input-address style="width: 80%;" address-label="Organization Address"
+            street-label="Street"
+            city-label="City"
+            country-label="Country"
+            province-label="Province"
+            postal-code-label="PostalCode"
+            street={orgFields.streetName}
+            city={orgFields.cityName}
+            province={orgFields.stateName}
+            country={orgFields.countryName}
+            postal-code={orgFields.postalCode}
+            onchange={handleChangeForFields}
+            name="addDetails"
+            country-disabled
+            required
+            ></lightning-input-address>
+        </div>
+
+        <div class="slds-align_absolute-center slds-p-bottom_small">
+            <lightning-button
+                    icon-name="utility:company"
+                    class="slds-m-top_small"
+                    type="submit"
+                    onclick={saveCompanyDetails}
+                    label="Update Company Info">
+                    </lightning-button>
+        </div>
+    
+    </div>
+</template>

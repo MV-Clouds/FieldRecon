@@ -1,0 +1,266 @@
+:host(){
+    --selectedItemBGColor : unset;  
+    --selecteditemTextColor : unset;  
+  
+    --inputAreaHeight : unset;      
+    --inputAreaWidth : 100%;     
+    --inputAreaBorderWidth : unset;     
+    --inputAreaBorderColor : unset; 
+    --inputAreaBorderRadius : unset;  
+    --inputAreaIconSize : unset;  
+    --inputAreaIconColor : unset; 
+    --inputAreaFontSize : unset;  
+    --inputAreaFontColor: unset;
+  
+    --labelFontColor : black;     
+    --labelFontSize : unset;   
+  
+    --placeHolderColor : unset;   
+    --placeHolderSize  : unset;   
+  
+    --inputOnFocusShadow : unset; 
+    --inputOnFocusBorderColor : unset;  
+  
+    --dropDownWidth : unset;    
+    --dropDownMaxHeight : unset;  
+  
+    --optionFontSize : unset;     
+    --optionFontColor : unset;
+    --optionLineHeight : unset;
+  
+    --labelBackgroundColor : unset;
+    --labelLeft : unset;
+    --labelPosition : unset;
+    --labelTop : unset;
+    --labelColor : unset;
+  
+    --descriptionColor : #848484;
+    --descriptionFontSize : 11px;
+    --descriptionTopMargin : 0rem;
+    
+    --optionIconSize : 20px;
+
+    --footerBtnTextColor : #00b6ff;
+    --footerBtnBgColor : #ffffff;
+  }
+  .backDrop{
+      display: none;
+      position: fixed;
+      top: 0px;
+      left: 0px;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+  }
+  
+  .optionPosition{
+      position: absolute;
+      top: 0%;
+      left: 0%;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+  }
+  
+    .disabledItem{
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      width: 100%;
+      height: 100%;
+      background: #ffffff78;
+      backdrop-filter: grayscale(1);
+      cursor: not-allowed;
+      z-index: 999;
+    }
+  
+    .selectedItem{
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      width: 100%;
+      height: 100%;
+      background: var(--selectedItemBGColor, rgb(0 174 255 / 25%));
+    }
+
+    /* ========= Custom CSS Style to Override Standerd ======== */
+    .mainComboDiv{
+      --lwc-heightInput :  var(--inputAreaHeight);
+      --lwc-borderWidthThin : var(--inputAreaBorderWidth);
+      --slds-c-input-color-border : var(--inputAreaBorderColor);
+      --slds-c-input-radius-border : var(--inputAreaBorderRadius) ;
+      --slds-c-icon-color-foreground-default : var(--inputAreaIconColor);
+      --lwc-squareIconUtilitySmall : var(--inputAreaIconSize);
+      --slds-c-input-text-color : var(--inputAreaFontColor);
+      --slds-c-input-color-background : var(--inputAreaBgColor);
+      --lwc-shadowButtonFocus : var(--inputOnFocusShadow);
+      --slds-g-color-brand-base-60 : var(--inputOnFocusBorderColor);
+      --lwc-sizeXSmall : var(--dropDownWidth, var(--inputAreaWidth));
+      --lwc-sizeMedium : var(--dropDownWidth, var(--inputAreaWidth));
+      --slds-g-color-neutral-base-30 : var(--labelFontColor);
+      --lwc-borderRadiusMedium : var(--inputAreaBorderRadius);  /* dropDown Border radius same as input area border radius */
+      --slds-g-color-neutral-base-10 : var(--labelFontColor); 
+      width: 100%;
+      z-index: unset !important;
+    }
+    .mainComboDiv .optionIcon{
+      --lwc-squareIconMediumBoundary : var(--optionIconSize);
+    }
+  
+    .inputAreaCSS_1{
+      width: var(--inputAreaWidth, 100%) !important;
+    }
+    .inputAreaCSS_2, .inputAreaSectiedValueCSS{
+      font-size: var(--inputAreaFontSize, unset) !important;
+      box-shadow: none;
+      border: 1px solid var(--inputAreaBorderColor, gray);
+
+      &:focus{
+        border-color : var(--inputOnFocusBorderColor, #00aeff);
+      }
+    }
+    .inputAreaCSS_2::placeholder, .placeHolderCSS{
+      display: flex !important;
+      align-items: center !important;
+      color: var(--placeHolderColor) !important;
+      font-size: var(--placeHolderSize) !important;
+    }
+    .dropDownCSS{
+      max-height: var(--dropDownMaxHeight, 15rem) !important;
+      scrollbar-color: #54545429 transparent;
+      scrollbar-width: thin;
+  
+      font-size : var(--optionFontSize);
+      color : var(--optionFontColor);
+      line-height: var(--optionLineHeight);
+    }
+  
+    .label-div {
+      z-index: 4 !important;
+      width: fit-content !important;
+      border-radius: var(--inputAreaBorderRadius, unset);
+      position: var(--labelPosition);
+      top: var(--labelTop);
+      left: var(--labelLeft);
+      background-color: var(--labelBackgroundColor) !important;
+      color: var(--labelColor) !important;
+  }
+  
+    .emptyImgPadding{
+      padding-left: 1rem;
+    }
+  
+    .option-description{
+      display: block;
+      margin-top: var(--descriptionTopMargin);
+      color: var(--descriptionColor);
+      font-size: var(--descriptionFontSize);
+    }
+  
+    .emptyOptions{
+      width: 100%;
+      padding-block: 0.5rem;
+      text-align: center;
+      opacity: 0.75;
+      
+      font-size: var(--optionFontSize);
+      color: var(--optionFontColor);
+      line-height: var(--optionLineHeight);
+    }
+  
+    .combobox-disabled{
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      z-index: 100;
+      backdrop-filter: contrast(0.8) saturate(0);
+      background: rgb(236 235 234 / 30%);
+      cursor: not-allowed;
+      border-radius: var(--inputAreaBorderRadius);
+    }
+
+    .footerButtonSection{
+      width: 100%;
+      height: fit-content;
+      padding: 0.25rem 0rem;
+      position: sticky;
+      bottom: -4px;
+      left: 0px;
+      background: var(--footerBtnBgColor);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      /* box-shadow: rgb(0 0 0 / 20%) 0px -2px 5px -1px, rgb(0 0 0 / 44%) 0px 0px 3px -1px; */
+      border-top: 1px solid #c9c9c9;
+      cursor: pointer;
+    }
+
+    .footerBtn{
+      border: none;
+      border-radius: 6px;
+      outline: none;
+      padding: 0.25rem 1rem;
+      background: transparent;
+      font-size: var(--optionFontSize);
+      color: var(--footerBtnTextColor);
+      line-height: var(--optionLineHeight);
+    }
+
+  .recordSearchContainer{
+    min-width: 20rem;
+    width: 20rem;
+    height: 100%;
+    min-height: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    overflow: hidden;
+  }
+  .recordSearchContainer_sub{
+    min-height: 2rem;
+    width: 100%;
+    overflow: hidden;
+    background: white;
+    border-radius: 6px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    padding-inline: 0.5rem;
+    border: 1px solid #747474;
+  }
+  .recordSearchInput{
+    flex-grow: 1;
+    background: #ffffff;
+    border: none;
+    outline: none;
+  }
+  .recordSearchInput:focus-visible{
+    border: none;
+    outline: none;
+    pointer-events: auto;
+  }
+  .recordSearchContainer_sub:has(.recordSearchInput:focus-visible){
+    border-color: #01aeff;
+  }
+  .recordSearchInput::placeholder{
+    color: rgb(28, 28, 28);
+  }
+  .recordSearchBtn svg{
+    width: 16px;
+    height: 16px;
+    fill: #757575;
+    cursor: pointer;
+  }
+
+  .headBox{
+    width: 4rem;
+  }
+
+.error-border {
+    background-color: rgb(255, 255, 255);
+    border-color: rgb(238, 72, 65) !important;
+    box-shadow: rgb(243, 82, 76) 0px 0px 1px 1px !important;
+}

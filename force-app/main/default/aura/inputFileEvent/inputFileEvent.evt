@@ -1,0 +1,3 @@
+<aura:event type="COMPONENT" description="Event template">
+	<aura:attribute name="file" type="Object" description="The file file input element that has the selected file"/>
+</aura:event>

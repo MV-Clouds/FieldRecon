@@ -1,0 +1,43 @@
+<template>
+    <div class="wrapper">
+        <div class="main-tab-container">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <template for:each={tabs} for:item="tab">
+                    <button key={tab.value} class={tab.className} data-tab={tab.value} onclick={handleTabChange}>
+                        {tab.label}
+                    </button>
+                </template>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <template for:each={tabs} for:item="tab">
+                    <template if:true={tab.isActive}>
+                        <div key={tab.value} class="tab-panel">
+                            <template if:true={tab.isCrew}>
+                                <!-- Crew Tab Content -->
+                                <c-crew-management></c-crew-management>
+                            </template>
+
+                            <template if:true={tab.isCostCode}>
+                                <!-- Cost Code Tab Content -->
+                                <c-cost-code-management></c-cost-code-management>
+                            </template>
+
+                            <template if:true={tab.isProcessLibrary}>
+                                <!-- Process Library Tab Content -->
+                                <c-process-library-management></c-process-library-management>
+                            </template>
+
+                            <template if:true={tab.isEmployee}>
+                                <!-- Employee Tab Content -->
+                                <p>Employee content here...</p>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </div>
+    </div>
+</template>

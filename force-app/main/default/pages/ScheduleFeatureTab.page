@@ -1,0 +1,72 @@
+<apex:page controller="ScheduleFeatureTabController" showHeader="false" standardStylesheets="false" sidebar="false" applyHtmlTag="false" applyBodyTag="false" docType="html-5.0">
+<!-- Import the Design System style sheet -->
+<apex:slds />
+<style>
+    .container{
+        background: white;
+    }
+
+</style>
+<!-- REQUIRED SLDS WRAPPER -->
+    <div class="slds-scope">
+        <div class="container">
+            <div class="slds-p-around_small">
+                <header>
+                    <div class="slds-text-heading_large slds-align_absolute-center">
+                        Jobs Scheduler
+                    </div>
+                </header>
+                <body>
+                    <apex:actionStatus id="spinnerStatus">
+                        <apex:facet name="start">
+                            <div class="spinnerBg" />
+                            <div class="spinner" />
+                        </apex:facet>
+                    </apex:actionStatus>
+                    <!-- SPINNER -->
+                    <!-- <apex:outputPanel rendered="{!(isLoading == true)}" >  -->
+                    <div id="spinner" class="slds-spinner_container slds-is-relative slds-hide" >
+                        <div role="status" class="slds-spinner slds-spinner--large slds-spinner--brand">
+                            <div class="slds-spinner__dot-a"></div>
+                            <div class="slds-spinner__dot-b"></div>
+                        </div>
+                    </div>
+                    <!-- </apex:outputPanel> -->
+                    <!-- / SPINNER -->
+                    <div class="slds-p-around_small">
+                        <apex:form >
+                            <div class="slds-form">
+                                <div class="slds-form-element slds-form-element_horizontal">
+                                    <label class="slds-form-element__label slds-text-heading_medium" for="scheduleButton">Batch Feature Job</label>
+                                    <div class="slds-form-element__control">
+                                        <apex:outputPanel rendered="{!(checkFeatureJobStatus == false)}" >
+                                            <apex:actionFunction name="scheduleJob" action="{!scheduleJob}"/>
+                                            <apex:commandButton styleclass="slds-button slds-button_brand" id="scheduleButton" value="Schedule Job" onclick="schJob()" onComplete="return null;"/>
+                                        </apex:outputPanel>
+                                        <apex:outputPanel rendered="{!(checkFeatureJobStatus == true)}" >
+                                            <div class="slds-text-color_success slds-text-heading_medium">You are all ready for getting future upgrades!</div>
+                                        </apex:outputPanel>
+                                    </div>
+                                </div>
+                            </div>
+                        </apex:form>
+                    </div>
+                </body>
+            </div>
+        </div>
+    </div>
+    <script>
+        function schJob(){
+            showSpinner();
+            scheduleJob();
+        }
+        function showSpinner(){
+            document.getElementById('spinner').className.replace(' slds-hide','');
+            document.getElementById('spinner').className += ' slds-show';
+        }
+        function hideSpinner(){
+            document.getElementById('spinner').className.replace(' slds-show','')
+            document.getElementById('spinner').className += ' slds-hide';
+        }
+    </script>
+</apex:page>

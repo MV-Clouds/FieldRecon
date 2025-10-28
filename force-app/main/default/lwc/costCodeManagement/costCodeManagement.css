@@ -1,0 +1,590 @@
+* {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    user-select: none;
+    scrollbar-width: none !important;
+}
+
+.filter-search-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 8px 2px;
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.search-bar {
+    flex: 0 0 auto;
+}
+
+.search-bar lightning-input {
+    width: 300px;
+}
+
+.main-card {
+    transition: margin-left 0.3s ease;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 14px;
+    height: 100%;
+}
+
+/* Data Table Wrapper with Fixed Height */
+.data-table-container {
+    flex: 1;
+    overflow: auto;
+    border-radius: 8px;
+    margin: 16px 0;
+}
+
+.custom-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    border-spacing: 0; /* Remove gaps between table cells */
+    background: white;
+    table-layout: fixed; /* Enable better column width control */
+}
+
+.table-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.header-cell {
+    padding: 10px;
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border: none; /* Remove borders that cause gaps */
+}
+
+.table-body {
+    position: relative;
+}
+
+.custom-data-table td {
+    padding: 10px;
+    text-align: center;
+    border: none; /* Remove borders that cause gaps */
+    vertical-align: middle; /* Align content vertically */
+}
+
+.custom-data-table tr:nth-child(odd) {
+    background-color: rgb(244, 244, 255);
+}
+
+.custom-data-table tr:hover {
+    background-color: rgb(244, 244, 255) !important;
+    border: none;
+}
+
+.custom-data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.center-trancate-text {
+    text-align: center;
+    color: #585858;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px; /* Set a max-width for proper truncation */
+    position: relative;
+}
+
+.center-trancate-head {
+    text-align: center;
+    font-weight: 500;
+}
+
+.name-link {
+    color: rgba(94, 90, 219, 1);
+    text-decoration: none;
+}
+
+.name-link:hover {
+    text-decoration: underline;
+}
+
+.no-prop {
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    height: 100%;
+}
+
+/* Empty state styling */
+.empty-state {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.empty-state__content {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.empty-state__content .empty-state__icon {
+    width: 50%;
+    height: 100%;
+}
+
+.empty-state__content .empty-state__message {
+    color: rgba(94, 90, 219, 1);
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+/* Sortable Header Styles */
+.sortable-header {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.sortable-header:hover {
+    background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+.sort-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+}
+
+.column-label {
+    font-weight: 600;
+}
+
+.sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    width: 12px;
+    height: 12px;
+}
+
+/* Show sort icon ONLY on hover for non-active columns */
+.sortable-header:not(.active-sort):hover .sort-icon {
+    opacity: 0.7;
+    visibility: visible;
+}
+
+/* Always show sort icon for active sorted column with full opacity */
+.sortable-header.active-sort .sort-icon {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.sort-icon svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+/* Sort Icon Rotation */
+.rotate-asc {
+    transform: rotate(0deg);
+}
+
+.rotate-desc {
+    transform: rotate(180deg);
+}
+
+/* Non-Sortable Header Styles */
+.non-sortable-header {
+    cursor: default;
+    user-select: none;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+}
+
+/* Search bar input styling */
+.search-bar-input {
+    --slds-c-input-color-border: rgba(94, 90, 219, 0.3);
+    --slds-c-input-color-border-focus: rgba(94, 90, 219, 1);
+}
+
+.right-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    color: #333;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    height: 36px;
+}
+
+.action-button:hover:not(:disabled) {
+    background-color: #f8f9fa;
+    border-color: #6c757d;
+    transform: translateY(-1px);
+}
+
+.action-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    transform: none;
+}
+
+.create-button {
+    background-color: rgba(94, 90, 219, 1);
+    border-color: rgba(94, 90, 219, 1);
+    color: white;
+}
+
+.create-button:hover:not(:disabled) {
+    background-color: rgba(94, 90, 219, 0.9);
+    border-color: rgba(94, 90, 219, 0.9);
+}
+
+.create-button:disabled {
+    background-color: rgba(94, 90, 219, 0.5);
+    border-color: rgba(94, 90, 219, 0.5);
+    color: white;
+}
+
+/* SVG Icon Sizing */
+.action-button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* Cost Code Action Buttons for table */
+.costcode-action-button-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+}
+
+.costcode-action-button-container svg {
+    fill: none;
+    stroke: currentColor;
+}
+
+.costcode-action-button-container svg path,
+.costcode-action-button-container svg circle,
+.costcode-action-button-container svg line,
+.costcode-action-button-container svg polyline {
+    fill: none;
+    stroke: currentColor;
+}
+
+.costcode-edit-icon-btn, .costcode-delete-icon-btn {
+    background-color: transparent;
+    border: 1px solid #d8d8d8;
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-color: rgba(94, 90, 219, 0.8);
+    color: rgba(94, 90, 219, 0.8);
+}
+
+.costcode-edit-icon-btn:hover, .costcode-delete-icon-btn:hover {
+    background-color: rgba(94, 90, 219, 0.8);
+    border-color: rgba(94, 90, 219, 0.8);
+    color: white;
+}
+
+.costcode-popup {
+    max-width: 500px;
+}
+
+.costcode-popup-body {
+    background: white;
+    background-image: url(/resource/wfrecon__FieldReconBG);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.costcode-popup-header {
+    background-color: var(--primary-theme-color, #5e5adb);
+    color: white;
+    border: none;
+}
+
+.save-btn {
+    background-color: var(--primary-theme-color, #5a5adb);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding-inline: 0.6rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: grid;
+    place-items: center;
+    height: 2.25rem;
+    min-width: 6.75rem;
+}
+
+.save-btn:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.save-btn:disabled {
+    background-color: rgba(94, 90, 219, 0.5);
+    cursor: not-allowed;
+}
+
+.bottom-footer-btn {
+    width: calc(100% + 2rem);
+    margin-left: -1rem;
+    margin-bottom: -1rem;
+    background: white;
+    border-top: 1px solid lightgray;
+    gap: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+
+/* Pagination Styles */
+.pagination-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 0;
+}
+
+.pagination-container {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.pagination-button {
+    background-color: #ffffff;
+    border: 1px solid #d8d8d8;
+    color: #333;
+    padding: 6px 12px;
+    margin: 0 2px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    border-radius: 0.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    height: 36px;
+}
+
+.pagination-button svg {
+    fill: black;
+    width: 0.7rem;
+    height: 0.7rem;
+    flex-shrink: 0;
+}
+
+.pagination-button:hover {
+    background-color: #f0f0f0;
+}
+
+.pagination-button.active {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    margin: 0 5px;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 900px) {
+    .filter-search-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .search-bar {
+        flex: 1;
+    }
+    
+    .search-bar lightning-input {
+        width: 100%;
+    }
+    
+    .right-controls {
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+    
+    .action-buttons {
+        flex: 1;
+        justify-content: flex-start;
+    }
+    
+    .pagination-section {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .pagination-container {
+        order: 2;
+    }
+    
+}
+
+@media only screen and (max-width: 768px) {
+    .custom-data-table {
+        font-size: 12px;
+    }
+    
+    .header-cell {
+        padding: 8px 5px;
+        font-size: 12px;
+    }
+    
+    .custom-data-table td {
+        padding: 8px 5px;
+    }
+    
+    .action-button {
+        padding: 0.4rem 0.8rem;
+        font-weight: 600;
+        height: 36px;
+    }
+    
+    .action-button svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .filter-search-container {
+        padding: 6px 1px;
+    }
+    
+    .right-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .action-buttons {
+        justify-content: center;
+    }
+}
+
+@media only screen and (max-width: 480px) {
+    .action-button {
+        padding: 0.4rem 0.6rem;
+        font-weight: 600;
+        height: 36px;
+        gap: 0.3rem;
+    }
+    
+    /* Adjust column widths for mobile */
+    .custom-data-table td:nth-child(1) { width: 10%; max-width: 40px; }
+    .custom-data-table td:nth-child(2) { width: 15%; max-width: 60px; }
+    .custom-data-table td:nth-child(3) { width: 20%; max-width: 80px; }
+    .custom-data-table td:nth-child(4) { width: 25%; max-width: 120px; }
+    .custom-data-table td:nth-child(5) { width: 10%; max-width: 50px; }
+    .custom-data-table td:nth-child(6) { width: 10%; max-width: 60px; }
+    
+    .custom-data-table th:nth-child(1) { width: 10%; }
+    .custom-data-table th:nth-child(2) { width: 15%; }
+    .custom-data-table th:nth-child(3) { width: 20%; }
+    .custom-data-table th:nth-child(4) { width: 25%; }
+    .custom-data-table th:nth-child(5) { width: 10%; }
+    .custom-data-table th:nth-child(6) { width: 10%; }
+    
+    /* Reduce font size for mobile */
+    .custom-data-table {
+        font-size: 11px;
+    }
+    
+    .header-cell {
+        font-size: 11px;
+        padding: 6px 3px;
+    }
+    
+    .custom-data-table td {
+        padding: 6px 3px;
+    }
+    
+    /* Make action buttons smaller on mobile */
+    .costcode-edit-icon-btn, .costcode-delete-icon-btn {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .costcode-action-button-container svg {
+        width: 12px;
+        height: 12px;
+    }
+}

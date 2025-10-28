@@ -1,0 +1,171 @@
+<template>
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+    </template>
+
+    <div class="mainDiv" id="modal-content-id-1">
+        <div class="main-cover">
+            <div class="header_container_css">
+                <div class="header_title_css">
+                    <div class="header-action">
+                        <button class="add-new-btn" onclick={addNewRow}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Add Row
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="body-div">
+                <div class="tableContainer">
+                    <template if:true={isDataAvailable}>
+                        <div class="popup__header-row">
+                            <div class="slds-col display_css"></div>
+                            <div class="slds-col display_css">
+                                <p class="header-text">Field</p>
+                            </div>
+                            <div class="slds-col display_css">
+                                <p class="header-text">Display Format</p>
+                            </div>
+                            <div class="slds-col display_css">
+                                <p class="header-text">Edit</p>
+                            </div>
+                            <div class="slds-col display_css">
+                                <p class="header-text">Delete</p>
+                            </div>
+                        </div>
+                        <div class="popup__recordValues">
+                            <template for:each={items} for:item="item" for:index="index">
+                                <div key={item.id} class="popup__data-row" draggable="true" data-index={index} ondragstart={handleDragStart} ondragover={handleDragOver} ondrop={handleDrop} ondragleave={handleDragLeave} ondragend={handleDragEnd}>
+                                    <div class="slds-col drag-icon" title="Drag to reorder">
+                                        <svg width="16" height="16" viewBox="0 0 20 20" fill="#666" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="4" cy="4" r="1.5"/>
+                                            <circle cx="4" cy="10" r="1.5"/>
+                                            <circle cx="4" cy="16" r="1.5"/>
+                                            <circle cx="10" cy="4" r="1.5"/>
+                                            <circle cx="10" cy="10" r="1.5"/>
+                                            <circle cx="10" cy="16" r="1.5"/>
+                                        </svg>
+                                    </div>
+                                    <div class="slds-col wrap_css">
+                                        <div class="combobox-cover">
+                                            <div class="combobox-input" data-index={index} data-field="fieldName" data-id={index} onclick={handleFocus1}>
+                                                <div class="input-show">
+                                                    {item.label}
+                                                </div>
+                                                <div class="add-btn-class"  data-index={index} data-field="fieldName" data-id={index} onclick={handleFocus1}>
+                                                    <svg width="16" height="10" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg" data-index={index} data-field="fieldName" data-id={index} onclick={handleFocus1}>
+                                                        <path d="M2 1.75L8 7.75L14 1.75" stroke="#131314" stroke-width="2" stroke-linecap="square"/>
+                                                    </svg>                                                                                                                       
+                                                </div>
+                                                <template if:true={item.isFocused}>
+                                                    <div class="options-box" >
+                                                        <input type="text" class="slds-input slds-combobox__input picklist-input"
+                                                            placeholder="Search by Name..." data-id={index} 
+                                                            data-index={index} data-field="fieldName"
+                                                            onkeyup={handleSearchChange} onfocus={handleFocus1} onblur={handleBlur1} 
+                                                            minlength="0" maxlength="25"/>
+                                                        <ul class="options-cover" onmousedown={handlePreventDefault}>
+                                                            <template for:each={filteredFieldOptions} for:item="option1" for:index="index1">
+                                                                <template if:false={option1.showRightIcon}>
+                                                                    <template if:false={option1.showRightRef}>
+                                                                    <li key={option1.value} data-index={index} data-label={option1.label} data-type={option1.fieldType} data-id={option1.value} onclick={selectOption1}
+                                                                        class="options-value">
+                                                                        <span class="slds-media__body">
+                                                                            <span class="_entity">{option1.label}</span>
+                                                                        </span>
+                                                                    </li>
+                                                                    </template>
+                                                                </template>
+                                                                <template if:true={option1.showRightIcon}>
+                                                                    <li data-index={index} key={option1.value} data-id={option1.value} class="selected-item slds-listbox__item">
+                                                                        <div class="slds-listbox__option slds-listbox__option_plain slds-media slds-media_small slds-media_center picklist-option">
+                                                                            <span class="slds-media__body">
+                                                                                <span class="slds-truncate" title={option1.label}>{option1.label}</span>
+                                                                            </span>
+                                                                        </div>
+                                                                    </li>
+                                                                </template>  
+                                                                <template if:true={option1.showRightRef}>
+                                                                    <li  key={option1.value} data-index={index} data-label={option1.relationshipName}  data-id={option1.value} onclick={clickOnRef} class="slds-listbox__item">
+                                                                        <div class="slds-listbox__option slds-listbox__option_plain slds-media slds-media_small slds-media_center picklist-option">
+                                                                            <span class="slds-media__body">
+                                                                                <span class="slds-truncate" title={option1.label}>{option1.label}</span>
+                                                                            </span>
+                                                                            <span class="slds-media__figure slds-media__figure_reverse">
+                                                                                    <lightning-icon icon-name="utility:chevronright" alternative-text="Lookup Field" size="x-small"></lightning-icon>
+                                                                            </span>
+                                                                        </div>
+                                                                    </li>
+                                                                </template>  
+                                                            </template>
+                                                        </ul>
+                                                    </div>
+                                                    <template if:true={showParentDropDown}>
+                                                        <div class="options-box option-box-parent" >
+                                                        <ul class="options-cover" onmousedown={handlePreventDefault}>
+                                                            <template for:each={parentFieldsOption} for:item="option1" for:index="index1">
+                                                                <template if:false={option1.showRightIcon}>
+                                                                    <li key={option1.value} data-index={index} data-label={option1.label} data-type={option1.fieldType} data-id={option1.value} onclick={selectOptionParent}
+                                                                        class="options-value">
+                                                                        <span class="slds-media__body">
+                                                                            <span class="_entity">{option1.label}</span>
+                                                                        </span>
+                                                                    </li>
+                                                                </template>
+                                                            </template>
+                                                        </ul>
+                                                    </div>
+                                                    </template>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="slds-col wrap_css">
+                                       <lightning-combobox options={item.picklist} variant="label-hidden" value={item.format} onchange={handleFormatChange} data-id={index} disabled={item.isDisable}></lightning-combobox>
+                                    </div>
+                                    <div class="slds-col wrap_css order_btn_grp">
+                                        <label class="custom-checkbox">
+                                            <input type="checkbox" 
+                                                   checked={item.isEditable} 
+                                                   data-index={index} 
+                                                   onchange={handleEditableChange}
+                                                   disabled={item.isEditableDisabled}>
+                                            <span class="checkmark" style={item.isEditableDisabled}>
+                                                <template if:true={item.isEditableDisabled}>
+                                                    <span class="disabled-tooltip" title="Formula and rollup summary fields cannot be edited">
+                                                        <svg width="12" height="12" viewBox="0 0 20 20" fill="#ccc">
+                                                            <path d="M10,1 C15,1 19,5 19,10 C19,15 15,19 10,19 C5,19 1,15 1,10 C1,5 5,1 10,1 Z M10,13 C10.6,13 11,13.4 11,14 C11,14.6 10.6,15 10,15 C9.4,15 9,14.6 9,14 C9,13.4 9.4,13 10,13 Z M10,5 C10.6,5 11,5.4 11,6 L11,11 C11,11.6 10.6,12 10,12 C9.4,12 9,11.6 9,11 L9,6 C9,5.4 9.4,5 10,5 Z"/>
+                                                        </svg>
+                                                    </span>
+                                                </template>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div class="slds-col wrap_css order_btn_grp">
+                                        <div class="delete-div" onclick={handleDelete} data-index={index}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 25 24" fill="none">
+                                                <path d="M19.4395 8.69727C19.6385 8.69738 19.8191 8.78402 19.9619 8.93066C20.0952 9.08766 20.163 9.28326 20.1436 9.48926C20.1429 9.56521 19.6099 16.2984 19.3057 19.1338C19.1151 20.8747 17.993 21.9319 16.3096 21.9609C15.0151 21.9899 13.7497 22 12.5039 22C11.1812 22 9.8874 21.9899 8.63184 21.9609C7.00488 21.9218 5.88206 20.8457 5.70117 19.1338C5.38816 16.2881 4.86472 9.56385 4.85449 9.48926C4.84477 9.28326 4.91071 9.08766 5.04492 8.93066C5.17715 8.78375 5.36811 8.69731 5.56836 8.69727H19.4395ZM14.5645 2C15.4485 2 16.2382 2.61708 16.4668 3.49707L16.6309 4.22656C16.7631 4.82145 17.278 5.24302 17.8711 5.24316H20.7871C21.176 5.24316 21.4998 5.56576 21.5 5.97656V6.35742C21.4998 6.75821 21.176 7.09082 20.7871 7.09082H4.21387C3.82402 7.09082 3.50025 6.75821 3.5 6.35742V5.97656C3.50021 5.56576 3.824 5.24316 4.21387 5.24316H7.12988C7.72203 5.24301 8.2369 4.82143 8.37012 4.22754L8.52344 3.5459C8.76078 2.61698 9.54181 2 10.4355 2H14.5645Z" fill="currentColor"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template if:false={isDataAvailable}>
+                        <div class="no-data-container">
+                            <span>No Fields Are Selected. Please Add New Fields</span>
+                        </div>
+                    </template>
+                </div>
+                <div class="footerbtns">
+                    <button class="cancel_btn_css" aria-label="Cancel and close" onclick={closeModal}>Cancel</button>
+                    <button class="save_btn_css" onclick={saveRecords}>Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

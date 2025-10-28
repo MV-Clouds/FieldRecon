@@ -1,0 +1,19 @@
+.btn_bgcolor button
+{
+    background-color:#FDAE04 !important;
+    border:none !important;
+    color:white !important;
+}
+.btn_bgcolor button:hover
+{
+    background-color:#FDAE04 !important;
+    border:none !important;
+    color:white !important;
+}
+.btn_bgcolor button:disabled
+{
+    background-color: white !important;
+    border:1px solid !important;
+    color:rgba(215, 218, 233, 1) !important;
+}
+

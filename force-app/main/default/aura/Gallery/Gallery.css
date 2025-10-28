@@ -1,0 +1,12 @@
+.THIS {
+  box-sizing: border-box;
+}
+
+.THIS .column{
+  flex: 33.33%;
+  padding: 5px;
+}
+
+.THIS .row::after {
+    display: flex;
+  }

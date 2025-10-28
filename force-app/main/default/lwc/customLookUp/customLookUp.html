@@ -1,0 +1,66 @@
+<template>
+    <div class="searchRes slds-form-element slds-lookup slds-is-close" data-select="single">
+        <template if:true={label}>
+            <label class="slds-form-element__label" for="lookup-348">
+                <template if:true={required}>
+                    <abbr title="required" class="slds-required">*</abbr>
+                </template>
+                {label}
+            </label>
+        </template>
+        <!--This part is for display search bar for lookup-->  
+        <div class="slds-form-element__control" >
+            
+            <div class="slds-input-has-icon slds-input-has-icon--right">
+              <lightning-icon class="searchIcon slds-input__icon slds-show" 
+                              icon-name="utility:search" 
+                              size="x-small" 
+                              alternative-text="search"></lightning-icon> 
+                <!-- This markup is for when an record is selected -->
+                <div class="lookup-pill slds-pill_container slds-hide" >
+                    <template if:false={readOnly}>
+                        <lightning-pill class="pillSize pillWidth"  label={selectedRecord.Name} name={selectedRecord.Name} onremove={clear}>
+                                <lightning-icon icon-name={iconName} size="small"></lightning-icon>                        
+                         </lightning-pill>
+                    </template>
+                    <template if:true={readOnly}>
+                            <lightning-formatted-text class="slds-input slds-disabled" value={selectedRecord.Name}></lightning-formatted-text>
+                    </template>
+                </div>
+                <div class="lookupField slds-show">
+                    <template if:true={iconName}>
+                        <div class="user">
+                            <span class="slds-icon_container slds-combobox__input-entity-icon" title="record">
+                                <span class="slds-assistive-text"></span>
+                            </span>
+                        </div>
+                    </template>
+                    <lightning-input  
+                                        onclick={onfocus}
+                                        update-on="keyup" 
+                                        onkeyup={keyPressController} 
+                                        class="slds-lookup__search-input input searchText" 
+                                        value={SearchKeyWord}
+                                        variant="label-hidden"
+                                        placeholder={placeholder}
+                                        autocomplete="off"
+                                        onblur={mouseBlur}
+                                        >
+                    </lightning-input>
+                </div>   
+            </div>
+        </div>
+        <!--This part is for Display typehead lookup result List-->
+        <ul class="slds-listbox slds-listbox_vertical slds-dropdown slds-dropdown_fluid slds-lookup__menu slds slds-dropdownList" role="listbox">
+            <template if:true={isProcessing}>
+                <c-lib-spinner alternative-text="Loading" size="small" is-global="true"></c-lib-spinner>
+            </template>
+            <center> {Message}</center>
+            <template for:each={listOfSearchRecords} for:item="singleRec">
+                <c-custom-lookup-result o-record={singleRec} icon-name={iconName} field-name={labelFieldName} 
+                key={singleRec} onselected={handleLookupResultEvent}>
+            </c-custom-lookup-result>
+            </template>
+        </ul>
+    </div>
+</template>

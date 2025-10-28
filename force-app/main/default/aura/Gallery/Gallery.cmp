@@ -1,0 +1,119 @@
+<aura:component
+    access="global"
+    controller="GalleryController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:attribute name="recordId" type="Id" default="" />
+    <aura:attribute name="Chatterfiles" type="List" />
+    <aura:attribute name="Galleryfiles" type="List" />
+    <aura:attribute name="files" type="List" />
+    <aura:attribute name="filesMap" type="List"/>
+    <aura:attribute name="fatchedRecordNo" type="Integer" default="5" />
+    <aura:attribute name="selectedDocumentId" type="string" />
+    <aura:attribute name="viewAll" type="Boolean" default="false" />
+    <aura:attribute name="Spinner" type="Boolean" default="false" />
+    <aura:attribute name="selectedtab" type="String" default="Chatter" />
+
+    <aura:attribute
+        name="prefixURL"
+        type="String"
+        default="/sfc/servlet.shepherd/version/renditionDownload?rendition=ORIGINAL_Png&amp;versionId="
+    />
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+
+    <lightning:workspaceAPI aura:id="workspace" />
+
+    <lightning:tabset onselect="{!c.handleSelect}" selectedTabId="{!v.selectedtab}">
+        <lightning:tab label="Chatter" id="Chatter"> </lightning:tab>
+        <lightning:tab label="Gallery" id="Gallery">
+            <aura:renderIf isTrue="{!v.Spinner}">
+                <lightning:spinner alternativeText="Loading" variant="brand" size="medium" />
+            </aura:renderIf>
+            <div style="padding-left: 20px;">
+                <c:FileUpload recordId="{!v.recordId}"></c:FileUpload>
+            </div>
+            <div class="slds-float_right" style="margin-top: -38px; padding-right: 20px;">
+                <lightning:button label="Refresh" variant="brand" onclick="{! c.onupload }" />
+            </div>
+        </lightning:tab>
+    </lightning:tabset>
+
+    <article class="slds-card">
+        <div class="slds-card__body">
+            <aura:if isTrue="{!not(empty(v.filesMap))}">
+                <aura:if isTrue="{!not($Browser.isPhone)}">
+                    <div class="slds-wrap">
+                        <aura:iteration items="{!v.filesMap}" var="li" start="0" indexVar="ir">
+                            <aura:if isTrue="{!li.Name != ''}">
+                            <h3 class="slds-section-title--divider slds-p-around--medium slds-m-bottom--x-small">{!li.Name}</h3>
+                            </aura:if>
+                                <div class="slds-grid slds-wrap">
+                                    <aura:iteration items="{!li.fileId}" var="rec" start="0" indexVar="irv">
+                                        <div class="slds-col slds-size_1-of-3 slds-align_absolute-center">
+                                            <div class="slds-box_x-small slds-text-align_center">
+                                                <lightning:fileCard fileId="{!rec}" />
+                                                <aura:if isTrue="{!v.selectedtab == 'Chatter'}">
+                                                    <lightning:button
+                                                        variant="base"
+                                                        label="Show Chat"
+                                                        title="Base action"
+                                                        value="{!li.feedId}"
+                                                        onclick="{! c.openChat }"
+                                                    />
+                                                </aura:if>
+                                            </div>
+                                        </div>
+                                    </aura:iteration>
+                                </div>
+                        </aura:iteration>
+                    </div>
+
+                    <aura:set attribute="else">
+                        <div class="slds-wrap">
+                            <aura:iteration items="{!v.filesMap}" var="li" start="0" indexVar="ir">
+                                <aura:if isTrue="{!li.Name != ''}">
+                                <h3 class="slds-section-title--divider slds-p-around--medium slds-m-bottom--x-small">{!li.Name}</h3>
+                                </aura:if>
+                                <div class="slds-grid slds-wrap">
+                                    <aura:iteration items="{!li.fileId}" var="rec" start="0" indexVar="irv">
+                                        <div class="slds-col slds-size_1-of-1 slds-align_absolute-center">
+                                            <div class="slds-box_x-small slds-text-align_center">
+                                                <lightning:fileCard fileId="{!rec}" />
+                                                <aura:if isTrue="{!v.selectedtab == 'Chatter'}">
+                                                    <lightning:button
+                                                        variant="base"
+                                                        label="Show Chat"
+                                                        title="Base action"
+                                                        value="{!li.feedId}"
+                                                        onclick="{! c.openChat }"
+                                                    />
+                                                </aura:if>
+                                            </div>
+                                        </div>
+                                    </aura:iteration>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </aura:set>
+                </aura:if>
+
+                <aura:set attribute="else">
+                    <div class="slds-illustration slds-illustration_large" aria-hidden="true" style="margin-top: 10%;">
+                        <img src="/img/chatter/OpenRoad.svg" class="slds-illustration__svg" alt="No Assigned Jobs" />
+                        <div class="slds-text-color_weak">
+                            <h3 class="slds-text-heading_medium">No Images Uploaded Yet</h3>
+                        </div>
+                    </div>
+                </aura:set>
+            </aura:if>
+            <footer class="slds-card__footer">
+                <a class="slds-card__footer-action" href="javascript:void(0);" onclick="{!c.viewAll}">
+                    {!v.selectedtab == 'Chatter' ? v.fatchedRecordNo >= v.Chatterfiles.length ? '' : 'View More...' :
+                    v.selectedtab == 'Gallery' ? v.fatchedRecordNo >= v.Galleryfiles.length ? '' : 'View More...':''}
+                    <span class="slds-assistive-text">Gallery</span>
+                </a>
+            </footer>
+        </div>
+    </article>
+</aura:component>

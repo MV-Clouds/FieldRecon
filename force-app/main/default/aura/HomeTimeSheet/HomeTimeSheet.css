@@ -1,0 +1,34 @@
+.THIS .font {
+    font-size:15px;
+    color:#837F7F;
+    text-align:justify;
+    padding-right:10px;
+    font-weight:normal;
+}
+.THIS .background{
+    border:1px solid #e6dede; 
+    border-radius:5px;
+}
+
+.THIS .fontsize{
+     font-size:13px;
+     text-align:justify;
+     font-weight:bold;
+}
+.THIS .background1{
+    border-top:1px solid #e6dede;
+    border-radius:5px;
+}
+
+.THIS .slds-scrollable_y {
+    max-height: 250px;
+}
+.THIS .back svg{
+    fill: red;
+}
+.THIS .forward svg{
+    fill: green;
+}
+.THIS .boxshadow{
+    box-shadow: 2px 2px 4px 5px #ccc
+}

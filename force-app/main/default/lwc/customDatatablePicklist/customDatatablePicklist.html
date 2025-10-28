@@ -1,0 +1,56 @@
+<template>
+    <div class="slds-p-horizontal_xxx-small" >
+    <template if:true={isEditable}>
+        <div class="searchRes slds-form-element slds-lookup slds-is-close" data-select="single">
+        <div class="slds-grid slds-wrap">
+            <div class="slds-col slds-size_10-of-12">
+                <lightning-input class="slds-p-around_xx-small" type="search" variant="label-hidden" onchange={setSearchTerm} name="timezone-search"></lightning-input>
+            </div>
+            <div class="slds-col slds-size_2-of-12 slds-align_absolute-center">
+                <lightning-button-icon  icon-name="utility:close" onclick={convertToText}  variant="container" alternative-text="close" title="Settings"></lightning-button-icon>
+            </div>
+        </div>
+        <div class="slds-form-element__control">
+            <div class="slds-combobox_container">
+                <div id="listbox-id-4" class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid" role="listbox">
+                    <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+                        <template for:each={listOfSearchRecords} for:item="singleRec">
+                            <li key={singleRec} data-value={singleRec.value} role="presentation" class="slds-listbox__item" onclick={handleSelect}>
+                                <div id={singleRec} data-value={singleRec.value} class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" role="option">
+                                    <span class="slds-media__figure slds-listbox__option-icon" title={singleRec.value}></span>
+                                    <span class="slds-media__body" title={singleRec.value}>
+                                      <span class="slds-truncate" data-label={singleRec.label} title={singleRec.value}>{singleRec.label}</span>
+                                    </span>
+                                  </div>
+                            </li>
+                        </template>
+                        <template if:false={hasData}>
+                            <li  role="presentation" class="slds-listbox__item" >
+                                <div  class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" role="option">
+                                    <span class="slds-media__figure slds-listbox__option-icon"></span>
+                                    <span class="slds-media__body">
+                                      <span class="slds-truncate" >No Timezones Found!</span>
+                                    </span>
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    </template>
+    <template if:false={isEditable}>
+        <div class="slds-grid">
+            <div class="slds-col slds-size_8-of-12">
+                <lightning-formatted-text value={selectedTimeZone}></lightning-formatted-text>
+            </div>
+            <div class="slds-col slds-size_2-of-12"></div>
+            <div class="slds-col slds-size_2-of-12">
+                <lightning-button-icon alternative-text="Edit" variant="bare" icon-name="utility:edit"
+                                onclick={convertPick}></lightning-button-icon>
+            </div>
+        </div>
+    </template>
+    </div>
+</template>

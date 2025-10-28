@@ -1,0 +1,11 @@
+.THIS .slds-swatch{
+    width:400px;
+}
+
+.THIS .slds-theme_backgroundColor-lightblue {
+    background-color: lightblue;
+}
+
+.THIS .hideLabel label{
+    display:none;
+}

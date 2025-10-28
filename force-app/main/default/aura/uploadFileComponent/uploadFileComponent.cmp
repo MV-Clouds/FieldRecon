@@ -1,0 +1,24 @@
+<aura:component
+    access="global"
+    controller="ProfilePictureController"
+    implements="flexipage:availableForAllPageTypes,force:hasRecordId"
+    extends="c:lib_base"
+>
+    <!-- Id of the Record the page hosting this component is showing -->
+    <aura:attribute name="recordId" type="Id" />
+
+    <aura:attribute name="pictureSrc" type="String" default="{v.pictureSrc}" />
+
+    <aura:attribute name="message" type="String" default="Drag profile picture here" access="global" />
+
+    <aura:handler name="init" value="{!this}" action="{!c.onInit}" />
+    <aura:attribute name="loaded" type="Boolean" default="false" />
+    <aura:attribute name="Spinner" type="Boolean" default="false" />
+    <aura:renderIf isTrue="{!v.Spinner}">
+        <lightning:spinner variant="brand" size="large" alternativeText="Loading, Please Wait..." />
+    </aura:renderIf>
+    <div ondragover="{!c.onDragOver}" ondrop="{!c.onDrop}">
+        <img src="{!v.pictureSrc}" width="200px" height="200px" />
+        <p>{!v.message}</p>
+    </div>
+</aura:component>

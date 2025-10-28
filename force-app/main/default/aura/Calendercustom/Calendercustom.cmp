@@ -1,0 +1,6 @@
+<aura:component controller="CalendarClass" implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    access="global" extends="c:lib_base">
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <iframe src="{!v.srcCalendarURL}" width="100%" height="100%" style="background-color:white" />
+    
+</aura:component>

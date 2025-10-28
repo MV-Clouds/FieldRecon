@@ -1,0 +1,229 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-18-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+  Modifications Log 
+  Ver   Date         Author                               Modification
+  1.0   04-06-2021   ChangeMeIn@UserSettingsUnder.SFDoc   Initial Version
+-->
+<template>
+    <div class="container slds-var-p-around_x-small" data-id = "tabledata">
+        <lightning-layout
+      class="slds-var-m-horizontal_xxx-small slds-var-m-bottom_small slds-wrap"
+      flexibility="auto"
+      horizontal-align="space"
+      vertical-align="end"
+      multiple-rows="true"
+    >
+      <!-- Group by filter -->
+      <lightning-layout-item
+        size="12"
+        medium-device-size="2"
+        class="slds-var-p-around_x-small"
+      >
+        <lightning-combobox
+          label="Group By"
+          value={dateSelected}
+          placeholder="Select Date Range"
+          options={dateOptions}
+          onchange={handleDateRangeChange}
+        ></lightning-combobox>
+      </lightning-layout-item>
+      <!-- /Group by filter -->
+
+      <!-- Start / End date inputs -->
+      <template if:true={showDateRangeFields}>
+        <lightning-layout-item
+          size="6"
+          medium-device-size="2"
+          class="slds-var-p-around_x-small"
+        >
+          <lightning-input
+            label="Start Date"
+            type="date"
+            variant="standard"
+            onchange={startDatehandleChange}
+          ></lightning-input>
+        </lightning-layout-item>
+        <lightning-layout-item
+          size="6"
+          medium-device-size="2"
+          class="slds-var-p-around_x-small"
+        >
+          <lightning-input
+            label="End Date"
+            type="date"
+            variant="standard"
+            onchange={endDatehandleChange}
+          ></lightning-input>
+        </lightning-layout-item>
+      </template>
+      <!-- /Start / End date inputs -->
+
+      <!-- Filter by Employee -->
+      <lightning-layout-item
+        size="12"
+        medium-device-size="2"
+        class="slds-var-p-around_x-small"
+      >
+        <c-custom-look-up
+          object-a-p-i-name="Contact"
+          soql-filter="TimeSheetReport_UserSOQLFilter"
+          icon-name="standard:contact"
+          placeholder="All"
+          label="Filter by Employee"
+          onlookupchanged={onUserFilterChanged}
+        ></c-custom-look-up>
+      </lightning-layout-item>
+      <!-- /Filter by Employee -->
+
+      <!-- Filter by Billablity Type -->
+      <lightning-layout-item
+        size="12"
+        medium-device-size="2"
+        class="slds-var-p-around_x-small"
+      >
+      <lightning-combobox
+        name="status"
+        label="Filter by Expense Type"
+        value={selectedJobStatus}
+        placeholder="Select Status"
+        options={expenseTypeOptions}
+        onchange={onBillablityStatusChanged}
+    ></lightning-combobox>
+      </lightning-layout-item>
+      <!-- /Filter by Billablity Type -->
+      <lightning-layout-item
+        size="12"
+        medium-device-size="2"
+        class="slds-var-p-around_x-small">
+        <lightning-button
+          variant="brand-outline"
+          label="Download"
+          title="Download (CSV)"
+          onclick={onDownload}
+          icon-name="utility:download"
+        ></lightning-button>
+      </lightning-layout-item>
+      <template if:true={formFactor}>
+      <lightning-layout-item
+        class="slds-var-p-around_x-small">
+        <lightning-button
+        variant="brand-outline"
+          label="Generate PDF"
+          title="Download pdf"
+          onclick={generatePdf}
+          icon-name="doctype:pdf"
+      ></lightning-button>
+      </lightning-layout-item>
+      </template>
+    </lightning-layout>
+    <!-- /Filters --> 
+    <!-- Spinner -->
+    <template if:true={isLoading} >
+      <lightning-spinner
+        size="x-small"
+        alternative-text="Loading..."
+        style = "position: fixed !important;"
+      ></lightning-spinner>
+      </template>
+    <!--/Spinner-->
+    <div class = "section-to-print">
+    <div class="slds-is-relative " >
+        <template for:each={expenseSheetToDisplay} for:item="es">
+          <!-- Display timesheet data in a single card (Daily/Weekly/Monthly/Custom) -->
+          <div key={es.title} class="slds-var-m-vertical_small">
+            <lightning-card title={es.title} variant="base">
+              <!-- Display timesheet data -->
+              <c-custom-datatable
+                columns={columns}
+                key-field="memberLink"
+                data={es.data}
+                hide-checkbox-column="true"
+                class="slds-table_bordered"
+                onlinkclicked={onLinkClick}
+                onbuttonclicked={handleAppRejAction}
+              ></c-custom-datatable>
+              <!-- /Display timesheet data -->
+            </lightning-card>
+            <lightning-layout
+              horizontal-align="end"
+              class="slds-var-p-around_small"
+            >
+              <lightning-layout-item>
+                <span class="slds-text-title_caps"
+                  >Total Approved/Paid Amount &nbsp;|&nbsp;
+                </span>
+                <span class="slds-text-title_bold">${es.totalAmount} </span>
+              </lightning-layout-item>
+            </lightning-layout>
+          </div>
+          <!-- /Display timesheet data in a single card (Daily/Weekly/Monthly/Custom) -->
+        </template>
+      </div>
+      <template if:true={hasDataToDisplay}>
+        <c-custom-paginator
+          all-record-ids={expenseDataIds}
+          current-page={currentPage}
+          onpagechanged={onPageChanged}
+        ></c-custom-paginator>
+      </template>
+      </div>
+      <template if:false={hasDataToDisplay}>
+        <div class="slds-align_absolute-center slds-text-heading_medium slds-text-color_weak slds-var-p-around_medium"
+        style = "height: 50vh;">
+          It's empty in here!
+        </div>
+      </template>
+    </div>
+    <c-modal show-modal={showRealtedFilesModal} onclosedialog={onRealtedFilesModalClosed}>
+      <span slot="header">Related Files</span>
+      <!-- Spinner -->
+    <template if:true={isModalLoading}>
+      <lightning-spinner
+        size="x-small"
+        alternative-text="Loading..."
+      ></lightning-spinner>
+    </template>
+    <!-- /Spinner -->
+      <template if:false = {selectedExpenseFiles.length}>
+        <div class="slds-align_absolute-center slds-text-heading_medium slds-text-color_weak slds-var-p-around_medium">
+          It's empty in here!
+        </div>
+      </template>
+      <template if:true = {selectedExpenseFiles.length}>
+            <lightning-datatable
+              columns={realtedFilesColumns}
+              key-field="id"
+              data={selectedExpenseFiles}
+              hide-checkbox-column="true"
+              class="slds-table_bordered"
+              onrowaction ={onDatatableLinkClicked}
+            ></lightning-datatable>
+      </template>
+            <!-- /Display timesheet data -->  
+    </c-modal>
+    <c-modal show-modal={showRejectionModal} onclosedialog={onRejectionModalClosed}>
+      <span slot="header">Rejection Reason</span>
+      <!-- Spinner -->
+      <template if:true={isModalLoading}>
+        <lightning-spinner
+          size="x-small"
+          alternative-text="Loading..."
+        ></lightning-spinner>
+      </template>
+      <lightning-record-edit-form 
+      record-id={recordId}
+      object-api-name={namespaceObject}
+      onsuccess={handleSuccess}
+      onload={handleLoad}>
+      <lightning-messages></lightning-messages>
+      <lightning-output-field field-name="Name"></lightning-output-field>
+      <lightning-input-field field-name={namespaceStatus} value = "Denied" disabled ="true"></lightning-input-field>
+      <lightning-input-field field-name={namespaceRejectionField}></lightning-input-field>
+      <lightning-button type="submit" label="Save" variant="brand" onclick={handleRejectionSubmit}></lightning-button>
+      </lightning-record-edit-form>
+    </c-modal>
+</template>

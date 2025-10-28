@@ -1,0 +1,215 @@
+<apex:page sidebar="false" showHeader="false" title="DailyReport" id="thePage" standardController="Job__c" extensions="DailyReportController"
+    standardStylesheets="false" applyHtmlTag="false" applyBodyTag="false" renderAs="pdf" contentType="application/pdf#xyz.pdf">
+    <!--<apex:page sidebar="false" showHeader="false" title="Quotation" id="thePage" controller="DailyReportController"-->
+    <!--    standardStylesheets="false" applyHtmlTag="false" applyBodyTag="false" -->
+    <!--    contentType="application/pdf#xyz.pdf">-->
+
+    <head>
+        <style>
+            @page: first {
+                size: 8.5in 11in;
+                width height margin-left: 0in;
+                margin-right: 0in;
+                margin-top: 1.6cm;
+                margin-bottom: 1.6cm;
+                border: 5px;
+                @top-center {
+                    content: element(header);
+                }
+                @bottom-left {
+                    content: element(footer);
+                }
+                @bottom-center {
+                    content: counter(page);
+                }
+            }
+
+            @page {
+                size: 8.5in 11in;
+                /* width height */
+                margin-left: 0in;
+                margin-right: 0in;
+                margin-top: 3cm;
+                margin-bottom: 1.6cm;
+                border: 5px;
+                @top-center {
+                    content: element(header);
+                }
+                @bottom-left {
+                    content: element(footer);
+                }
+                @bottom-center {
+                    content: counter(page);
+                }
+            }
+
+            div.header {
+                padding-top: 0.1cm;
+                margin-top: 0cm;
+                margin-left: 0.1cm;
+                margin-right: 0.1cm;
+                background-color: white;
+                /*padding-bottom: 10px;*/
+                height: 1.3cm;
+                width: 8.4in;
+                color: white;
+                /*text-align: center;*/
+                font-size: 30px;
+                position: running(header);
+            }
+
+            div.footer {
+                display: block;
+                height: 1cm;
+                width: 8.6in;
+                margin-left: 0.3cm;
+                /*padding: 5px;*/
+                position: running(footer);
+            }
+
+            div.content {
+                width: 8.5in;
+                margin-left: -0.2cm;
+                padding-top: 0cm;
+                float: left;
+
+                font-family: sans-serif;
+            }
+
+            .page-break {
+                display: block;
+                page-break-after: always;
+            }
+
+            .pagecount:after {
+                content: counter(pages);
+            }
+
+            .pagenumber:before {
+                content: counter(page);
+                padding-left: 7px;
+            }
+
+            .col1 {
+                width: 25%;
+                text-align: left;
+
+            }
+
+            .col3 {
+                width: 33%!important;
+            }
+
+            .col2 {
+                width: 5%;
+            }
+
+            .nobreak {
+                page-break-inside: avoid;
+            }
+        </style>
+    </head>
+    <div style="margin-top:40px;height:auto">
+        <div class="header" style="text-align:center">
+            <apex:repeat value="{!documentList}" var="document">
+                <apex:image id="theImage" value="{!'/servlet/servlet.FileDownload?file=' & document.Id}" />
+            </apex:repeat>
+            <div style="background-color: #D4D5D4; width: 7.95in;height: 0.05in;margin-left:8px;margin-top:-10.5px;"></div>
+        </div>
+    </div>
+    <div class="footer">
+        <div style="background-color: #D4D5D4 ; width: 8in;height: 0.05in;margin-left:8px;margin-top:-10.5px;"></div>
+        <br/>
+        <span class="pagenumber" /> of
+        <span class="pagecount" />
+    </div>
+
+    <div class="content" style="margin-top:60px;width:92%;margin-left:30px">
+        <table width="100%">
+            <tr style="background-color:#D4D5D4;padding:10px;width:100%;margin-bottom:20px">
+                <td style="color:balck;font-size:15px;font-weight:bold;padding-left:20px;height:30px" colspan="4">Job Details</td>
+            </tr>
+            <apex:repeat value="{!jobdetail}" var="job">
+                <tr>
+                    <td class="col1">Job Number:</td>
+                    <td class="col1">{!job.Name}</td>
+                    <td class="col1">Job Name:</td>
+                    <td class="col1">{!job.Job_Name__c}</td>
+
+                </tr>
+                <tr>
+                    <td class="col1" valign="top"> Job Address:</td>
+                    <td class="col1">{!job.Address__c}</td>
+                    <td class="col1" valign="top">Account:</td>
+                    <td class="col1" valign="top">{!job.Account__r.Name}</td>
+
+                </tr>
+                <br/>
+                <tr>
+                    <td class="col1">Actual Man Hours:</td>
+                    <td class="col1">{!job.Actual_Man_Hours__c}</td>
+                    <td class="col1" colspan="2"></td>
+
+                </tr>
+                <br/>
+                <br/>
+            </apex:repeat>
+        </table>
+        <table border="" cellspacing="0" style="margin-bottom:30px">
+            <tr style="background-color:#D4D5D4;padding:10px;width:100%;margin-bottom:20px">
+                <td style="color:balck;font-size:15px;font-weight:bold;padding-left:20px;height:30px;width:30%!important" colspan="3">Related TimeSheets</td>
+            </tr>
+            <apex:repeat value="{!jobdetail}" var="job">
+                <tr>
+                    <td class="col1">
+                        TimeSheet Name
+                    </td>
+                    <td class="col1">Time In
+                    </td>
+                    <td class="col1">Time Out
+                    </td>
+                </tr>
+                <apex:variable value="{!1}" var="i" />
+                <apex:repeat value="{!job.Timesheets__r}" var="time">
+                    <tr style="background-color:{!IF(mod(i,2)==0, 'white', '#f2f2f2')};height:40px;width:100%" class="nobreak">
+
+                        <td class="col1">{!time.Name}</td>
+                        <td class="col1">
+                            <apex:outputText value="{0,date,EE MM dd yyyy, hh:mm:ss aaa}">
+                                <apex:param value="{!time.Time_In__c}"></apex:param>
+                            </apex:outputText>
+                        </td>
+                        <td class="col1">{!time.Time_Out__c}</td>
+                    </tr>
+                    <apex:variable value="{!i+1}" var="i" />
+                </apex:repeat>
+            </apex:repeat>
+        </table>
+        <table border="" cellspacing="0" width="100%" style="margin-bottom:30px">
+            <tr style="background-color:#D4D5D4;padding:10px;width:100%;margin-bottom:20px">
+                <td style="color:balck;font-size:15px;font-weight:bold;padding-left:20px;height:30px;width:30%!important" colspan="3">Related Expenses</td>
+            </tr>
+            <apex:repeat value="{!jobdetail}" var="job">
+
+                <tr>
+                    <td class="col1"> Name
+                    </td>
+                    <td class="col1">Payement Type
+                    </td>
+                    <td class="col1">Amount
+                    </td>
+                </tr>
+                <apex:variable value="{!1}" var="i" />
+                <apex:repeat value="{!job.Expenses__r}" var="exp">
+                    <tr style="background-color:{!IF(mod(i,2)==0, 'white', '#f2f2f2')};height:40px;width:100%" class="nobreak">
+
+                        <td class="col1">{!exp.Name}</td>
+                        <td class="col1">{!exp.Payment_Type__c}</td>
+                        <td class="col1">{!exp.Amount__c}</td>
+                    </tr>
+                    <apex:variable value="{!i+1}" var="i" />
+                </apex:repeat>
+            </apex:repeat>
+        </table>
+    </div>
+</apex:page>

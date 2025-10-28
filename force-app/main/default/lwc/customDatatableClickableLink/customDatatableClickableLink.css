@@ -1,0 +1,10 @@
+.link {
+    cursor:pointer;
+    color: var(--lwc-brandTextLink,rgb(0, 109, 204));
+    text-decoration:none;
+    transition: color .1s linear;
+}
+
+.link:hover {
+    text-decoration:underline;
+}

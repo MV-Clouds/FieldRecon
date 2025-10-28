@@ -1,0 +1,14 @@
+<aura:component
+    access="global"
+    implements="lightning:homeTemplate"
+    description="Main column
+ and right sidebar. On a phone, the regions are of equal width"
+>
+    <aura:attribute name="left" type="Aura.Component[]" access="global" />
+    <aura:attribute name="right" type="Aura.Component[]" access="global" />
+    <div>
+        <lightning:layout>
+            <lightning:layoutItem flexibility="grow" class="slds-m-right_small"> {!v.left} </lightning:layoutItem>
+        </lightning:layout>
+    </div>
+</aura:component>

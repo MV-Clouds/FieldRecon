@@ -1,0 +1,206 @@
+<aura:component
+    access="global"
+    controller="HomepageController"
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    extends="c:lib_base"
+>
+    <aura:handler name="init" action="{!c.doInit}" value="{!this}" />
+    <aura:attribute name="expenses" type="List" />
+    <aura:attribute name="totalExpenses" type="Integer" />
+    <aura:attribute name="PageNumber" type="integer" default="1" />
+    <aura:attribute name="PageSize" type="integer" default="5" />
+    <aura:attribute name="TotalPages" type="integer" default="0" />
+    <aura:attribute name="TotalRecords" type="integer" default="0" />
+    <aura:attribute name="columns" type="List" />
+    <aura:attribute name="archive" type="String" />
+
+    <aura:attribute name="secondLevelAccess" type="Boolean" default="false" />
+
+    <aura:if isTrue="{!v.secondLevelAccess}">
+        <aura:if isTrue="{!$Browser.isPhone}">
+        <aura:if isTrue="{!v.expenses.length > 0}">
+            <lightning:card class="background1">
+                <div class="slds-page-header">
+                    <div class="slds-media">
+                        <div class="slds-media__figure">
+                            <span
+                                class="slds-icon_container slds-icon-standard-opportunity"
+                                title="Description of icon when needed"
+                            >
+                                <lightning:icon iconName="standard:job_profile" alternativeText="JOB" />
+                            </span>
+                        </div>
+                        <div class="slds-media__body">
+                            <div class="slds-page-header__name">
+                                <div class="slds-page-header__name-title">
+                                    <h1
+                                        class="slds-page-header__title slds-truncate slds-align-middle"
+                                        style="font-size: 15px;"
+                                        title="Expenses"
+                                    >
+                                        Expenses
+                                    </h1>
+                                    <p class="slds-page-header__name-meta">Total Expenses : {!v.totalExpenses}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <br />
+                        <div style="margin-bottom: 7%;">
+                            <div style="height: 20px; width: auto; margin-top: 0px;">
+                                <ui:inputSelect aura:id="pageSize" change="{!c.onSelectChange}">
+                                    <ui:inputSelectOption text="5" label="5" value="true" />
+                                    <ui:inputSelectOption text="10" label="10" />
+                                    <ui:inputSelectOption text="15" label="15" />
+                                    <ui:inputSelectOption text="20" label="20" />
+                                </ui:inputSelect>
+                                <br />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <br />
+
+                <aura:iteration items="{!v.expenses}" var="expense" indexVar="index">
+                    this one
+                    <aura:if isTrue="{!lessthan(index,v.PageSize)}">
+                        <div class="slds-grid slds-gutters">
+                            <div
+                                class="slds-col"
+                                ontouchend="{!c.openArchive}"
+                                data-id="{!expense.id}"
+                                onclick="{!c.openExpenses}"
+                            >
+                                <lightning:card
+                                    class="{!expense.status == 'Submitted' ? 'background_Submit' : expense.status == 'Approved' ? 'background_Approved' : expense.status == 'Denied' ? 'background_Denied' : 'background_paid' }"
+                                    title=""
+                                >
+                                    <div class="" style="font-size: 85%; margin: 1%;">
+                                        <div class="slds-clearfix" style="font-size: 120%; margin-right: 5%;">
+                                            <div class="slds-float_left">
+                                                <b>{!expense.name}</b>
+                                            </div>
+                                            <div class="slds-float_right" style="font-size: 130%;">
+                                                <b>${!expense.amount}</b>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <aura:if isTrue="{!expense.description != null}">
+                                        <div style="margin: 1%;">
+                                            <b>Description:</b><br />
+                                            {!expense.description}
+                                        </div>
+                                    </aura:if>
+                                </lightning:card>
+                            </div>
+                            <aura:if isTrue="{!v.archive == expense.id}">
+                                <div
+                                    class="slds-col slds-size_2-of-12"
+                                    style="background-color: rgb(211, 111, 111); margin-right: 3%; border-radius: 5px;"
+                                >
+                                    <lightning:buttonIcon
+                                        iconName="utility:archive"
+                                        aura:id="expense"
+                                        variant="bare"
+                                        size="large"
+                                        value="{!expense.id}"
+                                        alternativeText="View More"
+                                        onclick="{!c.onclickExpense}"
+                                        class="iconclass"
+                                    /><br />
+                                </div>
+                            </aura:if>
+                        </div>
+                        <br />
+                    </aura:if>
+                </aura:iteration>
+            </lightning:card>
+            <aura:set attribute="else">
+                <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                    <img src="/img/chatter/OpenRoad.svg" class="slds-illustration__svg" alt="No Assigned Jobs" />
+                    <div class="slds-text-color_weak">
+                        <h3 class="slds-text-heading_medium">No Expenses!</h3>
+                    </div>
+                </div>
+            </aura:set>
+        </aura:if>
+        <aura:set attribute="else">
+            <aura:if isTrue="{!v.expenses.length > 0}">
+                <lightning:card title="Job details">
+                    <aura:set attribute="title">
+                        <div class="slds-media slds-override">
+                            <div class="slds-media__figure">
+                                <span class="slds-icon_container slds-icon-standard-opportunity" title="">
+                                    <lightning:icon iconName="standard:timesheet_entry" alternativeText="TimeSheet" />
+                                </span>
+                            </div>
+                            <div class="slds-media__body">
+                                <div class="slds-page-header__name">
+                                    <div class="slds-page-header__name-title">
+                                        <h1>
+                                            <span class="slds-page-header__title slds-truncate" title="Expenses"
+                                                >Expenses</span
+                                            >
+                                        </h1>
+                                    </div>
+                                </div>
+                                <p class="slds-page-header__name-meta">Total Expenses : {!v.totalExpenses}</p>
+                            </div>
+                        </div>
+                    </aura:set>
+
+                    <lightning:datatable
+                        class="slds-scrollable_y"
+                        title="Expenses"
+                        keyField="id"
+                        data="{!v.expenses}"
+                        columns="{!v.columns}"
+                        hideCheckboxColumn="true"
+                    />
+                </lightning:card>
+                <aura:set attribute="else">
+                    <lightning:card>
+                        <aura:set attribute="title">
+                            <div class="slds-media slds-override">
+                                <div class="slds-media__figure">
+                                    <span class="slds-icon_container slds-icon-standard-opportunity" title="">
+                                        <lightning:icon iconName="standard:timesheet_entry" alternativeText="Expense" />
+                                    </span>
+                                </div>
+                                <div class="slds-media__body">
+                                    <div class="slds-page-header__name">
+                                        <div class="slds-page-header__name-title">
+                                            <h1>
+                                                <span class="slds-page-header__title slds-truncate" title="Expenses"
+                                                    >Expenses</span
+                                                >
+                                            </h1>
+                                        </div>
+                                    </div>
+                                    <p class="slds-page-header__name-meta">Total Expenses : {!v.totalExpenses}</p>
+                                </div>
+                            </div>
+                        </aura:set>
+                        <div class="slds-illustration slds-illustration_large" aria-hidden="true">
+                            <img
+                                src="/img/chatter/OpenRoad.svg"
+                                class="slds-illustration__svg"
+                                alt="No Assigned Jobs"
+                            />
+                            <div class="slds-text-color_weak">
+                                <h3 class="slds-text-heading_medium">No Expenses!</h3>
+                            </div>
+                        </div>
+                    </lightning:card>
+                </aura:set>
+            </aura:if>
+        </aura:set>
+    </aura:if>
+    <aura:set attribute="else">
+        <c:headerSectionCmp title="User Expenses" /> 
+        <c:libMessageWithIllustration message="Second Level Feature Pack Required! Please Contact Your Admin!" /> 
+    </aura:set>
+    </aura:if>
+
+    
+</aura:component>

@@ -1,0 +1,109 @@
+<template>
+    <div class="mainComboDiv" data-id="customeComboBox" style={loadStyle}>
+        <div class="inputAreaCSS_1 searchBarCSS slds-form-element">
+          <!-- == == == label == == ==  -->
+          <template lwc:if={label}>
+            <label class=" slds-form-element__label label-div" onclick={closeDropDown}>
+              <template lwc:if={required}><abbr title="required" class="slds-required">*</abbr></template>
+              {label}
+            </label>
+          </template>
+          <div class="slds-form-element__control">
+            <div lwc:if={isDisabled} class="combobox-disabled"></div>
+            <div class="slds-combobox_container">
+              <div class="slds-combobox slds-dropdown-trigger slds-dropdown-trigger_click" data-id="slds-combobox">
+                <div class="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
+                  <!-- === == ==  for searchable combobox == == ==  -->
+                  <template lwc:if={searchable}>
+                    <input type={recordLabelFieldType} data-id="search-input" class="inputAreaCSS_2 slds-input slds-combobox__input" role="combobox" placeholder={placeholderText} 
+                            onfocus={handleShowDropDown}
+                            onkeyup={handleSearch}
+                             />
+                    <span class="slds-icon_container slds-icon-utility-search slds-input__icon slds-input__icon_right">
+                      <lightning-icon lwc:if={hideSearchIcon} class="" icon-name="utility:down" alternative-text="Approved" title="Approved" size="x-small" ></lightning-icon>
+                      <lightning-icon lwc:else class="" icon-name="utility:search" alternative-text="Approved" title="Approved" size="x-small" ></lightning-icon>
+                    </span>
+                  </template>
+                  <!-- === == == -->
+                  <!-- === == ==  for non-searchable combobox == == ==  -->
+                  <template lwc:else>
+                      <div role="combobox" tabindex="0" onclick={handleShowDropDown} class="inputAreaCSS_2 slds-input_faux slds-combobox__input">
+                        <span class="placeHolderCSS slds-truncate" >{placeholderText}</span>
+                      </div>
+                      <span class="slds-icon_container slds-icon-utility-down slds-input__icon slds-input__icon_right">
+                        <lightning-icon class="" icon-name="utility:down" alternative-text="Approved" title="Approved" size="x-small" ></lightning-icon>
+                      </span>
+                  </template>
+                  <!-- === == == -->
+                  <!-- ===== ==== ====== When Option Is Selected (for single Selected) ===== ====== ===== ====== -->
+                  <template if:false={multiselect}>
+                    <template lwc:if={_selectedOptionLabel}>
+                      <div class="optionPosition slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
+                        <div role="combobox" tabindex="0"  onclick={handleShowDropDown} class="inputAreaSectiedValueCSS slds-input_faux slds-combobox__input slds-combobox__input-value" >
+                          <span class="slds-truncate">{_selectedOptionLabel}</span>
+                        </div>
+                        <button if:true={showClearButton} class="slds-button slds-button_icon slds-input__icon slds-input__icon_right" onclick={clearSelection} title="Clear the text input">
+                          <lightning-icon class="" icon-name="utility:close" alternative-text="Clear" title="Clear" size="x-small" ></lightning-icon>
+                        </button>
+                      </div>
+                    </template>
+                  </template>
+                </div>
+                <!-- === == == -->
+                <!-- ===== ==== ====== DropDown Div ===== ====== ===== ====== -->
+                <div style={setDropDownPosition} class="dropDownCSS slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid" role="listbox" tabindex="0" aria-busy="false">
+                  <ul class="slds-listbox slds-listbox_vertical" role="presentation" onclick={handleOptionClick}>
+                    <template lwc:if={isOptions} for:each={displayOptions} for:item="item" for:index="index">
+                      <li role="presentation" class="slds-listbox__item" key={item.value} data-label={item.label} data-value={item.value} 
+                          data-index={index}>
+                        <div style="position: relative;" class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" role="option">
+                          <!-- === === when option is Disabled, show disabled overlay === ===  -->
+                          <template if:true={item.disabled}>
+                            <div class="disabledItem" onclick={handleDisableClick} ondblclick={handleDisableClick} onmouseover={handleDisableClick} onmouseenter={handleDisableClick} onmouseout={handleDisableClick} onmouseup={handleDisableClick} onmousedown={handleDisableClick}>
+                            </div>
+                          </template>
+                           <!-- === == == -->
+                            <!-- === === when option is Selected, show overlay === ===  -->
+                          <template if:true={item.isSelected}>
+                            <div class="selectedItem" data-id="searchBox"></div>
+                          </template>
+                          <!-- === == == -->
+                          <span if:true={showOptionIcon} class="optionIcon slds-media__figure slds-listbox__option-icon">
+                            <lightning-icon if:true={iconName} icon-name={iconName} ></lightning-icon>
+                            <span if:false={iconName} class="emptyImgPadding"></span>
+                          </span>
+                          <span if:false={showOptionIcon} class="emptyImgPadding"></span>
+                          <span class="slds-media__body">
+                            <span class="slds-truncate" >{item.label}</span>
+                            <template lwc:if={showDescription}>
+                                <span if:true={item.description} class="option-description">{item.description}</span>
+                                <span if:false={item.description} class="option-description">---</span>
+                            </template>
+                          </span>
+                          <span if:true={showHelpText} class="optionInfo">
+                            <lightning-helptext if:true={item.helptext} content={item.helptext}></lightning-helptext>
+                            <lightning-helptext if:false={item.helptext} content=" ... "></lightning-helptext>
+                          </span>
+                        </div>
+                      </li>
+                    </template>
+                    <template lwc:else>
+                      <div class="emptyOptions">{emptyOptionLabel}</div>
+                    </template>
+                  </ul>
+                  <div lwc:if={showFooterButton} class="footerButtonSection" onclick={handleFooterBtnClick}>
+                    <button class="footerBtn">{footerButtonLabel}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <template lwc:if={isGqlError}>
+            <label class=" slds-form-element__label error-div slds-required" title="Error">
+              {gqlErrorMessage}
+            </label>
+          </template>
+        </div>
+    </div>
+    <div class="backDrop" onclick={closeDropDown}></div>
+  </template>

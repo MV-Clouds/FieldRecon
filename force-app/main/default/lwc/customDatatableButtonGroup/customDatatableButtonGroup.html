@@ -1,0 +1,27 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 02-23-2022
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+  Modifications Log 
+  Ver   Date         Author                               Modification
+  1.0   04-08-2021   ChangeMeIn@UserSettingsUnder.SFDoc   Initial Version
+-->
+<template>
+    <div >
+      <template if:true ={isStatusSubmitted}>
+        <lightning-button class = "slds-p-horizontal_xxx-small"  variant= "brand" label= "Approve" name="Approved" icon-name="utility:like" onclick={handleButtonClick}  ></lightning-button>
+        <lightning-button data-id="button" class = "slds-p-horizontal_xxx-small"  variant="destructive" label="Reject" name="Denied" icon-name="utility:error" onclick={handleButtonClick}  ></lightning-button>
+      </template>
+      <template if:true={isStatusApproved}>
+        <lightning-button class = "slds-p-horizontal_xxx-small" variant="success" label="Pay Expense" name = "Paid" icon-name="utility:checkout" onclick={handleButtonClick}></lightning-button>
+      </template>
+      <template if:true={isStatusRejected}>
+        <div class="slds-text-color_destructive slds-text-heading_small slds-text-align_center">Rejected</div>
+      </template>
+      <template if:true={isStatusPaid}>
+        <div class="slds-text-color_success slds-text-heading_small slds-text-align_center">Paid</div>
+      </template>
+    </div>    
+</template>

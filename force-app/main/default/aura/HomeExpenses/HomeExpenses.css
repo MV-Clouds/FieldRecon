@@ -1,0 +1,62 @@
+.THIS .font {
+    font-size:12px;
+    text-align:justify;
+    padding-right:10px;
+    font-weight:normal;
+}
+.THIS .background{
+    border:1px solid #e6dede;
+    border-radius:5px;
+    background: blue;
+}
+
+.THIS .background_paid{
+    border:1px solid #e6dede;
+    border-radius:5px;
+    background: #9cff9c;
+    margin-left: 3%;
+    margin-right: 3%;
+    padding-bottom: 3%;
+}
+
+.THIS .background_Denied{
+    border:1px solid #e6dede;
+    border-radius:5px;
+    background: #ff9090;
+    margin-left: 3%;
+    margin-right: 3%;
+    padding-bottom: 3%;
+}
+
+.THIS .background_Approved{
+    border:1px solid #e6dede;
+    border-radius:5px;
+    background: #aed4ff;
+    margin-left: 3%;
+    margin-right: 3%;
+    padding-bottom: 3%;
+}
+
+.THIS .background_Submit{
+    border:1px solid #e6dede;
+    border-radius:5px; 
+    background: #ffffa8;
+    margin-left: 3%;
+    margin-right: 3%;
+    padding-bottom: 3%;
+}
+
+.THIS .fontsize{
+     font-size:12px;
+     text-align:justify;
+     font-weight:bold;
+}
+
+.THIS .background1{
+    border-top:1px solid #e6dede;
+    border-radius:5px;
+}
+
+.THIS .slds-scrollable_y {
+    max-height: 250px;
+}
