@@ -1,12 +1,13 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 90% (2025-10-27)
+ * Test Class: MobSchedulerControllerTest - 91% (2025-10-28)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
  * Last Modified By: Kevin Suvagiya
  * Last Modified Date: 2025-10-15
  * Last Changes: Removed Unused Code and Added the Exception Handlers
  * Update: 27/10/2025 - Updated the logic for the start and end date to fix timezone based issues
+ * Update: 28/10/2025 - Updated the logic for the removal of assigned resources from the mobilization, now with future removal as well
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -31,7 +32,7 @@ public with sharing class MobSchedulerController {
                 SELECT Id, Name, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Mobilization_Group__r.Name,
                        Start_Date__c, End_Date__c, Mobilization_Status__c,
                        Job__r.Address__c,
-                       (SELECT Id, Contact__r.RecordType.DeveloperName, Contact__c, Contact__r.Name
+                       (SELECT Id, Contact__r.RecordType.DeveloperName, Contact__c, Contact__r.Name, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
                         FROM Mobilization_Members__r
                         WHERE Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
                         ORDER BY CreatedDate DESC),
@@ -52,15 +53,24 @@ public with sharing class MobSchedulerController {
                 List<Map<String,Object>> crewMembersList = new List<Map<String,Object>>();
                 List<Map<String,Object>> subContractorsList = new List<Map<String,Object>>();
                 for(Mobilization_Member__c mem : mob.Mobilization_Members__r){
+                    String memberType = mem.Contact__r.RecordType.DeveloperName;
                     Map<String,Object> member = new Map<String,Object>{
                         'id' => mem.Contact__c,
                         'name' => mem.Contact__r.Name,
-                        'type' => mem.Contact__r.RecordType.DeveloperName,
+                        'type' => memberType,
                         'junctionId' => mem.Id
                     };
-                    if(mem.Contact__r.RecordType.DeveloperName == 'Employee_WF_Recon'){
+                    if(memberType == 'Employee_WF_Recon'){
+                        if(mem.Crew__c != null){
+                            member.put('crewId', mem.Crew__c);
+                            member.put('crewName', mem.Crew__r.Name);
+                            member.put('crewColor', mem.Crew__r.Color_Code__c);
+                            member.put('bgStyle', 'background-color: color(from ' + mem.Crew__r.Color_Code__c + ' srgb r g b / 0.2); border: 1px solid ' + mem.Crew__r.Color_Code__c + ';');
+                        }else{
+                            member.put('crewName', 'Individual Employees');
+                        }
                         crewMembersList.add(member);
-                    }else if(mem.Contact__r.RecordType.DeveloperName == 'Sub_Contractor_WF_Recon'){
+                    }else if(memberType == 'Sub_Contractor_WF_Recon'){
                         subContractorsList.add(member);
                     }
                 }
@@ -89,7 +99,7 @@ public with sharing class MobSchedulerController {
                     'crew' => crewMembersList,
                     'subcontractors' => subContractorsList,
                     'assets' => assetsList,
-                    'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#5a5adb20',
+                    'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                     'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000'
                 });
     
@@ -169,15 +179,7 @@ public with sharing class MobSchedulerController {
             defaultValues.put('result', 'SUCCESS');
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{ 
-                'className' => CLASSNAME, 
-                'methodName' => 'getDefaultValues', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e, 
-                'moreDetails' => 'Error occurred while fetching default job time values.', 
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getDefaultValues', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching default job time values.', 'apiResponse' => null });
             defaultValues.put('result', e.getMessage());
         }
 
@@ -240,17 +242,30 @@ public with sharing class MobSchedulerController {
 
             // 4️⃣ Query all Crew
             for (Contact c : [
-                SELECT Id, Name
+                SELECT Id, Name, (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c FROM Crew_Members__r )
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
                 AND User__r.IsActive = true
                 WITH USER_MODE
             ]) {
-                crewMembers.add(new Map<String, Object>{
-                    'id' => c.Id,
-                    'name' => c.Name,
-                    'isAvailable' => !busyCrewIds.contains(c.Id)
-                });
+                if(c.Crew_Members__r != null && c.Crew_Members__r.size() > 0){
+                    for(Crew_Member__c crewMember : c.Crew_Members__r){
+                        crewMembers.add(new Map<String, Object>{
+                            'id' => c.Id,
+                            'name' => c.Name,
+                            'crewId' => crewMember.Crew__c != null ? crewMember.Crew__c : null,
+                            'crewName' => crewMember.Crew__r.Name != null ? crewMember.Crew__r.Name : null,
+                            'bgColor' => crewMember.Crew__r.Color_Code__c != null ? crewMember.Crew__r.Color_Code__c : null,
+                            'isAvailable' => !busyCrewIds.contains(c.Id)
+                        });
+                    }
+                }else{
+                    crewMembers.add(new Map<String, Object>{
+                        'id' => c.Id,
+                        'name' => c.Name,
+                        'isAvailable' => !busyCrewIds.contains(c.Id)
+                    });
+                }
             }
 
             // 5️⃣ Query all Subcontractors
@@ -356,6 +371,7 @@ public with sharing class MobSchedulerController {
                             'id' => asset.Equipment__c,
                             'name' => asset.Equipment__r.Name,
                             'jId' => mob.Job__c,
+                            'mobId' => mob.id,
                             'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
                             'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
@@ -363,9 +379,9 @@ public with sharing class MobSchedulerController {
                             'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
                             'start' => mob.Start_Date__c.format(),
                             'end' => mob.End_Date__c.format(),
-                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff',
+                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
                         });
                     }
                 } else {
@@ -374,6 +390,7 @@ public with sharing class MobSchedulerController {
                             'id' => mem.Contact__c,
                             'name' => mem.Contact__r.Name,
                             'jId' => mob.Job__c,
+                            'mobId' => mob.id,
                             'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
                             'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
@@ -381,9 +398,9 @@ public with sharing class MobSchedulerController {
                             'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
                             'start' => mob.Start_Date__c.format(),
                             'end' => mob.End_Date__c.format(),
-                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#5a5adb20',
+                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
                         });
                     }
                 }
@@ -397,17 +414,42 @@ public with sharing class MobSchedulerController {
 
     /**
      * Description: Removes a resource assignment (member or asset) by junction Id.
-     * Parameters: id (String) - junction Id; type (String) - 'Crew'|'SubContractor'|'Asset'.
+     * Parameters: id (String) - junction Id; 
+     *             type (String) - 'CrewMaster'|'Crew'|'SubContractor'|'Asset';
+     *             mobId (String) - Mobilization Id.
+     *             allUpcoming (String) - 'true'|'false' - delete all upcoming mobilizations under the same Mobilization Group.
      * Return: 'success' on delete; otherwise error message.
      */
     @AuraEnabled
-    public static string removeJobResource(String id, String type){
+    public static string removeJobResource(String id, String type, String mobId, String allUpcoming){
         try {
-            if(type == 'Crew' || type == 'SubContractor'){
-                Mobilization_Member__c mobMember = new Mobilization_Member__c(Id = id);
+            // Get Details about the Mobilization Group
+            Mobilization__c currentMob = new Mobilization__c();
+            if(allUpcoming == 'true'){
+                currentMob = [SELECT Id, Mobilization_Group__c FROM Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
+                // Delete all upcoming mobilizations under the same Mobilization Group
+                DateTime nowDT = System.now();
+                if(type == 'CrewMaster'){
+                    List<Mobilization_Member__c> mobMembersToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    delete as user mobMembersToDelete;
+                } else if(type == 'Crew' || type == 'SubContractor'){
+                    List<Mobilization_Member__c> mobMember = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    delete as user mobMember;
+                } else if (type == 'Asset'){
+                    List<Mobilization_Asset__c> mobAsset = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    delete as user mobAsset;
+                }
+                return 'success';
+            }
+
+            if(type == 'CrewMaster'){
+                List<Mobilization_Member__c> mobMembersToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                delete as user mobMembersToDelete;
+            } else if(type == 'Crew' || type == 'SubContractor'){
+                Mobilization_Member__c mobMember = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
                 delete as user mobMember;
             } else if (type == 'Asset'){
-                Mobilization_Asset__c mobAsset = new Mobilization_Asset__c(Id = id);
+                Mobilization_Asset__c mobAsset = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
                 delete as user mobAsset;
             }
             return 'success';
@@ -449,7 +491,7 @@ public with sharing class MobSchedulerController {
                     }
                 }
     
-                Date newStart = mob.Start_Date__c.date();
+                Date newStart = mob.Start_Date__c.dateGmt();
                 DateTime newEnd   = mob.End_Date__c;
     
                 // Query existing mobilizations for the same resource
@@ -516,6 +558,11 @@ public with sharing class MobSchedulerController {
             String type = (String) assignmentData.get('type');
             Boolean allowOverlap = (Boolean) assignmentData.get('allowOverlap');
             String overlapMode = (String) assignmentData.get('overlapMode'); // "ALL" or "SKIP"
+            Map<String, Object> resourceMap = (Map<String, Object>) JSON.deserializeUntyped((String) assignmentData.get('resourceMap'));
+
+            if(type == 'Crew' && resourceMap != null){
+                resourceIds = new List<String>(resourceMap.keySet());
+            }
 
             // Validate input
             if (resourceIds == null || resourceIds.isEmpty()) {
@@ -547,7 +594,7 @@ public with sharing class MobSchedulerController {
                 FROM Mobilization__c
                 WHERE Job__c = :selectedMob.Job__c
                 AND Mobilization_Group__c = :selectedMob.Mobilization_Group__c
-                AND DAY_ONLY(Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                AND DAY_ONLY(Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
                 WITH USER_MODE
             ];
 
@@ -563,7 +610,7 @@ public with sharing class MobSchedulerController {
             Set<Date> siblingMobDates = new Set<Date>();
             for (Mobilization__c mob : siblingMobs) {
                 siblingMobIds.add(mob.Id);
-                siblingMobDates.add(mob.Start_Date__c.date());
+                siblingMobDates.add(mob.Start_Date__c.dateGmt());
             }
 
             List<Map<String, Object>> overlapDetails = new List<Map<String, Object>>();
@@ -579,7 +626,7 @@ public with sharing class MobSchedulerController {
                         FROM Mobilization_Member__c
                         WHERE Contact__c IN :resourceIds
                         AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
                         AND Mobilization__c NOT IN :siblingMobIds
                         WITH USER_MODE
                     ];
@@ -589,7 +636,7 @@ public with sharing class MobSchedulerController {
                         FROM Mobilization_Asset__c
                         WHERE Equipment__c IN :resourceIds
                         AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
                         AND Mobilization__c NOT IN :siblingMobIds
                         WITH USER_MODE
                     ];
@@ -668,43 +715,52 @@ public with sharing class MobSchedulerController {
             Map<String, Set<Date>> overlappingMobDatesMap = new Map<String, Set<Date>>();
             
             if (allowOverlap && overlapMode == 'SKIP') {
-                // Move SOQL query outside of loop
-                List<SObject> allOverlapsForSkip = new List<SObject>();
-                
                 if (type == 'Crew' || type == 'SubContractor') {
-                    allOverlapsForSkip = [
+                    // Query for Crew/SubContractor overlaps
+                    List<Mobilization_Member__c> allOverlapsForSkip = [
                         SELECT Mobilization__c, Mobilization__r.Start_Date__c, Contact__c
                         FROM Mobilization_Member__c
                         WHERE Contact__c IN :resourceIds
                         AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
                         WITH USER_MODE
                     ];
+
+                    // Process overlaps for Crew/SubContractor
+                    for (Mobilization_Member__c overlap : allOverlapsForSkip) {
+                        String resourceId = overlap.Contact__c;
+                        Date overlapDate = overlap.Mobilization__r.Start_Date__c.dateGmt();
+
+                        if (!overlappingMobDatesMap.containsKey(resourceId)) {
+                            overlappingMobDatesMap.put(resourceId, new Set<Date>());
+                        }
+                        overlappingMobDatesMap.get(resourceId).add(overlapDate);
+                    }
+
                 } else if (type == 'Asset') {
-                    allOverlapsForSkip = [
+                    // Query for Asset overlaps
+                    List<Mobilization_Asset__c> allOverlapsForSkip = [
                         SELECT Mobilization__c, Mobilization__r.Start_Date__c, Equipment__c
                         FROM Mobilization_Asset__c
                         WHERE Equipment__c IN :resourceIds
                         AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.date()
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
                         WITH USER_MODE
                     ];
-                }
 
-                // Process overlaps for SKIP mode
-                for (SObject overlap : allOverlapsForSkip) {
-                    String resourceId = (type == 'Crew' || type == 'SubContractor') ? 
-                        String.valueOf(overlap.get('Contact__c')) : 
-                        String.valueOf(overlap.get('Equipment__c'));
-                    
-                    Date overlapDate = (Date)overlap.get('Mobilization__r.Start_Date__c');
-                    
-                    if (!overlappingMobDatesMap.containsKey(resourceId)) {
-                        overlappingMobDatesMap.put(resourceId, new Set<Date>());
+                    // Process overlaps for Assets
+                    for (Mobilization_Asset__c overlap : allOverlapsForSkip) {
+                        String resourceId = overlap.Equipment__c;
+                        Date overlapDate = overlap.Mobilization__r.Start_Date__c.dateGmt();
+
+                        if (!overlappingMobDatesMap.containsKey(resourceId)) {
+                            overlappingMobDatesMap.put(resourceId, new Set<Date>());
+                        }
+                        overlappingMobDatesMap.get(resourceId).add(overlapDate);
                     }
-                    overlappingMobDatesMap.get(resourceId).add(overlapDate);
                 }
             }
+
 
             // Now process assignments
             for (String resourceId : resourceIds) {
@@ -718,7 +774,7 @@ public with sharing class MobSchedulerController {
 
                     if (allowOverlap && overlapMode == 'SKIP' && 
                         overlappingMobDatesMap.containsKey(resourceId) && 
-                        overlappingMobDatesMap.get(resourceId).contains(mob.Start_Date__c.date())) {
+                        overlappingMobDatesMap.get(resourceId).contains(mob.Start_Date__c.dateGmt())) {
                         shouldAssign = false;
                     }
 
@@ -726,7 +782,8 @@ public with sharing class MobSchedulerController {
                         if (type == 'Crew' || type == 'SubContractor') {
                             newAssignments.add(new Mobilization_Member__c(
                                 Mobilization__c = mob.Id,
-                                Contact__c = resourceId
+                                Contact__c = resourceId,
+                                Crew__c = (type == 'Crew' && resourceMap != null && resourceMap.containsKey(resourceId)) ? (String) resourceMap.get(resourceId) : null
                             ));
                         } else if (type == 'Asset') {
                             newAssignments.add(new Mobilization_Asset__c(

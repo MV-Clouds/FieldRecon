@@ -8,8 +8,15 @@ export default class MobCard extends NavigationMixin(LightningElement) {
     get resourceSections() {
         return [
             {
-                key: 'crew',
+                key: 'crewMaster',
                 label: 'Crew',
+                type: 'CrewMaster',
+                items: this.groupCrewByTeam(this.mobDetails?.crew || []) || [],
+                emptyText: 'No Crews Assigned Yet.'
+            },
+            {
+                key: 'crew',
+                label: 'Employees',
                 type: 'Crew',
                 items: this.mobDetails?.crew || [],
                 emptyText: 'No Crew Members Assigned Yet.'
@@ -37,6 +44,34 @@ export default class MobCard extends NavigationMixin(LightningElement) {
         }
     }
 
+    groupCrewByTeam(crewList) {
+        const crewMap = {};
+
+        (crewList || []).forEach(member => {
+            // Skip entries without crewId (i.e. Individual Employees)
+            if (!member.crewId) return;
+
+            if (!crewMap[member.crewId]) {
+                crewMap[member.crewId] = {
+                    id: member.crewId,
+                    name: member.crewName,
+                    // crewColor: member.crewColor,
+                    bgStyle: member.bgStyle,
+                    // members: []
+                };
+            }
+
+            // crewMap[member.crewId].members.push({
+            //     id: member.id,
+            //     name: member.name,
+            //     type: member.type,
+            //     junctionId: member.junctionId
+            // });
+        });
+
+        return Object.values(crewMap);
+    }
+
     handleJobCardEdit(){
         this.dispatchEvent(new CustomEvent('edit', { detail: this.mobDetails?.id}));
     }
@@ -57,7 +92,12 @@ export default class MobCard extends NavigationMixin(LightningElement) {
         try {
             let id = event.currentTarget.dataset.id;
             let type = event.currentTarget.dataset.type;
-            this.dispatchEvent(new CustomEvent('remove', { detail: {id: id, type: type}}));
+            // if(type == 'CrewMaster'){
+            //     id = (this.mobDetails?.crew)?.filter(crew => crew.crewId === id).map(cMember => cMember.junctionId).join(',');
+            // }
+            // console.log('id :: ', id);
+            
+            this.dispatchEvent(new CustomEvent('remove', { detail: {id: id, type: type, mobId: this.mobDetails?.id}}));
         } catch (e) {
             console.log('Error in function handleRemoveSpecificResource:::', e.message);
         }

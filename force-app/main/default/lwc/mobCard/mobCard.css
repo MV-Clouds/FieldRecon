@@ -2,7 +2,7 @@
     --primary-theme-color: #5e5adb;
     --primary-theme-color-shade-20: #5e5adb20;
 
-    --card-bg-color: var(--primary-theme-color-shade-20, #ffffff);
+    --card-bg-color: #C4C4C4;
 }
 
 .event-card {

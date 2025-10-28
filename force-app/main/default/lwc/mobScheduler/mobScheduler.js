@@ -70,17 +70,20 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     showConfirmationPopup = false;
     confirmationTitle = 'Confirm!';
     confirmationMessage = 'Are you sure, you want to proceed';
-    confirmationBtnLabel = 'Confirm';
-    
+    confirmationBtnLabel = 'Proceed';
+    confirmationBtnLabel2 = null;
+
     isOverlap = false;
     isAllowOverLap = false;
 
     isOverlapJob = false;
     jobAssignmentInfo = {};
     selectedResourceIdsForAssign = [];
+    selectedCrewAssignments = [];
 
     isRemove = false;
     resourceIdToRemove = null;
+    mobIdToRemove = null;
     typeOfResourceToRemove = '';
 
     isMobDelete = false;
@@ -169,25 +172,64 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         }
     }
 
+    get isCrewAssignOpen(){
+        return this.isResourcesEditForm && this.resourceTypeForAssign == 'Crew';
+    }
+
     get resourceOptionsToShow() {
         let resources = [];
+        const search = this.resourceSearchKey?.toLowerCase() || '';
+        const addedResourcesForMob = this.addedResources?.map(res => res.id) || [];
+
         if (this.resourceTypeForAssign === 'Crew') {
+            // Use groupedCrew created earlier (e.g. via groupCrewByTeam)
+            const groupedCrewList = this.groupCrewByTeam(this.allCrewMembers || []);
+
+            // Apply search filter on group or member name
+            const filteredGroups = groupedCrewList
+            .map(group => {
+                const filteredMembers = group.members.filter(m =>
+                    !search || m.name?.toLowerCase().includes(search)
+                );
+
+                if (filteredMembers.length > 0 || group.crewName?.toLowerCase().includes(search)) {
+                    
+                    const members = filteredMembers.map(m => ({
+                        ...m,
+                        isSelected: (this.selectedCrewAssignments || []).some(sel => sel.id === m.id && (!sel.crewId || sel.crewId === (group.id))),
+                        isAddedForMob: addedResourcesForMob.includes(m.id)
+                    }));
+
+                    // Determine if all members are selected
+                    const allSelected = members.every(mem => mem.isSelected);                    
+                    return {
+                        ...group,
+                        members,
+                        isSelected: allSelected
+                    };
+                }
+                return null;
+            })
+            .filter(Boolean)
+            .sort(a => a.id === 'NA' ? 1 : -1);
             resources = this.allCrewMembers || [];
-        } else if (this.resourceTypeForAssign === 'Asset') {
+            return filteredGroups;
+        } 
+        else if (this.resourceTypeForAssign === 'Asset') {
             resources = this.allAssets || [];
-        } else if (this.resourceTypeForAssign === 'SubContractor') {
+        } 
+        else if (this.resourceTypeForAssign === 'SubContractor') {
             resources = this.allSubContractors || [];
         }
 
-        let addedResourcesForMob = this.addedResources?.map(res => res.id);
-        const search = this.resourceSearchKey?.toLowerCase() || '';
+        // Non-crew case (existing logic)
         return resources
-            .filter(rs => !search || rs.name?.toLowerCase().includes(search))
-            .map(res => ({
-                ...res,
-                isSelected: this.selectedResourceIdsForAssign?.includes(res.id),
-                isAddedForMob: addedResourcesForMob.includes(res.id)
-            }));
+        .filter(rs => !search || rs.name?.toLowerCase().includes(search))
+        .map(res => ({
+            ...res,
+            isSelected: this.selectedResourceIdsForAssign?.includes(res.id),
+            isAddedForMob: addedResourcesForMob.includes(res.id)
+        }));
     }
 
 
@@ -276,6 +318,32 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         }
     }
 
+    groupCrewByTeam(crewList) {        
+        const groupedMap = {};
+
+        (crewList || []).forEach(member => {
+            const key = member?.crewId || 'NA';
+            const name = member?.crewName || 'Individual Employees';
+
+            if (!groupedMap[key]) {
+                groupedMap[key] = {
+                    id: key,
+                    name: name,
+                    isSelected: false,
+                    isAvailable: true,
+                    bgStyle: `background-color: color(from ${member.bgColor} srgb r g b / 0.3); border: 1px solid ${member.bgColor};`,
+                    members: []
+                };
+            }
+
+            groupedMap[key].members.push(member);
+        });
+
+        // Convert map to array for easy template iteration
+        return Object.values(groupedMap);
+    }
+
+
     // Tab switching
     showResourceView() {
         this.isResourceView = true;
@@ -306,6 +374,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
         if(forWhat == 'assign'){
             this.resourceTypeForAssign = name;
+            this.selectedWholeCrewIds = [];
+            this.selectedCrewAssignments = [];
             this.selectedResourceIdsForAssign = [];
         } else{
             this.resourceType = name;
@@ -483,7 +553,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     }
                     const dayIso = new Date(item.start).toISOString().slice(0,10);
                     const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
-                    if (dayObj) dayObj.events.push({ id: item.junctionId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date() });
+                    if (dayObj) dayObj.events.push({ id: item.id, mobId: item.mobId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date() });
                 });
 
                 this.resources = Object.values(resMap);
@@ -667,25 +737,27 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     handleRemoveAssignment(event){
         try {
             let id = event.currentTarget.dataset.id;
+            let mobId = event.currentTarget.dataset.mobid;
             if(!id){
                 console.error('MobScheduler.handleRemoveAssignment error: id is not defined');
                 return;
             } else if(this.resourceType){
                 this.isRemove = true;
                 this.resourceIdToRemove = id;
+                this.mobIdToRemove = mobId;
                 this.typeOfResourceToRemove = this.resourceType;
                 // this.showConfirmationPopup = true;
-                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove for this Group');
             }
         } catch (e) {
             console.error('MobScheduler.handleRemoveAssignment error:', e?.message);
         }
     }
 
-    removeJobAssignment(id, type = this.resourceType){
+    removeJobAssignment(id, type = this.resourceType, mobId, allUpcoming = false){
         try{
             this.showLoading(true);
-            removeJobResource({ id: id, type: type })
+            removeJobResource({ id: id, type: type , mobId: mobId, allUpcoming: allUpcoming })
             .then(result => {
                 if(result === 'success'){
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
@@ -737,17 +809,45 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         }
     }
 
+    handleSelectWholeCrew(event){
+        try {
+            const crewId = event.currentTarget.dataset.id;
+            const checked = event.currentTarget.checked;
+
+            if (checked) {
+                const crewMembers = this.allCrewMembers.filter(m => m?.crewId === crewId);
+                for (const member of crewMembers) {
+                    // Only push if not already selected for this crew
+                    const alreadyExists = this.selectedCrewAssignments.some(sel => sel.id === member.id && sel.crewId === crewId);
+                    if (!alreadyExists) {
+                        this.selectedCrewAssignments = [...this.selectedCrewAssignments, { id: member.id, crewId }];
+                    }
+                }
+            } else {
+                // Remove all selections belonging to this crew
+                this.selectedCrewAssignments = this.selectedCrewAssignments.filter(sel => sel.crewId !== crewId);
+            }
+        } catch (e) {
+            console.error('MobScheduler.handleSelectWholeCrew error:', e?.message);
+        }
+    }
+
     handleSelectResourceOption(event){
         try {
             let name = 'selectedResourceIdsForAssign';
             let id = event.currentTarget.dataset.id;
             let checked = event.currentTarget.checked;
+            let type = event.currentTarget.dataset.type;
             if(checked){
-                this[name].push(id);
+                if(type == 'Crew'){
+                    let crewId = event.currentTarget.dataset.crewid;
+                    this.selectedCrewAssignments = [...this.selectedCrewAssignments, {id: id, crewId: crewId == 'NA' ? null : crewId}];
+                }
+                this[name] = [...this[name], id];
             } else{
+                this.selectedCrewAssignments = this.selectedCrewAssignments.filter(item => item.id !== id);
                 this[name] = this[name].filter(item => item !== id);
             }
-            
         } catch (e) {
             console.error('MobScheduler.handleSelectResourceOption error:', e?.message);
         }
@@ -890,9 +990,15 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             if(event){
                 let name = 'selectedResourceIdsForAssign';
                 let type = this.resourceTypeForAssign;
+
+                const resourceMap = {};
+                (this.selectedCrewAssignments || []).forEach(item => {
+                    resourceMap[item.id] = item.crewId || null;
+                });
     
                 this.jobAssignmentInfo = { 
                     resourceIds: this[name].join(','), 
+                    resourceMap: JSON.stringify(resourceMap),
                     mobId: this.mobIdForResources, 
                     type: type,
                     allowOverlap: false,
@@ -918,13 +1024,14 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 if (status === 'OVERLAP') {
                     this.isOverlapJob = true;
                     // Show confirmation popup
-                    this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign');
+                    this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign', 'Assign Only Available');
 
                 } else if (status === 'SUCCESS') {
                     this.showToast('Success', 'Resource assigned successfully.', 'success');
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
                     this.showFormPopup = false;
                     this.isAssignForm = false;
+                    this.selectedCrewAssignments = [];
                     this.selectedResourceIdsForAssign = [];
 
                 } else if (status === 'ERROR') {
@@ -948,11 +1055,13 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         try {
             let id = event.currentTarget.dataset.id;
             let type = event.currentTarget.dataset.type;
+            let mobId = event.currentTarget.dataset.job;
             
             this.isRemove = true;
             this.resourceIdToRemove = id;
+            this.mobIdToRemove = mobId;
             this.typeOfResourceToRemove = type;
-            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove for this Group');
         } catch (e) {
             console.error('MobScheduler.handleRemoveJobResource error:', e?.message);
         }
@@ -962,10 +1071,16 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         try {
             let id = event.detail.id;
             let type = event.detail.type;
+            let mobId = event.detail.mobId;
             this.isRemove = true;
             this.resourceIdToRemove = id;
+            this.mobIdToRemove = mobId;
             this.typeOfResourceToRemove = type;
-            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+            if(type == 'CrewMaster'){
+                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this crew and it\'s members from this mobilization?', 'Remove', 'Remove for this Group');
+                return;
+            }
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove for this Group');
         } catch (e) {
             console.error('MobScheduler.handleRemoveResourceFromCard error:', e?.message);
         }
@@ -1021,15 +1136,17 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         this.selectedMobId = null;
         
         this.isResourcesEditForm = false;
+        this.selectedCrewAssignments = [];
         this.selectedResourceIdsForAssign = [];
     }
 
     // Confirmation
-    askConfirmation(title, message, confirmLabel){
+    askConfirmation(title, message, confirmLabel, confirmLabel2){
         this.showLoading(false);
         this.confirmationTitle = title;
         this.confirmationMessage = message;
         this.confirmationBtnLabel = confirmLabel;
+        this.confirmationBtnLabel2 = confirmLabel2 || null;
         this.showConfirmationPopup = true;
 
     }
@@ -1047,22 +1164,30 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : true}));
                     this.addResourceForAssignment();
                     this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
                 } else if(this.isRemove){
-                    this.removeJobAssignment(this.resourceIdToRemove, this.typeOfResourceToRemove);
+                    this.removeJobAssignment(this.resourceIdToRemove, this.typeOfResourceToRemove, this.mobIdToRemove, false);
                     this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
                 } else if(this.isMobDelete){
                     this.deleteMob(this.mobIdToDelete);
                     this.mobIdToDelete = null;
                 }
-            } else if(name == 'noOverlap'){
+            } else if(name == 'secondOption'){
                 if(this.isOverlapJob){
                     this.jobAssignmentInfo.allowOverlap = true;
                     this.jobAssignmentInfo.overlapMode = 'SKIP';
                     // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : false}));
                     this.addResourceForAssignment();
                     this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
+                    this.typeOfResourceToRemove = null;
+                }else if(this.isRemove){
+                    this.removeJobAssignment(this.resourceIdToRemove, this.typeOfResourceToRemove, this.mobIdToRemove, true);
+                    this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
                 }
             }
@@ -1077,7 +1202,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             // Reset Confirm Popup Details
             this.confirmationTitle = 'Confirm!';
             this.confirmationMessage = 'Are you sure, you want to proceed';
-            this.confirmationBtnLabel = 'Confirm';
+            this.confirmationBtnLabel = 'Proceed';
+            this.confirmationBtnLabel2 = null;
         } catch (e) {
             console.error('MobScheduler.handleConfirmationAction error:', e?.message);
         }
