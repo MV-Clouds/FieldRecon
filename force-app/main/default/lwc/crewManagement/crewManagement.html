@@ -206,30 +206,17 @@
                 </header>
 
                 <div class="slds-modal__content slds-p-around--medium crew-popup-body">
-                    <lightning-record-edit-form
-                        class="crew-form"
-                        object-api-name="wfrecon__Crew__c"
-                        record-id={recordIdToEdit}
-                        onload={handleFormLoaded}
-                        onsubmit={handleFormSubmit}
-                        onsuccess={handleSaveSuccess}
-                        onerror={handleSaveError}>
+                    <lightning-input label="Name" value={crewData.Name} data-field="Name" onchange={handleInputChange} required></lightning-input>
 
-                        <lightning-messages></lightning-messages>
+                    <lightning-input label="Description" value={crewData.Description__c} data-field="Description__c" onchange={handleInputChange}></lightning-input>
 
-                        <lightning-input-field class="slds-size--1-of-1" field-name="Name" required></lightning-input-field>
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Description__c"></lightning-input-field>
-                        <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Color_Code__c"></lightning-input-field>
+                    <lightning-input type="color" label="Select a Color" value={crewData.Color_Code__c} data-field="Color_Code__c" onchange={handleInputChange}></lightning-input>
 
-                        <div class="slds-grid slds-grid--align-center slds-p-vertical--medium crew-bottom-footer-btn">
-                            <button class="crew-save-btn" type="submit" disabled={isCreateModalLoading}>
-                                <template if:true={isCreateModalLoading}>
-                                    <lightning-spinner size="small" alternative-text="Saving..."></lightning-spinner>
-                                </template>
-                                {saveButtonLabel}
-                            </button>
-                        </div>
-                    </lightning-record-edit-form>
+                    <div class="slds-grid slds-grid--align-center slds-p-vertical--medium crew-bottom-footer-btn">
+                        <button class="crew-save-btn" onclick={handleSaveCrew} disabled={isLoading}>
+                            {saveButtonLabel}
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>

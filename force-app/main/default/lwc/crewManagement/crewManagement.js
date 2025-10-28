@@ -2,6 +2,7 @@ import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import getCrewMembers from '@salesforce/apex/ManagementTabController.getCrewMembers';
+import saveCrew from '@salesforce/apex/ManagementTabController.saveCrew';
 import deleteCrew from '@salesforce/apex/ManagementTabController.deleteCrew';
 
 export default class CrewManagement extends NavigationMixin(LightningElement) {
@@ -13,7 +14,6 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     @track sortField = 'Name';
     @track sortOrder = 'asc';
     @track showCreateModal = false;
-    @track isCreateModalLoading = false;
     @track isEditMode = false;
     @track recordIdToEdit = null;
     @track showConfirmationModal = false;
@@ -23,6 +23,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     @track currentPage = 1;
     @track pageSize = 30;
     @track visiblePages = 5;
+    @track crewData = this.getDefaultCrewData();
     @track crewTableColumns = [
         { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false },
         { label: 'Actions', fieldName: 'Actions', type: 'text', isActions: true, sortable: false },
@@ -74,42 +75,22 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         });
     }
 
-    /**
-     * Method Name: get totalItems
-     * @description: Get total number of filtered crews
-     */
     get totalItems() {
         return this.filteredCrewList ? this.filteredCrewList.length : 0;
     }
 
-    /**
-     * Method Name: get totalPages
-     * @description: Calculate total number of pages
-     */
     get totalPages() {
         return Math.ceil(this.totalItems / this.pageSize);
     }
 
-    /**
-     * Method Name: get isFirstPage
-     * @description: Check if current page is first page
-     */
     get isFirstPage() {
         return this.currentPage === 1;
     }
 
-    /**
-     * Method Name: get isLastPage
-     * @description: Check if current page is last page
-     */
     get isLastPage() {
         return this.currentPage === this.totalPages;
     }
 
-    /**
-     * Method Name: get pageNumbers
-     * @description: Generate array of page numbers for pagination display
-     */
     get pageNumbers() {
         const pages = [];
         const totalPages = this.totalPages;
@@ -176,26 +157,14 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         return pages;
     }
 
-    /**
-     * Method Name: get isDataAvailable
-     * @description: Check if data is available to display
-     */
     get isDataAvailable() {
         return this.shownCrewData && this.shownCrewData.length > 0;
     }
 
-    /**
-     * Method Name: get modalTitle
-     * @description: Get modal title based on mode
-     */
     get modalTitle() {
         return this.isEditMode ? 'Edit Crew' : 'Create New Crew';
     }
 
-    /**
-     * Method Name: get saveButtonLabel
-     * @description: Get save button label based on mode
-     */
     get saveButtonLabel() {
         return this.isEditMode ? 'Update' : 'Save';
     }
@@ -209,23 +178,29 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      * @description: Fetch all crew records
      */
     fetchCrewMembers() {
-        this.isLoading = true;
-
-        getCrewMembers()
-            .then(result => {
-                this.crewList = result || [];
-                this.applyFilters();
-                setTimeout(() => {
-                    this.updateSortIcons();
-                }, 100);
-            })
-            .catch(error => {
-                console.error('Error fetching crews:', error);
-                this.showToast('Error', 'Failed to load crews', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
+        try {
+            this.isLoading = true;
+    
+            getCrewMembers()
+                .then(result => {
+                    this.crewList = result || [];
+                    this.applyFilters();
+                    setTimeout(() => {
+                        this.updateSortIcons();
+                    }, 100);
+                })
+                .catch(error => {
+                    console.error('Error fetching crews:', error);
+                    this.showToast('Error', 'Failed to load crews', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in fetchCrewMembers:', error);
+            this.showToast('Error', 'Failed to load crews', 'error');
+            this.isLoading = false;
+        }
     }
 
     /**
@@ -233,36 +208,41 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      * @description: Get field value from record, supporting nested fields
      */
     getFieldValue(record, fieldName) {
-        if (!record || !fieldName) {
-            return null;
-        }
-
-        if (record.hasOwnProperty(fieldName)) {
-            return record[fieldName];
-        }
-
-        if (fieldName.includes('.')) {
-            const parts = fieldName.split('.');
-            let value = record;
-            for (const part of parts) {
-                if (value && value.hasOwnProperty(part)) {
-                    value = value[part];
-                } else {
-                    return null;
+        try {
+            if (!record || !fieldName) {
+                return null;
+            }
+    
+            if (record.hasOwnProperty(fieldName)) {
+                return record[fieldName];
+            }
+    
+            if (fieldName.includes('.')) {
+                const parts = fieldName.split('.');
+                let value = record;
+                for (const part of parts) {
+                    if (value && value.hasOwnProperty(part)) {
+                        value = value[part];
+                    } else {
+                        return null;
+                    }
+                }
+                return value;
+            }
+    
+            // Attempt to strip namespace prefix if present in config
+            if (fieldName.includes('__') && fieldName.startsWith('wfrecon__')) {
+                const withoutNamespace = fieldName.replace('wfrecon__', '');
+                if (record.hasOwnProperty(withoutNamespace)) {
+                    return record[withoutNamespace];
                 }
             }
-            return value;
+    
+            return null;
+        } catch (error) {
+            console.error('Error getting field value:', error);
+            return null;
         }
-
-        // Attempt to strip namespace prefix if present in config
-        if (fieldName.includes('__') && fieldName.startsWith('wfrecon__')) {
-            const withoutNamespace = fieldName.replace('wfrecon__', '');
-            if (record.hasOwnProperty(withoutNamespace)) {
-                return record[withoutNamespace];
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -297,9 +277,13 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      * @description: Handle search input change
      */
     handleSearch(event) {
-        this.searchTerm = event.target.value;
-        this.currentPage = 1;
-        this.applyFilters();
+        try {
+            this.searchTerm = event.target.value;
+            this.currentPage = 1;
+            this.applyFilters();
+        } catch (error) {
+            console.error('Error in handleSearch:', error);
+        }
     }
 
     /**
@@ -309,6 +293,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     handleCreateNew() {
         this.isEditMode = false;
         this.recordIdToEdit = null;
+        this.crewData = this.getDefaultCrewData();
         this.showCreateModal = true;
     }
 
@@ -318,53 +303,101 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      */
     handleCloseModal() {
         this.showCreateModal = false;
-        this.isCreateModalLoading = false;
+        this.isLoading = false;
         this.isEditMode = false;
         this.recordIdToEdit = null;
+        this.crewData = this.getDefaultCrewData();
     }
 
     /**
-     * Method Name: handleSaveSuccess
-     * @description: Handle successful save of crew record
+     * Method Name: handleInputChange
+     * @description: Handle input change for create crew modal
      */
-    handleSaveSuccess() {
-        const actionLabel = this.isEditMode ? 'updated' : 'created';
-        this.showToast('Success', `Crew ${actionLabel} successfully`, 'success');
-        this.handleCloseModal();
-        this.currentPage = 1;
-        this.fetchCrewMembers();
-    }
-
-    /**
-     * Method Name: handleSaveError
-     * @description: Handle errors during save
-     */
-    handleSaveError(event) {
-        console.error('Error saving crew:', event.detail);
-        const actionLabel = this.isEditMode ? 'update' : 'create';
-        this.showToast('Error', `Failed to ${actionLabel} crew`, 'error');
-        this.isCreateModalLoading = false;
-    }
-
-    /**
-     * Method Name: handleFormSubmit
-     * @description: Handle submit to show loading state
-     */
-    handleFormSubmit(event) {
-        event.preventDefault();
-        this.isCreateModalLoading = true;
-        const form = this.template.querySelector('lightning-record-edit-form.crew-form');
-        if (form) {
-            form.submit(event.detail.fields);
+    handleInputChange(event) {
+        try {
+            const field = event.target.dataset.field;
+            if (!field) {
+                return;
+            }
+    
+            let value = event.target.value;
+    
+            if (field === 'Color_Code__c') {
+                value = this.normalizeColorCode(value);
+                event.target.value = value;
+            }
+    
+            this.crewData = {
+                ...this.crewData,
+                [field]: value
+            };
+        } catch (error) {
+            console.error('Error in handleInputChange:', error);
         }
     }
 
     /**
-     * Method Name: handleFormLoaded
-     * @description: Remove loading when form is ready
+     * Method Name: handleSaveCrew
+     * @description: Save crew record via Apex
      */
-    handleFormLoaded() {
-        this.isCreateModalLoading = false;
+    handleSaveCrew() {
+        try {
+            const inputs = this.template.querySelectorAll('lightning-input[data-field]');
+            let allValid = true;
+
+            inputs.forEach(input => {
+                if (!input.reportValidity()) {
+                    allValid = false;
+                }
+            });
+
+            if (!allValid) {
+                return;
+            }
+
+            this.isLoading = true;
+
+            const payload = {
+                ...this.crewData
+            };
+
+            if (this.recordIdToEdit) {
+                payload.Id = this.recordIdToEdit;
+            } else if (payload.Id) {
+                delete payload.Id;
+            }
+
+            payload.Name = (payload.Name || '').trim();
+            payload.Description__c = payload.Description__c ? payload.Description__c.trim() : '';
+            payload.Color_Code__c = this.normalizeColorCode(payload.Color_Code__c);
+
+            if (!payload.Name) {
+                this.showToast('Error', 'Crew name is required', 'error');
+                this.isLoading = false;
+                return;
+            }
+
+            saveCrew({ crewData: payload })
+                .then((result) => {
+                    if (result === 'SUCCESS') {
+                        this.showToast('Success', `Crew ${this.isEditMode ? 'updated' : 'created'} successfully`, 'success');
+                        this.handleCloseModal();
+                        this.fetchCrewMembers();
+                    } else {
+                        this.showToast('Error', result, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving crew:', error);
+                    const message = error?.body?.message || 'Failed to save crew';
+                    this.showToast('Error', message, 'error');
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in handleSaveCrew :: ', error);
+            this.showToast('Error', 'Failed to save crew', 'error');
+            this.isLoading = false;
+        }
     }
 
     /**
@@ -486,7 +519,61 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         const recordId = event.currentTarget.dataset.recordId;
         this.isEditMode = true;
         this.recordIdToEdit = recordId;
+        const crewRecord = this.crewList.find(record => record.Id === recordId);
+        if (crewRecord) {
+            this.crewData = {
+                Id: crewRecord.Id,
+                Name: this.getFieldValue(crewRecord, 'Name') || '',
+                Description__c: this.getFieldValue(crewRecord, 'wfrecon__Description__c') || '',
+                Color_Code__c: this.normalizeColorCode(this.getFieldValue(crewRecord, 'wfrecon__Color_Code__c') || '#FFFFFF')
+            };
+        } else {
+            this.crewData = {
+                ...this.getDefaultCrewData(),
+                Id: recordId
+            };
+        }
         this.showCreateModal = true;
+    }
+
+    /**
+     * Method Name: getDefaultCrewData
+     * @description: Get default crew data structure
+     */
+    getDefaultCrewData() {
+        return {
+            Id: null,
+            Name: '',
+            Description__c: '',
+            Color_Code__c: '#FFFFFF'
+        };
+    }
+
+    /**
+     * Method Name: normalizeColorCode
+     * @description: Ensure color code is in proper format
+     */
+    normalizeColorCode(colorValue) {
+        try {
+            if (!colorValue) {
+                return '#FFFFFF';
+            }
+    
+            let normalizedColor = colorValue.trim();
+    
+            if (!normalizedColor.startsWith('#')) {
+                normalizedColor = `#${normalizedColor}`;
+            }
+    
+            if (normalizedColor.length === 1) {
+                normalizedColor = '#FFFFFF';
+            }
+    
+            return normalizedColor;
+        } catch (error) {
+            console.error('Error normalizing color code:', error);
+            return '#FFFFFF';
+        }
     }
 
     /**
@@ -529,24 +616,30 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      * @description: Delete crew via Apex
      */
     deleteCrewRecord(recordId) {
-        this.isLoading = true;
-
-        deleteCrew({ crewId: recordId })
-            .then(result => {
-                if (result === 'Success') {
-                    this.showToast('Success', 'Crew deleted successfully', 'success');
-                    this.fetchCrewMembers();
-                } else {
-                    this.showToast('Error', result, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting crew:', error);
-                this.showToast('Error', 'Failed to delete crew', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
+        try {
+            this.isLoading = true;
+    
+            deleteCrew({ crewId: recordId })
+                .then(result => {
+                    if (result === 'Success') {
+                        this.showToast('Success', 'Crew deleted successfully', 'success');
+                        this.fetchCrewMembers();
+                    } else {
+                        this.showToast('Error', result, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting crew:', error);
+                    this.showToast('Error', 'Failed to delete crew', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in deleteCrewRecord:', error);
+            this.showToast('Error', 'Failed to delete crew', 'error');
+            this.isLoading = false;
+        }
     }
 
     /**
