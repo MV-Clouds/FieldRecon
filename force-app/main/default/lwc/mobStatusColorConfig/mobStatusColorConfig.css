@@ -149,7 +149,7 @@
 }
 
 .empty-state__content .empty-state__icon {
-    width: 50%;
+    width: 65%;
     height: 100%;
 }
 
@@ -199,21 +199,23 @@
     height: 36px;
     background-color: white;
     font-size: 14px;
+    min-width: 108px;
 }
 
 .action-button:hover:not(:disabled) {
-    background-color: #f8f9fa;
-    border-color: #6c757d;
+    background-color: rgb(244, 244, 255);
+    border-color: rgba(94, 90, 219, 0.5);
     transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .action-button:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
     background-color: #f8f9fa;
-    color: #adb5bd;
-    border-color: #dee2e6;
-    transform: none;
-    opacity: 1;
+    color: #6c757d;
+    border-color: #d8d8d8;
+    pointer-events: none;
 }
 
 .save-button {
@@ -225,33 +227,35 @@
 .save-button:hover:not(:disabled) {
     background-color: rgba(94, 90, 219, 0.9);
     border-color: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .save-button:disabled {
-    background-color: #adb5bd;
-    border-color: #adb5bd;
-    color: white;
-    opacity: 1;
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* Discard Button Styles */
 .action-button.discard-btn {
     background-color: #dc3545;
-    border-color: #dc3545;
     color: white;
+    border-color: #dc3545;
 }
 
 .action-button.discard-btn:hover:not(:disabled) {
-    background-color: #c82333;
-    border-color: #bd2130;
     transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
 }
 
 .action-button.discard-btn:disabled {
-    background-color: #adb5bd;
-    border-color: #adb5bd;
-    color: white;
-    opacity: 1;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
 }
 
 /* SVG Icon Sizing */
