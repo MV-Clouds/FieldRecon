@@ -1,9 +1,9 @@
 <template>
-    <div class="spinner-container">
-        <template if:true={isLoading}>
-            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
-        </template>
-    </div>
+    <template if:true={isLoading}>
+        <div class="spinner-container slds-is-fixed">
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            </div>
+    </template>
 
     <div class="main-card">
         <!-- Header Section -->

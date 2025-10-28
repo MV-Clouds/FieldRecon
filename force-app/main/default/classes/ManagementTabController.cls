@@ -26,7 +26,7 @@ public with sharing class ManagementTabController {
         
         try {
             crewMembers = [
-                SELECT Id, Name, Description__c, Crew_Member_Count__c
+                SELECT Id, Name, Description__c, Color_Code__c, Crew_Member_Count__c
                 FROM Crew__c
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC
@@ -39,22 +39,32 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static String saveCrew(Map<String, Object> crewData) {
+    public static Map<String, Object> saveCrew(Map<String, Object> crewData) {
+        Map<String, Object> response = new Map<String, Object>{
+            'status' => 'ERROR',
+            'message' => 'Unable to save crew.'
+        };
+
         try {
             if (crewData == null || crewData.isEmpty()) {
-                return 'Error: Crew details are required.';
+                response.put('message', 'Crew details are required.');
+                return response;
+            }
+
+            Object idValue = crewData.get('Id');
+            Id crewId;
+            if (idValue != null) {
+                crewId = idValue instanceof Id ? (Id)idValue : Id.valueOf(String.valueOf(idValue));
             }
 
             String crewName = (String)crewData.get('Name');
             if (String.isBlank(crewName)) {
-                return 'Error: Crew name is required.';
+                response.put('message', 'Crew name is required.');
+                return response;
             }
-
-            Id crewId = (Id)crewData.get('Id');
 
             Crew__c crewRecord = new Crew__c();
             crewRecord.Name = crewName;
-
             if (crewId != null) {
                 crewRecord.Id = crewId;
             }
@@ -71,16 +81,92 @@ public with sharing class ManagementTabController {
                 crewRecord.Color_Code__c = colorCode;
             }
 
+            List<Id> membersToAdd = new List<Id>();
+            if (crewData.containsKey('membersToAdd') && crewData.get('membersToAdd') != null) {
+                for (Object memberVal : (List<Object>)crewData.get('membersToAdd')) {
+                    if (memberVal == null) {
+                        continue;
+                    }
+                    membersToAdd.add(memberVal instanceof Id ? (Id)memberVal : Id.valueOf(String.valueOf(memberVal)));
+                }
+            }
+
+            List<Id> memberRecordIdsToRemove = new List<Id>();
+            if (crewData.containsKey('membersToRemove') && crewData.get('membersToRemove') != null) {
+                for (Object membershipVal : (List<Object>)crewData.get('membersToRemove')) {
+                    if (membershipVal == null) {
+                        continue;
+                    }
+                    memberRecordIdsToRemove.add(membershipVal instanceof Id ? (Id)membershipVal : Id.valueOf(String.valueOf(membershipVal)));
+                }
+            }
+
             if (crewRecord.Id == null) {
                 insert crewRecord;
             } else {
                 update crewRecord;
             }
 
-            return 'SUCCESS';
+            crewId = crewRecord.Id;
+
+            if (!memberRecordIdsToRemove.isEmpty()) {
+                List<Crew_Member__c> membershipsToDelete = [
+                    SELECT Id
+                    FROM Crew_Member__c
+                    WHERE Id IN :memberRecordIdsToRemove
+                    WITH USER_MODE
+                ];
+
+                if (!membershipsToDelete.isEmpty()) {
+                    delete membershipsToDelete;
+                }
+            }
+
+            if (!membersToAdd.isEmpty()) {
+                Set<Id> contactIdsToInsert = new Set<Id>(membersToAdd);
+
+                List<Crew_Member__c> existingMemberships = [
+                    SELECT Id, Contact__c
+                    FROM Crew_Member__c
+                    WHERE Crew__c = :crewId AND Contact__c IN :contactIdsToInsert
+                    WITH USER_MODE
+                ];
+
+                for (Crew_Member__c existingMembership : existingMemberships) {
+                    contactIdsToInsert.remove(existingMembership.Contact__c);
+                }
+
+                if (!contactIdsToInsert.isEmpty()) {
+                    List<Crew_Member__c> membershipsToInsert = new List<Crew_Member__c>();
+                    for (Id contactId : contactIdsToInsert) {
+                        membershipsToInsert.add(new Crew_Member__c(Crew__c = crewId, Contact__c = contactId));
+                    }
+                    insert membershipsToInsert;
+                }
+            }
+
+            Integer memberCount;
+            if (crewData.containsKey('selectedMemberIds') && crewData.get('selectedMemberIds') != null) {
+                memberCount = ((List<Object>)crewData.get('selectedMemberIds')).size();
+            } else {
+                memberCount = [
+                    SELECT COUNT()
+                    FROM Crew_Member__c
+                    WHERE Crew__c = :crewId
+                ];
+            }
+
+            response.put('status', 'SUCCESS');
+            response.put('message', 'Crew saved successfully.');
+            response.put('crewId', crewId);
+            response.put('memberCount', memberCount);
+            response.put('membersAdded', membersToAdd.size());
+            response.put('membersRemoved', memberRecordIdsToRemove.size());
+            return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveCrew', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving Crew : ' + e.getMessage(), 'apiResponse' => null});
-            return 'Error: ' + e.getMessage();
+            response.put('message', 'Error: ' + e.getMessage());
+            return response;
         }
     }
 
@@ -113,6 +199,81 @@ public with sharing class ManagementTabController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertProcess', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Process : ' + e.getMessage(), 'apiResponse' => null});
             throw new AuraHandledException('Error saving process: ' + e.getMessage());
         }
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> getCrewContacts(Id crewId) {
+        List<CrewContactDTO> assignedContacts = new List<CrewContactDTO>();
+        List<CrewContactDTO> availableContacts = new List<CrewContactDTO>();
+
+        Map<String, Object> response = new Map<String, Object>{
+            'assignedContacts' => assignedContacts,
+            'availableContacts' => availableContacts
+        };
+
+        try {
+            List<Contact> crewCandidates = [
+                SELECT Id, Name,
+                    (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
+                     FROM Crew_Members__r)
+                FROM Contact
+                WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
+                AND User__r.IsActive = true
+                WITH USER_MODE
+                ORDER BY Name
+            ];
+
+            for (Contact contactRecord : crewCandidates) {
+                CrewContactDTO contactDto = new CrewContactDTO();
+                contactDto.id = contactRecord.Id;
+                contactDto.name = contactRecord.Name;
+                contactDto.isAssignedElsewhere = false;
+                contactDto.isAssignedToCurrentCrew = false;
+
+                if (contactRecord.Crew_Members__r != null && !contactRecord.Crew_Members__r.isEmpty()) {
+                    List<String> crewNames = new List<String>();
+
+                    for (Crew_Member__c membership : contactRecord.Crew_Members__r) {
+                        CrewMembershipDTO membershipDto = new CrewMembershipDTO();
+                        membershipDto.membershipId = membership.Id;
+                        membershipDto.crewId = membership.Crew__c;
+                        membershipDto.crewName = membership.Crew__r != null ? membership.Crew__r.Name : null;
+                        membershipDto.colorCode = membership.Crew__r != null ? membership.Crew__r.Color_Code__c : null;
+                        contactDto.memberships.add(membershipDto);
+
+                        if (!String.isBlank(membershipDto.crewName)) {
+                            crewNames.add(membershipDto.crewName);
+                        }
+
+                        if (crewId != null && membership.Crew__c == crewId) {
+                            contactDto.isAssignedToCurrentCrew = true;
+                            contactDto.currentCrewMembershipId = membership.Id;
+                        } else if (membership.Crew__c != null) {
+                            contactDto.isAssignedElsewhere = true;
+                        }
+
+                        if (String.isBlank(contactDto.primaryCrewColor) && !String.isBlank(membershipDto.colorCode)) {
+                            contactDto.primaryCrewColor = membershipDto.colorCode;
+                        }
+                    }
+
+                    contactDto.assignedCrewNames = crewNames.isEmpty() ? null : String.join(crewNames, ', ');
+                }
+
+                if (contactDto.isAssignedToCurrentCrew) {
+                    assignedContacts.add(contactDto);
+                } else {
+                    availableContacts.add(contactDto);
+                }
+            }
+
+            availableContacts.sort();
+            assignedContacts.sort();
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching crew contacts : ' + e.getMessage(), 'apiResponse' => null});
+        }
+
+        return response;
     }
 
     @AuraEnabled
@@ -175,6 +336,38 @@ public with sharing class ManagementTabController {
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertCostCode', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});
             throw new AuraHandledException('Error saving cost code: ' + e.getMessage());
+        }
+    }
+
+    public class CrewMembershipDTO {
+        @AuraEnabled public Id membershipId;
+        @AuraEnabled public Id crewId;
+        @AuraEnabled public String crewName;
+        @AuraEnabled public String colorCode;
+    }
+
+    public class CrewContactDTO implements Comparable {
+        @AuraEnabled public Id id;
+        @AuraEnabled public String name;
+        @AuraEnabled public Boolean isAssignedElsewhere;
+        @AuraEnabled public Boolean isAssignedToCurrentCrew;
+        @AuraEnabled public String assignedCrewNames;
+        @AuraEnabled public String primaryCrewColor;
+        @AuraEnabled public Id currentCrewMembershipId;
+        @AuraEnabled public List<CrewMembershipDTO> memberships = new List<CrewMembershipDTO>();
+
+        public Integer compareTo(Object obj) {
+            CrewContactDTO other = (CrewContactDTO)obj;
+            Boolean thisAssignedElsewhere = this.isAssignedElsewhere == null ? false : this.isAssignedElsewhere;
+            Boolean otherAssignedElsewhere = other.isAssignedElsewhere == null ? false : other.isAssignedElsewhere;
+
+            if (thisAssignedElsewhere != otherAssignedElsewhere) {
+                return thisAssignedElsewhere ? 1 : -1;
+            }
+
+            String thisName = this.name == null ? '' : this.name.toLowerCase();
+            String otherName = other.name == null ? '' : other.name.toLowerCase();
+            return thisName.compareTo(otherName);
         }
     }
 }
