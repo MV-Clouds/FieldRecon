@@ -203,8 +203,6 @@
 }
 
 .action-button:hover:not(:disabled) {
-    background-color: rgb(244, 244, 255);
-    border-color: rgba(94, 90, 219, 0.5);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
@@ -225,8 +223,6 @@
 }
 
 .save-button:hover:not(:disabled) {
-    background-color: rgba(94, 90, 219, 0.9);
-    border-color: rgba(94, 90, 219, 0.9);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }

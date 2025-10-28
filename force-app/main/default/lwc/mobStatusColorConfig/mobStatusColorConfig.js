@@ -235,6 +235,8 @@ export default class MobStatusColorConfig extends LightningElement {
         }
 
         this.isLoading = true;
+
+        console.log('Modified Records:', JSON.stringify(modifiedRecords, null, 2));
         
         saveStatusColors({ statusColors: modifiedRecords })
             .then(result => {

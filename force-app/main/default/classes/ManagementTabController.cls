@@ -804,8 +804,15 @@ public with sharing class ManagementTabController {
         wrapper.apiValue = entry.getValue();
         
         // Check if custom setting exists for this picklist value
+        // Try both the label and API value as keys
+        Mobilization_Status_Color__c customSetting = null;
         if (customSettingsMap.containsKey(entry.getLabel())) {
-            Mobilization_Status_Color__c customSetting = customSettingsMap.get(entry.getLabel());
+            customSetting = customSettingsMap.get(entry.getLabel());
+        } else if (customSettingsMap.containsKey(entry.getValue())) {
+            customSetting = customSettingsMap.get(entry.getValue());
+        }
+        
+        if (customSetting != null) {
             wrapper.id = customSetting.Id;
             wrapper.textColor = customSetting.wfrecon__Color__c != null ? customSetting.wfrecon__Color__c : '#000000';
             wrapper.backgroundColor = customSetting.wfrecon__Background_Color__c != null ? customSetting.wfrecon__Background_Color__c : '#c4c4c4';
@@ -827,30 +834,53 @@ public with sharing class ManagementTabController {
             'status' => 'ERROR',
             'message' => 'Unable to save status colors.'
         };
-        
+
         try {
+            // Fetch all existing custom settings first
+            Map<String, Mobilization_Status_Color__c> existingSettings = Mobilization_Status_Color__c.getAll();
             List<Mobilization_Status_Color__c> recordsToUpsert = new List<Mobilization_Status_Color__c>();
-            
+
             for (StatusColorWrapper wrapper : statusColors) {
-                Mobilization_Status_Color__c record = new Mobilization_Status_Color__c();
-                
-                if (wrapper.id != null) {
+                Mobilization_Status_Color__c record;
+
+                // If wrapper has an ID, it's an existing Custom Setting record
+                if (String.isNotBlank(wrapper.id)) {
+                    record = new Mobilization_Status_Color__c();
                     record.Id = wrapper.id;
+                } else {
+                    // Try to find existing record by Name (picklistValue or apiValue)
+                    Mobilization_Status_Color__c existingRecord;
+                    if (existingSettings.containsKey(wrapper.picklistValue)) {
+                        existingRecord = existingSettings.get(wrapper.picklistValue);
+                    } else if (existingSettings.containsKey(wrapper.apiValue)) {
+                        existingRecord = existingSettings.get(wrapper.apiValue);
+                    }
+
+                    if (existingRecord != null) {
+                        record = existingRecord;
+                    } else {
+                        // Create new record
+                        record = new Mobilization_Status_Color__c();
+                        // Use the exact picklist value as the name
+                        String recordName = wrapper.picklistValue != null ? wrapper.picklistValue : wrapper.apiValue;
+                        record.Name = recordName;
+                    }
                 }
-                
-                record.Name = wrapper.picklistValue;
+
                 record.wfrecon__Color__c = wrapper.textColor;
                 record.wfrecon__Background_Color__c = wrapper.backgroundColor;
-                
+
                 recordsToUpsert.add(record);
             }
-            
-            upsert as user recordsToUpsert;
-            
+
+
+            // Perform upsert (system mode — required for Custom Settings)
+            upsert recordsToUpsert Mobilization_Status_Color__c.Name;
+
             response.put('status', 'SUCCESS');
             response.put('message', 'Status colors saved successfully.');
             response.put('recordsProcessed', recordsToUpsert.size());
-            
+
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME, 
@@ -863,9 +893,10 @@ public with sharing class ManagementTabController {
             });
             response.put('message', 'Error: ' + e.getMessage());
         }
-        
+
         return response;
     }
+
     
     public class StatusColorWrapper {
         @AuraEnabled public String id;
