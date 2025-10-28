@@ -2,6 +2,7 @@ import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import getCrewMembers from '@salesforce/apex/ManagementTabController.getCrewMembers';
+import getCrewContacts from '@salesforce/apex/ManagementTabController.getCrewContacts';
 import saveCrew from '@salesforce/apex/ManagementTabController.saveCrew';
 import deleteCrew from '@salesforce/apex/ManagementTabController.deleteCrew';
 
@@ -32,6 +33,20 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         { label: 'Crew Members', fieldName: 'wfrecon__Crew_Member_Count__c', type: 'number', sortable: true },
         { label: 'Color Code', fieldName: 'wfrecon__Color_Code__c', type: 'text', sortable: true }
     ];
+    @track availableCrewContacts = [];
+    @track filteredCrewContacts = [];
+    @track selectedCrewMembers = [];
+    @track memberSearchTerm = '';
+    @track confirmationConfirmLabel = 'Delete';
+    @track confirmationCancelLabel = 'Cancel';
+    @track confirmationConfirmVariant = 'destructive';
+    @track confirmationIcon = 'utility:warning';
+    @track confirmationIconVariant = 'warning';
+    @track confirmationContext = null;
+    @track pendingSavePayload = null;
+    @track pendingConflictMembers = [];
+    @track hasAcknowledgedConflicts = false;
+    @track originalCrewmemberByContact = new Map();
 
     /**
      * Method Name: get displayedCrews
@@ -41,7 +56,6 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         if (!this.shownCrewData || this.shownCrewData.length === 0) {
             return [];
         }
-
         return this.shownCrewData.map((crewRecord, index) => {
             const row = { ...crewRecord };
             row.recordUrl = `/lightning/r/${crewRecord.Id}/view`;
@@ -170,14 +184,14 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     }
 
     connectedCallback() {
-        this.fetchCrewMembers();
+        this.fetchCrew();
     }
 
     /**
-     * Method Name: fetchCrewMembers
+     * Method Name: fetchCrew
      * @description: Fetch all crew records
      */
-    fetchCrewMembers() {
+    fetchCrew() {
         try {
             this.isLoading = true;
     
@@ -197,7 +211,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                     this.isLoading = false;
                 });
         } catch (error) {
-            console.error('Error in fetchCrewMembers:', error);
+            console.error('Error in fetchCrew:', error);
             this.showToast('Error', 'Failed to load crews', 'error');
             this.isLoading = false;
         }
@@ -294,7 +308,9 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         this.isEditMode = false;
         this.recordIdToEdit = null;
         this.crewData = this.getDefaultCrewData();
+        this.resetCrewMemberSelection();
         this.showCreateModal = true;
+        this.loadCrewContacts(null);
     }
 
     /**
@@ -307,6 +323,14 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         this.isEditMode = false;
         this.recordIdToEdit = null;
         this.crewData = this.getDefaultCrewData();
+        this.resetCrewMemberSelection();
+        this.showConfirmationModal = false;
+        this.confirmationContext = null;
+        this.confirmationConfirmLabel = 'Delete';
+        this.confirmationConfirmVariant = 'destructive';
+        this.confirmationCancelLabel = 'Cancel';
+        this.confirmationIcon = 'utility:warning';
+        this.confirmationIconVariant = 'warning';
     }
 
     /**
@@ -355,8 +379,6 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            this.isLoading = true;
-
             const payload = {
                 ...this.crewData
             };
@@ -370,33 +392,35 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
             payload.Name = (payload.Name || '').trim();
             payload.Description__c = payload.Description__c ? payload.Description__c.trim() : '';
             payload.Color_Code__c = this.normalizeColorCode(payload.Color_Code__c);
+            payload.membersToAdd = Array.from(new Set(this.getMembersToAdd()));
+            payload.membersToRemove = Array.from(new Set(this.getMembersToRemove()));
+            payload.selectedMemberIds = Array.from(new Set(this.getSelectedMemberIds()));
 
             if (!payload.Name) {
                 this.showToast('Error', 'Crew name is required', 'error');
-                this.isLoading = false;
                 return;
             }
 
-            saveCrew({ crewData: payload })
-                .then((result) => {
-                    if (result === 'SUCCESS') {
-                        this.showToast('Success', `Crew ${this.isEditMode ? 'updated' : 'created'} successfully`, 'success');
-                        this.handleCloseModal();
-                        this.fetchCrewMembers();
-                    } else {
-                        this.showToast('Error', result, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error saving crew:', error);
-                    const message = error?.body?.message || 'Failed to save crew';
-                    this.showToast('Error', message, 'error');
-                    this.isLoading = false;
-                });
+            const conflictingMembers = this.getConflictingSelectedMembers();
+
+            if (conflictingMembers.length > 0 && !this.hasAcknowledgedConflicts) {
+                this.pendingSavePayload = { ...payload };
+                this.pendingConflictMembers = conflictingMembers.map(member => ({
+                    contactId: member.id,
+                    contactName: member.name,
+                    assignedCrewNames: member.assignedCrewNames,
+                    crewNameSummary: member.assignedCrewNames
+                }));
+                this.showConflictConfirmation(null, this.pendingConflictMembers);
+                return;
+            }
+
+            this.pendingSavePayload = null;
+            this.pendingConflictMembers = [];
+            this.executeCrewSave(payload);
         } catch (error) {
             console.error('Error in handleSaveCrew :: ', error);
             this.showToast('Error', 'Failed to save crew', 'error');
-            this.isLoading = false;
         }
     }
 
@@ -515,25 +539,32 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      * @description: Open modal in edit mode
      */
     handleEditCrew(event) {
-        event.preventDefault();
-        const recordId = event.currentTarget.dataset.recordId;
-        this.isEditMode = true;
-        this.recordIdToEdit = recordId;
-        const crewRecord = this.crewList.find(record => record.Id === recordId);
-        if (crewRecord) {
-            this.crewData = {
-                Id: crewRecord.Id,
-                Name: this.getFieldValue(crewRecord, 'Name') || '',
-                Description__c: this.getFieldValue(crewRecord, 'wfrecon__Description__c') || '',
-                Color_Code__c: this.normalizeColorCode(this.getFieldValue(crewRecord, 'wfrecon__Color_Code__c') || '#FFFFFF')
-            };
-        } else {
-            this.crewData = {
-                ...this.getDefaultCrewData(),
-                Id: recordId
-            };
+        try {
+            event.preventDefault();
+            const recordId = event.currentTarget.dataset.recordId;
+            this.isEditMode = true;
+            this.recordIdToEdit = recordId;
+            const crewRecord = this.crewList.find(record => record.Id === recordId);
+            if (crewRecord) {
+                this.crewData = {
+                    Id: crewRecord.Id,
+                    Name: this.getFieldValue(crewRecord, 'Name') || '',
+                    Description__c: this.getFieldValue(crewRecord, 'wfrecon__Description__c') || '',
+                    Color_Code__c: this.normalizeColorCode(this.getFieldValue(crewRecord, 'wfrecon__Color_Code__c') || '#FFFFFF')
+                };
+            } else {
+                this.crewData = {
+                    ...this.getDefaultCrewData(),
+                    Id: recordId
+                };
+            }
+            this.resetCrewMemberSelection();
+            this.showCreateModal = true;
+            this.loadCrewContacts(recordId);
+        } catch (error) {
+            console.error('Error opening edit modal:', error);
+            this.showToast('Error', 'Failed to load crew for editing', 'error');
         }
-        this.showCreateModal = true;
     }
 
     /**
@@ -577,6 +608,357 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: resetCrewMemberSelection
+     * @description: Reset crew member selection
+     */
+    resetCrewMemberSelection() {
+        this.availableCrewContacts = [];
+        this.filteredCrewContacts = [];
+        this.selectedCrewMembers = [];
+        this.memberSearchTerm = '';
+        this.pendingSavePayload = null;
+        this.pendingConflictMembers = [];
+        this.hasAcknowledgedConflicts = false;
+        this.originalCrewmemberByContact = new Map();
+    }
+
+    /**
+     * Method Name: loadCrewContacts
+     * @description: Load crew contacts for the specified crew
+     */
+    loadCrewContacts(crewId) {
+        try {
+            this.isLoading = true;
+    
+            getCrewContacts({ crewId })
+                .then(result => {
+                    const assignedDtos = (result && result.assignedContacts) ? result.assignedContacts : [];
+                    const availableDtos = (result && result.availableContacts) ? result.availableContacts : [];
+    
+                    this.selectedCrewMembers = assignedDtos.map(dto => this.transformCrewContact(dto)).sort((a, b) => a.name.localeCompare(b.name));
+                    this.originalCrewmemberByContact = new Map();
+                    this.selectedCrewMembers.forEach(member => {
+                        if (member.currentCrewmemberId) {
+                            this.originalCrewmemberByContact.set(member.id, member.currentCrewmemberId);
+                        }
+                    });
+                    this.availableCrewContacts = availableDtos.map(dto => this.transformCrewContact(dto));
+                    this.sortAvailableCrewContacts();
+                })
+                .catch(error => {
+                    console.error('Error fetching crew contacts:', error);
+                    this.showToast('Error', 'Failed to load crew members', 'error');
+                })
+                .finally(() => {
+                    this.applyCrewMemberSearch();
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error loading crew contacts:', error);
+            this.showToast('Error', 'Failed to load crew members', 'error');
+        }
+    }
+
+    /**
+     * Method Name: transformCrewContact
+     * @description: Transform crew contact DTO to component model
+     */
+    transformCrewContact(contactDto) {
+        try {
+            const members = contactDto && contactDto.members ? contactDto.members : [];
+            const memberCrewIds = members.map(m => m.crewId).filter(id => !!id);
+            const memberCrewNames = members
+                .map(m => m.crewName)
+                .filter(name => !!name);
+            const memberDetails = members.map(member => ({
+                id: member.memberId || member.id,
+                crewId: member.crewId,
+                crewName: member.crewName,
+                colorCode: member.colorCode
+            }));
+    
+            return {
+                id: contactDto.id,
+                name: contactDto.name,
+                assignedCrewNames: contactDto.assignedCrewNames || (memberCrewNames.length ? memberCrewNames.join(', ') : null),
+                memberCrewIds,
+                memberCrewNames,
+                 members: memberDetails,
+                isAssignedElsewhere: Boolean(contactDto.isAssignedElsewhere),
+                isAssignedToCurrentCrew: Boolean(contactDto.isAssignedToCurrentCrew),
+                currentCrewmemberId: contactDto.currentCrewmemberId || null,
+                primaryCrewColor: contactDto.primaryCrewColor ? this.normalizeColorCode(contactDto.primaryCrewColor) : null,
+                availableFlag: contactDto.isAssignedElsewhere ? 'false' : 'true',
+                removeAriaLabel: contactDto.name ? `Remove ${contactDto.name}` : 'Remove crew member'
+            };
+        } catch (error) {
+            console.error('Error transforming crew contact:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Method Name: sortAvailableCrewContacts
+     * @description: Sort available crew contacts by assignment status and name
+     */
+    sortAvailableCrewContacts() {
+        try {
+            const sorted = [...this.availableCrewContacts].sort((a, b) => {
+                if (a.isAssignedElsewhere === b.isAssignedElsewhere) {
+                    return a.name.localeCompare(b.name);
+                }
+                return a.isAssignedElsewhere ? 1 : -1;
+            });
+            this.availableCrewContacts = sorted;
+        } catch (error) {
+            console.error('Error sorting available crew contacts:', error);
+            this.showToast('Error', 'Failed to sort crew members', 'error');
+        }
+    }
+
+    /**
+     * Method Name: applyCrewMemberSearch
+     * @description: Apply search filter to crew members
+     */
+    applyCrewMemberSearch() {
+        try {
+            const searchValue = (this.memberSearchTerm || '').trim().toLowerCase();
+            if (!searchValue) {
+                this.filteredCrewContacts = [...this.availableCrewContacts];
+                return;
+            }
+    
+            this.filteredCrewContacts = this.availableCrewContacts.filter(contact => {
+                const name = contact.name ? contact.name.toLowerCase() : '';
+                const assigned = contact.assignedCrewNames ? contact.assignedCrewNames.toLowerCase() : '';
+                return name.includes(searchValue) || assigned.includes(searchValue);
+            });
+        } catch (error) {
+            console.error('Error applying crew member search:', error);
+            this.showToast('Error', 'Failed to filter crew members', 'error');
+        }
+    }
+
+    /**
+     * Method Name: handleCrewMemberSearchChange
+     * @description: Handle changes to the crew member search input
+     */
+    handleCrewMemberSearchChange(event) {
+        this.memberSearchTerm = event.target.value || '';
+        this.applyCrewMemberSearch();
+    }
+
+    /**
+     * Method Name: handleCrewMemberSelect
+     * @description: Handle selection of a crew member from available list
+     */
+    handleCrewMemberSelect(event) {
+        try {
+            const contactId = event.target.dataset.id;
+            if (!contactId) {
+                return;
+            }
+    
+            const contactIndex = this.availableCrewContacts.findIndex(contact => contact.id === contactId);
+            if (contactIndex === -1) {
+                return;
+            }
+    
+            const [selectedContact] = this.availableCrewContacts.splice(contactIndex, 1);
+            this.availableCrewContacts = [...this.availableCrewContacts];
+            this.selectedCrewMembers = [...this.selectedCrewMembers, selectedContact].sort((a, b) => a.name.localeCompare(b.name));
+    
+            if (selectedContact.isAssignedElsewhere) {
+                this.hasAcknowledgedConflicts = false;
+            }
+    
+            this.applyCrewMemberSearch();
+        } catch (error) {
+            console.error('Error selecting crew member:', error);
+            this.showToast('Error', 'Failed to select crew member', 'error');
+        }
+    }
+
+    /**
+     * Method Name: handleRemoveCrewMemberKeydown
+     * @description: Handle keydown event for removing crew member
+     */
+    handleRemoveCrewMemberKeydown(event) {
+        try {
+            const { key } = event;
+            if (key === 'Enter' || key === ' ') {
+                event.preventDefault();
+                this.handleRemoveCrewMember(event);
+            }
+        } catch (error) {
+            console.error('Error handling remove crew member keydown:', error);
+            this.showToast('Error', 'Failed to handle remove crew member keydown', 'error');
+        }
+    }
+
+    /**
+     * Method Name: handleRemoveCrewMember
+     * @description: Handle removal of a crew member from selected list
+     */
+    handleRemoveCrewMember(event) {
+        try {
+            const contactId = event.currentTarget.dataset.id;
+            if (!contactId) {
+                return;
+            }
+    
+            const memberIndex = this.selectedCrewMembers.findIndex(member => member.id === contactId);
+            if (memberIndex === -1) {
+                return;
+            }
+    
+            const [removedMember] = this.selectedCrewMembers.splice(memberIndex, 1);
+            this.selectedCrewMembers = [...this.selectedCrewMembers];
+            this.availableCrewContacts = [...this.availableCrewContacts, removedMember];
+            this.sortAvailableCrewContacts();
+            this.applyCrewMemberSearch();
+        } catch (error) {
+            console.error('Error handling remove crew member:', error);
+            this.showToast('Error', 'Failed to handle remove crew member', 'error');
+        }
+    }
+
+    /**
+     * Method Name: getSelectedMemberIds
+     * @description: Get IDs of all selected crew members
+     */
+    getSelectedMemberIds() {
+        return this.selectedCrewMembers.map(member => member.id);
+    }
+
+    /**
+     * Method Name: getMembersToAdd
+     * @description: Get IDs of all members to be added
+     */
+    getMembersToAdd() {
+        const membersToAdd = [];
+        const originalmemberMap = this.originalCrewmemberByContact || new Map();
+
+        this.selectedCrewMembers.forEach(member => {
+            if (!originalmemberMap.has(member.id)) {
+                membersToAdd.push(member.id);
+            }
+        });
+
+        return membersToAdd;
+    }
+
+    /**
+     * Method Name: getMembersToRemove
+     * @description: Get IDs of all members to be removed
+     */
+    getMembersToRemove() {
+        const membersToRemove = [];
+        const originalmemberMap = this.originalCrewmemberByContact || new Map();
+        const selectedIds = new Set(this.selectedCrewMembers.map(member => member.id));
+
+        originalmemberMap.forEach((memberId, contactId) => {
+            if (!selectedIds.has(contactId)) {
+                membersToRemove.push(memberId);
+            }
+        });
+
+        return membersToRemove;
+    }
+
+    /**
+     * Method Name: getConflictingSelectedMembers
+     * @description: Get selected members that are assigned to other crews
+     */
+    getConflictingSelectedMembers() {
+        const currentCrewId = this.recordIdToEdit;
+        const originalmemberMap = this.originalCrewmemberByContact || new Map();
+        return this.selectedCrewMembers.filter(member => {
+            if (!member.isAssignedElsewhere) {
+                return false;
+            }
+
+            if (originalmemberMap.has(member.id)) {
+                return false;
+            }
+
+            if (!currentCrewId) {
+                return true;
+            }
+
+            const memberCrewIds = member.memberCrewIds || [];
+            return memberCrewIds.some(id => id !== currentCrewId);
+        });
+    }
+
+    /**
+     * Method Name: showConflictConfirmation
+     * @description: Show confirmation modal for conflicting crew members
+     */
+    showConflictConfirmation(message, conflicts) {
+        try {
+            const conflictEntries = conflicts || [];
+            const detailedNames = conflictEntries
+                .map(conflict => {
+                    const contactName = conflict.contactName || conflict.name;
+                    const crewNames = conflict.crewNameSummary || conflict.assignedCrewNames;
+                    return crewNames ? `${contactName} (${crewNames})` : contactName;
+                })
+                .filter(detail => !!detail);
+    
+            this.confirmationContext = 'CONFLICT';
+            this.confirmationModalTitle = 'Add members already in another crew?';
+            this.confirmationModalMessage = message && message.trim().length
+                ? message
+                : `The following crew members are already assigned to another crew: ${detailedNames.join(', ')}. Do you want to add them here as well?`;
+            this.confirmationConfirmLabel = 'Add Members';
+            this.confirmationConfirmVariant = 'brand';
+            this.confirmationCancelLabel = 'Cancel';
+            this.confirmationIcon = 'utility:help';
+            this.confirmationIconVariant = 'info';
+            this.showConfirmationModal = true;
+        } catch (error) {
+            console.error('Error showing conflict confirmation:', error);
+            this.showToast('Error', 'Failed to show conflict confirmation', 'error');
+        }
+    }
+
+    /**
+     * Method Name: executeCrewSave
+     * @description: Execute saving crew via Apex
+     */
+    executeCrewSave(payload) {
+        try {
+            const apexPayload = { ...payload };
+            this.isLoading = true;
+    
+            saveCrew({ crewData: apexPayload })
+                .then(response => {
+                    if (response && response.status === 'SUCCESS') {
+                        this.showToast('Success', `Crew ${this.isEditMode ? 'updated' : 'created'} successfully`, 'success');
+                        this.handleCloseModal();
+                        this.fetchCrew();
+                    } else {
+                        const message = response && response.message ? response.message : 'Failed to save crew';
+                        this.showToast('Error', message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving crew:', error);
+                    const message = error && error.body && error.body.message ? error.body.message : 'Failed to save crew';
+                    this.showToast('Error', message, 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error executing crew save:', error);
+            this.showToast('Error', 'Failed to execute crew save', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    /**
      * Method Name: handleDeleteCrew
      * @description: Show confirmation modal before delete
      */
@@ -585,8 +967,14 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         const recordId = event.currentTarget.dataset.recordId;
 
         this.pendingDeleteRecordId = recordId;
+        this.confirmationContext = 'DELETE';
         this.confirmationModalTitle = 'Delete Crew';
         this.confirmationModalMessage = 'Are you sure you want to delete this crew? This action cannot be undone.';
+        this.confirmationConfirmLabel = 'Delete';
+        this.confirmationConfirmVariant = 'destructive';
+        this.confirmationCancelLabel = 'Cancel';
+        this.confirmationIcon = 'utility:warning';
+        this.confirmationIconVariant = 'warning';
         this.showConfirmationModal = true;
     }
 
@@ -596,10 +984,23 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      */
     handleConfirmationModalConfirm() {
         this.showConfirmationModal = false;
-        if (this.pendingDeleteRecordId) {
-            this.deleteCrewRecord(this.pendingDeleteRecordId);
-            this.pendingDeleteRecordId = null;
+
+        if (this.confirmationContext === 'DELETE') {
+            if (this.pendingDeleteRecordId) {
+                this.deleteCrewRecord(this.pendingDeleteRecordId);
+                this.pendingDeleteRecordId = null;
+            }
+        } else if (this.confirmationContext === 'CONFLICT') {
+            this.hasAcknowledgedConflicts = true;
+            const payload = this.pendingSavePayload ? { ...this.pendingSavePayload } : null;
+            this.pendingSavePayload = null;
+            this.pendingConflictMembers = [];
+            if (payload) {
+                this.executeCrewSave(payload);
+            }
         }
+
+        this.confirmationContext = null;
     }
 
     /**
@@ -608,7 +1009,13 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      */
     handleConfirmationModalCancel() {
         this.showConfirmationModal = false;
-        this.pendingDeleteRecordId = null;
+        if (this.confirmationContext === 'DELETE') {
+            this.pendingDeleteRecordId = null;
+        } else if (this.confirmationContext === 'CONFLICT') {
+            this.pendingSavePayload = null;
+            this.pendingConflictMembers = [];
+        }
+        this.confirmationContext = null;
     }
 
     /**
@@ -623,7 +1030,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 .then(result => {
                     if (result === 'Success') {
                         this.showToast('Success', 'Crew deleted successfully', 'success');
-                        this.fetchCrewMembers();
+                        this.fetchCrew();
                     } else {
                         this.showToast('Error', result, 'error');
                     }

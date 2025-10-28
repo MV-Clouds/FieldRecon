@@ -377,6 +377,132 @@
     border-top: 1px solid lightgray;
 }
 
+.crew-member-section {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.crew-member-section__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.crew-member-section__title {
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+}
+
+.crew-member-selection {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.crew-member-available,
+.crew-member-selected {
+    flex: 1 1 280px;
+    border: 1px solid rgba(94, 90, 219, 0.2);
+    border-radius: 6px;
+    padding: 0.75rem;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 240px;
+}
+
+.crew-member-list-title {
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+}
+
+.crew-member-list {
+    overflow-y: auto;
+    max-height: 200px;
+    padding-right: 0.25rem;
+}
+
+.crew-member-name {
+    font-weight: 500;
+}
+
+.crew-member-assigned-info {
+    font-size: 0.75rem;
+    color: #d64545;
+    margin-left: 0.25rem;
+}
+
+.resource-option-checkbox {
+    cursor: pointer;
+}
+
+.checkboxes-select {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.checkbox-option-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+}
+
+.checkbox-option-label[data-available="false"] {
+    color: #d64545;
+}
+
+.selected-record-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    overflow: auto;
+    max-height: 170px;
+    min-height: 1.5rem;
+}
+
+.selected-record-tiles .tile {
+    background: rgba(94, 90, 219, 0.12);
+    color: rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    height: 1.5rem;
+    padding-inline: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 100%;
+}
+
+.remove-btn-svg:hover {
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    transform: scale(1.1);
+}
+
+.remove-btn-svg:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.6);
+    border-radius: 50%;
+}
+
+.no-resource-text-div {
+    font-size: 10px;
+    color: gray;
+    line-height: 12px;
+}
+
+tr > td:first-child,
+tr > th:first-child {
+    width: 5rem;
+}
+
 .crew-pagination-section {
     display: flex;
     justify-content: center;
@@ -437,6 +563,10 @@
     .crew-action-buttons {
         width: 100%;
         justify-content: flex-end;
+    }
+
+    .crew-member-selection {
+        flex-direction: column;
     }
 }
 
