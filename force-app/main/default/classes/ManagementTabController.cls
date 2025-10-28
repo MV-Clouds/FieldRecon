@@ -412,6 +412,123 @@ public with sharing class ManagementTabController {
         }
     }
 
+    @AuraEnabled
+    public static List<StatusColorWrapper> getMobilizationStatusColors() {
+        List<StatusColorWrapper> statusColorList = new List<StatusColorWrapper>();
+        
+        try {
+            // Get all custom setting records
+            Map<String, Mobilization_Status_Color__c> customSettingsMap = Mobilization_Status_Color__c.getAll();
+            
+            // Get picklist values from Mobilization__c.Mobilization_Status__c field
+            Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+            List<Schema.PicklistEntry> picklistValues = fieldResult.getPicklistValues();
+            
+            for (Schema.PicklistEntry entry : picklistValues) {
+                if (entry.isActive()) {
+                    StatusColorWrapper wrapper = createStatusColorWrapper(entry, customSettingsMap);
+                    statusColorList.add(wrapper);
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'getMobilizationStatusColors', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching mobilization status colors: ' + e.getMessage(), 
+                'apiResponse' => null
+            });
+            throw new AuraHandledException('Error fetching mobilization status colors: ' + e.getMessage());
+        }
+        
+        return statusColorList;
+    }
+    
+    private static StatusColorWrapper createStatusColorWrapper(Schema.PicklistEntry entry, Map<String, Mobilization_Status_Color__c> customSettingsMap) {
+        StatusColorWrapper wrapper = new StatusColorWrapper();
+        wrapper.picklistValue = entry.getLabel();
+        wrapper.apiValue = entry.getValue();
+        
+        // Check if custom setting exists for this picklist value
+        if (customSettingsMap.containsKey(entry.getLabel())) {
+            Mobilization_Status_Color__c customSetting = customSettingsMap.get(entry.getLabel());
+            wrapper.id = customSetting.Id;
+            wrapper.textColor = customSetting.wfrecon__Color__c != null ? customSetting.wfrecon__Color__c : '#000000';
+            wrapper.backgroundColor = customSetting.wfrecon__Background_Color__c != null ? customSetting.wfrecon__Background_Color__c : '#c4c4c4';
+            wrapper.hasCustomSetting = true;
+        } else {
+            // Default colors if no custom setting exists
+            wrapper.id = null;
+            wrapper.textColor = '#000000';
+            wrapper.backgroundColor = '#c4c4c4';
+            wrapper.hasCustomSetting = false;
+        }
+        
+        return wrapper;
+    }
+    
+    @AuraEnabled
+    public static Map<String, Object> saveStatusColors(List<StatusColorWrapper> statusColors) {
+        Map<String, Object> response = new Map<String, Object>{
+            'status' => 'ERROR',
+            'message' => 'Unable to save status colors.'
+        };
+        
+        try {
+            List<Mobilization_Status_Color__c> recordsToUpsert = new List<Mobilization_Status_Color__c>();
+            
+            for (StatusColorWrapper wrapper : statusColors) {
+                Mobilization_Status_Color__c record = new Mobilization_Status_Color__c();
+                
+                if (wrapper.id != null) {
+                    record.Id = wrapper.id;
+                }
+                
+                record.Name = wrapper.picklistValue;
+                record.wfrecon__Color__c = wrapper.textColor;
+                record.wfrecon__Background_Color__c = wrapper.backgroundColor;
+                
+                recordsToUpsert.add(record);
+            }
+            
+            upsert as user recordsToUpsert;
+            
+            response.put('status', 'SUCCESS');
+            response.put('message', 'Status colors saved successfully.');
+            response.put('recordsProcessed', recordsToUpsert.size());
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'saveStatusColors', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error saving status colors: ' + e.getMessage(), 
+                'apiResponse' => null
+            });
+            response.put('message', 'Error: ' + e.getMessage());
+        }
+        
+        return response;
+    }
+    
+    public class StatusColorWrapper {
+        @AuraEnabled public String id;
+        @AuraEnabled public String picklistValue;
+        @AuraEnabled public String apiValue;
+        @AuraEnabled public String textColor;
+        @AuraEnabled public String backgroundColor;
+        @AuraEnabled public Boolean hasCustomSetting;
+        @AuraEnabled public Boolean isModified;
+        
+        public StatusColorWrapper() {
+            this.isModified = false;
+        }
+    }
+
     public class CrewMemberDTO {
         @AuraEnabled public Id memberId;
         @AuraEnabled public Id crewId;
