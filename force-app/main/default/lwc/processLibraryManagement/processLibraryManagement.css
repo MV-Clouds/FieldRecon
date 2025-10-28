@@ -4,6 +4,10 @@
     scrollbar-width: none !important;
 }
 
+/* .spinner-container{
+
+} */
+
 .filter-search-container {
     display: flex;
     justify-content: space-between;

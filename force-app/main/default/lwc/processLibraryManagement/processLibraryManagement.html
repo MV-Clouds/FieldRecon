@@ -1,7 +1,9 @@
 <template>
-    <template if:true={isLoading}>
-        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
-    </template>
+    <div class="spinner-container">
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+    </div>
 
     <div class="main-card">
         <!-- Header Section -->
@@ -268,10 +270,7 @@
                         
                         <!-- Control buttons -->
                         <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
-                            <button class="save-btn" type="button" onclick={handleSave} disabled={isCreateModalLoading}>
-                                <template if:true={isCreateModalLoading}>
-                                    <lightning-spinner size="small" alternative-text="Saving..."></lightning-spinner>
-                                </template>
+                            <button class="save-btn" type="button" onclick={handleSave} disabled={isLoading}>
                                 {saveButtonLabel}
                             </button>
                         </div>

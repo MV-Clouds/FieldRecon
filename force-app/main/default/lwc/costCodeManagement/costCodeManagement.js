@@ -15,7 +15,6 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
     @track sortField = 'Name';
     @track sortOrder = 'asc';
     @track showCreateModal = false;
-    @track isCreateModalLoading = false;
     @track isEditMode = false;
     @track recordIdToEdit = null;
     
@@ -392,12 +391,12 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
             return;
         }
 
-        this.isCreateModalLoading = true;
+        this.isLoading = true;
 
         const costCodeRecord = {
             Name: this.costCodeName,
-            Classification_Type__c: this.classificationType,
-            Level_Code__c: parseInt(this.levelCode) || null
+            wfrecon__Classification_Type__c: this.classificationType,
+            wfrecon__Level_Code__c: parseInt(this.levelCode) || null
         };
 
         if (this.isEditMode && this.recordIdToEdit) {
@@ -410,12 +409,12 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
                 this.showToast('Success', `Cost Code ${this.isEditMode ? 'updated' : 'created'} successfully!`, 'success');
                 this.fetchCostCodes(); // Refresh the data
                 this.clearFormFields();
-                this.isCreateModalLoading = false;
+                this.isLoading = false;
             })
             .catch(error => {
                 console.error('Error saving cost code:', error);
                 this.showToast('Error', 'Error saving cost code: ' + error.body?.message, 'error');
-                this.isCreateModalLoading = false;
+                this.isLoading = false;
             });
     }
 

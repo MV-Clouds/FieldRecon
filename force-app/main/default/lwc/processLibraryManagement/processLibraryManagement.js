@@ -16,7 +16,6 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     @track sortField = 'Name';
     @track sortOrder = 'asc';
     @track showCreateModal = false;
-    @track isCreateModalLoading = false;
     @track isEditMode = false;
     @track recordIdToEdit = null;
     
@@ -381,8 +380,8 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      */
     handleCloseModal() {
         this.showCreateModal = false;
-        this.isCreateModalLoading = false;
         this.isEditMode = false;
+        this.isLoading = false;
         this.recordIdToEdit = null;
         this.clearFormFields();
     }
@@ -442,7 +441,10 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             return;
         }
 
-        this.isCreateModalLoading = true;
+        console.log('Here');
+        
+
+        this.isLoading = true;
 
         const processRecord = {
             Id: this.isEditMode ? this.recordIdToEdit : null,
@@ -453,7 +455,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
         };
 
         upsertProcess({ processRecord: processRecord })
-            .then(result => {
+            .then(() => {
                 const actionLabel = this.isEditMode ? 'updated' : 'created';
                 this.showToast('Success', `Process ${actionLabel} successfully`, 'success');
                 this.handleCloseModal();
@@ -466,7 +468,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                 this.showToast('Error', `Failed to ${actionLabel} process: ${error.body?.message || error.message}`, 'error');
             })
             .finally(() => {
-                this.isCreateModalLoading = false;
+                this.isLoading = false;
             });
     }
 
@@ -475,52 +477,56 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      * @description: Validate form fields
      */
     validateForm() {
-        let isValid = true;
-        const errorMessages = [];
+        try {
+            let isValid = true;
+            const errorMessages = [];
 
-        // Process Name validation
-        if (!this.processName || this.processName.trim() === '') {
-            errorMessages.push('Process Name is required');
-            isValid = false;
-        } else if (this.processName.trim().length > 255) {
-            errorMessages.push('Process Name cannot exceed 255 characters');
-            isValid = false;
-        }
+            // Process Name validation
+            if (!this.processName || this.processName.trim() === '') {
+                errorMessages.push('Process Name is required');
+                isValid = false;
+            } else if (this.processName.trim().length > 255) {
+                errorMessages.push('Process Name cannot exceed 255 characters');
+                isValid = false;
+            }
 
-        // Weight validation - integer only, max 5 digits (99999)
-        if (!this.weight || this.weight.trim() === '') {
-            errorMessages.push('Weight is required');
-            isValid = false;
-        } else {
-            // Check if it's a valid integer
-            const weightValue = this.weight.trim();
-            if (!/^\d+$/.test(weightValue)) {
-                errorMessages.push('Weight must be a valid integer (no decimals allowed)');
+            if (!this.weight) {
+                errorMessages.push('Weight is required');
                 isValid = false;
             } else {
-                const weightNumber = parseInt(weightValue, 10);
-                if (weightNumber < 0) {
-                    errorMessages.push('Weight cannot be negative');
+                // Check if it's a valid integer
+                const weightValue = this.weight;
+                if (!/^\d+$/.test(weightValue)) {
+                    errorMessages.push('Weight must be a valid integer (no decimals allowed)');
                     isValid = false;
+                } else {
+                    const weightNumber = parseInt(weightValue, 10);
+                    if (weightNumber < 0) {
+                        errorMessages.push('Weight cannot be negative');
+                        isValid = false;
+                    }
                 }
             }
-        }
 
-        if (!this.unitOfMeasure) {
-            errorMessages.push('Unit of Measure is required');
-            isValid = false;
-        }
+            if (!this.unitOfMeasure) {
+                errorMessages.push('Unit of Measure is required');
+                isValid = false;
+            }
 
-        if (!this.processType) {
-            errorMessages.push('Process Type is required');
-            isValid = false;
-        }
+            if (!this.processType) {
+                errorMessages.push('Process Type is required');
+                isValid = false;
+            }
 
-        if (!isValid) {
-            this.showToast('Validation Error', errorMessages.join(', '), 'error');
-        }
+            if (!isValid) {
+                this.showToast('Validation Error', errorMessages.join(', '), 'error');
+            }
 
-        return isValid;
+            return isValid;
+        } catch (error) {
+            console.log('Error ==> ', error);
+            
+        }
     }
 
     /**
