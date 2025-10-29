@@ -39,11 +39,56 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
+    public static Map<String, Object> getCrewMobilizationSummary(Id crewId) {
+        Map<String, Object> response = new Map<String, Object>{
+            'upcomingMobilizations' => 0
+        };
+
+        if (crewId == null) {
+            return response;
+        }
+
+        try {
+            Date today = Date.today();
+            Set<Id> mobilizationIds = new Set<Id>();
+
+            for (Mobilization_Member__c crewMobilization : [
+                SELECT Mobilization__c
+                FROM Mobilization_Member__c
+                WHERE Crew__c = :crewId
+                AND Mobilization__r.Start_Date__c >= :today
+                AND Mobilization__c != null
+                WITH USER_MODE
+            ]) {
+                if (crewMobilization.Mobilization__c != null) {
+                    mobilizationIds.add(crewMobilization.Mobilization__c);
+                }
+            }
+
+            response.put('upcomingMobilizations', mobilizationIds.size());
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getCrewMobilizationSummary',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching crew mobilization summary : ' + e.getMessage(),
+                'apiResponse' => null
+            });
+        }
+
+        return response;
+    }
+
+    @AuraEnabled
     public static Map<String, Object> saveCrew(Map<String, Object> crewData) {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'ERROR',
             'message' => 'Unable to save crew.'
         };
+        Integer mobilizationsEvaluated = 0;
+        Integer mobilizationAssignmentsCreated = 0;
 
         try {
             if (crewData == null || crewData.isEmpty()) {
@@ -101,6 +146,16 @@ public with sharing class ManagementTabController {
                 }
             }
 
+            Boolean assignToFutureMobilizations = false;
+            if (crewData.containsKey('assignToFutureMobilizations') && crewData.get('assignToFutureMobilizations') != null) {
+                Object assignValue = crewData.get('assignToFutureMobilizations');
+                if (assignValue instanceof Boolean) {
+                    assignToFutureMobilizations = (Boolean)assignValue;
+                } else {
+                    assignToFutureMobilizations = 'true'.equalsIgnoreCase(String.valueOf(assignValue));
+                }
+            }
+
             if (crewRecord.Id == null) {
                 insert crewRecord;
             } else {
@@ -142,6 +197,12 @@ public with sharing class ManagementTabController {
                         membersToInsert.add(new Crew_Member__c(Crew__c = crewId, Contact__c = contactId));
                     }
                     insert membersToInsert;
+
+                    if (assignToFutureMobilizations) {
+                        MobilizationPropagationResult propagationResult = handleMobilizationPropagation(crewId, contactIdsToInsert);
+                        mobilizationsEvaluated = propagationResult.mobilizationsEvaluated;
+                        mobilizationAssignmentsCreated = propagationResult.assignmentsCreated;
+                    }
                 }
             }
 
@@ -162,6 +223,8 @@ public with sharing class ManagementTabController {
             response.put('memberCount', memberCount);
             response.put('membersAdded', membersToAdd.size());
             response.put('membersRemoved', memberRecordIdsToRemove.size());
+            response.put('mobilizationsEvaluated', mobilizationsEvaluated);
+            response.put('mobilizationAssignmentsCreated', mobilizationAssignmentsCreated);
             return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveCrew', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving Crew : ' + e.getMessage(), 'apiResponse' => null});
@@ -336,6 +399,211 @@ public with sharing class ManagementTabController {
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertCostCode', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});
             throw new AuraHandledException('Error saving cost code: ' + e.getMessage());
+        }
+    }
+
+    private class MobilizationPropagationResult {
+        public Integer mobilizationsEvaluated = 0;
+        public Integer assignmentsCreated = 0;
+    }
+
+    private static MobilizationPropagationResult handleMobilizationPropagation(Id crewId, Set<Id> contactIdsToInsert) {
+        MobilizationPropagationResult result = new MobilizationPropagationResult();
+
+        if (crewId == null || contactIdsToInsert == null || contactIdsToInsert.isEmpty()) {
+            return result;
+        }
+
+        Date today = Date.today();
+        List<Mobilization_Member__c> crewMobilizations = [
+            SELECT Mobilization__c
+            FROM Mobilization_Member__c
+            WHERE Crew__c = :crewId
+            AND Mobilization__r.Start_Date__c >= :today
+            AND Mobilization__c != null
+            WITH USER_MODE
+        ];
+
+        Set<Id> mobilizationIds = new Set<Id>();
+        for (Mobilization_Member__c crewMob : crewMobilizations) {
+            if (crewMob.Mobilization__c != null) {
+                mobilizationIds.add(crewMob.Mobilization__c);
+            }
+        }
+
+        result.mobilizationsEvaluated = mobilizationIds.size();
+
+        if (mobilizationIds.isEmpty()) {
+            return result;
+        }
+
+        Map<Id, Set<Id>> existingAssignments = new Map<Id, Set<Id>>();
+        for (Mobilization_Member__c existingAssignment : [
+            SELECT Mobilization__c, Contact__c
+            FROM Mobilization_Member__c
+            WHERE Mobilization__c IN :mobilizationIds
+            AND Contact__c IN :contactIdsToInsert
+            WITH USER_MODE
+        ]) {
+            if (existingAssignment.Mobilization__c == null || existingAssignment.Contact__c == null) {
+                continue;
+            }
+
+            if (!existingAssignments.containsKey(existingAssignment.Mobilization__c)) {
+                existingAssignments.put(existingAssignment.Mobilization__c, new Set<Id>());
+            }
+            existingAssignments.get(existingAssignment.Mobilization__c).add(existingAssignment.Contact__c);
+        }
+
+        List<Mobilization_Member__c> mobilizationInserts = new List<Mobilization_Member__c>();
+        for (Id mobilizationId : mobilizationIds) {
+            Set<Id> alreadyAssigned = existingAssignments.containsKey(mobilizationId)
+                ? existingAssignments.get(mobilizationId)
+                : new Set<Id>();
+
+            for (Id contactId : contactIdsToInsert) {
+                if (contactId == null || (alreadyAssigned != null && alreadyAssigned.contains(contactId))) {
+                    continue;
+                }
+
+                mobilizationInserts.add(new Mobilization_Member__c(
+                    Mobilization__c = mobilizationId,
+                    Contact__c = contactId,
+                    Crew__c = crewId
+                ));
+            }
+        }
+
+        if (mobilizationInserts.isEmpty()) {
+            return result;
+        }
+
+        insert as user mobilizationInserts;
+        result.assignmentsCreated = mobilizationInserts.size();
+
+        return result;
+    }
+
+    @AuraEnabled
+    public static List<StatusColorWrapper> getMobilizationStatusColors() {
+        List<StatusColorWrapper> statusColorList = new List<StatusColorWrapper>();
+        
+        try {
+            // Get all custom setting records
+            Map<String, Mobilization_Status_Color__c> customSettingsMap = Mobilization_Status_Color__c.getAll();
+            
+            // Get picklist values from Mobilization__c.Mobilization_Status__c field
+            Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+            List<Schema.PicklistEntry> picklistValues = fieldResult.getPicklistValues();
+            
+            for (Schema.PicklistEntry entry : picklistValues) {
+                if (entry.isActive()) {
+                    StatusColorWrapper wrapper = createStatusColorWrapper(entry, customSettingsMap);
+                    statusColorList.add(wrapper);
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'getMobilizationStatusColors', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching mobilization status colors: ' + e.getMessage(), 
+                'apiResponse' => null
+            });
+            throw new AuraHandledException('Error fetching mobilization status colors: ' + e.getMessage());
+        }
+        
+        return statusColorList;
+    }
+    
+    private static StatusColorWrapper createStatusColorWrapper(Schema.PicklistEntry entry, Map<String, Mobilization_Status_Color__c> customSettingsMap) {
+        StatusColorWrapper wrapper = new StatusColorWrapper();
+        wrapper.picklistValue = entry.getLabel();
+        wrapper.apiValue = entry.getValue();
+        
+        // Check if custom setting exists for this picklist value
+        // Try both the label and API value as keys
+        Mobilization_Status_Color__c customSetting = null;
+        if (customSettingsMap.containsKey(entry.getLabel())) {
+            customSetting = customSettingsMap.get(entry.getLabel());
+        } else if (customSettingsMap.containsKey(entry.getValue())) {
+            customSetting = customSettingsMap.get(entry.getValue());
+        }
+        
+        if (customSetting != null) {
+            wrapper.id = customSetting.Id;
+            wrapper.textColor = customSetting.wfrecon__Color__c != null ? customSetting.wfrecon__Color__c : '#000000';
+            wrapper.backgroundColor = customSetting.wfrecon__Background_Color__c != null ? customSetting.wfrecon__Background_Color__c : '#c4c4c4';
+            wrapper.hasCustomSetting = true;
+        } else {
+            // Default colors if no custom setting exists
+            wrapper.id = null;
+            wrapper.textColor = '#000000';
+            wrapper.backgroundColor = '#c4c4c4';
+            wrapper.hasCustomSetting = false;
+        }
+        
+        return wrapper;
+    }
+    
+    /**
+     * Helper method to create StatusColorWrapper from Map
+     */
+    private static StatusColorWrapper createWrapperFromMap(Map<String, Object> itemMap) {
+        StatusColorWrapper wrapper = new StatusColorWrapper();
+        wrapper.id = (String) itemMap.get('id');
+        wrapper.picklistValue = (String) itemMap.get('picklistValue');
+        wrapper.apiValue = (String) itemMap.get('apiValue');
+        wrapper.textColor = (String) itemMap.get('textColor');
+        wrapper.backgroundColor = (String) itemMap.get('backgroundColor');
+        wrapper.hasCustomSetting = (Boolean) itemMap.get('hasCustomSetting');
+        wrapper.isModified = (Boolean) itemMap.get('isModified');
+        return wrapper;
+    }
+    
+    @AuraEnabled
+    public static Map<String, Object> saveStatusColors(List<Mobilization_Status_Color__c> recordsToSave) {
+        Map<String, Object> response = new Map<String, Object>{
+            'status' => 'ERROR',
+            'message' => 'Unable to save status colors.'
+        };
+
+        try {
+            if (recordsToSave == null || recordsToSave.isEmpty()) {
+                response.put('message', 'No records provided to save.');
+                return response;
+            }
+
+            System.debug('Records received for upsert: ' + JSON.serializePretty(recordsToSave));
+
+            // Perform upsert using Name as key (required for Custom Setting)
+            upsert recordsToSave Mobilization_Status_Color__c.Name;
+
+            response.put('status', 'SUCCESS');
+            response.put('message', 'Status colors saved successfully.');
+            response.put('recordsProcessed', recordsToSave.size());
+        } catch (Exception e) {
+            System.debug('Error saving status colors: ' + e.getMessage());
+            response.put('message', 'Error saving status colors: ' + e.getMessage());
+        }
+
+        return response;
+    }
+
+    
+    public class StatusColorWrapper {
+        @AuraEnabled public String id;
+        @AuraEnabled public String picklistValue;
+        @AuraEnabled public String apiValue;
+        @AuraEnabled public String textColor;
+        @AuraEnabled public String backgroundColor;
+        @AuraEnabled public Boolean hasCustomSetting;
+        @AuraEnabled public Boolean isModified;
+        
+        public StatusColorWrapper() {
+            this.isModified = false;
         }
     }
 

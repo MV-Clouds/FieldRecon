@@ -3,6 +3,14 @@
     scrollbar-width: none !important;
 }
 
+.spinner-container {
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 9999;
+}
+
 .crew-filter-search-container {
     display: flex;
     justify-content: space-between;
@@ -287,6 +295,68 @@
     height: 16px;
 }
 
+.conflict-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.conflict-modal-message {
+    font-size: 0.95rem;
+    color: #414141;
+}
+
+.conflict-member-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    max-height: 8rem;
+    overflow-y: auto;
+    color: #5a5adb;
+    font-weight: 600;
+}
+
+.conflict-member-item {
+    margin-bottom: 0.35rem;
+}
+
+.conflict-member-name {
+    font-weight: 600;
+}
+
+.conflict-member-crews {
+    color: #6b6b6b;
+    font-weight: 500;
+    margin-left: 0.25rem;
+}
+
+.conflict-modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    background: white;
+    border-top: 1px solid lightgray;
+}
+
+.conflict-cancel-btn {
+    border: 1px solid rgba(94, 90, 219, 0.4);
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: #5a5adb;
+    font-weight: 600;
+}
+
+.conflict-add-btn {
+    background: rgba(94, 90, 219, 0.85);
+}
+
+.conflict-sync-btn {
+    background: #463ccf;
+}
+
+.conflict-sync-btn:hover,
+.conflict-add-btn:hover {
+    filter: brightness(0.95);
+}
 .crew-action-button-container {
     display: flex;
     gap: 0.75rem;
@@ -369,10 +439,6 @@
 }
 
 .crew-bottom-footer-btn {
-    width: calc(100% + 2rem);
-    margin-top: 1rem;
-    margin-left: -1rem;
-    margin-bottom: -1rem;
     background: white;
     border-top: 1px solid lightgray;
 }
@@ -413,7 +479,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    max-height: 240px;
+    max-height: 300px;
+    scrollbar-width: thin !important;
+    scrollbar-color: #5e5adb #5e5adb20 !important;
 }
 
 .crew-member-list-title {
@@ -557,6 +625,7 @@ tr > th:first-child {
 
 @media only screen and (max-width: 900px) {
     .crew-search-bar lightning-input {
+
         width: 220px;
     }
 
@@ -607,4 +676,20 @@ tr > th:first-child {
     .crew-action-button-container {
         gap: 0.5rem;
     }
+}
+
+.backdrop-1{
+    z-index: 991 !important;
+}
+
+.popup-1{
+    z-index: 992 !important;
+}
+
+.backdrop-2{
+    z-index: 993 !important;
+}
+
+.popup-2{
+    z-index: 994 !important;
 }
