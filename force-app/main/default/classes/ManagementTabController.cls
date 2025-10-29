@@ -87,10 +87,8 @@ public with sharing class ManagementTabController {
             'status' => 'ERROR',
             'message' => 'Unable to save crew.'
         };
-    Integer mobilizationsEvaluated = 0;
-    Integer mobilizationAssignmentsCreated = 0;
-    Integer mobilizationsWithOverlap = 0;
-    Integer mobilizationAssignmentsSkippedDueToOverlap = 0;
+        Integer mobilizationsEvaluated = 0;
+        Integer mobilizationAssignmentsCreated = 0;
 
         try {
             if (crewData == null || crewData.isEmpty()) {
@@ -158,16 +156,6 @@ public with sharing class ManagementTabController {
                 }
             }
 
-            String overlapResolution;
-            if (crewData.containsKey('overlapResolution') && crewData.get('overlapResolution') != null) {
-                overlapResolution = String.valueOf(crewData.get('overlapResolution'));
-                if (!String.isBlank(overlapResolution)) {
-                    overlapResolution = overlapResolution.trim().toUpperCase();
-                } else {
-                    overlapResolution = null;
-                }
-            }
-
             if (crewRecord.Id == null) {
                 insert crewRecord;
             } else {
@@ -211,27 +199,9 @@ public with sharing class ManagementTabController {
                     insert membersToInsert;
 
                     if (assignToFutureMobilizations) {
-                        MobilizationPropagationResult propagationResult = handleMobilizationPropagation(crewId, contactIdsToInsert, overlapResolution);
+                        MobilizationPropagationResult propagationResult = handleMobilizationPropagation(crewId, contactIdsToInsert);
                         mobilizationsEvaluated = propagationResult.mobilizationsEvaluated;
-
-                        if ('OVERLAP'.equalsIgnoreCase(propagationResult.status)) {
-                            response.put('status', 'OVERLAP');
-                            response.put('message', String.isBlank(propagationResult.message)
-                                ? 'Resource allocation is overlapping. How would you like to proceed?'
-                                : propagationResult.message);
-                            response.put('crewId', crewId);
-                            response.put('membersAdded', membersToAdd.size());
-                            response.put('membersRemoved', memberRecordIdsToRemove.size());
-                            response.put('mobilizationsEvaluated', mobilizationsEvaluated);
-                            response.put('mobilizationsWithOverlap', propagationResult.mobilizationsWithOverlap);
-                            response.put('mobilizationAssignmentsCreated', propagationResult.assignmentsCreated);
-                            response.put('mobilizationAssignmentsSkipped', propagationResult.assignmentsSkipped);
-                            return response;
-                        }
-
                         mobilizationAssignmentsCreated = propagationResult.assignmentsCreated;
-                        mobilizationsWithOverlap = propagationResult.mobilizationsWithOverlap;
-                        mobilizationAssignmentsSkippedDueToOverlap = propagationResult.assignmentsSkipped;
                     }
                 }
             }
@@ -255,8 +225,6 @@ public with sharing class ManagementTabController {
             response.put('membersRemoved', memberRecordIdsToRemove.size());
             response.put('mobilizationsEvaluated', mobilizationsEvaluated);
             response.put('mobilizationAssignmentsCreated', mobilizationAssignmentsCreated);
-            response.put('mobilizationsWithOverlap', mobilizationsWithOverlap);
-            response.put('mobilizationAssignmentsSkipped', mobilizationAssignmentsSkippedDueToOverlap);
             return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveCrew', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving Crew : ' + e.getMessage(), 'apiResponse' => null});
@@ -435,16 +403,11 @@ public with sharing class ManagementTabController {
     }
 
     private class MobilizationPropagationResult {
-        public String status = 'SUCCESS';
         public Integer mobilizationsEvaluated = 0;
         public Integer assignmentsCreated = 0;
-        public Integer assignmentsSkipped = 0;
-        public Integer mobilizationsWithOverlap = 0;
-        public Boolean hasOverlap = false;
-        public String message;
     }
 
-    private static MobilizationPropagationResult handleMobilizationPropagation(Id crewId, Set<Id> contactIdsToInsert, String overlapResolution) {
+    private static MobilizationPropagationResult handleMobilizationPropagation(Id crewId, Set<Id> contactIdsToInsert) {
         MobilizationPropagationResult result = new MobilizationPropagationResult();
 
         if (crewId == null || contactIdsToInsert == null || contactIdsToInsert.isEmpty()) {
@@ -499,7 +462,7 @@ public with sharing class ManagementTabController {
                 : new Set<Id>();
 
             for (Id contactId : contactIdsToInsert) {
-                if (contactId == null || alreadyAssigned.contains(contactId)) {
+                if (contactId == null || (alreadyAssigned != null && alreadyAssigned.contains(contactId))) {
                     continue;
                 }
 
@@ -515,98 +478,103 @@ public with sharing class ManagementTabController {
             return result;
         }
 
-        Map<Id, Mobilization__c> mobilizationMap = new Map<Id, Mobilization__c>([
-            SELECT Id, Start_Date__c
-            FROM Mobilization__c
-            WHERE Id IN :mobilizationIds
-            WITH USER_MODE
-        ]);
-
-        Map<Id, Date> mobilizationDatesById = new Map<Id, Date>();
-        Set<DateTime> mobilizationDateTimes = new Set<DateTime>();
-        for (Mobilization__c mobilizationRecord : mobilizationMap.values()) {
-            if (mobilizationRecord.Start_Date__c != null) {
-                mobilizationDatesById.put(mobilizationRecord.Id, mobilizationRecord.Start_Date__c.date());
-                mobilizationDateTimes.add(mobilizationRecord.Start_Date__c);
-            }
-        }
-
-        Map<Id, Set<Date>> conflictingDatesByContact = new Map<Id, Set<Date>>();
-        if (!mobilizationDateTimes.isEmpty()) {
-            for (Mobilization_Member__c overlapCandidate : [
-                SELECT Contact__c, Mobilization__r.Start_Date__c
-                FROM Mobilization_Member__c
-                WHERE Contact__c IN :contactIdsToInsert
-                AND Mobilization__r.Start_Date__c IN :mobilizationDateTimes
-                AND Mobilization__c NOT IN :mobilizationIds
-                WITH USER_MODE
-            ]) {
-                if (overlapCandidate.Contact__c == null || overlapCandidate.Mobilization__r == null || overlapCandidate.Mobilization__r.Start_Date__c == null) {
-                    continue;
-                }
-
-                Date overlapDate = overlapCandidate.Mobilization__r.Start_Date__c.date();
-                if (!conflictingDatesByContact.containsKey(overlapCandidate.Contact__c)) {
-                    conflictingDatesByContact.put(overlapCandidate.Contact__c, new Set<Date>());
-                }
-                conflictingDatesByContact.get(overlapCandidate.Contact__c).add(overlapDate);
-            }
-        }
-
-        Set<String> overlappingAssignmentKeys = new Set<String>();
-        Set<Id> mobilizationsWithOverlapIds = new Set<Id>();
-
-        for (Mobilization_Member__c pendingInsert : mobilizationInserts) {
-            if (pendingInsert.Contact__c == null) {
-                continue;
-            }
-
-            Date plannedDate = mobilizationDatesById.get(pendingInsert.Mobilization__c);
-            if (plannedDate == null) {
-                continue;
-            }
-
-            Set<Date> conflictingDates = conflictingDatesByContact.get(pendingInsert.Contact__c);
-            if (conflictingDates != null && conflictingDates.contains(plannedDate)) {
-                result.hasOverlap = true;
-                String key = pendingInsert.Contact__c + ':' + pendingInsert.Mobilization__c;
-                overlappingAssignmentKeys.add(key);
-                mobilizationsWithOverlapIds.add(pendingInsert.Mobilization__c);
-            }
-        }
-
-        result.mobilizationsWithOverlap = mobilizationsWithOverlapIds.size();
-
-        Boolean allowOverlap = !String.isBlank(overlapResolution) && 'ALLOW'.equalsIgnoreCase(overlapResolution);
-        Boolean skipOverlap = !String.isBlank(overlapResolution) && 'SKIP'.equalsIgnoreCase(overlapResolution);
-
-        if (result.hasOverlap && !(allowOverlap || skipOverlap)) {
-            result.status = 'OVERLAP';
-            result.message = 'Resource allocation is overlapping. How would you like to proceed?';
-            return result;
-        }
-
-        if (result.hasOverlap && skipOverlap) {
-            List<Mobilization_Member__c> filteredInserts = new List<Mobilization_Member__c>();
-            for (Mobilization_Member__c pendingInsert : mobilizationInserts) {
-                String key = pendingInsert.Contact__c + ':' + pendingInsert.Mobilization__c;
-                if (overlappingAssignmentKeys.contains(key)) {
-                    result.assignmentsSkipped++;
-                    continue;
-                }
-                filteredInserts.add(pendingInsert);
-            }
-            mobilizationInserts = filteredInserts;
-        }
-
-        if (mobilizationInserts.isEmpty()) {
-            return result;
-        }
-
         insert as user mobilizationInserts;
         result.assignmentsCreated = mobilizationInserts.size();
 
         return result;
+    }
+
+
+    @AuraEnabled
+    public static List<String> getMobilizationPicklistValues() {
+        Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+        List<String> picklistValues = new List<String>();
+        for (Schema.PicklistEntry entry : fieldResult.getPicklistValues()) {
+            if (entry.isActive()) {
+                picklistValues.add(entry.getValue());
+            }
+        }
+        return picklistValues;
+    }
+
+    @AuraEnabled
+    public static String updateGlobalPicklistValues(List<String> valuesToAdd, List<String> valuesToDeactivate) {
+        if ((valuesToAdd == null || valuesToAdd.isEmpty()) && (valuesToDeactivate == null || valuesToDeactivate.isEmpty())) {
+            return 'Error: No values provided to add or deactivate.';
+        }
+
+        try {
+            // Create Metadata API service instance
+            MetadataService.MetadataPort service = MetadataUtil.createService();
+
+            // Read the Global Value Set
+            MetadataService.GlobalValueSet globalValueSet =
+                (MetadataService.GlobalValueSet) service
+                    .readMetadata('GlobalValueSet', new List<String>{ 'wfrecon__Mobilization_Status' })
+                    .getRecords()[0];
+
+            if (globalValueSet == null){
+                return 'Error: Global Value Set not found.';
+            }
+
+            // Get the list of custom values
+            List<MetadataService.CustomValue> existingValues = globalValueSet.customValue;
+
+            if (existingValues == null) {
+                existingValues = new List<MetadataService.CustomValue>();
+            }
+
+            // 🟢 Add new values OR reactivate existing ones
+            for (String newValue : valuesToAdd) {
+                
+                // ✅ CHANGED: We use this flag to check if we found it at all.
+                Boolean valueFound = false; 
+
+                for (MetadataService.CustomValue cv : existingValues) {
+                    if (cv.fullName == newValue) {
+                        valueFound = true; // Mark as found
+
+                        // ✅ CHANGED: If it's inactive, reactivate it.
+                        if (!cv.isActive) {
+                            cv.isActive = true; 
+                        }
+                        break; // Found it, no need to keep looping
+                    }
+                }
+
+                // ✅ CHANGED: Only add a new value if it was *never* found.
+                if (!valueFound && String.isNotBlank(newValue)) {
+                    MetadataService.CustomValue newPickVal = new MetadataService.CustomValue();
+                    newPickVal.fullName = newValue;
+                    newPickVal.label = newValue;
+                    newPickVal.default_x = false;
+                    newPickVal.isActive = true;
+                    existingValues.add(newPickVal);
+                }
+            }
+
+            // 🔴 Deactivate values (This logic was already correct)
+            for (String valToDeactivate : valuesToDeactivate) {
+                for (MetadataService.CustomValue cv : existingValues) {
+                    if (cv.fullName == valToDeactivate) {
+                        cv.isActive = false;
+                        break;
+                    }
+                }
+            }
+
+            // Assign the modified list back
+            globalValueSet.customValue = existingValues;
+
+            // 🧩 Update Metadata
+            service.updateMetadata(
+                new MetadataService.Metadata[]{ globalValueSet }
+            );
+
+            return 'SUCCESS';
+        } catch (Exception e) {
+            return 'Error: ' + e.getMessage();
+        }
     }
 
     @AuraEnabled
@@ -673,20 +641,6 @@ public with sharing class ManagementTabController {
         return wrapper;
     }
     
-    /**
-     * Helper method to create StatusColorWrapper from Map
-     */
-    private static StatusColorWrapper createWrapperFromMap(Map<String, Object> itemMap) {
-        StatusColorWrapper wrapper = new StatusColorWrapper();
-        wrapper.id = (String) itemMap.get('id');
-        wrapper.picklistValue = (String) itemMap.get('picklistValue');
-        wrapper.apiValue = (String) itemMap.get('apiValue');
-        wrapper.textColor = (String) itemMap.get('textColor');
-        wrapper.backgroundColor = (String) itemMap.get('backgroundColor');
-        wrapper.hasCustomSetting = (Boolean) itemMap.get('hasCustomSetting');
-        wrapper.isModified = (Boolean) itemMap.get('isModified');
-        return wrapper;
-    }
     
     @AuraEnabled
     public static Map<String, Object> saveStatusColors(List<Mobilization_Status_Color__c> recordsToSave) {
