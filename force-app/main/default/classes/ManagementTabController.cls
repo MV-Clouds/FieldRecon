@@ -348,13 +348,18 @@ public with sharing class ManagementTabController {
     public static List<MobilizationOverlapConflictDTO> getMobilizationOverlapConflicts(Id crewId, List<Id> contactIds) {
         List<MobilizationOverlapConflictDTO> conflicts = new List<MobilizationOverlapConflictDTO>();
 
-        if (crewId == null || contactIds == null || contactIds.isEmpty()) {
+        if (contactIds == null || contactIds.isEmpty()) {
             return conflicts;
         }
 
         try {
             Set<Id> uniqueContactIds = new Set<Id>(contactIds);
             Date today = Date.today();
+
+            if (crewId == null) {
+                conflicts.addAll(buildConflictsForCrewCreation(uniqueContactIds, today));
+                return conflicts;
+            }
 
             Map<Id, MobilizationTimeWindow> targetMobilizations = new Map<Id, MobilizationTimeWindow>();
             for (Mobilization_Member__c crewMobilization : [
@@ -744,6 +749,46 @@ public with sharing class ManagementTabController {
         result.assignmentsCreated = mobilizationInserts.size();
 
         return result;
+    }
+
+    private static List<MobilizationOverlapConflictDTO> buildConflictsForCrewCreation(Set<Id> contactIds, Date startDateThreshold) {
+        List<MobilizationOverlapConflictDTO> conflicts = new List<MobilizationOverlapConflictDTO>();
+
+        if (contactIds == null || contactIds.isEmpty()) {
+            return conflicts;
+        }
+
+        Date threshold = startDateThreshold == null ? Date.today() : startDateThreshold;
+
+        for (Mobilization_Member__c assignment : [
+            SELECT Contact__c, Contact__r.Name,
+                   Mobilization__c, Mobilization__r.Name, Mobilization__r.Start_Date__c, Mobilization__r.End_Date__c,
+                   Crew__c, Crew__r.Name
+            FROM Mobilization_Member__c
+            WHERE Contact__c IN :contactIds
+            AND Mobilization__r.Start_Date__c >= :threshold
+            AND Mobilization__r.Start_Date__c != null
+            AND Mobilization__c != null
+            WITH USER_MODE
+            ORDER BY Mobilization__r.Start_Date__c ASC
+        ]) {
+            MobilizationOverlapConflictDTO conflict = new MobilizationOverlapConflictDTO();
+            conflict.contactId = assignment.Contact__c;
+            conflict.contactName = assignment.Contact__r != null ? assignment.Contact__r.Name : null;
+            conflict.targetMobilizationId = null;
+            conflict.targetMobilizationName = 'New crew mobilizations';
+            conflict.targetStart = assignment.Mobilization__r != null ? assignment.Mobilization__r.Start_Date__c : null;
+            conflict.targetEnd = assignment.Mobilization__r != null ? assignment.Mobilization__r.End_Date__c : null;
+            conflict.conflictingMobilizationId = assignment.Mobilization__c;
+            conflict.conflictingMobilizationName = assignment.Mobilization__r != null ? assignment.Mobilization__r.Name : null;
+            conflict.conflictingStart = conflict.targetStart;
+            conflict.conflictingEnd = conflict.targetEnd;
+            conflict.conflictingCrewName = assignment.Crew__r != null ? assignment.Crew__r.Name : null;
+
+            conflicts.add(conflict);
+        }
+
+        return conflicts;
     }
 
     private static Boolean windowsOverlap(Datetime startA, Datetime endA, Datetime startB, Datetime endB) {

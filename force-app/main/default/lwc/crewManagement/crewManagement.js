@@ -1209,13 +1209,17 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
 
             return conflicts.map((conflict, index) => {
                 const key = `${conflict.contactId || 'unknown'}-${conflict.targetMobilizationId || 'target'}-${conflict.conflictingMobilizationId || 'conflict'}-${index}`;
+                const fallbackTargetName = conflict.targetMobilizationName
+                    || (this.isEditMode ? 'Crew mobilization' : 'New crew mobilizations');
+                const targetStart = conflict.targetStart || conflict.conflictingStart || null;
+                const targetEnd = conflict.targetEnd || conflict.conflictingEnd || null;
                 return {
                     key,
                     contactId: conflict.contactId,
                     contactName: conflict.contactName,
                     targetMobilizationId: conflict.targetMobilizationId,
-                    targetMobilizationName: conflict.targetMobilizationName,
-                    targetWindow: this.formatMobilizationWindow(conflict.targetStart, conflict.targetEnd),
+                    targetMobilizationName: fallbackTargetName,
+                    targetWindow: this.formatMobilizationWindow(targetStart, targetEnd),
                     conflictingMobilizationId: conflict.conflictingMobilizationId,
                     conflictingMobilizationName: conflict.conflictingMobilizationName,
                     conflictingWindow: this.formatMobilizationWindow(conflict.conflictingStart, conflict.conflictingEnd),
@@ -1265,7 +1269,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
 
             const uniqueMembersToAdd = Array.from(new Set(membersToAdd));
 
-            if (!this.recordIdToEdit || uniqueMembersToAdd.length === 0) {
+            if (uniqueMembersToAdd.length === 0) {
                 const resumePayload = {
                     ...payload,
                     mobilizationAssignmentsToSkip: { ...(payload.mobilizationAssignmentsToSkip || {}) }
@@ -1278,7 +1282,9 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
             let resumeWithSave = false;
             this.isLoading = true;
 
-            getMobilizationOverlapConflicts({ crewId: this.recordIdToEdit, contactIds: uniqueMembersToAdd })
+            const targetCrewId = this.recordIdToEdit || null;
+
+            getMobilizationOverlapConflicts({ crewId: targetCrewId, contactIds: uniqueMembersToAdd })
                 .then(result => {
                     const rawConflicts = Array.isArray(result)
                         ? result
@@ -1362,7 +1368,12 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            if (!skipOverlapCheck && hasMembersToAdd && wantsPropagation && this.futureMobilizationCount > 0) {
+            const shouldEvaluateOverlap = !skipOverlapCheck
+                && hasMembersToAdd
+                && wantsPropagation
+                && (this.isEditMode ? this.futureMobilizationCount > 0 : true);
+
+            if (shouldEvaluateOverlap) {
                 this.evaluateMobilizationOverlap(workingPayload);
                 return;
             }
@@ -1514,14 +1525,20 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
             }
 
             if (action === this.overlapSecondaryAction) {
-                payload.mobilizationAssignmentsToSkip = this.buildSkipAssignmentsFromConflicts();
+                const skipMap = this.buildSkipAssignmentsFromConflicts();
+                payload.mobilizationAssignmentsToSkip = skipMap;
+
+                if (!skipMap || Object.keys(skipMap).length === 0) {
+                    payload.assignToFutureMobilizations = false;
+                } else {
+                    payload.assignToFutureMobilizations = true;
+                }
             } else if (action === this.overlapPrimaryAction) {
                 payload.mobilizationAssignmentsToSkip = {};
+                payload.assignToFutureMobilizations = true;
             } else {
                 return;
             }
-
-            payload.assignToFutureMobilizations = true;
 
             this.clearOverlapModalState();
             this.hasAcknowledgedPropagation = true;
