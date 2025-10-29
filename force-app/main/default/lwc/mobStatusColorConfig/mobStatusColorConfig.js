@@ -228,7 +228,7 @@ export default class MobStatusColorConfig extends LightningElement {
      */
     handleSave() {
         const modifiedRecords = this.statusColors.filter(item => item.isModified);
-        
+
         if (modifiedRecords.length === 0) {
             this.showToast('Info', 'No changes to save', 'info');
             return;
@@ -236,13 +236,22 @@ export default class MobStatusColorConfig extends LightningElement {
 
         this.isLoading = true;
 
-        console.log('Modified Records:', JSON.stringify(modifiedRecords, null, 2));
-        
-        saveStatusColors({ statusColors: modifiedRecords })
+        // Prepare records for upsert (Custom Setting requires Name)
+        const recordsToSave = modifiedRecords.map(item => ({
+            sobjectType: 'Mobilization_Status_Color__c',
+            Id: item.id || null,
+            Name: item.picklistValue, // Use picklist value as name key
+            wfrecon__Color__c: item.textColor,
+            wfrecon__Background_Color__c: item.backgroundColor
+        }));
+
+        console.log('Records to upsert:', JSON.stringify(recordsToSave, null, 2));
+
+        saveStatusColors({ recordsToSave })
             .then(result => {
                 if (result.status === 'SUCCESS') {
                     this.showToast('Success', result.message, 'success');
-                    this.modifiedFields.clear(); // Clear modifications after successful save
+                    this.modifiedFields.clear();
                     this.fetchStatusColors(); // Refresh data
                 } else {
                     this.showToast('Error', result.message, 'error');
@@ -255,6 +264,7 @@ export default class MobStatusColorConfig extends LightningElement {
                 this.isLoading = false;
             });
     }
+
 
     /**
      * Method Name: handleCancel

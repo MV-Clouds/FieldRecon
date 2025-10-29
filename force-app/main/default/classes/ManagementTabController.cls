@@ -87,13 +87,10 @@ public with sharing class ManagementTabController {
             'status' => 'ERROR',
             'message' => 'Unable to save crew.'
         };
-        Integer mobilizationsEvaluated = 0;
-        Integer mobilizationAssignmentsCreated = 0;
-        Integer mobilizationsWithOverlap = 0;
-        Set<Id> overlappingContacts = new Set<Id>();
-        Map<Id, Set<Id>> overlappingContactsByMobilization = new Map<Id, Set<Id>>();
-        Integer mobilizationAssignmentsSkippedDueToOverlap = 0;
-        List<MobilizationOverlapDetailDTO> overlapDetails = new List<MobilizationOverlapDetailDTO>();
+    Integer mobilizationsEvaluated = 0;
+    Integer mobilizationAssignmentsCreated = 0;
+    Integer mobilizationsWithOverlap = 0;
+    Integer mobilizationAssignmentsSkippedDueToOverlap = 0;
 
         try {
             if (crewData == null || crewData.isEmpty()) {
@@ -229,31 +226,11 @@ public with sharing class ManagementTabController {
                             response.put('mobilizationsWithOverlap', propagationResult.mobilizationsWithOverlap);
                             response.put('mobilizationAssignmentsCreated', propagationResult.assignmentsCreated);
                             response.put('mobilizationAssignmentsSkipped', propagationResult.assignmentsSkipped);
-
-                            if (!propagationResult.overlapDetails.isEmpty()) {
-                                response.put('overlapDetails', propagationResult.overlapDetails);
-                            }
-
-                            if (!propagationResult.overlappingContacts.isEmpty()) {
-                                response.put('overlappingContacts', new List<Id>(propagationResult.overlappingContacts));
-                            }
-
-                            if (!propagationResult.overlappingContactsByMobilization.isEmpty()) {
-                                Map<Id, List<Id>> overlapContactMap = new Map<Id, List<Id>>();
-                                for (Id mobilizationId : propagationResult.overlappingContactsByMobilization.keySet()) {
-                                    overlapContactMap.put(mobilizationId, new List<Id>(propagationResult.overlappingContactsByMobilization.get(mobilizationId)));
-                                }
-                                response.put('overlappingContactsByMobilization', overlapContactMap);
-                            }
-
                             return response;
                         }
 
                         mobilizationAssignmentsCreated = propagationResult.assignmentsCreated;
                         mobilizationsWithOverlap = propagationResult.mobilizationsWithOverlap;
-                        overlapDetails = propagationResult.overlapDetails;
-                        overlappingContacts = propagationResult.overlappingContacts;
-                        overlappingContactsByMobilization = propagationResult.overlappingContactsByMobilization;
                         mobilizationAssignmentsSkippedDueToOverlap = propagationResult.assignmentsSkipped;
                     }
                 }
@@ -280,22 +257,6 @@ public with sharing class ManagementTabController {
             response.put('mobilizationAssignmentsCreated', mobilizationAssignmentsCreated);
             response.put('mobilizationsWithOverlap', mobilizationsWithOverlap);
             response.put('mobilizationAssignmentsSkipped', mobilizationAssignmentsSkippedDueToOverlap);
-
-            if (!overlapDetails.isEmpty()) {
-                response.put('overlapDetails', overlapDetails);
-            }
-
-            if (!overlappingContacts.isEmpty()) {
-                response.put('overlappingContacts', new List<Id>(overlappingContacts));
-            }
-
-            if (!overlappingContactsByMobilization.isEmpty()) {
-                Map<Id, List<Id>> overlapContactMap = new Map<Id, List<Id>>();
-                for (Id mobilizationId : overlappingContactsByMobilization.keySet()) {
-                    overlapContactMap.put(mobilizationId, new List<Id>(overlappingContactsByMobilization.get(mobilizationId)));
-                }
-                response.put('overlappingContactsByMobilization', overlapContactMap);
-            }
             return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveCrew', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving Crew : ' + e.getMessage(), 'apiResponse' => null});
@@ -479,30 +440,8 @@ public with sharing class ManagementTabController {
         public Integer assignmentsCreated = 0;
         public Integer assignmentsSkipped = 0;
         public Integer mobilizationsWithOverlap = 0;
-        public Set<Id> overlappingContacts = new Set<Id>();
-        public Map<Id, Set<Id>> overlappingContactsByMobilization = new Map<Id, Set<Id>>();
-        public List<MobilizationOverlapDetailDTO> overlapDetails = new List<MobilizationOverlapDetailDTO>();
+        public Boolean hasOverlap = false;
         public String message;
-    }
-
-    public class MobilizationOverlapTargetDTO {
-        @AuraEnabled public Id id;
-        @AuraEnabled public String name;
-        @AuraEnabled public Id crewId;
-        @AuraEnabled public String crewName;
-    }
-
-    public class MobilizationOverlapDateDTO {
-        @AuraEnabled public String dateValue;
-        @AuraEnabled public String dateLabel;
-        @AuraEnabled public List<MobilizationOverlapTargetDTO> targetMobilizations = new List<MobilizationOverlapTargetDTO>();
-        @AuraEnabled public List<MobilizationOverlapTargetDTO> conflictingMobilizations = new List<MobilizationOverlapTargetDTO>();
-    }
-
-    public class MobilizationOverlapDetailDTO {
-        @AuraEnabled public Id contactId;
-        @AuraEnabled public String contactName;
-        @AuraEnabled public List<MobilizationOverlapDateDTO> dates = new List<MobilizationOverlapDateDTO>();
     }
 
     private static MobilizationPropagationResult handleMobilizationPropagation(Id crewId, Set<Id> contactIdsToInsert, String overlapResolution) {
@@ -577,51 +516,28 @@ public with sharing class ManagementTabController {
         }
 
         Map<Id, Mobilization__c> mobilizationMap = new Map<Id, Mobilization__c>([
-            SELECT Id, Name, Start_Date__c
+            SELECT Id, Start_Date__c
             FROM Mobilization__c
             WHERE Id IN :mobilizationIds
             WITH USER_MODE
         ]);
 
-        Map<Id, Map<DateTime, List<Id>>> plannedAssignments = new Map<Id, Map<DateTime, List<Id>>>();
-        for (Mobilization_Member__c pendingInsert : mobilizationInserts) {
-            if (pendingInsert.Contact__c == null) {
-                continue;
-            }
-
-            Mobilization__c mobilizationRecord = mobilizationMap.get(pendingInsert.Mobilization__c);
-            if (mobilizationRecord == null || mobilizationRecord.Start_Date__c == null) {
-                continue;
-            }
-
-            DateTime mobilizationStart = mobilizationRecord.Start_Date__c;
-
-            if (!plannedAssignments.containsKey(pendingInsert.Contact__c)) {
-                plannedAssignments.put(pendingInsert.Contact__c, new Map<DateTime, List<Id>>());
-            }
-
-            Map<DateTime, List<Id>> datePlan = plannedAssignments.get(pendingInsert.Contact__c);
-            if (!datePlan.containsKey(mobilizationStart)) {
-                datePlan.put(mobilizationStart, new List<Id>());
-            }
-            datePlan.get(mobilizationStart).add(pendingInsert.Mobilization__c);
-        }
-
-        Set<DateTime> mobilizationDates = new Set<DateTime>();
+        Map<Id, Date> mobilizationDatesById = new Map<Id, Date>();
+        Set<DateTime> mobilizationDateTimes = new Set<DateTime>();
         for (Mobilization__c mobilizationRecord : mobilizationMap.values()) {
             if (mobilizationRecord.Start_Date__c != null) {
-                mobilizationDates.add(mobilizationRecord.Start_Date__c);
+                mobilizationDatesById.put(mobilizationRecord.Id, mobilizationRecord.Start_Date__c.date());
+                mobilizationDateTimes.add(mobilizationRecord.Start_Date__c);
             }
         }
 
-        Map<Id, Map<DateTime, List<Mobilization_Member__c>>> overlapsByContactDate = new Map<Id, Map<DateTime, List<Mobilization_Member__c>>>();
-        if (!mobilizationDates.isEmpty()) {
+        Map<Id, Set<Date>> conflictingDatesByContact = new Map<Id, Set<Date>>();
+        if (!mobilizationDateTimes.isEmpty()) {
             for (Mobilization_Member__c overlapCandidate : [
-                SELECT Mobilization__c, Mobilization__r.Name, Mobilization__r.Start_Date__c,
-                       Contact__c, Contact__r.Name, Crew__c, Crew__r.Name
+                SELECT Contact__c, Mobilization__r.Start_Date__c
                 FROM Mobilization_Member__c
                 WHERE Contact__c IN :contactIdsToInsert
-                AND Mobilization__r.Start_Date__c IN :mobilizationDates
+                AND Mobilization__r.Start_Date__c IN :mobilizationDateTimes
                 AND Mobilization__c NOT IN :mobilizationIds
                 WITH USER_MODE
             ]) {
@@ -629,129 +545,58 @@ public with sharing class ManagementTabController {
                     continue;
                 }
 
-                if (!overlapsByContactDate.containsKey(overlapCandidate.Contact__c)) {
-                    overlapsByContactDate.put(overlapCandidate.Contact__c, new Map<DateTime, List<Mobilization_Member__c>>());
+                Date overlapDate = overlapCandidate.Mobilization__r.Start_Date__c.date();
+                if (!conflictingDatesByContact.containsKey(overlapCandidate.Contact__c)) {
+                    conflictingDatesByContact.put(overlapCandidate.Contact__c, new Set<Date>());
                 }
-
-                Map<DateTime, List<Mobilization_Member__c>> dateOverlapMap = overlapsByContactDate.get(overlapCandidate.Contact__c);
-                DateTime overlapDate = overlapCandidate.Mobilization__r.Start_Date__c;
-                if (!dateOverlapMap.containsKey(overlapDate)) {
-                    dateOverlapMap.put(overlapDate, new List<Mobilization_Member__c>());
-                }
-                dateOverlapMap.get(overlapDate).add(overlapCandidate);
-            }
-        }
-
-        Map<Id, String> contactNames = new Map<Id, String>();
-        if (!overlapsByContactDate.isEmpty()) {
-            for (Contact contactRecord : [
-                SELECT Id, Name
-                FROM Contact
-                WHERE Id IN :contactIdsToInsert
-                WITH USER_MODE
-            ]) {
-                contactNames.put(contactRecord.Id, contactRecord.Name);
+                conflictingDatesByContact.get(overlapCandidate.Contact__c).add(overlapDate);
             }
         }
 
         Set<String> overlappingAssignmentKeys = new Set<String>();
-        Map<Id, MobilizationOverlapDetailDTO> overlapDetailByContact = new Map<Id, MobilizationOverlapDetailDTO>();
         Set<Id> mobilizationsWithOverlapIds = new Set<Id>();
 
-        for (Id contactId : plannedAssignments.keySet()) {
-            Map<DateTime, List<Id>> datePlan = plannedAssignments.get(contactId);
-            for (DateTime mobilizationDate : datePlan.keySet()) {
-                List<Id> plannedMobilizationIds = datePlan.get(mobilizationDate);
-                Map<DateTime, List<Mobilization_Member__c>> overlapDateMap = overlapsByContactDate.get(contactId);
-                if (overlapDateMap == null || !overlapDateMap.containsKey(mobilizationDate)) {
-                    continue;
-                }
+        for (Mobilization_Member__c pendingInsert : mobilizationInserts) {
+            if (pendingInsert.Contact__c == null) {
+                continue;
+            }
 
-                List<Mobilization_Member__c> conflictingAssignments = overlapDateMap.get(mobilizationDate);
-                if (conflictingAssignments == null || conflictingAssignments.isEmpty()) {
-                    continue;
-                }
+            Date plannedDate = mobilizationDatesById.get(pendingInsert.Mobilization__c);
+            if (plannedDate == null) {
+                continue;
+            }
 
-                for (Id plannedMobId : plannedMobilizationIds) {
-                    overlappingAssignmentKeys.add(contactId + ':' + plannedMobId);
-                    mobilizationsWithOverlapIds.add(plannedMobId);
-
-                    if (!result.overlappingContactsByMobilization.containsKey(plannedMobId)) {
-                        result.overlappingContactsByMobilization.put(plannedMobId, new Set<Id>());
-                    }
-                    result.overlappingContactsByMobilization.get(plannedMobId).add(contactId);
-                }
-
-                result.overlappingContacts.add(contactId);
-
-                MobilizationOverlapDetailDTO contactDetail = overlapDetailByContact.get(contactId);
-                if (contactDetail == null) {
-                    contactDetail = new MobilizationOverlapDetailDTO();
-                    contactDetail.contactId = contactId;
-                    contactDetail.contactName = contactNames.containsKey(contactId) ? contactNames.get(contactId) : null;
-                    if (contactDetail.contactName == null && !conflictingAssignments.isEmpty() && conflictingAssignments[0].Contact__r != null) {
-                        contactDetail.contactName = conflictingAssignments[0].Contact__r.Name;
-                    }
-                    overlapDetailByContact.put(contactId, contactDetail);
-                }
-
-                MobilizationOverlapDateDTO dateDetail = new MobilizationOverlapDateDTO();
-                Long mobilizationEpoch = mobilizationDate != null ? mobilizationDate.getTime() : null;
-                dateDetail.dateValue = mobilizationEpoch != null ? String.valueOf(mobilizationEpoch) : null;
-                dateDetail.dateLabel = mobilizationDate.format('MMM d, yyyy');
-
-                for (Id plannedMobId : plannedMobilizationIds) {
-                    MobilizationOverlapTargetDTO targetInfo = new MobilizationOverlapTargetDTO();
-                    targetInfo.id = plannedMobId;
-                    Mobilization__c mobilizationRecord = mobilizationMap.get(plannedMobId);
-                    if (mobilizationRecord != null) {
-                        targetInfo.name = mobilizationRecord.Name;
-                    }
-                    dateDetail.targetMobilizations.add(targetInfo);
-                }
-
-                for (Mobilization_Member__c conflicting : conflictingAssignments) {
-                    MobilizationOverlapTargetDTO conflictingInfo = new MobilizationOverlapTargetDTO();
-                    conflictingInfo.id = conflicting.Mobilization__c;
-                    if (conflicting.Mobilization__r != null) {
-                        conflictingInfo.name = conflicting.Mobilization__r.Name;
-                    }
-                    conflictingInfo.crewId = conflicting.Crew__c;
-                    if (conflicting.Crew__r != null) {
-                        conflictingInfo.crewName = conflicting.Crew__r.Name;
-                    }
-                    dateDetail.conflictingMobilizations.add(conflictingInfo);
-                }
-
-                contactDetail.dates.add(dateDetail);
+            Set<Date> conflictingDates = conflictingDatesByContact.get(pendingInsert.Contact__c);
+            if (conflictingDates != null && conflictingDates.contains(plannedDate)) {
+                result.hasOverlap = true;
+                String key = pendingInsert.Contact__c + ':' + pendingInsert.Mobilization__c;
+                overlappingAssignmentKeys.add(key);
+                mobilizationsWithOverlapIds.add(pendingInsert.Mobilization__c);
             }
         }
 
         result.mobilizationsWithOverlap = mobilizationsWithOverlapIds.size();
 
-        if (!overlapDetailByContact.isEmpty()) {
-            result.overlapDetails = new List<MobilizationOverlapDetailDTO>(overlapDetailByContact.values());
+        Boolean allowOverlap = !String.isBlank(overlapResolution) && 'ALLOW'.equalsIgnoreCase(overlapResolution);
+        Boolean skipOverlap = !String.isBlank(overlapResolution) && 'SKIP'.equalsIgnoreCase(overlapResolution);
+
+        if (result.hasOverlap && !(allowOverlap || skipOverlap)) {
+            result.status = 'OVERLAP';
+            result.message = 'Resource allocation is overlapping. How would you like to proceed?';
+            return result;
         }
 
-        if (!overlappingAssignmentKeys.isEmpty()) {
-            if (String.isBlank(overlapResolution) || (!'SKIP'.equalsIgnoreCase(overlapResolution) && !'ALLOW'.equalsIgnoreCase(overlapResolution))) {
-                result.status = 'OVERLAP';
-                result.message = 'Resource allocation is overlapping. How would you like to proceed?';
-                return result;
-            }
-
-            if ('SKIP'.equalsIgnoreCase(overlapResolution)) {
-                List<Mobilization_Member__c> filteredInserts = new List<Mobilization_Member__c>();
-                for (Mobilization_Member__c pendingInsert : mobilizationInserts) {
-                    String key = pendingInsert.Contact__c + ':' + pendingInsert.Mobilization__c;
-                    if (overlappingAssignmentKeys.contains(key)) {
-                        result.assignmentsSkipped++;
-                        continue;
-                    }
-                    filteredInserts.add(pendingInsert);
+        if (result.hasOverlap && skipOverlap) {
+            List<Mobilization_Member__c> filteredInserts = new List<Mobilization_Member__c>();
+            for (Mobilization_Member__c pendingInsert : mobilizationInserts) {
+                String key = pendingInsert.Contact__c + ':' + pendingInsert.Mobilization__c;
+                if (overlappingAssignmentKeys.contains(key)) {
+                    result.assignmentsSkipped++;
+                    continue;
                 }
-                mobilizationInserts = filteredInserts;
+                filteredInserts.add(pendingInsert);
             }
+            mobilizationInserts = filteredInserts;
         }
 
         if (mobilizationInserts.isEmpty()) {
@@ -828,70 +673,45 @@ public with sharing class ManagementTabController {
         return wrapper;
     }
     
+    /**
+     * Helper method to create StatusColorWrapper from Map
+     */
+    private static StatusColorWrapper createWrapperFromMap(Map<String, Object> itemMap) {
+        StatusColorWrapper wrapper = new StatusColorWrapper();
+        wrapper.id = (String) itemMap.get('id');
+        wrapper.picklistValue = (String) itemMap.get('picklistValue');
+        wrapper.apiValue = (String) itemMap.get('apiValue');
+        wrapper.textColor = (String) itemMap.get('textColor');
+        wrapper.backgroundColor = (String) itemMap.get('backgroundColor');
+        wrapper.hasCustomSetting = (Boolean) itemMap.get('hasCustomSetting');
+        wrapper.isModified = (Boolean) itemMap.get('isModified');
+        return wrapper;
+    }
+    
     @AuraEnabled
-    public static Map<String, Object> saveStatusColors(List<StatusColorWrapper> statusColors) {
+    public static Map<String, Object> saveStatusColors(List<Mobilization_Status_Color__c> recordsToSave) {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'ERROR',
             'message' => 'Unable to save status colors.'
         };
 
         try {
-            // Fetch all existing custom settings first
-            Map<String, Mobilization_Status_Color__c> existingSettings = Mobilization_Status_Color__c.getAll();
-            List<Mobilization_Status_Color__c> recordsToUpsert = new List<Mobilization_Status_Color__c>();
-
-            for (StatusColorWrapper wrapper : statusColors) {
-                Mobilization_Status_Color__c record;
-
-                // If wrapper has an ID, it's an existing Custom Setting record
-                if (String.isNotBlank(wrapper.id)) {
-                    record = new Mobilization_Status_Color__c();
-                    record.Id = wrapper.id;
-                } else {
-                    // Try to find existing record by Name (picklistValue or apiValue)
-                    Mobilization_Status_Color__c existingRecord;
-                    if (existingSettings.containsKey(wrapper.picklistValue)) {
-                        existingRecord = existingSettings.get(wrapper.picklistValue);
-                    } else if (existingSettings.containsKey(wrapper.apiValue)) {
-                        existingRecord = existingSettings.get(wrapper.apiValue);
-                    }
-
-                    if (existingRecord != null) {
-                        record = existingRecord;
-                    } else {
-                        // Create new record
-                        record = new Mobilization_Status_Color__c();
-                        // Use the exact picklist value as the name
-                        String recordName = wrapper.picklistValue != null ? wrapper.picklistValue : wrapper.apiValue;
-                        record.Name = recordName;
-                    }
-                }
-
-                record.wfrecon__Color__c = wrapper.textColor;
-                record.wfrecon__Background_Color__c = wrapper.backgroundColor;
-
-                recordsToUpsert.add(record);
+            if (recordsToSave == null || recordsToSave.isEmpty()) {
+                response.put('message', 'No records provided to save.');
+                return response;
             }
 
+            System.debug('Records received for upsert: ' + JSON.serializePretty(recordsToSave));
 
-            // Perform upsert (system mode — required for Custom Settings)
-            upsert recordsToUpsert Mobilization_Status_Color__c.Name;
+            // Perform upsert using Name as key (required for Custom Setting)
+            upsert recordsToSave Mobilization_Status_Color__c.Name;
 
             response.put('status', 'SUCCESS');
             response.put('message', 'Status colors saved successfully.');
-            response.put('recordsProcessed', recordsToUpsert.size());
-
+            response.put('recordsProcessed', recordsToSave.size());
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'saveStatusColors', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error saving status colors: ' + e.getMessage(), 
-                'apiResponse' => null
-            });
-            response.put('message', 'Error: ' + e.getMessage());
+            System.debug('Error saving status colors: ' + e.getMessage());
+            response.put('message', 'Error saving status colors: ' + e.getMessage());
         }
 
         return response;
