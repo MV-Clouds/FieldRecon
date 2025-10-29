@@ -254,6 +254,28 @@
     border-color: #d8d8d8;
 }
 
+/* Manage Statuses Button Styles */
+.action-button.manage-statuses-btn {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.action-button.manage-statuses-btn:hover:not(:disabled) {
+    background-color: rgba(84, 80, 199, 1);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.action-button.manage-statuses-btn:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* SVG Icon Sizing */
 .action-button svg {
     width: 16px;

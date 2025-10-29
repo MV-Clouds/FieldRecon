@@ -11,6 +11,7 @@ export default class MobStatusColorConfig extends LightningElement {
     @track hasUnsavedChanges = false;
     @track originalData = [];
     @track modifiedFields = new Map(); // Track which specific fields are modified
+    @track showStatusModal = false;
 
     /**
      * Method Name: get isDataAvailable
@@ -238,7 +239,7 @@ export default class MobStatusColorConfig extends LightningElement {
 
         // Prepare records for upsert (Custom Setting requires Name)
         const recordsToSave = modifiedRecords.map(item => ({
-            sobjectType: 'Mobilization_Status_Color__c',
+            sobjectType: 'wfrecon__Mobilization_Status_Color__c',
             Id: item.id || null,
             Name: item.picklistValue, // Use picklist value as name key
             wfrecon__Color__c: item.textColor,
@@ -380,6 +381,24 @@ export default class MobStatusColorConfig extends LightningElement {
                 }
             }
         });
+    }
+
+    /**
+     * Method Name: handleManageStatuses
+     * @description: Open the status management modal
+     */
+    handleManageStatuses() {
+        this.showStatusModal = true;
+    }
+
+    /**
+     * Method Name: handleCloseStatusModal
+     * @description: Close the status management modal and refresh data
+     */
+    handleCloseStatusModal() {
+        this.showStatusModal = false;
+        // Refresh the data when modal is closed to pick up any changes
+        this.fetchStatusColors();
     }
 
 }
