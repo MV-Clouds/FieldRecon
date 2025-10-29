@@ -546,6 +546,18 @@
     align-items: center;
     gap: 0.5rem;
     max-width: 100%;
+    border: 1px solid transparent;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.selected-record-tiles .tile.tile-removed {
+    background: rgba(214, 69, 69, 0.12);
+    color: #d64545;
+    border-color: rgba(214, 69, 69, 0.4);
+}
+
+.selected-record-tiles .tile.tile-removed .remove-btn-svg {
+    color: #d64545;
 }
 
 .remove-btn-svg:hover {

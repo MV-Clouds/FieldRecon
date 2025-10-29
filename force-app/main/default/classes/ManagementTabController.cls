@@ -156,6 +156,16 @@ public with sharing class ManagementTabController {
                 }
             }
 
+            Boolean removeFromFutureMobilizations = false;
+            if (crewData.containsKey('removeFromFutureMobilizations') && crewData.get('removeFromFutureMobilizations') != null) {
+                Object removeValue = crewData.get('removeFromFutureMobilizations');
+                if (removeValue instanceof Boolean) {
+                    removeFromFutureMobilizations = (Boolean)removeValue;
+                } else {
+                    removeFromFutureMobilizations = 'true'.equalsIgnoreCase(String.valueOf(removeValue));
+                }
+            }
+
             if (crewRecord.Id == null) {
                 insert crewRecord;
             } else {
@@ -166,14 +176,37 @@ public with sharing class ManagementTabController {
 
             if (!memberRecordIdsToRemove.isEmpty()) {
                 List<Crew_Member__c> membersToDelete = [
-                    SELECT Id
+                    SELECT Id, Contact__c
                     FROM Crew_Member__c
                     WHERE Id IN :memberRecordIdsToRemove
                     WITH USER_MODE
                 ];
 
+                Set<Id> removedContactIds = new Set<Id>();
+                for (Crew_Member__c memberToDelete : membersToDelete) {
+                    if (memberToDelete.Contact__c != null) {
+                        removedContactIds.add(memberToDelete.Contact__c);
+                    }
+                }
+
                 if (!membersToDelete.isEmpty()) {
                     delete membersToDelete;
+                }
+
+                if (removeFromFutureMobilizations && !removedContactIds.isEmpty()) {
+                    Date today = Date.today();
+                    List<Mobilization_Member__c> futureAssignments = [
+                        SELECT Id
+                        FROM Mobilization_Member__c
+                        WHERE Contact__c IN :removedContactIds
+                        AND Crew__c = :crewId
+                        AND Mobilization__r.Start_Date__c >= :today
+                        WITH USER_MODE
+                    ];
+
+                    if (!futureAssignments.isEmpty()) {
+                        delete futureAssignments;
+                    }
                 }
             }
 
@@ -484,6 +517,99 @@ public with sharing class ManagementTabController {
         return result;
     }
 
+
+    @AuraEnabled
+    public static List<String> getMobilizationPicklistValues() {
+        Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+        List<String> picklistValues = new List<String>();
+        for (Schema.PicklistEntry entry : fieldResult.getPicklistValues()) {
+            if (entry.isActive()) {
+                picklistValues.add(entry.getValue());
+            }
+        }
+        return picklistValues;
+    }
+
+    @AuraEnabled
+    public static String updateGlobalPicklistValues(List<String> valuesToAdd, List<String> valuesToDeactivate) {
+        if ((valuesToAdd == null || valuesToAdd.isEmpty()) && (valuesToDeactivate == null || valuesToDeactivate.isEmpty())) {
+            return 'Error: No values provided to add or deactivate.';
+        }
+
+        try {
+            // Create Metadata API service instance
+            MetadataService.MetadataPort service = MetadataUtil.createService();
+
+            // Read the Global Value Set
+            MetadataService.GlobalValueSet globalValueSet =
+                (MetadataService.GlobalValueSet) service
+                    .readMetadata('GlobalValueSet', new List<String>{ 'wfrecon__Mobilization_Status' })
+                    .getRecords()[0];
+
+            if (globalValueSet == null){
+                return 'Error: Global Value Set not found.';
+            }
+
+            // Get the list of custom values
+            List<MetadataService.CustomValue> existingValues = globalValueSet.customValue;
+
+            if (existingValues == null) {
+                existingValues = new List<MetadataService.CustomValue>();
+            }
+
+            // 🟢 Add new values OR reactivate existing ones
+            for (String newValue : valuesToAdd) {
+                
+                // ✅ CHANGED: We use this flag to check if we found it at all.
+                Boolean valueFound = false; 
+
+                for (MetadataService.CustomValue cv : existingValues) {
+                    if (cv.fullName == newValue) {
+                        valueFound = true; // Mark as found
+
+                        // ✅ CHANGED: If it's inactive, reactivate it.
+                        if (!cv.isActive) {
+                            cv.isActive = true; 
+                        }
+                        break; // Found it, no need to keep looping
+                    }
+                }
+
+                // ✅ CHANGED: Only add a new value if it was *never* found.
+                if (!valueFound && String.isNotBlank(newValue)) {
+                    MetadataService.CustomValue newPickVal = new MetadataService.CustomValue();
+                    newPickVal.fullName = newValue;
+                    newPickVal.label = newValue;
+                    newPickVal.default_x = false;
+                    newPickVal.isActive = true;
+                    existingValues.add(newPickVal);
+                }
+            }
+
+            // 🔴 Deactivate values (This logic was already correct)
+            for (String valToDeactivate : valuesToDeactivate) {
+                for (MetadataService.CustomValue cv : existingValues) {
+                    if (cv.fullName == valToDeactivate) {
+                        cv.isActive = false;
+                        break;
+                    }
+                }
+            }
+
+            // Assign the modified list back
+            globalValueSet.customValue = existingValues;
+
+            // 🧩 Update Metadata
+            service.updateMetadata(
+                new MetadataService.Metadata[]{ globalValueSet }
+            );
+
+            return 'SUCCESS';
+        } catch (Exception e) {
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
     @AuraEnabled
     public static List<StatusColorWrapper> getMobilizationStatusColors() {
         List<StatusColorWrapper> statusColorList = new List<StatusColorWrapper>();
@@ -548,20 +674,6 @@ public with sharing class ManagementTabController {
         return wrapper;
     }
     
-    /**
-     * Helper method to create StatusColorWrapper from Map
-     */
-    private static StatusColorWrapper createWrapperFromMap(Map<String, Object> itemMap) {
-        StatusColorWrapper wrapper = new StatusColorWrapper();
-        wrapper.id = (String) itemMap.get('id');
-        wrapper.picklistValue = (String) itemMap.get('picklistValue');
-        wrapper.apiValue = (String) itemMap.get('apiValue');
-        wrapper.textColor = (String) itemMap.get('textColor');
-        wrapper.backgroundColor = (String) itemMap.get('backgroundColor');
-        wrapper.hasCustomSetting = (Boolean) itemMap.get('hasCustomSetting');
-        wrapper.isModified = (Boolean) itemMap.get('isModified');
-        return wrapper;
-    }
     
     @AuraEnabled
     public static Map<String, Object> saveStatusColors(List<Mobilization_Status_Color__c> recordsToSave) {

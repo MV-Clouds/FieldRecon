@@ -207,11 +207,11 @@
                             <div class="crew-member-selected">
                                 <div class="crew-member-list-title">Selected Members</div>
                                 <div class="selected-record-tiles">
-                                    <template if:true={selectedCrewMembers.length}>
-                                        <template for:each={selectedCrewMembers} for:item="member">
-                                            <span class="tile" key={member.id} title={member.assignedCrewNames}>
+                                        <template if:true={selectedCrewMembers.length}>
+                                            <template for:each={selectedCrewMembers} for:item="member">
+                                                <span class={member.tileClass} key={member.id} title={member.assignedCrewNames} data-removed={member.isMarkedForRemoval}>
                                                 <div class="slds-truncate" title={member.name}>{member.name}</div>
-                                                <svg class="remove-btn-svg" data-id={member.id} onclick={handleRemoveCrewMember} onkeydown={handleRemoveCrewMemberKeydown} role="button" tabindex="0" focusable="true" aria-label={member.removeAriaLabel} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
+                                                    <svg class="remove-btn-svg" data-id={member.id} onclick={handleRemoveCrewMember} onkeydown={handleRemoveCrewMemberKeydown} role="button" tabindex="0" focusable="true" aria-label={member.removeAriaLabel} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="currentColor">
                                                     <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
                                                 </svg>
                                             </span>
@@ -240,7 +240,7 @@
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open popup-2">
             <div class="slds-modal__container crew-popup">
                 <header class="slds-modal__header crew-popup-header">
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" type="button" title="Close" name="cancel" onclick={handleConflictModalAction}>
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" type="button" title="Close" data-action="cancel" onclick={handleConflictModalAction}>
                         <lightning-icon icon-name="utility:close" size="small" alternative-text="close" class="slds-button__icon slds-button__icon_large"></lightning-icon>
                         <span class="slds-assistive-text">Close</span>
                     </button>
@@ -265,9 +265,8 @@
                     </div>
                 </div>
                 <div class="slds-modal__footer slds-grid slds-grid--align-center slds-p-vertical--medium conflict-modal-actions">
-                    <!-- <button class="slds-button conflict-cancel-btn" type="button" name="cancel" onclick={handleConflictModalAction}>Cancel</button> -->
-                    <button class="crew-save-btn conflict-add-btn" type="button" name="addMembers" onclick={handleConflictModalAction}>Add Members</button>
-                    <button class="crew-save-btn conflict-sync-btn" type="button" name="addAndSync" onclick={handleConflictModalAction}>Add &amp; Update in Mobilizations</button>
+                    <button class="crew-save-btn conflict-add-btn" type="button" data-action={conflictPrimaryAction} onclick={handleConflictModalAction}>{conflictPrimaryLabel}</button>
+                    <button class="crew-save-btn conflict-sync-btn" type="button" data-action={conflictSecondaryAction} onclick={handleConflictModalAction}>{conflictSecondaryLabel}</button>
                 </div>
             </div>
         </section>
