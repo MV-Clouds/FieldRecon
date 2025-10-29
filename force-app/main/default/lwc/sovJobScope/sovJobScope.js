@@ -822,7 +822,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                             label: field.label,
                             fieldName: field.fieldName,
                             type: this.getColumnType(field.fieldType),
-                            editable: field.isEditable || false 
+                            editable: (field.fieldName === 'wfrecon__Approved_Date__c') ? false : (field.isEditable || false)
                         }));
                     } catch (error) {
                         this.scopeEntryColumns = this.defaultColumns;
