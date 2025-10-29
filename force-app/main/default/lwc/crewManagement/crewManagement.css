@@ -357,6 +357,129 @@
 .conflict-add-btn:hover {
     filter: brightness(0.95);
 }
+
+.overlap-modal__header {
+    background: rgba(94, 90, 219, 1);
+    color: #fff;
+    border-bottom: none;
+    padding: 1.5rem 1.5rem 1rem;
+}
+
+.overlap-modal__title {
+    color: #fff;
+    font-weight: 600;
+}
+
+.overlap-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.overlap-modal__message {
+    font-size: 0.95rem;
+    color: #414141;
+}
+
+.overlap-conflict-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 10rem;
+    overflow-y: auto;
+}
+
+.overlap-conflict-item {
+    background: rgba(94, 90, 219, 0.08);
+    border: 1px solid rgba(94, 90, 219, 0.18);
+    border-radius: 6px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.overlap-conflict-contact {
+    font-weight: 600;
+    color: rgba(70, 60, 207, 1);
+}
+
+.overlap-conflict-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #4a4a4a;
+}
+
+.overlap-conflict-target,
+.overlap-conflict-existing {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.overlap-conflict-window {
+    font-style: italic;
+    color: #5f5f5f;
+}
+
+.overlap-conflict-separator {
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+}
+
+.overlap-conflict-crew {
+    color: #7a7a7a;
+}
+
+.overlap-modal__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    border-top: 1px solid rgba(94, 90, 219, 0.15);
+    background: #fff;
+}
+
+.overlap-modal__actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.overlap-btn {
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s ease;
+}
+
+.overlap-btn--secondary {
+    background: #fff;
+    color: rgba(94, 90, 219, 1);
+    border: 1px solid rgba(94, 90, 219, 0.35);
+}
+
+.overlap-btn--primary {
+    background: rgba(94, 90, 219, 0.85);
+    color: #fff;
+}
+
+.overlap-btn--accent {
+    background: #463ccf;
+    color: #fff;
+}
+
+.overlap-btn:hover {
+    filter: brightness(0.95);
+}
+
 .crew-action-button-container {
     display: flex;
     gap: 0.75rem;
@@ -704,4 +827,12 @@ tr > th:first-child {
 
 .popup-2{
     z-index: 994 !important;
+}
+
+.backdrop-3{
+    z-index: 995 !important;
+}
+
+.popup-3{
+    z-index: 996 !important;
 }

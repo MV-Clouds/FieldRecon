@@ -6,6 +6,7 @@ import getCrewContacts from '@salesforce/apex/ManagementTabController.getCrewCon
 import saveCrew from '@salesforce/apex/ManagementTabController.saveCrew';
 import getCrewMobilizationSummary from '@salesforce/apex/ManagementTabController.getCrewMobilizationSummary';
 import deleteCrew from '@salesforce/apex/ManagementTabController.deleteCrew';
+import getMobilizationOverlapConflicts from '@salesforce/apex/ManagementTabController.getMobilizationOverlapConflicts';
 
 export default class CrewManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -59,9 +60,20 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     @track lastPropagationRequested = false;
     @track conflictModalCategory = null;
     @track originalCrewContactIds = new Set();
+    @track showOverlapModal = false;
+    @track overlapModalTitle = 'Time Overlapping!';
+    @track overlapModalMessage = 'Resource allocation is overlapping. How would you like to proceed?';
+    @track mobilizationOverlapConflicts = [];
+    @track overlapPrimaryLabel = 'Overlap & Assign';
+    @track overlapSecondaryLabel = 'Assign Only Available';
+    @track overlapCancelLabel = 'Cancel';
 
     hasAcknowledgedRemoval = false;
     hasAcknowledgedPropagation = false;
+    overlapPrimaryAction = 'overlapAssign';
+    overlapSecondaryAction = 'assignAvailable';
+    overlapCancelAction = 'cancelOverlap';
+    pendingOverlapPayload = null;
 
     /**
      * Method Name: get displayedCrews
@@ -73,7 +85,6 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         }
         return this.shownCrewData.map((crewRecord, index) => {
             const row = { ...crewRecord };
-            row.recordUrl = `/lightning/r/${crewRecord.Id}/view`;
 
             const serialNumber = (this.currentPage - 1) * this.pageSize + index + 1;
 
@@ -95,8 +106,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                     isSerialNumber: col.isSerialNumber || false,
                     isActions: col.isActions || false,
                     isNumber: col.type === 'number',
-                    numberValue: col.type === 'number' ? parseFloat(value) || 0 : null,
-                    recordUrl: row.recordUrl
+                    numberValue: col.type === 'number' ? parseFloat(value) || 0 : null
                 };
             });
 
@@ -642,6 +652,8 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         this.conflictPrimaryLabel = 'Add Members';
         this.conflictSecondaryAction = 'addAndSync';
         this.conflictSecondaryLabel = 'Add & Update in Mobilizations';
+        this.clearOverlapModalState();
+        this.pendingOverlapPayload = null;
     }
 
     /**
@@ -842,6 +854,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
             this.hasAcknowledgedPropagation = false;
     
             this.applyCrewMemberSearch();
+            this.clearOverlapModalState();
         } catch (error) {
             console.error('Error selecting crew member:', error);
             this.showToast('Error', 'Failed to select crew member', 'error');
@@ -898,6 +911,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 if (nextRemovalState) {
                     this.hasAcknowledgedRemoval = false;
                 }
+                this.clearOverlapModalState();
                 return;
             }
 
@@ -916,6 +930,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
             this.applyCrewMemberSearch();
             this.hasAcknowledgedConflicts = false;
             this.hasAcknowledgedPropagation = false;
+            this.clearOverlapModalState();
         } catch (error) {
             console.error('Error handling remove crew member:', error);
             this.showToast('Error', 'Failed to handle remove crew member', 'error');
@@ -1053,6 +1068,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      */
     showConflictConfirmation(payload, conflicts, message) {
         try {
+            this.clearOverlapModalState();
             const conflictEntries = (conflicts || []).map(conflict => ({
                 contactId: conflict.contactId || conflict.id,
                 contactName: conflict.contactName || conflict.name,
@@ -1085,6 +1101,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
 
     showPropagationConfirmation(payload) {
         try {
+            this.clearOverlapModalState();
             const upcomingCount = Number.isFinite(this.futureMobilizationCount) ? this.futureMobilizationCount : 0;
             const countLabel = upcomingCount === 1 ? 'mobilization' : 'mobilizations';
 
@@ -1111,6 +1128,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
 
     showRemovalConfirmation(payload, removalTargets) {
         try {
+            this.clearOverlapModalState();
             const removalEntries = removalTargets.map(member => ({
                 contactId: member.id,
                 contactName: member.name,
@@ -1139,11 +1157,173 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         }
     }
 
-    processSaveFlow(payload) {
+    formatMobilizationWindow(startValue, endValue) {
+        try {
+            if (!startValue) {
+                return '';
+            }
+
+            const locale = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
+            const start = new Date(startValue);
+            const end = endValue ? new Date(endValue) : null;
+            const adjustedEnd = end && end < start ? new Date(end.getTime() + 24 * 60 * 60 * 1000) : end;
+
+            const dateFormatter = new Intl.DateTimeFormat(locale, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            const timeFormatter = new Intl.DateTimeFormat(locale, {
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+
+            const startDate = dateFormatter.format(start);
+            const startTime = timeFormatter.format(start);
+
+            if (!adjustedEnd) {
+                return `${startDate} ${startTime}`;
+            }
+
+            const sameDay = start.toDateString() === adjustedEnd.toDateString();
+            const endDate = dateFormatter.format(adjustedEnd);
+            const endTime = timeFormatter.format(adjustedEnd);
+
+            if (sameDay) {
+                return `${startDate} ${startTime} - ${endTime}`;
+            }
+
+            return `${startDate} ${startTime} - ${endDate} ${endTime}`;
+        } catch (error) {
+            console.error('Error formatting mobilization window:', error);
+            return '';
+        }
+    }
+
+    transformMobilizationOverlapConflicts(conflicts) {
+        try {
+            if (!Array.isArray(conflicts) || conflicts.length === 0) {
+                return [];
+            }
+
+            return conflicts.map((conflict, index) => {
+                const key = `${conflict.contactId || 'unknown'}-${conflict.targetMobilizationId || 'target'}-${conflict.conflictingMobilizationId || 'conflict'}-${index}`;
+                return {
+                    key,
+                    contactId: conflict.contactId,
+                    contactName: conflict.contactName,
+                    targetMobilizationId: conflict.targetMobilizationId,
+                    targetMobilizationName: conflict.targetMobilizationName,
+                    targetWindow: this.formatMobilizationWindow(conflict.targetStart, conflict.targetEnd),
+                    conflictingMobilizationId: conflict.conflictingMobilizationId,
+                    conflictingMobilizationName: conflict.conflictingMobilizationName,
+                    conflictingWindow: this.formatMobilizationWindow(conflict.conflictingStart, conflict.conflictingEnd),
+                    conflictingCrewName: conflict.conflictingCrewName || 'Individual Assignment'
+                };
+            });
+        } catch (error) {
+            console.error('Error transforming mobilization overlap conflicts:', error);
+            return [];
+        }
+    }
+
+    buildSkipAssignmentsFromConflicts() {
+        const skipMap = {};
+
+        (this.mobilizationOverlapConflicts || []).forEach(conflict => {
+            if (!conflict || !conflict.contactId || !conflict.targetMobilizationId) {
+                return;
+            }
+
+            if (!skipMap[conflict.contactId]) {
+                skipMap[conflict.contactId] = new Set();
+            }
+
+            skipMap[conflict.contactId].add(conflict.targetMobilizationId);
+        });
+
+        const serializedMap = {};
+        Object.keys(skipMap).forEach(contactId => {
+            serializedMap[contactId] = Array.from(skipMap[contactId]);
+        });
+
+        return serializedMap;
+    }
+
+    clearOverlapModalState() {
+        this.showOverlapModal = false;
+        this.mobilizationOverlapConflicts = [];
+        this.pendingOverlapPayload = null;
+    }
+
+    evaluateMobilizationOverlap(payload) {
+        try {
+            const membersToAdd = Array.isArray(payload.membersToAdd)
+                ? payload.membersToAdd.filter(memberId => !!memberId)
+                : [];
+
+            const uniqueMembersToAdd = Array.from(new Set(membersToAdd));
+
+            if (!this.recordIdToEdit || uniqueMembersToAdd.length === 0) {
+                const resumePayload = {
+                    ...payload,
+                    mobilizationAssignmentsToSkip: { ...(payload.mobilizationAssignmentsToSkip || {}) }
+                };
+                this.processSaveFlow(resumePayload, { skipOverlapCheck: true });
+                return;
+            }
+
+            this.clearOverlapModalState();
+            let resumeWithSave = false;
+            this.isLoading = true;
+
+            getMobilizationOverlapConflicts({ crewId: this.recordIdToEdit, contactIds: uniqueMembersToAdd })
+                .then(result => {
+                    const rawConflicts = Array.isArray(result)
+                        ? result
+                        : (result && Array.isArray(result.conflicts) ? result.conflicts : []);
+
+                    if (!rawConflicts.length) {
+                        resumeWithSave = true;
+                        const resumePayload = {
+                            ...payload,
+                            mobilizationAssignmentsToSkip: { ...(payload.mobilizationAssignmentsToSkip || {}) }
+                        };
+                        this.processSaveFlow(resumePayload, { skipOverlapCheck: true });
+                        return;
+                    }
+
+                    this.pendingOverlapPayload = {
+                        ...payload,
+                        mobilizationAssignmentsToSkip: { ...(payload.mobilizationAssignmentsToSkip || {}) }
+                    };
+
+                    this.mobilizationOverlapConflicts = this.transformMobilizationOverlapConflicts(rawConflicts);
+                    this.showOverlapModal = true;
+                })
+                .catch(error => {
+                    console.error('Error evaluating mobilization overlap conflicts:', error);
+                    this.showToast('Error', 'Failed to evaluate mobilization overlaps', 'error');
+                })
+                .finally(() => {
+                    if (!resumeWithSave) {
+                        this.isLoading = false;
+                    }
+                });
+        } catch (error) {
+            console.error('Error initiating mobilization overlap evaluation:', error);
+            this.showToast('Error', 'Failed to evaluate mobilization overlaps', 'error');
+        }
+    }
+
+    processSaveFlow(payload, options = {}) {
         try {
             const workingPayload = {
                 ...payload
             };
+
+            const skipOverlapCheck = options && options.skipOverlapCheck === true;
 
             if (!Object.prototype.hasOwnProperty.call(workingPayload, 'assignToFutureMobilizations')) {
                 workingPayload.assignToFutureMobilizations = false;
@@ -1153,8 +1333,14 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 workingPayload.removeFromFutureMobilizations = false;
             }
 
+            if (!Object.prototype.hasOwnProperty.call(workingPayload, 'mobilizationAssignmentsToSkip') || !workingPayload.mobilizationAssignmentsToSkip) {
+                workingPayload.mobilizationAssignmentsToSkip = {};
+            }
+
             const membersToAdd = workingPayload.membersToAdd || [];
             const hasMembersToAdd = membersToAdd.length > 0;
+            const wantsPropagation = workingPayload.assignToFutureMobilizations === true
+                || workingPayload.assignToFutureMobilizations === 'true';
 
             if (hasMembersToAdd) {
                 const conflictingMembers = this.getConflictingSelectedMembers(membersToAdd);
@@ -1176,9 +1362,16 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            workingPayload.assignToFutureMobilizations = Boolean(workingPayload.assignToFutureMobilizations);
+            if (!skipOverlapCheck && hasMembersToAdd && wantsPropagation && this.futureMobilizationCount > 0) {
+                this.evaluateMobilizationOverlap(workingPayload);
+                return;
+            }
+
+            workingPayload.assignToFutureMobilizations = Boolean(wantsPropagation);
             workingPayload.removeFromFutureMobilizations = Boolean(workingPayload.removeFromFutureMobilizations);
             this.pendingSavePayload = null;
+            this.pendingOverlapPayload = null;
+            this.mobilizationOverlapConflicts = [];
             this.executeCrewSave(workingPayload);
         } catch (error) {
             console.error('Error processing crew save flow:', error);
@@ -1212,6 +1405,11 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                             successMessage += `. ${response.mobilizationAssignmentsCreated} mobilization assignment${response.mobilizationAssignmentsCreated === 1 ? '' : 's'} created for upcoming schedules.`;
                         } else if (this.lastPropagationRequested) {
                             successMessage += '. No future mobilizations required updates.';
+                        }
+
+                        const assignmentsSkipped = Number(response.mobilizationAssignmentsSkipped);
+                        if (!Number.isNaN(assignmentsSkipped) && assignmentsSkipped > 0) {
+                            successMessage += ` ${assignmentsSkipped} mobilization assignment${assignmentsSkipped === 1 ? ' was' : 's were'} skipped due to scheduling conflicts.`;
                         }
 
                         this.showToast('Success', successMessage, 'success');
@@ -1288,6 +1486,52 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         this.confirmationContext = null;
     }
 
+    handleOverlapModalAction(event) {
+        try {
+            const action = event?.currentTarget?.dataset?.action;
+            if (!action) {
+                return;
+            }
+
+            if (action === this.overlapCancelAction) {
+                this.clearOverlapModalState();
+                this.hasAcknowledgedPropagation = false;
+                return;
+            }
+
+            const payload = this.pendingOverlapPayload
+                ? {
+                    ...this.pendingOverlapPayload,
+                    mobilizationAssignmentsToSkip: {
+                        ...(this.pendingOverlapPayload.mobilizationAssignmentsToSkip || {})
+                    }
+                }
+                : null;
+
+            if (!payload) {
+                this.clearOverlapModalState();
+                return;
+            }
+
+            if (action === this.overlapSecondaryAction) {
+                payload.mobilizationAssignmentsToSkip = this.buildSkipAssignmentsFromConflicts();
+            } else if (action === this.overlapPrimaryAction) {
+                payload.mobilizationAssignmentsToSkip = {};
+            } else {
+                return;
+            }
+
+            payload.assignToFutureMobilizations = true;
+
+            this.clearOverlapModalState();
+            this.hasAcknowledgedPropagation = true;
+            this.processSaveFlow(payload, { skipOverlapCheck: true });
+        } catch (error) {
+            console.error('Error handling overlap modal action:', error);
+            this.showToast('Error', 'Unable to process overlap selection. Please try again.', 'error');
+        }
+    }
+
     handleConflictModalAction(event) {
         try {
             const target = event?.currentTarget;
@@ -1302,6 +1546,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 this.conflictModalMembers = [];
                 this.conflictModalCategory = null;
                 this.confirmationContext = null;
+                this.clearOverlapModalState();
                 return;
             }
 

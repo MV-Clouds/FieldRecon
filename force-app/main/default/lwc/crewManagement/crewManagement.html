@@ -89,20 +89,10 @@
                                                     <template if:false={field.hasValue}>--</template>
                                                 </template>
                                                 <template if:false={field.isNumber}>
-                                                    <template if:true={field.isNameField}>
-                                                        <template if:true={field.hasValue}>
-                                                            <a href={field.recordUrl} class="crew-name-link" data-record-id={crewRecord.Id} onclick={handleNavigateToRecord} title={field.value}>
-                                                                {field.value}
-                                                            </a>
-                                                        </template>
-                                                        <template if:false={field.hasValue}>--</template>
+                                                    <template if:true={field.hasValue}>
+                                                        <span title={field.value}>{field.value}</span>
                                                     </template>
-                                                    <template if:false={field.isNameField}>
-                                                        <template if:true={field.hasValue}>
-                                                            <span title={field.value}>{field.value}</span>
-                                                        </template>
-                                                        <template if:false={field.hasValue}>--</template>
-                                                    </template>
+                                                    <template if:false={field.hasValue}>--</template>
                                                 </template>
                                             </template>
                                         </template>
@@ -271,6 +261,50 @@
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open backdrop-2"></div>
+    </template>
+
+    <template if:true={showOverlapModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open popup-3 overlap-modal">
+            <div class="slds-modal__container crew-popup">
+                <header class="slds-modal__header overlap-modal__header">
+                    <h2 class="slds-text-heading_medium overlap-modal__title">{overlapModalTitle}</h2>
+                </header>
+
+                <div class="slds-modal__content slds-p-around--medium overlap-modal__body">
+                    <p class="overlap-modal__message">{overlapModalMessage}</p>
+                    <!-- <template if:true={mobilizationOverlapConflicts.length}>
+                        <ul class="overlap-conflict-list">
+                            <template for:each={mobilizationOverlapConflicts} for:item="conflict">
+                                <li key={conflict.key} class="overlap-conflict-item">
+                                    <div class="overlap-conflict-contact">{conflict.contactName}</div>
+                                    <div class="overlap-conflict-details">
+                                        <span class="overlap-conflict-target">
+                                            <strong>{conflict.targetMobilizationName}</strong>
+                                            <span class="overlap-conflict-window">{conflict.targetWindow}</span>
+                                        </span>
+                                        <span class="overlap-conflict-separator">conflicts with</span>
+                                        <span class="overlap-conflict-existing">
+                                            <strong>{conflict.conflictingMobilizationName}</strong>
+                                            <span class="overlap-conflict-window">{conflict.conflictingWindow}</span>
+                                            <span class="overlap-conflict-crew">({conflict.conflictingCrewName})</span>
+                                        </span>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                    </template> -->
+                </div>
+
+                <footer class="slds-modal__footer overlap-modal__footer">
+                    <button class="overlap-btn overlap-btn--secondary" type="button" data-action={overlapCancelAction} onclick={handleOverlapModalAction}>{overlapCancelLabel}</button>
+                    <div class="overlap-modal__actions">
+                        <button class="overlap-btn overlap-btn--primary" type="button" data-action={overlapPrimaryAction} onclick={handleOverlapModalAction}>{overlapPrimaryLabel}</button>
+                        <button class="overlap-btn overlap-btn--accent" type="button" data-action={overlapSecondaryAction} onclick={handleOverlapModalAction}>{overlapSecondaryLabel}</button>
+                    </div>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open backdrop-3"></div>
     </template>
 
     <c-generic-confirmation-modal
