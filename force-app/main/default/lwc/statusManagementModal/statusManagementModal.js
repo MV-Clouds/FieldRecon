@@ -10,6 +10,7 @@ export default class StatusManagementModal extends LightningElement {
     @track statusesToRemove = [];
     @track newStatusInput = '';
     @track hasUnsavedChanges = false;
+    @track changesSaved = false; // Track if changes were actually saved
 
     /**
      * Method Name: get isModalOpen
@@ -55,7 +56,9 @@ export default class StatusManagementModal extends LightningElement {
                     label: status,
                     value: status,
                     isActive: true,
-                    isMarkedForRemoval: false
+                    isMarkedForRemoval: false,
+                    cssClass: 'tile',
+                    tooltipText: `Click to mark "${status}" for removal`
                 }));
                 this.isLoading = false;
             })
@@ -115,7 +118,7 @@ export default class StatusManagementModal extends LightningElement {
      * @description: Remove status from new statuses list
      */
     handleRemoveNewStatus(event) {
-        const statusToRemove = event.target.dataset.status;
+        const statusToRemove = event.currentTarget.dataset.status;
         this.newStatusesToAdd = this.newStatusesToAdd.filter(status => 
             status.value !== statusToRemove
         );
@@ -124,21 +127,30 @@ export default class StatusManagementModal extends LightningElement {
 
     /**
      * Method Name: handleToggleStatusRemoval
-     * @description: Toggle status for removal
+     * @description: Toggle status for removal when pill is clicked
      */
     handleToggleStatusRemoval(event) {
-        const statusValue = event.target.dataset.status;
-        const isChecked = event.target.checked;
-
+        const statusValue = event.currentTarget.dataset.status;
+        
         this.existingStatuses = this.existingStatuses.map(status => {
             if (status.value === statusValue) {
-                return { ...status, isMarkedForRemoval: isChecked };
+                const isMarkedForRemoval = !status.isMarkedForRemoval;
+                return { 
+                    ...status, 
+                    isMarkedForRemoval: isMarkedForRemoval,
+                    cssClass: isMarkedForRemoval ? 'tile marked-for-removal' : 'tile',
+                    tooltipText: isMarkedForRemoval 
+                        ? `Click to unmark "${status.label}" for removal` 
+                        : `Click to mark "${status.label}" for removal`
+                };
             }
             return status;
         });
 
         // Update statusesToRemove array
-        if (isChecked) {
+        const isCurrentlyMarked = this.existingStatuses.find(s => s.value === statusValue)?.isMarkedForRemoval;
+        
+        if (isCurrentlyMarked) {
             if (!this.statusesToRemove.includes(statusValue)) {
                 this.statusesToRemove = [...this.statusesToRemove, statusValue];
             }
@@ -181,6 +193,7 @@ export default class StatusManagementModal extends LightningElement {
             .then(result => {
                 if (result === 'SUCCESS') {
                     this.showToast('Success', 'Status values updated successfully', 'success');
+                    this.changesSaved = true; // Mark that changes were saved
                     this.resetChanges();
                     this.fetchExistingStatuses(); // Refresh the list
                 } else {
@@ -209,17 +222,25 @@ export default class StatusManagementModal extends LightningElement {
      * @description: Reset all changes
      */
     resetChanges() {
+        // Reset arrays and input
         this.newStatusesToAdd = [];
         this.statusesToRemove = [];
         this.newStatusInput = '';
         this.hasUnsavedChanges = false;
         this.isLoading = false;
+        // Note: Don't reset changesSaved here as we need it for the close event
         
-        // Reset existing statuses removal marks
-        this.existingStatuses = this.existingStatuses.map(status => ({
-            ...status,
-            isMarkedForRemoval: false
-        }));
+        // Reset existing statuses removal marks and CSS classes
+        this.existingStatuses = this.existingStatuses.map(status => {
+            return {
+                label: status.label,
+                value: status.value,
+                isActive: status.isActive,
+                isMarkedForRemoval: false,
+                cssClass: 'tile',
+                tooltipText: `Click to mark "${status.label}" for removal`
+            };
+        });
     }
 
     /**
@@ -227,7 +248,9 @@ export default class StatusManagementModal extends LightningElement {
      * @description: Close the modal
      */
     closeModal() {
-        const closeEvent = new CustomEvent('close');
+        const closeEvent = new CustomEvent('close', {
+            detail: { changesSaved: this.changesSaved }
+        });
         this.dispatchEvent(closeEvent);
     }
 

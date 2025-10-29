@@ -31,7 +31,6 @@
 }
 
 .main-card {
-    background-color: white;
     transition: margin-left 0.3s ease;
     border-radius: 6px;
     display: flex;
@@ -47,7 +46,6 @@
     overflow: auto;
     border-radius: 8px;
     margin: 16px 0;
-    background-color: white;
 }
 
 .custom-data-table {
@@ -281,6 +279,10 @@
     width: 16px;
     height: 16px;
     flex-shrink: 0;
+}
+
+.custom-icon path {
+ fill:none;stroke:#ffffff;stroke-linecap:round;stroke-linejoin:round;
 }
 
 /* Status Name Cell */

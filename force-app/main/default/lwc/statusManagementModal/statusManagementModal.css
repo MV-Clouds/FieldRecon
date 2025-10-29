@@ -39,6 +39,8 @@
     justify-content: center;
     gap: 0.5rem;
     transition: background-color 0.2s ease;
+    height: 32px;
+    min-width: 108px;
 }
 
 .crew-save-btn:hover:not(:disabled) {
@@ -46,8 +48,12 @@
 }
 
 .crew-save-btn:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
     cursor: not-allowed;
-    opacity: 0.7;
+    pointer-events: none;
 }
 
 .crew-bottom-footer-btn {
@@ -99,12 +105,17 @@
 
 .input-group {
     display: flex;
-    align-items: end;
     gap: 1rem;
 }
 
 .status-input {
     flex: 1;
+}
+
+.remove-btn-svg{
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
 
 /* Input field styling to match crew management theme */
@@ -127,6 +138,8 @@
     cursor: pointer;
     background: white;
     transition: all 0.2s ease;
+    height: 32px;
+    min-width: 108px;
 }
 
 .crew-action-button:hover:not(:disabled) {
@@ -137,12 +150,18 @@
 .crew-action-button:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
+    pointer-events: none;
 }
 
 .crew-create-button {
     background-color: rgba(94, 90, 219, 1);
     color: white;
     border-color: rgba(94, 90, 219, 1);
+    height: 32px;
+    min-width: 108px;
 }
 
 .crew-create-button:hover:not(:disabled) {
@@ -151,8 +170,12 @@
 }
 
 .crew-create-button:disabled {
-    background-color: rgba(94, 90, 219, 0.6);
-    border-color: rgba(94, 90, 219, 0.6);
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .crew-action-button svg {
@@ -174,14 +197,14 @@
     gap: 0.25rem;
     overflow: auto;
     max-height: 170px;
-    min-height: 1.5rem;
+    min-height: 2rem;
 }
 
 .selected-record-tiles .tile {
     background: rgba(94, 90, 219, 0.12);
     color: rgba(94, 90, 219, 1);
     border-radius: 4px;
-    height: 1.5rem;
+    height: 2rem;
     padding-inline: 0.5rem;
     display: flex;
     align-items: center;
@@ -189,70 +212,49 @@
     max-width: 100%;
 }
 
-.remove-btn-svg:hover {
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-    transform: scale(1.1);
+/* Existing Statuses Section with Tile Styling */
+.existing-statuses-tiles-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    overflow: auto;
+    max-height: 170px;
+    min-height: 2rem;
 }
 
-.remove-btn-svg:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.6);
-    border-radius: 50%;
+.existing-statuses-tiles-container .tile {
+    background: rgba(94, 90, 219, 0.12);
+    color: rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    height: 2rem;
+    padding-inline: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 100%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.existing-statuses-tiles-container .tile:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.2);
+}
+
+/* Marked for removal state */
+.existing-statuses-tiles-container .tile.marked-for-removal {
+    background: rgba(220, 53, 69, 0.12);
+    color: #dc3545;
+}
+
+.existing-statuses-tiles-container .tile.marked-for-removal:hover {
+    background: rgba(220, 53, 69, 0.2);
 }
 
 .no-resource-text-div {
     font-size: 10px;
     color: gray;
     line-height: 12px;
-}
-
-/* Existing Statuses Section */
-.existing-statuses-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    max-height: 300px;
-    overflow-y: auto;
-    padding-right: 0.5rem;
-}
-
-.status-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: white;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    border: 1px solid rgba(94, 90, 219, 0.2);
-    transition: all 0.2s ease;
-}
-
-.status-row:hover {
-    border-color: rgba(94, 90, 219, 0.5);
-    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.1);
-}
-
-.status-checkbox {
-    flex: 1;
-}
-
-.removal-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #dc3545;
-    font-size: 12px;
-    font-weight: 600;
-    background-color: rgba(220, 53, 69, 0.1);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-}
-
-.removal-indicator svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
 }
 
 /* Empty State */
@@ -265,25 +267,6 @@
     color: #6c757d;
     font-size: 16px;
     margin: 0;
-}
-
-/* Scrollbar Styling */
-.existing-statuses-container::-webkit-scrollbar {
-    width: 6px;
-}
-
-.existing-statuses-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.existing-statuses-container::-webkit-scrollbar-thumb {
-    background: rgba(94, 90, 219, 0.3);
-    border-radius: 3px;
-}
-
-.existing-statuses-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(94, 90, 219, 0.5);
 }
 
 /* Modal z-index matching crewManagement */
@@ -323,6 +306,14 @@
     .selected-record-tiles .tile {
         justify-content: space-between;
     }
+
+    .existing-statuses-tiles-container {
+        flex-direction: column;
+    }
+
+    .existing-statuses-tiles-container .tile {
+        justify-content: space-between;
+    }
 }
 
 @media only screen and (max-width: 768px) {
@@ -332,10 +323,6 @@
 
     .section-title {
         font-size: 16px;
-    }
-
-    .existing-statuses-container {
-        max-height: 200px;
     }
 
     .crew-action-button {
@@ -352,9 +339,5 @@
 
     .section-title {
         font-size: 14px;
-    }
-
-    .existing-statuses-container {
-        max-height: 150px;
     }
 }

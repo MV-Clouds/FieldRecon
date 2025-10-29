@@ -393,12 +393,15 @@ export default class MobStatusColorConfig extends LightningElement {
 
     /**
      * Method Name: handleCloseStatusModal
-     * @description: Close the status management modal and refresh data
+     * @description: Close the status management modal and refresh data only if changes were saved
      */
-    handleCloseStatusModal() {
+    handleCloseStatusModal(event) {
         this.showStatusModal = false;
-        // Refresh the data when modal is closed to pick up any changes
-        this.fetchStatusColors();
+        // Only refresh the data if changes were actually saved in the modal
+        const changesSaved = event.detail?.changesSaved || false;
+        if (changesSaved) {
+            this.fetchStatusColors();
+        }
     }
 
 }
