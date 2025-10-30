@@ -10,6 +10,7 @@
  * Update: 28/10/2025 - Updated the logic for the removal of assigned resources from the mobilization, now with future removal as well
  * Update: 29/10/2025 - Updated for the Crew Based Resources View Data Fetch
  * Update: 30/10/2025 - Updated for the Crew Based Resources for the color for the Crew as well as Crew Members
+ * Update: 30/10/2025 - Modified code to allow assignments from the Calendar, by getting the first mobilization of the group to assign resources
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -565,7 +566,9 @@ public with sharing class MobSchedulerController {
     public static String assignResourceToJob(Map<String, Object> assignmentData) {
         try {
             List<String> resourceIds = String.valueOf((assignmentData.get('resourceIds'))).split(',');
-            String mobId = (String) assignmentData.get('mobId');
+            // String mobId = (String) assignmentData.get('mobId');
+            String mobId = assignmentData.containsKey('mobId') ? (String) assignmentData.get('mobId') : null;
+            String mobGroupId = assignmentData.containsKey('mobGroupId') ? (String) assignmentData.get('mobGroupId') : null;
             String type = (String) assignmentData.get('type');
             Boolean allowOverlap = (Boolean) assignmentData.get('allowOverlap');
             String overlapMode = (String) assignmentData.get('overlapMode'); // "ALL" or "SKIP"
@@ -583,14 +586,28 @@ public with sharing class MobSchedulerController {
                 });
             }
 
+            Mobilization__c selectedMob = new Mobilization__c();
+
             // Get mobilization details + parent Job
-            Mobilization__c selectedMob = [
-                SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
-                FROM Mobilization__c
-                WHERE Id = :mobId
-                WITH USER_MODE
-                LIMIT 1
-            ];
+            if(mobId != null){
+                selectedMob = [
+                    SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
+                    FROM Mobilization__c
+                    WHERE Id = :mobId
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+            }else if(mobGroupId != null){
+                selectedMob = [
+                    SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
+                    FROM Mobilization__c
+                    WHERE Mobilization_Group__c = :mobGroupId
+                    AND End_Date__c >= :system.now()
+                    WITH USER_MODE
+                    ORDER BY End_Date__c ASC
+                    LIMIT 1
+                ];
+            }
 
             if (selectedMob == null) {
                 return JSON.serialize(new Map<String, Object>{

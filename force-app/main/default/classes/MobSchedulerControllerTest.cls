@@ -266,12 +266,13 @@ private class MobSchedulerControllerTest {
     static void testAssignResourceToJob() {
         List<Contact> contacts = [SELECT Id, RecordType.DeveloperName FROM Contact ORDER BY CreatedDate];
         List<Equipment__c> equipments = [SELECT Id FROM Equipment__c ORDER BY CreatedDate];
-        List<Mobilization__c> mobs = [SELECT Id, Start_Date__c FROM Mobilization__c ORDER BY Start_Date__c];
+        List<Mobilization__c> mobs = [SELECT Id, Start_Date__c, Mobilization_Group__c FROM Mobilization__c ORDER BY Start_Date__c];
 
         // Use comma-separated resourceIds per new signature; include resourceMap minimal for Crew path
         Map<String, Object> assignmentData = new Map<String, Object>{
             'resourceIds' => String.join(new List<String>{ String.valueOf(contacts[1].Id) }, ','), // Employee2
-            'mobId' => mobs[0].Id,
+            'mobId' => null,
+            'mobGroupId' => mobs[0].Mobilization_Group__c,
             'type' => 'Crew',
             'allowOverlap' => true,
             'overlapMode' => 'ALL',
@@ -279,6 +280,11 @@ private class MobSchedulerControllerTest {
         };
 
         Test.startTest();
+
+        MobSchedulerController.assignResourceToJob(assignmentData);
+        
+        assignmentData.put('mobGroupId', null);
+        assignmentData.put('mobId', mobs[0].Id);
         // allowOverlap true, ALL mode: should insert across all sibling mobs
         String resultJson = MobSchedulerController.assignResourceToJob(assignmentData);
         Map<String, Object> result = (Map<String, Object>) JSON.deserializeUntyped(resultJson);

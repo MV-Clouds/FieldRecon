@@ -1003,6 +1003,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     // Job Card Resource Editing Form
     addResourceForAssignment(event){
         try {
+            if((this.resourceTypeForAssign == 'Crew' && !this.selectedCrewAssignments.length) || (this.resourceTypeForAssign != 'Crew' && !this.selectedResourceIdsForAssign.length)) {
+                this.showToast('Error', 'Please select resource to assign.', 'error');
+                return;
+            }
             this.showLoading(true);
 
             if(event){
@@ -1166,7 +1170,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         this.confirmationBtnLabel = confirmLabel;
         this.confirmationBtnLabel2 = confirmLabel2 || null;
         this.showConfirmationPopup = true;
-
     }
     handleConfirmationAction(event){
         try {
