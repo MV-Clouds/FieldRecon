@@ -15,7 +15,7 @@
     width: 100%;
     background: color(from var(--card-bg-color, #ffffff) srgb r g b / 0.1);
     overflow: hidden;
-    max-height: 3.4rem;
+    max-height: 4.4rem;
     transition: all 0.3s ease-in-out;
 }
 
@@ -85,6 +85,22 @@
 
 .action-btns .action-btn:hover{
     scale: 1.1;
+}
+
+.crew-color-dots{
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.event-card:hover .crew-color-dots{
+    display: none;
+}
+
+.crew-dot{
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
 }
 
 .truncate-location {

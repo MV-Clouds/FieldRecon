@@ -5,13 +5,17 @@ import { NavigationMixin } from 'lightning/navigation';
 export default class MobCard extends NavigationMixin(LightningElement) {
     @api mobDetails;
 
+    get masterCrewList(){
+        return this.groupCrewByTeam(this.mobDetails?.crew || []) || [];
+    }
+
     get resourceSections() {
         return [
             {
                 key: 'crewMaster',
                 label: 'Crew',
                 type: 'CrewMaster',
-                items: this.groupCrewByTeam(this.mobDetails?.crew || []) || [],
+                items: this.masterCrewList,
                 emptyText: 'No Crews Assigned Yet.'
             },
             {
@@ -57,6 +61,7 @@ export default class MobCard extends NavigationMixin(LightningElement) {
                     name: member.crewName,
                     // crewColor: member.crewColor,
                     bgStyle: member.bgStyle,
+                    dotStyle: 'background-color: ' + member.crewColor + ';',
                     // members: []
                 };
             }

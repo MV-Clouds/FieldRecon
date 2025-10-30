@@ -1,6 +1,6 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 91% (2025-10-28)
+ * Test Class: MobSchedulerControllerTest - 91% (2025-10-30)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
  * Last Modified By: Kevin Suvagiya
@@ -8,6 +8,8 @@
  * Last Changes: Removed Unused Code and Added the Exception Handlers
  * Update: 27/10/2025 - Updated the logic for the start and end date to fix timezone based issues
  * Update: 28/10/2025 - Updated the logic for the removal of assigned resources from the mobilization, now with future removal as well
+ * Update: 29/10/2025 - Updated for the Crew Based Resources View Data Fetch
+ * Update: 30/10/2025 - Updated for the Crew Based Resources for the color for the Crew as well as Crew Members
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -325,7 +327,7 @@ public with sharing class MobSchedulerController {
             String memberRecordType = '';
             Boolean fetchAssets = false;
 
-            if(resourceType == 'Crew') {
+            if(resourceType == 'Crew' || resourceType == 'CrewMaster') {
                 memberRecordType = 'Employee_WF_Recon';
             } else if(resourceType == 'SubContractor') {
                 memberRecordType = 'Sub_Contractor_WF_Recon';
@@ -352,7 +354,7 @@ public with sharing class MobSchedulerController {
             } else {
                 mobilizations = [
                     SELECT Id, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c, Mobilization_Status__c,
-                        (SELECT Id, Contact__c, Contact__r.Name
+                        (SELECT Id, Contact__c, Contact__r.Name, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
                             FROM Mobilization_Members__r
                             WHERE Contact__r.RecordType.DeveloperName = :memberRecordType
                             ORDER BY Mobilization__r.Start_Date__c)
@@ -385,10 +387,19 @@ public with sharing class MobSchedulerController {
                         });
                     }
                 } else {
+                    Set<Id> processedCrewIds = new Set<Id>();
+
                     for(Mobilization_Member__c mem : mob.Mobilization_Members__r){
+
+                        if (resourceType=='CrewMaster' && (mem.Crew__c == null || processedCrewIds.contains(mem.Crew__c))) continue; // skip individuals with no crew
+
+                        if (resourceType=='CrewMaster' && !processedCrewIds.contains(mem.Crew__c)) {
+                            processedCrewIds.add(mem.Crew__c);
+                        }
                         result.add(new Map<String,Object>{
-                            'id' => mem.Contact__c,
-                            'name' => mem.Contact__r.Name,
+                            'id' => resourceType=='CrewMaster' ? mem.Crew__c : mem.Contact__c,
+                            'name' => resourceType=='CrewMaster' ? mem.Crew__r.Name : mem.Contact__r.Name,
+                            'crewStyle' => mem.Crew__r.Color_Code__c != null ? 'background-color: color(from ' +  mem.Crew__r.Color_Code__c + ' srgb r g b / 0.2);color:' + mem.Crew__r.Color_Code__c + ';' : null,
                             'jId' => mob.Job__c,
                             'mobId' => mob.id,
                             'status' => mob.Mobilization_Status__c,

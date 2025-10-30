@@ -27,7 +27,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     @track weekEvents = [];
     @track filteredEvents = [];
 
-    @track resourceType = 'Crew';
+    @track resourceType = 'CrewMaster';
     @track resourceTypeForAssign = 'Crew';
 
     currentWeekStart;
@@ -533,11 +533,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
         getResourceDetails({ startDate: startDateStr, endDate: endDateStr, resourceType })
             .then(data => {
-                // Map data into table per week
-                this.resources = this.weekDays.map(day => {
-                    return day; // placeholder, mapping below
-                });
-
                 // Map resources
                 this.resources = [];
                 const weekMap = {};
@@ -549,7 +544,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 const resMap = {};
                 data.forEach(item => {
                     if (!resMap[item.id]) {
-                        resMap[item.id] = { id: item.id, name: item.name, days: this.weekDays.map(d => ({ iso: d.iso, events: [] })) };
+                        resMap[item.id] = { id: item.id, name: item.name, days: this.weekDays.map(d => ({ iso: d.iso, events: [] })), crewStyle: item.crewStyle};
                     }
                     const dayIso = new Date(item.start).toISOString().slice(0,10);
                     const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
@@ -714,6 +709,29 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         }
     }
 
+    // handleMobDateFieldUpdate(event) {
+    //     const startField = this.template.querySelector('lightning-input-field[data-id="start"] input');
+    //     const endField = this.template.querySelector('lightning-input-field[data-id="end"] input');
+
+    //     const startDate = new Date(startField.value);
+    //     const endDate = new Date(endField.value);
+
+    //     // clear previous errors
+    //     startField.setCustomValidity('');
+    //     endField.setCustomValidity('');
+
+    //     // validation
+    //     if (startField.value && endField.value && startDate > endDate) {
+    //         const msg = 'Start Date cannot be later than End Date.';
+    //         startField.setCustomValidity(msg);
+    //         endField.setCustomValidity(msg);
+    //     }
+
+    //     // show errors
+    //     startField.reportValidity();
+    //     endField.reportValidity();
+    // }
+
     handleCreateMobSubmitted(event){
         try {
             this.showLoading(true);
@@ -747,7 +765,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 this.mobIdToRemove = mobId;
                 this.typeOfResourceToRemove = this.resourceType;
                 // this.showConfirmationPopup = true;
-                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove for this Group');
+                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove For All Days');
             }
         } catch (e) {
             console.error('MobScheduler.handleRemoveAssignment error:', e?.message);
@@ -1061,7 +1079,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             this.resourceIdToRemove = id;
             this.mobIdToRemove = mobId;
             this.typeOfResourceToRemove = type;
-            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove for this Group');
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove For All Days');
         } catch (e) {
             console.error('MobScheduler.handleRemoveJobResource error:', e?.message);
         }
@@ -1077,10 +1095,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             this.mobIdToRemove = mobId;
             this.typeOfResourceToRemove = type;
             if(type == 'CrewMaster'){
-                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this crew and it\'s members from this mobilization?', 'Remove', 'Remove for this Group');
+                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this crew and it\'s members from this mobilization?', 'Remove', 'Remove For All Days');
                 return;
             }
-            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove for this Group');
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove For All Days');
         } catch (e) {
             console.error('MobScheduler.handleRemoveResourceFromCard error:', e?.message);
         }

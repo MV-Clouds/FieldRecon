@@ -42,7 +42,8 @@
       <!-- Period navigation -->
       <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-end slds-grid--align-spread slds-wrap">
         <div class="tabs sub-tabs tab-navigation" if:true={isResourceView}>
-          <button class="nav-tab-btn" data-selected={resourceType} name="Crew" onclick={selectResourceType}>Crew</button>
+          <button class="nav-tab-btn" data-selected={resourceType} name="CrewMaster" onclick={selectResourceType}>Crew</button>
+          <button class="nav-tab-btn" data-selected={resourceType} name="Crew" onclick={selectResourceType}>Employees</button>
           <button class="nav-tab-btn" data-selected={resourceType} name="SubContractor" onclick={selectResourceType}>Sub
             Contractors</button>
           <button class="nav-tab-btn" data-selected={resourceType} name="Asset" onclick={selectResourceType}>Assets</button>
@@ -168,7 +169,7 @@
 
           <template for:each={filteredResources} for:item="res">
             <div class="resource-row" key={res.id}>
-              <div class="cell resource-col record-nav-link" data-id={res.id} onclick={handleRecordNavigation}>{res.name}</div>
+              <div class="cell resource-col record-nav-link" style={res.crewStyle} data-id={res.id} onclick={handleRecordNavigation}>{res.name}</div>
               <template for:each={res.days} for:item="day">
                 <div class="cell day-col" key={day.iso}>
                   <template for:each={day.events} for:item="ev">
@@ -233,14 +234,15 @@
           <!-- Form To Create The Mobilization Group -->
           <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate}>
             <div class="main-mob-creation-form-div">
-              <div class="slds-grow slds-scrollable--y">
+              <div class="slds-grow slds-scrollable--y slds-grid slds-wrap">
                 <lightning-messages></lightning-messages>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" data-id="start" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" data-id="end" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Description__c"></lightning-input-field>
               </div>
               <!-- Control buttons -->
               <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
