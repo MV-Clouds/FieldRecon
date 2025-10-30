@@ -53,8 +53,6 @@ export default class MobStatusColorConfig extends LightningElement {
         this.fetchStatusColors();
     }
 
-
-
     /**
      * Method Name: fetchStatusColors
      * @description: Fetch all mobilization status colors
@@ -253,6 +251,7 @@ export default class MobStatusColorConfig extends LightningElement {
                 if (result.status === 'SUCCESS') {
                     this.showToast('Success', result.message, 'success');
                     this.modifiedFields.clear();
+                    this.hasUnsavedChanges = false;
                     this.fetchStatusColors(); // Refresh data
                 } else {
                     this.showToast('Error', result.message, 'error');

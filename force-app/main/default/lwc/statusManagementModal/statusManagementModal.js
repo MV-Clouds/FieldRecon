@@ -52,6 +52,9 @@ export default class StatusManagementModal extends LightningElement {
         this.isLoading = true;
         getMobilizationPicklistValues()
             .then(result => {
+
+                console.log('result ==> ', result);
+                
                 this.existingStatuses = result.map(status => ({
                     label: status,
                     value: status,
