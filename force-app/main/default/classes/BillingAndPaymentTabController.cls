@@ -29,7 +29,7 @@ public with sharing class BillingAndPaymentTabController {
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'getJobData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return new List<Job__c>();
         }
     }
 
@@ -79,7 +79,7 @@ public with sharing class BillingAndPaymentTabController {
             return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'getBillingsData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return null;
         }
     }
 
@@ -130,7 +130,7 @@ public with sharing class BillingAndPaymentTabController {
             return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'getPaymentsData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return null;
         }
     }
 
@@ -394,7 +394,7 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'createPayment', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return e.getMessage();
         }
     }
 
@@ -448,7 +448,7 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'deleteRecord', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return e.getMessage();
         }
     }
 

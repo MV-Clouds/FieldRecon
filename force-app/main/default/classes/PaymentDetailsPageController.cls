@@ -62,7 +62,8 @@ public with sharing class PaymentDetailsPageController {
 
         } catch (Exception e) {
             System.debug('Error fetching payment data: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'PaymentDetailsPageController', 'methodName' => 'updatePaymentDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -84,7 +85,8 @@ public with sharing class PaymentDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error updating payment details: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'PaymentDetailsPageController', 'methodName' => 'updatePaymentDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -150,7 +152,8 @@ public with sharing class PaymentDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error saving payment line items: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'PaymentDetailsPageController', 'methodName' => 'savePaymentLineItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 

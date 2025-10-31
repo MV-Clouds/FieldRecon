@@ -73,8 +73,9 @@ public with sharing class BillingDetailsPageController {
             return wrapper;
 
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingDetailsPageController', 'methodName' => 'getBillingsData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             System.debug('Error fetching billing data: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            return null;
         }
     }
 
@@ -142,7 +143,8 @@ public with sharing class BillingDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error updating billing details: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingDetailsPageController', 'methodName' => 'updateBillingDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -312,7 +314,8 @@ public with sharing class BillingDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error saving billing line items: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingDetailsPageController', 'methodName' => 'saveBillingLineItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
