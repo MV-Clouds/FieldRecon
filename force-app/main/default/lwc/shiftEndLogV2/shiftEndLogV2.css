@@ -1,6 +1,7 @@
 :host {
     --primary-theme-color: #5e5adb;
     --primary-theme-color-shade-20: #5e5adb20;
+    --table-border-color: lightgray;
 }
 
 .shift-end-log-container {
@@ -98,35 +99,59 @@
 
 .logs-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(1, 1fr);
     gap: 1rem;
+}
+
+.card-placeholder {
+    position: relative;
+    height: 5.4rem;
 }
 
 .log-card {
     border: 1px solid lightgray;
     border-radius: 0.5rem;
     padding: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
     width: 100%;
     background: white;
     overflow: hidden;
-    max-height: 4.4rem;
+    max-height: 5.4rem;
     transition: all 0.3s ease-in-out;
     cursor: pointer;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1;
 }
 
 .log-card:hover {
-    height: fit-content;
+     height: fit-content;
     max-height: 50rem;
     overflow: auto;
     scrollbar-width: none;
     box-shadow: 0 3px 6px #5a5adb60;
+    z-index: 10;
 }
 
 .log-card:hover .log-card-name {
     white-space: break-spaces;
+}
+
+.log-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--primary-theme-color, #5a5adb);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.log-card:hover::before {
+    opacity: 1;
 }
 
 .log-card svg {
@@ -146,6 +171,13 @@
     min-width: 0;
 }
 
+.log-card-name-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
 .log-card-name {
     font-weight: 600;
     overflow: hidden;
@@ -153,6 +185,7 @@
     white-space: nowrap;
     display: block;
     font-size: 0.95rem;
+    color: #181818;
 }
 
 .log-card-description {
@@ -182,30 +215,62 @@
     background: var(--primary-theme-color-shade-20, #5a5adb20);
     border-radius: 0.4rem;
     padding: 0.2rem;
+    border: 1px solid transparent;
 }
 
 .action-btns .action-btn:hover {
-    scale: 1.1;
+    scale: 1.05;
+    background: var(--primary-theme-color, #5a5adb);
+    border-color: var(--primary-theme-color, #5a5adb);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.action-btns .action-btn:hover svg {
+    fill: white;
 }
 
 .log-meta-info {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.3rem;
     font-size: 0.75rem;
     color: #706e6b;
 }
 
+.log-meta-info-name{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .status-tile {
     font-weight: 600;
-    padding: 0.3rem 0.5rem;
-    border-radius: 2rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.25rem;
     text-transform: uppercase;
     width: fit-content;
-    font-size: 0.6rem;
-    line-height: 0.6rem;
+    font-size: 0.65rem;
+    line-height: 0.65rem;
     background: var(--primary-theme-color-shade-20, #5e5adb20);
     color: var(--primary-theme-color, #5e5adb);
+    white-space: nowrap;
+}
+
+.status-tile[data-type="Shift End"],
+.status-tile[data-type="Standard"] {
+    background: #e8f4e8;
+    color: #2e7d32;
+}
+
+.status-tile[data-type="Emergency"] {
+    background: #fdecea;
+    color: #c23934;
+}
+
+.status-tile[data-type="Exception"] {
+    background: #fff4e5;
+    color: #ed6c02;
 }
 
 .section-label {
@@ -295,6 +360,67 @@
     text-decoration: underline;
 }
 
+/* Modal Styles */
+.edit-modal-header {
+    background: var(--primary-theme-color, #5a5adb);
+    color: white;
+}
+
+.edit-modal-header h2 {
+    color: white;
+}
+
+.edit-modal-body {
+    background: #f4f6f9;
+}
+
+.edit-modal .slds-modal__container {
+    max-width: 50rem;
+    width: 90%;
+}
+
+.modal-footer-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.cancel-btn {
+    background: white;
+    border: 1px solid #c9c7c5;
+    color: #181818;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+.cancel-btn:hover {
+    background: #f4f6f9;
+    border-color: #706e6b;
+}
+
+.save-btn {
+    background: var(--primary-theme-color, #5a5adb);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+.save-btn:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
 @media screen and (max-width: 768px) {
     .logs-grid {
         grid-template-columns: 1fr;
@@ -337,9 +463,9 @@
         grid-template-columns: repeat(2, 1fr);
     }
 }
-
 @media screen and (min-width: 1024px) {
     .logs-grid {
         grid-template-columns: repeat(3, 1fr);
     }
 }
+

@@ -11,6 +11,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track isLoading = false;
     @track hasError = false;
     @track errorMessage = '';
+    @track showEditModal = false;
+    @track editLogId = null;
 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
@@ -42,7 +44,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         Name: log.Name,
                         wfrecon__Work_Performed__c: log.wfrecon__Work_Performed__c,
                         wfrecon__Work_Performed_Date__c: log.wfrecon__Work_Performed_Date__c,
-                        wfrecon__Log_Type__c: log.wfrecon__Log_Type__c,
+                        wfrecon__Log_Type__c: log.wfrecon__Log_Type__c || 'Standard',
                         wfrecon__Exceptions__c: log.wfrecon__Exceptions__c,
                         wfrecon__Plan_for_Tomorrow__c: log.wfrecon__Plan_for_Tomorrow__c,
                         CreatedBy: log.CreatedBy,
@@ -103,8 +105,29 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Handle edit button click
     handleEdit(event) {
         const logId = event.currentTarget.dataset.id;
-        console.log('logId for edit:', logId);
-        
+        this.editLogId = logId;
+        this.showEditModal = true;
+    }
+
+    // Handle close modal
+    handleCloseModal() {
+        this.showEditModal = false;
+        this.editLogId = null;
+    }
+
+    // Handle update success
+    handleUpdateSuccess() {
+        this.showEditModal = false;
+        this.editLogId = null;
+        this.showToast('Success', 'Shift End Log updated successfully', 'success');
+        // Reload the logs
+        this.loadShiftEndLogs();
+    }
+
+    // Handle update error
+    handleUpdateError(event) {
+        const errorMessage = event.detail?.message || 'Error updating shift end log';
+        this.showToast('Error', errorMessage, 'error');
     }
 
     // Handle record navigation
