@@ -109,6 +109,43 @@
     text-decoration: underline;
 }
 
+.scope-name {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: left;
+}
+
+/* Text truncation for all text fields */
+.text-truncate {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+/* Process name text truncation in nested tables */
+.process-name-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+/* Ensure nested table cells handle truncation properly */
+.nested-table-row .center-trancate-text {
+    max-width: 200px;
+}
+
 /* Inline Editing Styles */
 .editable-cell {
     cursor: pointer;

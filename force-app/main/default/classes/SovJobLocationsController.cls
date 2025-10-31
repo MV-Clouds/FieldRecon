@@ -269,7 +269,7 @@ public with sharing class SovJobLocationsController {
         
         try {
             List<LocationConfigration__mdt> configs = [
-                SELECT Fields_Data__c, PageSize__c 
+                SELECT FieldValue__c, PageSize__c 
                 FROM LocationConfigration__mdt 
                 WITH USER_MODE 
                 LIMIT 1
@@ -277,7 +277,7 @@ public with sharing class SovJobLocationsController {
 
             if (!configs.isEmpty()) {
                 LocationConfigration__mdt config = configs[0];
-                configData.put('fieldsData', config.Fields_Data__c);
+                configData.put('fieldsData', config.FieldValue__c);
                 configData.put('pageSize', config.PageSize__c);
             } else {
                 configData.put('fieldsData', '');

@@ -205,7 +205,7 @@ public with sharing class SovJobScopeController {
         
         try {
             List<ScopeEntryConfigration__mdt> configs = [
-                SELECT Fields_Data__c, PageSize__c 
+                SELECT FieldValue__c, PageSize__c 
                 FROM ScopeEntryConfigration__mdt 
                 WITH USER_MODE 
                 LIMIT 1
@@ -213,7 +213,7 @@ public with sharing class SovJobScopeController {
 
             if (!configs.isEmpty()) {
                 ScopeEntryConfigration__mdt config = configs[0];
-                configData.put('fieldsData', config.Fields_Data__c);
+                configData.put('fieldsData', config.FieldValue__c);
                 configData.put('pageSize', config.PageSize__c);
             }
             else{

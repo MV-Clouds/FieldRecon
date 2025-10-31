@@ -63,12 +63,12 @@ public with sharing class RecordManagersCmpController {
                 return null;
             }
             
-            String query = 'SELECT wfrecon__Fields_Data__c, wfrecon__PageSize__c FROM ' + String.escapeSingleQuotes(metadataType) + ' LIMIT 1';
+            String query = 'SELECT wfrecon__FieldValue__c, wfrecon__PageSize__c FROM ' + String.escapeSingleQuotes(metadataType) + ' LIMIT 1';
             List<SObject> metadataRecords = Database.query(query, AccessLevel.USER_MODE);
 
             if (!metadataRecords.isEmpty()) {
                 SObject metadataRecord = metadataRecords[0];
-                String fieldsData = (String)metadataRecord.get('wfrecon__Fields_Data__c');
+                String fieldsData = (String)metadataRecord.get('wfrecon__FieldValue__c');
                 String pageSize = String.valueOf(metadataRecord.get('wfrecon__PageSize__c'));
                 
                 // Handle null values from metadata
@@ -149,7 +149,7 @@ public with sharing class RecordManagersCmpController {
             mdata.label = masterLabel;
 
             Metadata.CustomMetadataValue fieldsDataValue = new Metadata.CustomMetadataValue();
-            fieldsDataValue.field = 'wfrecon__Fields_Data__c';
+            fieldsDataValue.field = 'wfrecon__FieldValue__c';
             fieldsDataValue.value = itemsData;
             mdata.values.add(fieldsDataValue);
 

@@ -412,7 +412,7 @@
                                                                         <!-- Regular text/picklist display -->
                                                                         <template if:false={field.isNameField}>
                                                                             <template if:true={field.hasValue}>
-                                                                                {field.value}
+                                                                                <span class="text-truncate">{field.value}</span>
                                                                             </template>
                                                                             <template if:false={field.hasValue}>--</template>
                                                                         </template>
