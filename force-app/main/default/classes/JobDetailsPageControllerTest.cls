@@ -135,7 +135,7 @@ public class JobDetailsPageControllerTest {
 
     @IsTest
     static void testCreateTimesheetRecords_ClockInFirst() {
-        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c FROM Mobilization_Member__c LIMIT 1];
+        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c, Mobilization__c FROM Mobilization_Member__c LIMIT 1];
         Date today = Date.today();
         Datetime clockInDt = Datetime.newInstance(today, Time.newInstance(10,0,0,0));
         String clockInStr = clockInDt.format('yyyy-MM-dd\'T\'HH:mm');
@@ -146,6 +146,7 @@ public class JobDetailsPageControllerTest {
             'isTimeSheetNull' => true,
             'clockInTime' => clockInStr,
             'jobId' => member.Mobilization__r.Job__c,
+            'mobId' => member.Mobilization__c,
             'costCodeId' => null
         });
 
@@ -176,7 +177,7 @@ public class JobDetailsPageControllerTest {
 
     @IsTest
     static void testCreateTimesheetRecords_ClockOutExistingEntry() {
-        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c FROM Mobilization_Member__c LIMIT 1];
+        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c, Mobilization__c FROM Mobilization_Member__c LIMIT 1];
         Timesheet__c ts = [SELECT Id FROM Timesheet__c LIMIT 1];
         Timesheet_Entry__c entry = [SELECT Id, Clock_In_Time__c FROM Timesheet_Entry__c WHERE Timesheet__c=:ts.Id LIMIT 1];
 
@@ -194,6 +195,7 @@ public class JobDetailsPageControllerTest {
             'clockInTime' => entry.Clock_In_Time__c,
             'clockOutTime' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
             'jobId' => member.Mobilization__r.Job__c,
+            'mobId' => member.Mobilization__c,
             'costCodeId' => null
         });
 
@@ -204,7 +206,7 @@ public class JobDetailsPageControllerTest {
 
     @IsTest
     static void testCreateTimesheetRecords_ClockOutNewEntry() {
-        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c FROM Mobilization_Member__c LIMIT 1];
+        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c, Mobilization__c FROM Mobilization_Member__c LIMIT 1];
         Timesheet__c ts = [SELECT Id FROM Timesheet__c LIMIT 1];
 
         Date today = Date.today();
@@ -220,6 +222,7 @@ public class JobDetailsPageControllerTest {
             'clockInTime' => clockInDt,
             'clockOutTime' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
             'jobId' => member.Mobilization__r.Job__c,
+            'mobId' => member.Mobilization__c,
             'costCodeId' => null
         });
 
@@ -230,7 +233,7 @@ public class JobDetailsPageControllerTest {
 
     @IsTest
     static void testCreateTimesheetRecords_ClockOutExistingEntryMidnight() {
-        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c FROM Mobilization_Member__c LIMIT 1];
+        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c, Mobilization__c FROM Mobilization_Member__c LIMIT 1];
         Timesheet__c ts = [SELECT Id FROM Timesheet__c LIMIT 1];
         Timesheet_Entry__c entry = [SELECT Id, Clock_In_Time__c FROM Timesheet_Entry__c WHERE Timesheet__c=:ts.Id LIMIT 1];
 
@@ -248,6 +251,7 @@ public class JobDetailsPageControllerTest {
             'clockInTime' => entry.Clock_In_Time__c,
             'clockOutTime' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
             'jobId' => member.Mobilization__r.Job__c,
+            'mobId' => member.Mobilization__c,
             'costCodeId' => null
         });
 
@@ -258,7 +262,7 @@ public class JobDetailsPageControllerTest {
 
     @IsTest
     static void testCreateTimesheetRecords_ClockOutNewEntryMidnight() {
-        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c FROM Mobilization_Member__c LIMIT 1];
+        Mobilization_Member__c member = [SELECT Id, Mobilization__r.Job__c, Mobilization__c FROM Mobilization_Member__c LIMIT 1];
         Timesheet__c ts = [SELECT Id FROM Timesheet__c LIMIT 1];
 
         Date today = Date.today();
@@ -274,6 +278,7 @@ public class JobDetailsPageControllerTest {
             'clockInTime' => clockInDt.format('yyyy-MM-dd\'T\'HH:mm'),
             'clockOutTime' => clockOutDt.format('yyyy-MM-dd\'T\'HH:mm'),
             'jobId' => member.Mobilization__r.Job__c,
+            'mobId' => member.Mobilization__c,
             'costCodeId' => null
         });
 
