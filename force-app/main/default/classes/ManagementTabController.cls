@@ -67,15 +67,7 @@ public with sharing class ManagementTabController {
 
             response.put('upcomingMobilizations', mobilizationIds.size());
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getCrewMobilizationSummary',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching crew mobilization summary : ' + e.getMessage(),
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewMobilizationSummary','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching crew mobilization summary : ' + e.getMessage(),'apiResponse' => null});
         }
 
         return response;
@@ -573,6 +565,7 @@ public with sharing class ManagementTabController {
 
             return 'SUCCESS';
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'updateGlobalPicklistValues', 'isApiException' => true, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error updating global picklist values: ' + e.getMessage(), 'apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -596,15 +589,7 @@ public with sharing class ManagementTabController {
                 }
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'getMobilizationStatusColors', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching mobilization status colors: ' + e.getMessage(), 
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getMobilizationStatusColors', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching mobilization status colors: ' + e.getMessage(), 'apiResponse' => null});
             throw new AuraHandledException('Error fetching mobilization status colors: ' + e.getMessage());
         }
         
