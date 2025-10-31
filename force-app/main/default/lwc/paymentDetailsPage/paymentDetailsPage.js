@@ -101,14 +101,14 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
     processPaymentDetails(payDetails) {
         this.paymentDetails = {
             Id: payDetails.Id || '',
-            Name: payDetails.Name || '-',
-            AccountName: payDetails.AccountName || '-',
-            Address: payDetails.Address || '-',
+            Name: payDetails.Name || '--',
+            AccountName: payDetails.AccountName || '--',
+            Address: payDetails.Address || '--',
             BillingId: payDetails.BillingId || '',
-            BillingNumber: payDetails.BillingNumber || '-',
+            BillingNumber: payDetails.BillingNumber || '--',
             JobId: payDetails.JobId || '',
-            JobName: payDetails.JobName || '-',
-            JobNumber: payDetails.JobNumber || '-',
+            JobName: payDetails.JobName || '--',
+            JobNumber: payDetails.JobNumber || '--',
             PaymentReceivedDate: payDetails.PaymentReceivedDate || null,
             PaymentReference: payDetails.PaymentReference || '',
             TotalPaidAmount: payDetails.TotalPaidAmount || 0.00
@@ -166,7 +166,7 @@ export default class PaymentDetailsPage extends NavigationMixin(LightningElement
     processLineItem(item) {
         return {
             Id: item.Id,
-            ScopeEntryName: item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Entry__r?.Name || '-',
+            ScopeEntryName: item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Entry__r?.Name || '--',
             ContractValue: item.wfrecon__Billing_Line_Item__r?.wfrecon__Scope_Contract_Amount__c || 0,
             TotalBilledAmount: item.wfrecon__Billing_Line_Item__r.wfrecon__Bill_Item_Type__c == 'Regular' ? item.wfrecon__Billing_Line_Item__r?.wfrecon__This_Billing_Value__c || 0 : item.wfrecon__Billing_Line_Item__r?.wfrecon__Total_Retainage_Amount__c || 0,
             AmountReceived: item.wfrecon__Amount_Received__c || 0,

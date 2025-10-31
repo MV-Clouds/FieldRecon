@@ -21,16 +21,16 @@ public with sharing class BillingDetailsPageController {
             // Populate Billing details in wrapper with null checks and default values
             wrapper.billDetails = new BillWrapper();
             wrapper.billDetails.Id = bill.Id;
-            wrapper.billDetails.Name = String.isNotBlank(bill.Name) ? bill.Name : '-';
+            wrapper.billDetails.Name = String.isNotBlank(bill.Name) ? bill.Name : '--';
             wrapper.billDetails.BillType = String.isNotBlank(bill.Bill_Type__c) ? bill.Bill_Type__c : 'Regular';
-            wrapper.billDetails.BillingReferenceNumber = String.isNotBlank(bill.wfrecon__Billing_Reference_Number__c) ? bill.wfrecon__Billing_Reference_Number__c : '-';
-            wrapper.billDetails.ApplicationNumber = String.isNotBlank(bill.wfrecon__Application_Number__c) ? bill.wfrecon__Application_Number__c : '-';
-            wrapper.billDetails.Status = String.isNotBlank(bill.wfrecon__Status__c) ? bill.wfrecon__Status__c : '-';
+            wrapper.billDetails.BillingReferenceNumber = String.isNotBlank(bill.wfrecon__Billing_Reference_Number__c) ? bill.wfrecon__Billing_Reference_Number__c : '--';
+            wrapper.billDetails.ApplicationNumber = String.isNotBlank(bill.wfrecon__Application_Number__c) ? bill.wfrecon__Application_Number__c : '--';
+            wrapper.billDetails.Status = String.isNotBlank(bill.wfrecon__Status__c) ? bill.wfrecon__Status__c : '--';
             wrapper.billDetails.StartDate = bill.wfrecon__Start_Date__c;
             wrapper.billDetails.EndDate = bill.wfrecon__End_Date__c;
             wrapper.billDetails.SentDate = bill.wfrecon__Sent_Date__c;
             wrapper.billDetails.Address = buildAddress(bill.wfrecon__Account__r);
-            wrapper.billDetails.AccountName = (bill.wfrecon__Account__r != null && String.isNotBlank(bill.wfrecon__Account__r.Name)) ? bill.wfrecon__Account__r.Name : '-';
+            wrapper.billDetails.AccountName = (bill.wfrecon__Account__r != null && String.isNotBlank(bill.wfrecon__Account__r.Name)) ? bill.wfrecon__Account__r.Name : '--';
             wrapper.billDetails.RetainageOnBill = bill.wfrecon__Retainage_on_Bill__c != null ? bill.wfrecon__Retainage_on_Bill__c : 0.00;
             wrapper.billDetails.TotalEarnedLessRetainage = bill.wfrecon__Total_Amount_Earned_Less_Retainage__c != null ? bill.wfrecon__Total_Amount_Earned_Less_Retainage__c : 0.00;
             wrapper.billDetails.TotalCompletedAndStoredToDate = bill.Total_Billed_Amount__c != null ? bill.Total_Billed_Amount__c : 0.00;
@@ -40,15 +40,15 @@ public with sharing class BillingDetailsPageController {
             wrapper.billDetails.BalanceToFinishRetainage = bill.wfrecon__Balance_to_Finish_Retainage__c != null ? bill.wfrecon__Balance_to_Finish_Retainage__c : 0.00;
             wrapper.billDetails.IsRetainageBilling = bill.wfrecon__Is_Retainage_Billing__c != null ? bill.wfrecon__Is_Retainage_Billing__c : false;
             wrapper.billDetails.PreviousBillId = bill.wfrecon__Previous_Bill__c;
-            wrapper.billDetails.PreviousBillName = (bill.wfrecon__Previous_Bill__r != null && String.isNotBlank(bill.wfrecon__Previous_Bill__r.Name)) ? bill.wfrecon__Previous_Bill__r.Name : '-';
+            wrapper.billDetails.PreviousBillName = (bill.wfrecon__Previous_Bill__r != null && String.isNotBlank(bill.wfrecon__Previous_Bill__r.Name)) ? bill.wfrecon__Previous_Bill__r.Name : '--';
             wrapper.billDetails.RetainageCompletedToDate = bill.Retainage_Completed_to_Date__c != null ? bill.Retainage_Completed_to_Date__c : 0.00;
             wrapper.billDetails.PreviousBilledAmount = bill.wfrecon__Previous_Billed_Amount__c != null ? bill.wfrecon__Previous_Billed_Amount__c : 0.00;
             wrapper.billDetails.jobRetainage = bill.wfrecon__Job__r.wfrecon__Retainage__c != null ? bill.wfrecon__Job__r.wfrecon__Retainage__c : 0.00;
             wrapper.billDetails.jobTotalContractPrice = bill.wfrecon__Job__r.wfrecon__Total_Contract_Price__c != null ? bill.wfrecon__Job__r.wfrecon__Total_Contract_Price__c : 0.00;
             wrapper.billDetails.jobTotalChangeOrderValue = bill.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c != null ? bill.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c : 0.00;
             wrapper.billDetails.JobId = bill.wfrecon__Job__c;
-            wrapper.billDetails.JobName = String.isNotBlank(bill.wfrecon__Job__r.wfrecon__Job_Name__c) ? bill.wfrecon__Job__r.wfrecon__Job_Name__c : '-';
-            wrapper.billDetails.JobNumber = String.isNotBlank(bill.wfrecon__Job__r.Name) ? bill.wfrecon__Job__r.Name : '-';
+            wrapper.billDetails.JobName = String.isNotBlank(bill.wfrecon__Job__r.wfrecon__Job_Name__c) ? bill.wfrecon__Job__r.wfrecon__Job_Name__c : '--';
+            wrapper.billDetails.JobNumber = String.isNotBlank(bill.wfrecon__Job__r.Name) ? bill.wfrecon__Job__r.Name : '--';
             wrapper.billDetails.PaymentDueDate = bill.wfrecon__Payment_Due_Date__c;
 
             // Query Billing Line Items directly
@@ -317,7 +317,7 @@ public with sharing class BillingDetailsPageController {
     }
 
     private static String buildAddress(Account acc) {
-        if (acc == null) return '-';
+        if (acc == null) return '--';
         
         List<String> addressParts = new List<String>();
         
@@ -334,7 +334,7 @@ public with sharing class BillingDetailsPageController {
             addressParts.add(acc.BillingPostalCode);
         }
         
-        return !addressParts.isEmpty() ? String.join(addressParts, ', ') : '-';
+        return !addressParts.isEmpty() ? String.join(addressParts, ', ') : '--';
     }
 
     // ---------------------------

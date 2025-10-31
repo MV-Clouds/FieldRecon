@@ -205,7 +205,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                                     cell.recordLink = `/${bill.wfrecon__Previous_Bill__c}`;
                                 }
                             } else {
-                                cell.value = '-';
+                                cell.value = '--';
                             }
                         } else {
                             cell.value = bill[col.fieldName] || '';
@@ -232,7 +232,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         }
 
                         if (!cell.value && cell.value !== 0) {
-                            cell.value = '-';
+                            cell.value = '--';
                         }
 
                         return cell;
@@ -305,7 +305,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         }
 
                         if (!cell.value && cell.value !== 0) {
-                            cell.value = '-';
+                            cell.value = '--';
                         }
 
                         return cell;
@@ -340,7 +340,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                     if (res && res.length > 0) {
                         const job = res[0];
                         this.jobDetailsMap = {
-                            jobName: job.wfrecon__Job_Name__c || '',
+                            jobName: job.wfrecon__Job_Name__c || '--',
                             jobNumber: job.Name || '',
                             jobRetainage: job?.wfrecon__Retainage__c || '0.00%'
                         };
@@ -592,7 +592,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             const endDate = bill.values.find(v => v.key === 'wfrecon__End_Date__c')?.value;
 
             // Check if dates are valid
-            if (!startDate || startDate === '-' || !endDate || endDate === '-') {
+            if (!startDate || startDate === '--' || !endDate || endDate === '--') {
                 this.showToast('Error', 'Please fill both Start and End dates before approving.', 'error');
                 return; // Stop further execution
             }
@@ -932,6 +932,16 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                 this.showToast('Error', 'Please select a billing for the payment.', 'error');
                 return;
             }
+
+            const dateInput = this.template.querySelector('.payment-date-input');
+            
+            dateInput.reportValidity();
+            if (!dateInput.checkValidity()) {
+                this.showToast('Error', 'Please enter a valid date.', 'error');
+                return;
+            }
+            console.log(this.newPayment);
+
             this.isLoading = true;
             createPayment({ jobId: this.recordId, billId: this.newPayment.billId, accountId: this.accountId, paymentReceivedDate: this.newPayment.Payment_Received_Date__c || null, paymentReference: this.newPayment.Payment_Reference__c || null })
                 .then((result) => {

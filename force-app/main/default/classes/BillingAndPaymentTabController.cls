@@ -157,7 +157,7 @@ public with sharing class BillingAndPaymentTabController {
             ];
 
             // 2. Determine retainage, previous bill details and approved scope entries
-            Decimal billRetainage = job.Retainage__c;
+            Decimal billRetainage = job.Retainage__c != null ? job.Retainage__c : 0.00;
             Boolean isRetainageBill = (billingType != null && billingType.equalsIgnoreCase('Retainage Bill'));
 
             Map<Id, Billing_Line_Item__c> prevBillItemMap = new Map<Id, Billing_Line_Item__c>();
@@ -171,7 +171,7 @@ public with sharing class BillingAndPaymentTabController {
                     LIMIT 1
                 ];
                 if (previousBilling.Retainage_on_Bill__c != null) {
-                    billRetainage = previousBilling.Retainage_on_Bill__c;
+                    billRetainage = previousBilling.Retainage_on_Bill__c != null ? previousBilling.Retainage_on_Bill__c : 0.00;
                 }
 
                 previousBillItems = [
@@ -355,20 +355,20 @@ public with sharing class BillingAndPaymentTabController {
     @param           : {String} jobId - Job Record Id
     @param           : {String} billId - Billing Record Id
     @param           : {String} paymentReference - Payment Reference
-    @param           : {Date} paymentDate - Payment Received Date
+    @param           : {Date} paymentReceivedDate - Payment Received Date
     @param           : {String} accountId - Account Id
     @return          : String - SUCCESS
     ********************************************************
     */
     @AuraEnabled
-    public static string createPayment(String jobId, String billId, String paymentReference, Date paymentDate, String accountId){
+    public static string createPayment(String jobId, String billId, String paymentReference, Date paymentReceivedDate, String accountId){
         try {
             Payment__c p = new Payment__c();
             p.Job__c = jobId;
             p.Account__c = accountId;
             p.Billing__c = billId;
             p.Payment_Reference__c = paymentReference;
-            p.Payment_Received_Date__c = paymentDate;
+            p.Payment_Received_Date__c = paymentReceivedDate;
             insert p;
 
             List<Billing_Line_Item__c> bli = [

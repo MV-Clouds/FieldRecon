@@ -302,7 +302,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     processLineItem(item) {
         return {
             Id: item.Id,
-            scopeEntryName: item.wfrecon__Scope_Entry__r.Name || '-',
+            scopeEntryName: item.wfrecon__Scope_Entry__r.Name || '--',
             contractValue: this.formatCurrency(item.wfrecon__Scope_Contract_Amount__c),
             previousBilledPercent: this.formatPercent(item.wfrecon__Previous_Billed_Percent__c),
             previousBilledAmount: this.formatCurrency(item.wfrecon__Previous_Billed_Value__c),
