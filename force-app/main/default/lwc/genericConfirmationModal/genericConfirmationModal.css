@@ -203,6 +203,11 @@
     border: 1px solid rgba(94, 90, 219, 0.35);
 }
 
+.cancel-btn:hover:not(:disabled){
+    filter: brightness(0.95);
+    
+}
+
 .modal-footer{
     display: flex;
     justify-content: center;
