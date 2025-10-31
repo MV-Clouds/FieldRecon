@@ -33,7 +33,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         { label: 'Crew Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
         { label: 'Description', fieldName: 'wfrecon__Description__c', type: 'text', sortable: true },
         { label: 'Crew Members', fieldName: 'wfrecon__Crew_Member_Count__c', type: 'number', sortable: true },
-        { label: 'Color Code', fieldName: 'wfrecon__Color_Code__c', type: 'text', sortable: true }
+        { label: 'Color Code', fieldName: 'wfrecon__Color_Code__c', type: 'text', sortable: true, isColorField: true }
     ];
     @track availableCrewContacts = [];
     @track filteredCrewContacts = [];
@@ -90,6 +90,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
 
             row.displayFields = this.crewTableColumns.map(col => {
                 const key = col.fieldName;
+                const isColorField = col.isColorField || false;
                 let value;
 
                 if (col.isSerialNumber) {
@@ -98,15 +99,27 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                     value = this.getFieldValue(crewRecord, key);
                 }
 
+                let displayValue = value;
+                let normalizedColor = null;
+
+                if (isColorField && value) {
+                    normalizedColor = this.normalizeColorCode(value);
+                    displayValue = normalizedColor.toUpperCase();
+                }
+
+                const hasValue = displayValue !== null && displayValue !== undefined && displayValue !== '';
+
                 return {
                     key: `${crewRecord.Id}_${key}`,
-                    value,
-                    hasValue: value !== null && value !== undefined && value !== '',
+                    value: displayValue,
+                    hasValue,
                     isNameField: col.isNameField || false,
                     isSerialNumber: col.isSerialNumber || false,
                     isActions: col.isActions || false,
                     isNumber: col.type === 'number',
-                    numberValue: col.type === 'number' ? parseFloat(value) || 0 : null
+                    numberValue: col.type === 'number' ? parseFloat(value) || 0 : null,
+                    isColorField,
+                    colorValue: normalizedColor
                 };
             });
 

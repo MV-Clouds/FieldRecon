@@ -89,10 +89,21 @@
                                                     <template if:false={field.hasValue}>--</template>
                                                 </template>
                                                 <template if:false={field.isNumber}>
-                                                    <template if:true={field.hasValue}>
-                                                        <span title={field.value}>{field.value}</span>
+                                                    <template if:true={field.isColorField}>
+                                                        <template if:true={field.hasValue}>
+                                                            <div class="crew-color-cell">
+                                                                <input type="color" value={field.colorValue} class="crew-color-picker" disabled tabindex="-1" aria-label="Crew color preview">
+                                                                <span class="crew-color-value">{field.value}</span>
+                                                            </div>
+                                                        </template>
+                                                        <template if:false={field.hasValue}>--</template>
                                                     </template>
-                                                    <template if:false={field.hasValue}>--</template>
+                                                    <template if:false={field.isColorField}>
+                                                        <template if:true={field.hasValue}>
+                                                            <span title={field.value}>{field.value}</span>
+                                                        </template>
+                                                        <template if:false={field.hasValue}>--</template>
+                                                    </template>
                                                 </template>
                                             </template>
                                         </template>
