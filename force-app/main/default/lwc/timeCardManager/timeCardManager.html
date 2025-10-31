@@ -25,7 +25,7 @@
                 
                 <div class="date-container">
                     <div class="date-label">End Date:</div>
-                    <input type="date" class="slds-input date-input" value={customEndDate} onchange={handleCustomEndDateChange}></input>
+                    <input type="date" class="slds-input date-input" value={customEndDate} min={customStartDate} onchange={handleCustomEndDateChange}></input>
                 </div>
             </div>
         </div>

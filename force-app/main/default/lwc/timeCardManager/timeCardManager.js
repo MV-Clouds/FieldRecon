@@ -15,7 +15,7 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     @track contactColumns = [
         { label: 'S.No.', fieldName: 'serialNumber' },
         { label: 'Actions', fieldName: 'actions'},
-        { label: 'Contact Name', fieldName: 'contactName', recordLink: true },
+        { label: 'Contact Name', fieldName: 'contactName', recordLink: false },
         { label: 'Contact Type', fieldName: 'contactType' },
         { label: 'Email', fieldName: 'email' },
         { label: 'Phone', fieldName: 'phone' },
