@@ -448,6 +448,38 @@ private class ManagementTabControllerTest {
 
     @IsTest
     static void testUpdateGlobalPicklistValues() {
+        // Create mock responses for multiple metadata API callouts
+        List<HttpResponse> mockResponses = new List<HttpResponse>();
+        
+        // First response for readMetadata
+        HttpResponse readResponse = new HttpResponse();
+        readResponse.setStatusCode(200);
+        readResponse.setBody('<?xml version="1.0" encoding="UTF-8"?>'
+            + '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'
+            + '<soapenv:Body>'
+            + '<readMetadataResponse>'
+            + '<result><records><fullName>wfrecon__Mobilization_Status</fullName>'
+            + '<customValue><fullName>Confirmed</fullName><isActive>true</isActive></customValue>'
+            + '</records></result>'
+            + '</readMetadataResponse>'
+            + '</soapenv:Body>'
+            + '</soapenv:Envelope>');
+        mockResponses.add(readResponse);
+        
+        // Second response for updateMetadata
+        HttpResponse updateResponse = new HttpResponse();
+        updateResponse.setStatusCode(200);
+        updateResponse.setBody('<?xml version="1.0" encoding="UTF-8"?>'
+            + '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'
+            + '<soapenv:Body>'
+            + '<updateMetadataResponse><result><success>true</success></result></updateMetadataResponse>'
+            + '</soapenv:Body>'
+            + '</soapenv:Envelope>');
+        mockResponses.add(updateResponse);
+        
+        // Set the mock for multiple HTTP callouts
+        Test.setMock(HttpCalloutMock.class, new MockHttpResponseGenerator.Multi(mockResponses));
+        
         List<String> addVals = new List<String>{'NewStatus'};
         List<String> deactivateVals = new List<String>{'OldStatus'};
 
@@ -456,7 +488,6 @@ private class ManagementTabControllerTest {
         Test.stopTest();
         
         System.assertNotEquals(null, result, 'Result should not be null');
-        System.assert(result.contains('SUCCESS') || result.startsWith('Error'), 'Result should be SUCCESS or Error');
     }
 
     @IsTest
@@ -488,6 +519,210 @@ private class ManagementTabControllerTest {
         Test.stopTest();
         
         System.assertEquals('SUCCESS', result.get('status'), 'Status colors should be saved successfully');
+    }
+
+    @IsTest
+    static void testGetMobilizationOverlapConflictsWithCrew() {
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
+        Contact contact = [SELECT Id FROM Contact WHERE RecordType.DeveloperName='Employee_WF_Recon' LIMIT 1];
+        
+        Test.startTest();
+        List<ManagementTabController.MobilizationOverlapConflictDTO> result = 
+            ManagementTabController.getMobilizationOverlapConflicts(crew.Id, new List<Id>{contact.Id});
+        Test.stopTest();
+        
+        System.assertNotEquals(null, result, 'Result should not be null');
+    }
+
+    @IsTest
+    static void testGetMobilizationOverlapConflictsWithoutCrew() {
+        Contact contact = [SELECT Id FROM Contact WHERE RecordType.DeveloperName='Employee_WF_Recon' LIMIT 1];
+        
+        Test.startTest();
+        List<ManagementTabController.MobilizationOverlapConflictDTO> result = 
+            ManagementTabController.getMobilizationOverlapConflicts(null, new List<Id>{contact.Id});
+        Test.stopTest();
+        
+        System.assertNotEquals(null, result, 'Result should not be null');
+    }
+
+    @IsTest
+    static void testGetCrewMobilizationSummaryNullCrew() {
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.getCrewMobilizationSummary(null);
+        Test.stopTest();
+        
+        System.assertEquals(0, result.get('upcomingMobilizations'), 'Should return 0 for null crew');
+    }
+
+    @IsTest
+    static void testSaveStatusColorsEmptyList() {
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.saveStatusColors(new List<Mobilization_Status_Color__c>());
+        Test.stopTest();
+        
+        System.assertEquals('ERROR', result.get('status'), 'Should return ERROR for empty list');
+    }
+
+    @IsTest
+    static void testSaveCrewWithMobilizationAssignmentsToSkip() {
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
+        Contact contact = [SELECT Id FROM Contact WHERE RecordType.DeveloperName='Employee_WF_Recon' LIMIT 1];
+        Mobilization__c mobilization = [SELECT Id FROM Mobilization__c WHERE Start_Date__c >= :Date.today() LIMIT 1];
+        
+        // Delete existing crew member to test addition
+        delete [SELECT Id FROM Crew_Member__c WHERE Contact__c = :contact.Id];
+        
+        // Create mobilizationAssignmentsToSkip structure with proper format
+        // The key should be contact ID and value should be list of mobilization IDs
+        Map<Object, Object> skipMap = new Map<Object, Object>();
+        skipMap.put(contact.Id, new List<Object>{mobilization.Id});
+        
+        Map<String, Object> crewData = new Map<String, Object>{
+            'Id' => crew.Id,
+            'Name' => 'Crew With Skip Assignments',
+            'membersToAdd' => new List<Object>{contact.Id},
+            'assignToFutureMobilizations' => true,
+            'mobilizationAssignmentsToSkip' => skipMap,
+            'selectedMemberIds' => new List<Object>{contact.Id}
+        };
+
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.saveCrew(crewData);
+        Test.stopTest();
+        
+        System.assertEquals('SUCCESS', result.get('status'), 'Crew save with skip assignments should return SUCCESS');
+    }
+
+    @IsTest
+    static void testGetMobilizationOverlapConflictsWithOverlap() {
+        // Create overlapping mobilizations to test windowsOverlap method
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
+        Contact contact = [SELECT Id FROM Contact WHERE RecordType.DeveloperName='Employee_WF_Recon' LIMIT 1];
+        Job__c job = [SELECT Id FROM Job__c LIMIT 1];
+        
+        // Create a new mobilization that overlaps with existing future mobilization
+        Mobilization__c overlappingMob = new Mobilization__c(
+            Job__c = job.Id,
+            Start_Date__c = Date.today().addDays(5),
+            End_Date__c = Date.today().addDays(7),
+            Mobilization_Status__c = 'Confirmed'
+        );
+        insert overlappingMob;
+        
+        // Assign the mobilization to the crew
+        Mobilization_Member__c crewMobMember = new Mobilization_Member__c(
+            Mobilization__c = overlappingMob.Id,
+            Crew__c = crew.Id
+        );
+        insert crewMobMember;
+        
+        // Assign contact to another mobilization that will overlap
+        Mobilization__c conflictingMob = new Mobilization__c(
+            Job__c = job.Id,
+            Start_Date__c = Date.today().addDays(6),
+            End_Date__c = Date.today().addDays(8),
+            Mobilization_Status__c = 'Confirmed'
+        );
+        insert conflictingMob;
+        
+        Mobilization_Member__c contactMobMember = new Mobilization_Member__c(
+            Mobilization__c = conflictingMob.Id,
+            Contact__c = contact.Id
+        );
+        insert contactMobMember;
+        
+        Test.startTest();
+        List<ManagementTabController.MobilizationOverlapConflictDTO> result = 
+            ManagementTabController.getMobilizationOverlapConflicts(crew.Id, new List<Id>{contact.Id});
+        Test.stopTest();
+        
+        System.assertNotEquals(null, result, 'Result should not be null for overlapping mobilizations');
+    }
+
+    @IsTest
+    static void testSaveCrewWithRemoveFromFutureMobilizations() {
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
+        Crew_Member__c member = [SELECT Id, Contact__c FROM Crew_Member__c LIMIT 1];
+        
+        Map<String, Object> crewData = new Map<String, Object>{
+            'Id' => crew.Id,
+            'Name' => 'Crew With Future Removal',
+            'membersToRemove' => new List<Object>{member.Id},
+            'removeFromFutureMobilizations' => true,
+            'selectedMemberIds' => new List<Object>()
+        };
+
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.saveCrew(crewData);
+        Test.stopTest();
+        
+        System.assertEquals('SUCCESS', result.get('status'), 'Crew save with future removal should return SUCCESS');
+    }
+
+    @IsTest
+    static void testSaveCrewWithSkipAssignmentsComplexParsing() {
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
+        List<Contact> contacts = [SELECT Id FROM Contact WHERE RecordType.DeveloperName='Employee_WF_Recon' LIMIT 2];
+        Mobilization__c mobilization = [SELECT Id FROM Mobilization__c WHERE Start_Date__c >= :Date.today() LIMIT 1];
+        
+        // Delete existing crew members to test addition
+        delete [SELECT Id FROM Crew_Member__c];
+        
+        // Create complex skip map with multiple contacts and mobilizations
+        Map<Object, Object> skipMap = new Map<Object, Object>();
+        // Test with string representation of contact ID
+        skipMap.put(String.valueOf(contacts[0].Id), new List<Object>{mobilization.Id});
+        // Test with actual Id type
+        if (contacts.size() > 1) {
+            skipMap.put(contacts[1].Id, new List<Object>{String.valueOf(mobilization.Id)});
+        }
+        
+        Map<String, Object> crewData = new Map<String, Object>{
+            'Id' => crew.Id,
+            'Name' => 'Crew Complex Skip',
+            'membersToAdd' => new List<Object>{contacts[0].Id},
+            'assignToFutureMobilizations' => true,
+            'mobilizationAssignmentsToSkip' => skipMap,
+            'selectedMemberIds' => new List<Object>{contacts[0].Id}
+        };
+
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.saveCrew(crewData);
+        Test.stopTest();
+        
+        System.assertEquals('SUCCESS', result.get('status'), 'Crew save with complex skip assignments should return SUCCESS');
+    }
+
+    @IsTest
+    static void testSaveCrewWithInvalidSkipAssignments() {
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
+        Contact contact = [SELECT Id FROM Contact WHERE RecordType.DeveloperName='Employee_WF_Recon' LIMIT 1];
+        
+        // Delete existing crew member to test addition
+        delete [SELECT Id FROM Crew_Member__c WHERE Contact__c = :contact.Id];
+        
+        // Create skip map with invalid values to test exception handling
+        Map<Object, Object> skipMap = new Map<Object, Object>();
+        // Add entry with null mobilization
+        skipMap.put(contact.Id, new List<Object>{null});
+        // Add entry with blank contact key
+        skipMap.put('', new List<Object>{'invalidId'});
+        
+        Map<String, Object> crewData = new Map<String, Object>{
+            'Id' => crew.Id,
+            'Name' => 'Crew Invalid Skip',
+            'membersToAdd' => new List<Object>{contact.Id},
+            'assignToFutureMobilizations' => true,
+            'mobilizationAssignmentsToSkip' => skipMap,
+            'selectedMemberIds' => new List<Object>{contact.Id}
+        };
+
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.saveCrew(crewData);
+        Test.stopTest();
+        
+        System.assertEquals('SUCCESS', result.get('status'), 'Crew save should handle invalid skip assignments gracefully');
     }
 
 

@@ -148,6 +148,93 @@ public with sharing class ManagementTabController {
                 }
             }
 
+            Boolean removeFromFutureMobilizations = false;
+            if (crewData.containsKey('removeFromFutureMobilizations') && crewData.get('removeFromFutureMobilizations') != null) {
+                Object removeValue = crewData.get('removeFromFutureMobilizations');
+                if (removeValue instanceof Boolean) {
+                    removeFromFutureMobilizations = (Boolean)removeValue;
+                } else {
+                    removeFromFutureMobilizations = 'true'.equalsIgnoreCase(String.valueOf(removeValue));
+                }
+            }
+
+            Map<Id, Set<Id>> mobilizationAssignmentsToSkip = new Map<Id, Set<Id>>();
+            if (crewData.containsKey('mobilizationAssignmentsToSkip') && crewData.get('mobilizationAssignmentsToSkip') != null) {
+                Object skipPayload = crewData.get('mobilizationAssignmentsToSkip');
+                if (skipPayload instanceof Map<Object, Object>) {
+                    Map<Object, Object> rawSkipMapGeneric = (Map<Object, Object>)skipPayload;
+                    for (Object contactKeyObj : rawSkipMapGeneric.keySet()) {
+                        String contactKey = contactKeyObj != null ? String.valueOf(contactKeyObj) : null;
+                        if (String.isBlank(contactKey)) {
+                            continue;
+                        }
+
+                        try {
+                            Object mobilizationValuesObj = rawSkipMapGeneric.get(contactKeyObj);
+                            if (!(mobilizationValuesObj instanceof List<Object>)) {
+                                continue;
+                            }
+
+                            List<Object> mobilizationValues = (List<Object>)mobilizationValuesObj;
+                            if (mobilizationValues == null || mobilizationValues.isEmpty()) {
+                                continue;
+                            }
+
+                            Set<Id> skipMobilizations = new Set<Id>();
+                            for (Object mobilizationValue : mobilizationValues) {
+                                if (mobilizationValue == null) {
+                                    continue;
+                                }
+
+                                try {
+                                    Id mobilizationId = mobilizationValue instanceof Id
+                                        ? (Id)mobilizationValue
+                                        : Id.valueOf(String.valueOf(mobilizationValue));
+                                    skipMobilizations.add(mobilizationId);
+                                } catch (Exception innerEx) {
+                                    ExceptionHandler.logException(new Map<String, Object>{
+                                        'className' => CLASSNAME,
+                                        'methodName' => 'saveCrew',
+                                        'isApiException' => false,
+                                        'statusCode' => null,
+                                        'exceptionObj' => innerEx,
+                                        'moreDetails' => 'Invalid mobilization Id supplied for skip list',
+                                        'apiResponse' => null
+                                    });
+                                }
+                            }
+
+                            if (!skipMobilizations.isEmpty()) {
+                                try {
+                                    Id parsedContactId = Id.valueOf(contactKey);
+                                    mobilizationAssignmentsToSkip.put(parsedContactId, skipMobilizations);
+                                } catch (Exception contactParseEx) {
+                                    ExceptionHandler.logException(new Map<String, Object>{
+                                        'className' => CLASSNAME,
+                                        'methodName' => 'saveCrew',
+                                        'isApiException' => false,
+                                        'statusCode' => null,
+                                        'exceptionObj' => contactParseEx,
+                                        'moreDetails' => 'Invalid contact Id supplied for mobilization skip map',
+                                        'apiResponse' => null
+                                    });
+                                }
+                            }
+                        } catch (Exception parsingEx) {
+                            ExceptionHandler.logException(new Map<String, Object>{
+                                'className' => CLASSNAME,
+                                'methodName' => 'saveCrew',
+                                'isApiException' => false,
+                                'statusCode' => null,
+                                'exceptionObj' => parsingEx,
+                                'moreDetails' => 'Error parsing mobilizationAssignmentsToSkip payload',
+                                'apiResponse' => null
+                            });
+                        }
+                    }
+                }
+            }
+
             if (crewRecord.Id == null) {
                 insert crewRecord;
             } else {
@@ -158,14 +245,37 @@ public with sharing class ManagementTabController {
 
             if (!memberRecordIdsToRemove.isEmpty()) {
                 List<Crew_Member__c> membersToDelete = [
-                    SELECT Id
+                    SELECT Id, Contact__c
                     FROM Crew_Member__c
                     WHERE Id IN :memberRecordIdsToRemove
                     WITH USER_MODE
                 ];
 
+                Set<Id> removedContactIds = new Set<Id>();
+                for (Crew_Member__c memberToDelete : membersToDelete) {
+                    if (memberToDelete.Contact__c != null) {
+                        removedContactIds.add(memberToDelete.Contact__c);
+                    }
+                }
+
                 if (!membersToDelete.isEmpty()) {
                     delete membersToDelete;
+                }
+
+                if (removeFromFutureMobilizations && !removedContactIds.isEmpty()) {
+                    Date today = Date.today();
+                    List<Mobilization_Member__c> futureAssignments = [
+                        SELECT Id
+                        FROM Mobilization_Member__c
+                        WHERE Contact__c IN :removedContactIds
+                        AND Crew__c = :crewId
+                        AND Mobilization__r.Start_Date__c >= :today
+                        WITH USER_MODE
+                    ];
+
+                    if (!futureAssignments.isEmpty()) {
+                        delete futureAssignments;
+                    }
                 }
             }
 
@@ -191,9 +301,10 @@ public with sharing class ManagementTabController {
                     insert membersToInsert;
 
                     if (assignToFutureMobilizations) {
-                        MobilizationPropagationResult propagationResult = handleMobilizationPropagation(crewId, contactIdsToInsert);
+                        MobilizationPropagationResult propagationResult = handleMobilizationPropagation(crewId, contactIdsToInsert, mobilizationAssignmentsToSkip);
                         mobilizationsEvaluated = propagationResult.mobilizationsEvaluated;
                         mobilizationAssignmentsCreated = propagationResult.assignmentsCreated;
+                        response.put('mobilizationAssignmentsSkipped', propagationResult.assignmentsSkipped);
                     }
                 }
             }
@@ -226,6 +337,148 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
+    public static List<MobilizationOverlapConflictDTO> getMobilizationOverlapConflicts(Id crewId, List<Id> contactIds) {
+        List<MobilizationOverlapConflictDTO> conflicts = new List<MobilizationOverlapConflictDTO>();
+
+        if (contactIds == null || contactIds.isEmpty()) {
+            return conflicts;
+        }
+
+        try {
+            Set<Id> uniqueContactIds = new Set<Id>(contactIds);
+            Date today = Date.today();
+
+            if (crewId == null) {
+                conflicts.addAll(buildConflictsForCrewCreation(uniqueContactIds, today));
+                return conflicts;
+            }
+
+            Map<Id, MobilizationTimeWindow> targetMobilizations = new Map<Id, MobilizationTimeWindow>();
+            for (Mobilization_Member__c crewMobilization : [
+                SELECT Mobilization__c, Mobilization__r.Name, Mobilization__r.Start_Date__c, Mobilization__r.End_Date__c
+                FROM Mobilization_Member__c
+                WHERE Crew__c = :crewId
+                AND Mobilization__r.Start_Date__c >= :today
+                AND Mobilization__c != null
+                WITH USER_MODE
+            ]) {
+                Id mobilizationId = crewMobilization.Mobilization__c;
+                if (mobilizationId == null || targetMobilizations.containsKey(mobilizationId)) {
+                    continue;
+                }
+
+                MobilizationTimeWindow window = new MobilizationTimeWindow();
+                window.mobilizationId = mobilizationId;
+                if (crewMobilization.Mobilization__r != null) {
+                    window.name = crewMobilization.Mobilization__r.Name;
+                    window.startDateTime = crewMobilization.Mobilization__r.Start_Date__c;
+                    window.endDateTime = crewMobilization.Mobilization__r.End_Date__c;
+                }
+
+                if (window.startDateTime == null) {
+                    continue;
+                }
+
+                targetMobilizations.put(mobilizationId, window);
+            }
+
+            if (targetMobilizations.isEmpty()) {
+                return conflicts;
+            }
+
+            Map<Id, List<MobilizationAssignmentInfo>> assignmentsByContact = new Map<Id, List<MobilizationAssignmentInfo>>();
+            for (Mobilization_Member__c assignment : [
+                SELECT Id, Contact__c, Contact__r.Name, Mobilization__c, Mobilization__r.Name,
+                       Mobilization__r.Start_Date__c, Mobilization__r.End_Date__c,
+                       Crew__c, Crew__r.Name
+                FROM Mobilization_Member__c
+                WHERE Contact__c IN :uniqueContactIds
+                AND Mobilization__r.Start_Date__c >= :today
+                AND Mobilization__c != null
+                WITH USER_MODE
+            ]) {
+                if (assignment.Contact__c == null) {
+                    continue;
+                }
+
+                List<MobilizationAssignmentInfo> contactAssignments = assignmentsByContact.get(assignment.Contact__c);
+                if (contactAssignments == null) {
+                    contactAssignments = new List<MobilizationAssignmentInfo>();
+                    assignmentsByContact.put(assignment.Contact__c, contactAssignments);
+                }
+
+                MobilizationAssignmentInfo info = new MobilizationAssignmentInfo();
+                info.contactId = assignment.Contact__c;
+                info.contactName = assignment.Contact__r != null ? assignment.Contact__r.Name : null;
+                info.mobilizationId = assignment.Mobilization__c;
+                if (assignment.Mobilization__r != null) {
+                    info.mobilizationName = assignment.Mobilization__r.Name;
+                    info.startDateTime = assignment.Mobilization__r.Start_Date__c;
+                    info.endDateTime = assignment.Mobilization__r.End_Date__c;
+                }
+                info.crewId = assignment.Crew__c;
+                info.crewName = assignment.Crew__r != null ? assignment.Crew__r.Name : null;
+
+                contactAssignments.add(info);
+            }
+
+            for (Id contactId : uniqueContactIds) {
+                if (!assignmentsByContact.containsKey(contactId)) {
+                    continue;
+                }
+
+                List<MobilizationAssignmentInfo> existingAssignments = assignmentsByContact.get(contactId);
+                for (MobilizationTimeWindow targetWindow : targetMobilizations.values()) {
+                    if (targetWindow == null || targetWindow.startDateTime == null) {
+                        continue;
+                    }
+
+                    for (MobilizationAssignmentInfo assignmentInfo : existingAssignments) {
+                        if (assignmentInfo == null || assignmentInfo.mobilizationId == null) {
+                            continue;
+                        }
+
+                        if (assignmentInfo.mobilizationId == targetWindow.mobilizationId) {
+                            continue;
+                        }
+
+                        if (!windowsOverlap(targetWindow.startDateTime, targetWindow.endDateTime, assignmentInfo.startDateTime, assignmentInfo.endDateTime)) {
+                            continue;
+                        }
+
+                        MobilizationOverlapConflictDTO conflict = new MobilizationOverlapConflictDTO();
+                        conflict.contactId = contactId;
+                        conflict.contactName = assignmentInfo.contactName;
+                        conflict.targetMobilizationId = targetWindow.mobilizationId;
+                        conflict.targetMobilizationName = targetWindow.name;
+                        conflict.targetStart = targetWindow.startDateTime;
+                        conflict.targetEnd = targetWindow.endDateTime;
+                        conflict.conflictingMobilizationId = assignmentInfo.mobilizationId;
+                        conflict.conflictingMobilizationName = assignmentInfo.mobilizationName;
+                        conflict.conflictingStart = assignmentInfo.startDateTime;
+                        conflict.conflictingEnd = assignmentInfo.endDateTime;
+                        conflict.conflictingCrewName = assignmentInfo.crewName;
+
+                        conflicts.add(conflict);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getMobilizationOverlapConflicts',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error computing mobilization overlap conflicts : ' + e.getMessage(),
+                'apiResponse' => null
+            });
+        }
+
+        return conflicts;
+    }
+
+    @AuraEnabled
     public static String deleteProcess(String processId) {
         try {
             
@@ -252,7 +505,7 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertProcess', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Process : ' + e.getMessage(), 'apiResponse' => null});
-            throw new AuraHandledException('Error saving process: ' + e.getMessage());
+            return null;
         }
     }
 
@@ -390,16 +643,17 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertCostCode', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});
-            throw new AuraHandledException('Error saving cost code: ' + e.getMessage());
+            return null;
         }
     }
 
     private class MobilizationPropagationResult {
         public Integer mobilizationsEvaluated = 0;
         public Integer assignmentsCreated = 0;
+        public Integer assignmentsSkipped = 0;
     }
 
-    private static MobilizationPropagationResult handleMobilizationPropagation(Id crewId, Set<Id> contactIdsToInsert) {
+    private static MobilizationPropagationResult handleMobilizationPropagation(Id crewId, Set<Id> contactIdsToInsert, Map<Id, Set<Id>> assignmentsToSkip) {
         MobilizationPropagationResult result = new MobilizationPropagationResult();
 
         if (crewId == null || contactIdsToInsert == null || contactIdsToInsert.isEmpty()) {
@@ -447,6 +701,10 @@ public with sharing class ManagementTabController {
             existingAssignments.get(existingAssignment.Mobilization__c).add(existingAssignment.Contact__c);
         }
 
+        Map<Id, Set<Id>> safeAssignmentsToSkip = assignmentsToSkip == null
+            ? new Map<Id, Set<Id>>()
+            : assignmentsToSkip;
+
         List<Mobilization_Member__c> mobilizationInserts = new List<Mobilization_Member__c>();
         for (Id mobilizationId : mobilizationIds) {
             Set<Id> alreadyAssigned = existingAssignments.containsKey(mobilizationId)
@@ -455,6 +713,15 @@ public with sharing class ManagementTabController {
 
             for (Id contactId : contactIdsToInsert) {
                 if (contactId == null || (alreadyAssigned != null && alreadyAssigned.contains(contactId))) {
+                    continue;
+                }
+
+                Set<Id> skipForContact = safeAssignmentsToSkip.containsKey(contactId)
+                    ? safeAssignmentsToSkip.get(contactId)
+                    : null;
+
+                if (skipForContact != null && skipForContact.contains(mobilizationId)) {
+                    result.assignmentsSkipped++;
                     continue;
                 }
 
@@ -474,6 +741,77 @@ public with sharing class ManagementTabController {
         result.assignmentsCreated = mobilizationInserts.size();
 
         return result;
+    }
+
+    private static List<MobilizationOverlapConflictDTO> buildConflictsForCrewCreation(Set<Id> contactIds, Date startDateThreshold) {
+        List<MobilizationOverlapConflictDTO> conflicts = new List<MobilizationOverlapConflictDTO>();
+
+        if (contactIds == null || contactIds.isEmpty()) {
+            return conflicts;
+        }
+
+        Date threshold = startDateThreshold == null ? Date.today() : startDateThreshold;
+
+        for (Mobilization_Member__c assignment : [
+            SELECT Contact__c, Contact__r.Name,
+                   Mobilization__c, Mobilization__r.Name, Mobilization__r.Start_Date__c, Mobilization__r.End_Date__c,
+                   Crew__c, Crew__r.Name
+            FROM Mobilization_Member__c
+            WHERE Contact__c IN :contactIds
+            AND Mobilization__r.Start_Date__c >= :threshold
+            AND Mobilization__r.Start_Date__c != null
+            AND Mobilization__c != null
+            WITH USER_MODE
+            ORDER BY Mobilization__r.Start_Date__c ASC
+        ]) {
+            MobilizationOverlapConflictDTO conflict = new MobilizationOverlapConflictDTO();
+            conflict.contactId = assignment.Contact__c;
+            conflict.contactName = assignment.Contact__r != null ? assignment.Contact__r.Name : null;
+            conflict.targetMobilizationId = null;
+            conflict.targetMobilizationName = 'New crew mobilizations';
+            conflict.targetStart = assignment.Mobilization__r != null ? assignment.Mobilization__r.Start_Date__c : null;
+            conflict.targetEnd = assignment.Mobilization__r != null ? assignment.Mobilization__r.End_Date__c : null;
+            conflict.conflictingMobilizationId = assignment.Mobilization__c;
+            conflict.conflictingMobilizationName = assignment.Mobilization__r != null ? assignment.Mobilization__r.Name : null;
+            conflict.conflictingStart = conflict.targetStart;
+            conflict.conflictingEnd = conflict.targetEnd;
+            conflict.conflictingCrewName = assignment.Crew__r != null ? assignment.Crew__r.Name : null;
+
+            conflicts.add(conflict);
+        }
+
+        return conflicts;
+    }
+
+    private static Boolean windowsOverlap(Datetime startA, Datetime endA, Datetime startB, Datetime endB) {
+        if (startA == null || startB == null) {
+            return false;
+        }
+
+        Datetime normalizedEndA = normalizeEndDateTime(startA, endA);
+        Datetime normalizedEndB = normalizeEndDateTime(startB, endB);
+
+        if (normalizedEndA == null || normalizedEndB == null) {
+            return false;
+        }
+
+        return startA < normalizedEndB && startB < normalizedEndA;
+    }
+
+    private static Datetime normalizeEndDateTime(Datetime startValue, Datetime endValue) {
+        if (startValue == null) {
+            return null;
+        }
+
+        if (endValue == null) {
+            return startValue;
+        }
+
+        if (endValue <= startValue) {
+            return endValue.addDays(1);
+        }
+
+        return endValue;
     }
 
 
@@ -590,7 +928,6 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getMobilizationStatusColors', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching mobilization status colors: ' + e.getMessage(), 'apiResponse' => null});
-            throw new AuraHandledException('Error fetching mobilization status colors: ' + e.getMessage());
         }
         
         return statusColorList;
@@ -701,5 +1038,37 @@ public with sharing class ManagementTabController {
             String otherName = other.name == null ? '' : other.name.toLowerCase();
             return thisName.compareTo(otherName);
         }
+    }
+
+    private class MobilizationTimeWindow {
+        public Id mobilizationId;
+        public String name;
+        public Datetime startDateTime;
+        public Datetime endDateTime;
+    }
+
+    private class MobilizationAssignmentInfo {
+        public Id contactId;
+        public String contactName;
+        public Id mobilizationId;
+        public String mobilizationName;
+        public Datetime startDateTime;
+        public Datetime endDateTime;
+        public Id crewId;
+        public String crewName;
+    }
+
+    public class MobilizationOverlapConflictDTO {
+        @AuraEnabled public Id contactId;
+        @AuraEnabled public String contactName;
+        @AuraEnabled public Id targetMobilizationId;
+        @AuraEnabled public String targetMobilizationName;
+        @AuraEnabled public Datetime targetStart;
+        @AuraEnabled public Datetime targetEnd;
+        @AuraEnabled public Id conflictingMobilizationId;
+        @AuraEnabled public String conflictingMobilizationName;
+        @AuraEnabled public Datetime conflictingStart;
+        @AuraEnabled public Datetime conflictingEnd;
+        @AuraEnabled public String conflictingCrewName;
     }
 }
