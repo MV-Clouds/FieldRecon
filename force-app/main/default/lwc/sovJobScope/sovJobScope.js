@@ -1564,6 +1564,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.selectedProcessCategory = '';
                 this.selectedScopeEntryId = '';
                 this.selectedScopeEntryName = '';
+                this.processLibraryDisplayRecords = this.processLibraryDisplayRecords.map(process => ({
+                ...process,
+                isSelected: false
+                }));
                 break;
             case 'location':
                 this.showAddLocationModal = false;
@@ -1571,6 +1575,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.locationSearchTerm = '';
                 this.selectedLocationScopeEntryId = '';
                 this.selectedScopeEntryName = '';
+                this.locationDisplayRecords = this.locationDisplayRecords.map(location => ({
+                ...location,
+                isSelected: false
+                }));
                 break;
 
         }
@@ -1667,7 +1675,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         // Type-specific validation for contractValue
         if (type === 'Contract' && contractValue <= 0) {
-            return { isValid: false, message: 'Contract type entries must be positive numbers only' };
+            return { isValid: false, message: 'Contract type entries must be positive numbers only. Please enter a value greater than 0' };
+        }
+        
+        // Change Order validation - must not be zero, can be positive or negative
+        if (type === 'Change Order' && contractValue === 0) {
+            return { isValid: false, message: 'Change Order value cannot be zero. Please enter a positive or negative value' };
         }
         
         if (contractValue > 2000000000) {
@@ -2915,7 +2928,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
 
         // Create display records with selection state and processed fields
-        // Note: isSelected will be false for all records since selectedProcessLibraryIds was cleared
         this.processLibraryDisplayRecords = filtered.map(process => {
             const processRecord = {
                 ...process,
@@ -3815,22 +3827,41 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     // Number field validation (max 6 digits with 2 decimal places)
                     if ((column.type === 'number' || column.type === 'currency' || column.type === 'percent')) {
-                        // Check for empty, null, undefined, or zero values
+                        // Check for empty, null, undefined values
                         if (value === null || value === undefined || value === '' || 
                             (typeof value === 'string' && value.trim() === '') ||
-                            (typeof value === 'string' && value.trim() === '-') ||
-                            parseFloat(value) === 0) {
-                            errors.push(`${entryName} - ${column.label}: Field cannot be empty or zero`);
+                            (typeof value === 'string' && value.trim() === '-')) {
+                            errors.push(`${entryName} - ${column.label}: Field cannot be empty. Please enter a value greater than 0`);
                         }
                         else {
                             const numValue = parseFloat(value);
                             if (!isNaN(numValue)) {
-                                // Check for negative numbers - Allow negative values for Contract Value in Change Orders
-                                const isContractValueInChangeOrder = fieldName === 'wfrecon__Contract_Value__c' && 
-                                                                   entry && entry.wfrecon__Type__c === 'Change Order';
+                                // Special validation for Contract Value field
+                                const isContractValue = fieldName === 'wfrecon__Contract_Value__c';
+                                const isContractType = entry && entry.wfrecon__Type__c === 'Contract';
+                                const isChangeOrderType = entry && entry.wfrecon__Type__c === 'Change Order';
                                 
-                                if (numValue < 0 && !isContractValueInChangeOrder) {
-                                    errors.push(`${entryName} - ${column.label}: Negative numbers are not allowed`);
+                                // Contract Value specific validation
+                                if (isContractValue) {
+                                    // Contract type must be positive
+                                    if (isContractType && numValue <= 0) {
+                                        errors.push(`${entryName} - ${column.label}: Contract type entries must be positive numbers only. Please enter a value greater than 0`);
+                                    }
+                                    // Change Order cannot be zero
+                                    else if (isChangeOrderType && numValue === 0) {
+                                        errors.push(`${entryName} - ${column.label}: Change Order value cannot be zero. Please enter a positive or negative value`);
+                                    }
+                                }
+                                // Other number fields validation
+                                else {
+                                    // Zero validation for non-contract-value fields
+                                    if (numValue === 0) {
+                                        errors.push(`${entryName} - ${column.label}: Field cannot be zero. Please enter a value greater than 0`);
+                                    }
+                                    // Negative numbers not allowed for non-contract-value fields
+                                    else if (numValue < 0) {
+                                        errors.push(`${entryName} - ${column.label}: Negative numbers are not allowed. Please enter a value greater than 0`);
+                                    }
                                 }
                                 
                                 // Check if number has more than 6 digits before decimal

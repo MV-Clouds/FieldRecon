@@ -1198,8 +1198,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             return;
         }
 
-        if(this.newLocation.quantity !== null && (isNaN(this.newLocation.quantity) || this.newLocation.quantity < 0)) {
-            this.showToast('Error', 'Quantity must be a non-negative number.', 'error');
+        if(this.newLocation.quantity !== null && (isNaN(this.newLocation.quantity) || this.newLocation.quantity <= 0)) {
+            this.showToast('Error', 'Quantity must be a greater than zero.', 'error');
             return;
         }
 
