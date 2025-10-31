@@ -133,6 +133,37 @@
     text-decoration: underline;
 }
 
+/* Text Truncation for all text fields */
+.process-name-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+.location-name-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+.text-truncate {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
 .no-prop {
     font-size: 20px;
     display: flex;

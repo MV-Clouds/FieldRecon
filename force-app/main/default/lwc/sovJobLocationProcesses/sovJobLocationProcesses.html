@@ -158,18 +158,18 @@
                                                         <!-- <a href={process.recordUrl} target="_blank" class="name-link">
                                                             {field.value}
                                                         </a> -->
-                                                        <span>{field.value}</span>
+                                                        <span class="process-name-text">{field.value}</span>
                                                     </template>
                                                     <template if:false={field.isNameField}>
                                                         <template if:true={field.isLocationField}>
                                                             <!-- <a href={process.locationUrl} target="_blank" class="name-link">
                                                                 {field.value}
                                                             </a> -->
-                                                            <span>{field.value}</span>
+                                                            <span class="location-name-text">{field.value}</span>
                                                         </template>
                                                         <template if:false={field.isLocationField}>
                                                             <template if:true={field.hasValue}>
-                                                                {field.value}
+                                                                <span class="text-truncate">{field.value}</span>
                                                             </template>
                                                             <template if:false={field.hasValue}>
                                                                 --
