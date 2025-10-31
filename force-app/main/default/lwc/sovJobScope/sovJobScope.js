@@ -120,11 +120,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             type: 'text'
         },
         { 
-            label: 'Sequence', 
-            fieldName: 'wfrecon__Sequence__c', 
-            type: 'number'
-        },
-        { 
             label: 'Weight', 
             fieldName: 'wfrecon__Weight__c', 
             type: 'number'
