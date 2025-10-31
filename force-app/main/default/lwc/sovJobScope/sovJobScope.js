@@ -805,10 +805,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     /**
      * Method Name: fetchScopeConfiguration
      * @description: Fetch configuration and then load scope entries
+     * @note: Uses imperative Apex call to bypass LWC caching for fresh metadata
      */
-    fetchScopeConfiguration() {
+    async fetchScopeConfiguration() {
+        // Use imperative call to ensure fresh data (bypass cache)
         getScopeEntryConfiguration()
             .then(result => {
+                console.log('Configuration fetch result:', result);
+                
                 if (result && result.fieldsData) {
                     try {
                         const fieldsData = JSON.parse(result.fieldsData);
@@ -819,10 +823,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                             type: this.getColumnType(field.fieldType),
                             editable: (field.fieldName === 'wfrecon__Approved_Date__c') ? false : (field.isEditable || false)
                         }));
+
+                        console.log('Fetched Columns from metadata:', this.scopeEntryColumns);
+                        console.log('Metadata last updated:', new Date().toISOString());
+                        
                     } catch (error) {
+                        console.error('Error parsing configuration:', error);
                         this.scopeEntryColumns = this.defaultColumns;
                     }
                 } else {
+                    console.warn('No configuration data found, using defaults');
                     this.scopeEntryColumns = this.defaultColumns;
                 }
 
@@ -831,12 +841,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.sortField = this.scopeEntryColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
-                
-                // Load scope entries and process library
-                this.fetchScopeEntries();
-                this.loadProcessLibraryData();
             })
-            .catch(() => {
+            .catch((error) => {
+                console.error('Error fetching configuration:', error);
                 this.scopeEntryColumns = this.defaultColumns;
                 // Set default sorting
                 if (this.scopeEntryColumns.length > 0) {
@@ -844,10 +851,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.sortOrder = 'asc';
                 }
                 this.showToast('Warning', 'Using default configuration due to error', 'warning');
-                
-                // Still load data even if config fails
-                this.fetchScopeEntries();
+            })
+            .finally(() => {
+                // Always load data after configuration is processed (success or failure)
                 this.loadProcessLibraryData();
+                this.fetchScopeEntries();
             });
     }
 
@@ -874,6 +882,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result && result.success) {
                     // Ensure scopeEntries is always an array
                     this.scopeEntries = Array.isArray(result.scopeEntries) ? result.scopeEntries : [];
+                    console.log('scopeEntries:', this.scopeEntries);
+                    
 
                     for(let i=0; i<this.scopeEntries.length; i++){
                         if(this.scopeEntries[i].wfrecon__Job__r && this.scopeEntries[i].wfrecon__Job__r.wfrecon__Total_Contract_Price__c){
@@ -935,6 +945,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle configuration updated event from record config component
      */
     handleConfigurationUpdated(event) {
+
+        console.log('lastConfigUpdateTimestamp :', this.lastConfigUpdateTimestamp);
+        console.log('event.detail.timestamp :', event.detail.timestamp);
+        console.log('Configuration update event received:', event.detail);
+
         // Prevent duplicate processing using timestamp
         if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
             return;
@@ -948,8 +963,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             event.stopPropagation();
             
             // Refresh the configuration and reload data
-            this.isLoading = true;
-            this.fetchScopeConfiguration();
+            this.performCompleteRefresh();
         }
     }
 
@@ -1024,6 +1038,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 return searchInVisibleFields(entry);
             });
+            
 
             filteredEntries = filteredEntries.map(entry => {
                 return {
@@ -1285,7 +1300,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.fieldPicklistOptions.clear();
             
             // Fetch fresh data
-            let res = await this.fetchScopeEntries();
+            let res = await this.fetchScopeConfiguration();
 
             // Log filtered entries after data fetch
             // console.log('filtered COntract -> ',this.filteredContractEntries);
@@ -1303,7 +1318,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             }
             
         } catch (error) {
-            // console.log('Error ==> ' , error);
+            console.log('Error ==> ' , error);
             
         } finally {
             this.isLoading = false;

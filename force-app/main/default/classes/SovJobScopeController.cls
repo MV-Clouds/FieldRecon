@@ -197,6 +197,7 @@ public with sharing class SovJobScopeController {
     @description     : Method is used to get Scope Entry Configuration
     @return          : Map<String, Object> - Configuration data
     @author          : Rachit Shah
+    @note            : Not cacheable to ensure fresh metadata retrieval
     ********************************************************
     */
     @AuraEnabled
@@ -204,10 +205,12 @@ public with sharing class SovJobScopeController {
         Map<String, Object> configData = new Map<String, Object>();
         
         try {
+            // Query all records and use the first one (metadata should have only one record ideally)
             List<ScopeEntryConfigration__mdt> configs = [
-                SELECT FieldValue__c, PageSize__c 
+                SELECT FieldValue__c, PageSize__c, DeveloperName, MasterLabel
                 FROM ScopeEntryConfigration__mdt 
                 WITH USER_MODE 
+                ORDER BY DeveloperName
                 LIMIT 1
             ];
 
@@ -215,10 +218,16 @@ public with sharing class SovJobScopeController {
                 ScopeEntryConfigration__mdt config = configs[0];
                 configData.put('fieldsData', config.FieldValue__c);
                 configData.put('pageSize', config.PageSize__c);
+                configData.put('timestamp', String.valueOf(System.now().getTime()));
+                
+                System.debug('Configuration fetched: ' + config.DeveloperName);
+                System.debug('Fields Data: ' + config.FieldValue__c);
             }
             else{
                 configData.put('fieldsData', '');
                 configData.put('pageSize', 10);
+                configData.put('timestamp', String.valueOf(System.now().getTime()));
+                System.debug('No configuration found, using defaults');
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getScopeEntryConfiguration','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Scope Entry Configuration.','apiResponse' => null});
