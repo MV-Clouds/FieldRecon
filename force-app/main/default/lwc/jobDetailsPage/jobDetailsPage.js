@@ -121,7 +121,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     values: this.jobColumns.map(col => {
                         let cell = { 
                             key: col.fieldName, 
-                            value: '', 
+                            value: '--', 
                             recordLink: null, 
                             isActions: false, 
                             style: col.style 
@@ -201,7 +201,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return {
                     id: ts.id,
                     values: this.timesheetColumns.map(col => {
-                        let cell = { value: '', isActions: false, style: col.style };
+                        let cell = { value: '--', isActions: false, style: col.style };
 
                         if (col.fieldName === 'srNo') {
                             cell.value = index + 1;
@@ -1177,6 +1177,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         this.selectedCostCodeId = null;
                         this.clockInTime = null;
                         this.clockOutTime = null;
+                        this.enteredManualTravelTime = null;
+                        this.enteredManualPerDiem = null;
                     } else {
                         this.showToast('Error', 'Failed to create timesheet record. Please try again.', 'error');
                     }

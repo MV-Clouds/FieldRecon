@@ -97,14 +97,14 @@ public with sharing class JobDetailsPageController {
                 w.mobId = m.Id;
                 w.jobId = m.Job__c;
                 w.jobNumber = m.Job__r.Name;
-                w.jobName = m.Job__r.Job_Name__c;
-                w.jobAddress = m.Job__r.Address__c;
-                w.jobDescription = m.Job__r.Description__c;
+                w.jobName = m.Job__r.Job_Name__c != null ? m.Job__r.Job_Name__c : '--';
+                w.jobAddress = m.Job__r.Address__c != null ? m.Job__r.Address__c : '--';
+                w.jobDescription = m.Job__r.Description__c != null ? m.Job__r.Description__c : '--';
                 w.startDate = m.Start_Date__c.addSeconds(userTz.getOffset(m.Start_Date__c)/1000);
                 w.endDate = m.End_Date__c.addSeconds(userTz.getOffset(m.End_Date__c)/1000);
                 // w.startDate = m.Start_Date__c;
                 // w.endDate = m.End_Date__c;
-                w.status = m.Job__r.Status__c;
+                w.status = m.Job__r.Status__c != null ? m.Job__r.Status__c : '--';
 
                 // Lookup hours
                 String key = m.Job__c + '_' + String.valueOf(m.Start_Date__c.date());
