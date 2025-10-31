@@ -1679,7 +1679,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
         
         // Change Order validation - must not be zero, can be positive or negative
-        if (type === 'Change Order' && contractValue === 0) {
+        if (type === 'Change Order' && contractValue == 0) {
             return { isValid: false, message: 'Change Order value cannot be zero. Please enter a positive or negative value' };
         }
         
