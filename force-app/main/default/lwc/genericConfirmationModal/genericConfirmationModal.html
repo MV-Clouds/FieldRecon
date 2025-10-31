@@ -12,16 +12,16 @@
             
             <div class="slds-modal__container">
                 <!-- Modal Header -->
-                <div class="slds-modal__header">
-                    <h1 id="modal-heading" class="slds-modal__title slds-hyphenate">
-                        {title}
-                    </h1>
+                <div class="pop-heading" id="modal-heading">
+                    {title}
                 </div>
 
                 <!-- Modal Body -->
-                <div class="slds-modal__content slds-p-around_medium" id="modal-content">
-                    <div class="slds-text-longform">
-                        <lightning-formatted-rich-text value={message}></lightning-formatted-rich-text>
+                <div class="slds-modal__content pop-up" id="modal-content">
+                    <div class="popUpBody">
+                        <div class="modal-message">
+                            <lightning-formatted-rich-text value={message}></lightning-formatted-rich-text>
+                        </div>
                     </div>
                 </div>
 
@@ -42,7 +42,7 @@
                             <lightning-spinner 
                                 alternative-text="Processing" 
                                 size="small" 
-                                class="slds-button__spinner">
+                                class="button-spinner">
                             </lightning-spinner>
                         </template>
                         {confirmButtonLabel}

@@ -1,196 +1,25 @@
-/* Generic Confirmation Modal Styles */
+/* Generic Confirmation Modal Styles aligned with Manage Crew modal */
 :host {
-    --primary-theme-color: #5e5adb;
-    --primary-theme-color-shade-20: #5e5adb20;
+    --primary-theme-color: rgba(94, 90, 219, 1);
+    --primary-theme-color-hover: rgba(94, 90, 219, 0.9);
+    --primary-theme-color-shadow: rgba(94, 90, 219, 0.3);
+    display: block;
 }
 
-/* Modal Header */
-.generic-modal .slds-modal__header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    background-color: var(--primary-theme-color, #5e5adb);
-    color: white;
-    border: none;
-    border-radius: 0.25rem 0.25rem 0 0;
-    position: relative;
-    border-start-start-radius: 1.25rem;
-    border-start-end-radius: 1.25rem;
+.generic-modal.slds-modal {
+    z-index: 99999;
 }
 
-.generic-modal .slds-modal__title {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin: 0;
-    color: white;
-    flex-grow: 1;
-    text-align: center;
+.generic-modal + .slds-backdrop {
+    z-index: 99998;
 }
 
-.generic-modal .slds-icon_container {
-    margin-right: 0;
-}
-
-/* Modal Content */
-.generic-modal .slds-modal__content {
-    max-height: 60vh;
-    overflow-y: auto;
-    background: white;
-    background-image: url(/resource/wfrecon__FieldReconBG);
-    background-repeat: no-repeat;
-    background-size: cover;
-    text-align: center;
-}
-
-/* Modal Footer */
-.generic-modal .slds-modal__footer {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    padding: 1rem;
-    border: none;
-    background: white;
-    background-image: url(/resource/wfrecon__FieldReconBG);
-    background-repeat: no-repeat;
-    background-size: cover;
-}
-
-/* Button Styles */
-.generic-modal .slds-button {
-    position: relative;
-    font-size: 0.875rem;
-    height: 40px;
-    border-radius: 4px;
-}
-
-.generic-modal .slds-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-.generic-modal .slds-button_neutral {
-    background: white;
-    border: 1px solid var(--primary-theme-color, #5a5adb);
-    color: var(--primary-theme-color, #5a5adb);
-}
-
-.generic-modal .slds-button_neutral:hover:not(:disabled) {
-    background: var(--primary-theme-color-shade-20, #5e5adb20);
-    border-color: var(--primary-theme-color, #5a5adb);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.2);
-}
-
-.generic-modal .slds-button_neutral:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.1);
-}
-
-.generic-modal .slds-button_brand {
-    background-color: var(--primary-theme-color, #5a5adb);
-    border: none;
-    color: #ffffff;
-}
-
-.generic-modal .slds-button_brand:hover:not(:disabled) {
-    background: rgba(94, 90, 219, 0.9);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
-}
-
-.generic-modal .slds-button_brand:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.2);
-}
-
-.generic-modal .slds-button_destructive {
-    background-color: #c23934;
-    border: none;
-    color: #ffffff;
-}
-
-.generic-modal .slds-button_destructive:hover:not(:disabled) {
-    background: #a61e1a;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(194, 57, 52, 0.4);
-}
-
-.generic-modal .slds-button_destructive:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(194, 57, 52, 0.3);
-}
-
-/* Close Button and Spinner */
-.generic-modal .slds-button__spinner {
-    margin-right: 0.25rem;
-}
-
-.generic-modal .slds-modal__close {
+.generic-modal .slds-modal__container {
+    border-radius: 1.25rem;
+    overflow: hidden;
     background: transparent;
-    border: none;
-    color: white;
-    padding: 0.5rem;
-    cursor: pointer;
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    transition: all 0.2s ease;
-    border-radius: 4px;
 }
 
-.generic-modal .slds-modal__close:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    transform: translateY(-50%) scale(1.05);
-    transition: all 0.2s ease;
-}
-
-.generic-modal .slds-modal__close:active {
-    transform: translateY(-50%) scale(0.95);
-    transition: all 0.1s ease;
-}
-
-/* Button Animation Classes */
-.generic-modal .slds-button:focus {
-    outline: 2px solid rgba(94, 90, 219, 0.5);
-    outline-offset: 2px;
-}
-
-.generic-modal .slds-button_neutral:focus {
-    outline: 2px solid rgba(94, 90, 219, 0.3);
-    outline-offset: 2px;
-}
-
-.generic-modal .slds-button_destructive:focus {
-    outline: 2px solid rgba(194, 57, 52, 0.3);
-    outline-offset: 2px;
-}
-
-/* Icon Colors */
-.generic-modal .slds-icon-text-warning {
-    color: #fe9339;
-}
-
-.generic-modal .slds-icon-text-error {
-    color: #c23934;
-}
-
-.generic-modal .slds-icon-text-success {
-    color: #2e844a;
-}
-
-.generic-modal .slds-icon-text-default {
-    color: white;
-}
-
-/* Modal size variations */
 .generic-modal.slds-modal_medium .slds-modal__container {
     max-width: 40rem;
     width: 40rem;
@@ -201,61 +30,180 @@
     width: 60rem;
 }
 
-/* Focus trap and accessibility */
+.close-icon {
+    --sds-c-icon-color-foreground-default: #fff;
+}
+
+.pop-heading {
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 50px;
+    font-weight: 400;
+    color: white;
+    padding: 0.4rem 1rem;
+    background: var(--primary-theme-color, #5e5adb);
+    border-radius: 1.25rem 1.25rem 0 0;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.pop-up {
+    scrollbar-width: none;
+    overflow-y: auto;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.popUpBody {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    min-height: 0;
+}
+
+.modal-message {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 500;
+    color: #585858;
+}
+
+.popUpFooter {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    flex-shrink: 0;
+    border-radius: 0 0 1.25rem 1.25rem;
+}
+
+.close-btn {
+    border: 1px solid var(--primary-theme-color, #5e5adb);
+    border-radius: 3px;
+    color: #080707;
+    padding: 0.3rem 0.9rem;
+    font-size: 14px;
+    background: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 120px;
+}
+
+.close-btn:hover:not(:disabled) {
+    background: #ebf3f6;
+}
+
+.close-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.clock-in-button {
+    background-color: var(--primary-theme-color, #5e5adb);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    height: 36px;
+    padding: 5px 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    min-width: 140px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.clock-in-button:hover:not(:disabled) {
+    background: var(--primary-theme-color-hover, rgba(94, 90, 219, 0.9));
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px var(--primary-theme-color-shadow, rgba(94, 90, 219, 0.3));
+}
+
+.clock-in-button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(94, 90, 219, 0.2);
+}
+
+.clock-in-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.clock-in-button.destructive {
+    background-color: #c23934;
+}
+
+.clock-in-button.destructive:hover:not(:disabled) {
+    background-color: #a61e1a;
+    box-shadow: 0 2px 4px rgba(194, 57, 52, 0.4);
+}
+
+.clock-in-button.neutral {
+    background: #ffffff;
+    color: #585858;
+    border: 1px solid #d0d0ff;
+}
+
+.button-spinner {
+    margin-right: 0.25rem;
+}
+
+.pop-up::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pop-up::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pop-up::-webkit-scrollbar-thumb {
+    background-color: rgba(94, 90, 219, 0.4);
+    border-radius: 3px;
+}
+
+.generic-modal .slds-modal__close {
+    color: white;
+}
+
+.generic-modal .slds-modal__close:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px white;
+}
+
 .generic-modal.slds-modal:focus {
     outline: none;
 }
 
-.generic-modal .slds-modal__close:focus {
-    box-shadow: 0 0 0 2px white;
-    outline: none;
-}
-
-/* Z-index for proper layering */
-.generic-modal.slds-modal {
-    z-index: 99999;
-}
-
-.generic-modal + .slds-backdrop {
-    z-index: 99998;
-}
-
-/* Rich text formatting in modal content */
-.generic-modal .slds-text-longform p {
-    margin: 0 0 1rem 0;
-}
-
-.generic-modal .slds-text-longform p:last-child {
-    margin-bottom: 0;
-}
-
-.generic-modal .slds-text-longform strong {
-    font-weight: 600;
-}
-
-.generic-modal .slds-text-longform em {
-    font-style: italic;
-}
-
-/* Responsive design */
 @media (max-width: 768px) {
     .generic-modal .slds-modal__container {
         margin: 1rem;
         max-width: calc(100vw - 2rem);
         width: calc(100vw - 2rem);
     }
-    
-    .generic-modal .slds-modal__footer {
+
+    .popUpFooter {
         flex-direction: column;
-        align-items: center;
     }
-    
-    .generic-modal .slds-modal__footer .slds-button {
-        width: 200px;
-        margin-bottom: 0.5rem;
-    }
-    
-    .generic-modal .slds-modal__footer .slds-button:last-child {
-        margin-bottom: 0;
+
+    .close-btn,
+    .clock-in-button {
+        width: 100%;
+        max-width: 220px;
     }
 }
