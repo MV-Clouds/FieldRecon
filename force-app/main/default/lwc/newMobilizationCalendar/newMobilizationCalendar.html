@@ -68,10 +68,16 @@
                 <lightning-input-field field-name="wfrecon__Job__c" if:false={isEdit} value={jobId}> </lightning-input-field>
                 <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
                 <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Include_Saturday__c"> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Include_Sunday__c"> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Mobilization_Status__c"> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Description__c"> </lightning-input-field>
+                <div class="slds-grid slds-gutters">
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input-field field-name="wfrecon__Include_Saturday__c" value={includeSaturday}> </lightning-input-field>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input-field field-name="wfrecon__Include_Sunday__c" value={includeSunday}> </lightning-input-field>
+                    </div>
+                </div>
+                <lightning-input-field field-name="wfrecon__Mobilization_Status__c" value={status}> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
                 <footer class="mob-modal-footer slds-grid slds-grid--align-center">
                     <button class="assign-btn footer-btn" type="button" if:true={isEdit} onclick={handleResourceAssign}>Assign Resources</button>
                     <button class="slds-m-left--small delete-btn footer-btn" type="button" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>

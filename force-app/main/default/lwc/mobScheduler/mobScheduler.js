@@ -90,7 +90,15 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     mobIdToDelete = null;
 
     get resourceObjectApi(){
-        return this.resourceType == 'Asset' ? 'wfrecon__Equipment__c' : 'Contact';
+        // return this.resourceType == 'Asset' ? 'wfrecon__Equipment__c' : 'Contact';
+        switch(this.resourceType){
+            case 'Asset':
+                return 'wfrecon__Equipment__c';
+            case 'CrewMaster':
+                return 'wfrecon__Crew__c';
+            default:
+                return 'Contact';
+        }
     }
 
     displayResource = {
@@ -104,7 +112,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     get filterResource() {
-        return this.resourceType == 'Asset' ?  null :
+        return this.resourceType == 'Asset' || this.resourceType == 'CrewMaster' ?  null :
         {
             criteria: [
                 {
@@ -253,7 +261,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     get popupHeader(){
         if(this.isMobGroupCreate) return 'Create Mobilization Group';
         if(this.isMobEditForm) return 'Edit Mobilization';
-        if(this.isAssignForm) return `Assign ${this.resourceType}`;
+        if(this.isAssignForm) return `Assign ${this.resourceType == 'CrewMaster' ? 'Crew' : (this.resourceType == 'Crew' ? 'Employee' : this.resourceType)}`;
         return 'Assign Resources';
     }
 
@@ -594,7 +602,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     const updatedDays = resource.days.map(day => {
                         // filter matching events for this day
                         const filteredEvents = day.events.filter(event =>
-                            event.status == statusFilter && (isResourceMatch || (event.jobName?.toLowerCase().includes(keyLower) ||
+                            (statusFilter == null || event.status == statusFilter) && (isResourceMatch || (event.jobName?.toLowerCase().includes(keyLower) ||
                             event.jobId?.toLowerCase().includes(keyLower)))
                         );
 
@@ -960,7 +968,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     inputs[i].reportValidity();
                 }
                 this.showToast('Error', 'Please select all the required fields.', 'error');
-                return;
             }else{
                 let assignmentData = { 
                     resourceId: this.selectedResourceId, 

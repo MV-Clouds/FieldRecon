@@ -188,14 +188,20 @@ private class MobSchedulerControllerTest {
         // Use current data from setup
         Mobilization_Member__c member = [SELECT Id, Mobilization__c, Contact__c FROM Mobilization_Member__c LIMIT 1];
         Mobilization_Asset__c asset = [SELECT Id, Mobilization__c, Equipment__c FROM Mobilization_Asset__c LIMIT 1];
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
 
         Test.startTest();
         // Updated signature: (id, type, mobId, allUpcoming)
-        String crewRemove = MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'Crew', member.Mobilization__c, 'false');
+        String crewRemove = MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'CrewMaster', member.Mobilization__c, 'false');
+        MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'CrewMaster', member.Mobilization__c, 'true');
+        String employeeRemove = MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'Crew', member.Mobilization__c, 'false');
+        MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'Crew', member.Mobilization__c, 'true');
         String assetRemove = MobSchedulerController.removeJobResource(String.valueOf(asset.Equipment__c), 'Asset', asset.Mobilization__c, 'false');
+        MobSchedulerController.removeJobResource(String.valueOf(asset.Equipment__c), 'Asset', asset.Mobilization__c, 'true');
         Test.stopTest();
 
         System.assertEquals('success', crewRemove, 'Should succeed in removing crew');
+        System.assertEquals('success', employeeRemove, 'Should succeed in removing Employee');
         System.assertEquals('success', assetRemove, 'Should succeed in removing asset');
 
         // Error case with invalid id (keep minimal)
@@ -205,6 +211,7 @@ private class MobSchedulerControllerTest {
 
     @isTest
     static void testAssignResourceToMob() {
+        List<Crew__c> crews = [SELECT Id FROM Crew__c ORDER BY CreatedDate];
         List<Contact> contacts = [SELECT Id, RecordType.DeveloperName FROM Contact ORDER BY CreatedDate];
         List<Equipment__c> equipments = [SELECT Id FROM Equipment__c ORDER BY CreatedDate];
         List<Mobilization__c> mobs = [SELECT Id, Start_Date__c FROM Mobilization__c ORDER BY Start_Date__c];
@@ -238,7 +245,11 @@ private class MobSchedulerControllerTest {
         // Allow overlap and assign again
         assignmentData.put('allowOverlap', true);
         String allowOverlapResult = MobSchedulerController.assignResourceToMob(assignmentData);
-        System.assertEquals('success', allowOverlapResult, 'Should assign with allowOverlap');
+        System.assertEquals('ASSIGNED', allowOverlapResult, 'Should been already assigned!');
+
+        assignmentData.put('type', 'CrewMaster');
+        assignmentData.put('resourceId', crews[0].Id);
+        MobSchedulerController.assignResourceToMob(assignmentData);
 
         // Asset path: trigger ELSE-IF query for assets (line ~378) expecting OVERLAP with existing day 0 asset
         Map<String, Object> assetAssign = new Map<String, Object>{
@@ -249,7 +260,7 @@ private class MobSchedulerControllerTest {
         };
         String assetOverlap = MobSchedulerController.assignResourceToMob(assetAssign);
 
-        // Asset insert path (line ~402): assign a different asset to a different date
+        // Asset insert path: assign a different asset to a different date
         Map<String, Object> assetInsert = new Map<String, Object>{
             'resourceId' => equipments[1].Id,
             'mobId' => mobs[1].Id, // different date from day 0

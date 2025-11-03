@@ -213,7 +213,7 @@ export default class NewMobilizationCalendar extends LightningElement {
                 center: 'prev title next',
                 right: 'basicDay,month,basicWeek,listMonth'
             },
-            defaultView: 'basicDay',
+            defaultView: 'basicWeek',
             defaultDate: new Date(),
             navLinks: true,
             editable: true,
@@ -504,6 +504,7 @@ export default class NewMobilizationCalendar extends LightningElement {
         this.isSpinner = true;
         getMobilizationGroup({recordId: recordId})
         .then((result)=>{
+            console.log("result==> ", result);
             this.isSpinner = false;
             this.startDateTime = result.startDate;
             this.endDateTime = result.endDate;
@@ -579,9 +580,9 @@ export default class NewMobilizationCalendar extends LightningElement {
             .then((result) => {                
                 const sortByAvailability = (a, b) => {
                     // First: sort by availability (available first)
-                    if (a.isAvailable !== b.isAvailable) {
-                        return a.isAvailable ? -1 : 1;
-                    }
+                    // if (a.isAvailable !== b.isAvailable) {
+                    //     return a.isAvailable ? -1 : 1;
+                    // }
 
                     // Then: sort by name (alphabetically, case-insensitive)
                     const nameA = (a.name || '').toLowerCase();

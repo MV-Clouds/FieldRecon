@@ -169,7 +169,7 @@
 
           <template for:each={filteredResources} for:item="res">
             <div class="resource-row" key={res.id}>
-              <div class="cell resource-col record-nav-link" style={res.crewStyle} data-id={res.id} onclick={handleRecordNavigation}>{res.name}</div>
+              <div class="cell resource-col" style={res.crewStyle} data-id={res.id}>{res.name}</div>
               <template for:each={res.days} for:item="day">
                 <div class="cell day-col" key={day.iso}>
                   <template for:each={day.events} for:item="ev">

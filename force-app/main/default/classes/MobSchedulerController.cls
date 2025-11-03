@@ -1,16 +1,16 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 91% (2025-10-30)
+ * Test Class: MobSchedulerControllerTest - 92% (2025-11-03)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
- * Last Modified By: Kevin Suvagiya
- * Last Modified Date: 2025-10-15
  * Last Changes: Removed Unused Code and Added the Exception Handlers
- * Update: 27/10/2025 - Updated the logic for the start and end date to fix timezone based issues
- * Update: 28/10/2025 - Updated the logic for the removal of assigned resources from the mobilization, now with future removal as well
- * Update: 29/10/2025 - Updated for the Crew Based Resources View Data Fetch
- * Update: 30/10/2025 - Updated for the Crew Based Resources for the color for the Crew as well as Crew Members
- * Update: 30/10/2025 - Modified code to allow assignments from the Calendar, by getting the first mobilization of the group to assign resources
+ * Update: 2025-10-27 (Kevin)   - Updated the logic for the start and end date to fix timezone based issues
+ * Update: 2025-10-28 (Kevin)   - Updated the logic for the removal of assigned resources from the mobilization, now with future removal as well
+ * Update: 2025-10-29 (Kevin)   - Updated for the Crew Based Resources View Data Fetch
+ * Update: 2025-10-30 (Kevin)   - Updated for the Crew Based Resources for the color for the Crew as well as Crew Members
+ * Update: 2025-10-30 (Kevin)   - Modified code to allow assignments from the Calendar, by getting the first mobilization of the group to assign resources
+ * Update: 2025-10-31 (Dhairya) - Modified the resource assignment according to the crew implementation and fixed the duplicate assignment bug for resource assignment to mob
+ * Update: 2025-11-03 (Kevin)   - Updated the return statement for already assigned resource
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -400,7 +400,7 @@ public with sharing class MobSchedulerController {
                         result.add(new Map<String,Object>{
                             'id' => resourceType=='CrewMaster' ? mem.Crew__c : mem.Contact__c,
                             'name' => resourceType=='CrewMaster' ? mem.Crew__r.Name : mem.Contact__r.Name,
-                            'crewStyle' => mem.Crew__r.Color_Code__c != null ? 'background-color: color(from ' +  mem.Crew__r.Color_Code__c + ' srgb r g b / 0.2);color:' + mem.Crew__r.Color_Code__c + ';' : null,
+                            'crewStyle' => mem.Crew__r.Color_Code__c != null ? 'color:' + mem.Crew__r.Color_Code__c + ';' : null,
                             'jId' => mob.Job__c,
                             'mobId' => mob.id,
                             'status' => mob.Mobilization_Status__c,
@@ -527,6 +527,15 @@ public with sharing class MobSchedulerController {
                         AND Mobilization__c != :mobId
                         WITH USER_MODE
                     ];
+                } else if (type == 'CrewMaster') {
+                    overlappingMobs = [
+                        SELECT Id, Mobilization__c
+                        FROM Mobilization_Member__c
+                        WHERE Crew__c = :resourceId
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) = :newStart
+                        AND Mobilization__c != :mobId
+                        WITH USER_MODE
+                    ];
                 }
     
                 // If overlapping found, return
@@ -537,17 +546,67 @@ public with sharing class MobSchedulerController {
 
             // Insert new assignment
             if (type == 'Crew' || type == 'SubContractor') {
+                List<Mobilization_Member__c> existingMobilizationMember = [
+                    SELECT Mobilization__c FROM Mobilization_Member__c 
+                    WHERE Contact__c = :resourceId AND Mobilization__c = :mobId 
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+                if(!existingMobilizationMember.isEmpty()){
+                    return 'ASSIGNED';
+                }
                 Mobilization_Member__c mobMember = new Mobilization_Member__c(
                     Mobilization__c = mobId,
                     Contact__c = resourceId
                 );
                 insert as user mobMember;
             } else if (type == 'Asset') {
+                List<Mobilization_Asset__c> existingMobilizationAsset = [
+                    SELECT Mobilization__c FROM Mobilization_Asset__c 
+                    WHERE Equipment__c = :resourceId AND Mobilization__c = :mobId 
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+                if(!existingMobilizationAsset.isEmpty()){
+                    return 'ASSIGNED';
+                }
                 Mobilization_Asset__c mobAsset = new Mobilization_Asset__c(
                     Mobilization__c = mobId,
                     Equipment__c = resourceId
                 );
                 insert as user mobAsset;
+            } else if (type == 'CrewMaster') {
+                List<Crew_Member__c> crewMembers = [SELECT Contact__c FROM Crew_Member__c WHERE Crew__c = :resourceId WITH USER_MODE];
+                Set<String> contactIds = new Set<String>();
+                for(Crew_Member__c cm : crewMembers){
+                    contactIds.add(cm.Contact__c);
+                }
+                // Check for existing assignments to avoid duplicates
+                List<Mobilization_Member__c> existingMembers = [
+                    SELECT Contact__c FROM Mobilization_Member__c 
+                    WHERE Mobilization__c = :mobId AND Contact__c IN :contactIds
+                    WITH USER_MODE
+                ];
+
+                // Create a set of existing contact IDs for quick lookup
+                Set<String> existingContactIds = new Set<String>();
+                for(Mobilization_Member__c existingMember : existingMembers){
+                    existingContactIds.add(existingMember.Contact__c);
+                }
+
+                List<Mobilization_Member__c> mobMembersToInsert = new List<Mobilization_Member__c>();
+                for (Crew_Member__c crewMember : crewMembers) {
+                    // Only create new record if contact is not already assigned
+                    if(!existingContactIds.contains(crewMember.Contact__c)){
+                        Mobilization_Member__c mobMember = new Mobilization_Member__c(
+                            Mobilization__c = mobId,
+                            Crew__c = resourceId,
+                            Contact__c = crewMember.Contact__c
+                        );
+                        mobMembersToInsert.add(mobMember);
+                    }
+                }
+                insert as user mobMembersToInsert;
             }
 
             return 'success';
