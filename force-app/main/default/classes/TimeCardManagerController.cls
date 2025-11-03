@@ -56,13 +56,13 @@ public with sharing class TimeCardManagerController {
                     ContactWrapper cw = new ContactWrapper();
                     cw.contactId = member.Contact__c;
                     cw.contactName = member.Contact__r.Name;
-                    cw.developerName = member.Contact__r.RecordType.DeveloperName;
                     cw.canClockInOut = member.Contact__r.Can_Clock_In_Out__c;
                     cw.email = member.Contact__r.Email;
                     cw.phone = member.Contact__r.Phone;
                     cw.mobilizationGroups = new List<MobilizationGroupWrapper>();
                     cw.timesheetEntries = new List<TimesheetEntryWrapper>();
                     cw.totalManHours = 0;
+                    cw.totalManHoursWithTravel = 0;
                     contactMap.put(member.Contact__c, cw);
                 }
 
@@ -78,14 +78,14 @@ public with sharing class TimeCardManagerController {
                     mg.jobNumber = member.Mobilization__r.Job__r.Name;
                     mg.jobAddress = member.Mobilization__r.Job__r.Address__c;
                     mg.jobDescription = member.Mobilization__r.Job__r.Description__c;
-                    mg.jobStatus = member.Mobilization__r.Job__r.Status__c;
                     mg.startDate = member.Mobilization__r.Start_Date__c != null 
-                        ? member.Mobilization__r.Start_Date__c.addSeconds(userTz.getOffset(member.Mobilization__r.Start_Date__c)/1000)
+                        ? member.Mobilization__r.Start_Date__c
                         : null;
                     mg.endDate = member.Mobilization__r.End_Date__c != null 
-                        ? member.Mobilization__r.End_Date__c.addSeconds(userTz.getOffset(member.Mobilization__r.End_Date__c)/1000)
+                        ? member.Mobilization__r.End_Date__c
                         : null;
                     mg.totalManHours = 0;
+                    mg.totalManHoursWithTravel = 0;
                     
                     globalUniqueMobilizationsMap.put(uniqueKey, mg);
                     contactMap.get(member.Contact__c).mobilizationGroups.add(mg);
@@ -148,13 +148,13 @@ public with sharing class TimeCardManagerController {
                         ContactWrapper cw = new ContactWrapper();
                         cw.contactId = c.Id;
                         cw.contactName = c.Name;
-                        cw.developerName = c.RecordType.DeveloperName;
                         cw.canClockInOut = c.Can_Clock_In_Out__c;
                         cw.email = c.Email;
                         cw.phone = c.Phone;
                         cw.mobilizationGroups = new List<MobilizationGroupWrapper>();
                         cw.timesheetEntries = new List<TimesheetEntryWrapper>();
                         cw.totalManHours = 0;
+                        cw.totalManHoursWithTravel = 0;
                         contactMap.put(c.Id, cw);
                     }
 
@@ -189,8 +189,8 @@ public with sharing class TimeCardManagerController {
                         mg.jobNumber = ts.Mobilization_Group__r.Job__r.Name;
                         mg.jobAddress = ts.Mobilization_Group__r.Job__r.Address__c;
                         mg.jobDescription = ts.Mobilization_Group__r.Job__r.Description__c;
-                        mg.jobStatus = ts.Mobilization_Group__r.Job__r.Status__c;
                         mg.totalManHours = 0;
+                        mg.totalManHoursWithTravel = 0;
                         
                         globalUniqueMobilizationsMap.put(globalUniqueKey, mg);
                         contactMap.get(ts.Contact__c).mobilizationGroups.add(mg);
@@ -199,13 +199,15 @@ public with sharing class TimeCardManagerController {
             }
 
             Map<String, Decimal> contactJobManHoursMap = new Map<String, Decimal>();
+            Map<String, Decimal> contactJobTravelTimeMap = new Map<String, Decimal>();
 
             // Get all timesheet hours with a single query
             for (AggregateResult ar : [
                 SELECT Timesheet_Entry__r.TimeSheet__r.Contact__c contactId,
                        Timesheet_Entry__r.TimeSheet__r.Job__c timesheetJobId,
                        Timesheet_Entry__r.Mobilization__r.Job__c mobilizationJobId,
-                       SUM(Total_Time__c) totalHours
+                       SUM(Total_Time__c) totalHours,
+                       SUM(Travel_Time__c) travelTime
                 FROM Timesheet_Entry_Item__c
                 WHERE Timesheet_Entry__r.TimeSheet__r.Contact__c IN :contactIds
                 AND Clock_In_Date__c >= :customStartDate
@@ -219,6 +221,7 @@ public with sharing class TimeCardManagerController {
                 Id timesheetJobId = (Id)ar.get('timesheetJobId');
                 Id mobilizationJobId = (Id)ar.get('mobilizationJobId');
                 Decimal totalHours = (Decimal)ar.get('totalHours');
+                Decimal travelTime = (Decimal)ar.get('travelTime');
                 
                 // Use mobilization job if available, otherwise use timesheet job
                 Id effectiveJobId = mobilizationJobId != null ? mobilizationJobId : timesheetJobId;
@@ -228,16 +231,21 @@ public with sharing class TimeCardManagerController {
                     Decimal existing = contactJobManHoursMap.containsKey(key) ? contactJobManHoursMap.get(key) : 0;
                     contactJobManHoursMap.put(key, existing + totalHours);
                     
+                    Decimal existingTravel = contactJobTravelTimeMap.containsKey(key) ? contactJobTravelTimeMap.get(key) : 0;
+                    contactJobTravelTimeMap.put(key, existingTravel + (travelTime != null ? travelTime : 0));
+                    
                     // Debug logging
                     System.debug('ContactJobHours - Contact: ' + contactId + ', Job: ' + effectiveJobId + 
-                               ', Hours: ' + totalHours + ', Total for key: ' + (existing + totalHours));
+                               ', Hours: ' + totalHours + ', Travel: ' + travelTime + ', Total for key: ' + (existing + totalHours));
                 }
             }
             
             System.debug('Final contactJobManHoursMap: ' + contactJobManHoursMap);
+            System.debug('Final contactJobTravelTimeMap: ' + contactJobTravelTimeMap);
 
             for (ContactWrapper contact : contactMap.values()) {
                 Decimal contactTotalHours = 0;
+                Decimal contactTotalHoursWithTravel = 0;
                 System.debug('Processing contact: ' + contact.contactName + ' (' + contact.contactId + ')');
                 
                 for (MobilizationGroupWrapper mob : contact.mobilizationGroups) {
@@ -248,10 +256,17 @@ public with sharing class TimeCardManagerController {
                     } else {
                         System.debug('  Job: ' + mob.jobName + ' (' + mob.jobId + ') - No hours found for key: ' + key);
                     }
+                    
+                    Decimal travelTime = contactJobTravelTimeMap.containsKey(key) ? contactJobTravelTimeMap.get(key) : 0;
+                    mob.totalManHoursWithTravel = mob.totalManHours + travelTime;
+                    
                     contactTotalHours += mob.totalManHours;
+                    contactTotalHoursWithTravel += mob.totalManHoursWithTravel;
                 }
                 contact.totalManHours = contactTotalHours;
+                contact.totalManHoursWithTravel = contactTotalHoursWithTravel;
                 System.debug('  Contact Total Hours: ' + contactTotalHours);
+                System.debug('  Contact Total Hours With Travel: ' + contactTotalHoursWithTravel);
             }
 
             if (!contactIds.isEmpty()) {
@@ -320,11 +335,11 @@ public with sharing class TimeCardManagerController {
     public class ContactWrapper {
         @AuraEnabled public Id contactId { get; set; }
         @AuraEnabled public String contactName { get; set; }
-        @AuraEnabled public String developerName { get; set; }
         @AuraEnabled public Boolean canClockInOut { get; set; }
         @AuraEnabled public String email { get; set; }
         @AuraEnabled public String phone { get; set; }
         @AuraEnabled public Decimal totalManHours { get; set; }
+        @AuraEnabled public Decimal totalManHoursWithTravel { get; set; }
         @AuraEnabled public List<MobilizationGroupWrapper> mobilizationGroups { get; set; }
         @AuraEnabled public List<TimesheetEntryWrapper> timesheetEntries { get; set; }
     }
@@ -337,10 +352,10 @@ public with sharing class TimeCardManagerController {
         @AuraEnabled public String jobNumber { get; set; }
         @AuraEnabled public String jobAddress { get; set; }
         @AuraEnabled public String jobDescription { get; set; }
-        @AuraEnabled public String jobStatus { get; set; }
         @AuraEnabled public DateTime startDate { get; set; }
         @AuraEnabled public DateTime endDate { get; set; }
         @AuraEnabled public Decimal totalManHours { get; set; }
+        @AuraEnabled public Decimal totalManHoursWithTravel { get; set; }
     }
 
     public class TimesheetEntryWrapper {
