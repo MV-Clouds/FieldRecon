@@ -3,7 +3,6 @@
  * Test Class: MobSchedulerControllerTest - 92% (2025-11-03)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
- * Last Changes: Removed Unused Code and Added the Exception Handlers
  * Update: 2025-10-27 (Kevin)   - Updated the logic for the start and end date to fix timezone based issues
  * Update: 2025-10-28 (Kevin)   - Updated the logic for the removal of assigned resources from the mobilization, now with future removal as well
  * Update: 2025-10-29 (Kevin)   - Updated for the Crew Based Resources View Data Fetch
