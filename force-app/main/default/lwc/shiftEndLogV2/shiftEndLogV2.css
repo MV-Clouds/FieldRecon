@@ -26,17 +26,7 @@
 .header-fixed-div {
     position: sticky;
     top: 0;
-    background: white;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.header-text-div {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #181818;
+    background: transparent;
     margin-bottom: 1rem;
 }
 
@@ -55,6 +45,15 @@
 .btns-div {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+}
+
+.date-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
 }
 
 .create-btn {
@@ -115,7 +114,7 @@
     width: 100%;
     background: white;
     overflow: hidden;
-    max-height: 5.4rem;
+    max-height: 4.9rem;
     transition: all 0.3s ease-in-out;
     cursor: pointer;
     position: absolute;
@@ -186,6 +185,12 @@
     display: block;
     font-size: 0.95rem;
     color: #181818;
+}
+
+.log-card-date {
+    font-size: 0.75rem;
+    color: #706e6b;
+    white-space: nowrap;
 }
 
 .log-card-description {

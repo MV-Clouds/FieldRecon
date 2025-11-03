@@ -8,11 +8,24 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track shiftEndLogs = [];
     @track filteredLogs = [];
     @track searchTerm = '';
+    @track filterDate = '';
     @track isLoading = false;
     @track hasError = false;
     @track errorMessage = '';
     @track showEditModal = false;
     @track editLogId = null;
+
+    // Check if there are logs to display
+    get hasLogs() {
+        return this.filteredLogs && this.filteredLogs.length > 0;
+    }
+
+    get noLogsMessage() {
+        if (this.searchTerm || this.filterDate) {
+            return 'No logs found matching your search criteria.';
+        }
+        return 'No shift end logs found for this job.';
+    }
 
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
@@ -81,18 +94,33 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.filterLogs();
     }
 
+    // Handle date filter
+    handleDateFilter(event) {
+        this.filterDate = event.target.value;
+        this.filterLogs();
+    }
+
     filterLogs() {
-        if (!this.searchTerm) {
-            this.filteredLogs = [...this.shiftEndLogs];
-        } else {
-            this.filteredLogs = this.shiftEndLogs.filter(log => 
+        let logs = [...this.shiftEndLogs];
+
+        // Apply search filter (Name and Person only)
+        if (this.searchTerm) {
+            logs = logs.filter(log => 
                 (log.Name && log.Name.toLowerCase().includes(this.searchTerm)) ||
-                (log.wfrecon__Work_Performed__c && log.wfrecon__Work_Performed__c.toLowerCase().includes(this.searchTerm)) ||
-                (log.wfrecon__Exceptions__c && log.wfrecon__Exceptions__c.toLowerCase().includes(this.searchTerm)) ||
-                (log.wfrecon__Plan_for_Tomorrow__c && log.wfrecon__Plan_for_Tomorrow__c.toLowerCase().includes(this.searchTerm)) ||
                 (log.createdByName && log.createdByName.toLowerCase().includes(this.searchTerm))
             );
         }
+
+        // Apply date filter
+        if (this.filterDate) {
+            logs = logs.filter(log => {
+                if (!log.wfrecon__Work_Performed_Date__c) return false;
+                const logDate = new Date(log.wfrecon__Work_Performed_Date__c).toISOString().split('T')[0];
+                return logDate === this.filterDate;
+            });
+        }
+
+        this.filteredLogs = logs;
     }
 
     // Handle create button click
@@ -190,14 +218,5 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             case 'shift end': return 'success';
             default: return 'neutral';
         }
-    }
-
-    // Check if there are logs to display
-    get hasLogs() {
-        return this.filteredLogs && this.filteredLogs.length > 0;
-    }
-
-    get noLogsMessage() {
-        return this.searchTerm ? 'No logs found matching your search criteria.' : 'No shift end logs found for this job.';
     }
 }

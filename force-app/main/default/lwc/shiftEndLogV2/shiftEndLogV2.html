@@ -1,12 +1,14 @@
 <template>
     <div class="shift-end-log-container">
         <div class="header-fixed-div">
-            <div class="header-text-div">Shift End Logs</div>
             <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-center slds-grid--align-spread slds-wrap">
                 <div class="search-wrapper slds-grow">
-                    <lightning-input type="search" placeholder="Search by name, work performed, exceptions..." value={searchTerm} onchange={handleSearch} variant="label-hidden" class="search-input"></lightning-input>
+                    <lightning-input type="search" placeholder="Search by name or person..." value={searchTerm} onchange={handleSearch} variant="label-hidden" class="search-input"></lightning-input>
                 </div>
                 <div class="btns-div">
+                    <div class="date-filter">
+                        <lightning-input type="date" label="Filter by Date" value={filterDate} onchange={handleDateFilter} variant="label-hidden"></lightning-input>
+                    </div>
                     <div class="create-btn" onclick={handleCreate}>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="14" height="14" fill="white"><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>
                         Create Log
@@ -42,9 +44,9 @@
                                 <div class="log-header-detail">
                                     <div class="log-card-name-status">
                                         <div class="log-card-name">{log.Name}</div>
+                                        <div class="log-card-date">{log.formattedDate}</div>
                                         <div class="status-tile" data-type={log.wfrecon__Log_Type__c}>{log.wfrecon__Log_Type__c}</div>
                                     </div>
-                                    <div class="log-card-description">{log.formattedDate}</div>
                                 </div>
                                 <div class="action-btns">
                                     <div class="edit-btn btn action-btn" data-id={log.Id} onclick={handleEdit}>
