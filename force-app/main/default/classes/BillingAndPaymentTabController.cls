@@ -435,12 +435,12 @@ public with sharing class BillingAndPaymentTabController {
             // Allow only specific objects
             Set<String> allowed = new Set<String>{ 'Billing__c', 'Payment__c' };
             if (!allowed.contains(sObjectApiName)) {
-                throw new AuraHandledException('Unsupported object type for deletion.');
+                return 'Invalid object type';
             }
             // Construct a stub sObject with Id and delete
             Type t = Type.forName('Schema.' + sObjectApiName);
             if (t == null) {
-                throw new AuraHandledException('Invalid sObject API Name.');
+                return 'Object not found';
             }
             SObject sobj = (SObject) t.newInstance();
             sobj.put('Id', recordId);
@@ -448,6 +448,89 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'deleteRecord', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return e.getMessage();
+        }
+    }
+
+    /*
+    *********************************************************
+    @description     : Clone Billing Record with its Billing Line Items
+    @param           : {Id} billingId - Billing Record Id to clone
+    @return          : String - SUCCESS or error message
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String cloneBilling(Id billingId){
+
+        System.debug('billingId: ' + billingId);
+        try {
+            // Fetch the original billing record with all necessary fields
+            Billing__c originalBilling = [
+                SELECT Id, Job__c, Account__c, Status__c, Bill_Type__c, Retainage_on_Bill__c,
+                       Start_Date__c, End_Date__c, Previous_Bill__c
+                FROM Billing__c
+                WHERE Id = :billingId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+
+            // Create a new billing record (using manual approach to avoid issues with formula fields and relationships)
+            Billing__c clonedBilling = new Billing__c();
+            clonedBilling.Job__c = originalBilling.Job__c;
+            clonedBilling.Account__c = originalBilling.Account__c;
+            clonedBilling.Status__c = 'Draft'; // Always set to Draft for cloned records
+            clonedBilling.Bill_Type__c = originalBilling.Bill_Type__c;
+            clonedBilling.Retainage_on_Bill__c = originalBilling.Retainage_on_Bill__c;
+            clonedBilling.Start_Date__c = originalBilling.Start_Date__c;
+            clonedBilling.End_Date__c = originalBilling.End_Date__c;
+            clonedBilling.Previous_Bill__c = originalBilling.Previous_Bill__c;
+            
+            insert clonedBilling;
+
+            // Fetch all billing line items from the original billing
+            List<Billing_Line_Item__c> originalLineItems = [
+                SELECT Id, Scope_Entry__c, Bill_Item_Type__c, Scope_Contract_Amount__c,
+                       Scope_Complete__c, Retainage_Percent_on_Bill_Line_Item__c,
+                       Previous_Bill_Line_Item__c, This_Billing_Percent__c,
+                       This_Retainage_Amount__c, Total_Retainage_Amount__c,
+                       This_Billing_Value__c, Total_Billed_Value__c, Previous_Billed_Value__c
+                FROM Billing_Line_Item__c
+                WHERE Billing__c = :billingId
+                WITH USER_MODE
+            ];
+
+            // Clone billing line items
+            List<Billing_Line_Item__c> clonedLineItems = new List<Billing_Line_Item__c>();
+            for (Billing_Line_Item__c originalItem : originalLineItems) {
+                Billing_Line_Item__c clonedItem = new Billing_Line_Item__c();
+                clonedItem.Billing__c = clonedBilling.Id;
+                clonedItem.Scope_Entry__c = originalItem.Scope_Entry__c;
+                clonedItem.Bill_Item_Type__c = originalItem.Bill_Item_Type__c;
+                clonedItem.Scope_Contract_Amount__c = originalItem.Scope_Contract_Amount__c;
+                clonedItem.Scope_Complete__c = originalItem.Scope_Complete__c;
+                clonedItem.Retainage_Percent_on_Bill_Line_Item__c = originalItem.Retainage_Percent_on_Bill_Line_Item__c;
+                clonedItem.Previous_Bill_Line_Item__c = originalItem.Previous_Bill_Line_Item__c;
+                clonedItem.This_Billing_Percent__c = originalItem.This_Billing_Percent__c;
+                clonedItem.This_Retainage_Amount__c = originalItem.This_Retainage_Amount__c;
+                clonedItem.Total_Retainage_Amount__c = originalItem.Total_Retainage_Amount__c;
+                clonedItem.This_Billing_Value__c = originalItem.This_Billing_Value__c;
+                clonedItem.Total_Billed_Value__c = originalItem.Total_Billed_Value__c;
+                clonedItem.Previous_Billed_Value__c = originalItem.Previous_Billed_Value__c;
+                clonedLineItems.add(clonedItem);
+            }
+
+            if (!clonedLineItems.isEmpty()) {
+                insert clonedLineItems;
+            }
+
+            return 'SUCCESS';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'BillingAndPaymentTabController', 
+                'methodName' => 'cloneBilling', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
             return e.getMessage();
         }
     }

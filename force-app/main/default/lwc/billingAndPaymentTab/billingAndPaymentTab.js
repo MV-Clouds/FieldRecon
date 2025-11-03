@@ -12,6 +12,7 @@ import createBilling from '@salesforce/apex/BillingAndPaymentTabController.creat
 import deleteRecordApex from '@salesforce/apex/BillingAndPaymentTabController.deleteRecord';
 import approveBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.approveBilling';
 import createPayment from '@salesforce/apex/BillingAndPaymentTabController.createPayment';
+import cloneBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.cloneBilling';
 
 export default class BillingAndPaymentTab extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -65,7 +66,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
     @track billingsColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
-        { label: 'Actions', fieldName: 'actions', style: 'width: 10rem' },
+        { label: 'Actions', fieldName: 'actions', style: 'width: 12rem' },
         { 
             label: 'Bill Number', 
             fieldName: 'Name',
@@ -500,7 +501,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
     /** 
      * Method Name: handleActionClick
-     * @description: Handles row action clicks for edit/delete/approve on billing and payment records.
+     * @description: Handles row action clicks for edit/delete/approve/clone on billing and payment records.
      */
     handleActionClick(event) {
         try {
@@ -536,6 +537,15 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                     buttonLabel: 'Approve',
                     action: 'approveBilling'
                 };
+            } else if (actionType === 'cloneBilling') {
+                this.billId = recordId;
+                this.showConfirmModal = true;
+                this.popupProperties = {
+                    heading: 'Clone Billing',
+                    body: 'Are you sure you want to clone this billing record? A new billing record with all its line items will be created in Draft status.',
+                    buttonLabel: 'Clone',
+                    action: 'cloneBilling'
+                };
             }
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -570,6 +580,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                 this.handleDeleteRecord();
             } else if(this.popupProperties.action === 'approveBilling'){
                 this.handleApproveBilling();
+            } else if(this.popupProperties.action === 'cloneBilling'){
+                this.handleCloneBilling();
             }
         } catch (error) {
             console.error('Error in handleConfirmClick :: ', error);
@@ -631,6 +643,46 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                 });
         } catch (error) {
             console.error('Error in handleApproveBilling ::', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: handleCloneBilling
+     * @description: Clones the billing record along with its billing line items.
+     */
+    handleCloneBilling() {
+        try {
+            this.isLoading = true;
+                        
+            cloneBillingRecord({ billingId: this.billId })
+                .then((result) => {
+                    console.log('cloneBilling apex result :: ', result);
+                    
+                    if (result === 'SUCCESS') {
+                        this.showToast('Success', 'Billing record cloned successfully', 'success');
+                        this.loadBillingData();
+                    } else {
+                        this.showToast('Error', result, 'error');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error in cloneBilling :: ', error);
+                    let message = 'An unexpected error occurred';
+                    if (error && error.body && error.body.message) {
+                        message = error.body.message;
+                    } else if (error && error.message) {
+                        message = error.message;
+                    }
+                    this.showToast('Error', message, 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                    this.closeConfirmModal();
+                });
+        } catch (error) {
+            console.error('Error in handleCloneBilling ::', error);
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             this.isLoading = false;
         }
