@@ -94,7 +94,9 @@
                                                                     <div key={job.mobId} class="job-entry">
                                                                         <!-- Left Side -->
                                                                         <div class="job-left">
-                                                                            <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                                            <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                                                                <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                                            </a>
                                                                             <p class="job-description">{job.jobDescription}</p>
         
                                                                             <div class="job-time">
