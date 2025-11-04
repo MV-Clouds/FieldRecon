@@ -300,38 +300,58 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      * @description: Transforms a single line item into display format with formatted values.
      */
     processLineItem(item) {
+        const contractValue = item.wfrecon__Scope_Contract_Amount__c || 0;
+        const previousBilledAmount = item.wfrecon__Previous_Billed_Value__c || 0;
+        const thisBillingAmountValue = item.wfrecon__This_Billing_Value__c || 0;
+        const retainagePercentValue = item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0;
+        const thisRetainageAmountValue = item.wfrecon__This_Retainage_Amount__c || 0;
+        const totalRetainageAmountValue = item.wfrecon__Total_Retainage_Amount__c || 0;
+        const previousRetainageAmount = Math.max(0, totalRetainageAmountValue - thisRetainageAmountValue);
+
+        const totalBilledWithRetainage = previousBilledAmount + thisBillingAmountValue + previousRetainageAmount + thisRetainageAmountValue;
+        const billingPercentValue = item.wfrecon__This_Billing_Percent__c != null
+            ? item.wfrecon__This_Billing_Percent__c
+            : (contractValue > 0 ? (totalBilledWithRetainage / contractValue) * 100 : 0);
+        const totalCompleteAmountValue = totalBilledWithRetainage;
+        const dueThisBillingValue = item.wfrecon__Due_This_Billing__c != null
+            ? item.wfrecon__Due_This_Billing__c
+            : (thisBillingAmountValue - thisRetainageAmountValue);
+
         return {
             Id: item.Id,
-            scopeEntryName: item.wfrecon__Scope_Entry__r.Name || '--',
-            contractValue: this.formatCurrency(item.wfrecon__Scope_Contract_Amount__c),
+            scopeEntryName: item.wfrecon__Scope_Entry__r?.Name || '--',
+            contractValue: this.formatCurrency(contractValue),
             previousBilledPercent: this.formatPercent(item.wfrecon__Previous_Billed_Percent__c),
-            previousBilledAmount: this.formatCurrency(item.wfrecon__Previous_Billed_Value__c),
+            previousBilledAmount: this.formatCurrency(previousBilledAmount),
             currentCompletePercent: this.formatPercent(item.wfrecon__Scope_Complete__c),
-            thisBillingCompletePercent: this.formatPercent(item.wfrecon__This_Billing_Percent__c),
-            totalCompleteAmount: this.formatCurrency(item.wfrecon__Total_Billing_Value_Retainage__c),
-            thisBillingAmount: this.formatCurrency(item.wfrecon__This_Billing_Value__c),
-            retainagePercent: this.formatPercent(item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c),
-            retainageAmount: this.formatCurrency(item.wfrecon__This_Retainage_Amount__c),
-            dueThisBilling: this.formatCurrency(item.wfrecon__Due_This_Billing__c),
-            thisBillRetainageAmount: this.formatCurrency(item.wfrecon__Total_Retainage_Amount__c),
+            thisBillingCompletePercent: this.formatPercent(billingPercentValue),
+            totalCompleteAmount: this.formatCurrency(totalCompleteAmountValue),
+            thisBillingAmount: this.formatCurrency(thisBillingAmountValue),
+            retainagePercent: this.formatPercent(retainagePercentValue),
+            retainageAmount: this.formatCurrency(thisRetainageAmountValue),
+            dueThisBilling: this.formatCurrency(dueThisBillingValue),
+            thisBillRetainageAmount: this.formatCurrency(totalRetainageAmountValue),
             isEditingThisBillingPercent: false,
             isEditingRetainagePercent: false,
+            isEditingThisBillingAmount: false,
             rowClass: '',
             thisBillingPercentCellClass: 'editable-cell',
             retainagePercentCellClass: 'editable-cell',
+            thisBillingAmountCellClass: 'editable-cell',
             
             // Raw values for calculations
-            rawScopeContractValue: item.wfrecon__Scope_Contract_Amount__c || 0,
-            rawPreviousBilledAmount: item.wfrecon__Previous_Billed_Value__c || 0,
-            rawTotalCompleteAmount: item.wfrecon__Total_Billing_Value_Retainage__c || 0,
-            rawThisBillingAmount: item.wfrecon__This_Billing_Value__c || 0,
-            rawThisBillRetainageAmount: item.wfrecon__Total_Retainage_Amount__c || 0,
-            rawRetainagePercent: item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0,
-            rawRetainageAmount: item.wfrecon__This_Retainage_Amount__c || 0,
-            rawDueThisBilling: item.wfrecon__Due_This_Billing__c || 0,
-            rawThisBillingPercent: item.wfrecon__This_Billing_Percent__c || 0,
+            rawScopeContractValue: contractValue,
+            rawPreviousBilledAmount: previousBilledAmount,
+            rawTotalCompleteAmount: totalCompleteAmountValue,
+            rawThisBillingAmount: thisBillingAmountValue,
+            rawThisBillRetainageAmount: totalRetainageAmountValue,
+            rawRetainagePercent: retainagePercentValue,
+            rawRetainageAmount: thisRetainageAmountValue,
+            rawDueThisBilling: dueThisBillingValue,
+            rawThisBillingPercent: billingPercentValue,
             rawPreviousBilledPercent: item.wfrecon__Previous_Billed_Percent__c || 0,
-            rawCurrentCompletePercent: item.wfrecon__Scope_Complete__c || 0
+            rawCurrentCompletePercent: item.wfrecon__Scope_Complete__c || 0,
+            baseRetainageBeforeCurrent: previousRetainageAmount
         };
     }
 
@@ -592,99 +612,410 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             }
             const recordId = event.target.dataset.recordId;
             const fieldName = event.target.dataset.fieldName;
-            
-            let newValue = parseFloat(event.target.value) || 0;
-            
-            // Apply validation based on field type
-            newValue = this.validateFieldValue(recordId, fieldName, newValue, event.target);
-            
-            // Update the value in the appropriate array
-            this.updateItemValue(recordId, fieldName, newValue);
-            
-            // Track modification and add/remove highlighting
-            const originalValue = this.getOriginalValue(recordId, fieldName);
-            const cell = event.target.closest('.data-cell');
-            
-            if (!this.areValuesEqual(newValue, originalValue)) {
-                this.trackModification(recordId, fieldName, newValue);
-                // Add highlighting
-                if (cell) {
-                    cell.classList.add('modified-cell');
-                }
-            } else {
-                this.removeModification(recordId, fieldName);
-                // Remove highlighting
-                if (cell) {
-                    cell.classList.remove('modified-cell');
-                }
+            const numericValue = parseFloat(event.target.value);
+            const safeValue = Number.isNaN(numericValue) ? 0 : numericValue;
+
+            switch (fieldName) {
+                case 'This_Billing_Value__c':
+                    this.applyBillingAmountChange(recordId, safeValue, event.target);
+                    break;
+                case 'This_Billing_Percent__c':
+                    this.applyBillingPercentChange(recordId, safeValue, event.target);
+                    break;
+                case 'Retainage_Percent_on_Bill_Line_Item__c':
+                    this.applyRetainagePercentChange(recordId, safeValue, event.target);
+                    break;
+                default:
+                    break;
             }
-            
-            // Update totals
+
             this.calculateTotals();
         } catch (error) {
             console.error('Error in handleCellInputChange:', error);
         }
     }
 
-    /** 
-     * Method Name: validateFieldValue
-     * @description: Validates field values based on business rules and constraints.
+    /**
+     * Method Name: applyBillingAmountChange
+     * @description: Handles recalculations and validations when This Billing Amount is edited.
      */
-    validateFieldValue(recordId, fieldName, newValue, inputElement) {
-        try {
-            // Find the current item to get previous and current complete percentages
-            const contractItem = this.contractLineItems.find(item => item.Id === recordId);
-            const changeOrderItem = this.changeOrderLineItems.find(item => item.Id === recordId);
-            const currentItem = contractItem || changeOrderItem;
-            
-            if (!currentItem) {
-                return newValue;
-            }
-
-            // Apply constraints based on field type
-            if (fieldName === 'This_Billing_Percent__c') {
-                // This Billing Complete % validation
-                // Must be between 0% and 100%
-                if (newValue < 0) {
-                    newValue = 0;
-                    inputElement.value = newValue;
-                    this.showToast('Warning', 'This Billing Complete % cannot be less than 0%', 'warning');
-                } else if (newValue > 100) {
-                    newValue = 100;
-                    inputElement.value = newValue;
-                    this.showToast('Warning', 'This Billing Complete % cannot be more than 100%', 'warning');
-                } else {
-                    // Must be >= max(Previous Billed %, Current Complete %)
-                    const prevBilledPercent = currentItem.rawPreviousBilledPercent || 0;
-                    const currentCompletePercent = currentItem.rawCurrentCompletePercent || 0;
-                    const minAllowedPercent = Math.max(prevBilledPercent, currentCompletePercent);
-                    
-                    if (newValue < minAllowedPercent) {
-                        newValue = minAllowedPercent;
-                        inputElement.value = newValue;
-                        this.showToast('Warning', 
-                            `This Billing Complete % must be at least ${minAllowedPercent.toFixed(2)}% (max of Previous Billed % and Current Complete %)`, 
-                            'warning');
-                    }
-                }
-            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
-                // Retainage % validation - must be between 0% and 100%
-                if (newValue < 0) {
-                    newValue = 0;
-                    inputElement.value = newValue;
-                    this.showToast('Warning', 'Retainage % cannot be less than 0%', 'warning');
-                } else if (newValue > 100) {
-                    newValue = 100;
-                    inputElement.value = newValue;
-                    this.showToast('Warning', 'Retainage % cannot be more than 100%', 'warning');
-                }
-            }
-
-            return newValue;
-        } catch (error) {
-            console.error('Error in validateFieldValue:', error);
-            return newValue;
+    applyBillingAmountChange(recordId, newValue, inputElement) {
+        const context = this.getItemContext(recordId);
+        if (!context) {
+            return;
         }
+
+        const baseline = this.getItemBaseline(context.item);
+        const retainagePercent = context.item.rawRetainagePercent || 0;
+
+        let amount = newValue;
+        if (amount < 0) {
+            amount = 0;
+            inputElement.value = amount;
+            this.showToast('Warning', 'This Billing Amount cannot be negative.', 'warning');
+        }
+
+        const bounds = this.calculateAmountBounds(baseline, retainagePercent);
+
+        if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && amount > bounds.maxAmount) {
+            amount = bounds.maxAmount;
+            inputElement.value = amount;
+            this.showToast('Warning', 'This Billing Amount adjusted to stay within contract value.', 'warning');
+        }
+
+        if (baseline.contractValue > 0 && amount < bounds.minAmount) {
+            amount = bounds.minAmount;
+            inputElement.value = amount;
+            if (baseline.minPercent > 0) {
+                this.showToast('Warning', `This Billing Amount adjusted to meet minimum completion of ${baseline.minPercent.toFixed(2)}%.`, 'warning');
+            } else {
+                this.showToast('Warning', 'This Billing Amount adjusted to meet minimum completion requirements.', 'warning');
+            }
+        }
+
+        const result = this.computeValuesFromAmount(baseline, amount, retainagePercent);
+        this.applyComputedValues(context, baseline, result, retainagePercent);
+
+        inputElement.value = result.amount;
+
+        this.markCellAsModified(context, 'This_Billing_Value__c', result.amount, inputElement.closest('.data-cell'));
+        this.markCellAsModified(context, 'This_Billing_Percent__c', result.percent, this.getCellElement(recordId, 'This_Billing_Percent__c'));
+
+        this.commitItemChanges(context);
+    }
+
+    /**
+     * Method Name: applyBillingPercentChange
+     * @description: Handles recalculations and validations when This Billing Complete % is edited.
+     */
+    applyBillingPercentChange(recordId, newValue, inputElement) {
+        const context = this.getItemContext(recordId);
+        if (!context) {
+            return;
+        }
+
+        const baseline = this.getItemBaseline(context.item);
+        const retainagePercent = context.item.rawRetainagePercent || 0;
+
+        let percent = newValue;
+        if (percent < 0) {
+            percent = 0;
+            this.showToast('Warning', 'This Billing Complete % cannot be less than 0%.', 'warning');
+        }
+        if (percent > 100) {
+            percent = 100;
+            this.showToast('Warning', 'This Billing Complete % cannot exceed 100%.', 'warning');
+        }
+
+        if (percent < baseline.minPercent) {
+            percent = this.roundPercent(baseline.minPercent);
+            this.showToast('Warning', `This Billing Complete % must be at least ${baseline.minPercent.toFixed(2)}%.`, 'warning');
+        }
+
+        let result = this.computeValuesFromPercent(baseline, percent, retainagePercent);
+
+        // Ensure the derived amount also respects contract bounds
+        const bounds = this.calculateAmountBounds(baseline, retainagePercent);
+        if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && result.amount > bounds.maxAmount) {
+            const cappedResult = this.computeValuesFromAmount(baseline, bounds.maxAmount, retainagePercent);
+            result = cappedResult;
+            percent = cappedResult.percent;
+            this.showToast('Warning', 'This Billing Complete % adjusted to stay within contract value.', 'warning');
+        }
+
+        if (baseline.contractValue > 0 && result.amount < bounds.minAmount) {
+            const raisedResult = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent);
+            result = raisedResult;
+            percent = raisedResult.percent;
+            if (baseline.minPercent > 0) {
+                this.showToast('Warning', `This Billing Complete % adjusted to meet minimum completion of ${baseline.minPercent.toFixed(2)}%.`, 'warning');
+            }
+        }
+
+        this.applyComputedValues(context, baseline, result, retainagePercent);
+
+        inputElement.value = result.percent;
+
+        this.markCellAsModified(context, 'This_Billing_Percent__c', result.percent, inputElement.closest('.data-cell'));
+        this.markCellAsModified(context, 'This_Billing_Value__c', result.amount, this.getCellElement(recordId, 'This_Billing_Value__c'));
+
+        this.commitItemChanges(context);
+    }
+
+    /**
+     * Method Name: applyRetainagePercentChange
+     * @description: Handles recalculations and validations when Retainage % is edited.
+     */
+    applyRetainagePercentChange(recordId, newValue, inputElement) {
+        const context = this.getItemContext(recordId);
+        if (!context) {
+            return;
+        }
+
+        let retainagePercent = newValue;
+        if (retainagePercent < 0) {
+            retainagePercent = 0;
+            this.showToast('Warning', 'Retainage % cannot be less than 0%.', 'warning');
+        }
+        if (retainagePercent > 100) {
+            retainagePercent = 100;
+            this.showToast('Warning', 'Retainage % cannot exceed 100%.', 'warning');
+        }
+
+        retainagePercent = this.roundPercent(retainagePercent);
+
+        const baseline = this.getItemBaseline(context.item);
+        const existingPercent = this.roundPercent(context.item.rawThisBillingPercent || 0);
+        const bounds = this.calculateAmountBounds(baseline, retainagePercent);
+
+        let result = this.computeValuesFromPercent(baseline, existingPercent, retainagePercent);
+        let adjustmentApplied = false;
+
+        if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && result.amount > bounds.maxAmount) {
+            result = this.computeValuesFromAmount(baseline, bounds.maxAmount, retainagePercent);
+            adjustmentApplied = true;
+        }
+
+        if (baseline.contractValue > 0 && result.amount < bounds.minAmount) {
+            result = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent);
+            adjustmentApplied = true;
+        }
+
+        this.applyComputedValues(context, baseline, result, retainagePercent);
+
+        inputElement.value = retainagePercent;
+
+        this.markCellAsModified(context, 'Retainage_Percent_on_Bill_Line_Item__c', retainagePercent, inputElement.closest('.data-cell'));
+        this.markCellAsModified(context, 'This_Billing_Value__c', result.amount, this.getCellElement(recordId, 'This_Billing_Value__c'));
+        this.markCellAsModified(context, 'This_Billing_Percent__c', result.percent, this.getCellElement(recordId, 'This_Billing_Percent__c'));
+
+        if (adjustmentApplied) {
+            this.showToast('Warning', 'Retainage % change adjusted This Billing Amount to maintain contract limits. Please review.', 'warning');
+        }
+
+        this.commitItemChanges(context);
+    }
+
+    /**
+     * Method Name: getItemContext
+     * @description: Retrieves metadata about the line item for updates.
+     */
+    getItemContext(recordId) {
+        const contractIndex = this.contractLineItems.findIndex(item => item.Id === recordId);
+        if (contractIndex > -1) {
+            return {
+                item: this.contractLineItems[contractIndex],
+                listName: 'contract',
+                index: contractIndex
+            };
+        }
+
+        const changeOrderIndex = this.changeOrderLineItems.findIndex(item => item.Id === recordId);
+        if (changeOrderIndex > -1) {
+            return {
+                item: this.changeOrderLineItems[changeOrderIndex],
+                listName: 'changeOrder',
+                index: changeOrderIndex
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Method Name: commitItemChanges
+     * @description: Commits array changes to trigger component re-render.
+     */
+    commitItemChanges(context) {
+        if (!context) {
+            return;
+        }
+        if (context.listName === 'contract') {
+            this.contractLineItems = [...this.contractLineItems];
+        } else if (context.listName === 'changeOrder') {
+            this.changeOrderLineItems = [...this.changeOrderLineItems];
+        }
+    }
+
+    /**
+     * Method Name: getItemBaseline
+     * @description: Builds baseline values used for calculations and validation.
+     */
+    getItemBaseline(item) {
+        const contractValue = item.rawScopeContractValue || 0;
+        const previousBilledAmount = item.rawPreviousBilledAmount || 0;
+        const previousRetainage = item.baseRetainageBeforeCurrent != null
+            ? item.baseRetainageBeforeCurrent
+            : Math.max(0, (item.rawThisBillRetainageAmount || 0) - (item.rawRetainageAmount || 0));
+
+        if (item.baseRetainageBeforeCurrent == null) {
+            item.baseRetainageBeforeCurrent = previousRetainage;
+        }
+
+        return {
+            contractValue,
+            previousBilledAmount,
+            previousRetainage,
+            minPercent: Math.max(item.rawPreviousBilledPercent || 0, item.rawCurrentCompletePercent || 0)
+        };
+    }
+
+    /**
+     * Method Name: calculateAmountBounds
+     * @description: Calculates minimum and maximum allowable amounts for a line item.
+     */
+    calculateAmountBounds(baseline, retainagePercent) {
+        const factor = 1 + (retainagePercent / 100);
+
+        let maxAmount = Number.POSITIVE_INFINITY;
+        let minAmount = 0;
+
+        if (baseline.contractValue > 0) {
+            const availableGross = baseline.contractValue - baseline.previousBilledAmount - baseline.previousRetainage;
+            maxAmount = availableGross > 0 ? availableGross / factor : 0;
+
+            const requiredGross = baseline.contractValue * (baseline.minPercent / 100);
+            const remainingGrossNeeded = requiredGross - baseline.previousBilledAmount - baseline.previousRetainage;
+            minAmount = remainingGrossNeeded > 0 ? remainingGrossNeeded / factor : 0;
+        }
+
+        return {
+            minAmount: this.roundCurrency(Math.max(0, minAmount)),
+            maxAmount: baseline.contractValue > 0 ? this.roundCurrency(Math.max(0, maxAmount)) : Number.POSITIVE_INFINITY,
+            factor
+        };
+    }
+
+    /**
+     * Method Name: computeValuesFromAmount
+     * @description: Computes derived values when using This Billing Amount as source of truth.
+     */
+    computeValuesFromAmount(baseline, amount, retainagePercent) {
+        const roundedAmount = this.roundCurrency(amount);
+        const retainageValue = this.roundCurrency(roundedAmount * retainagePercent / 100);
+        const totalRetainage = this.roundCurrency(baseline.previousRetainage + retainageValue);
+        const totalBilled = this.roundCurrency(baseline.previousBilledAmount + roundedAmount);
+        const grossToDate = this.roundCurrency(totalBilled + totalRetainage);
+        const percent = baseline.contractValue > 0 ? this.roundPercent((grossToDate / baseline.contractValue) * 100) : 0;
+
+        return {
+            amount: roundedAmount,
+            retainageValue,
+            totalRetainage,
+            totalBilled,
+            grossToDate,
+            percent
+        };
+    }
+
+    /**
+     * Method Name: computeValuesFromPercent
+     * @description: Computes derived values when using This Billing Complete % as source of truth.
+     */
+    computeValuesFromPercent(baseline, percent, retainagePercent) {
+        const safePercent = this.roundPercent(percent);
+
+        if (baseline.contractValue <= 0) {
+            return this.computeValuesFromAmount(baseline, 0, retainagePercent);
+        }
+
+        const grossToDate = this.roundCurrency((baseline.contractValue * safePercent) / 100);
+        const previousGross = this.roundCurrency(baseline.previousBilledAmount + baseline.previousRetainage);
+        let grossContribution = this.roundCurrency(grossToDate - previousGross);
+        if (grossContribution < 0) {
+            grossContribution = 0;
+        }
+
+        const factor = 1 + (retainagePercent / 100);
+        const amount = factor !== 0 ? grossContribution / factor : grossContribution;
+
+        return this.computeValuesFromAmount(baseline, amount, retainagePercent);
+    }
+
+    /**
+     * Method Name: applyComputedValues
+     * @description: Applies calculated values back to the line item instance.
+     */
+    applyComputedValues(context, baseline, result, retainagePercent) {
+        const { item } = context;
+        item.rawThisBillingAmount = result.amount;
+        item.thisBillingAmount = this.formatCurrency(result.amount);
+        item.rawRetainageAmount = result.retainageValue;
+        item.retainageAmount = this.formatCurrency(result.retainageValue);
+        item.rawThisBillRetainageAmount = result.totalRetainage;
+        item.thisBillRetainageAmount = this.formatCurrency(result.totalRetainage);
+        item.rawTotalCompleteAmount = result.grossToDate;
+        item.totalCompleteAmount = this.formatCurrency(result.grossToDate);
+        item.rawThisBillingPercent = result.percent;
+        item.thisBillingCompletePercent = result.percent;
+        item.rawDueThisBilling = this.roundCurrency(result.amount - result.retainageValue);
+        item.dueThisBilling = this.formatCurrency(item.rawDueThisBilling);
+        item.baseRetainageBeforeCurrent = baseline.previousRetainage;
+
+        if (retainagePercent != null) {
+            item.rawRetainagePercent = retainagePercent;
+            item.retainagePercent = this.formatPercent(retainagePercent);
+        }
+    }
+
+    /**
+     * Method Name: getCellElement
+     * @description: Retrieves the table cell element for a record and field.
+     */
+    getCellElement(recordId, fieldName) {
+        return this.template.querySelector(`td[data-record-id="${recordId}"][data-field-name="${fieldName}"]`);
+    }
+
+    /**
+     * Method Name: markCellAsModified
+     * @description: Applies modification tracking and styling for a specific field.
+     */
+    markCellAsModified(context, fieldName, newValue, cellElement) {
+        const originalValue = this.getOriginalValue(context.item.Id, fieldName);
+        const isModified = !this.areValuesEqual(newValue, originalValue);
+
+        if (isModified) {
+            this.trackModification(context.item.Id, fieldName, newValue);
+            if (cellElement) {
+                cellElement.classList.add('modified-cell');
+            }
+        } else {
+            this.removeModification(context.item.Id, fieldName);
+            if (cellElement) {
+                cellElement.classList.remove('modified-cell');
+            }
+        }
+
+        const className = isModified ? 'editable-cell modified-cell' : 'editable-cell';
+        if (fieldName === 'This_Billing_Percent__c') {
+            context.item.thisBillingPercentCellClass = className;
+        } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+            context.item.retainagePercentCellClass = className;
+        } else if (fieldName === 'This_Billing_Value__c') {
+            context.item.thisBillingAmountCellClass = className;
+        }
+    }
+
+    /**
+     * Method Name: roundCurrency
+     * @description: Rounds a numeric value to currency precision (2 decimal places).
+     */
+    roundCurrency(value) {
+        if (value == null || Number.isNaN(value) || !Number.isFinite(value)) {
+            return 0;
+        }
+        return Math.round(value * 100) / 100;
+    }
+
+    /**
+     * Method Name: roundPercent
+     * @description: Rounds a numeric value to percentage precision (2 decimal places).
+     */
+    roundPercent(value) {
+        if (value == null || Number.isNaN(value) || !Number.isFinite(value)) {
+            return 0;
+        }
+        return Math.round(value * 100) / 100;
     }
 
     /** 
@@ -717,12 +1048,16 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         if (originalContractItem) {
             if (fieldName === 'This_Billing_Percent__c') {
                 return originalContractItem.rawThisBillingPercent;
+            } else if (fieldName === 'This_Billing_Value__c') {
+                return originalContractItem.rawThisBillingAmount;
             } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
                 return originalContractItem.rawRetainagePercent;
             }
         } else if (originalChangeOrderItem) {
             if (fieldName === 'This_Billing_Percent__c') {
                 return originalChangeOrderItem.rawThisBillingPercent;
+            } else if (fieldName === 'This_Billing_Value__c') {
+                return originalChangeOrderItem.rawThisBillingAmount;
             } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
                 return originalChangeOrderItem.rawRetainagePercent;
             }
@@ -757,6 +1092,8 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         if (contractItem) {
             if (fieldName === 'This_Billing_Percent__c') {
                 contractItem.isEditingThisBillingPercent = isEditing;
+            } else if (fieldName === 'This_Billing_Value__c') {
+                contractItem.isEditingThisBillingAmount = isEditing;
             } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
                 contractItem.isEditingRetainagePercent = isEditing;
             }
@@ -764,44 +1101,10 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         } else if (changeOrderItem) {
             if (fieldName === 'This_Billing_Percent__c') {
                 changeOrderItem.isEditingThisBillingPercent = isEditing;
+            } else if (fieldName === 'This_Billing_Value__c') {
+                changeOrderItem.isEditingThisBillingAmount = isEditing;
             } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
                 changeOrderItem.isEditingRetainagePercent = isEditing;
-            }
-            this.changeOrderLineItems = [...this.changeOrderLineItems];
-        }
-    }
-
-    /** 
-     * Method Name: updateItemValue
-     * @description: Updates the value of a specific field in a line item and applies styling.
-     */
-    updateItemValue(recordId, fieldName, newValue) {
-        const contractItem = this.contractLineItems.find(item => item.Id === recordId);
-        const changeOrderItem = this.changeOrderLineItems.find(item => item.Id === recordId);
-        
-        const isModified = !this.areValuesEqual(newValue, this.getOriginalValue(recordId, fieldName));
-        const cellClass = isModified ? 'editable-cell modified-cell' : 'editable-cell';
-        
-        if (contractItem) {
-            if (fieldName === 'This_Billing_Percent__c') {
-                contractItem.thisBillingCompletePercent = newValue;
-                contractItem.rawThisBillingPercent = newValue;
-                contractItem.thisBillingPercentCellClass = cellClass;
-            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
-                contractItem.retainagePercent = newValue;
-                contractItem.rawRetainagePercent = newValue;
-                contractItem.retainagePercentCellClass = cellClass;
-            }
-            this.contractLineItems = [...this.contractLineItems];
-        } else if (changeOrderItem) {
-            if (fieldName === 'This_Billing_Percent__c') {
-                changeOrderItem.thisBillingCompletePercent = newValue;
-                changeOrderItem.rawThisBillingPercent = newValue;
-                changeOrderItem.thisBillingPercentCellClass = cellClass;
-            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
-                changeOrderItem.retainagePercent = newValue;
-                changeOrderItem.rawRetainagePercent = newValue;
-                changeOrderItem.retainagePercentCellClass = cellClass;
             }
             this.changeOrderLineItems = [...this.changeOrderLineItems];
         }
@@ -882,6 +1185,8 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 for (let [fieldName, value] of Object.entries(modifications)) {
                     if (fieldName === 'This_Billing_Percent__c') {
                         update['wfrecon__This_Billing_Percent__c'] = value;
+                    } else if (fieldName === 'This_Billing_Value__c') {
+                        update['wfrecon__This_Billing_Value__c'] = value;
                     } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
                         update['wfrecon__Retainage_Percent_on_Bill_Line_Item__c'] = value;
                     }
@@ -953,6 +1258,8 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 for (let [fieldName, value] of Object.entries(modifications)) {
                     if (fieldName === 'This_Billing_Percent__c') {
                         update['wfrecon__This_Billing_Percent__c'] = value;
+                    } else if (fieldName === 'This_Billing_Value__c') {
+                        update['wfrecon__This_Billing_Value__c'] = value;
                     } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
                         update['wfrecon__Retainage_Percent_on_Bill_Line_Item__c'] = value;
                     }

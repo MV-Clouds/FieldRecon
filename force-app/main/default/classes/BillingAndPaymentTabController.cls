@@ -289,48 +289,63 @@ public with sharing class BillingAndPaymentTabController {
                 
                 // If matching previous bill item exists
                 if (prevItem != null) {
-                    System.debug('prevItem: ' + prevItem);
-                    System.debug('prevItem: ' + JSON.serialize(prevItem));
                     newItem.Previous_Bill_Line_Item__c = prevItem.Id;
-                    
-                    // Set This Billing Percent as max of Previous Total Complete % and Current Completed %
+
                     Decimal prevCompletePercent = prevItem.This_Billing_Percent__c != null ? prevItem.This_Billing_Percent__c : 0;
                     Decimal currentCompletePercent = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
-                    newItem.This_Billing_Percent__c = Math.max(prevCompletePercent, currentCompletePercent);
+                    Decimal appliedPercent = prevCompletePercent > currentCompletePercent ? prevCompletePercent : currentCompletePercent;
+                    newItem.This_Billing_Percent__c = appliedPercent;
 
-                    System.debug('prevItem.Remaining_Billing_Amount__c: ' + prevItem.Remaining_Billing_Amount__c);
-                    System.debug('se.Completed_Percentage__c: ' + se.Completed_Percentage__c);
+                    Decimal contractValue = se.Contract_Value__c != null ? se.Contract_Value__c : 0;
+                    Decimal previousTotalBilled = prevItem.Total_Billed_Value__c != null ? prevItem.Total_Billed_Value__c : 0;
+                    Decimal previousTotalRetainage = prevItem.Total_Retainage_Amount__c != null ? prevItem.Total_Retainage_Amount__c : 0;
 
-                    newItem.This_Retainage_Amount__c = (prevItem.Remaining_Billing_Amount__c * lineRetainagePercent) / 100;
-                    newItem.Total_Retainage_Amount__c = prevItem.Total_Retainage_Amount__c + newItem.This_Retainage_Amount__c;
-                    System.debug('newItem.Total_Retainage_Amount__c: ' + newItem.Total_Retainage_Amount__c);
+                    previousTotalBilled = previousTotalBilled.setScale(2, System.RoundingMode.HALF_UP);
+                    previousTotalRetainage = previousTotalRetainage.setScale(2, System.RoundingMode.HALF_UP);
 
-                    System.debug('se.Contract_Value__c: ' + se.Contract_Value__c);
-                    System.debug('newItem.This_Billing_Percent__c: ' + newItem.This_Billing_Percent__c);
-                    System.debug('newItem.This_Retainage_Amount__c: ' + newItem.This_Retainage_Amount__c);
-                    System.debug('prevItem.Total_Billed_Value__c: ' + prevItem.Total_Billed_Value__c);
+                    Decimal grossToDate = (contractValue * appliedPercent) / 100;
+                    Decimal previousGross = previousTotalBilled + previousTotalRetainage;
+                    Decimal grossContribution = grossToDate - previousGross;
+                    if (grossContribution < 0) {
+                        grossContribution = 0;
+                    }
 
-                    newItem.This_Billing_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.Total_Retainage_Amount__c - prevItem.Total_Billed_Value__c;
-                    
-                    System.debug('newItem.This_Billing_Value__c: ' + newItem.This_Billing_Value__c);
+                    Decimal factor = 1 + (lineRetainagePercent / 100);
+                    Decimal thisBillingAmount = factor != 0 ? grossContribution / factor : grossContribution;
+                    Decimal thisRetainageAmount = (thisBillingAmount * lineRetainagePercent) / 100;
 
-                    newItem.Total_Billed_Value__c = prevItem.Total_Billed_Value__c + newItem.This_Billing_Value__c;
-                    
-                    System.debug('newItem.Total_Billed_Value__c: ' + newItem.Total_Billed_Value__c);
-                    newItem.Previous_Billed_Value__c = prevItem.Total_Billed_Value__c;
-                    
-                    System.debug('newItem.Previous_Billed_Value__c: ' + newItem.Previous_Billed_Value__c);
+                    Decimal totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
+                    Decimal totalBilledAmount = previousTotalBilled + thisBillingAmount;
 
-                    System.debug('newItem.This_Retainage_Amount__c: ' + newItem.This_Retainage_Amount__c);
-                    System.debug('prevItem.Total_Retainage_Amount__c: ' + prevItem.Total_Retainage_Amount__c);
-                    
+                    thisBillingAmount = thisBillingAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    totalRetainageAmount = totalRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    totalBilledAmount = totalBilledAmount.setScale(2, System.RoundingMode.HALF_UP);
+
+                    newItem.This_Billing_Value__c = thisBillingAmount;
+                    newItem.This_Retainage_Amount__c = thisRetainageAmount;
+                    newItem.Total_Retainage_Amount__c = totalRetainageAmount;
+                    newItem.Total_Billed_Value__c = totalBilledAmount;
+                    newItem.Previous_Billed_Value__c = previousTotalBilled;
+
                 } else {
-                    // No previous bill item, use current completed percentage
-                    newItem.This_Billing_Percent__c = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
-                    newItem.This_Retainage_Amount__c = (se.Contract_Value__c * lineRetainagePercent) / 100;
-                    newItem.Total_Retainage_Amount__c = newItem.This_Retainage_Amount__c;
-                    newItem.This_Billing_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.This_Retainage_Amount__c;
-                    newItem.Total_Billed_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.Total_Retainage_Amount__c;
+                    Decimal appliedPercent = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
+                    newItem.This_Billing_Percent__c = appliedPercent;
+
+                    Decimal contractValue = se.Contract_Value__c != null ? se.Contract_Value__c : 0;
+                    Decimal grossToDate = (contractValue * appliedPercent) / 100;
+                    Decimal factor = 1 + (lineRetainagePercent / 100);
+                    Decimal thisBillingAmount = factor != 0 ? grossToDate / factor : grossToDate;
+                    Decimal thisRetainageAmount = (thisBillingAmount * lineRetainagePercent) / 100;
+
+                    thisBillingAmount = thisBillingAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+
+                    newItem.This_Billing_Value__c = thisBillingAmount;
+                    newItem.This_Retainage_Amount__c = thisRetainageAmount;
+                    newItem.Total_Retainage_Amount__c = thisRetainageAmount;
+                    newItem.Total_Billed_Value__c = thisBillingAmount;
+                    newItem.Previous_Billed_Value__c = 0;
                 }              
                 
                 billLinesToInsert.add(newItem);
