@@ -100,6 +100,10 @@
     z-index: 10;
 }
 
+.header-cell:first-child {
+    border-left: none;
+}
+
 .table-body {
     position: relative;
 }
@@ -386,13 +390,16 @@
 .checkbox-column {
     width: 50px;
     min-width: 50px;
+    max-width: 50px;
     text-align: center;
+    padding: 10px 8px !important;
 }
 
 .actions-column {
-    width: 60px;
-    min-width: 60px;
+    min-width: 80px;
+    max-width: 80px;
     text-align: center;
+    padding: 10px 8px !important;
 }
 
 .action-icons {
@@ -693,6 +700,21 @@
     padding: 8px 12px;
     border-bottom: 1px solid #e5e5e5;
     background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+/* Nested table checkbox and actions column consistency */
+.nested-table .checkbox-column {
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+    padding: 8px !important;
+}
+
+.nested-table .actions-column {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+    padding: 8px !important;
 }
 
 .nested-table-row {
