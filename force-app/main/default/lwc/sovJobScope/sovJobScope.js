@@ -1366,6 +1366,46 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
+     /**
+     * Method Name: performTargetedRefresh
+     * @description: Targeted refresh that maintains expanded states and only updates necessary data
+     */
+    async performTargetedRefresh() {
+        try {
+            this.isLoading = true;
+            
+            // Store current expanded states before refresh
+            const expandedScopeEntryIds = new Set();
+            [...(this.filteredContractEntries || []), ...(this.filteredChangeOrderEntries || [])].forEach(entry => {
+                if (entry.showProcessDetails) {
+                    expandedScopeEntryIds.add(entry.Id);
+                }
+            });
+
+            // Clear only the process-related data that needs to be refreshed
+            this.scopeEntryProcessMap.clear();
+            this.scopeEntryLocationCounts.clear();
+            
+            // Fetch fresh scope entries data
+            let res = await this.fetchScopeEntries();
+
+            if (res) {
+                // Restore expanded states immediately after data load
+                this.restoreExpandedStates(expandedScopeEntryIds);
+                
+                // Force re-render of displayed entries
+                this.updateDisplayedEntries();
+                
+                console.log(`Targeted refresh completed. Restored ${expandedScopeEntryIds.size} expanded states.`);
+            }
+            
+        } catch (error) {
+            console.error('Error in performTargetedRefresh:', error);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
     /**
      * Method Name: restoreExpandedStates
      * @description: Restore expanded states for scope entries that were previously expanded
@@ -1519,14 +1559,32 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Proceed with deleting processes
      */
     proceedWithProcessDeletion(data) {
-        const { processIds } = data;
+        const { processIds, scopeEntryId } = data;
         this.isProcessSubmitting = true;
 
         deleteSelectedScopeEntryProcesses({ processIds: processIds })
             .then(result => {
                 if (result && result.startsWith('Success')) {
+                    // Clear selections for deleted processes
+                    const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId) || new Set();
+                    processIds.forEach(processId => {
+                        selectedProcesses.delete(processId);
+                    });
+                    
+                    // Update the map with the cleaned set
+                    if (selectedProcesses.size > 0) {
+                        this.selectedProcessesByScopeEntry.set(scopeEntryId, selectedProcesses);
+                    } else {
+                        this.selectedProcessesByScopeEntry.delete(scopeEntryId);
+                    }
+                    
+                    // Create a new Map to trigger reactivity
+                    this.selectedProcessesByScopeEntry = new Map(this.selectedProcessesByScopeEntry);
+                    
                     this.showToast('Success', 'Processes deleted successfully', 'success');
-                    this.performCompleteRefresh();
+                    
+                    // Refresh data and update UI
+                    this.performTargetedRefresh();
                 }
             })
             .catch(error => {
@@ -1918,8 +1976,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         deleteScopeEntries({ scopeEntryIds: entryIds })
             .then(result => {
                 if (result === 'Success') {
+                    // Clear selections for deleted entries
+                    this.selectedRows = this.selectedRows.filter(id => !entryIds.includes(id));
+                    
+                    // Clear process selections for deleted scope entries
+                    entryIds.forEach(entryId => {
+                        this.selectedProcessesByScopeEntry.delete(entryId);
+                    });
+                    
                     this.showToast('Success', `${entriesToDelete.length} entries deleted successfully`, 'success');
-                    this.performCompleteRefresh();
+                    
+                    // Refresh data and update UI
+                    this.performTargetedRefresh();
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -2759,7 +2827,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.handleCloseProcessModal();
 
                     // Use targeted refresh instead of complete refresh to maintain expanded state
-                    this.performCompleteRefresh();
+                    this.performTargetedRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
@@ -3125,7 +3193,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result === 'Success') {
                     this.showToast('Success', 'Processes have been added from library', 'success');
                     this.handleCloseProcessLibraryModal();
-                    this.performCompleteRefresh();
+                    this.performTargetedRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
@@ -3355,7 +3423,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     this.handleCloseLocationModal();
                     // Use targeted refresh instead of complete refresh to maintain expanded state
-                    this.performCompleteRefresh();
+                    this.performTargetedRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
@@ -4478,7 +4546,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
                     this.editingProcessCells.clear();
-                    this.performCompleteRefresh();
+                    this.performTargetedRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
