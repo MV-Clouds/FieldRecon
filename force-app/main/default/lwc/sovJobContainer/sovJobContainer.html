@@ -1,7 +1,17 @@
 <template>
-    <!-- Show content only if user has access -->
-    <template if:true={hasAnyAccess}>
+    <!-- Loading Spinner -->
+    <template if:true={isLoading}>
         <div class="sov-container">
+            <div class="spinner-container">
+                <lightning-spinner alternative-text="Loading permissions..." size="medium"></lightning-spinner>
+            </div>
+        </div>
+    </template>
+
+    <!-- Show content only if user has access -->
+    <template if:false={isLoading}>
+        <template if:true={hasAnyAccess}>
+            <div class="sov-container">
             <!-- Tab Navigation -->
             <div class="tab-navigation">
                 <button 
@@ -54,11 +64,11 @@
                 </template>
             </div>
         </div>
-    </template>
+        </template>
 
-    <!-- Show access denied message if user has no access -->
-    <template if:false={hasAnyAccess}>
-        <div class="sov-container">
+        <!-- Show access denied message if user has no access -->
+        <template if:false={hasAnyAccess}>
+            <div class="sov-container">
             <div class="no-prop">
                 <div class="empty-state">
                     <div class="empty-state__content">
@@ -73,5 +83,6 @@
                 </div>
             </div>
         </div>
+        </template>
     </template>
 </template>

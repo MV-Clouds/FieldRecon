@@ -7,6 +7,7 @@ export default class SovJobContainer extends LightningElement {
         isReadOnly: false,
         isFullAccess: false
     };
+    @track isLoading = true;
 
     connectedCallback() {
         this.checkUserPermissions();
@@ -56,12 +57,17 @@ export default class SovJobContainer extends LightningElement {
             .catch(error => {
                 console.error('Error in checkUserPermissions:', error);
                 this.setDefaultPermissions();
+            })
+            .finally(() => {
+                // Hide spinner after permission check is complete
+                this.isLoading = false;
             });
 
         }
         catch (error) {
             console.error('Error in outer block:', error);
             this.setDefaultPermissions();
+            this.isLoading = false;
         }
     }
 
