@@ -307,6 +307,22 @@
     white-space: nowrap;
 }
 
+/* Disabled slider styles */
+.completion-slider:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.completion-slider:disabled::-webkit-slider-thumb {
+    cursor: not-allowed;
+    background: #ccc;
+}
+
+.completion-slider:disabled::-moz-range-thumb {
+    cursor: not-allowed;
+    background: #ccc;
+}
+
 /* Fallback for browsers that don't support :has() */
 .modified-cell {
     background-color: #FBF8EF !important;

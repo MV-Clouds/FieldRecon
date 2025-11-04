@@ -841,6 +841,22 @@
     z-index: 1;
 }
 
+/* Disabled slider styles */
+.completion-slider:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.completion-slider:disabled::-webkit-slider-thumb {
+    cursor: not-allowed;
+    background: #ccc;
+}
+
+.completion-slider:disabled::-moz-range-thumb {
+    cursor: not-allowed;
+    background: #ccc;
+}
+
 
 .right-control{
     display: flex;

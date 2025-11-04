@@ -1,4 +1,4 @@
-import { LightningElement, track, wire } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import getScopeEntries from '@salesforce/apex/SovJobScopeController.getScopeEntries';
@@ -19,6 +19,12 @@ import { getPicklistValues } from "lightning/uiObjectInfoApi";
 import PROCESSTYPE_FIELD from '@salesforce/schema/Process__c.Process_Type__c'
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
+    // Permission data received from parent component
+    @api permissionData = {
+        isReadOnly: false,
+        isFullAccess: false
+    };
+
     @track recordId;
     @track isLoading = true;
     @track scopeEntries = [];
@@ -292,13 +298,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return this.selectedRows.length > 0;
     }
 
-    /**
-     * Method Name: get isDeleteDisabled
-     * @description: Check if delete button should be disabled
-     */
-    get isDeleteDisabled() {
-        return this.selectedRows.length === 0 || this.isLoading || this.isSavingScopeEntries;
-    }
 
     /**
      * Method Name: get nameCharacterCount
@@ -521,6 +520,46 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                this.filteredChangeOrderEntries.every(entry => entry.wfrecon__Scope_Entry_Status__c === 'Approved') ||
                this.isLoading ||
                this.isSavingScopeEntries;
+    }
+
+    /**
+     * Method Name: get canEdit
+     * @description: Check if user has edit permissions (full access only)
+     */
+    get canEdit() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get canDelete
+     * @description: Check if user has delete permissions (full access only)
+     */
+    get canDelete() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get canCreate
+     * @description: Check if user has create permissions (full access only)
+     */
+    get canCreate() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get isReadOnly
+     * @description: Check if user has read-only access
+     */
+    get isReadOnly() {
+        return this.permissionData && this.permissionData.isReadOnly;
+    }
+
+    /**
+     * Method Name: get isDeleteDisabledByPermission
+     * @description: Check if delete button should be disabled based on permissions
+     */
+    get isDeleteDisabledByPermission() {
+        return this.selectedRows.length === 0 || this.isLoading || this.isSavingScopeEntries || !this.canDelete;
     }
 
     /**
@@ -812,6 +851,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         getScopeEntryConfiguration()
             .then(result => {
                 console.log('Configuration fetch result:', result);
+
+                console.log('permissionData ==> ' , this.permissionData);
                 
                 if (result && result.fieldsData) {
                     try {
@@ -2146,7 +2187,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
                 
                 // Determine CSS classes
-                let cellClass = col.editable ? 'center-trancate-text editable-cell' : 'center-trancate-text';
+                // Only add editable-cell class if user has edit permissions
+                let cellClass = (col.editable && this.canEdit) ? 'center-trancate-text editable-cell' : 'center-trancate-text';
                 let contentClass = 'editable-content';
                 
                 if (isModified) {
@@ -2167,8 +2209,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     rawValue: rawValue,
                     cellClass: cellClass,
                     contentClass: contentClass,
-                    // UPDATED: Disable all editing for contract entries when all are approved
-                    isEditable: (col.editable || false) && !isEditingDisabled,
+                    isEditable: (col.editable || false) && !isEditingDisabled && this.canEdit,
                     isBeingEdited: isBeingEdited,
                     hasValue: value != null && value !== '',
                     
@@ -2253,9 +2294,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Helper method to build field display data structure
      */
     buildFieldDisplayData(processData, col, key, value, displayValue, isModified, isEditable, isBeingEdited) {
-        // Build cell classes
+        // Build cell classes - only add editable-cell class if user has edit permissions
         let cellClass = 'center-trancate-text';
-        if (isEditable) cellClass += ' editable-cell';
+        if (isEditable && this.canEdit) cellClass += ' editable-cell';
         if (isModified && !isBeingEdited) cellClass += ' modified-process-cell';
         if (isBeingEdited) cellClass += ' editing-cell';
         
@@ -2394,6 +2435,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (isParentScopeEntryApproved) {
                     isEditable = isEditable && key === 'wfrecon__Sequence__c';
                 }
+                
+                // Check user permissions - only allow editing if user has full access
+                isEditable = isEditable && this.canEdit;
                 
                 return this.buildFieldDisplayData(processData, col, key, value, displayValue, isModified, isEditable, isBeingEdited);
             });
@@ -3615,6 +3659,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle cell click for inline editing of scope entries
      */
     async handleScopeCellClick(event) {
+        // Check if user has edit permissions
+        if (!this.canEdit) return;
+        
         const recordId = event.currentTarget.dataset.recordId;
         const fieldName = event.currentTarget.dataset.fieldName;
         const isEditable = event.currentTarget.dataset.editable === 'true';
@@ -4092,6 +4139,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle cell click for inline editing of process entries
      */
     handleProcessCellClick(event) {
+        // Check if user has edit permissions
+        if (!this.canEdit) return;
+        
         const recordId = event.currentTarget.dataset.recordId;
          const fieldName = event.currentTarget.dataset.fieldName;
         const isEditable = event.currentTarget.dataset.editable === 'true';

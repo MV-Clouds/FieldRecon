@@ -16,14 +16,18 @@ public with sharing class PermissionsUtility {
     @AuraEnabled
     public static Map<String, Object> checkPermissionSetsAssigned(List<String> psNames) {
         Map<String, Boolean> perSetAssignmentMap = new Map<String, Boolean>();
-        Map<String, Object> result = new Map<String, Object>{'all' => false, 'any' => false, 'assignedMap' => perSetAssignmentMap};
+        Map<String, Object> result = new Map<String, Object>{'all' => false, 'any' => false, 'isAdmin' => false, 'isBase' => false, 'assignedMap' => perSetAssignmentMap};
 
         try {
             if (psNames == null || psNames.isEmpty()) {
                 return result;
             }
 
+            psNames.add('FR_Base');
+            psNames.add('FR_Admin');
+
             Set<String> assignedSet = new Set<String>();
+
 
             // Direct assignments (Permission Set → User)
             // Permission Set that are assigned through the groups are also included in PermissionSetAssignment
@@ -34,7 +38,15 @@ public with sharing class PermissionsUtility {
                       AND PermissionSet.Name IN :psNames
                 WITH USER_MODE
             ]) {
-                assignedSet.add(psa.PermissionSet.Name);
+
+                System.debug('Permission Set Assigned: ' + psa.PermissionSet.Name);
+                if(psa.PermissionSet.Name == 'FR_Base'){
+                    result.put('isBase', true);
+                } else if(psa.PermissionSet.Name == 'FR_Admin'){
+                    result.put('isAdmin', true);
+                } else{
+                    assignedSet.add(psa.PermissionSet.Name);
+                }
             }
 
             // Populate per permission set result
