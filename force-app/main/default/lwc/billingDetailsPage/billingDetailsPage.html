@@ -268,11 +268,11 @@
                     <div class="table-header-section">
                         <h2 class="table-title">Base Contract Line Items</h2>
                         <template if:true={isRegularBilling}>
-                            <div class={contractActionsClass}>
+                            <div class={lineItemActionsClass}>
                                 <button 
                                     class="action-button discard-btn"
-                                    onclick={handleDiscardContractChanges}
-                                    disabled={isContractButtonsDisabled}
+                                    onclick={handleDiscardLineItemChanges}
+                                    disabled={isLineItemButtonsDisabled}
                                     title="Discard unsaved changes">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -282,22 +282,22 @@
                                 </button>
                                 <button 
                                     class="action-button save-button"
-                                    onclick={handleSaveContractChanges}
-                                    disabled={isContractSaveDisabled}>
-                                    <template if:true={isSavingContract}>
+                                    onclick={handleSaveLineItemChanges}
+                                    disabled={isLineItemSaveDisabled}>
+                                    <template if:true={isSavingLineItems}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
                                             <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </template>
-                                    <template if:false={isSavingContract}>
+                                    <template if:false={isSavingLineItems}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                             <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                             <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </template>
-                                    {contractSaveButtonLabel}
+                                    {lineItemSaveButtonLabel}
                                 </button>
                             </div>
                         </template>
@@ -473,40 +473,6 @@
                 <div class="table-section">
                     <div class="table-header-section">
                         <h2 class="table-title">Change Orders</h2>
-                        <template if:true={isRegularBilling}>
-                            <div class={changeOrderActionsClass}>
-                                <button 
-                                    class="action-button discard-btn"
-                                    onclick={handleDiscardChangeOrderChanges}
-                                    disabled={isChangeOrderButtonsDisabled}
-                                    title="Discard unsaved changes">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                    Discard
-                                </button>
-                                <button 
-                                    class="action-button save-button"
-                                    onclick={handleSaveChangeOrderChanges}
-                                    disabled={isChangeOrderSaveDisabled}>
-                                    <template if:true={isSavingChangeOrder}>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </template>
-                                    <template if:false={isSavingChangeOrder}>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </template>
-                                    {changeOrderSaveButtonLabel}
-                                </button>
-                            </div>
-                        </template>
                     </div>
                     
                     <div class={changeOrderTableContainerClass}>

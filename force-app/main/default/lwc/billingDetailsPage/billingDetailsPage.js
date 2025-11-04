@@ -21,12 +21,9 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     @track modifiedContractItems = new Map();
     @track modifiedChangeOrderItems = new Map();
     @track editingCells = new Set();
-    @track modifiedChangeOrderItems = new Map();
-    @track editingCells = new Set();
     @track hasContractModifications = false;
     @track hasChangeOrderModifications = false;
-    @track isSavingContract = false;
-    @track isSavingChangeOrder = false;
+    @track isSavingLineItems = false;
     @track contractTotals = {};
     @track changeOrderTotals = {};
     @track billingDetails = {};
@@ -75,28 +72,20 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return !this.hasBillingChanges || this.isSavingBillingInfo;
     }
 
-    get isContractButtonsDisabled() {
-        return !this.hasContractModifications || this.isSavingContract;
+    get hasAnyLineItemModifications() {
+        return this.hasContractModifications || this.hasChangeOrderModifications;
     }
 
-    get isContractSaveDisabled() {
-        return !this.hasContractModifications || this.isSavingContract;
+    get isLineItemButtonsDisabled() {
+        return !this.hasAnyLineItemModifications || this.isSavingLineItems;
     }
 
-    get isChangeOrderButtonsDisabled() {
-        return !this.hasChangeOrderModifications || this.isSavingChangeOrder;
+    get isLineItemSaveDisabled() {
+        return !this.hasAnyLineItemModifications || this.isSavingLineItems;
     }
 
-    get isChangeOrderSaveDisabled() {
-        return !this.hasChangeOrderModifications || this.isSavingChangeOrder;
-    }
-
-    get contractSaveButtonLabel() {
-        return this.isSavingContract ? 'Saving...' : 'Save';
-    }
-
-    get changeOrderSaveButtonLabel() {
-        return this.isSavingChangeOrder ? 'Saving...' : 'Save';
+    get lineItemSaveButtonLabel() {
+        return this.isSavingLineItems ? 'Saving...' : 'Save';
     }
 
     get isBillingApproved() {
@@ -109,11 +98,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return status === 'Approved' || this.isRegularBilling === false;
     }
 
-    get contractActionsClass() {
-        return this.isBillingApproved ? 'table-actions hidden' : 'table-actions';
-    }
-
-    get changeOrderActionsClass() {
+    get lineItemActionsClass() {
         return this.isBillingApproved ? 'table-actions hidden' : 'table-actions';
     }
 
@@ -1164,37 +1149,36 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     }
 
     /** 
-     * Method Name: handleSaveContractChanges
-     * @description: Saves contract line item changes to the server and refreshes data.
+     * Method Name: handleSaveLineItemChanges
+     * @description: Saves line item changes to the server for both tables and refreshes data.
      */
-    handleSaveContractChanges() {
+    handleSaveLineItemChanges() {
         try {
             if (this.isBillingApproved) {
-                this.showToast('Info', 'Billing is approved; contract line items are read-only.', 'info');
+                this.showToast('Info', 'Billing is approved; line items are read-only.', 'info');
                 return;
             }
-            if (this.modifiedContractItems.size === 0) return;
-            
-            this.isSavingContract = true;
+            if (!this.hasAnyLineItemModifications) {
+                return;
+            }
+
+            this.isSavingLineItems = true;
             this.isLoading = true;
             
             // Prepare line item updates
             const lineItemUpdates = [];
             for (let [recordId, modifications] of this.modifiedContractItems) {
-                const update = { Id: recordId };
-                for (let [fieldName, value] of Object.entries(modifications)) {
-                    if (fieldName === 'This_Billing_Percent__c') {
-                        update['wfrecon__This_Billing_Percent__c'] = value;
-                    } else if (fieldName === 'This_Billing_Value__c') {
-                        update['wfrecon__This_Billing_Value__c'] = value;
-                    } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
-                        update['wfrecon__Retainage_Percent_on_Bill_Line_Item__c'] = value;
-                    }
-                }
-                lineItemUpdates.push(update);
+                lineItemUpdates.push(this.buildLineItemUpdate(recordId, modifications));
+            }
+            for (let [recordId, modifications] of this.modifiedChangeOrderItems) {
+                lineItemUpdates.push(this.buildLineItemUpdate(recordId, modifications));
             }
 
-            console.log('lineItemUpdates:', lineItemUpdates);
+            if (lineItemUpdates.length === 0) {
+                this.isSavingLineItems = false;
+                this.isLoading = false;
+                return;
+            }
 
             saveBillingLineItems({
                 billingId: this.recordId,
@@ -1203,110 +1187,58 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 .then(() => {
                     this.modifiedContractItems.clear();
                     this.hasContractModifications = false;
+                    this.modifiedChangeOrderItems.clear();
+                    this.hasChangeOrderModifications = false;
+                    this.editingCells.clear();
                     this.clearModifiedStyling('contract');
-                    this.showToast('Success', 'Contract changes saved successfully', 'success');
-                    this.loadBillingData(); // Refresh data
+                    this.clearModifiedStyling('changeorder');
+                    this.showToast('Success', 'Line item changes saved successfully', 'success');
+                    this.loadBillingData();
                 })
                 .catch(error => {
-                    console.error('Error saving contract changes:', error);
-                    this.showToast('Error', 'Failed to save contract changes', 'error');
+                    console.error('Error saving line item changes:', error);
+                    this.showToast('Error', 'Failed to save line item changes', 'error');
                 })
                 .finally(() => {
-                    this.isSavingContract = false;
+                    this.isSavingLineItems = false;
                     this.isLoading = false;
                 });
         } catch (error) {
-            console.error('Error in handleSaveContractChanges :: ', error);
-            this.showToast('Error', 'Failed to save contract changes', 'error');
-            this.isSavingContract = false;
+            console.error('Error in handleSaveLineItemChanges:', error);
+            this.showToast('Error', 'Failed to save line item changes', 'error');
+            this.isSavingLineItems = false;
             this.isLoading = false;
         }
     }
 
     /** 
-     * Method Name: handleDiscardContractChanges
-     * @description: Discards contract line item changes and reverts to original values.
+     * Method Name: handleDiscardLineItemChanges
+     * @description: Discards line item changes for both tables and reverts to original values.
      */
-    handleDiscardContractChanges() {
+    handleDiscardLineItemChanges() {
+        this.modifiedChangeOrderItems.clear();
+        this.hasChangeOrderModifications = false;
         this.modifiedContractItems.clear();
         this.hasContractModifications = false;
         this.editingCells.clear();
         this.clearModifiedStyling('contract');
-        this.loadBillingData(); // Refresh to original values
-        this.showToast('Success', 'Contract changes discarded', 'success');
-    }
-
-    /** 
-     * Method Name: handleSaveChangeOrderChanges
-     * @description: Saves change order line item changes to the server and refreshes data.
-     */
-    handleSaveChangeOrderChanges() {
-        try {
-            if (this.isBillingApproved) {
-                this.showToast('Info', 'Billing is approved; change order line items are read-only.', 'info');
-                return;
-            }
-            if (this.modifiedChangeOrderItems.size === 0) return;
-            
-            this.isSavingChangeOrder = true;
-            this.isLoading = true;
-            
-            // Prepare line item updates
-            const lineItemUpdates = [];
-            for (let [recordId, modifications] of this.modifiedChangeOrderItems) {
-                const update = { Id: recordId };
-                for (let [fieldName, value] of Object.entries(modifications)) {
-                    if (fieldName === 'This_Billing_Percent__c') {
-                        update['wfrecon__This_Billing_Percent__c'] = value;
-                    } else if (fieldName === 'This_Billing_Value__c') {
-                        update['wfrecon__This_Billing_Value__c'] = value;
-                    } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
-                        update['wfrecon__Retainage_Percent_on_Bill_Line_Item__c'] = value;
-                    }
-                }
-                lineItemUpdates.push(update);
-            }
-
-            console.log('lineItemUpdates:', lineItemUpdates);
-            
-            saveBillingLineItems({
-                billingId: this.recordId,
-                lineItemUpdates: lineItemUpdates
-            })
-                .then(() => {
-                    this.modifiedChangeOrderItems.clear();
-                    this.hasChangeOrderModifications = false;
-                    this.clearModifiedStyling('changeorder');
-                    this.showToast('Success', 'Change Order changes saved successfully', 'success');
-                    this.loadBillingData(); // Refresh data
-                })
-                .catch(error => {
-                    console.error('Error saving change order changes:', error);
-                    this.showToast('Error', 'Failed to save change order changes', 'error');
-                })
-                .finally(() => {
-                    this.isSavingChangeOrder = false;
-                    this.isLoading = false;
-                });
-        } catch (error) {
-            console.error('Error in handleSaveChangeOrderChanges:', error);
-            this.showToast('Error', 'Failed to save change order changes', 'error');
-            this.isSavingChangeOrder = false;
-            this.isLoading = false;
-        }
-    }
-
-    /** 
-     * Method Name: handleDiscardChangeOrderChanges
-     * @description: Discards change order line item changes and reverts to original values.
-     */
-    handleDiscardChangeOrderChanges() {
-        this.modifiedChangeOrderItems.clear();
-        this.hasChangeOrderModifications = false;
-        this.editingCells.clear();
         this.clearModifiedStyling('changeorder');
-        this.loadBillingData(); // Refresh to original values
-        this.showToast('Success', 'Change Order changes discarded', 'success');
+        this.loadBillingData();
+        this.showToast('Success', 'Line item changes discarded', 'success');
+    }
+
+    buildLineItemUpdate(recordId, modifications) {
+        const update = { Id: recordId };
+        for (let [fieldName, value] of Object.entries(modifications)) {
+            if (fieldName === 'This_Billing_Percent__c') {
+                update['wfrecon__This_Billing_Percent__c'] = value;
+            } else if (fieldName === 'This_Billing_Value__c') {
+                update['wfrecon__This_Billing_Value__c'] = value;
+            } else if (fieldName === 'Retainage_Percent_on_Bill_Line_Item__c') {
+                update['wfrecon__Retainage_Percent_on_Bill_Line_Item__c'] = value;
+            }
+        }
+        return update;
     }
 
     /** 
