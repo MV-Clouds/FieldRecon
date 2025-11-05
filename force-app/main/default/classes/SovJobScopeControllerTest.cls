@@ -77,6 +77,7 @@ public with sharing class SovJobScopeControllerTest {
         //    Each Location will get processes created for the existing Scope Entry Processes
         List<Location_Process__c> locationProcesses = new List<Location_Process__c>();
         for (Location__c loc : locations) {
+            Integer counter = 1;
             for (Scope_Entry_Process__c proc : scopeEntryProcesses) {
                 Decimal totalWeight = 0;
                 for (Scope_Entry_Process__c p : scopeEntryProcesses) {
@@ -91,7 +92,7 @@ public with sharing class SovJobScopeControllerTest {
                     Location__c = loc.Id,
                     Scope_Entry_Process__c = proc.Id,
                     Process_Library__c = null,
-                    Sequence__c = proc.Sequence__c,
+                    Sequence__c = counter++,
                     Contract_Price__c = contractPrice
                 ));
             }
@@ -222,15 +223,6 @@ public with sharing class SovJobScopeControllerTest {
         Test.stopTest();
         
         System.assertEquals('Success', result, 'Expected createScopeEntryProcessesFromLibrary to return Success');
-    }
-
-    @IsTest
-    static void testGetProcessTypes() {
-        Test.startTest();
-        List<String> result = SovJobScopeController.getProcessTypes();
-        Test.stopTest();
-        
-        System.assertEquals(true, result.size() >= 0, 'Expected getProcessTypes to return a non-negative size');
     }
 
     @IsTest

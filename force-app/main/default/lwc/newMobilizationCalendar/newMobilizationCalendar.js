@@ -9,9 +9,12 @@ import saveJobSchedule from '@salesforce/apex/NewMobilizationCalendarController.
 import getMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.getMobilizationGroup';
 import deleteMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.deleteMobilizationGroup';
 
-
 // Resource Assignment Imports
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
+import assignResourceToJob from '@salesforce/apex/MobSchedulerController.assignResourceToJob';
+
+// Permission Checker
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class NewMobilizationCalendar extends LightningElement {
     fullCalendarLoaded = false;
@@ -54,6 +57,7 @@ export default class NewMobilizationCalendar extends LightningElement {
     showResourceAssignPopup = false;
     resourceTypeForAssign = 'Crew';
     selectedResourceIdsForAssign = [];
+    selectedCrewAssignments = [];
 
     resourceSearchKey = null;
 
@@ -63,6 +67,18 @@ export default class NewMobilizationCalendar extends LightningElement {
 
     jobAssignmentInfo = {};
 
+    // Confirmation Popup
+    showConfirmationPopup = false;
+    confirmationTitle = 'Confirm!';
+    confirmationMessage = 'Are you sure, you want to proceed';
+    confirmationBtnLabel = 'Proceed';
+    confirmationBtnLabel2 = null;
+
+    isOverlapJob = false;
+
+    // Permissions Flags
+    hasFullAccess = false;
+
     get isEdit() {
         return this.jobName.length ? true : false;
     }
@@ -71,31 +87,96 @@ export default class NewMobilizationCalendar extends LightningElement {
         return '/' + this.groupId
     }
 
+    get isCrewAssignOpen(){
+        return this.resourceTypeForAssign == 'Crew';
+    }
+
     // Resource Assignment Popup
     get resourceOptionsToShow() {
         let resources = [];
+        const search = this.resourceSearchKey?.toLowerCase() || '';
+        // const addedResourcesForMob = this.addedResources?.map(res => res.id) || [];
+
         if (this.resourceTypeForAssign === 'Crew') {
+            // Use groupedCrew created earlier (e.g. via groupCrewByTeam)
+            const groupedCrewList = this.groupCrewByTeam(this.allCrewMembers || []);
+            
+            // Apply search filter on group or member name
+            const filteredGroups = groupedCrewList
+            .map(group => {
+                const filteredMembers = group.members.filter(m =>
+                    !search || m.name?.toLowerCase().includes(search)
+                );
+
+                if (filteredMembers?.length > 0 || group.crewName?.toLowerCase().includes(search)) {
+                    
+                    const members = filteredMembers.map(m => ({
+                        ...m,
+                        isSelected: (this.selectedCrewAssignments || []).some(sel => sel.id === m.id && (!sel.crewId || sel.crewId === (group.id))),
+                        // isAddedForMob: addedResourcesForMob.includes(m.id)
+                    }));
+
+                    // Determine if all members are selected
+                    const allSelected = members.every(mem => mem.isSelected);                    
+                    return {
+                        ...group,
+                        members,
+                        isSelected: allSelected
+                    };
+                }
+                return null;
+            })
+            .filter(Boolean)
+            .sort(a => a.id === 'NA' ? 1 : -1);
             resources = this.allCrewMembers || [];
-        } else if (this.resourceTypeForAssign === 'Asset') {
+
+            return filteredGroups;
+        } 
+        else if (this.resourceTypeForAssign === 'Asset') {
             resources = this.allAssets || [];
-        } else if (this.resourceTypeForAssign === 'SubContractor') {
+        } 
+        else if (this.resourceTypeForAssign === 'SubContractor') {
             resources = this.allSubContractors || [];
         }
 
-        // let addedResourcesForMob = this.addedResources?.map(res => res.id);
-        const search = this.resourceSearchKey?.toLowerCase() || '';
+        // Non-crew case (existing logic)
         return resources
-            .filter(rs => !search || rs.name?.toLowerCase().includes(search))
-            // .map(res => ({
-            //     ...res,
-            //     isSelected: this.selectedResourceIdsForAssign?.includes(res.id),
-            //     isAddedForMob: addedResourcesForMob.includes(res.id)
-            // }));
+        .filter(rs => !search || rs.name?.toLowerCase().includes(search))
+        .map(res => ({
+            ...res,
+            isSelected: this.selectedResourceIdsForAssign?.includes(res.id),
+            // isAddedForMob: addedResourcesForMob.includes(res.id)
+        }));
+    }
+
+    groupCrewByTeam(crewList) {        
+        const groupedMap = {};
+
+        (crewList || []).forEach(member => {
+            const key = member?.crewId || 'NA';
+            const name = member?.crewName || 'Individual Employees';
+
+            if (!groupedMap[key]) {
+                groupedMap[key] = {
+                    id: key,
+                    name: name,
+                    isSelected: false,
+                    isAvailable: true,
+                    bgStyle: `background-color: color(from ${member.bgColor} srgb r g b / 0.3); border: 1px solid ${member.bgColor};`,
+                    members: []
+                };
+            }
+
+            groupedMap[key].members.push(member);
+        });
+
+        // Convert map to array for easy template iteration
+        return Object.values(groupedMap);
     }
 
     connectedCallback() {
         this.isSpinner = true;
-        this.loadAllResources(new Date().toISOString());
+        this.fetchPermissions();
         loadScript(this, FULL_CALENDAR + '/fullcalendar3/jquery.min.js')
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/moment.js'))
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.js'))
@@ -108,8 +189,6 @@ export default class NewMobilizationCalendar extends LightningElement {
             })
             .then(result => {
                 if (result && Array.isArray(result)) {
-                    console.log(result);
-                    
                     this.events = result.map(ev => ({
                         ...ev,
                         start: new Date(ev.start).toISOString(),
@@ -122,9 +201,26 @@ export default class NewMobilizationCalendar extends LightningElement {
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to load calendar or events', 'error');
-                console.error(error);
+                console.error('Error in NewMobilizationCalendar.ConnectedCallback > loadScript', error?.body?.message || error?.message);
                 this.isSpinner = false;
             });
+    }
+
+    fetchPermissions(){
+        try{
+            checkPermissionSetsAssigned({ psNames : ['FR_Mobilization_Calendar']})
+            .then((result) => {
+                console.log('result :: ', result);
+                
+                this.hasFullAccess = result.isAdmin || result.all;
+                this.hasFullAccess && this.loadAllResources(new Date().toISOString());
+            })
+            .catch((e) => {
+                console.error('Error in NewMobilizationCalendar.fetchPermissions > checkPermissionSetsAssigned', e?.body?.message || e?.message);
+            })
+        } catch(e){
+            console.error('Error in function NewMobilizationCalendar.fetchPermissions:::', e?.message);
+        }
     }
     
 
@@ -140,7 +236,7 @@ export default class NewMobilizationCalendar extends LightningElement {
                 center: 'prev title next',
                 right: 'basicDay,month,basicWeek,listMonth'
             },
-            defaultView: 'month',
+            defaultView: 'basicWeek',
             defaultDate: new Date(),
             navLinks: true,
             editable: true,
@@ -154,7 +250,6 @@ export default class NewMobilizationCalendar extends LightningElement {
             timezone: 'UTC',
             select: this.handleDateRangeSelect.bind(this),
             eventClick: function (calEvent) {        
-                console.log(calEvent.id);
                 this.handleEventClick(calEvent.id);
             }.bind(this),
             eventDrop: this.getConfirmation.bind(this),
@@ -237,12 +332,6 @@ export default class NewMobilizationCalendar extends LightningElement {
         newEnd.setHours(endHour, eM);
 
         newEnd.setDate(newEnd.getDate() - 1);
-
-
-        console.log(`Moved: ${event.title}`);
-        console.log(`New Start: ${newStart.toISOString()}`);
-        console.log(`New End: ${newEnd.toISOString()}`);
-
         const mgp = {
             id: event.id || null,
             startDate: newStart.toISOString(),
@@ -253,7 +342,6 @@ export default class NewMobilizationCalendar extends LightningElement {
             includeSaturday: event.saturday || false,
             includeSunday: event.sunday || false
         };
-        console.log(mgp);
         saveJobSchedule({ mgp: mgp })
             .then(result => {
                 if (result === 'SUCCESS') {
@@ -276,12 +364,8 @@ export default class NewMobilizationCalendar extends LightningElement {
 
     loadJobOptions() {
         getJobs()
-            .then(result => {
-                console.log(result);
-                
+            .then(result => {                
                 this.jobOptions = result.map((Id, Name) => ({ label: Name, value: Id }));
-                console.log(this.jobOptions);
-                
             })
             .catch(error => {
                 console.error(error);
@@ -290,14 +374,10 @@ export default class NewMobilizationCalendar extends LightningElement {
 
     handleResourceItemUpdate(event){
         try {
-            let name = event.currentTarget.name;
-            console.log('The Whole detail is :: ', event.detail);
-            
-            this[name] = event.detail.recordId;
-            console.log('Name :: ', name, ' Value :: ', this[name]);
-            
+            let name = event.currentTarget.name;            
+            this[name] = event.detail.recordId;            
         } catch (e) {
-            console.log('Error in function handleResourceItemUpdate:::', e.message);
+            console.error('Error in function NewMobilizationCalendar.handleFilter:::', e?.message);
         }
     }
 
@@ -305,9 +385,7 @@ export default class NewMobilizationCalendar extends LightningElement {
         this.isSpinner = true;
         getEvents({job: this.filterjobs, status: this.filterstatus})
         .then((result) => {
-            if (result && Array.isArray(result)) {
-                console.log(result);
-                
+            if (result && Array.isArray(result)) {                
                 this.events = result.map(ev => ({
                     ...ev,
                     start: new Date(ev.start).toISOString(),
@@ -334,15 +412,11 @@ export default class NewMobilizationCalendar extends LightningElement {
     }
 
     handleStartDateTimeChange(event) {
-        this.startDateTime = event.target.value;
-        console.log(this.startDateTime);
-        
+        this.startDateTime = event.target.value;        
     }
 
     handleEndDateTimeChange(event) {
-        this.endDateTime = event.target.value;
-        console.log(this.endDateTime);
-        
+        this.endDateTime = event.target.value;        
     }
 
     handleIncludeSaturdayChange(event) {
@@ -353,9 +427,7 @@ export default class NewMobilizationCalendar extends LightningElement {
         this.includeSunday = event.target.checked;
     }
 
-    handleStatusChange(event) {
-        console.log('Event is :: ', event.detail);
-        
+    handleStatusChange(event) {        
         this.status = event.detail.value;
     }
 
@@ -364,6 +436,7 @@ export default class NewMobilizationCalendar extends LightningElement {
     }
 
     showToast(title, message, variant) {
+        this.isSpinner = false;
         const event = new ShowToastEvent({
             title: title,
             message: message,
@@ -385,6 +458,10 @@ export default class NewMobilizationCalendar extends LightningElement {
     
     handleDateRangeSelect(start, end) {
         try {
+            if(!this.hasFullAccess) {
+                this.showToast('Error', 'You do not have permission to create events.', 'error');
+                return;
+            }
             this.isSpinner = true;
             this.selectedEventId = '';
             this.status = 'Confirmed';
@@ -431,17 +508,15 @@ export default class NewMobilizationCalendar extends LightningElement {
                 // Open modal
                 this.openModal = true;
 
-                console.log('Adjusted Start:', this.startDateTime);
-                console.log('Adjusted End:', this.endDateTime);
                 this.isSpinner = false;
             })
             .catch(error => {
                 this.isSpinner = false;
                 console.error('Error fetching default times:', error);
             });
-        } catch (error) {
+        } catch (e) {
             this.isSpinner = false;
-            console.log(error);
+            console.error('Error in function NewMobilizationCalendar.handleDateRangeSelect:::', e?.message);
             
         }
     }
@@ -453,12 +528,15 @@ export default class NewMobilizationCalendar extends LightningElement {
     
 
     handleEventClick(recordId) {
+        if(!this.hasFullAccess){
+            this.showToast('Warning', 'You do not have permission to edit this event.','error');
+            return;
+        }
         this.isSpinner = true;
-        console.log('Clicked event:', recordId);
         getMobilizationGroup({recordId: recordId})
         .then((result)=>{
+            console.log("result==> ", result);
             this.isSpinner = false;
-            console.log(result);
             this.startDateTime = result.startDate;
             this.endDateTime = result.endDate;
             this.includeSaturday = result.includeSaturday;
@@ -472,8 +550,8 @@ export default class NewMobilizationCalendar extends LightningElement {
             this.openModal = true;
             this.selectedEventId = recordId;
         })
-        .catch((error)=>{
-            console.log(error);
+        .catch((e)=>{
+            console.error('Error in function NewMobilizationCalendar.handleEventClick:::', e?.message);
             this.isSpinner = false;
         });
     }
@@ -515,14 +593,12 @@ export default class NewMobilizationCalendar extends LightningElement {
         try {
             if(event.target.name === 'jobId') {
                 this.filterjobs = event.detail.recordId;
-                console.log(this.filterjobs);
             } else if(event.target.name === 'status') {
                 this.filterstatus = event.detail.value;
-                console.log(this.filterstatus);
             }
             this.refreshCalendar();
-        } catch (error) {
-            console.log(error);
+        } catch (e) {
+            console.error('Error in function NewMobilizationCalendar.handleFilter:::', e?.message);
         }
     }
 
@@ -532,12 +608,12 @@ export default class NewMobilizationCalendar extends LightningElement {
         try {
             // this.isSpinner = true;
             getAllResources({selectedDate: selectedDate})
-            .then((result) => {
+            .then((result) => {                
                 const sortByAvailability = (a, b) => {
                     // First: sort by availability (available first)
-                    if (a.isAvailable !== b.isAvailable) {
-                        return a.isAvailable ? -1 : 1;
-                    }
+                    // if (a.isAvailable !== b.isAvailable) {
+                    //     return a.isAvailable ? -1 : 1;
+                    // }
 
                     // Then: sort by name (alphabetically, case-insensitive)
                     const nameA = (a.name || '').toLowerCase();
@@ -567,6 +643,7 @@ export default class NewMobilizationCalendar extends LightningElement {
     selectResourceType(event) {
         let name = event.target.name;
         this.resourceTypeForAssign = name;
+        this.selectedCrewAssignments = [];
         this.selectedResourceIdsForAssign = [];
     }
 
@@ -580,15 +657,26 @@ export default class NewMobilizationCalendar extends LightningElement {
 
     addResourceForAssignment(event){
         try {
-            this.showLoading(true);
+            if((this.resourceTypeForAssign == 'Crew' && !this.selectedCrewAssignments.length) || (this.resourceTypeForAssign != 'Crew' && !this.selectedResourceIdsForAssign.length)) {
+                this.showToast('Error', 'Please select resource to assign.', 'error');
+                return;
+            }
+            this.isSpinner = true;
 
             if(event){
                 let name = 'selectedResourceIdsForAssign';
                 let type = this.resourceTypeForAssign;
+
+                const resourceMap = {};
+                (this.selectedCrewAssignments || []).forEach(item => {
+                    resourceMap[item.id] = item.crewId || null;
+                });
     
                 this.jobAssignmentInfo = { 
                     resourceIds: this[name].join(','), 
-                    mobId: this.mobIdForResources, 
+                    resourceMap: JSON.stringify(resourceMap),
+                    mobId: null, 
+                    mobGroupId: this.selectedEventId,
                     type: type,
                     allowOverlap: false,
                     overlapMode: 'SKIP',
@@ -613,12 +701,13 @@ export default class NewMobilizationCalendar extends LightningElement {
                 if (status === 'OVERLAP') {
                     this.isOverlapJob = true;
                     // Show confirmation popup
-                    this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign');
+                    this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign', 'Assign Only Available');
 
                 } else if (status === 'SUCCESS') {
                     this.showToast('Success', 'Resource assigned successfully.', 'success');
-                    this.showResourceAssignPopup = false;
+                    this.selectedCrewAssignments = [];
                     this.selectedResourceIdsForAssign = [];
+                    this.showResourceAssignPopup = false;
 
                 } else if (status === 'ERROR') {
                     this.showToast('Error', parsedResult.message || 'Could not assign resource to job.', 'error');
@@ -637,16 +726,110 @@ export default class NewMobilizationCalendar extends LightningElement {
         }
     }
 
-    handleResourceAssign(){
+    handleSelectWholeCrew(event){
         try {
+            const crewId = event.currentTarget.dataset.id;
+            const checked = event.currentTarget.checked;
+
+            if (checked) {
+                const crewMembers = this.allCrewMembers.filter(m => m?.crewId === crewId);
+                for (const member of crewMembers) {
+                    // Only push if not already selected for this crew
+                    const alreadyExists = this.selectedCrewAssignments.some(sel => sel.id === member.id && sel.crewId === crewId);
+                    if (!alreadyExists) {
+                        this.selectedCrewAssignments = [...this.selectedCrewAssignments, { id: member.id, crewId }];
+                    }
+                }
+            } else {
+                // Remove all selections belonging to this crew
+                this.selectedCrewAssignments = this.selectedCrewAssignments.filter(sel => sel.crewId !== crewId);
+            }
+        } catch (e) {
+            console.error('MobScheduler.handleSelectWholeCrew error:', e?.message);
+        }
+    }
+
+    handleSelectResourceOption(event){
+        try {
+            let name = 'selectedResourceIdsForAssign';
+            let id = event.currentTarget.dataset.id;
+            let checked = event.currentTarget.checked;
+            let type = event.currentTarget.dataset.type;
+            if(checked){
+                if(type == 'Crew'){
+                    let crewId = event.currentTarget.dataset.crewid;
+                    this.selectedCrewAssignments = [...this.selectedCrewAssignments, {id: id, crewId: crewId == 'NA' ? null : crewId}];
+                }
+                this[name] = [...this[name], id];
+            } else{
+                this.selectedCrewAssignments = this.selectedCrewAssignments.filter(item => item.id !== id);
+                this[name] = this[name].filter(item => item !== id);
+            }
+        } catch (e) {
+            console.error('MobScheduler.handleSelectResourceOption error:', e?.message);
+        }
+    }
+
+    handleResourceAssign(event){
+        try {
+            event.preventDefault();
             this.showResourceAssignPopup = true;
+            this.selectedCrewAssignments = [];
             this.selectedResourceIdsForAssign = [];
         } catch (e) {
-            console.log('Error in function handleResourceAssign:::', e.message);
+            console.error('Error in function NewMobilizationCalendar.handleResourceAssign:::', error.message);
         }
     }
 
     handleCancelEdit() {
         this.showResourceAssignPopup = false;
+    }
+
+    // Confirmation
+    askConfirmation(title, message, confirmLabel, confirmLabel2){
+        this.isSpinner = false;
+        this.confirmationTitle = title;
+        this.confirmationMessage = message;
+        this.confirmationBtnLabel = confirmLabel;
+        this.confirmationBtnLabel2 = confirmLabel2 || null;
+        this.showConfirmationPopup = true;
+    }
+    handleConfirmationAction(event){
+        try {
+            let name = event.currentTarget.name;
+            if(name == 'confirm'){
+                if(this.isOverlapJob){
+                    this.jobAssignmentInfo.allowOverlap = true;
+                    this.jobAssignmentInfo.overlapMode = 'ALL';
+                    // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : true}));
+                    this.addResourceForAssignment();
+                    this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
+                    this.typeOfResourceToRemove = null;
+                }
+            } else if(name == 'secondOption'){
+                if(this.isOverlapJob){
+                    this.jobAssignmentInfo.allowOverlap = true;
+                    this.jobAssignmentInfo.overlapMode = 'SKIP';
+                    // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : false}));
+                    this.addResourceForAssignment();
+                    this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
+                    this.typeOfResourceToRemove = null;
+                }
+            }
+
+            this.showConfirmationPopup = false;
+            this.isOverlapJob = false;
+            this.jobAssignmentInfo.overlappingDates = null;
+
+            // Reset Confirm Popup Details
+            this.confirmationTitle = 'Confirm!';
+            this.confirmationMessage = 'Are you sure, you want to proceed';
+            this.confirmationBtnLabel = 'Proceed';
+            this.confirmationBtnLabel2 = null;
+        } catch (e) {
+            console.error('MobScheduler.handleConfirmationAction error:', e?.message);
+        }
     }
 }

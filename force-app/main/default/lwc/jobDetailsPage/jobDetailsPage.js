@@ -67,8 +67,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Start Date Time', fieldName: 'startDate', style: 'width: 10rem' },
         { label: 'End Date Time', fieldName: 'endDate', style: 'width: 10rem' },
         { label: 'Total Man Hours', fieldName: 'totalManHours', style: 'width: 10rem' },
+        { label: 'Total Hours + Travel', fieldName: 'totalHoursWithTravel', style: 'width: 12rem' },
         { label: 'Job Address', fieldName: 'jobAddress', style: 'width: 15rem' },
-        { label: 'Status', fieldName: 'status', style: 'width: 12rem' },
         { label: 'Description', fieldName: 'jobDescription', style: 'width: 15rem' }
     ];
 
@@ -80,8 +80,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
         { label: 'Work Hours', fieldName: 'workHours', style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
-        { label: 'Per Diem', fieldName: 'perDiem', style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
+        { label: 'Per Diem', fieldName: 'perDiem', style: 'width: 6rem' },
         { label: 'Premium', fieldName: 'premium', style: 'width: 6rem' },
         { label: 'Cost Code', fieldName: 'costCodeName', style: 'width: 8rem' }
     ];
@@ -121,7 +121,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     values: this.jobColumns.map(col => {
                         let cell = { 
                             key: col.fieldName, 
-                            value: '', 
+                            value: '--', 
                             recordLink: null, 
                             isActions: false, 
                             style: col.style 
@@ -144,6 +144,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
                         if (col.fieldName === 'totalManHours') {
                             cell.value = job.totalManHours?.toFixed(2) || '0.00';
+                        }
+
+                        if (col.fieldName === 'totalHoursWithTravel') {
+                            cell.value = job.totalHoursWithTravel?.toFixed(2) || '0.00';
                         }
 
                         return cell;
@@ -201,7 +205,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return {
                     id: ts.id,
                     values: this.timesheetColumns.map(col => {
-                        let cell = { value: '', isActions: false, style: col.style };
+                        let cell = { value: '--', isActions: false, style: col.style };
 
                         if (col.fieldName === 'srNo') {
                             cell.value = index + 1;
@@ -219,6 +223,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         // Format dates nicely
                         if (col.fieldName === 'clockInTime' || col.fieldName === 'clockOutTime') {
                             cell.value = this.parseLiteral(cell.value);
+                        }
+
+                        // Handle Per Diem - display 0 if not present
+                        if (col.fieldName === 'perDiem') {
+                            cell.value = ts.perDiem !== null && ts.perDiem !== undefined ? ts.perDiem : 0;
+                        }
+
+                        // Handle Premium - display Yes/No instead of true/false
+                        if (col.fieldName === 'premium') {
+                            cell.value = ts.premium === true ? 'Yes' : 'No';
                         }
 
                         return cell;
@@ -1177,6 +1191,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         this.selectedCostCodeId = null;
                         this.clockInTime = null;
                         this.clockOutTime = null;
+                        this.enteredManualTravelTime = null;
+                        this.enteredManualPerDiem = null;
                     } else {
                         this.showToast('Error', 'Failed to create timesheet record. Please try again.', 'error');
                     }

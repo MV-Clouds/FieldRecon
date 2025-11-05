@@ -32,7 +32,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     @track currentModalJobEndDateTime;
     @track timesheetColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
-        { label: 'Job Number', fieldName: 'jobNumber', style: 'width: 10rem' },
+        { label: 'Job Number', fieldName: 'jobNumber', style: 'width: 10rem', isLink: true, recordIdField: 'jobId' },
         { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
         { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 10rem' },
         { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
@@ -171,13 +171,17 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             return this.timesheetDetailsRaw.map((ts, index) => {
                 return {
                     id: ts.id,
+                    jobId: ts.jobId,
                     values: this.timesheetColumns.map(col => {
-                        let cell = { value: '', style: col.style };
+                        let cell = { value: '--', style: col.style, recordLink: null, };
 
                         if (col.fieldName === 'srNo') {
                             cell.value = index + 1;
                         } else {
-                            cell.value = ts[col.fieldName] || '';
+                            cell.value = ts[col.fieldName] || '--';
+                            if (col.isLink && col.recordIdField) {
+                                cell.recordLink = `/${ts[col.recordIdField]}`;
+                            }
                         }
 
                         // Format dates nicely
@@ -312,7 +316,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                             title: job.jobName ? `${job.jobName} (${job.jobNumber})` : job.jobNumber,
                                             description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
                                             icon: 'standard:account'
-                                        }]
+                                        }],
+                                        isValidLocation: (job.jobStreet != '--' && job.jobCity != '--' && job.jobState != '--' ) ? true : false
                                     };
                                 });
         
@@ -581,7 +586,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 actionType: 'clockIn',
                 contactId: this.selectedContactId,
                 costCodeId: this.selectedCostCodeId,
-                mobilizationId: this.selectedMobilizationId,
+                mobId: this.selectedMobilizationId,
                 jobId: selectedRecordDetails.jobId,
                 clockInTime: this.clockInTime.replace(' ', 'T'),
                 isTimeSheetNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetNull : true,
@@ -654,7 +659,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 actionType: 'clockOut',
                 contactId: this.selectedContactId,
                 costCodeId: this.selectedCostCodeId,
-                mobilizationId: this.selectedMobilizationId,
+                mobId: this.selectedMobilizationId,
                 jobId: selectedRecordDetails.jobId,
                 clockInTime: selectedRecordDetails.clockInTime,
                 clockOutTime: this.clockOutTime.replace(' ', 'T'),
@@ -752,6 +757,10 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             }
 
             if (selectedMob) {
+                if (!selectedMob.isValidLocation) {
+                    this.showToast('Error', 'Invalid Location', 'error');
+                    return;
+                }
                 const street = selectedMob?.jobStreet || '';
                 const city = selectedMob?.jobCity || '';
                 const state = selectedMob?.jobState || '';

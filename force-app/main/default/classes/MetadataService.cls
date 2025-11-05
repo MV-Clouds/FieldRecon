@@ -238,6 +238,22 @@ public class MetadataService {
         private String[] apex_schema_type_info = new String[]{SOAP_M_URI,'true','false'};
         private String[] field_order_type_info = new String[]{'masterLabel','translation'};
     }
+    public class RemoteSiteSetting extends Metadata {
+        public String type = 'RemoteSiteSetting';
+        public String fullName;
+        private String[] fullName_type_info = new String[]{'fullName',SOAP_M_URI,null,'0','1','false'};
+        public String description;
+        public Boolean disableProtocolSecurity;
+        public Boolean isActive;
+        public String url;
+        private String[] description_type_info = new String[]{'description',SOAP_M_URI,null,'0','1','false'};
+        private String[] disableProtocolSecurity_type_info = new String[]{'disableProtocolSecurity',SOAP_M_URI,null,'1','1','false'};
+        private String[] isActive_type_info = new String[]{'isActive',SOAP_M_URI,null,'1','1','false'};
+        private String[] url_type_info = new String[]{'url',SOAP_M_URI,null,'1','1','false'};
+        private String[] apex_schema_type_info = new String[]{SOAP_M_URI,'true','false'};
+        private String[] type_att_info = new String[]{'xsi:type'};
+        private String[] field_order_type_info = new String[]{'fullName', 'description','disableProtocolSecurity','isActive','url'};
+    }
     public class AsyncResult {
         public Boolean done;
         public String id;

@@ -1,0 +1,155 @@
+<template>
+    <div class="shift-end-log-container">
+        <div class="header-fixed-div">
+            <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-center slds-grid--align-spread slds-wrap">
+                <div class="search-wrapper slds-grow">
+                    <lightning-input type="search" placeholder="Search by name or person..." value={searchTerm} onchange={handleSearch} variant="label-hidden" class="search-input"></lightning-input>
+                </div>
+                <div class="btns-div">
+                    <div class="date-filter">
+                        <lightning-input type="date" label="Filter by Date" value={filterDate} onchange={handleDateFilter} variant="label-hidden"></lightning-input>
+                    </div>
+                    <div class="create-btn" onclick={handleCreate}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="14" height="14" fill="white"><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>
+                        Create Log
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="spinner-container slds-is-fixed" if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+        <template if:true={hasError}>
+            <div class="empty-state-msg">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="64" height="64"><path d="M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-13.3 0-24 10.7-24 24V296c0 13.3 10.7 24 24 24s24-10.7 24-24V184c0-13.3-10.7-24-24-24zm32 224a32 32 0 1 0 -64 0 32 32 0 1 0 64 0z"/></svg>
+                <div>{errorMessage}</div>
+            </div>
+        </template>
+        <template if:false={isLoading}>
+            <template if:false={hasError}>
+                <template if:false={hasLogs}>
+                    <div class="empty-state-msg">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="64" height="64"><path d="M192 0c-41.8 0-77.4 26.7-90.5 64H64C28.7 64 0 92.7 0 128V448c0 35.3 28.7 64 64 64H320c35.3 0 64-28.7 64-64V128c0-35.3-28.7-64-64-64H282.5C269.4 26.7 233.8 0 192 0zm0 64a32 32 0 1 1 0 64 32 32 0 1 1 0-64zM112 192H272c8.8 0 16 7.2 16 16s-7.2 16-16 16H112c-8.8 0-16-7.2-16-16s7.2-16 16-16z"/></svg>
+                        <div>{noLogsMessage}</div>
+                    </div>
+                </template>
+            </template>
+        </template>
+        <template if:true={hasLogs}>
+            <div class="logs-grid">
+                <template for:each={filteredLogs} for:item="log">
+                    <div key={log.Id} class="card-placeholder">
+                        <div class="log-card">
+                            <div class="log-card-header">
+                                <div class="log-header-detail">
+                                    <div class="log-card-name-status">
+                                        <div class="log-card-name">{log.Name}</div>
+                                        <div class="log-card-date">{log.formattedDate}</div>
+                                        <div class="status-tile" data-type={log.wfrecon__Log_Type__c}>{log.wfrecon__Log_Type__c}</div>
+                                    </div>
+                                </div>
+                                <div class="action-btns">
+                                    <div class="edit-btn btn action-btn" data-id={log.Id} onclick={handleEdit}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="log-meta-info">
+                                <div class="log-meta-info-name">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="14" height="14"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z"/></svg>
+                                    <span>{log.createdByName}</span>
+                                </div>
+                            </div>
+                            <template if:true={log.wfrecon__Work_Performed__c}>
+                                <div class="section-label">Work Performed:</div>
+                                <div class="work-content">{log.wfrecon__Work_Performed__c}</div>
+                            </template>
+                            <template if:true={log.hasExceptions}>
+                                <div class="section-label">Exceptions:</div>
+                                <div class="exception-content">{log.wfrecon__Exceptions__c}</div>
+                            </template>
+                            <template if:true={log.wfrecon__Plan_for_Tomorrow__c}>
+                                <div class="section-label">Plan for Tomorrow:</div>
+                                <div class="plan-content">{log.wfrecon__Plan_for_Tomorrow__c}</div>
+                            </template>
+                            <template if:true={log.hasImages}>
+                                <div class="section-label images-label">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="14" height="14"><path d="M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM323.8 202.5c-4.5-6.6-11.9-10.5-19.8-10.5s-15.4 3.9-19.8 10.5l-87 127.6L170.7 297c-4.6-5.7-11.5-9-18.7-9s-14.2 3.3-18.7 9l-64 80c-5.8 7.2-6.9 17.1-2.9 25.4s12.4 13.6 21.6 13.6h96 32H424c8.9 0 17.1-4.9 21.2-12.8s3.6-17.4-1.4-24.7l-120-176zM112 192a48 48 0 1 0 0-96 48 48 0 1 0 0 96z"/></svg>
+                                    <span>Images ({log.imageCount})</span>
+                                </div>
+                                <div class="images-grid">
+                                    <template for:each={log.images} for:item="image">
+                                        <div key={image.Id} class="image-thumbnail" data-id={image.Id} onclick={handleImagePreview}>
+                                            <img src={image.thumbnailUrl} alt={image.Title} />
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                </template>
+            </div>
+        </template>
+    </div>
+
+    <!-- Edit Modal Popup -->
+    <template if:true={showEditModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container edit-modal">
+                <!-- Modal header -->
+                <header class="slds-modal__header edit-modal-header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
+                            title="Close" 
+                            onclick={handleCloseModal}>
+                        <svg class="slds-button__icon slds-button__icon_large" aria-hidden="true">
+                            <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
+                        </svg>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-text-heading_medium">Edit Shift End Log</h2>
+                </header>
+
+                <!-- Modal content -->
+                <div class="slds-modal__content slds-p-around--medium edit-modal-body">
+                    <lightning-record-edit-form 
+                        object-api-name="wfrecon__Log_Entry__c" 
+                        record-id={editLogId}
+                        onsuccess={handleUpdateSuccess}
+                        onerror={handleUpdateError}>
+                        
+                        <div class="slds-grid slds-wrap slds-gutters">
+                            <div class="slds-col slds-size_1-of-1">
+                                <lightning-input-field field-name="wfrecon__Work_Performed_Date__c"></lightning-input-field>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1">
+                                <lightning-input-field field-name="wfrecon__Log_Type__c"></lightning-input-field>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1">
+                                <lightning-input-field field-name="wfrecon__Work_Performed__c"></lightning-input-field>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1">
+                                <lightning-input-field field-name="wfrecon__Exceptions__c"></lightning-input-field>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1">
+                                <lightning-input-field field-name="wfrecon__Plan_for_Tomorrow__c"></lightning-input-field>
+                            </div>
+                        </div>
+
+                        <div class="slds-modal__footer modal-footer-btns">
+                            <button class="slds-button slds-button_neutral cancel-btn" onclick={handleCloseModal}>Cancel</button>
+                            <lightning-button 
+                                variant="brand" 
+                                type="submit" 
+                                label="Save"
+                                class="save-btn">
+                            </lightning-button>
+                        </div>
+                    </lightning-record-edit-form>
+                </div>
+            </div>
+        </section>
+        <!-- Modal Backdrop -->
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

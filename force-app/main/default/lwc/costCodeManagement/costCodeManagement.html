@@ -1,6 +1,8 @@
 <template>
     <template if:true={isLoading}>
-        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        <div class="spinner-container slds-is-fixed">
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            </div>
     </template>
 
     <div class="main-card">
@@ -94,13 +96,15 @@
                                             </div>
                                         </template>
                                         <template if:true={column.isNameField}>
-                                            <a 
+                                            <!-- <a 
                                                 href="javascript:void(0)" 
                                                 class="name-link"
                                                 data-record-id={costCodeRecord.Id}
                                                 onclick={handleNavigateToRecord}>
                                                 {costCodeRecord.Name}
-                                            </a>
+                                            </a> -->
+
+                                            {costCodeRecord.Name}
                                         </template>
                                         <template if:false={column.isSerialNumber}>
                                             <template if:false={column.isActions}>

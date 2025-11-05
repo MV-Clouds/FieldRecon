@@ -62,9 +62,19 @@ private class MobSchedulerControllerTest {
         };
         insert mobs;
 
-        // Seed one employee on day 0 and one subcontractor on day 2 to create overlaps
+        // Minimal Crew data to increase Crew-related coverage
+        Crew__c crew = new Crew__c(Name = 'QA Crew', Color_Code__c = '#FF0000');
+        insert crew;
+
+        Crew_Member__c crewMember = new Crew_Member__c(
+            Crew__c = crew.Id,
+            Contact__c = contacts[0].Id // Employee1 as Crew Member
+        );
+        insert crewMember;
+
+        // Seed one employee on day 0 (as Crew) and one subcontractor on day 2 to create overlaps
         List<Mobilization_Member__c> members = new List<Mobilization_Member__c>{
-            new Mobilization_Member__c(Mobilization__c = mobs[0].Id, Contact__c = contacts[0].Id), // Employee1 busy on day 0
+            new Mobilization_Member__c(Mobilization__c = mobs[0].Id, Contact__c = contacts[0].Id, Crew__c = crew.Id), // Employee1 busy on day 0 under crew
             new Mobilization_Member__c(Mobilization__c = mobs[1].Id, Contact__c = contacts[2].Id)  // SubContractor1 busy on day 2
         };
         insert members;
@@ -175,24 +185,33 @@ private class MobSchedulerControllerTest {
 
     @isTest
     static void testRemoveJobResource() {
-        Mobilization_Member__c member = [SELECT Id FROM Mobilization_Member__c LIMIT 1];
-        Mobilization_Asset__c asset = [SELECT Id FROM Mobilization_Asset__c LIMIT 1];
+        // Use current data from setup
+        Mobilization_Member__c member = [SELECT Id, Mobilization__c, Contact__c FROM Mobilization_Member__c LIMIT 1];
+        Mobilization_Asset__c asset = [SELECT Id, Mobilization__c, Equipment__c FROM Mobilization_Asset__c LIMIT 1];
+        Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
 
         Test.startTest();
-        String crewRemove = MobSchedulerController.removeJobResource(member.Id, 'Crew');
-        String subRemove = MobSchedulerController.removeJobResource(member.Id, 'SubContractor'); // no-op but covered
-        String assetRemove = MobSchedulerController.removeJobResource(asset.Id, 'Asset');
+        // Updated signature: (id, type, mobId, allUpcoming)
+        String crewRemove = MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'CrewMaster', member.Mobilization__c, 'false');
+        MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'CrewMaster', member.Mobilization__c, 'true');
+        String employeeRemove = MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'Crew', member.Mobilization__c, 'false');
+        MobSchedulerController.removeJobResource(String.valueOf(member.Contact__c), 'Crew', member.Mobilization__c, 'true');
+        String assetRemove = MobSchedulerController.removeJobResource(String.valueOf(asset.Equipment__c), 'Asset', asset.Mobilization__c, 'false');
+        MobSchedulerController.removeJobResource(String.valueOf(asset.Equipment__c), 'Asset', asset.Mobilization__c, 'true');
         Test.stopTest();
 
         System.assertEquals('success', crewRemove, 'Should succeed in removing crew');
+        System.assertEquals('success', employeeRemove, 'Should succeed in removing Employee');
         System.assertEquals('success', assetRemove, 'Should succeed in removing asset');
 
-        String errorResult = MobSchedulerController.removeJobResource('invalidId', 'Crew');
+        // Error case with invalid id (keep minimal)
+        String errorResult = MobSchedulerController.removeJobResource('invalidId', 'Crew', member.Mobilization__c, 'false');
         System.assertNotEquals('success', errorResult, 'Should return error message');
     }
 
     @isTest
     static void testAssignResourceToMob() {
+        List<Crew__c> crews = [SELECT Id FROM Crew__c ORDER BY CreatedDate];
         List<Contact> contacts = [SELECT Id, RecordType.DeveloperName FROM Contact ORDER BY CreatedDate];
         List<Equipment__c> equipments = [SELECT Id FROM Equipment__c ORDER BY CreatedDate];
         List<Mobilization__c> mobs = [SELECT Id, Start_Date__c FROM Mobilization__c ORDER BY Start_Date__c];
@@ -226,7 +245,11 @@ private class MobSchedulerControllerTest {
         // Allow overlap and assign again
         assignmentData.put('allowOverlap', true);
         String allowOverlapResult = MobSchedulerController.assignResourceToMob(assignmentData);
-        System.assertEquals('success', allowOverlapResult, 'Should assign with allowOverlap');
+        System.assertEquals('ASSIGNED', allowOverlapResult, 'Should been already assigned!');
+
+        assignmentData.put('type', 'CrewMaster');
+        assignmentData.put('resourceId', crews[0].Id);
+        MobSchedulerController.assignResourceToMob(assignmentData);
 
         // Asset path: trigger ELSE-IF query for assets (line ~378) expecting OVERLAP with existing day 0 asset
         Map<String, Object> assetAssign = new Map<String, Object>{
@@ -237,7 +260,7 @@ private class MobSchedulerControllerTest {
         };
         String assetOverlap = MobSchedulerController.assignResourceToMob(assetAssign);
 
-        // Asset insert path (line ~402): assign a different asset to a different date
+        // Asset insert path: assign a different asset to a different date
         Map<String, Object> assetInsert = new Map<String, Object>{
             'resourceId' => equipments[1].Id,
             'mobId' => mobs[1].Id, // different date from day 0
@@ -254,18 +277,25 @@ private class MobSchedulerControllerTest {
     static void testAssignResourceToJob() {
         List<Contact> contacts = [SELECT Id, RecordType.DeveloperName FROM Contact ORDER BY CreatedDate];
         List<Equipment__c> equipments = [SELECT Id FROM Equipment__c ORDER BY CreatedDate];
-        List<Mobilization__c> mobs = [SELECT Id, Start_Date__c FROM Mobilization__c ORDER BY Start_Date__c];
+        List<Mobilization__c> mobs = [SELECT Id, Start_Date__c, Mobilization_Group__c FROM Mobilization__c ORDER BY Start_Date__c];
 
-        // Use comma-separated resourceIds per new signature
+        // Use comma-separated resourceIds per new signature; include resourceMap minimal for Crew path
         Map<String, Object> assignmentData = new Map<String, Object>{
             'resourceIds' => String.join(new List<String>{ String.valueOf(contacts[1].Id) }, ','), // Employee2
-            'mobId' => mobs[0].Id,
+            'mobId' => null,
+            'mobGroupId' => mobs[0].Mobilization_Group__c,
             'type' => 'Crew',
             'allowOverlap' => true,
-            'overlapMode' => 'ALL'
+            'overlapMode' => 'ALL',
+            'resourceMap' => JSON.serialize(new Map<String, Object>{ String.valueOf(contacts[1].Id) => null })
         };
 
         Test.startTest();
+
+        MobSchedulerController.assignResourceToJob(assignmentData);
+        
+        assignmentData.put('mobGroupId', null);
+        assignmentData.put('mobId', mobs[0].Id);
         // allowOverlap true, ALL mode: should insert across all sibling mobs
         String resultJson = MobSchedulerController.assignResourceToJob(assignmentData);
         Map<String, Object> result = (Map<String, Object>) JSON.deserializeUntyped(resultJson);

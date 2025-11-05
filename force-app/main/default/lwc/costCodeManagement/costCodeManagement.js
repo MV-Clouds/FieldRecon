@@ -404,7 +404,7 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
         }
 
         upsertCostCode({ costCodeRecord })
-            .then(result => {
+            .then(() => {
                 this.showCreateModal = false;
                 this.showToast('Success', `Cost Code ${this.isEditMode ? 'updated' : 'created'} successfully!`, 'success');
                 this.fetchCostCodes(); // Refresh the data

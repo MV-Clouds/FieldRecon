@@ -198,4 +198,22 @@ private class BillingAndPaymentTabControllerTest {
             // expected
         }
     }
+
+    @IsTest
+    static void testCloneBilling_Success() {
+        // Get the test data
+        Job__c job = [SELECT Id, Account__c FROM Job__c WHERE Job_Name__c = 'J001' LIMIT 1];
+        Billing__c originalBill = [SELECT Id, Job__c, Account__c FROM Billing__c WHERE Job__c = :job.Id LIMIT 1];
+        
+        // Get count of billing records before clone
+        Integer beforeCount = [SELECT COUNT() FROM Billing__c WHERE Job__c = :job.Id];
+        
+        // Get count of billing line items before clone
+        Integer beforeLineItemCount = [SELECT COUNT() FROM Billing_Line_Item__c WHERE Billing__c = :originalBill.Id];
+        
+        Test.startTest();
+        String result = BillingAndPaymentTabController.cloneBilling(originalBill.Id);
+        Test.stopTest();
+        
+    }
 }

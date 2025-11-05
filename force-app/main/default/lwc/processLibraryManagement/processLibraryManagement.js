@@ -70,7 +70,7 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     @track processTableColumns = [
         { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false },
         { label: 'Actions', fieldName: 'Actions', type: 'text', isActions: true, sortable: false },
-        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
+        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: false, sortable: true },
         { label: 'Process Name', fieldName: 'wfrecon__Process_Name__c', type: 'text', sortable: true },
         { label: 'Weight', fieldName: 'wfrecon__Weight__c', type: 'number', sortable: true },
         { label: 'Unit of Measure', fieldName: 'wfrecon__Unit_of_Measure__c', type: 'text', sortable: true },

@@ -15,11 +15,11 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     @track contactColumns = [
         { label: 'S.No.', fieldName: 'serialNumber' },
         { label: 'Actions', fieldName: 'actions'},
-        { label: 'Contact Name', fieldName: 'contactName', recordLink: true },
-        { label: 'Contact Type', fieldName: 'contactType' },
+        { label: 'Contact Name', fieldName: 'contactName', recordLink: false },
         { label: 'Email', fieldName: 'email' },
         { label: 'Phone', fieldName: 'phone' },
-        { label: 'Total Man Hours', fieldName: 'totalManHours' }
+        { label: 'Total Man Hours', fieldName: 'totalManHours' },
+        { label: 'Total Man Hours + Travel Time', fieldName: 'totalManHoursWithTravel' }
     ];
 
     // Mobilization table columns
@@ -31,8 +31,8 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         { label: 'Start Date Time', fieldName: 'startDate', isDateTime: true },
         { label: 'End Date Time', fieldName: 'endDate', isDateTime: true },
         { label: 'Man Hours Per Job', fieldName: 'totalManHours', isNumber: true },
+        { label: 'Man Hours + Travel Time', fieldName: 'totalManHoursWithTravel', isNumber: true },
         { label: 'Job Address', fieldName: 'jobAddress' },
-        { label: 'Status', fieldName: 'jobStatus' },
         { label: 'Description', fieldName: 'jobDescription' }
     ];
 
@@ -42,7 +42,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     @track timesheetColumns = [
         { label: 'Sr. No.', fieldName: 'serialNumber' },
         { label: 'Contact Name', fieldName: 'contactName' },
-        { label: 'Contact Type', fieldName: 'contactType' },
         { label: 'Clock In Time', fieldName: 'clockInTime' },
         { label: 'Clock Out Time', fieldName: 'clockOutTime' },
         { label: 'Work Hours', fieldName: 'workHours'},
@@ -191,23 +190,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: formatContactType
-     * @description: Format contact type based on developer name
-     */
-    formatContactType(developerName) {
-        if (!developerName) return '--';
-        
-        switch (developerName) {
-            case 'Employee_WF_Recon':
-                return 'Employee';
-            case 'Sub_Contractor_WF_Recon':
-                return 'Sub Contractor';
-            default:
-                return developerName;
-        }
-    }
-
-    /**
      * Method Name: processContactRow
      * @description: Helper method to process a single contact row
      */
@@ -229,9 +211,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                     value = contact.contactName || '--';
                     recordLink = col.recordLink || false;
                     break;
-                case 'contactType':
-                    value = this.formatContactType(contact.developerName);
-                    break;
                 case 'email':
                     value = contact.email || '--';
                     break;
@@ -240,6 +219,12 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                     break;
                 case 'totalManHours':
                     value = contact.totalManHours ? contact.totalManHours.toFixed(2) : '0.00';
+                    break;
+                case 'totalManHours':
+                    value = contact.totalManHours !== undefined ? contact.totalManHours.toFixed(2) : '0.00';
+                    break;
+                case 'totalManHoursWithTravel':
+                    value = contact.totalManHoursWithTravel !== undefined ? contact.totalManHoursWithTravel.toFixed(2) : '0.00';
                     break;
                 default:
                     value = contact[col.fieldName] || '--';
@@ -471,10 +456,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                             break;
                         case 'contactName':
                             value = contact.contactName || '--';
-                            displayValue = value;
-                            break;
-                        case 'contactType':
-                            value = this.formatContactType(contact.developerName);
                             displayValue = value;
                             break;
                         case 'clockInTime':

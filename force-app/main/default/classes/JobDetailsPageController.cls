@@ -70,10 +70,12 @@ public with sharing class JobDetailsPageController {
 
             // 2. Aggregate total hours for relevant Job + Dates
             Map<String, Decimal> mobManHoursMap = new Map<String, Decimal>();
+            Map<String, Decimal> mobTotalHoursWithTravelMap = new Map<String, Decimal>();
             for (AggregateResult ar : [
                 SELECT Timesheet_Entry__r.TimeSheet__r.Job__c jobId,
                     Clock_In_Date__c workDate,
-                    SUM(Total_Time__c) totalHours
+                    SUM(Total_Time__c) totalHours,
+                    SUM(Travel_Time__c) travelTime
                 FROM Timesheet_Entry_Item__c
                 WHERE Timesheet_Entry__r.TimeSheet__r.Job__c IN :jobDateMap.keySet()
                 AND Clock_In_Date__c != null
@@ -86,7 +88,11 @@ public with sharing class JobDetailsPageController {
                 // Only include if the workDate matches a mobilization start date for that job
                 if(jobDateMap.containsKey(jobId) && jobDateMap.get(jobId).contains(workDate)) {
                     String key = jobId + '_' + String.valueOf(workDate);
-                    mobManHoursMap.put(key, (Decimal)ar.get('totalHours'));
+                    Decimal totalHrs = (Decimal)ar.get('totalHours') != null ? (Decimal)ar.get('totalHours') : 0;
+                    Decimal travelHrs = (Decimal)ar.get('travelTime') != null ? (Decimal)ar.get('travelTime') : 0;
+                    
+                    mobManHoursMap.put(key, totalHrs);
+                    mobTotalHoursWithTravelMap.put(key, totalHrs + travelHrs);
                 }
             }
 
@@ -97,18 +103,19 @@ public with sharing class JobDetailsPageController {
                 w.mobId = m.Id;
                 w.jobId = m.Job__c;
                 w.jobNumber = m.Job__r.Name;
-                w.jobName = m.Job__r.Job_Name__c;
-                w.jobAddress = m.Job__r.Address__c;
-                w.jobDescription = m.Job__r.Description__c;
+                w.jobName = m.Job__r.Job_Name__c != null ? m.Job__r.Job_Name__c : '--';
+                w.jobAddress = m.Job__r.Address__c != null ? m.Job__r.Address__c : '--';
+                w.jobDescription = m.Job__r.Description__c != null ? m.Job__r.Description__c : '--';
                 w.startDate = m.Start_Date__c.addSeconds(userTz.getOffset(m.Start_Date__c)/1000);
                 w.endDate = m.End_Date__c.addSeconds(userTz.getOffset(m.End_Date__c)/1000);
                 // w.startDate = m.Start_Date__c;
                 // w.endDate = m.End_Date__c;
-                w.status = m.Job__r.Status__c;
+                // w.status = m.Job__r.Status__c != null ? m.Job__r.Status__c : '--';
 
                 // Lookup hours
                 String key = m.Job__c + '_' + String.valueOf(m.Start_Date__c.date());
                 w.totalManHours = mobManHoursMap.containsKey(key) ? mobManHoursMap.get(key) : 0.00;
+                w.totalHoursWithTravel = mobTotalHoursWithTravelMap.containsKey(key) ? mobTotalHoursWithTravelMap.get(key) : 0.00;
 
                 result.add(w);
             }
@@ -892,8 +899,9 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public String jobDescription { get; set; }
         @AuraEnabled public DateTime startDate { get; set; }
         @AuraEnabled public DateTime endDate { get; set; }
-        @AuraEnabled public String status { get; set; }
+        // @AuraEnabled public String status { get; set; }
         @AuraEnabled public Decimal totalManHours { get; set; }
+        @AuraEnabled public Decimal totalHoursWithTravel { get; set; }
     }
 
     public class TimesheetEntryItemWrapper {

@@ -1,0 +1,69 @@
+
+#viewerContainer {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  position: absolute;
+  top: 48px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  outline: none;
+  background-color: #314767;
+}
+
+#toolbarViewer {
+  height: 48px;
+}
+
+#toolbarContainer, .findbar, .secondaryToolbar {
+  position: relative;
+  height: 48px;
+  background-color: #001b41;
+}
+
+#toolbarViewerMiddle {
+  margin-top: 8px;
+}
+
+html[dir='ltr'] #toolbarViewerLeft {
+  position: absolute;
+  top: 8px;
+  left: 0;
+}
+
+.conga-preview-merge-button {
+    height: 32px;
+    margin: 8px;
+    padding: 4px 24px 4px 24px;
+    border: 1px solid;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  
+  #conga-preview-cancel-merge-button {
+    background-color: #001b41;
+    color: white;
+    cursor: pointer;
+  }
+  
+  #conga-preview-continue-merge-button {
+    background-color: white;
+    color: #2b88da;
+    margin: 8px 24px 8px 8px;
+    cursor: pointer;
+  }
+
+  #conga-preview-download-file-link {
+    border: none;
+    background: none;
+    margin: 8px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  #conga-preview-download-file-link img {
+    margin-top: 3px;
+  }
+
+  

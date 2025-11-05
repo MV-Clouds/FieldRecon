@@ -12,9 +12,12 @@ import createBilling from '@salesforce/apex/BillingAndPaymentTabController.creat
 import deleteRecordApex from '@salesforce/apex/BillingAndPaymentTabController.deleteRecord';
 import approveBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.approveBilling';
 import createPayment from '@salesforce/apex/BillingAndPaymentTabController.createPayment';
+import cloneBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.cloneBilling';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class BillingAndPaymentTab extends NavigationMixin(LightningElement) {
     @api recordId;
+    @track isFullAccess = false;
     @track accountId;
     @track isLoading = false;
     @track activeTab = 'billings';
@@ -65,7 +68,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
     @track billingsColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
-        { label: 'Actions', fieldName: 'actions', style: 'width: 10rem' },
+        { label: 'Actions', fieldName: 'actions', style: 'width: 12rem' },
         { 
             label: 'Bill Number', 
             fieldName: 'Name',
@@ -205,7 +208,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                                     cell.recordLink = `/${bill.wfrecon__Previous_Bill__c}`;
                                 }
                             } else {
-                                cell.value = '-';
+                                cell.value = '--';
                             }
                         } else {
                             cell.value = bill[col.fieldName] || '';
@@ -232,7 +235,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         }
 
                         if (!cell.value && cell.value !== 0) {
-                            cell.value = '-';
+                            cell.value = '--';
                         }
 
                         return cell;
@@ -305,7 +308,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         }
 
                         if (!cell.value && cell.value !== 0) {
-                            cell.value = '-';
+                            cell.value = '--';
                         }
 
                         return cell;
@@ -322,9 +325,70 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
      * @description: LWC lifecycle hook to initialize loading, job details and billing data.
      */
     connectedCallback() {
-        this.isLoading = true;
-        this.loadJobData();
-        this.loadBillingData();
+        try {
+            this.isLoading = true;
+            this.checkUserPermissions();
+        } catch (error) {
+            console.error('Error in connectedCallback:', error);
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: checkUserPermissions
+     * @description: Checks user permissions based on permission sets.
+     */
+    checkUserPermissions() {
+        try {
+            this.isLoading = true;
+            const permissionSetsToCheck = ['FR_Finance'];
+
+            checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+                .then(result => {
+                    if (result.error) {
+                        console.error('Error checking permission sets:', result.error);
+                        this.setDefaultPermissions();
+                        return;
+                    }
+
+                    console.log('Permission check result ==> ', result);
+                    
+                    const assignedMap = result.assignedMap || {};
+                    const isAdmin = result.isAdmin || false;
+                    const hasFRFinance = assignedMap['FR_Finance'] || false;
+                    console.log('User permissions ==> ', { isAdmin, hasFRFinance });
+                    
+                    if (isAdmin || hasFRFinance) {
+                        // Admin or FR_Finance → Full access
+                        this.isFullAccess = true;
+                        this.loadJobData();
+                        this.loadBillingData();
+                    } else {
+                        // No specific permissions - no access
+                        this.setDefaultPermissions();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in checkUserPermissions:', error);
+                    this.setDefaultPermissions();
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        }
+        catch (error) {
+            console.error('Error in outer block:', error);
+            this.setDefaultPermissions();
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: setDefaultPermissions
+     * @description: Sets default permissions (no access)
+     */
+    setDefaultPermissions() {
+        this.isFullAccess = false;
     }
 
     /** 
@@ -340,7 +404,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                     if (res && res.length > 0) {
                         const job = res[0];
                         this.jobDetailsMap = {
-                            jobName: job.wfrecon__Job_Name__c || '',
+                            jobName: job.wfrecon__Job_Name__c || '--',
                             jobNumber: job.Name || '',
                             jobRetainage: job?.wfrecon__Retainage__c || '0.00%'
                         };
@@ -500,7 +564,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
     /** 
      * Method Name: handleActionClick
-     * @description: Handles row action clicks for edit/delete/approve on billing and payment records.
+     * @description: Handles row action clicks for edit/delete/approve/clone on billing and payment records.
      */
     handleActionClick(event) {
         try {
@@ -536,6 +600,15 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                     buttonLabel: 'Approve',
                     action: 'approveBilling'
                 };
+            } else if (actionType === 'cloneBilling') {
+                this.billId = recordId;
+                this.showConfirmModal = true;
+                this.popupProperties = {
+                    heading: 'Clone Billing',
+                    body: 'Are you sure you want to clone this billing record? A new billing record with all its line items will be created in Draft status.',
+                    buttonLabel: 'Clone',
+                    action: 'cloneBilling'
+                };
             }
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -570,6 +643,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                 this.handleDeleteRecord();
             } else if(this.popupProperties.action === 'approveBilling'){
                 this.handleApproveBilling();
+            } else if(this.popupProperties.action === 'cloneBilling'){
+                this.handleCloneBilling();
             }
         } catch (error) {
             console.error('Error in handleConfirmClick :: ', error);
@@ -592,7 +667,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             const endDate = bill.values.find(v => v.key === 'wfrecon__End_Date__c')?.value;
 
             // Check if dates are valid
-            if (!startDate || startDate === '-' || !endDate || endDate === '-') {
+            if (!startDate || startDate === '--' || !endDate || endDate === '--') {
                 this.showToast('Error', 'Please fill both Start and End dates before approving.', 'error');
                 return; // Stop further execution
             }
@@ -631,6 +706,46 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                 });
         } catch (error) {
             console.error('Error in handleApproveBilling ::', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: handleCloneBilling
+     * @description: Clones the billing record along with its billing line items.
+     */
+    handleCloneBilling() {
+        try {
+            this.isLoading = true;
+                        
+            cloneBillingRecord({ billingId: this.billId })
+                .then((result) => {
+                    console.log('cloneBilling apex result :: ', result);
+                    
+                    if (result === 'SUCCESS') {
+                        this.showToast('Success', 'Billing record cloned successfully', 'success');
+                        this.loadBillingData();
+                    } else {
+                        this.showToast('Error', result, 'error');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error in cloneBilling :: ', error);
+                    let message = 'An unexpected error occurred';
+                    if (error && error.body && error.body.message) {
+                        message = error.body.message;
+                    } else if (error && error.message) {
+                        message = error.message;
+                    }
+                    this.showToast('Error', message, 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                    this.closeConfirmModal();
+                });
+        } catch (error) {
+            console.error('Error in handleCloneBilling ::', error);
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             this.isLoading = false;
         }
@@ -932,6 +1047,16 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                 this.showToast('Error', 'Please select a billing for the payment.', 'error');
                 return;
             }
+
+            const dateInput = this.template.querySelector('.payment-date-input');
+            
+            dateInput.reportValidity();
+            if (!dateInput.checkValidity()) {
+                this.showToast('Error', 'Please enter a valid date.', 'error');
+                return;
+            }
+            console.log(this.newPayment);
+
             this.isLoading = true;
             createPayment({ jobId: this.recordId, billId: this.newPayment.billId, accountId: this.accountId, paymentReceivedDate: this.newPayment.Payment_Received_Date__c || null, paymentReference: this.newPayment.Payment_Reference__c || null })
                 .then((result) => {

@@ -1,49 +1,88 @@
 <template>
-    <div class="sov-container">
-        <!-- Tab Navigation -->
-        <div class="tab-navigation">
-            <button 
-                class={scopeTabClass} 
-                onclick={handleScopeTab}
-                data-tab="scope">
-                <lightning-icon icon-name="utility:layers" size="x-small" class="tab-icon"></lightning-icon>
-                Scope
-            </button>
-            <button 
-                class={locationsTabClass} 
-                onclick={handleLocationsTab}
-                data-tab="locations">
-                <lightning-icon icon-name="utility:location" size="x-small" class="tab-icon"></lightning-icon>
-                Locations
-            </button>
-            <button 
-                class={processesTabClass} 
-                onclick={handleProcessesTab}
-                data-tab="processes">
-                <lightning-icon icon-name="utility:process" size="x-small" class="tab-icon"></lightning-icon>
-                Location Processes
-            </button>
+    <!-- Loading Spinner -->
+    <template if:true={isLoading}>
+        <div class="sov-container">
+            <div class="spinner-container">
+                <lightning-spinner alternative-text="Loading permissions..." size="medium"></lightning-spinner>
+            </div>
         </div>
+    </template>
 
-        <!-- Tab Content -->
-        <div class="tab-content">
-            <template if:true={isScopeActive}>
-                <div class="tab-panel">
-                    <c-sov-job-scope></c-sov-job-scope>
-                </div>
-            </template>
+    <!-- Show content only if user has access -->
+    <template if:false={isLoading}>
+        <template if:true={hasAnyAccess}>
+            <div class="sov-container">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button 
+                    class={scopeTabClass} 
+                    onclick={handleScopeTab}
+                    data-tab="scope">
+                    <lightning-icon icon-name="utility:layers" size="x-small" class="tab-icon"></lightning-icon>
+                    Scope
+                </button>
+                <button 
+                    class={locationsTabClass} 
+                    onclick={handleLocationsTab}
+                    data-tab="locations">
+                    <lightning-icon icon-name="utility:location" size="x-small" class="tab-icon"></lightning-icon>
+                    Locations
+                </button>
+                <button 
+                    class={processesTabClass} 
+                    onclick={handleProcessesTab}
+                    data-tab="processes">
+                    <lightning-icon icon-name="utility:process" size="x-small" class="tab-icon"></lightning-icon>
+                    Location Processes
+                </button>
+            </div>
 
-            <template if:true={isLocationsActive}>
-                <div class="tab-panel">
-                    <c-sov-job-locations></c-sov-job-locations>
-                </div>
-            </template>
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <template if:true={isScopeActive}>
+                    <div class="tab-panel">
+                        <c-sov-job-scope 
+                            permission-data={permissionData}>
+                        </c-sov-job-scope>
+                    </div>
+                </template>
 
-            <template if:true={isProcessesActive}>
-                <div class="tab-panel">
-                    <c-sov-job-location-processes></c-sov-job-location-processes>
-                </div>
-            </template>
+                <template if:true={isLocationsActive}>
+                    <div class="tab-panel">
+                        <c-sov-job-locations 
+                            permission-data={permissionData}>
+                        </c-sov-job-locations>
+                    </div>
+                </template>
+
+                <template if:true={isProcessesActive}>
+                    <div class="tab-panel">
+                        <c-sov-job-location-processes 
+                            permission-data={permissionData}>
+                        </c-sov-job-location-processes>
+                    </div>
+                </template>
+            </div>
         </div>
-    </div>
+        </template>
+
+        <!-- Show access denied message if user has no access -->
+        <template if:false={hasAnyAccess}>
+            <div class="sov-container">
+            <div class="no-prop">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">Access Denied</div>
+                        <div class="empty-state__subtitle">
+                            You don't have permission to access to this module. Please contact your system administrator to request access.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </template>
+    </template>
 </template>

@@ -1,12 +1,15 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 90% (2025-10-27)
+ * Test Class: MobSchedulerControllerTest - 92% (2025-11-03)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
- * Last Modified By: Kevin Suvagiya
- * Last Modified Date: 2025-10-15
- * Last Changes: Removed Unused Code and Added the Exception Handlers
- * Update: 27/10/2025 - Updated the logic for the start and end date to fix timezone based issues
+ * Update: 2025-10-27 (Kevin)   - Updated the logic for the start and end date to fix timezone based issues
+ * Update: 2025-10-28 (Kevin)   - Updated the logic for the removal of assigned resources from the mobilization, now with future removal as well
+ * Update: 2025-10-29 (Kevin)   - Updated for the Crew Based Resources View Data Fetch
+ * Update: 2025-10-30 (Kevin)   - Updated for the Crew Based Resources for the color for the Crew as well as Crew Members
+ * Update: 2025-10-30 (Kevin)   - Modified code to allow assignments from the Calendar, by getting the first mobilization of the group to assign resources
+ * Update: 2025-10-31 (Dhairya) - Modified the resource assignment according to the crew implementation and fixed the duplicate assignment bug for resource assignment to mob
+ * Update: 2025-11-03 (Kevin)   - Updated the return statement for already assigned resource
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -64,6 +67,7 @@ public with sharing class MobSchedulerController {
                             member.put('crewId', mem.Crew__c);
                             member.put('crewName', mem.Crew__r.Name);
                             member.put('crewColor', mem.Crew__r.Color_Code__c);
+                            member.put('bgStyle', 'background-color: color(from ' + mem.Crew__r.Color_Code__c + ' srgb r g b / 0.2); border: 1px solid ' + mem.Crew__r.Color_Code__c + ';');
                         }else{
                             member.put('crewName', 'Individual Employees');
                         }
@@ -97,7 +101,7 @@ public with sharing class MobSchedulerController {
                     'crew' => crewMembersList,
                     'subcontractors' => subContractorsList,
                     'assets' => assetsList,
-                    'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#5a5adb20',
+                    'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                     'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000'
                 });
     
@@ -177,15 +181,7 @@ public with sharing class MobSchedulerController {
             defaultValues.put('result', 'SUCCESS');
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{ 
-                'className' => CLASSNAME, 
-                'methodName' => 'getDefaultValues', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e, 
-                'moreDetails' => 'Error occurred while fetching default job time values.', 
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getDefaultValues', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching default job time values.', 'apiResponse' => null });
             defaultValues.put('result', e.getMessage());
         }
 
@@ -331,7 +327,7 @@ public with sharing class MobSchedulerController {
             String memberRecordType = '';
             Boolean fetchAssets = false;
 
-            if(resourceType == 'Crew') {
+            if(resourceType == 'Crew' || resourceType == 'CrewMaster') {
                 memberRecordType = 'Employee_WF_Recon';
             } else if(resourceType == 'SubContractor') {
                 memberRecordType = 'Sub_Contractor_WF_Recon';
@@ -358,7 +354,7 @@ public with sharing class MobSchedulerController {
             } else {
                 mobilizations = [
                     SELECT Id, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c, Mobilization_Status__c,
-                        (SELECT Id, Contact__c, Contact__r.Name
+                        (SELECT Id, Contact__c, Contact__r.Name, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
                             FROM Mobilization_Members__r
                             WHERE Contact__r.RecordType.DeveloperName = :memberRecordType
                             ORDER BY Mobilization__r.Start_Date__c)
@@ -377,6 +373,7 @@ public with sharing class MobSchedulerController {
                             'id' => asset.Equipment__c,
                             'name' => asset.Equipment__r.Name,
                             'jId' => mob.Job__c,
+                            'mobId' => mob.id,
                             'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
                             'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
@@ -384,17 +381,27 @@ public with sharing class MobSchedulerController {
                             'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
                             'start' => mob.Start_Date__c.format(),
                             'end' => mob.End_Date__c.format(),
-                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff',
+                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
                         });
                     }
                 } else {
+                    Set<Id> processedCrewIds = new Set<Id>();
+
                     for(Mobilization_Member__c mem : mob.Mobilization_Members__r){
+
+                        if (resourceType=='CrewMaster' && (mem.Crew__c == null || processedCrewIds.contains(mem.Crew__c))) continue; // skip individuals with no crew
+
+                        if (resourceType=='CrewMaster' && !processedCrewIds.contains(mem.Crew__c)) {
+                            processedCrewIds.add(mem.Crew__c);
+                        }
                         result.add(new Map<String,Object>{
-                            'id' => mem.Contact__c,
-                            'name' => mem.Contact__r.Name,
+                            'id' => resourceType=='CrewMaster' ? mem.Crew__c : mem.Contact__c,
+                            'name' => resourceType=='CrewMaster' ? mem.Crew__r.Name : mem.Contact__r.Name,
+                            'crewStyle' => mem.Crew__r.Color_Code__c != null ? 'color:' + mem.Crew__r.Color_Code__c + ';' : null,
                             'jId' => mob.Job__c,
+                            'mobId' => mob.id,
                             'status' => mob.Mobilization_Status__c,
                             'jobId' => mob.Job__r.Name,
                             'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
@@ -402,9 +409,9 @@ public with sharing class MobSchedulerController {
                             'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
                             'start' => mob.Start_Date__c.format(),
                             'end' => mob.End_Date__c.format(),
-                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#5a5adb20',
+                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#ffffff') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
                         });
                     }
                 }
@@ -418,17 +425,42 @@ public with sharing class MobSchedulerController {
 
     /**
      * Description: Removes a resource assignment (member or asset) by junction Id.
-     * Parameters: id (String) - junction Id; type (String) - 'Crew'|'SubContractor'|'Asset'.
+     * Parameters: id (String) - junction Id; 
+     *             type (String) - 'CrewMaster'|'Crew'|'SubContractor'|'Asset';
+     *             mobId (String) - Mobilization Id.
+     *             allUpcoming (String) - 'true'|'false' - delete all upcoming mobilizations under the same Mobilization Group.
      * Return: 'success' on delete; otherwise error message.
      */
     @AuraEnabled
-    public static string removeJobResource(String id, String type){
+    public static string removeJobResource(String id, String type, String mobId, String allUpcoming){
         try {
-            if(type == 'Crew' || type == 'SubContractor'){
-                Mobilization_Member__c mobMember = new Mobilization_Member__c(Id = id);
+            // Get Details about the Mobilization Group
+            Mobilization__c currentMob = new Mobilization__c();
+            if(allUpcoming == 'true'){
+                currentMob = [SELECT Id, Mobilization_Group__c FROM Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
+                // Delete all upcoming mobilizations under the same Mobilization Group
+                DateTime nowDT = System.now();
+                if(type == 'CrewMaster'){
+                    List<Mobilization_Member__c> mobMembersToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    delete as user mobMembersToDelete;
+                } else if(type == 'Crew' || type == 'SubContractor'){
+                    List<Mobilization_Member__c> mobMember = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    delete as user mobMember;
+                } else if (type == 'Asset'){
+                    List<Mobilization_Asset__c> mobAsset = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    delete as user mobAsset;
+                }
+                return 'success';
+            }
+
+            if(type == 'CrewMaster'){
+                List<Mobilization_Member__c> mobMembersToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                delete as user mobMembersToDelete;
+            } else if(type == 'Crew' || type == 'SubContractor'){
+                Mobilization_Member__c mobMember = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
                 delete as user mobMember;
             } else if (type == 'Asset'){
-                Mobilization_Asset__c mobAsset = new Mobilization_Asset__c(Id = id);
+                Mobilization_Asset__c mobAsset = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
                 delete as user mobAsset;
             }
             return 'success';
@@ -494,6 +526,15 @@ public with sharing class MobSchedulerController {
                         AND Mobilization__c != :mobId
                         WITH USER_MODE
                     ];
+                } else if (type == 'CrewMaster') {
+                    overlappingMobs = [
+                        SELECT Id, Mobilization__c
+                        FROM Mobilization_Member__c
+                        WHERE Crew__c = :resourceId
+                        AND DAY_ONLY(Mobilization__r.Start_Date__c) = :newStart
+                        AND Mobilization__c != :mobId
+                        WITH USER_MODE
+                    ];
                 }
     
                 // If overlapping found, return
@@ -504,17 +545,67 @@ public with sharing class MobSchedulerController {
 
             // Insert new assignment
             if (type == 'Crew' || type == 'SubContractor') {
+                List<Mobilization_Member__c> existingMobilizationMember = [
+                    SELECT Mobilization__c FROM Mobilization_Member__c 
+                    WHERE Contact__c = :resourceId AND Mobilization__c = :mobId 
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+                if(!existingMobilizationMember.isEmpty()){
+                    return 'ASSIGNED';
+                }
                 Mobilization_Member__c mobMember = new Mobilization_Member__c(
                     Mobilization__c = mobId,
                     Contact__c = resourceId
                 );
                 insert as user mobMember;
             } else if (type == 'Asset') {
+                List<Mobilization_Asset__c> existingMobilizationAsset = [
+                    SELECT Mobilization__c FROM Mobilization_Asset__c 
+                    WHERE Equipment__c = :resourceId AND Mobilization__c = :mobId 
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+                if(!existingMobilizationAsset.isEmpty()){
+                    return 'ASSIGNED';
+                }
                 Mobilization_Asset__c mobAsset = new Mobilization_Asset__c(
                     Mobilization__c = mobId,
                     Equipment__c = resourceId
                 );
                 insert as user mobAsset;
+            } else if (type == 'CrewMaster') {
+                List<Crew_Member__c> crewMembers = [SELECT Contact__c FROM Crew_Member__c WHERE Crew__c = :resourceId WITH USER_MODE];
+                Set<String> contactIds = new Set<String>();
+                for(Crew_Member__c cm : crewMembers){
+                    contactIds.add(cm.Contact__c);
+                }
+                // Check for existing assignments to avoid duplicates
+                List<Mobilization_Member__c> existingMembers = [
+                    SELECT Contact__c FROM Mobilization_Member__c 
+                    WHERE Mobilization__c = :mobId AND Contact__c IN :contactIds
+                    WITH USER_MODE
+                ];
+
+                // Create a set of existing contact IDs for quick lookup
+                Set<String> existingContactIds = new Set<String>();
+                for(Mobilization_Member__c existingMember : existingMembers){
+                    existingContactIds.add(existingMember.Contact__c);
+                }
+
+                List<Mobilization_Member__c> mobMembersToInsert = new List<Mobilization_Member__c>();
+                for (Crew_Member__c crewMember : crewMembers) {
+                    // Only create new record if contact is not already assigned
+                    if(!existingContactIds.contains(crewMember.Contact__c)){
+                        Mobilization_Member__c mobMember = new Mobilization_Member__c(
+                            Mobilization__c = mobId,
+                            Crew__c = resourceId,
+                            Contact__c = crewMember.Contact__c
+                        );
+                        mobMembersToInsert.add(mobMember);
+                    }
+                }
+                insert as user mobMembersToInsert;
             }
 
             return 'success';
@@ -533,10 +624,17 @@ public with sharing class MobSchedulerController {
     public static String assignResourceToJob(Map<String, Object> assignmentData) {
         try {
             List<String> resourceIds = String.valueOf((assignmentData.get('resourceIds'))).split(',');
-            String mobId = (String) assignmentData.get('mobId');
+            // String mobId = (String) assignmentData.get('mobId');
+            String mobId = assignmentData.containsKey('mobId') ? (String) assignmentData.get('mobId') : null;
+            String mobGroupId = assignmentData.containsKey('mobGroupId') ? (String) assignmentData.get('mobGroupId') : null;
             String type = (String) assignmentData.get('type');
             Boolean allowOverlap = (Boolean) assignmentData.get('allowOverlap');
             String overlapMode = (String) assignmentData.get('overlapMode'); // "ALL" or "SKIP"
+            Map<String, Object> resourceMap = (Map<String, Object>) JSON.deserializeUntyped((String) assignmentData.get('resourceMap'));
+
+            if(type == 'Crew' && resourceMap != null){
+                resourceIds = new List<String>(resourceMap.keySet());
+            }
 
             // Validate input
             if (resourceIds == null || resourceIds.isEmpty()) {
@@ -546,14 +644,28 @@ public with sharing class MobSchedulerController {
                 });
             }
 
+            Mobilization__c selectedMob = new Mobilization__c();
+
             // Get mobilization details + parent Job
-            Mobilization__c selectedMob = [
-                SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
-                FROM Mobilization__c
-                WHERE Id = :mobId
-                WITH USER_MODE
-                LIMIT 1
-            ];
+            if(mobId != null){
+                selectedMob = [
+                    SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
+                    FROM Mobilization__c
+                    WHERE Id = :mobId
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+            }else if(mobGroupId != null){
+                selectedMob = [
+                    SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
+                    FROM Mobilization__c
+                    WHERE Mobilization_Group__c = :mobGroupId
+                    AND End_Date__c >= :system.now()
+                    WITH USER_MODE
+                    ORDER BY End_Date__c ASC
+                    LIMIT 1
+                ];
+            }
 
             if (selectedMob == null) {
                 return JSON.serialize(new Map<String, Object>{
@@ -756,7 +868,8 @@ public with sharing class MobSchedulerController {
                         if (type == 'Crew' || type == 'SubContractor') {
                             newAssignments.add(new Mobilization_Member__c(
                                 Mobilization__c = mob.Id,
-                                Contact__c = resourceId
+                                Contact__c = resourceId,
+                                Crew__c = (type == 'Crew' && resourceMap != null && resourceMap.containsKey(resourceId)) ? (String) resourceMap.get(resourceId) : null
                             ));
                         } else if (type == 'Asset') {
                             newAssignments.add(new Mobilization_Asset__c(

@@ -19,41 +19,43 @@
 
 
             <div class="right-contols">
-                <!-- Save/Discard Actions -->
-                <div class="action-buttons">
-                    <button 
-                        class="action-button"
-                        onclick={handleDiscardChanges}
-                        disabled={isButtonsDisabled}
-                        title={discardButtonTitle}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Discard Changes
-                    </button>
-                    <button 
-                        class="action-button save-button"
-                        onclick={handleSaveChanges}
-                        disabled={isSaveDisabled}>
-                        <template if:true={isSaving}>
+                <!-- Show Save/Discard Actions only for users with edit permission -->
+                <template if:true={canEdit}>
+                    <div class="action-buttons">
+                        <button 
+                            class="action-button"
+                            onclick={handleDiscardChanges}
+                            disabled={isButtonsDisabled}
+                            title={discardButtonTitle}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
-                        </template>
-                        <template if:false={isSaving}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </template>
-                        Save Changes
-                    </button>
-                </div>
+                            Discard Changes
+                        </button>
+                        <button 
+                            class="action-button save-button"
+                            onclick={handleSaveChanges}
+                            disabled={isSaveDisabled}>
+                            <template if:true={isSaving}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </template>
+                            <template if:false={isSaving}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </template>
+                            Save Changes
+                        </button>
+                    </div>
+                </template>
 
                 <div class="sort-description-container">
                     <template if:true={sortDescription}>
@@ -82,7 +84,7 @@
                 <table class="custom-data-table">
                     <thead class="table-header">
                         <tr>
-                            <template for:each={processTableColumns} for:item="column">
+                            <template for:each={activeProcessTableColumns} for:item="column">
                                 <template if:true={column.sortable}>
                                     <th key={column.fieldName} 
                                         class="header-cell center-trancate-head sortable-header" 
@@ -138,7 +140,8 @@
                                                            onchange={handleSliderChange}
                                                            oninput={handleSliderInput}
                                                            style={field.progressStyle}
-                                                           class="completion-slider">
+                                                           class="completion-slider"
+                                                           disabled={isReadOnlyMode}>
                                                     <div class="slider-value">{field.displayValue}%</div>
                                                 </div>
                                             </template>
@@ -158,18 +161,18 @@
                                                         <!-- <a href={process.recordUrl} target="_blank" class="name-link">
                                                             {field.value}
                                                         </a> -->
-                                                        <span>{field.value}</span>
+                                                        <span class="process-name-text">{field.value}</span>
                                                     </template>
                                                     <template if:false={field.isNameField}>
                                                         <template if:true={field.isLocationField}>
                                                             <!-- <a href={process.locationUrl} target="_blank" class="name-link">
                                                                 {field.value}
                                                             </a> -->
-                                                            <span>{field.value}</span>
+                                                            <span class="location-name-text">{field.value}</span>
                                                         </template>
                                                         <template if:false={field.isLocationField}>
                                                             <template if:true={field.hasValue}>
-                                                                {field.value}
+                                                                <span class="text-truncate">{field.value}</span>
                                                             </template>
                                                             <template if:false={field.hasValue}>
                                                                 --

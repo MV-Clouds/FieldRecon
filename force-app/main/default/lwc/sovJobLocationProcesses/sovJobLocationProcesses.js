@@ -1,4 +1,4 @@
-import { LightningElement, track, wire } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
@@ -6,6 +6,12 @@ import getJobLocationProcesses from '@salesforce/apex/SovJobLocationProcessesCon
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 
 export default class SovJobLocationProcesses extends NavigationMixin(LightningElement) {
+    // Permission data received from parent component
+    @api permissionData = {
+        isReadOnly: false,
+        isFullAccess: false
+    };
+
     @track recordId;
     @track isLoading = true;
     @track locationProcesses = [];
@@ -18,16 +24,67 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
     @track isSaving = false; // Track save operation
     @track isUpdatingDOM = false; // Track when DOM is being updated
 
-    // Process table columns configuration
-    @track processTableColumns = [
-        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
-        { label: 'Location Name', fieldName: 'wfrecon__Location__r.Name', type: 'text', isLocationField: true, sortable: true },
-        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', sortable: true },
-        { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', sortable: true },
-        { label: 'Completed Percentage', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true, sortable: false },
-        { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency', sortable: true },
-        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text', sortable: true }
-    ];
+    // Process table columns configuration - will be built dynamically
+    @track processTableColumns = [];
+
+    // Permission-based computed properties
+    /**
+     * Method Name: get hasAnyAccess
+     * @description: Check if user has any access (view or edit)
+     */
+    get hasAnyAccess() {
+        return this.permissionData && (
+            this.permissionData.isFullAccess ||
+            this.permissionData.isReadOnly
+        );
+    }
+
+    /**
+     * Method Name: get canEdit
+     * @description: Check if user can edit records
+     */
+    get canEdit() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get isReadOnlyMode
+     * @description: Check if user is in read-only mode
+     */
+    get isReadOnlyMode() {
+        return !this.canEdit;
+    }
+
+    /**
+     * Method Name: get activeProcessTableColumns
+     * @description: Get process table columns based on permissions (hide slider if no access)
+     */
+    get activeProcessTableColumns() {
+        const baseColumns = [
+            { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
+            { label: 'Location Name', fieldName: 'wfrecon__Location__r.Name', type: 'text', isLocationField: true, sortable: true },
+            { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', sortable: true },
+            { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', sortable: true }
+        ];
+
+        // Only include the slider column if user has edit access
+        if (this.canEdit) {
+            baseColumns.push({ 
+                label: 'Completed Percentage', 
+                fieldName: 'wfrecon__Completed_Percentage__c', 
+                type: 'percent', 
+                isSlider: true, 
+                sortable: false
+            });
+        }
+
+        baseColumns.push(
+            { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency', sortable: true },
+            { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text', sortable: true }
+        );
+
+        return baseColumns;
+    }
 
     /**
      * Method Name: get displayedProcesses
@@ -44,7 +101,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
             row.locationUrl = `/lightning/r/${locationProcess.wfrecon__Location__c}/view`;
             row.isModified = this.modifiedProcesses.has(locationProcess.Id);
             
-            row.displayFields = this.processTableColumns.map(col => {
+            row.displayFields = this.activeProcessTableColumns.map(col => {
                 const key = col.fieldName;
                 let value = this.getFieldValue(locationProcess, key);
                 
@@ -296,6 +353,9 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      * @description: Handle real-time slider input for visual feedback
      */
     handleSliderInput(event) {
+        // Check if user has edit permission
+        if (!this.canEdit) return;
+        
         const newValue = parseFloat(event.target.value);
         const sliderElement = event.target;
         
@@ -319,6 +379,9 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      * @description: Handle completion percentage slider change - now tracks changes instead of saving immediately
      */
     handleSliderChange(event) {
+        // Check if user has edit permission
+        if (!this.canEdit) return;
+        
         const processId = event.target.dataset.processId;
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(event.target.value);

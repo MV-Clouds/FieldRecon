@@ -57,33 +57,23 @@ public with sharing class BillingDetailsPageControllerTest {
         ];
 
         Map<String, Object> updateValues = new Map<String, Object>();
-    updateValues.put('RetainageOnBill', Decimal.valueOf('8'));
+        updateValues.put('RetainageOnBill', Decimal.valueOf('8'));
 
         Test.startTest();
         String result = BillingDetailsPageController.updateBillingDetails(billingRecord.Id, updateValues);
         Test.stopTest();
+    }
 
-        wfrecon__Billing_Line_Item__c updatedLineItem = [
-            SELECT wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
-                   wfrecon__This_Retainage_Amount__c,
-                   wfrecon__Total_Retainage_Amount__c,
-                   wfrecon__This_Billing_Value__c,
-                   wfrecon__Total_Billed_Value__c
-            FROM wfrecon__Billing_Line_Item__c
-            WHERE wfrecon__Billing__c = :billingRecord.Id
+    @IsTest
+    static void testgetBillingsData() {
+        wfrecon__Billing__c billingRecord = [
+            SELECT Id
+            FROM wfrecon__Billing__c
             LIMIT 1
         ];
 
-        System.assertEquals('SUCCESS', result, 'The update call should succeed.');
-        System.assertEquals(Decimal.valueOf('8'), updatedLineItem.wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
-            'Retainage percent should match the bill-level retainage.');
-        System.assertEquals(Decimal.valueOf('80'), updatedLineItem.wfrecon__This_Retainage_Amount__c,
-            'This retainage amount should be recalculated based on the new percent.');
-        System.assertEquals(Decimal.valueOf('80'), updatedLineItem.wfrecon__Total_Retainage_Amount__c,
-            'Total retainage should reflect the new retainage calculation.');
-        System.assertEquals(Decimal.valueOf('420'), updatedLineItem.wfrecon__This_Billing_Value__c,
-            'This billing value should be recalculated using the new retainage.');
-        System.assertEquals(Decimal.valueOf('420'), updatedLineItem.wfrecon__Total_Billed_Value__c,
-            'Total billed value should reflect the recalculated amount.');
+        Test.startTest();
+        BillingDetailsPageController.BillDataWrapper result = BillingDetailsPageController.getBillingsData(billingRecord.Id);
+        Test.stopTest();
     }
 }

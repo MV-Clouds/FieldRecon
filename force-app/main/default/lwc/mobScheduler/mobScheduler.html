@@ -42,7 +42,8 @@
       <!-- Period navigation -->
       <div class="header-nav-tab-with-button slds-grid slds-grid--vertical-align-end slds-grid--align-spread slds-wrap">
         <div class="tabs sub-tabs tab-navigation" if:true={isResourceView}>
-          <button class="nav-tab-btn" data-selected={resourceType} name="Crew" onclick={selectResourceType}>Crew</button>
+          <button class="nav-tab-btn" data-selected={resourceType} name="CrewMaster" onclick={selectResourceType}>Crew</button>
+          <button class="nav-tab-btn" data-selected={resourceType} name="Crew" onclick={selectResourceType}>Employees</button>
           <button class="nav-tab-btn" data-selected={resourceType} name="SubContractor" onclick={selectResourceType}>Sub
             Contractors</button>
           <button class="nav-tab-btn" data-selected={resourceType} name="Asset" onclick={selectResourceType}>Assets</button>
@@ -168,7 +169,7 @@
 
           <template for:each={filteredResources} for:item="res">
             <div class="resource-row" key={res.id}>
-              <div class="cell resource-col record-nav-link" data-id={res.id} onclick={handleRecordNavigation}>{res.name}</div>
+              <div class="cell resource-col" style={res.crewStyle} data-id={res.id}>{res.name}</div>
               <template for:each={res.days} for:item="day">
                 <div class="cell day-col" key={day.iso}>
                   <template for:each={day.events} for:item="ev">
@@ -177,7 +178,7 @@
                           <div class="job-card-name">{ev.jobName}</div>
                           <div class="job-card-description record-nav-link" data-id={ev.jId} onclick={handleRecordNavigation}>{ev.jobId}</div>
                       </div>
-                      <svg data-id={ev.id} onclick={handleRemoveAssignment} class="remove-assignment-btn" data-past={ev.isPast}
+                      <svg data-mobid={ev.mobId} data-id={ev.id} onclick={handleRemoveAssignment} class="remove-assignment-btn" data-past={ev.isPast}
                         xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
                         <path
                           d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z" />
@@ -233,14 +234,15 @@
           <!-- Form To Create The Mobilization Group -->
           <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate}>
             <div class="main-mob-creation-form-div">
-              <div class="slds-grow slds-scrollable--y">
+              <div class="slds-grow slds-scrollable--y slds-grid slds-wrap">
                 <lightning-messages></lightning-messages>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" data-id="start" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" data-id="end" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Description__c"></lightning-input-field>
               </div>
               <!-- Control buttons -->
               <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
@@ -351,7 +353,7 @@
                 <template for:each={addedResources} for:item="tile">
                     <span class="subcontractor-item tile" key={tile.id}>
                         <div class="slds-truncate" title={tile.name}>{tile.name}</div>
-                        <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.junctionId} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
+                        <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.id} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
                     </span>
                 </template>
                 <template if:false={addedResources.length}>
@@ -378,8 +380,8 @@
             <p class="slds-p-bottom--medium">{confirmationMessage}</p>
             <div class="slds-grid slds-grid--align-center slds-p-vertical--medium confirm-popup-btns bottom-footer-btn">
               <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleConfirmationAction}>Cancel</button>
-              <button class="save-btn" name="noOverlap" title="Assign resources only if they are not overlapping on specific date." onclick={handleConfirmationAction} if:true={isOverlapJob}>Assign Only Available</button>
               <button class="save-btn" name="confirm" title="Assign" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
+              <button class="save-btn" name="secondOption" onclick={handleConfirmationAction} if:true={confirmationBtnLabel2}>{confirmationBtnLabel2}</button>
             </div>
           </div>
         </div>

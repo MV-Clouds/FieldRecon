@@ -27,7 +27,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     @track weekEvents = [];
     @track filteredEvents = [];
 
-    @track resourceType = 'Crew';
+    @track resourceType = 'CrewMaster';
     @track resourceTypeForAssign = 'Crew';
 
     currentWeekStart;
@@ -70,8 +70,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     showConfirmationPopup = false;
     confirmationTitle = 'Confirm!';
     confirmationMessage = 'Are you sure, you want to proceed';
-    confirmationBtnLabel = 'Confirm';
-    
+    confirmationBtnLabel = 'Proceed';
+    confirmationBtnLabel2 = null;
+
     isOverlap = false;
     isAllowOverLap = false;
 
@@ -82,13 +83,22 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
     isRemove = false;
     resourceIdToRemove = null;
+    mobIdToRemove = null;
     typeOfResourceToRemove = '';
 
     isMobDelete = false;
     mobIdToDelete = null;
 
     get resourceObjectApi(){
-        return this.resourceType == 'Asset' ? 'wfrecon__Equipment__c' : 'Contact';
+        // return this.resourceType == 'Asset' ? 'wfrecon__Equipment__c' : 'Contact';
+        switch(this.resourceType){
+            case 'Asset':
+                return 'wfrecon__Equipment__c';
+            case 'CrewMaster':
+                return 'wfrecon__Crew__c';
+            default:
+                return 'Contact';
+        }
     }
 
     displayResource = {
@@ -102,7 +112,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     get filterResource() {
-        return this.resourceType == 'Asset' ?  null :
+        return this.resourceType == 'Asset' || this.resourceType == 'CrewMaster' ?  null :
         {
             criteria: [
                 {
@@ -210,9 +220,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             })
             .filter(Boolean)
             .sort(a => a.id === 'NA' ? 1 : -1);
-
-            // console.log('Filtered Are :: ',filteredGroups);
-            
             resources = this.allCrewMembers || [];
             return filteredGroups;
         } 
@@ -254,7 +261,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     get popupHeader(){
         if(this.isMobGroupCreate) return 'Create Mobilization Group';
         if(this.isMobEditForm) return 'Edit Mobilization';
-        if(this.isAssignForm) return `Assign ${this.resourceType}`;
+        if(this.isAssignForm) return `Assign ${this.resourceType == 'CrewMaster' ? 'Crew' : (this.resourceType == 'Crew' ? 'Employee' : this.resourceType)}`;
         return 'Assign Resources';
     }
 
@@ -512,8 +519,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
         getMobilizationDetails({ startDate: startDateStr, endDate: endDateStr })
             .then(data => {
-                console.log('Data is :: ', data );
-                
                 this.weekEvents = data.weekEvents || [];
                 this.applySearchFilter();
                 mode === 'week' ? this.mapWeekData() : this.mapDayData();
@@ -536,11 +541,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
         getResourceDetails({ startDate: startDateStr, endDate: endDateStr, resourceType })
             .then(data => {
-                // Map data into table per week
-                this.resources = this.weekDays.map(day => {
-                    return day; // placeholder, mapping below
-                });
-
                 // Map resources
                 this.resources = [];
                 const weekMap = {};
@@ -552,11 +552,11 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 const resMap = {};
                 data.forEach(item => {
                     if (!resMap[item.id]) {
-                        resMap[item.id] = { id: item.id, name: item.name, days: this.weekDays.map(d => ({ iso: d.iso, events: [] })) };
+                        resMap[item.id] = { id: item.id, name: item.name, days: this.weekDays.map(d => ({ iso: d.iso, events: [] })), crewStyle: item.crewStyle};
                     }
                     const dayIso = new Date(item.start).toISOString().slice(0,10);
                     const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
-                    if (dayObj) dayObj.events.push({ id: item.junctionId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date() });
+                    if (dayObj) dayObj.events.push({ id: item.id, mobId: item.mobId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date() });
                 });
 
                 this.resources = Object.values(resMap);
@@ -602,7 +602,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     const updatedDays = resource.days.map(day => {
                         // filter matching events for this day
                         const filteredEvents = day.events.filter(event =>
-                            event.status == statusFilter && (isResourceMatch || (event.jobName?.toLowerCase().includes(keyLower) ||
+                            (statusFilter == null || event.status == statusFilter) && (isResourceMatch || (event.jobName?.toLowerCase().includes(keyLower) ||
                             event.jobId?.toLowerCase().includes(keyLower)))
                         );
 
@@ -717,6 +717,29 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         }
     }
 
+    // handleMobDateFieldUpdate(event) {
+    //     const startField = this.template.querySelector('lightning-input-field[data-id="start"] input');
+    //     const endField = this.template.querySelector('lightning-input-field[data-id="end"] input');
+
+    //     const startDate = new Date(startField.value);
+    //     const endDate = new Date(endField.value);
+
+    //     // clear previous errors
+    //     startField.setCustomValidity('');
+    //     endField.setCustomValidity('');
+
+    //     // validation
+    //     if (startField.value && endField.value && startDate > endDate) {
+    //         const msg = 'Start Date cannot be later than End Date.';
+    //         startField.setCustomValidity(msg);
+    //         endField.setCustomValidity(msg);
+    //     }
+
+    //     // show errors
+    //     startField.reportValidity();
+    //     endField.reportValidity();
+    // }
+
     handleCreateMobSubmitted(event){
         try {
             this.showLoading(true);
@@ -740,25 +763,27 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     handleRemoveAssignment(event){
         try {
             let id = event.currentTarget.dataset.id;
+            let mobId = event.currentTarget.dataset.mobid;
             if(!id){
                 console.error('MobScheduler.handleRemoveAssignment error: id is not defined');
                 return;
             } else if(this.resourceType){
                 this.isRemove = true;
                 this.resourceIdToRemove = id;
+                this.mobIdToRemove = mobId;
                 this.typeOfResourceToRemove = this.resourceType;
                 // this.showConfirmationPopup = true;
-                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove For All Days');
             }
         } catch (e) {
             console.error('MobScheduler.handleRemoveAssignment error:', e?.message);
         }
     }
 
-    removeJobAssignment(id, type = this.resourceType){
+    removeJobAssignment(id, type = this.resourceType, mobId, allUpcoming = false){
         try{
             this.showLoading(true);
-            removeJobResource({ id: id, type: type })
+            removeJobResource({ id: id, type: type , mobId: mobId, allUpcoming: allUpcoming })
             .then(result => {
                 if(result === 'success'){
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
@@ -827,11 +852,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             } else {
                 // Remove all selections belonging to this crew
                 this.selectedCrewAssignments = this.selectedCrewAssignments.filter(sel => sel.crewId !== crewId);
-
             }
-            console.log('The Map now:', this.selectedCrewAssignments);
         } catch (e) {
-            console.log('Error in function handleSelectWholeCrew:::', e.message);
+            console.error('MobScheduler.handleSelectWholeCrew error:', e?.message);
         }
     }
 
@@ -851,9 +874,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 this.selectedCrewAssignments = this.selectedCrewAssignments.filter(item => item.id !== id);
                 this[name] = this[name].filter(item => item !== id);
             }
-
-            console.log('The Map now:', this.selectedCrewAssignments);
-            
         } catch (e) {
             console.error('MobScheduler.handleSelectResourceOption error:', e?.message);
         }
@@ -948,7 +968,6 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     inputs[i].reportValidity();
                 }
                 this.showToast('Error', 'Please select all the required fields.', 'error');
-                return;
             }else{
                 let assignmentData = { 
                     resourceId: this.selectedResourceId, 
@@ -991,14 +1010,24 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     // Job Card Resource Editing Form
     addResourceForAssignment(event){
         try {
+            if((this.resourceTypeForAssign == 'Crew' && !this.selectedCrewAssignments.length) || (this.resourceTypeForAssign != 'Crew' && !this.selectedResourceIdsForAssign.length)) {
+                this.showToast('Error', 'Please select resource to assign.', 'error');
+                return;
+            }
             this.showLoading(true);
 
             if(event){
                 let name = 'selectedResourceIdsForAssign';
                 let type = this.resourceTypeForAssign;
+
+                const resourceMap = {};
+                (this.selectedCrewAssignments || []).forEach(item => {
+                    resourceMap[item.id] = item.crewId || null;
+                });
     
                 this.jobAssignmentInfo = { 
                     resourceIds: this[name].join(','), 
+                    resourceMap: JSON.stringify(resourceMap),
                     mobId: this.mobIdForResources, 
                     type: type,
                     allowOverlap: false,
@@ -1024,7 +1053,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 if (status === 'OVERLAP') {
                     this.isOverlapJob = true;
                     // Show confirmation popup
-                    this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign');
+                    this.askConfirmation('Time Overlapping!', 'Resource allocation is overlapping. How would you like to proceed?', 'Overlap & Assign', 'Assign Only Available');
 
                 } else if (status === 'SUCCESS') {
                     this.showToast('Success', 'Resource assigned successfully.', 'success');
@@ -1055,11 +1084,13 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         try {
             let id = event.currentTarget.dataset.id;
             let type = event.currentTarget.dataset.type;
+            let mobId = event.currentTarget.dataset.job;
             
             this.isRemove = true;
             this.resourceIdToRemove = id;
+            this.mobIdToRemove = mobId;
             this.typeOfResourceToRemove = type;
-            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove For All Days');
         } catch (e) {
             console.error('MobScheduler.handleRemoveJobResource error:', e?.message);
         }
@@ -1069,10 +1100,16 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         try {
             let id = event.detail.id;
             let type = event.detail.type;
+            let mobId = event.detail.mobId;
             this.isRemove = true;
             this.resourceIdToRemove = id;
+            this.mobIdToRemove = mobId;
             this.typeOfResourceToRemove = type;
-            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove');
+            if(type == 'CrewMaster'){
+                this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this crew and it\'s members from this mobilization?', 'Remove', 'Remove For All Days');
+                return;
+            }
+            this.askConfirmation('Remove Resource!', 'Are you sure you want to remove this resource from a day?', 'Remove', 'Remove For All Days');
         } catch (e) {
             console.error('MobScheduler.handleRemoveResourceFromCard error:', e?.message);
         }
@@ -1133,13 +1170,13 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     // Confirmation
-    askConfirmation(title, message, confirmLabel){
+    askConfirmation(title, message, confirmLabel, confirmLabel2){
         this.showLoading(false);
         this.confirmationTitle = title;
         this.confirmationMessage = message;
         this.confirmationBtnLabel = confirmLabel;
+        this.confirmationBtnLabel2 = confirmLabel2 || null;
         this.showConfirmationPopup = true;
-
     }
     handleConfirmationAction(event){
         try {
@@ -1155,22 +1192,30 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : true}));
                     this.addResourceForAssignment();
                     this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
                 } else if(this.isRemove){
-                    this.removeJobAssignment(this.resourceIdToRemove, this.typeOfResourceToRemove);
+                    this.removeJobAssignment(this.resourceIdToRemove, this.typeOfResourceToRemove, this.mobIdToRemove, false);
                     this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
                 } else if(this.isMobDelete){
                     this.deleteMob(this.mobIdToDelete);
                     this.mobIdToDelete = null;
                 }
-            } else if(name == 'noOverlap'){
+            } else if(name == 'secondOption'){
                 if(this.isOverlapJob){
                     this.jobAssignmentInfo.allowOverlap = true;
                     this.jobAssignmentInfo.overlapMode = 'SKIP';
                     // this.jobAssignmentInfo.overlappingDates.map(ol => ({ ...ol, allowOverlap : false}));
                     this.addResourceForAssignment();
                     this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
+                    this.typeOfResourceToRemove = null;
+                }else if(this.isRemove){
+                    this.removeJobAssignment(this.resourceIdToRemove, this.typeOfResourceToRemove, this.mobIdToRemove, true);
+                    this.resourceIdToRemove = null;
+                    this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
                 }
             }
@@ -1185,7 +1230,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             // Reset Confirm Popup Details
             this.confirmationTitle = 'Confirm!';
             this.confirmationMessage = 'Are you sure, you want to proceed';
-            this.confirmationBtnLabel = 'Confirm';
+            this.confirmationBtnLabel = 'Proceed';
+            this.confirmationBtnLabel2 = null;
         } catch (e) {
             console.error('MobScheduler.handleConfirmationAction error:', e?.message);
         }

@@ -29,7 +29,7 @@ public with sharing class BillingAndPaymentTabController {
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'getJobData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return new List<Job__c>();
         }
     }
 
@@ -79,7 +79,7 @@ public with sharing class BillingAndPaymentTabController {
             return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'getBillingsData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return null;
         }
     }
 
@@ -130,7 +130,7 @@ public with sharing class BillingAndPaymentTabController {
             return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'getPaymentsData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return null;
         }
     }
 
@@ -157,7 +157,7 @@ public with sharing class BillingAndPaymentTabController {
             ];
 
             // 2. Determine retainage, previous bill details and approved scope entries
-            Decimal billRetainage = job.Retainage__c;
+            Decimal billRetainage = job.Retainage__c != null ? job.Retainage__c : 0.00;
             Boolean isRetainageBill = (billingType != null && billingType.equalsIgnoreCase('Retainage Bill'));
 
             Map<Id, Billing_Line_Item__c> prevBillItemMap = new Map<Id, Billing_Line_Item__c>();
@@ -171,7 +171,7 @@ public with sharing class BillingAndPaymentTabController {
                     LIMIT 1
                 ];
                 if (previousBilling.Retainage_on_Bill__c != null) {
-                    billRetainage = previousBilling.Retainage_on_Bill__c;
+                    billRetainage = previousBilling.Retainage_on_Bill__c != null ? previousBilling.Retainage_on_Bill__c : 0.00;
                 }
 
                 previousBillItems = [
@@ -289,48 +289,63 @@ public with sharing class BillingAndPaymentTabController {
                 
                 // If matching previous bill item exists
                 if (prevItem != null) {
-                    System.debug('prevItem: ' + prevItem);
-                    System.debug('prevItem: ' + JSON.serialize(prevItem));
                     newItem.Previous_Bill_Line_Item__c = prevItem.Id;
-                    
-                    // Set This Billing Percent as max of Previous Total Complete % and Current Completed %
+
                     Decimal prevCompletePercent = prevItem.This_Billing_Percent__c != null ? prevItem.This_Billing_Percent__c : 0;
                     Decimal currentCompletePercent = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
-                    newItem.This_Billing_Percent__c = Math.max(prevCompletePercent, currentCompletePercent);
+                    Decimal appliedPercent = prevCompletePercent > currentCompletePercent ? prevCompletePercent : currentCompletePercent;
+                    newItem.This_Billing_Percent__c = appliedPercent;
 
-                    System.debug('prevItem.Remaining_Billing_Amount__c: ' + prevItem.Remaining_Billing_Amount__c);
-                    System.debug('se.Completed_Percentage__c: ' + se.Completed_Percentage__c);
+                    Decimal contractValue = se.Contract_Value__c != null ? se.Contract_Value__c : 0;
+                    Decimal previousTotalBilled = prevItem.Total_Billed_Value__c != null ? prevItem.Total_Billed_Value__c : 0;
+                    Decimal previousTotalRetainage = prevItem.Total_Retainage_Amount__c != null ? prevItem.Total_Retainage_Amount__c : 0;
 
-                    newItem.This_Retainage_Amount__c = (prevItem.Remaining_Billing_Amount__c * lineRetainagePercent) / 100;
-                    newItem.Total_Retainage_Amount__c = prevItem.Total_Retainage_Amount__c + newItem.This_Retainage_Amount__c;
-                    System.debug('newItem.Total_Retainage_Amount__c: ' + newItem.Total_Retainage_Amount__c);
+                    previousTotalBilled = previousTotalBilled.setScale(2, System.RoundingMode.HALF_UP);
+                    previousTotalRetainage = previousTotalRetainage.setScale(2, System.RoundingMode.HALF_UP);
 
-                    System.debug('se.Contract_Value__c: ' + se.Contract_Value__c);
-                    System.debug('newItem.This_Billing_Percent__c: ' + newItem.This_Billing_Percent__c);
-                    System.debug('newItem.This_Retainage_Amount__c: ' + newItem.This_Retainage_Amount__c);
-                    System.debug('prevItem.Total_Billed_Value__c: ' + prevItem.Total_Billed_Value__c);
+                    Decimal grossToDate = (contractValue * appliedPercent) / 100;
+                    Decimal previousGross = previousTotalBilled + previousTotalRetainage;
+                    Decimal grossContribution = grossToDate - previousGross;
+                    if (grossContribution < 0) {
+                        grossContribution = 0;
+                    }
 
-                    newItem.This_Billing_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.Total_Retainage_Amount__c - prevItem.Total_Billed_Value__c;
-                    
-                    System.debug('newItem.This_Billing_Value__c: ' + newItem.This_Billing_Value__c);
+                    Decimal factor = 1 + (lineRetainagePercent / 100);
+                    Decimal thisBillingAmount = factor != 0 ? grossContribution / factor : grossContribution;
+                    Decimal thisRetainageAmount = (thisBillingAmount * lineRetainagePercent) / 100;
 
-                    newItem.Total_Billed_Value__c = prevItem.Total_Billed_Value__c + newItem.This_Billing_Value__c;
-                    
-                    System.debug('newItem.Total_Billed_Value__c: ' + newItem.Total_Billed_Value__c);
-                    newItem.Previous_Billed_Value__c = prevItem.Total_Billed_Value__c;
-                    
-                    System.debug('newItem.Previous_Billed_Value__c: ' + newItem.Previous_Billed_Value__c);
+                    Decimal totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
+                    Decimal totalBilledAmount = previousTotalBilled + thisBillingAmount;
 
-                    System.debug('newItem.This_Retainage_Amount__c: ' + newItem.This_Retainage_Amount__c);
-                    System.debug('prevItem.Total_Retainage_Amount__c: ' + prevItem.Total_Retainage_Amount__c);
-                    
+                    thisBillingAmount = thisBillingAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    totalRetainageAmount = totalRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    totalBilledAmount = totalBilledAmount.setScale(2, System.RoundingMode.HALF_UP);
+
+                    newItem.This_Billing_Value__c = thisBillingAmount;
+                    newItem.This_Retainage_Amount__c = thisRetainageAmount;
+                    newItem.Total_Retainage_Amount__c = totalRetainageAmount;
+                    newItem.Total_Billed_Value__c = totalBilledAmount;
+                    newItem.Previous_Billed_Value__c = previousTotalBilled;
+
                 } else {
-                    // No previous bill item, use current completed percentage
-                    newItem.This_Billing_Percent__c = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
-                    newItem.This_Retainage_Amount__c = (se.Contract_Value__c * lineRetainagePercent) / 100;
-                    newItem.Total_Retainage_Amount__c = newItem.This_Retainage_Amount__c;
-                    newItem.This_Billing_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.This_Retainage_Amount__c;
-                    newItem.Total_Billed_Value__c = ((se.Contract_Value__c * newItem.This_Billing_Percent__c) / 100) - newItem.Total_Retainage_Amount__c;
+                    Decimal appliedPercent = se.Completed_Percentage__c != null ? se.Completed_Percentage__c : 0;
+                    newItem.This_Billing_Percent__c = appliedPercent;
+
+                    Decimal contractValue = se.Contract_Value__c != null ? se.Contract_Value__c : 0;
+                    Decimal grossToDate = (contractValue * appliedPercent) / 100;
+                    Decimal factor = 1 + (lineRetainagePercent / 100);
+                    Decimal thisBillingAmount = factor != 0 ? grossToDate / factor : grossToDate;
+                    Decimal thisRetainageAmount = (thisBillingAmount * lineRetainagePercent) / 100;
+
+                    thisBillingAmount = thisBillingAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+
+                    newItem.This_Billing_Value__c = thisBillingAmount;
+                    newItem.This_Retainage_Amount__c = thisRetainageAmount;
+                    newItem.Total_Retainage_Amount__c = thisRetainageAmount;
+                    newItem.Total_Billed_Value__c = thisBillingAmount;
+                    newItem.Previous_Billed_Value__c = 0;
                 }              
                 
                 billLinesToInsert.add(newItem);
@@ -355,20 +370,20 @@ public with sharing class BillingAndPaymentTabController {
     @param           : {String} jobId - Job Record Id
     @param           : {String} billId - Billing Record Id
     @param           : {String} paymentReference - Payment Reference
-    @param           : {Date} paymentDate - Payment Received Date
+    @param           : {Date} paymentReceivedDate - Payment Received Date
     @param           : {String} accountId - Account Id
     @return          : String - SUCCESS
     ********************************************************
     */
     @AuraEnabled
-    public static string createPayment(String jobId, String billId, String paymentReference, Date paymentDate, String accountId){
+    public static string createPayment(String jobId, String billId, String paymentReference, Date paymentReceivedDate, String accountId){
         try {
             Payment__c p = new Payment__c();
             p.Job__c = jobId;
             p.Account__c = accountId;
             p.Billing__c = billId;
             p.Payment_Reference__c = paymentReference;
-            p.Payment_Received_Date__c = paymentDate;
+            p.Payment_Received_Date__c = paymentReceivedDate;
             insert p;
 
             List<Billing_Line_Item__c> bli = [
@@ -394,7 +409,7 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'createPayment', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return e.getMessage();
         }
     }
 
@@ -435,12 +450,12 @@ public with sharing class BillingAndPaymentTabController {
             // Allow only specific objects
             Set<String> allowed = new Set<String>{ 'Billing__c', 'Payment__c' };
             if (!allowed.contains(sObjectApiName)) {
-                throw new AuraHandledException('Unsupported object type for deletion.');
+                return 'Invalid object type';
             }
             // Construct a stub sObject with Id and delete
             Type t = Type.forName('Schema.' + sObjectApiName);
             if (t == null) {
-                throw new AuraHandledException('Invalid sObject API Name.');
+                return 'Object not found';
             }
             SObject sobj = (SObject) t.newInstance();
             sobj.put('Id', recordId);
@@ -448,7 +463,90 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'deleteRecord', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            throw new AuraHandledException(e.getMessage());
+            return e.getMessage();
+        }
+    }
+
+    /*
+    *********************************************************
+    @description     : Clone Billing Record with its Billing Line Items
+    @param           : {Id} billingId - Billing Record Id to clone
+    @return          : String - SUCCESS or error message
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String cloneBilling(Id billingId){
+
+        System.debug('billingId: ' + billingId);
+        try {
+            // Fetch the original billing record with all necessary fields
+            Billing__c originalBilling = [
+                SELECT Id, Job__c, Account__c, Status__c, Bill_Type__c, Retainage_on_Bill__c,
+                       Start_Date__c, End_Date__c, Previous_Bill__c
+                FROM Billing__c
+                WHERE Id = :billingId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+
+            // Create a new billing record (using manual approach to avoid issues with formula fields and relationships)
+            Billing__c clonedBilling = new Billing__c();
+            clonedBilling.Job__c = originalBilling.Job__c;
+            clonedBilling.Account__c = originalBilling.Account__c;
+            clonedBilling.Status__c = 'Draft'; // Always set to Draft for cloned records
+            clonedBilling.Bill_Type__c = originalBilling.Bill_Type__c;
+            clonedBilling.Retainage_on_Bill__c = originalBilling.Retainage_on_Bill__c;
+            clonedBilling.Start_Date__c = originalBilling.Start_Date__c;
+            clonedBilling.End_Date__c = originalBilling.End_Date__c;
+            clonedBilling.Previous_Bill__c = originalBilling.Previous_Bill__c;
+            
+            insert clonedBilling;
+
+            // Fetch all billing line items from the original billing
+            List<Billing_Line_Item__c> originalLineItems = [
+                SELECT Id, Scope_Entry__c, Bill_Item_Type__c, Scope_Contract_Amount__c,
+                       Scope_Complete__c, Retainage_Percent_on_Bill_Line_Item__c,
+                       Previous_Bill_Line_Item__c, This_Billing_Percent__c,
+                       This_Retainage_Amount__c, Total_Retainage_Amount__c,
+                       This_Billing_Value__c, Total_Billed_Value__c, Previous_Billed_Value__c
+                FROM Billing_Line_Item__c
+                WHERE Billing__c = :billingId
+                WITH USER_MODE
+            ];
+
+            // Clone billing line items
+            List<Billing_Line_Item__c> clonedLineItems = new List<Billing_Line_Item__c>();
+            for (Billing_Line_Item__c originalItem : originalLineItems) {
+                Billing_Line_Item__c clonedItem = new Billing_Line_Item__c();
+                clonedItem.Billing__c = clonedBilling.Id;
+                clonedItem.Scope_Entry__c = originalItem.Scope_Entry__c;
+                clonedItem.Bill_Item_Type__c = originalItem.Bill_Item_Type__c;
+                clonedItem.Scope_Contract_Amount__c = originalItem.Scope_Contract_Amount__c;
+                clonedItem.Scope_Complete__c = originalItem.Scope_Complete__c;
+                clonedItem.Retainage_Percent_on_Bill_Line_Item__c = originalItem.Retainage_Percent_on_Bill_Line_Item__c;
+                clonedItem.Previous_Bill_Line_Item__c = originalItem.Previous_Bill_Line_Item__c;
+                clonedItem.This_Billing_Percent__c = originalItem.This_Billing_Percent__c;
+                clonedItem.This_Retainage_Amount__c = originalItem.This_Retainage_Amount__c;
+                clonedItem.Total_Retainage_Amount__c = originalItem.Total_Retainage_Amount__c;
+                clonedItem.This_Billing_Value__c = originalItem.This_Billing_Value__c;
+                clonedItem.Total_Billed_Value__c = originalItem.Total_Billed_Value__c;
+                clonedItem.Previous_Billed_Value__c = originalItem.Previous_Billed_Value__c;
+                clonedLineItems.add(clonedItem);
+            }
+
+            if (!clonedLineItems.isEmpty()) {
+                insert clonedLineItems;
+            }
+
+            return 'SUCCESS';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'BillingAndPaymentTabController', 
+                'methodName' => 'cloneBilling', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
+            return e.getMessage();
         }
     }
 

@@ -1,10 +1,3 @@
-/**
- * Component Name: genericConfirmationModal
- * @description: Generic reusable confirmation modal component for confirm/delete actions
- * Created Date: 14 October 2025
- * Created By: GitHub Copilot
- */
-
 import { LightningElement, api, track } from 'lwc';
 
 export default class GenericConfirmationModal extends LightningElement {

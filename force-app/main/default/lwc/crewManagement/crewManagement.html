@@ -1,6 +1,8 @@
 <template>
     <template if:true={isLoading}>
-        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        <div class="spinner-container slds-is-fixed">
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </div>
     </template>
 
     <div class="crew-main-card">
@@ -87,15 +89,16 @@
                                                     <template if:false={field.hasValue}>--</template>
                                                 </template>
                                                 <template if:false={field.isNumber}>
-                                                    <template if:true={field.isNameField}>
+                                                    <template if:true={field.isColorField}>
                                                         <template if:true={field.hasValue}>
-                                                            <a href={field.recordUrl} class="crew-name-link" data-record-id={crewRecord.Id} onclick={handleNavigateToRecord} title={field.value}>
-                                                                {field.value}
-                                                            </a>
+                                                            <div class="crew-color-cell">
+                                                                <input type="color" value={field.colorValue} class="crew-color-picker" disabled tabindex="-1" aria-label="Crew color preview">
+                                                                <span class="crew-color-value">{field.value}</span>
+                                                            </div>
                                                         </template>
                                                         <template if:false={field.hasValue}>--</template>
                                                     </template>
-                                                    <template if:false={field.isNameField}>
+                                                    <template if:false={field.isColorField}>
                                                         <template if:true={field.hasValue}>
                                                             <span title={field.value}>{field.value}</span>
                                                         </template>
@@ -161,7 +164,7 @@
 
     <!-- Create Crew Modal -->
     <template if:true={showCreateModal}>
-        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open popup-1">
             <div class="slds-modal__container crew-popup">
                 <header class="slds-modal__header crew-popup-header">
                     <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
@@ -179,30 +182,15 @@
                     <lightning-input type="color" label="Select a Color" value={crewData.Color_Code__c} data-field="Color_Code__c" onchange={handleInputChange}></lightning-input>
 
                     <div class="crew-member-section">
-                        <div class="crew-member-section__header">
-                            <span class="crew-member-section__title">Add Crew Members</span>
-                            <lightning-input
-                                class="crew-member-search"
-                                type="search"
-                                value={memberSearchTerm}
-                                variant="label-hidden"
-                                placeholder="Search crew member..."
-                                onchange={handleCrewMemberSearchChange}>
-                            </lightning-input>
-                        </div>
                         <div class="crew-member-selection">
                             <div class="crew-member-available">
-                                <div class="crew-member-list-title">Available Contacts</div>
+                                <div class="crew-member-list-title">Add Crew Members</div>
+                                <lightning-input class="crew-member-search" type="search" value={memberSearchTerm} variant="label-hidden" placeholder="Search crew member..." onchange={handleCrewMemberSearchChange}></lightning-input>
                                 <div class="crew-member-list">
                                     <template if:true={filteredCrewContacts.length}>
                                         <template for:each={filteredCrewContacts} for:item="contact">
                                             <div key={contact.id} class="checkboxes-select">
-                                                <input
-                                                    class="resource-option-checkbox"
-                                                    type="checkbox"
-                                                    data-id={contact.id}
-                                                    onchange={handleCrewMemberSelect}
-                                                    id={contact.id} />
+                                                <input class="resource-option-checkbox" type="checkbox" data-id={contact.id} onchange={handleCrewMemberSelect} id={contact.id} />
                                                 <label class="checkbox-option-label" for={contact.id} data-available={contact.availableFlag} title={contact.assignedCrewNames}>
                                                     <span class="crew-member-name">{contact.name}</span>
                                                     <template if:true={contact.assignedCrewNames}>
@@ -220,24 +208,11 @@
                             <div class="crew-member-selected">
                                 <div class="crew-member-list-title">Selected Members</div>
                                 <div class="selected-record-tiles">
-                                    <template if:true={selectedCrewMembers.length}>
-                                        <template for:each={selectedCrewMembers} for:item="member">
-                                            <span class="tile" key={member.id} title={member.assignedCrewNames}>
+                                        <template if:true={selectedCrewMembers.length}>
+                                            <template for:each={selectedCrewMembers} for:item="member">
+                                                <span class={member.tileClass} key={member.id} title={member.assignedCrewNames} data-removed={member.isMarkedForRemoval}>
                                                 <div class="slds-truncate" title={member.name}>{member.name}</div>
-                                                <svg
-                                                    class="remove-btn-svg"
-                                                    data-id={member.id}
-                                                    onclick={handleRemoveCrewMember}
-                                                    onkeydown={handleRemoveCrewMemberKeydown}
-                                                    role="button"
-                                                    tabindex="0"
-                                                    focusable="true"
-                                                    aria-label={member.removeAriaLabel}
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 640 640"
-                                                    width="16"
-                                                    height="16"
-                                                    fill="#5a5adb">
+                                                    <svg class="remove-btn-svg" data-id={member.id} onclick={handleRemoveCrewMember} onkeydown={handleRemoveCrewMemberKeydown} role="button" tabindex="0" focusable="true" aria-label={member.removeAriaLabel} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="currentColor">
                                                     <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
                                                 </svg>
                                             </span>
@@ -251,15 +226,96 @@
                         </div>
                     </div>
 
-                    <div class="slds-grid slds-grid--align-center slds-p-vertical--medium crew-bottom-footer-btn">
-                        <button class="crew-save-btn" onclick={handleSaveCrew} disabled={isLoading}>
-                            {saveButtonLabel}
-                        </button>
-                    </div>
+                </div>
+                <div class="slds-modal__footer slds-grid slds-grid--align-center slds-p-vertical--medium crew-bottom-footer-btn">
+                    <button class="crew-save-btn" onclick={handleSaveCrew} disabled={isLoading}>
+                        {saveButtonLabel}
+                    </button>
                 </div>
             </div>
         </section>
-        <div class="slds-backdrop slds-backdrop_open"></div>
+        <div class="slds-backdrop slds-backdrop_open backdrop-1"></div>
+    </template>
+
+    <template if:true={showConflictSelectionModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open popup-2">
+            <div class="slds-modal__container crew-popup">
+                <header class="slds-modal__header crew-popup-header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" type="button" title="Close" data-action="cancel" onclick={handleConflictModalAction}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close" class="slds-button__icon slds-button__icon_large"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-text-heading_medium">{conflictModalTitle}</h2>
+                </header>
+
+                <div class="slds-modal__content slds-p-around--medium crew-popup-body">
+                    <div class="conflict-modal-body">
+                        <p class="conflict-modal-message">{conflictModalMessage}</p>
+                        <template if:true={conflictModalMembers.length}>
+                            <ul class="conflict-member-list">
+                                <template for:each={conflictModalMembers} for:item="conflict">
+                                    <li key={conflict.contactId} class="conflict-member-item">
+                                        <span class="conflict-member-name">{conflict.contactName}</span>
+                                        <template if:true={conflict.crewNameSummary}>
+                                            <span class="conflict-member-crews">({conflict.crewNameSummary})</span>
+                                        </template>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
+                    </div>
+                </div>
+                <div class="slds-modal__footer slds-grid slds-grid--align-center slds-p-vertical--medium conflict-modal-actions">
+                    <button class="crew-save-btn conflict-add-btn" type="button" data-action={conflictPrimaryAction} onclick={handleConflictModalAction}>{conflictPrimaryLabel}</button>
+                    <button class="crew-save-btn conflict-sync-btn" type="button" data-action={conflictSecondaryAction} onclick={handleConflictModalAction}>{conflictSecondaryLabel}</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open backdrop-2"></div>
+    </template>
+
+    <template if:true={showOverlapModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open popup-3 overlap-modal">
+            <div class="slds-modal__container crew-popup">
+                <header class="slds-modal__header overlap-modal__header">
+                    <h2 class="slds-text-heading_medium overlap-modal__title">{overlapModalTitle}</h2>
+                </header>
+
+                <div class="slds-modal__content slds-p-around--medium overlap-modal__body">
+                    <p class="overlap-modal__message">{overlapModalMessage}</p>
+                    <!-- <template if:true={mobilizationOverlapConflicts.length}>
+                        <ul class="overlap-conflict-list">
+                            <template for:each={mobilizationOverlapConflicts} for:item="conflict">
+                                <li key={conflict.key} class="overlap-conflict-item">
+                                    <div class="overlap-conflict-contact">{conflict.contactName}</div>
+                                    <div class="overlap-conflict-details">
+                                        <span class="overlap-conflict-target">
+                                            <strong>{conflict.targetMobilizationName}</strong>
+                                            <span class="overlap-conflict-window">{conflict.targetWindow}</span>
+                                        </span>
+                                        <span class="overlap-conflict-separator">conflicts with</span>
+                                        <span class="overlap-conflict-existing">
+                                            <strong>{conflict.conflictingMobilizationName}</strong>
+                                            <span class="overlap-conflict-window">{conflict.conflictingWindow}</span>
+                                            <span class="overlap-conflict-crew">({conflict.conflictingCrewName})</span>
+                                        </span>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                    </template> -->
+                </div>
+
+                <footer class="slds-modal__footer overlap-modal__footer">
+                    <button class="overlap-btn overlap-btn--secondary" type="button" data-action={overlapCancelAction} onclick={handleOverlapModalAction}>{overlapCancelLabel}</button>
+                    <div class="overlap-modal__actions">
+                        <button class="crew-save-btn" type="button" data-action={overlapPrimaryAction} onclick={handleOverlapModalAction}>{overlapPrimaryLabel}</button>
+                        <button class="crew-save-btn" type="button" data-action={overlapSecondaryAction} onclick={handleOverlapModalAction}>{overlapSecondaryLabel}</button>
+                    </div>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open backdrop-3"></div>
     </template>
 
     <c-generic-confirmation-modal

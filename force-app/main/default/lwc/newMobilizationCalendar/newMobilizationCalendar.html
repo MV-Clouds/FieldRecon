@@ -63,19 +63,24 @@
             </header>
             <div class="slds-modal__content slds-p-around_medium mob-popup-body">
                 
-                <!-- Lookup Field (e.g., Job) -->
             <lightning-record-edit-form
                 object-api-name="wfrecon__Mobilization_Group__c" record-id={selectedEventId} onsuccess={handleSuccess}>
                 <lightning-input-field field-name="wfrecon__Job__c" if:false={isEdit} value={jobId}> </lightning-input-field>
                 <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
                 <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Include_Saturday__c"> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Include_Sunday__c"> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Mobilization_Status__c"> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Description__c"> </lightning-input-field>
+                <div class="slds-grid slds-gutters">
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input-field field-name="wfrecon__Include_Saturday__c" value={includeSaturday}> </lightning-input-field>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-input-field field-name="wfrecon__Include_Sunday__c" value={includeSunday}> </lightning-input-field>
+                    </div>
+                </div>
+                <lightning-input-field field-name="wfrecon__Mobilization_Status__c" value={status}> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
                 <footer class="mob-modal-footer slds-grid slds-grid--align-center">
-                    <button class="assign-btn footer-btn" onclick={handleResourceAssign}>Assign Resources</button>
-                    <button class="slds-m-left--small delete-btn footer-btn" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>
+                    <button class="assign-btn footer-btn" type="button" if:true={isEdit} onclick={handleResourceAssign}>Assign Resources</button>
+                    <button class="slds-m-left--small delete-btn footer-btn" type="button" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>
                     <button class="slds-m-left--small save-btn footer-btn" type="submit">Save</button>
                 </footer>
             </lightning-record-edit-form>
@@ -123,10 +128,10 @@
         <div class="slds-modal__content slds-p-around--medium mob-popup-body">
             <div class="main-resources-edit-div">
               <div class="tabs sub-tabs tab-navigation">
-                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Crew" onclick={selectResourceType}>Crew</button>
-                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="SubContractor" onclick={selectResourceType}>Sub
+                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Crew" data-for="assign" onclick={selectResourceType}>Crew</button>
+                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="SubContractor" data-for="assign" onclick={selectResourceType}>Sub
                   Contractors</button>
-                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Asset" onclick={selectResourceType}>Assets</button>
+                <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Asset" data-for="assign" onclick={selectResourceType}>Assets</button>
               </div>
               <div class="search-resources-div slds-size--1-of-1">
                 <lightning-input
@@ -139,7 +144,39 @@
               </div>
               <div class="select-and-add-div slds-grow">
                 <div class="resource-list-div">
-                  <template for:each={resourceOptionsToShow} for:item="opt">
+                  <template for:each={resourceOptionsToShow} for:item="opt" lwc:if={isCrewAssignOpen}>
+                    <div key={opt.id} class="checkboxes-select options-with-crew-and-members" style={opt.bgStyle}>
+                      <div class="whole-crew-selection-checkbox">
+                        <input 
+                          class="resource-option-checkbox"
+                          type="checkbox"
+                          data-id={opt.id}
+                          checked={opt.isSelected}
+                          onchange={handleSelectWholeCrew}
+                          id={opt.name}
+                        ></input>
+                        <label class="checkbox-option-label whole-crew-title-checkbox" title={opt.name} for={opt.name} data-available={opt.isAvailable}>{opt.name}</label>
+                      </div>
+                      <div class="crew-members-list slds-grid slds-grid--vertical">
+                        <template for:each={opt.members} for:item="member">
+                          <div key={member.id} class="checkboxes-select">
+                            <input 
+                              class="resource-option-checkbox"
+                              type="checkbox"
+                              data-id={member.id}
+                              data-crewid={opt.id}
+                              data-type="Crew"
+                              checked={member.isSelected}
+                              onchange={handleSelectResourceOption}
+                              id={member.name}
+                            ></input>
+                            <label class="checkbox-option-label" for={member.name} data-available={member.isAvailable}>{member.name}</label>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <template for:each={resourceOptionsToShow} for:item="opt" lwc:else>
                     <div key={opt.id} class="checkboxes-select">
                       <input 
                         class="resource-option-checkbox"
@@ -149,11 +186,11 @@
                         onchange={handleSelectResourceOption}
                         id={opt.name}
                       ></input>
-                      <label class="checkbox-option-label" for={opt.name} data-available={opt.isAvailable} data-is-added={opt.isAddedForMob}>{opt.name}</label>
+                      <label class="checkbox-option-label" for={opt.name} data-available={opt.isAvailable}>{opt.name}</label>
                     </div>
                   </template>
                   <template if:false={resourceOptionsToShow.length}>
-                    <div class="empty-state-msg slds-grid slds-grid--vertical slds-align--absolute-center slds-text-align--center slds-grow">
+                    <div class="empty-state-msg">
                       <img src="/resource/wfrecon__emptyState" alt="empty state">
                       <div class="empty-state-msg-text">
                         No Resources To Display!
@@ -167,12 +204,12 @@
               </div>
               <!-- <div class="selected-tiles-heading">
                 <b>Selected Resources: </b>
-              </div> -->
-              <!-- <div class="selected-record-tiles">
+              </div>
+              <div class="selected-record-tiles">
                 <template for:each={addedResources} for:item="tile">
                     <span class="subcontractor-item tile" key={tile.id}>
                         <div class="slds-truncate" title={tile.name}>{tile.name}</div>
-                        <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.junctionId} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
+                        <svg class="remove-btn-svg" data-job={mobIdForResources} data-id={tile.id} onclick={handleRemoveJobResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb"><path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/></svg>
                     </span>
                 </template>
                 <template if:false={addedResources.length}>
@@ -189,4 +226,24 @@
     <div class="slds-backdrop slds-backdrop_open resource-assign-backdrop"></div>
   </template>
 
+  <template if:true={showConfirmationPopup}>
+    <div class="slds-container_small confirm-popup">
+      <section role="dialog" tabindex="-1" class="confirmation-popup-div slds-modal slds-fade-in-open">
+        <div class="slds-modal__container">
+          <header class="slds-modal__header confirm-popup-header">
+            <h2 class="slds-text-heading_medium slds-hyphenate">{confirmationTitle}</h2>
+          </header>
+          <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
+            <p class="slds-p-bottom--medium">{confirmationMessage}</p>
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium confirm-popup-btns bottom-footer-btn">
+              <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleConfirmationAction}>Cancel</button>
+              <button class="save-btn" name="confirm" title="Assign" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
+              <button class="save-btn" name="secondOption" onclick={handleConfirmationAction} if:true={confirmationBtnLabel2}>{confirmationBtnLabel2}</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
+    </div>
+  </template>
 </template>

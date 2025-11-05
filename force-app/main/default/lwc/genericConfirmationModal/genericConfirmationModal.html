@@ -11,11 +11,6 @@
             onkeydown={handleKeyDown}>
             
             <div class="slds-modal__container">
-                <!-- Close Button -->
-                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse close-button" title="Close" onclick={handleCancel}>
-                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
-                </button>
-
                 <!-- Modal Header -->
                 <div class="pop-heading" id="modal-heading">
                     {title}
@@ -31,7 +26,14 @@
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="popUpFooter">
+                <div class="slds-modal__footer modal-footer">
+                    <button 
+                        class="cancel-btn" 
+                        onclick={handleCancel}
+                        disabled={isProcessing}>
+                        {cancelButtonLabel}
+                    </button>
+                    
                     <button 
                         class={confirmButtonClass}
                         onclick={handleConfirm}

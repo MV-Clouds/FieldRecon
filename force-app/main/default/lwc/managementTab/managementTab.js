@@ -6,8 +6,10 @@ export default class ManagementTab extends LightningElement {
     allTabs = [
         { label: 'Crew', value: 'crew' },
         { label: 'Cost Code', value: 'costcode' },
-        { label: 'Process Library', value: 'processlibrary' }
-        // { label: 'Employee', value: 'employee' }
+        { label: 'Process Library', value: 'processlibrary' },
+        { label: 'Mobilization Status Color ', value: 'isMobStatusColorConfig' }
+        // { label: 'Employee', value: 'employee' },
+        
     ];
 
     get tabs() {
@@ -18,7 +20,8 @@ export default class ManagementTab extends LightningElement {
             isCrew: tab.value === 'crew',
             isCostCode: tab.value === 'costcode',
             isProcessLibrary: tab.value === 'processlibrary',
-            isEmployee: tab.value === 'employee'
+            isEmployee: tab.value === 'employee',
+            isMobStatusColorConfig: tab.value === 'isMobStatusColorConfig',
         }));
     }
 

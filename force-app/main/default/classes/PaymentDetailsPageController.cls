@@ -21,14 +21,14 @@ public with sharing class PaymentDetailsPageController {
             // Populate Payment details in wrapper with null checks and default values
             wrapper.paymentDetails = new PaymentWrapper();
             wrapper.paymentDetails.Id = payment.Id;
-            wrapper.paymentDetails.Name = String.isNotBlank(payment.Name) ? payment.Name : '-';
-            wrapper.paymentDetails.AccountName = (payment.wfrecon__Account__r != null && String.isNotBlank(payment.wfrecon__Account__r.Name)) ? payment.wfrecon__Account__r.Name : '-';
+            wrapper.paymentDetails.Name = String.isNotBlank(payment.Name) ? payment.Name : '--';
+            wrapper.paymentDetails.AccountName = (payment.wfrecon__Account__r != null && String.isNotBlank(payment.wfrecon__Account__r.Name)) ? payment.wfrecon__Account__r.Name : '--';
             wrapper.paymentDetails.Address = buildAddress(payment.wfrecon__Account__r);
             wrapper.paymentDetails.BillingId = payment.wfrecon__Billing__c;
-            wrapper.paymentDetails.BillingNumber = (payment.wfrecon__Billing__r != null && String.isNotBlank(payment.wfrecon__Billing__r.Name)) ? payment.wfrecon__Billing__r.Name : '-';
+            wrapper.paymentDetails.BillingNumber = (payment.wfrecon__Billing__r != null && String.isNotBlank(payment.wfrecon__Billing__r.Name)) ? payment.wfrecon__Billing__r.Name : '--';
             wrapper.paymentDetails.JobId = payment.wfrecon__Billing__r?.wfrecon__Job__c;
-            wrapper.paymentDetails.JobName = (payment.wfrecon__Billing__r?.wfrecon__Job__r != null && String.isNotBlank(payment.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Job_Name__c)) ? payment.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Job_Name__c : '-';
-            wrapper.paymentDetails.JobNumber = (payment.wfrecon__Billing__r?.wfrecon__Job__r != null && String.isNotBlank(payment.wfrecon__Billing__r.wfrecon__Job__r.Name)) ? payment.wfrecon__Billing__r.wfrecon__Job__r.Name : '-';
+            wrapper.paymentDetails.JobName = (payment.wfrecon__Billing__r?.wfrecon__Job__r != null && String.isNotBlank(payment.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Job_Name__c)) ? payment.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Job_Name__c : '--';
+            wrapper.paymentDetails.JobNumber = (payment.wfrecon__Billing__r?.wfrecon__Job__r != null && String.isNotBlank(payment.wfrecon__Billing__r.wfrecon__Job__r.Name)) ? payment.wfrecon__Billing__r.wfrecon__Job__r.Name : '--';
             wrapper.paymentDetails.PaymentReceivedDate = payment.wfrecon__Payment_Received_Date__c;
             wrapper.paymentDetails.PaymentReference = String.isNotBlank(payment.wfrecon__Payment_Reference__c) ? payment.wfrecon__Payment_Reference__c : '';
 
@@ -62,7 +62,8 @@ public with sharing class PaymentDetailsPageController {
 
         } catch (Exception e) {
             System.debug('Error fetching payment data: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'PaymentDetailsPageController', 'methodName' => 'updatePaymentDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -84,7 +85,8 @@ public with sharing class PaymentDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error updating payment details: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'PaymentDetailsPageController', 'methodName' => 'updatePaymentDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -150,12 +152,13 @@ public with sharing class PaymentDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error saving payment line items: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'PaymentDetailsPageController', 'methodName' => 'savePaymentLineItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
     private static String buildAddress(Account acc) {
-        if (acc == null) return '-';
+        if (acc == null) return '--';
         
         List<String> addressParts = new List<String>();
         
@@ -172,7 +175,7 @@ public with sharing class PaymentDetailsPageController {
             addressParts.add(acc.BillingPostalCode);
         }
         
-        return !addressParts.isEmpty() ? String.join(addressParts, ', ') : '-';
+        return !addressParts.isEmpty() ? String.join(addressParts, ', ') : '--';
     }
 
     // ---------------------------

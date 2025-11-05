@@ -1,10 +1,12 @@
 import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
-import getCrewMembers from '@salesforce/apex/ManagementTabController.getCrewMembers';
+import getCrews from '@salesforce/apex/ManagementTabController.getCrewMembers';
 import getCrewContacts from '@salesforce/apex/ManagementTabController.getCrewContacts';
 import saveCrew from '@salesforce/apex/ManagementTabController.saveCrew';
+import getCrewMobilizationSummary from '@salesforce/apex/ManagementTabController.getCrewMobilizationSummary';
 import deleteCrew from '@salesforce/apex/ManagementTabController.deleteCrew';
+import getMobilizationOverlapConflicts from '@salesforce/apex/ManagementTabController.getMobilizationOverlapConflicts';
 
 export default class CrewManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -31,7 +33,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         { label: 'Crew Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
         { label: 'Description', fieldName: 'wfrecon__Description__c', type: 'text', sortable: true },
         { label: 'Crew Members', fieldName: 'wfrecon__Crew_Member_Count__c', type: 'number', sortable: true },
-        { label: 'Color Code', fieldName: 'wfrecon__Color_Code__c', type: 'text', sortable: true }
+        { label: 'Color Code', fieldName: 'wfrecon__Color_Code__c', type: 'text', sortable: true, isColorField: true }
     ];
     @track availableCrewContacts = [];
     @track filteredCrewContacts = [];
@@ -42,11 +44,36 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     @track confirmationConfirmVariant = 'destructive';
     @track confirmationIcon = 'utility:warning';
     @track confirmationIconVariant = 'warning';
+    @track confirmationContext = null;
+    @track pendingSavePayload = null;
+    @track hasAcknowledgedConflicts = false;
+    @track originalCrewmemberByContact = new Map();
+    @track showConflictSelectionModal = false;
+    @track conflictModalTitle = '';
+    @track conflictModalMessage = '';
+    @track conflictModalMembers = [];
+    @track conflictPrimaryAction = 'addMembers';
+    @track conflictPrimaryLabel = 'Add Members';
+    @track conflictSecondaryAction = 'addAndSync';
+    @track conflictSecondaryLabel = 'Add & Update in Mobilizations';
+    @track futureMobilizationCount = 0;
+    @track lastPropagationRequested = false;
+    @track conflictModalCategory = null;
+    @track originalCrewContactIds = new Set();
+    @track showOverlapModal = false;
+    @track overlapModalTitle = 'Time Overlapping!';
+    @track overlapModalMessage = 'Resource allocation is overlapping. How would you like to proceed?';
+    @track mobilizationOverlapConflicts = [];
+    @track overlapPrimaryLabel = 'Overlap & Assign';
+    @track overlapSecondaryLabel = 'Assign Only Available';
+    @track overlapCancelLabel = 'Cancel';
 
-    confirmationContext = null;
-    pendingSavePayload = null;
-    pendingConflictMembers = [];
-    hasAcknowledgedConflicts = false;
+    hasAcknowledgedRemoval = false;
+    hasAcknowledgedPropagation = false;
+    overlapPrimaryAction = 'overlapAssign';
+    overlapSecondaryAction = 'assignAvailable';
+    overlapCancelAction = 'cancelOverlap';
+    pendingOverlapPayload = null;
 
     /**
      * Method Name: get displayedCrews
@@ -58,12 +85,12 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         }
         return this.shownCrewData.map((crewRecord, index) => {
             const row = { ...crewRecord };
-            row.recordUrl = `/lightning/r/${crewRecord.Id}/view`;
 
             const serialNumber = (this.currentPage - 1) * this.pageSize + index + 1;
 
             row.displayFields = this.crewTableColumns.map(col => {
                 const key = col.fieldName;
+                const isColorField = col.isColorField || false;
                 let value;
 
                 if (col.isSerialNumber) {
@@ -72,16 +99,27 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                     value = this.getFieldValue(crewRecord, key);
                 }
 
+                let displayValue = value;
+                let normalizedColor = null;
+
+                if (isColorField && value) {
+                    normalizedColor = this.normalizeColorCode(value);
+                    displayValue = normalizedColor.toUpperCase();
+                }
+
+                const hasValue = displayValue !== null && displayValue !== undefined && displayValue !== '';
+
                 return {
                     key: `${crewRecord.Id}_${key}`,
-                    value,
-                    hasValue: value !== null && value !== undefined && value !== '',
+                    value: displayValue,
+                    hasValue,
                     isNameField: col.isNameField || false,
                     isSerialNumber: col.isSerialNumber || false,
                     isActions: col.isActions || false,
                     isNumber: col.type === 'number',
                     numberValue: col.type === 'number' ? parseFloat(value) || 0 : null,
-                    recordUrl: row.recordUrl
+                    isColorField,
+                    colorValue: normalizedColor
                 };
             });
 
@@ -184,19 +222,21 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     }
 
     connectedCallback() {
-        this.fetchCrewMembers();
+        this.fetchCrew();
     }
 
     /**
-     * Method Name: fetchCrewMembers
+     * Method Name: fetchCrew
      * @description: Fetch all crew records
      */
-    fetchCrewMembers() {
+    fetchCrew() {
         try {
             this.isLoading = true;
     
-            getCrewMembers()
+            getCrews()
                 .then(result => {
+                    console.log('getCrews result :: ', result);
+                    
                     this.crewList = result || [];
                     this.applyFilters();
                     setTimeout(() => {
@@ -211,7 +251,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                     this.isLoading = false;
                 });
         } catch (error) {
-            console.error('Error in fetchCrewMembers:', error);
+            console.error('Error in fetchCrew:', error);
             this.showToast('Error', 'Failed to load crews', 'error');
             this.isLoading = false;
         }
@@ -311,6 +351,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         this.resetCrewMemberSelection();
         this.showCreateModal = true;
         this.loadCrewContacts(null);
+        this.futureMobilizationCount = 0;
     }
 
     /**
@@ -366,6 +407,8 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      */
     handleSaveCrew() {
         try {
+            console.log('isEditMode :: ', this.isEditMode);
+            
             const inputs = this.template.querySelectorAll('lightning-input[data-field]');
             let allValid = true;
 
@@ -392,30 +435,20 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
             payload.Name = (payload.Name || '').trim();
             payload.Description__c = payload.Description__c ? payload.Description__c.trim() : '';
             payload.Color_Code__c = this.normalizeColorCode(payload.Color_Code__c);
-            payload.memberIds = Array.from(new Set(this.getSelectedMemberIds()));
+            payload.membersToAdd = Array.from(new Set(this.getMembersToAdd()));
+            payload.membersToRemove = Array.from(new Set(this.getMembersToRemove()));
+            payload.selectedMemberIds = Array.from(new Set(this.getSelectedMemberIds()));
 
             if (!payload.Name) {
                 this.showToast('Error', 'Crew name is required', 'error');
                 return;
             }
 
-            const conflictingMembers = this.getConflictingSelectedMembers();
-
-            if (conflictingMembers.length > 0 && !this.hasAcknowledgedConflicts) {
-                this.pendingSavePayload = { ...payload };
-                this.pendingConflictMembers = conflictingMembers.map(member => ({
-                    contactId: member.id,
-                    contactName: member.name,
-                    assignedCrewNames: member.assignedCrewNames,
-                    crewNameSummary: member.assignedCrewNames
-                }));
-                this.showConflictConfirmation(null, this.pendingConflictMembers);
-                return;
-            }
-
+            payload.assignToFutureMobilizations = false;
+            payload.removeFromFutureMobilizations = false;
             this.pendingSavePayload = null;
-            this.pendingConflictMembers = [];
-            this.executeCrewSave(payload);
+
+            this.processSaveFlow(payload);
         } catch (error) {
             console.error('Error in handleSaveCrew :: ', error);
             this.showToast('Error', 'Failed to save crew', 'error');
@@ -537,27 +570,33 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
      * @description: Open modal in edit mode
      */
     handleEditCrew(event) {
-        event.preventDefault();
-        const recordId = event.currentTarget.dataset.recordId;
-        this.isEditMode = true;
-        this.recordIdToEdit = recordId;
-        const crewRecord = this.crewList.find(record => record.Id === recordId);
-        if (crewRecord) {
-            this.crewData = {
-                Id: crewRecord.Id,
-                Name: this.getFieldValue(crewRecord, 'Name') || '',
-                Description__c: this.getFieldValue(crewRecord, 'wfrecon__Description__c') || '',
-                Color_Code__c: this.normalizeColorCode(this.getFieldValue(crewRecord, 'wfrecon__Color_Code__c') || '#FFFFFF')
-            };
-        } else {
-            this.crewData = {
-                ...this.getDefaultCrewData(),
-                Id: recordId
-            };
+        try {
+            event.preventDefault();
+            const recordId = event.currentTarget.dataset.recordId;
+            this.isEditMode = true;
+            this.recordIdToEdit = recordId;
+            const crewRecord = this.crewList.find(record => record.Id === recordId);
+            if (crewRecord) {
+                this.crewData = {
+                    Id: crewRecord.Id,
+                    Name: this.getFieldValue(crewRecord, 'Name') || '',
+                    Description__c: this.getFieldValue(crewRecord, 'wfrecon__Description__c') || '',
+                    Color_Code__c: this.normalizeColorCode(this.getFieldValue(crewRecord, 'wfrecon__Color_Code__c') || '#FFFFFF')
+                };
+            } else {
+                this.crewData = {
+                    ...this.getDefaultCrewData(),
+                    Id: recordId
+                };
+            }
+            this.resetCrewMemberSelection();
+            this.showCreateModal = true;
+            this.loadCrewContacts(recordId);
+            this.fetchCrewMobilizationSummary(recordId);
+        } catch (error) {
+            console.error('Error opening edit modal:', error);
+            this.showToast('Error', 'Failed to load crew for editing', 'error');
         }
-        this.resetCrewMemberSelection();
-        this.showCreateModal = true;
-        this.loadCrewContacts(recordId);
     }
 
     /**
@@ -600,142 +639,425 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         }
     }
 
+    /**
+     * Method Name: resetCrewMemberSelection
+     * @description: Reset crew member selection
+     */
     resetCrewMemberSelection() {
         this.availableCrewContacts = [];
         this.filteredCrewContacts = [];
         this.selectedCrewMembers = [];
         this.memberSearchTerm = '';
         this.pendingSavePayload = null;
-        this.pendingConflictMembers = [];
         this.hasAcknowledgedConflicts = false;
+        this.hasAcknowledgedRemoval = false;
+        this.hasAcknowledgedPropagation = false;
+        this.originalCrewmemberByContact = new Map();
+        this.originalCrewContactIds = new Set();
+        this.showConflictSelectionModal = false;
+        this.conflictModalMembers = [];
+        this.conflictModalMessage = '';
+        this.conflictModalTitle = '';
+        this.lastPropagationRequested = false;
+        this.futureMobilizationCount = 0;
+        this.conflictModalCategory = null;
+        this.conflictPrimaryAction = 'addMembers';
+        this.conflictPrimaryLabel = 'Add Members';
+        this.conflictSecondaryAction = 'addAndSync';
+        this.conflictSecondaryLabel = 'Add & Update in Mobilizations';
+        this.clearOverlapModalState();
+        this.pendingOverlapPayload = null;
     }
 
+    /**
+     * Method Name: loadCrewContacts
+     * @description: Load crew contacts for the specified crew
+     */
     loadCrewContacts(crewId) {
-        this.isLoading = true;
+        try {
+            this.isLoading = true;
+    
+            getCrewContacts({ crewId })
+                .then(result => {
+                    console.log('getCrewContacts result :: ', result);
+                    
+                    const assignedDtos = (result && result.assignedContacts) ? result.assignedContacts : [];
+                    const availableDtos = (result && result.availableContacts) ? result.availableContacts : [];
+    
+                    this.selectedCrewMembers = assignedDtos.map(dto => this.transformCrewContact(dto)).sort((a, b) => a.name.localeCompare(b.name));
+                    const baselineMap = new Map();
+                    const baselineContacts = new Set();
+                    this.selectedCrewMembers.forEach(member => {
+                        console.log('member :: ', member);
+                        
+                        if (member && member.id && member.currentCrewMemberId) {
+                            const contactKey = String(member.id);
+                            baselineMap.set(contactKey, member.currentCrewMemberId);
+                            baselineContacts.add(contactKey);
+                        }
+                    });
+                    this.originalCrewmemberByContact = baselineMap;
+                    this.originalCrewContactIds = baselineContacts;
+                    console.log('this.originalCrewmemberByContact :: ', this.originalCrewmemberByContact);
+                    console.log('this.originalCrewContactIds :: ', this.originalCrewContactIds);
 
-        getCrewContacts({ crewId })
-            .then(result => {
-                const assignedDtos = (result && result.assignedContacts) ? result.assignedContacts : [];
-                const availableDtos = (result && result.availableContacts) ? result.availableContacts : [];
-
-                this.selectedCrewMembers = assignedDtos.map(dto => this.transformCrewContact(dto)).sort((a, b) => a.name.localeCompare(b.name));
-                this.availableCrewContacts = availableDtos.map(dto => this.transformCrewContact(dto));
-                this.sortAvailableCrewContacts();
-            })
-            .catch(error => {
-                console.error('Error fetching crew contacts:', error);
-                this.showToast('Error', 'Failed to load crew members', 'error');
-            })
-            .finally(() => {
-                this.applyCrewMemberSearch();
-                this.isLoading = false;
-            });
-    }
-
-    transformCrewContact(contactDto) {
-        const memberships = contactDto && contactDto.memberships ? contactDto.memberships : [];
-        const membershipCrewIds = memberships.map(m => m.crewId).filter(id => !!id);
-        const membershipCrewNames = memberships
-            .map(m => m.crewName)
-            .filter(name => !!name);
-
-        return {
-            id: contactDto.id,
-            name: contactDto.name,
-            assignedCrewNames: contactDto.assignedCrewNames || (membershipCrewNames.length ? membershipCrewNames.join(', ') : null),
-            membershipCrewIds,
-            membershipCrewNames,
-            isAssignedElsewhere: Boolean(contactDto.isAssignedElsewhere),
-            primaryCrewColor: contactDto.primaryCrewColor ? this.normalizeColorCode(contactDto.primaryCrewColor) : null,
-            availableFlag: contactDto.isAssignedElsewhere ? 'false' : 'true',
-            removeAriaLabel: contactDto.name ? `Remove ${contactDto.name}` : 'Remove crew member'
-        };
-    }
-
-    sortAvailableCrewContacts() {
-        const sorted = [...this.availableCrewContacts].sort((a, b) => {
-            if (a.isAssignedElsewhere === b.isAssignedElsewhere) {
-                return a.name.localeCompare(b.name);
-            }
-            return a.isAssignedElsewhere ? 1 : -1;
-        });
-        this.availableCrewContacts = sorted;
-    }
-
-    applyCrewMemberSearch() {
-        const searchValue = (this.memberSearchTerm || '').trim().toLowerCase();
-        if (!searchValue) {
-            this.filteredCrewContacts = [...this.availableCrewContacts];
-            return;
+                    this.availableCrewContacts = availableDtos.map(dto => this.transformCrewContact(dto));
+                    this.sortAvailableCrewContacts();
+                })
+                .catch(error => {
+                    console.error('Error fetching crew contacts:', error);
+                    this.showToast('Error', 'Failed to load crew members', 'error');
+                })
+                .finally(() => {
+                    this.applyCrewMemberSearch();
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error loading crew contacts:', error);
+            this.showToast('Error', 'Failed to load crew members', 'error');
         }
-
-        this.filteredCrewContacts = this.availableCrewContacts.filter(contact => {
-            const name = contact.name ? contact.name.toLowerCase() : '';
-            const assigned = contact.assignedCrewNames ? contact.assignedCrewNames.toLowerCase() : '';
-            return name.includes(searchValue) || assigned.includes(searchValue);
-        });
     }
 
+    fetchCrewMobilizationSummary(crewId) {
+        try {
+            if (!crewId) {
+                this.futureMobilizationCount = 0;
+                return;
+            }
+    
+            getCrewMobilizationSummary({ crewId })
+                .then(result => {
+                    console.log('getCrewMobilizationSummary result :: ', result);
+                    
+                    const upcoming = result && typeof result.upcomingMobilizations !== 'undefined'
+                        ? parseInt(result.upcomingMobilizations, 10)
+                        : 0;
+                    this.futureMobilizationCount = Number.isNaN(upcoming) ? 0 : upcoming;
+                })
+                .catch(error => {
+                    console.error('Error fetching crew mobilization summary:', error);
+                    this.futureMobilizationCount = 0;
+                });
+        } catch (error) {
+            console.error('Error fetching crew mobilization summary:', error);
+            this.futureMobilizationCount = 0;
+        }
+    }
+
+    /**
+     * Method Name: transformCrewContact
+     * @description: Transform crew contact DTO to component model
+     */
+    transformCrewContact(contactDto) {
+        try {
+            const members = contactDto && contactDto.members ? contactDto.members : [];
+            const memberCrewIds = members.map(m => m.crewId).filter(id => !!id);
+            const memberCrewNames = members
+                .map(m => m.crewName)
+                .filter(name => !!name);
+            const memberDetails = members.map(member => ({
+                id: member.memberId || member.id,
+                crewId: member.crewId,
+                crewName: member.crewName,
+                colorCode: member.colorCode
+            }));
+    
+            return {
+                id: contactDto.id,
+                name: contactDto.name,
+                assignedCrewNames: contactDto.assignedCrewNames || (memberCrewNames.length ? memberCrewNames.join(', ') : null),
+                memberCrewIds,
+                memberCrewNames,
+                 members: memberDetails,
+                isAssignedElsewhere: Boolean(contactDto.isAssignedElsewhere),
+                isAssignedToCurrentCrew: Boolean(contactDto.isAssignedToCurrentCrew),
+                currentCrewMemberId: contactDto.currentCrewMemberId || null,
+                primaryCrewColor: contactDto.primaryCrewColor ? this.normalizeColorCode(contactDto.primaryCrewColor) : null,
+                availableFlag: contactDto.isAssignedElsewhere ? 'false' : 'true',
+                removeAriaLabel: contactDto.name ? `Remove ${contactDto.name}` : 'Remove crew member',
+                isMarkedForRemoval: false,
+                tileClass: 'tile'
+            };
+        } catch (error) {
+            console.error('Error transforming crew contact:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Method Name: sortAvailableCrewContacts
+     * @description: Sort available crew contacts by assignment status and name
+     */
+    sortAvailableCrewContacts() {
+        try {
+            const sorted = [...this.availableCrewContacts].sort((a, b) => {
+                if (a.isAssignedElsewhere === b.isAssignedElsewhere) {
+                    return a.name.localeCompare(b.name);
+                }
+                return a.isAssignedElsewhere ? 1 : -1;
+            });
+            this.availableCrewContacts = sorted;
+        } catch (error) {
+            console.error('Error sorting available crew contacts:', error);
+            this.showToast('Error', 'Failed to sort crew members', 'error');
+        }
+    }
+
+    /**
+     * Method Name: applyCrewMemberSearch
+     * @description: Apply search filter to crew members
+     */
+    applyCrewMemberSearch() {
+        try {
+            const searchValue = (this.memberSearchTerm || '').trim().toLowerCase();
+            if (!searchValue) {
+                this.filteredCrewContacts = [...this.availableCrewContacts];
+                return;
+            }
+    
+            this.filteredCrewContacts = this.availableCrewContacts.filter(contact => {
+                const name = contact.name ? contact.name.toLowerCase() : '';
+                const assigned = contact.assignedCrewNames ? contact.assignedCrewNames.toLowerCase() : '';
+                return name.includes(searchValue) || assigned.includes(searchValue);
+            });
+        } catch (error) {
+            console.error('Error applying crew member search:', error);
+            this.showToast('Error', 'Failed to filter crew members', 'error');
+        }
+    }
+
+    /**
+     * Method Name: handleCrewMemberSearchChange
+     * @description: Handle changes to the crew member search input
+     */
     handleCrewMemberSearchChange(event) {
         this.memberSearchTerm = event.target.value || '';
         this.applyCrewMemberSearch();
     }
 
+    /**
+     * Method Name: handleCrewMemberSelect
+     * @description: Handle selection of a crew member from available list
+     */
     handleCrewMemberSelect(event) {
-        const contactId = event.target.dataset.id;
-        if (!contactId) {
-            return;
-        }
-
-        const contactIndex = this.availableCrewContacts.findIndex(contact => contact.id === contactId);
-        if (contactIndex === -1) {
-            return;
-        }
-
-        const [selectedContact] = this.availableCrewContacts.splice(contactIndex, 1);
-        this.availableCrewContacts = [...this.availableCrewContacts];
-        this.selectedCrewMembers = [...this.selectedCrewMembers, selectedContact].sort((a, b) => a.name.localeCompare(b.name));
-
-        if (selectedContact.isAssignedElsewhere) {
+        try {
+            const contactId = event.target.dataset.id;
+            if (!contactId) {
+                return;
+            }
+    
+            const contactIndex = this.availableCrewContacts.findIndex(contact => contact.id === contactId);
+            if (contactIndex === -1) {
+                return;
+            }
+    
+            const [selectedContactRaw] = this.availableCrewContacts.splice(contactIndex, 1);
+            const selectedContact = {
+                ...selectedContactRaw,
+                isMarkedForRemoval: false,
+                tileClass: 'tile',
+                removeAriaLabel: selectedContactRaw && selectedContactRaw.name
+                    ? `Remove ${selectedContactRaw.name}`
+                    : 'Remove crew member'
+            };
+            this.availableCrewContacts = [...this.availableCrewContacts];
+            this.selectedCrewMembers = [...this.selectedCrewMembers, selectedContact].sort((a, b) => a.name.localeCompare(b.name));
+    
             this.hasAcknowledgedConflicts = false;
+            this.hasAcknowledgedPropagation = false;
+    
+            this.applyCrewMemberSearch();
+            this.clearOverlapModalState();
+        } catch (error) {
+            console.error('Error selecting crew member:', error);
+            this.showToast('Error', 'Failed to select crew member', 'error');
         }
-
-        this.applyCrewMemberSearch();
     }
 
+    /**
+     * Method Name: handleRemoveCrewMemberKeydown
+     * @description: Handle keydown event for removing crew member
+     */
     handleRemoveCrewMemberKeydown(event) {
-        const { key } = event;
-        if (key === 'Enter' || key === ' ') {
-            event.preventDefault();
-            this.handleRemoveCrewMember(event);
+        try {
+            const { key } = event;
+            if (key === 'Enter' || key === ' ') {
+                event.preventDefault();
+                this.handleRemoveCrewMember(event);
+            }
+        } catch (error) {
+            console.error('Error handling remove crew member keydown:', error);
+            this.showToast('Error', 'Failed to handle remove crew member keydown', 'error');
         }
     }
 
+    /**
+     * Method Name: handleRemoveCrewMember
+     * @description: Handle removal of a crew member from selected list
+     */
     handleRemoveCrewMember(event) {
-        const contactId = event.currentTarget.dataset.id;
-        if (!contactId) {
-            return;
-        }
+        try {
+            const contactId = event.currentTarget.dataset.id;
+            if (!contactId) {
+                return;
+            }
+    
+            const memberIndex = this.selectedCrewMembers.findIndex(member => member.id === contactId);
+            if (memberIndex === -1) {
+                return;
+            }
 
-        const memberIndex = this.selectedCrewMembers.findIndex(member => member.id === contactId);
-        if (memberIndex === -1) {
-            return;
-        }
+            const member = { ...this.selectedCrewMembers[memberIndex] };
+            const isExistingMember = this.isExistingMember(member);
 
-        const [removedMember] = this.selectedCrewMembers.splice(memberIndex, 1);
-        this.selectedCrewMembers = [...this.selectedCrewMembers];
-        this.availableCrewContacts = [...this.availableCrewContacts, removedMember];
-        this.sortAvailableCrewContacts();
-        this.applyCrewMemberSearch();
+            if (isExistingMember) {
+                const nextRemovalState = !member.isMarkedForRemoval;
+                member.isMarkedForRemoval = nextRemovalState;
+                member.tileClass = nextRemovalState ? 'tile tile-removed' : 'tile';
+                member.removeAriaLabel = nextRemovalState
+                    ? `Keep ${member.name}`
+                    : `Remove ${member.name}`;
+
+                this.selectedCrewMembers.splice(memberIndex, 1, member);
+                this.selectedCrewMembers = [...this.selectedCrewMembers];
+
+                if (nextRemovalState) {
+                    this.hasAcknowledgedRemoval = false;
+                }
+                this.clearOverlapModalState();
+                return;
+            }
+
+            const [removedMember] = this.selectedCrewMembers.splice(memberIndex, 1);
+            this.selectedCrewMembers = [...this.selectedCrewMembers];
+            const restoredMember = {
+                ...removedMember,
+                isMarkedForRemoval: false,
+                tileClass: 'tile',
+                removeAriaLabel: removedMember && removedMember.name
+                    ? `Remove ${removedMember.name}`
+                    : 'Remove crew member'
+            };
+            this.availableCrewContacts = [...this.availableCrewContacts, restoredMember];
+            this.sortAvailableCrewContacts();
+            this.applyCrewMemberSearch();
+            this.hasAcknowledgedConflicts = false;
+            this.hasAcknowledgedPropagation = false;
+            this.clearOverlapModalState();
+        } catch (error) {
+            console.error('Error handling remove crew member:', error);
+            this.showToast('Error', 'Failed to handle remove crew member', 'error');
+        }
     }
 
+    /**
+     * Method Name: getSelectedMemberIds
+     * @description: Get IDs of all selected crew members
+     */
     getSelectedMemberIds() {
-        return this.selectedCrewMembers.map(member => member.id);
+        return this.selectedCrewMembers
+            .filter(member => member && member.id && !member.isMarkedForRemoval)
+            .map(member => member.id);
     }
 
-    getConflictingSelectedMembers() {
+    isExistingMember(member) {
+        if (!member || !member.id) {
+            return false;
+        }
+
+        if (member.isAssignedToCurrentCrew) {
+            return true;
+        }
+
+        const contactKey = String(member.id);
+        return this.originalCrewContactIds.has(contactKey) || this.originalCrewmemberByContact.has(contactKey);
+    }
+
+    /**
+     * Method Name: getMembersToAdd
+     * @description: Get IDs of all members to be added
+     */
+    getMembersToAdd() {
+        console.log('fetching members to add');
+        
+        const membersToAdd = [];
+        const originalMemberMap = this.originalCrewmemberByContact instanceof Map ? this.originalCrewmemberByContact : new Map();
+        const baselineContacts = this.originalCrewContactIds instanceof Set ? this.originalCrewContactIds : new Set();
+        console.log('this.selectedCrewMembers :: ', this.selectedCrewMembers);
+        console.log('this.baselineContacts :: ', baselineContacts);
+        
+        this.selectedCrewMembers.forEach(member => {
+            if (!member || !member.id) {
+                return;
+            }
+
+            if (member.isMarkedForRemoval) {
+                return;
+            }
+
+            const contactKey = String(member.id);
+            if (baselineContacts.has(contactKey) || originalMemberMap.has(contactKey)) {
+                return;
+            }
+
+            membersToAdd.push(member.id);
+        });
+
+        return membersToAdd;
+    }
+
+    /**
+     * Method Name: getMembersToRemove
+     * @description: Get IDs of all members to be removed
+     */
+    getMembersToRemove() {
+        const membersToRemove = [];
+        const originalMemberMap = this.originalCrewmemberByContact instanceof Map ? this.originalCrewmemberByContact : new Map();
+        const retainedIds = new Set(
+            this.selectedCrewMembers
+                .filter(member => member && member.id && !member.isMarkedForRemoval)
+                .map(member => String(member.id))
+        );
+
+        originalMemberMap.forEach((memberId, contactId) => {
+            const contactKey = String(contactId);
+            if (!retainedIds.has(contactKey)) {
+                membersToRemove.push(memberId);
+            }
+        });
+
+        return membersToRemove;
+    }
+
+    /**
+     * Method Name: getConflictingSelectedMembers
+     * @description: Get selected members that are assigned to other crews
+     */
+    getConflictingSelectedMembers(membersToAdd) {
         const currentCrewId = this.recordIdToEdit;
+        const originalMemberMap = this.originalCrewmemberByContact instanceof Map ? this.originalCrewmemberByContact : new Map();
+        const baselineContacts = this.originalCrewContactIds instanceof Set ? this.originalCrewContactIds : new Set();
+        const membersToAddSet = new Set((membersToAdd || []).map(memberId => memberId ? String(memberId) : ''));
+
+        if (membersToAddSet.size === 0) {
+            return [];
+        }
+
         return this.selectedCrewMembers.filter(member => {
+            if (!member || !member.id) {
+                return false;
+            }
+
+            const contactKey = String(member.id);
+
+            if (baselineContacts.has(contactKey) || originalMemberMap.has(contactKey)) {
+                return false;
+            }
+
+            if (!membersToAddSet.has(contactKey)) {
+                return false;
+            }
+
             if (!member.isAssignedElsewhere) {
                 return false;
             }
@@ -744,62 +1066,399 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 return true;
             }
 
-            const membershipCrewIds = member.membershipCrewIds || [];
-            return membershipCrewIds.some(id => id !== currentCrewId);
+            const memberCrewIds = member.memberCrewIds || [];
+            return memberCrewIds.some(id => id !== currentCrewId);
         });
     }
 
-    showConflictConfirmation(message, conflicts) {
-        const conflictEntries = conflicts || [];
-        const detailedNames = conflictEntries
-            .map(conflict => {
-                const contactName = conflict.contactName || conflict.name;
-                const crewNames = conflict.crewNameSummary || conflict.assignedCrewNames;
-                return crewNames ? `${contactName} (${crewNames})` : contactName;
-            })
-            .filter(detail => !!detail);
-
-        this.confirmationContext = 'CONFLICT';
-        this.confirmationModalTitle = 'Assign members already in another crew?';
-        this.confirmationModalMessage = message && message.trim().length
-            ? message
-            : `The following crew members are already assigned to another crew: ${detailedNames.join(', ')}. Do you want to add them here as well?`;
-        this.confirmationConfirmLabel = 'Add Members';
-        this.confirmationConfirmVariant = 'brand';
-        this.confirmationCancelLabel = 'Cancel';
-        this.confirmationIcon = 'utility:help';
-        this.confirmationIconVariant = 'info';
-        this.showConfirmationModal = true;
+    getRemovalTargets() {
+        return this.selectedCrewMembers.filter(member => this.isExistingMember(member) && member.isMarkedForRemoval);
     }
 
-    executeCrewSave(payload) {
-        const apexPayload = { ...payload, bypassConflictCheck: this.hasAcknowledgedConflicts };
-        this.isLoading = true;
+    /**
+     * Method Name: showConflictConfirmation
+     * @description: Show confirmation modal for conflicting crew members
+     */
+    showConflictConfirmation(payload, conflicts, message) {
+        try {
+            this.clearOverlapModalState();
+            const conflictEntries = (conflicts || []).map(conflict => ({
+                contactId: conflict.contactId || conflict.id,
+                contactName: conflict.contactName || conflict.name,
+                crewNameSummary: conflict.crewNameSummary || conflict.assignedCrewNames
+            }));
 
-        saveCrew({ crewData: apexPayload })
-            .then(response => {
-                if (response && response.status === 'SUCCESS') {
-                    this.showToast('Success', `Crew ${this.isEditMode ? 'updated' : 'created'} successfully`, 'success');
-                    this.handleCloseModal();
-                    this.fetchCrewMembers();
-                } else if (response && response.status === 'CONFLICT') {
-                    this.hasAcknowledgedConflicts = false;
-                    this.pendingSavePayload = { ...payload };
-                    this.pendingConflictMembers = response.conflicts || [];
-                    this.showConflictConfirmation(response.message, this.pendingConflictMembers);
-                } else {
-                    const message = response && response.message ? response.message : 'Failed to save crew';
-                    this.showToast('Error', message, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error saving crew:', error);
-                const message = error && error.body && error.body.message ? error.body.message : 'Failed to save crew';
-                this.showToast('Error', message, 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
+            this.pendingSavePayload = {
+                ...payload,
+                assignToFutureMobilizations: false
+            };
+
+            this.confirmationContext = 'CONFLICT';
+            this.conflictModalCategory = 'CONFLICT';
+            this.conflictModalTitle = 'Add members already in another crew?';
+            this.conflictModalMessage = message && message.trim().length
+                ? message
+                : 'The following crew members are already assigned to another crew. You can still add them to this crew or add them and sync upcoming mobilizations.';
+            this.conflictModalMembers = conflictEntries;
+            this.conflictPrimaryAction = 'addMembers';
+            this.conflictPrimaryLabel = 'Add Members';
+            this.conflictSecondaryAction = 'addAndSync';
+            this.conflictSecondaryLabel = 'Add & Update Mobilizations';
+            this.showConflictSelectionModal = true;
+            this.hasAcknowledgedConflicts = false;
+        } catch (error) {
+            console.error('Error showing conflict confirmation:', error);
+            this.showToast('Error', 'Failed to show conflict confirmation', 'error');
+        }
+    }
+
+    showPropagationConfirmation(payload) {
+        try {
+            this.clearOverlapModalState();
+            const upcomingCount = Number.isFinite(this.futureMobilizationCount) ? this.futureMobilizationCount : 0;
+            const countLabel = upcomingCount === 1 ? 'mobilization' : 'mobilizations';
+
+            this.confirmationContext = 'PROPAGATION';
+            this.conflictModalCategory = 'PROPAGATION';
+            this.conflictModalTitle = 'Update upcoming mobilizations?';
+            this.conflictModalMessage = `This crew has ${upcomingCount} upcoming ${countLabel}. Would you like to add the new members to those mobilizations as well?`;
+            this.conflictModalMembers = [];
+            this.pendingSavePayload = {
+                ...payload,
+                assignToFutureMobilizations: false
+            };
+            this.conflictPrimaryAction = 'skipPropagation';
+            this.conflictPrimaryLabel = 'Keep Crew Only';
+            this.conflictSecondaryAction = 'propagateMobilizations';
+            this.conflictSecondaryLabel = 'Add & Update Mobilizations';
+            this.showConflictSelectionModal = true;
+            this.hasAcknowledgedPropagation = false;
+        } catch (error) {
+            console.error('Error preparing propagation confirmation:', error);
+            this.showToast('Error', 'Failed to prepare mobilization update confirmation', 'error');
+        }
+    }
+
+    showRemovalConfirmation(payload, removalTargets) {
+        try {
+            this.clearOverlapModalState();
+            const removalEntries = removalTargets.map(member => ({
+                contactId: member.id,
+                contactName: member.name,
+                crewNameSummary: member.assignedCrewNames
+            }));
+
+            this.pendingSavePayload = {
+                ...payload,
+                removeFromFutureMobilizations: false
+            };
+
+            this.confirmationContext = 'REMOVAL';
+            this.conflictModalCategory = 'REMOVAL';
+            this.conflictModalTitle = 'Remove crew members from future mobilizations?';
+            this.conflictModalMessage = 'Select how you want to remove these members. You can keep future mobilizations intact or remove the members from upcoming mobilizations as well.';
+            this.conflictModalMembers = removalEntries;
+            this.conflictPrimaryAction = 'removeCrew';
+            this.conflictPrimaryLabel = 'Remove from Crew';
+            this.conflictSecondaryAction = 'removeCrewFuture';
+            this.conflictSecondaryLabel = 'Remove Crew & Future Mobilizations';
+            this.showConflictSelectionModal = true;
+            this.hasAcknowledgedRemoval = false;
+        } catch (error) {
+            console.error('Error showing removal confirmation:', error);
+            this.showToast('Error', 'Failed to prepare removal confirmation', 'error');
+        }
+    }
+
+    formatMobilizationWindow(startValue, endValue) {
+        try {
+            if (!startValue) {
+                return '';
+            }
+
+            const locale = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
+            const start = new Date(startValue);
+            const end = endValue ? new Date(endValue) : null;
+            const adjustedEnd = end && end < start ? new Date(end.getTime() + 24 * 60 * 60 * 1000) : end;
+
+            const dateFormatter = new Intl.DateTimeFormat(locale, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
             });
+
+            const timeFormatter = new Intl.DateTimeFormat(locale, {
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+
+            const startDate = dateFormatter.format(start);
+            const startTime = timeFormatter.format(start);
+
+            if (!adjustedEnd) {
+                return `${startDate} ${startTime}`;
+            }
+
+            const sameDay = start.toDateString() === adjustedEnd.toDateString();
+            const endDate = dateFormatter.format(adjustedEnd);
+            const endTime = timeFormatter.format(adjustedEnd);
+
+            if (sameDay) {
+                return `${startDate} ${startTime} - ${endTime}`;
+            }
+
+            return `${startDate} ${startTime} - ${endDate} ${endTime}`;
+        } catch (error) {
+            console.error('Error formatting mobilization window:', error);
+            return '';
+        }
+    }
+
+    transformMobilizationOverlapConflicts(conflicts) {
+        try {
+            if (!Array.isArray(conflicts) || conflicts.length === 0) {
+                return [];
+            }
+
+            return conflicts.map((conflict, index) => {
+                const key = `${conflict.contactId || 'unknown'}-${conflict.targetMobilizationId || 'target'}-${conflict.conflictingMobilizationId || 'conflict'}-${index}`;
+                const fallbackTargetName = conflict.targetMobilizationName
+                    || (this.isEditMode ? 'Crew mobilization' : 'New crew mobilizations');
+                const targetStart = conflict.targetStart || conflict.conflictingStart || null;
+                const targetEnd = conflict.targetEnd || conflict.conflictingEnd || null;
+                return {
+                    key,
+                    contactId: conflict.contactId,
+                    contactName: conflict.contactName,
+                    targetMobilizationId: conflict.targetMobilizationId,
+                    targetMobilizationName: fallbackTargetName,
+                    targetWindow: this.formatMobilizationWindow(targetStart, targetEnd),
+                    conflictingMobilizationId: conflict.conflictingMobilizationId,
+                    conflictingMobilizationName: conflict.conflictingMobilizationName,
+                    conflictingWindow: this.formatMobilizationWindow(conflict.conflictingStart, conflict.conflictingEnd),
+                    conflictingCrewName: conflict.conflictingCrewName || 'Individual Assignment'
+                };
+            });
+        } catch (error) {
+            console.error('Error transforming mobilization overlap conflicts:', error);
+            return [];
+        }
+    }
+
+    buildSkipAssignmentsFromConflicts() {
+        const skipMap = {};
+
+        (this.mobilizationOverlapConflicts || []).forEach(conflict => {
+            if (!conflict || !conflict.contactId || !conflict.targetMobilizationId) {
+                return;
+            }
+
+            if (!skipMap[conflict.contactId]) {
+                skipMap[conflict.contactId] = new Set();
+            }
+
+            skipMap[conflict.contactId].add(conflict.targetMobilizationId);
+        });
+
+        const serializedMap = {};
+        Object.keys(skipMap).forEach(contactId => {
+            serializedMap[contactId] = Array.from(skipMap[contactId]);
+        });
+
+        return serializedMap;
+    }
+
+    clearOverlapModalState() {
+        this.showOverlapModal = false;
+        this.mobilizationOverlapConflicts = [];
+        this.pendingOverlapPayload = null;
+    }
+
+    evaluateMobilizationOverlap(payload) {
+        try {
+            const membersToAdd = Array.isArray(payload.membersToAdd)
+                ? payload.membersToAdd.filter(memberId => !!memberId)
+                : [];
+
+            const uniqueMembersToAdd = Array.from(new Set(membersToAdd));
+
+            if (uniqueMembersToAdd.length === 0) {
+                const resumePayload = {
+                    ...payload,
+                    mobilizationAssignmentsToSkip: { ...(payload.mobilizationAssignmentsToSkip || {}) }
+                };
+                this.processSaveFlow(resumePayload, { skipOverlapCheck: true });
+                return;
+            }
+
+            this.clearOverlapModalState();
+            let resumeWithSave = false;
+            this.isLoading = true;
+
+            const targetCrewId = this.recordIdToEdit || null;
+
+            getMobilizationOverlapConflicts({ crewId: targetCrewId, contactIds: uniqueMembersToAdd })
+                .then(result => {
+                    const rawConflicts = Array.isArray(result)
+                        ? result
+                        : (result && Array.isArray(result.conflicts) ? result.conflicts : []);
+
+                    if (!rawConflicts.length) {
+                        resumeWithSave = true;
+                        const resumePayload = {
+                            ...payload,
+                            mobilizationAssignmentsToSkip: { ...(payload.mobilizationAssignmentsToSkip || {}) }
+                        };
+                        this.processSaveFlow(resumePayload, { skipOverlapCheck: true });
+                        return;
+                    }
+
+                    this.pendingOverlapPayload = {
+                        ...payload,
+                        mobilizationAssignmentsToSkip: { ...(payload.mobilizationAssignmentsToSkip || {}) }
+                    };
+
+                    this.mobilizationOverlapConflicts = this.transformMobilizationOverlapConflicts(rawConflicts);
+                    this.showOverlapModal = true;
+                })
+                .catch(error => {
+                    console.error('Error evaluating mobilization overlap conflicts:', error);
+                    this.showToast('Error', 'Failed to evaluate mobilization overlaps', 'error');
+                })
+                .finally(() => {
+                    if (!resumeWithSave) {
+                        this.isLoading = false;
+                    }
+                });
+        } catch (error) {
+            console.error('Error initiating mobilization overlap evaluation:', error);
+            this.showToast('Error', 'Failed to evaluate mobilization overlaps', 'error');
+        }
+    }
+
+    processSaveFlow(payload, options = {}) {
+        try {
+            const workingPayload = {
+                ...payload
+            };
+
+            const skipOverlapCheck = options && options.skipOverlapCheck === true;
+
+            if (!Object.prototype.hasOwnProperty.call(workingPayload, 'assignToFutureMobilizations')) {
+                workingPayload.assignToFutureMobilizations = false;
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(workingPayload, 'removeFromFutureMobilizations')) {
+                workingPayload.removeFromFutureMobilizations = false;
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(workingPayload, 'mobilizationAssignmentsToSkip') || !workingPayload.mobilizationAssignmentsToSkip) {
+                workingPayload.mobilizationAssignmentsToSkip = {};
+            }
+
+            const membersToAdd = workingPayload.membersToAdd || [];
+            const hasMembersToAdd = membersToAdd.length > 0;
+            const wantsPropagation = workingPayload.assignToFutureMobilizations === true
+                || workingPayload.assignToFutureMobilizations === 'true';
+
+            if (hasMembersToAdd) {
+                const conflictingMembers = this.getConflictingSelectedMembers(membersToAdd);
+                if (conflictingMembers.length > 0 && !this.hasAcknowledgedConflicts) {
+                    this.showConflictConfirmation(workingPayload, conflictingMembers);
+                    return;
+                }
+            }
+
+            const removalTargets = this.getRemovalTargets();
+            const hasRemovals = (workingPayload.membersToRemove || []).length > 0 && removalTargets.length > 0;
+            if (hasRemovals && !this.hasAcknowledgedRemoval) {
+                this.showRemovalConfirmation(workingPayload, removalTargets);
+                return;
+            }
+
+            if (hasMembersToAdd && this.futureMobilizationCount > 0 && !this.hasAcknowledgedPropagation) {
+                this.showPropagationConfirmation(workingPayload);
+                return;
+            }
+
+            const shouldEvaluateOverlap = !skipOverlapCheck
+                && hasMembersToAdd
+                && wantsPropagation
+                && (this.isEditMode ? this.futureMobilizationCount > 0 : true);
+
+            if (shouldEvaluateOverlap) {
+                this.evaluateMobilizationOverlap(workingPayload);
+                return;
+            }
+
+            workingPayload.assignToFutureMobilizations = Boolean(wantsPropagation);
+            workingPayload.removeFromFutureMobilizations = Boolean(workingPayload.removeFromFutureMobilizations);
+            this.pendingSavePayload = null;
+            this.pendingOverlapPayload = null;
+            this.mobilizationOverlapConflicts = [];
+            this.executeCrewSave(workingPayload);
+        } catch (error) {
+            console.error('Error processing crew save flow:', error);
+            this.showToast('Error', 'Failed to process crew save', 'error');
+        }
+    }
+
+    /**
+     * Method Name: executeCrewSave
+     * @description: Execute saving crew via Apex
+     */
+    executeCrewSave(payload) {
+        try {
+            const apexPayload = { ...payload };
+            const shouldPropagate = Boolean(apexPayload.assignToFutureMobilizations);
+            this.isLoading = true;
+
+            this.lastPropagationRequested = shouldPropagate;
+
+            saveCrew({ crewData: apexPayload })
+                .then(response => {
+                    if (!response) {
+                        this.showToast('Error', 'Failed to save crew', 'error');
+                        return;
+                    }
+
+                    if (response.status === 'SUCCESS') {
+                        let successMessage = `Crew ${this.isEditMode ? 'updated' : 'created'} successfully`;
+
+                        if (response.mobilizationAssignmentsCreated && response.mobilizationAssignmentsCreated > 0) {
+                            successMessage += `. ${response.mobilizationAssignmentsCreated} mobilization assignment${response.mobilizationAssignmentsCreated === 1 ? '' : 's'} created for upcoming schedules.`;
+                        } else if (this.lastPropagationRequested) {
+                            successMessage += '. No future mobilizations required updates.';
+                        }
+
+                        const assignmentsSkipped = Number(response.mobilizationAssignmentsSkipped);
+                        if (!Number.isNaN(assignmentsSkipped) && assignmentsSkipped > 0) {
+                            successMessage += ` ${assignmentsSkipped} mobilization assignment${assignmentsSkipped === 1 ? ' was' : 's were'} skipped due to scheduling conflicts.`;
+                        }
+
+                        this.showToast('Success', successMessage, 'success');
+                        this.handleCloseModal();
+                        this.fetchCrew();
+                    } else {
+                        const message = response.message ? response.message : 'Failed to save crew';
+                        this.showToast('Error', message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving crew:', error);
+                    const message = error && error.body && error.body.message ? error.body.message : 'Failed to save crew';
+                    this.showToast('Error', message, 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                    this.lastPropagationRequested = false;
+                });
+        } catch (error) {
+            console.error('Error executing crew save:', error);
+            this.showToast('Error', 'Failed to execute crew save', 'error');
+            this.isLoading = false;
+            this.lastPropagationRequested = false;
+        }
     }
 
     /**
@@ -834,14 +1493,6 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 this.deleteCrewRecord(this.pendingDeleteRecordId);
                 this.pendingDeleteRecordId = null;
             }
-        } else if (this.confirmationContext === 'CONFLICT') {
-            this.hasAcknowledgedConflicts = true;
-            const payload = this.pendingSavePayload ? { ...this.pendingSavePayload } : null;
-            this.pendingSavePayload = null;
-            this.pendingConflictMembers = [];
-            if (payload) {
-                this.executeCrewSave(payload);
-            }
         }
 
         this.confirmationContext = null;
@@ -855,11 +1506,111 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         this.showConfirmationModal = false;
         if (this.confirmationContext === 'DELETE') {
             this.pendingDeleteRecordId = null;
-        } else if (this.confirmationContext === 'CONFLICT') {
-            this.pendingSavePayload = null;
-            this.pendingConflictMembers = [];
         }
         this.confirmationContext = null;
+    }
+
+    handleOverlapModalAction(event) {
+        try {
+            const action = event?.currentTarget?.dataset?.action;
+            if (!action) {
+                return;
+            }
+
+            if (action === this.overlapCancelAction) {
+                this.clearOverlapModalState();
+                this.hasAcknowledgedPropagation = false;
+                return;
+            }
+
+            const payload = this.pendingOverlapPayload
+                ? {
+                    ...this.pendingOverlapPayload,
+                    mobilizationAssignmentsToSkip: {
+                        ...(this.pendingOverlapPayload.mobilizationAssignmentsToSkip || {})
+                    }
+                }
+                : null;
+
+            if (!payload) {
+                this.clearOverlapModalState();
+                return;
+            }
+
+            if (action === this.overlapSecondaryAction) {
+                const skipMap = this.buildSkipAssignmentsFromConflicts();
+                payload.mobilizationAssignmentsToSkip = skipMap;
+
+                if (!skipMap || Object.keys(skipMap).length === 0) {
+                    payload.assignToFutureMobilizations = false;
+                } else {
+                    payload.assignToFutureMobilizations = true;
+                }
+            } else if (action === this.overlapPrimaryAction) {
+                payload.mobilizationAssignmentsToSkip = {};
+                payload.assignToFutureMobilizations = true;
+            } else {
+                return;
+            }
+
+            this.clearOverlapModalState();
+            this.hasAcknowledgedPropagation = true;
+            this.processSaveFlow(payload, { skipOverlapCheck: true });
+        } catch (error) {
+            console.error('Error handling overlap modal action:', error);
+            this.showToast('Error', 'Unable to process overlap selection. Please try again.', 'error');
+        }
+    }
+
+    handleConflictModalAction(event) {
+        try {
+            const target = event?.currentTarget;
+            const action = target && target.dataset ? target.dataset.action : null;
+            if (!action) {
+                return;
+            }
+
+            if (action === 'cancel') {
+                this.showConflictSelectionModal = false;
+                this.pendingSavePayload = null;
+                this.conflictModalMembers = [];
+                this.conflictModalCategory = null;
+                this.confirmationContext = null;
+                this.clearOverlapModalState();
+                return;
+            }
+
+            const payload = this.pendingSavePayload ? { ...this.pendingSavePayload } : null;
+            if (!payload) {
+                this.showConflictSelectionModal = false;
+                this.conflictModalCategory = null;
+                this.conflictModalMembers = [];
+                this.confirmationContext = null;
+                return;
+            }
+
+            if (this.conflictModalCategory === 'CONFLICT') {
+                payload.assignToFutureMobilizations = action === this.conflictSecondaryAction;
+                this.hasAcknowledgedConflicts = true;
+            } else if (this.conflictModalCategory === 'PROPAGATION') {
+                payload.assignToFutureMobilizations = action === this.conflictSecondaryAction;
+                this.hasAcknowledgedPropagation = true;
+            } else if (this.conflictModalCategory === 'REMOVAL') {
+                payload.removeFromFutureMobilizations = action === this.conflictSecondaryAction;
+                this.hasAcknowledgedRemoval = true;
+            }
+
+            this.pendingSavePayload = null;
+            this.showConflictSelectionModal = false;
+            this.confirmationContext = null;
+            this.conflictModalCategory = null;
+            this.conflictModalMembers = [];
+
+            this.processSaveFlow(payload);
+        } catch (error) {
+            console.error('Error handling conflict modal action:', error);
+            this.showToast('Error', 'Unable to process your selection. Please try again.', 'error');
+        }
     }
 
     /**
@@ -874,7 +1625,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 .then(result => {
                     if (result === 'Success') {
                         this.showToast('Success', 'Crew deleted successfully', 'success');
-                        this.fetchCrewMembers();
+                        this.fetchCrew();
                     } else {
                         this.showToast('Error', result, 'error');
                     }

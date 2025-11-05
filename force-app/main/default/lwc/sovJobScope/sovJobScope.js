@@ -1,4 +1,4 @@
-import { LightningElement, track, wire } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import getScopeEntries from '@salesforce/apex/SovJobScopeController.getScopeEntries';
@@ -9,15 +9,22 @@ import { CurrentPageReference } from 'lightning/navigation';
 import createScopeEntryProcess from '@salesforce/apex/SovJobScopeController.createScopeEntryProcess';
 import getProcessLibraryRecords from '@salesforce/apex/SovJobScopeController.getProcessLibraryRecords';
 import createScopeEntryProcessesFromLibrary from '@salesforce/apex/SovJobScopeController.createScopeEntryProcessesFromLibrary';
-import getProcessTypes from '@salesforce/apex/SovJobScopeController.getProcessTypes';
 import getLocationsByScopeEntry from '@salesforce/apex/SovJobScopeController.getLocationsByScopeEntry';
 import createLocationProcesses from '@salesforce/apex/SovJobScopeController.createLocationProcesses';
 import saveScopeEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveScopeEntryInlineEdits';
 import saveProcessEntryInlineEdits from '@salesforce/apex/SovJobScopeController.saveProcessEntryInlineEdits';
 import getPicklistValuesForField from '@salesforce/apex/SovJobScopeController.getPicklistValuesForField';
 import deleteSelectedScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.deleteSelectedScopeEntryProcesses';
+import { getPicklistValues } from "lightning/uiObjectInfoApi";
+import PROCESSTYPE_FIELD from '@salesforce/schema/Process__c.Process_Type__c'
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
+    // Permission data received from parent component
+    @api permissionData = {
+        isReadOnly: false,
+        isFullAccess: false
+    };
+
     @track recordId;
     @track isLoading = true;
     @track scopeEntries = [];
@@ -119,11 +126,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             type: 'text'
         },
         { 
-            label: 'Sequence', 
-            fieldName: 'wfrecon__Sequence__c', 
-            type: 'number'
-        },
-        { 
             label: 'Weight', 
             fieldName: 'wfrecon__Weight__c', 
             type: 'number'
@@ -157,8 +159,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         weightage: null,
     };
 
-
-
     // Process Type Options
     @track processTypeOptions = [];
 
@@ -176,6 +176,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track modifiedProcessEntries = new Map();
     @track hasProcessModifications = false;
     @track isSavingProcessEntries = false;
+    @track isSavingProcessEntriesByScopeEntry = new Map(); // Map<scopeEntryId, boolean> - tracks saving state per scope entry
     @track editingProcessCells = new Set();
     @track selectedProcessesByScopeEntry = new Map();
 
@@ -220,9 +221,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track confirmationButtonLabel = 'Confirm';
     @track confirmationButtonVariant = 'brand';
     @track confirmationData = null;
-
-
-
 
     /**
      * Method Name: get contractSectionLabel
@@ -300,30 +298,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return this.selectedRows.length > 0;
     }
 
-    /**
-     * Method Name: get isAllSelected
-     * @description: Check if all visible rows are selected
-     */
-    get isAllSelected() {
-        return this.filteredScopeEntries.length > 0 && 
-               this.filteredScopeEntries.every(entry => this.selectedRows.includes(entry.Id));
-    }
-
-    /**
-     * Method Name: get isDeleteDisabled
-     * @description: Check if delete button should be disabled
-     */
-    get isDeleteDisabled() {
-        return this.selectedRows.length === 0 || this.isLoading || this.isSavingScopeEntries;
-    }
-
-    /**
-     * Method Name: get isDataAvailable
-     * @description: Check if data is available to display
-     */
-    get isDataAvailable() {
-        return this.filteredScopeEntries && this.filteredScopeEntries.length > 0;
-    }
 
     /**
      * Method Name: get nameCharacterCount
@@ -489,30 +463,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: get hasSelectedProcesses
-     * @description: Check if any processes are selected for deletion
-     */
-    get hasSelectedProcesses() {
-        return this.selectedProcesses.length > 0;
-    }
-
-    /**
-     * Method Name: get selectedProcessesCount
-     * @description: Get count of selected processes
-     */
-    get selectedProcessesCount() {
-        return this.selectedProcesses.length;
-    }
-
-    /**
-     * Method Name: get isDeleteProcessDisabled
-     * @description: Check if delete process button should be disabled
-     */
-    get isDeleteProcessDisabled() {
-        return this.selectedProcesses.length === 0 || this.isProcessSubmitting || this.isSavingProcessEntries;
-    }
-
-    /**
      * Method Name: get isApproveAllDisabled
      * @description: Check if approve all button should be disabled
      */
@@ -570,6 +520,46 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                this.filteredChangeOrderEntries.every(entry => entry.wfrecon__Scope_Entry_Status__c === 'Approved') ||
                this.isLoading ||
                this.isSavingScopeEntries;
+    }
+
+    /**
+     * Method Name: get canEdit
+     * @description: Check if user has edit permissions (full access only)
+     */
+    get canEdit() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get canDelete
+     * @description: Check if user has delete permissions (full access only)
+     */
+    get canDelete() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get canCreate
+     * @description: Check if user has create permissions (full access only)
+     */
+    get canCreate() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get isReadOnly
+     * @description: Check if user has read-only access
+     */
+    get isReadOnly() {
+        return this.permissionData && this.permissionData.isReadOnly;
+    }
+
+    /**
+     * Method Name: get isDeleteDisabledByPermission
+     * @description: Check if delete button should be disabled based on permissions
+     */
+    get isDeleteDisabledByPermission() {
+        return this.selectedRows.length === 0 || this.isLoading || this.isSavingScopeEntries || !this.canDelete;
     }
 
     /**
@@ -665,74 +655,34 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: hasSelectedProcessesForEntry
-     * @description: Check if any processes are selected for a specific scope entry
+     * Method Name: setCurrentPageReference
+     * @description: Get record Id from recordpage
      */
-    hasSelectedProcessesForEntry(scopeEntryId) {
-        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
-        return selectedProcesses && selectedProcesses.size > 0;
-    }
-
-    /**
-     * Method Name: getSelectedProcessesCountForEntry
-     * @description: Get count of selected processes for a specific scope entry
-     */
-    getSelectedProcessesCountForEntry(scopeEntryId) {
-        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
-        return selectedProcesses ? selectedProcesses.size : 0;
-    }
-
-    /**
-     * Method Name: areAllProcessesSelectedForEntry
-     * @description: Check if all processes are selected for a specific scope entry
-     */
-    areAllProcessesSelectedForEntry(scopeEntryId) {
-        // Find the entry to get its process count
-        const entry = this.getEntryById(scopeEntryId);
-        
-        // If no entry found or no process details, return false
-        if (!entry || !entry.processDetails || entry.processDetails.length === 0) {
-            return false;
-        }
-        
-        // Get selected processes for this scope entry
-        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
-        
-        // If no processes are selected, return false
-        if (!selectedProcesses || selectedProcesses.size === 0) {
-            return false;
-        }
-        
-        // Check if all processes are selected
-        return selectedProcesses.size === entry.processDetails.length;
-    }
-
-    /**
-     * Method Name: isDeleteProcessDisabledForEntry
-     * @description: Check if delete process button should be disabled for a specific scope entry
-     */
-    isDeleteProcessDisabledForEntry(scopeEntryId) {
-        return !this.hasSelectedProcessesForEntry(scopeEntryId);
-    }
-    
     @wire(CurrentPageReference)
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
     }
 
     /**
-     * Method Name: getDefaultScopeEntryType
-     * @description: Determine default type for new scope entry based on approved status
-     * @return: String - 'Contract' or 'Change Order'
+     * Method Name: wiredProcessTypeValues
+     * @description: Get picklist value for process type
      */
-    getDefaultScopeEntryType() {
-        // Check if any scope entry has approved status
-        const hasApprovedEntry = this.scopeEntries && this.scopeEntries.some(entry => 
-            entry.wfrecon__Scope_Entry_Status__c === 'Approved'
-        );
-        
-        // If any scope entry is approved, default to Change Order, otherwise Contract
-        return hasApprovedEntry ? 'Change Order' : 'Contract';
+    @wire(getPicklistValues, { recordTypeId: '012000000000000AAA', fieldApiName: PROCESSTYPE_FIELD })
+    wiredProcessTypeValues({ data, error }) {
+        if (data) {
+            
+            this.processTypeOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value
+            }));
+
+            this.processTypeCategoryOptions = [
+                { label: 'All', value: '' },
+                ...this.processTypeOptions
+            ];
+        } else if (error) {
+            console.error('Error loading process type picklist:', error);
+        }
     }
 
     /**
@@ -785,7 +735,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             }
             
         } catch (error) {
-            // Error styling accordion - silently continue
+            console.log('Error ==> ', error);
+            
         }
     }
 
@@ -825,12 +776,84 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: hasSelectedProcessesForEntry
+     * @description: Check if any processes are selected for a specific scope entry
+     */
+    hasSelectedProcessesForEntry(scopeEntryId) {
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        return selectedProcesses && selectedProcesses.size > 0;
+    }
+
+    /**
+     * Method Name: getSelectedProcessesCountForEntry
+     * @description: Get count of selected processes for a specific scope entry
+     */
+    getSelectedProcessesCountForEntry(scopeEntryId) {
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        return selectedProcesses ? selectedProcesses.size : 0;
+    }
+
+    /**
+     * Method Name: areAllProcessesSelectedForEntry
+     * @description: Check if all processes are selected for a specific scope entry
+     */
+    areAllProcessesSelectedForEntry(scopeEntryId) {
+        // Find the entry to get its process count
+        const entry = this.getEntryById(scopeEntryId);
+        
+        // If no entry found or no process details, return false
+        if (!entry || !entry.processDetails || entry.processDetails.length === 0) {
+            return false;
+        }
+        
+        // Get selected processes for this scope entry
+        const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId);
+        
+        // If no processes are selected, return false
+        if (!selectedProcesses || selectedProcesses.size === 0) {
+            return false;
+        }
+        
+        // Check if all processes are selected
+        return selectedProcesses.size === entry.processDetails.length;
+    }
+
+    /**
+     * Method Name: isDeleteProcessDisabledForEntry
+     * @description: Check if delete process button should be disabled for a specific scope entry
+     */
+    isDeleteProcessDisabledForEntry(scopeEntryId) {
+        return !this.hasSelectedProcessesForEntry(scopeEntryId);
+    }
+
+    /**
+     * Method Name: getDefaultScopeEntryType
+     * @description: Determine default type for new scope entry based on approved status
+     * @return: String - 'Contract' or 'Change Order'
+     */
+    getDefaultScopeEntryType() {
+        // Check if any scope entry has approved status
+        const hasApprovedEntry = this.scopeEntries && this.scopeEntries.some(entry => 
+            entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        );
+        
+        // If any scope entry is approved, default to Change Order, otherwise Contract
+        return hasApprovedEntry ? 'Change Order' : 'Contract';
+    }
+
+    /**
      * Method Name: fetchScopeConfiguration
      * @description: Fetch configuration and then load scope entries
+     * @note: Uses imperative Apex call to bypass LWC caching for fresh metadata
      */
-    fetchScopeConfiguration() {
+    async fetchScopeConfiguration() {
+        // Use imperative call to ensure fresh data (bypass cache)
         getScopeEntryConfiguration()
             .then(result => {
+                console.log('Configuration fetch result:', result);
+
+                console.log('permissionData ==> ' , this.permissionData);
+                
                 if (result && result.fieldsData) {
                     try {
                         const fieldsData = JSON.parse(result.fieldsData);
@@ -839,12 +862,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                             label: field.label,
                             fieldName: field.fieldName,
                             type: this.getColumnType(field.fieldType),
-                            editable: field.isEditable || false 
+                            editable: (field.fieldName === 'wfrecon__Approved_Date__c') ? false : (field.isEditable || false)
                         }));
+
+                        console.log('Fetched Columns from metadata:', this.scopeEntryColumns);
+                        console.log('Metadata last updated:', new Date().toISOString());
+                        
                     } catch (error) {
+                        console.error('Error parsing configuration:', error);
                         this.scopeEntryColumns = this.defaultColumns;
                     }
                 } else {
+                    console.warn('No configuration data found, using defaults');
                     this.scopeEntryColumns = this.defaultColumns;
                 }
 
@@ -853,12 +882,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.sortField = this.scopeEntryColumns[0].fieldName;
                     this.sortOrder = 'asc';
                 }
-                
-                // Load scope entries and process library
-                this.fetchScopeEntries();
-                this.loadProcessLibraryData();
             })
-            .catch(error => {
+            .catch((error) => {
+                console.error('Error fetching configuration:', error);
                 this.scopeEntryColumns = this.defaultColumns;
                 // Set default sorting
                 if (this.scopeEntryColumns.length > 0) {
@@ -866,10 +892,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     this.sortOrder = 'asc';
                 }
                 this.showToast('Warning', 'Using default configuration due to error', 'warning');
-                
-                // Still load data even if config fails
-                this.fetchScopeEntries();
+            })
+            .finally(() => {
+                // Always load data after configuration is processed (success or failure)
                 this.loadProcessLibraryData();
+                this.fetchScopeEntries();
             });
     }
 
@@ -896,6 +923,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result && result.success) {
                     // Ensure scopeEntries is always an array
                     this.scopeEntries = Array.isArray(result.scopeEntries) ? result.scopeEntries : [];
+                    console.log('scopeEntries:', this.scopeEntries);
+                    
 
                     for(let i=0; i<this.scopeEntries.length; i++){
                         if(this.scopeEntries[i].wfrecon__Job__r && this.scopeEntries[i].wfrecon__Job__r.wfrecon__Total_Contract_Price__c){
@@ -957,6 +986,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle configuration updated event from record config component
      */
     handleConfigurationUpdated(event) {
+
+        console.log('lastConfigUpdateTimestamp :', this.lastConfigUpdateTimestamp);
+        console.log('event.detail.timestamp :', event.detail.timestamp);
+        console.log('Configuration update event received:', event.detail);
+
         // Prevent duplicate processing using timestamp
         if (event.detail.timestamp && event.detail.timestamp === this.lastConfigUpdateTimestamp) {
             return;
@@ -970,8 +1004,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             event.stopPropagation();
             
             // Refresh the configuration and reload data
-            this.isLoading = true;
-            this.fetchScopeConfiguration();
+            this.performCompleteRefresh();
         }
     }
 
@@ -1046,6 +1079,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 
                 return searchInVisibleFields(entry);
             });
+            
 
             filteredEntries = filteredEntries.map(entry => {
                 return {
@@ -1135,19 +1169,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     handleSearch(event) {
         this.searchTerm = event.target.value;
         this.applyFilters();
-    }
-
-    /**
-     * Method Name: showToast
-     * @description: Show toast message
-     */
-    showToast(title, message, variant) {
-        const event = new ShowToastEvent({
-            title,
-            message,
-            variant
-        });
-        this.dispatchEvent(event);
     }
 
     /**
@@ -1243,7 +1264,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
         // console.log('invalidEntries ==> ' , invalidEntries);
         
-
         if (invalidEntries.length > 0) {
             const entryNames = invalidEntries.map(entry => entry.name).join(', ');
             return {
@@ -1275,6 +1295,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.modifiedProcessEntries.clear();
             this.hasProcessModifications = false;
             this.isSavingProcessEntries = false;
+            this.isSavingProcessEntriesByScopeEntry.clear(); // Clear entry-specific saving states
             this.editingProcessCells.clear();
             
             // Clear scope entry modifications and editing states
@@ -1320,7 +1341,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             this.fieldPicklistOptions.clear();
             
             // Fetch fresh data
-            let res = await this.fetchScopeEntries();
+            let res = await this.fetchScopeConfiguration();
 
             // Log filtered entries after data fetch
             // console.log('filtered COntract -> ',this.filteredContractEntries);
@@ -1338,8 +1359,48 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             }
             
         } catch (error) {
-            // console.log('Error ==> ' , error);
+            console.log('Error ==> ' , error);
             
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+     /**
+     * Method Name: performTargetedRefresh
+     * @description: Targeted refresh that maintains expanded states and only updates necessary data
+     */
+    async performTargetedRefresh() {
+        try {
+            this.isLoading = true;
+            
+            // Store current expanded states before refresh
+            const expandedScopeEntryIds = new Set();
+            [...(this.filteredContractEntries || []), ...(this.filteredChangeOrderEntries || [])].forEach(entry => {
+                if (entry.showProcessDetails) {
+                    expandedScopeEntryIds.add(entry.Id);
+                }
+            });
+
+            // Clear only the process-related data that needs to be refreshed
+            this.scopeEntryProcessMap.clear();
+            this.scopeEntryLocationCounts.clear();
+            
+            // Fetch fresh scope entries data
+            let res = await this.fetchScopeEntries();
+
+            if (res) {
+                // Restore expanded states immediately after data load
+                this.restoreExpandedStates(expandedScopeEntryIds);
+                
+                // Force re-render of displayed entries
+                this.updateDisplayedEntries();
+                
+                console.log(`Targeted refresh completed. Restored ${expandedScopeEntryIds.size} expanded states.`);
+            }
+            
+        } catch (error) {
+            console.error('Error in performTargetedRefresh:', error);
         } finally {
             this.isLoading = false;
         }
@@ -1403,48 +1464,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // console.log(`Restored expanded state for ${expandedScopeEntryIds.size} scope entries`);
         } catch (error) {
             console.error('Error in restoreExpandedStates:', error);
-        }
-    }
-
-    /**
-     * Method Name: performTargetedRefresh
-     * @description: Targeted refresh that maintains expanded states and only updates necessary data
-     */
-    async performTargetedRefresh() {
-        try {
-            this.isLoading = true;
-            
-            // Store current expanded states before refresh
-            const expandedScopeEntryIds = new Set();
-            [...(this.filteredContractEntries || []), ...(this.filteredChangeOrderEntries || [])].forEach(entry => {
-                if (entry.showProcessDetails) {
-                    expandedScopeEntryIds.add(entry.Id);
-                }
-            });
-
-            // Clear only the process-related data that needs to be refreshed
-            this.scopeEntryProcessMap.clear();
-            this.scopeEntryLocationCounts.clear();
-            
-            // Fetch fresh scope entries data
-            let res = await this.fetchScopeEntries();
-
-            if (res) {
-                // Restore expanded states immediately after data load
-                this.restoreExpandedStates(expandedScopeEntryIds);
-                
-                // Force re-render of displayed entries
-                this.updateDisplayedEntries();
-                
-                // console.log(`Targeted refresh completed. Restored ${expandedScopeEntryIds.size} expanded states.`);
-            }
-            
-        } catch (error) {
-            console.error('Error in performTargetedRefresh:', error);
-            // Fall back to complete refresh if targeted refresh fails
-            this.performCompleteRefresh();
-        } finally {
-            this.isLoading = false;
         }
     }
 
@@ -1520,6 +1539,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.showProcessDeleteConfirmation(processIds, scopeEntryId);
     }
 
+    /**
+     * Method Name: showProcessDeleteConfirmation
+     * @description: Show confirmation modal for deleting selected processes
+     */
     showProcessDeleteConfirmation(processIds, scopeEntryId) {
         const processCount = processIds.length;
         this.confirmationTitle = 'Delete Processes';
@@ -1536,14 +1559,31 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Proceed with deleting processes
      */
     proceedWithProcessDeletion(data) {
-        const { processIds } = data;
+        const { processIds, scopeEntryId } = data;
         this.isProcessSubmitting = true;
 
         deleteSelectedScopeEntryProcesses({ processIds: processIds })
             .then(result => {
                 if (result && result.startsWith('Success')) {
+                    // Clear selections for deleted processes
+                    const selectedProcesses = this.selectedProcessesByScopeEntry.get(scopeEntryId) || new Set();
+                    processIds.forEach(processId => {
+                        selectedProcesses.delete(processId);
+                    });
+                    
+                    // Update the map with the cleaned set
+                    if (selectedProcesses.size > 0) {
+                        this.selectedProcessesByScopeEntry.set(scopeEntryId, selectedProcesses);
+                    } else {
+                        this.selectedProcessesByScopeEntry.delete(scopeEntryId);
+                    }
+                    
+                    // Create a new Map to trigger reactivity
+                    this.selectedProcessesByScopeEntry = new Map(this.selectedProcessesByScopeEntry);
+                    
                     this.showToast('Success', 'Processes deleted successfully', 'success');
-                    // Use targeted refresh instead of complete refresh to maintain expanded state
+                    
+                    // Refresh data and update UI
                     this.performTargetedRefresh();
                 }
             })
@@ -1555,6 +1595,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             });
     }
 
+    /**
+     * Method Name: openModal
+     * @description: Open modal based on type and initialize default values
+     */
     openModal(modalType, options = {}) {
         switch (modalType) {
             case 'scopeEntry':
@@ -1595,6 +1639,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
+    /**
+     * Method Name: closeModal
+     * @description: Close modal and reset to default state
+     */
     closeModal(modalType) {
         switch (modalType) {
             case 'scopeEntry':
@@ -1625,6 +1673,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.selectedProcessCategory = '';
                 this.selectedScopeEntryId = '';
                 this.selectedScopeEntryName = '';
+                this.processLibraryDisplayRecords = this.processLibraryDisplayRecords.map(process => ({
+                ...process,
+                isSelected: false
+                }));
                 break;
             case 'location':
                 this.showAddLocationModal = false;
@@ -1632,15 +1684,27 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.locationSearchTerm = '';
                 this.selectedLocationScopeEntryId = '';
                 this.selectedScopeEntryName = '';
+                this.locationDisplayRecords = this.locationDisplayRecords.map(location => ({
+                ...location,
+                isSelected: false
+                }));
                 break;
 
         }
     }
 
+    /**
+     * Method Name: handleAddScopeEntry
+     * @description: Handle opening add scope entry modal
+     */
     handleAddScopeEntry() {
         this.openModal('scopeEntry');
     }
 
+    /**
+     * Method Name: handleCloseModal
+     * @description: Handle closing any open modal
+     */
     handleCloseModal() {
         this.closeModal('scopeEntry');
     }
@@ -1720,7 +1784,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         
         // Type-specific validation for contractValue
         if (type === 'Contract' && contractValue <= 0) {
-            return { isValid: false, message: 'Contract type entries must be positive numbers only' };
+            return { isValid: false, message: 'Contract type entries must be positive numbers only. Please enter a value greater than 0' };
+        }
+        
+        // Change Order validation - must not be zero, can be positive or negative
+        if (type === 'Change Order' && contractValue == 0) {
+            return { isValid: false, message: 'Change Order value cannot be zero. Please enter a positive or negative value' };
         }
         
         if (contractValue > 2000000000) {
@@ -1899,6 +1968,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.showConfirmationModal = true;
     }
 
+    
     proceedWithDeletion(entriesToDelete) {
         this.isLoading = true;
         const entryIds = entriesToDelete.map(entry => entry.Id);
@@ -1906,8 +1976,18 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         deleteScopeEntries({ scopeEntryIds: entryIds })
             .then(result => {
                 if (result === 'Success') {
+                    // Clear selections for deleted entries
+                    this.selectedRows = this.selectedRows.filter(id => !entryIds.includes(id));
+                    
+                    // Clear process selections for deleted scope entries
+                    entryIds.forEach(entryId => {
+                        this.selectedProcessesByScopeEntry.delete(entryId);
+                    });
+                    
                     this.showToast('Success', `${entriesToDelete.length} entries deleted successfully`, 'success');
-                    this.performCompleteRefresh();
+                    
+                    // Refresh data and update UI
+                    this.performTargetedRefresh();
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -2126,8 +2206,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Calculate if all processes are selected for this entry
             row.isAllProcessesSelected = this.areAllProcessesSelectedForEntry(entry.Id);
             
-            row.isProcessButtonsDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
-            row.isProcessSaveDisabled = !this.hasProcessModificationsForEntry(entry.Id) || this.isSavingProcessEntries;
+            // Entry-specific button states - use entry-specific saving state instead of global
+            const isEntrySaving = this.isSavingProcessEntriesByScopeEntry.get(entry.Id) || false;
+            row.isProcessButtonsDisabled = !this.hasProcessModificationsForEntry(entry.Id) || isEntrySaving;
+            row.isProcessSaveDisabled = !this.hasProcessModificationsForEntry(entry.Id) || isEntrySaving;
+            row.isSavingProcessEntries = isEntrySaving; // Add entry-specific saving flag for template use
             row.processSaveButtonLabel = this.getProcessSaveButtonLabelForEntry(entry.Id);
             row.processDiscardButtonTitle = this.getProcessDiscardButtonTitleForEntry(entry.Id);
             
@@ -2172,7 +2255,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 }
                 
                 // Determine CSS classes
-                let cellClass = col.editable ? 'center-trancate-text editable-cell' : 'center-trancate-text';
+                // Only add editable-cell class if user has edit permissions
+                let cellClass = (col.editable && this.canEdit) ? 'center-trancate-text editable-cell' : 'center-trancate-text';
                 let contentClass = 'editable-content';
                 
                 if (isModified) {
@@ -2193,8 +2277,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     rawValue: rawValue,
                     cellClass: cellClass,
                     contentClass: contentClass,
-                    // UPDATED: Disable all editing for contract entries when all are approved
-                    isEditable: (col.editable || false) && !isEditingDisabled,
+                    isEditable: (col.editable || false) && !isEditingDisabled && this.canEdit,
                     isBeingEdited: isBeingEdited,
                     hasValue: value != null && value !== '',
                     
@@ -2279,9 +2362,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Helper method to build field display data structure
      */
     buildFieldDisplayData(processData, col, key, value, displayValue, isModified, isEditable, isBeingEdited) {
-        // Build cell classes
+        // Build cell classes - only add editable-cell class if user has edit permissions
         let cellClass = 'center-trancate-text';
-        if (isEditable) cellClass += ' editable-cell';
+        if (isEditable && this.canEdit) cellClass += ' editable-cell';
         if (isModified && !isBeingEdited) cellClass += ' modified-process-cell';
         if (isBeingEdited) cellClass += ' editing-cell';
         
@@ -2420,6 +2503,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (isParentScopeEntryApproved) {
                     isEditable = isEditable && key === 'wfrecon__Sequence__c';
                 }
+                
+                // Check user permissions - only allow editing if user has full access
+                isEditable = isEditable && this.canEdit;
                 
                 return this.buildFieldDisplayData(processData, col, key, value, displayValue, isModified, isEditable, isBeingEdited);
             });
@@ -2920,27 +3006,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Load process library records and process types
      */
     loadProcessLibraryData() {
-        // Load process types for filter
-        getProcessTypes()
-            .then(result => {
-
-                this.processTypeOptions = (result || []).map(type => ({
-                        label: type,
-                        value: type
-                }));
-
-                // Create separate category options with "All" option for filter dropdown
-                this.processTypeCategoryOptions = [
-                    { label: 'All', value: '' },
-                    ...this.processTypeOptions
-                ];
-
-            })
-            .catch(error => {
-                this.processTypeOptions = [];
-                this.processTypeCategoryOptions = [{ label: 'All', value: '' }];
-            });
-    
         // Load process library records
         getProcessLibraryRecords()
             .then(result => {
@@ -2985,7 +3050,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
 
         // Create display records with selection state and processed fields
-        // Note: isSelected will be false for all records since selectedProcessLibraryIds was cleared
         this.processLibraryDisplayRecords = filtered.map(process => {
             const processRecord = {
                 ...process,
@@ -3129,7 +3193,6 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 if (result === 'Success') {
                     this.showToast('Success', 'Processes have been added from library', 'success');
                     this.handleCloseProcessLibraryModal();
-                    // Use targeted refresh instead of complete refresh to maintain expanded state
                     this.performTargetedRefresh();
                     
                 } else {
@@ -3664,6 +3727,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Handle cell click for inline editing of scope entries
      */
     async handleScopeCellClick(event) {
+        // Check if user has edit permissions
+        if (!this.canEdit) return;
+        
         const recordId = event.currentTarget.dataset.recordId;
         const fieldName = event.currentTarget.dataset.fieldName;
         const isEditable = event.currentTarget.dataset.editable === 'true';
@@ -3886,22 +3952,41 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     // Number field validation (max 6 digits with 2 decimal places)
                     if ((column.type === 'number' || column.type === 'currency' || column.type === 'percent')) {
-                        // Check for empty, null, undefined, or zero values
+                        // Check for empty, null, undefined values
                         if (value === null || value === undefined || value === '' || 
                             (typeof value === 'string' && value.trim() === '') ||
-                            (typeof value === 'string' && value.trim() === '-') ||
-                            parseFloat(value) === 0) {
-                            errors.push(`${entryName} - ${column.label}: Field cannot be empty or zero`);
+                            (typeof value === 'string' && value.trim() === '-')) {
+                            errors.push(`${entryName} - ${column.label}: Field cannot be empty. Please enter a value greater than 0`);
                         }
                         else {
                             const numValue = parseFloat(value);
                             if (!isNaN(numValue)) {
-                                // Check for negative numbers - Allow negative values for Contract Value in Change Orders
-                                const isContractValueInChangeOrder = fieldName === 'wfrecon__Contract_Value__c' && 
-                                                                   entry && entry.wfrecon__Type__c === 'Change Order';
+                                // Special validation for Contract Value field
+                                const isContractValue = fieldName === 'wfrecon__Contract_Value__c';
+                                const isContractType = entry && entry.wfrecon__Type__c === 'Contract';
+                                const isChangeOrderType = entry && entry.wfrecon__Type__c === 'Change Order';
                                 
-                                if (numValue < 0 && !isContractValueInChangeOrder) {
-                                    errors.push(`${entryName} - ${column.label}: Negative numbers are not allowed`);
+                                // Contract Value specific validation
+                                if (isContractValue) {
+                                    // Contract type must be positive
+                                    if (isContractType && numValue <= 0) {
+                                        errors.push(`${entryName} - ${column.label}: Contract type entries must be positive numbers only. Please enter a value greater than 0`);
+                                    }
+                                    // Change Order cannot be zero
+                                    else if (isChangeOrderType && numValue === 0) {
+                                        errors.push(`${entryName} - ${column.label}: Change Order value cannot be zero. Please enter a positive or negative value`);
+                                    }
+                                }
+                                // Other number fields validation
+                                else {
+                                    // Zero validation for non-contract-value fields
+                                    if (numValue === 0) {
+                                        errors.push(`${entryName} - ${column.label}: Field cannot be zero. Please enter a value greater than 0`);
+                                    }
+                                    // Negative numbers not allowed for non-contract-value fields
+                                    else if (numValue < 0) {
+                                        errors.push(`${entryName} - ${column.label}: Negative numbers are not allowed. Please enter a value greater than 0`);
+                                    }
                                 }
                                 
                                 // Check if number has more than 6 digits before decimal
@@ -4094,7 +4179,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     * @description: Get dynamic process save button label for specific entry
     */
     getProcessSaveButtonLabelForEntry(scopeEntryId) {
-        if (this.isSavingProcessEntries) {
+        const isEntrySaving = this.isSavingProcessEntriesByScopeEntry.get(scopeEntryId) || false;
+        if (isEntrySaving) {
             return 'Saving...';
         }
         const count = this.getProcessModificationCountForEntry(scopeEntryId);
@@ -4116,14 +4202,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         return `Discard ${count} unsaved process change(s)`;
     }
 
-
-
-
     /**
      * Method Name: handleProcessCellClick
      * @description: Handle cell click for inline editing of process entries
      */
     handleProcessCellClick(event) {
+        // Check if user has edit permissions
+        if (!this.canEdit) return;
+        
         const recordId = event.currentTarget.dataset.recordId;
          const fieldName = event.currentTarget.dataset.fieldName;
         const isEditable = event.currentTarget.dataset.editable === 'true';
@@ -4408,14 +4494,15 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Save all modified process entries in a single batch
      */
     handleSaveProcessChanges(event) {
-        // Prevent double-click by checking if already processing
-        if (this.isSavingProcessEntries || this.isProcessSubmitting) {
-            return;
-        }
-
         // Get scope entry ID from button click
         const scopeEntryId = event.currentTarget.dataset.scopeEntryId;
         
+        // Prevent double-click by checking if already processing for this entry
+        const isEntrySaving = this.isSavingProcessEntriesByScopeEntry.get(scopeEntryId) || false;
+        if (isEntrySaving || this.isProcessSubmitting) {
+            return;
+        }
+
         if (!this.hasProcessModificationsForEntry(scopeEntryId)) {
             return;
         }
@@ -4427,7 +4514,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             return;
         }
 
-        this.isSavingProcessEntries = true;
+        // Set saving state for this specific entry
+        this.isSavingProcessEntriesByScopeEntry.set(scopeEntryId, true);
         
         // Get only the processes for this scope entry
         const processIdsToUpdate = this.modifiedProcessEntriesByScopeEntry.get(scopeEntryId);
@@ -4458,7 +4546,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     
                     this.hasProcessModifications = this.modifiedProcessEntries.size > 0;
                     this.editingProcessCells.clear();
-                    this.performCompleteRefresh();
+                    this.performTargetedRefresh();
                     
                 } else {
                     this.showToast('Error', result, 'error');
@@ -4468,7 +4556,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'Failed to update process entries', 'error');
             })
             .finally(() => {
-                this.isSavingProcessEntries = false;
+                // Clear saving state for this specific entry
+                this.isSavingProcessEntriesByScopeEntry.set(scopeEntryId, false);
             });
     }
     
@@ -4610,16 +4699,28 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
+    /*
+     * Method Name : handleConfirmationCancel
+     * @description : Method to cancel confirmation modal
+     */
     handleConfirmationCancel() {
         this.showConfirmationModal = false;
         this.resetConfirmationState();
     }
 
+    /*
+     * Method Name : handleConfirmationClose
+     * @description : Method to close confirmation modal
+     */
     handleConfirmationClose() {
         this.showConfirmationModal = false;
         this.resetConfirmationState();
     }
 
+    /**
+     * Method Name : resetConfirmationState
+     * @description : Method to reset confirmation state
+     */
     resetConfirmationState() {
         this.confirmationTitle = '';
         this.confirmationMessage = '';
@@ -4627,6 +4728,19 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.confirmationButtonLabel = 'Confirm';
         this.confirmationButtonVariant = 'brand';
         this.confirmationData = null;
+    }
+
+    /**
+     * Method Name: showToast
+     * @description: Show toast message
+     */
+    showToast(title, message, variant) {
+        const event = new ShowToastEvent({
+            title,
+            message,
+            variant
+        });
+        this.dispatchEvent(event);
     }
 
 }

@@ -1,4 +1,4 @@
-import { LightningElement, track, wire } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
 import { CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
@@ -14,6 +14,12 @@ import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/Location__c.Unit_of_Measur
 
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
+    // Permission data received from parent component
+    @api permissionData = {
+        isReadOnly: false,
+        isFullAccess: false
+    };
+
     @track recordId;
     @track isLoading = true;
     @track locationEntries = [];
@@ -45,15 +51,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
     ];
 
     // Process table columns configuration
-    @track processTableColumns = [
-        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, isSortable: true },
-        { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', isSortable: true },
-        { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c', type: 'text', isSortable: true },
-        { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', isSortable: true },
-        { label: 'Completed %', fieldName: 'wfrecon__Completed_Percentage__c', type: 'percent', isSlider: true , isEditable: false, isSortable: false},
-        { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency', isSortable: true },
-        { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text', isSortable: true }
-    ];
+    @track processTableColumns = [];
 
     // Modal properties
     @track showAddModal = false;
@@ -219,7 +217,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                 
                 // Build cell classes
                 let cellClass = 'center-trancate-text';
-                if (col.editable) {
+                if (col.editable && this.canEdit) {
                     cellClass += ' editable-cell';
                 }
                 if (isModified && !isBeingEdited) {
@@ -256,7 +254,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
                     isNumber: col.type === 'number',
                     isDate: col.type === 'date',
                     isPicklist: col.type === 'picklist',
-                    isEditable: col.editable || false,
+                    isEditable: (col.editable || false) && this.canEdit, // Only editable if user has edit permission
                     isModified: isModified,
                     isBeingEdited: isBeingEdited,
                     cellClass: cellClass,
@@ -414,6 +412,81 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             return 'No location changes to discard';
         }
         return `Discard ${this.modifiedLocations.size} unsaved location change(s)`;
+    }
+
+    /**
+     * Method Name: get hasAnyAccess
+     * @description: Check if user has any access (view or edit)
+     */
+    get hasAnyAccess() {
+        return this.permissionData && (
+            this.permissionData.isFullAccess ||
+            this.permissionData.isReadOnly
+        );
+    }
+
+    /**
+     * Method Name: get canCreate
+     * @description: Check if user can create records
+     */
+    get canCreate() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get canEdit
+     * @description: Check if user can edit records
+     */
+    get canEdit() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get canDelete
+     * @description: Check if user can delete records
+     */
+    get canDelete() {
+        return this.permissionData && this.permissionData.isFullAccess;
+    }
+
+    /**
+     * Method Name: get isReadOnlyMode
+     * @description: Check if user is in read-only mode
+     */
+    get isReadOnlyMode() {
+        return !this.canEdit;
+    }
+
+    /**
+     * Method Name: get activeProcessTableColumns
+     * @description: Get process table columns based on permissions (hide slider if no access)
+     */
+    get activeProcessTableColumns() {
+        const baseColumns = [
+            { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, isSortable: true },
+            { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', isSortable: true },
+            { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c', type: 'text', isSortable: true },
+            { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', isSortable: true }
+        ];
+
+        // Only include the slider column if user has edit access
+        if (this.canEdit) {
+            baseColumns.push({ 
+                label: 'Completed %', 
+                fieldName: 'wfrecon__Completed_Percentage__c', 
+                type: 'percent', 
+                isSlider: true, 
+                isEditable: false, 
+                isSortable: false
+            });
+        }
+
+        baseColumns.push(
+            { label: 'Current Completed Value', fieldName: 'wfrecon__Current_Completed_Value__c', type: 'currency', isSortable: true },
+            { label: 'Process Status', fieldName: 'wfrecon__Process_Status__c', type: 'text', isSortable: true }
+        );
+
+        return baseColumns;
     }
 
     /**
@@ -828,6 +901,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Handle real-time slider input for visual feedback
      */
     handleSliderInput(event) {
+        // Check if user has edit permission
+        if (!this.canEdit) return;
+        
         const newValue = parseFloat(event.target.value);
         const sliderElement = event.target;
         
@@ -1198,8 +1274,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             return;
         }
 
-        if(this.newLocation.quantity !== null && (isNaN(this.newLocation.quantity) || this.newLocation.quantity < 0)) {
-            this.showToast('Error', 'Quantity must be a non-negative number.', 'error');
+        if(this.newLocation.quantity !== null && (isNaN(this.newLocation.quantity) || this.newLocation.quantity <= 0)) {
+            this.showToast('Error', 'Quantity must be a greater than zero.', 'error');
             return;
         }
 
@@ -1466,7 +1542,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             const processId = this.getFieldValue(process, 'Id');
             row.recordUrl = `/lightning/r/${processId}/view`;
             
-            row.displayFields = this.processTableColumns.map(col => {
+            row.displayFields = this.activeProcessTableColumns.map(col => {
                 const key = col.fieldName;
                 let value = this.getFieldValue(process, key);
                 
@@ -1510,6 +1586,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Handle completion percentage slider change - now tracks changes instead of saving immediately
      */
     handleSliderChange(event) {
+        // Check if user has edit permission
+        if (!this.canEdit) return;
+        
         const processId = event.target.dataset.processId;
         const locationId = event.target.dataset.locationId;
         const originalValue = parseFloat(event.target.dataset.originalValue);
@@ -2191,6 +2270,9 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      * @description: Handle cell click for inline editing with auto-focus
      */
     async handleCellClick(event) {
+        // Check if user has edit permission
+        if (!this.canEdit) return;
+        
         const recordId = event.currentTarget.dataset.recordId;
         const fieldName = event.currentTarget.dataset.fieldName;
         const fieldType = event.currentTarget.dataset.fieldType;

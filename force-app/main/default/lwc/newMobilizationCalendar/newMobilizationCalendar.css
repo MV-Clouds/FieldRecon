@@ -4,6 +4,11 @@
   scrollbar-color: #5e5adb #5e5adb20;
 }
 
+:host{
+  --primary-theme-color: #5e5adb;
+  --primary-theme-color-shade-20: #5e5adb20;
+}
+
 .fullcalendarjs{
     margin-inline: 1rem;
 }
@@ -55,6 +60,7 @@
 
 .mob-popup-body:has(.main-resources-edit-div){
   min-height: min(32rem, 90%);
+  height: min(32rem, 90%);
 }
 
 .mob-popup-header, .confirm-popup-header{
@@ -220,5 +226,51 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding-bottom: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.checkboxes-select.options-with-crew-and-members{
+  flex-direction: column;
+  border-radius: 0.5rem;
+  padding: 0.2rem;
+}
+
+.checkboxes-select:has(.checkboxes-select) {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.checkboxes-select .checkboxes-select {
+  margin-left: 1rem;
+}
+
+.checkboxes-select .whole-crew-selection-checkbox{
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Hide the "Individual Employees" checkbox, as it is not a crew */
+.whole-crew-selection-checkbox:has(.checkbox-option-label[title="Individual Employees"]) .resource-option-checkbox{
+  display: none;
+}
+
+.whole-crew-title-checkbox{
+  font-weight: 600;
+}
+
+/* .checkbox-option-label[data-available="false"]{
+  color: #ff000099;
+}
+
+.checkbox-option-label[data-is-added="true"]{
+  color: var(--primary-theme-color, #5a5adb);
+} */
+
+.confirmation-popup-div{
+  z-index: 9999;
+}
+
+.confirmation-backdrop{
+  z-index: 9998;
 }

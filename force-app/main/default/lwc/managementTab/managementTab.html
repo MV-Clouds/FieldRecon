@@ -34,6 +34,10 @@
                                 <!-- Employee Tab Content -->
                                 <p>Employee content here...</p>
                             </template>
+
+                            <template if:true={tab.isMobStatusColorConfig}>
+                                <c-mob-status-color-config></c-mob-status-color-config>
+                            </template>
                         </div>
                     </template>
                 </template>

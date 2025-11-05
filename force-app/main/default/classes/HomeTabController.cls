@@ -131,15 +131,15 @@ public with sharing class HomeTabController {
                     wrap.mobMemberId  = m.Id;
                     wrap.mobId          = m.Mobilization__c;
                     wrap.jobId          = m.Mobilization__r.Job__c;
-                    wrap.jobName = m.Mobilization__r.Job__r.Job_Name__c;
+                    wrap.jobName = m.Mobilization__r.Job__r.Job_Name__c != null ? m.Mobilization__r.Job__r.Job_Name__c : '--';
                     wrap.jobNumber = m.Mobilization__r.Job__r.Name;
                     wrap.jobDescription = m.Mobilization__r.Job__r.Description__c;
-                    wrap.jobAddress     = m.Mobilization__r.Job__r.Address__c;
-                    wrap.jobStreet     = m.Mobilization__r.Job__r.Street__c;
-                    wrap.jobCity     = m.Mobilization__r.Job__r.City__c;
-                    wrap.jobState     = m.Mobilization__r.Job__r.State__c;
-                    wrap.jobPostalCode     = m.Mobilization__r.Job__r.Zip_Code__c;
-                    wrap.jobCountry     = m.Mobilization__r.Job__r.Country__c;
+                    wrap.jobAddress     = m.Mobilization__r.Job__r.Address__c != null ? m.Mobilization__r.Job__r.Address__c : '--';
+                    wrap.jobStreet     = m.Mobilization__r.Job__r.Street__c != null ? m.Mobilization__r.Job__r.Street__c : '--';
+                    wrap.jobCity     = m.Mobilization__r.Job__r.City__c != null ? m.Mobilization__r.Job__r.City__c : '--';
+                    wrap.jobState     = m.Mobilization__r.Job__r.State__c != null ? m.Mobilization__r.Job__r.State__c : '--';
+                    wrap.jobPostalCode     = m.Mobilization__r.Job__r.Zip_Code__c != null ? m.Mobilization__r.Job__r.Zip_Code__c : '--';
+                    wrap.jobCountry     = m.Mobilization__r.Job__r.Country__c != null ? m.Mobilization__r.Job__r.Country__c : '--';
 
                     Timesheet__c ts = jobTimesheetMap.get(m.Mobilization__r.Job__c);
                     Timesheet_Entry__c openEntry = openEntryMap.get(m.Mobilization__r.Job__c);
@@ -185,15 +185,15 @@ public with sharing class HomeTabController {
                         wrap.mobMemberId  = m.Id;
                         wrap.mobId          = m.Mobilization__c;
                         wrap.jobId          = m.Mobilization__r.Job__c;
-                        wrap.jobName = m.Mobilization__r.Job__r.Job_Name__c;
+                        wrap.jobName = m.Mobilization__r.Job__r.Job_Name__c != null ? m.Mobilization__r.Job__r.Job_Name__c : '--';
                         wrap.jobNumber = m.Mobilization__r.Job__r.Name;
                         wrap.jobDescription = m.Mobilization__r.Job__r.Description__c;
-                        wrap.jobAddress     = m.Mobilization__r.Job__r.Address__c;
-                        wrap.jobStreet     = m.Mobilization__r.Job__r.Street__c;
-                        wrap.jobCity     = m.Mobilization__r.Job__r.City__c;
-                        wrap.jobState     = m.Mobilization__r.Job__r.State__c;
-                        wrap.jobPostalCode     = m.Mobilization__r.Job__r.Zip_Code__c;
-                        wrap.jobCountry     = m.Mobilization__r.Job__r.Country__c;
+                        wrap.jobAddress     = m.Mobilization__r.Job__r.Address__c != null ? m.Mobilization__r.Job__r.Address__c : '--';
+                        wrap.jobStreet     = m.Mobilization__r.Job__r.Street__c != null ? m.Mobilization__r.Job__r.Street__c : '--';
+                        wrap.jobCity     = m.Mobilization__r.Job__r.City__c != null ? m.Mobilization__r.Job__r.City__c : '--';
+                        wrap.jobState     = m.Mobilization__r.Job__r.State__c != null ? m.Mobilization__r.Job__r.State__c : '--';
+                        wrap.jobPostalCode     = m.Mobilization__r.Job__r.Zip_Code__c != null ? m.Mobilization__r.Job__r.Zip_Code__c : '--';
+                        wrap.jobCountry     = m.Mobilization__r.Job__r.Country__c != null ? m.Mobilization__r.Job__r.Country__c : '--';
                         weekMap.get(d).add(wrap);
                     }
                 }
@@ -305,6 +305,7 @@ public with sharing class HomeTabController {
 
     public class TimesheetEntryItemWrapper {
         @AuraEnabled public Id id;
+        @AuraEnabled public String jobId;
         @AuraEnabled public String jobNumber;
         @AuraEnabled public String jobName;
         @AuraEnabled public Datetime clockInTime;
@@ -318,6 +319,7 @@ public with sharing class HomeTabController {
         public TimesheetEntryItemWrapper(Timesheet_Entry_Item__c item) {
             this.id = item.Id;
             this.jobNumber = item.Timesheet_Entry__r.TimeSheet__r.Job__r.Name;
+            this.jobId = item.Timesheet_Entry__r.TimeSheet__r.Job__r.Id;
             this.jobName = item.Timesheet_Entry__r.TimeSheet__r.Job__r.Job_Name__c;
             
             // Convert to user timezone

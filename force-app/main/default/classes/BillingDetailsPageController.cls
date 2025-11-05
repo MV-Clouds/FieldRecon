@@ -7,7 +7,7 @@ public with sharing class BillingDetailsPageController {
 
             // Query Billing record
             wfrecon__Billing__c bill = [
-                SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Retainage__c, wfrecon__Retainage_on_Bill__c, wfrecon__Job__r.wfrecon__Total_Contract_Price__c, wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c, 
+                SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Retainage__c, wfrecon__Retainage_on_Bill__c, wfrecon__Job__r.wfrecon__Total_Contract_Value__c, wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c, 
                        wfrecon__Contract_Sum_to_Date__c, Total_Billed_Amount__c, wfrecon__Total_Amount_Earned_Less_Retainage__c, Current_Payment_Due_FM__c, Bill_Type__c, Account__c, wfrecon__Account__r.BillingStreet, wfrecon__Account__r.BillingCity,
                        wfrecon__Account__r.BillingState, wfrecon__Account__r.BillingPostalCode, wfrecon__Balance_to_Finish_Retainage__c, wfrecon__Account__r.Name, wfrecon__Application_Number__c, wfrecon__Billing_Reference_Number__c,
                        wfrecon__Is_Retainage_Billing__c, wfrecon__Previous_Bill__c, wfrecon__Previous_Bill__r.Name, wfrecon__Previous_Billed_Amount__c, wfrecon__Sent_Date__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Status__c,
@@ -21,16 +21,16 @@ public with sharing class BillingDetailsPageController {
             // Populate Billing details in wrapper with null checks and default values
             wrapper.billDetails = new BillWrapper();
             wrapper.billDetails.Id = bill.Id;
-            wrapper.billDetails.Name = String.isNotBlank(bill.Name) ? bill.Name : '-';
+            wrapper.billDetails.Name = String.isNotBlank(bill.Name) ? bill.Name : '--';
             wrapper.billDetails.BillType = String.isNotBlank(bill.Bill_Type__c) ? bill.Bill_Type__c : 'Regular';
-            wrapper.billDetails.BillingReferenceNumber = String.isNotBlank(bill.wfrecon__Billing_Reference_Number__c) ? bill.wfrecon__Billing_Reference_Number__c : '-';
-            wrapper.billDetails.ApplicationNumber = String.isNotBlank(bill.wfrecon__Application_Number__c) ? bill.wfrecon__Application_Number__c : '-';
-            wrapper.billDetails.Status = String.isNotBlank(bill.wfrecon__Status__c) ? bill.wfrecon__Status__c : '-';
+            wrapper.billDetails.BillingReferenceNumber = String.isNotBlank(bill.wfrecon__Billing_Reference_Number__c) ? bill.wfrecon__Billing_Reference_Number__c : '--';
+            wrapper.billDetails.ApplicationNumber = String.isNotBlank(bill.wfrecon__Application_Number__c) ? bill.wfrecon__Application_Number__c : '--';
+            wrapper.billDetails.Status = String.isNotBlank(bill.wfrecon__Status__c) ? bill.wfrecon__Status__c : '--';
             wrapper.billDetails.StartDate = bill.wfrecon__Start_Date__c;
             wrapper.billDetails.EndDate = bill.wfrecon__End_Date__c;
             wrapper.billDetails.SentDate = bill.wfrecon__Sent_Date__c;
             wrapper.billDetails.Address = buildAddress(bill.wfrecon__Account__r);
-            wrapper.billDetails.AccountName = (bill.wfrecon__Account__r != null && String.isNotBlank(bill.wfrecon__Account__r.Name)) ? bill.wfrecon__Account__r.Name : '-';
+            wrapper.billDetails.AccountName = (bill.wfrecon__Account__r != null && String.isNotBlank(bill.wfrecon__Account__r.Name)) ? bill.wfrecon__Account__r.Name : '--';
             wrapper.billDetails.RetainageOnBill = bill.wfrecon__Retainage_on_Bill__c != null ? bill.wfrecon__Retainage_on_Bill__c : 0.00;
             wrapper.billDetails.TotalEarnedLessRetainage = bill.wfrecon__Total_Amount_Earned_Less_Retainage__c != null ? bill.wfrecon__Total_Amount_Earned_Less_Retainage__c : 0.00;
             wrapper.billDetails.TotalCompletedAndStoredToDate = bill.Total_Billed_Amount__c != null ? bill.Total_Billed_Amount__c : 0.00;
@@ -40,15 +40,15 @@ public with sharing class BillingDetailsPageController {
             wrapper.billDetails.BalanceToFinishRetainage = bill.wfrecon__Balance_to_Finish_Retainage__c != null ? bill.wfrecon__Balance_to_Finish_Retainage__c : 0.00;
             wrapper.billDetails.IsRetainageBilling = bill.wfrecon__Is_Retainage_Billing__c != null ? bill.wfrecon__Is_Retainage_Billing__c : false;
             wrapper.billDetails.PreviousBillId = bill.wfrecon__Previous_Bill__c;
-            wrapper.billDetails.PreviousBillName = (bill.wfrecon__Previous_Bill__r != null && String.isNotBlank(bill.wfrecon__Previous_Bill__r.Name)) ? bill.wfrecon__Previous_Bill__r.Name : '-';
+            wrapper.billDetails.PreviousBillName = (bill.wfrecon__Previous_Bill__r != null && String.isNotBlank(bill.wfrecon__Previous_Bill__r.Name)) ? bill.wfrecon__Previous_Bill__r.Name : '--';
             wrapper.billDetails.RetainageCompletedToDate = bill.Retainage_Completed_to_Date__c != null ? bill.Retainage_Completed_to_Date__c : 0.00;
             wrapper.billDetails.PreviousBilledAmount = bill.wfrecon__Previous_Billed_Amount__c != null ? bill.wfrecon__Previous_Billed_Amount__c : 0.00;
             wrapper.billDetails.jobRetainage = bill.wfrecon__Job__r.wfrecon__Retainage__c != null ? bill.wfrecon__Job__r.wfrecon__Retainage__c : 0.00;
-            wrapper.billDetails.jobTotalContractPrice = bill.wfrecon__Job__r.wfrecon__Total_Contract_Price__c != null ? bill.wfrecon__Job__r.wfrecon__Total_Contract_Price__c : 0.00;
+            wrapper.billDetails.jobTotalContractPrice = bill.wfrecon__Job__r.wfrecon__Total_Contract_Value__c != null ? bill.wfrecon__Job__r.wfrecon__Total_Contract_Value__c : 0.00;
             wrapper.billDetails.jobTotalChangeOrderValue = bill.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c != null ? bill.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c : 0.00;
             wrapper.billDetails.JobId = bill.wfrecon__Job__c;
-            wrapper.billDetails.JobName = String.isNotBlank(bill.wfrecon__Job__r.wfrecon__Job_Name__c) ? bill.wfrecon__Job__r.wfrecon__Job_Name__c : '-';
-            wrapper.billDetails.JobNumber = String.isNotBlank(bill.wfrecon__Job__r.Name) ? bill.wfrecon__Job__r.Name : '-';
+            wrapper.billDetails.JobName = String.isNotBlank(bill.wfrecon__Job__r.wfrecon__Job_Name__c) ? bill.wfrecon__Job__r.wfrecon__Job_Name__c : '--';
+            wrapper.billDetails.JobNumber = String.isNotBlank(bill.wfrecon__Job__r.Name) ? bill.wfrecon__Job__r.Name : '--';
             wrapper.billDetails.PaymentDueDate = bill.wfrecon__Payment_Due_Date__c;
 
             // Query Billing Line Items directly
@@ -73,8 +73,9 @@ public with sharing class BillingDetailsPageController {
             return wrapper;
 
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingDetailsPageController', 'methodName' => 'getBillingsData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             System.debug('Error fetching billing data: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            return null;
         }
     }
 
@@ -142,7 +143,8 @@ public with sharing class BillingDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error updating billing details: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingDetailsPageController', 'methodName' => 'updateBillingDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -173,6 +175,8 @@ public with sharing class BillingDetailsPageController {
                        wfrecon__This_Billing_Percent__c,
                        wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
                        wfrecon__Previous_Billed_Value__c,
+                       wfrecon__Previous_Billed_Percent__c,
+                       wfrecon__Scope_Complete__c,
                        wfrecon__Total_Billed_Value__c,
                        wfrecon__Total_Retainage_Amount__c,
                        wfrecon__This_Billing_Value__c,
@@ -205,6 +209,8 @@ public with sharing class BillingDetailsPageController {
             }
 
             List<wfrecon__Billing_Line_Item__c> itemsToUpdate = new List<wfrecon__Billing_Line_Item__c>();
+            Decimal tolerance = 0.0001;
+            System.RoundingMode roundingMode = System.RoundingMode.HALF_UP;
 
             for (wfrecon__Billing_Line_Item__c item : lineItems) {
                 Map<String, Object> updates = updateMap.get(item.Id);
@@ -212,44 +218,46 @@ public with sharing class BillingDetailsPageController {
                     continue;
                 }
 
+                Boolean hasAmountUpdate = updates.containsKey('wfrecon__This_Billing_Value__c');
+                Boolean hasPercentUpdate = updates.containsKey('wfrecon__This_Billing_Percent__c');
+                Boolean hasRetainageUpdate = updates.containsKey('wfrecon__Retainage_Percent_on_Bill_Line_Item__c');
+
+                if (!hasAmountUpdate && !hasPercentUpdate && !hasRetainageUpdate) {
+                    continue;
+                }
+
                 Decimal contractAmount = item.wfrecon__Scope_Contract_Amount__c != null ? item.wfrecon__Scope_Contract_Amount__c : 0;
-                if (contractAmount == 0 && item.wfrecon__Scope_Entry__r?.wfrecon__Contract_Value__c != null) {
+                if (contractAmount == 0 && item.wfrecon__Scope_Entry__r != null && item.wfrecon__Scope_Entry__r.wfrecon__Contract_Value__c != null) {
                     contractAmount = item.wfrecon__Scope_Entry__r.wfrecon__Contract_Value__c;
                 }
-                Decimal jobRetainagePercent = item.wfrecon__Billing__r?.wfrecon__Job__r?.wfrecon__Retainage__c != null
-                    ? item.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Retainage__c
-                    : 0;
 
-                Decimal updatedBillingPercent = item.wfrecon__This_Billing_Percent__c != null ? item.wfrecon__This_Billing_Percent__c : 0;
-                Decimal updatedRetainagePercent = item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c != null
+                Decimal baseRetainagePercent = item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c != null
                     ? item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c
-                    : jobRetainagePercent;
+                    : (item.wfrecon__Billing__r != null && item.wfrecon__Billing__r.wfrecon__Job__r != null && item.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Retainage__c != null
+                        ? item.wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Retainage__c
+                        : 0);
 
-                Boolean billingPercentProvided = false;
-                if (updates.containsKey('wfrecon__This_Billing_Percent__c')) {
-                    Decimal providedBillingPercent = (Decimal) updates.get('wfrecon__This_Billing_Percent__c');
-                    if (providedBillingPercent != null) {
-                        updatedBillingPercent = providedBillingPercent;
-                        billingPercentProvided = true;
-                    }
+                Decimal retainagePercent = baseRetainagePercent;
+                if (hasRetainageUpdate && updates.get('wfrecon__Retainage_Percent_on_Bill_Line_Item__c') != null) {
+                    retainagePercent = (Decimal) updates.get('wfrecon__Retainage_Percent_on_Bill_Line_Item__c');
                 }
 
-                Boolean retainagePercentProvided = false;
-                if (updates.containsKey('wfrecon__Retainage_Percent_on_Bill_Line_Item__c')) {
-                    Decimal providedRetainagePercent = (Decimal) updates.get('wfrecon__Retainage_Percent_on_Bill_Line_Item__c');
-                    if (providedRetainagePercent != null) {
-                        updatedRetainagePercent = providedRetainagePercent;
-                        retainagePercentProvided = true;
-                    }
+                if (retainagePercent < 0 || retainagePercent > 100) {
+                    throw new AuraHandledException('Retainage % must be between 0 and 100.');
                 }
 
-                if (!billingPercentProvided && !retainagePercentProvided) {
-                    continue;
+                Decimal thisBillingAmount = item.wfrecon__This_Billing_Value__c != null ? item.wfrecon__This_Billing_Value__c : 0;
+                if (hasAmountUpdate && updates.get('wfrecon__This_Billing_Value__c') != null) {
+                    thisBillingAmount = (Decimal) updates.get('wfrecon__This_Billing_Value__c');
+                }
+
+                Decimal thisBillingPercent = item.wfrecon__This_Billing_Percent__c != null ? item.wfrecon__This_Billing_Percent__c : 0;
+                if (hasPercentUpdate && updates.get('wfrecon__This_Billing_Percent__c') != null) {
+                    thisBillingPercent = (Decimal) updates.get('wfrecon__This_Billing_Percent__c');
                 }
 
                 Decimal previousTotalBilled = item.wfrecon__Previous_Billed_Value__c != null ? item.wfrecon__Previous_Billed_Value__c : 0;
                 Decimal previousTotalRetainage = 0;
-                Decimal previousRemainingAmount = 0;
 
                 if (item.wfrecon__Previous_Bill_Line_Item__c != null && previousItemsMap.containsKey(item.wfrecon__Previous_Bill_Line_Item__c)) {
                     wfrecon__Billing_Line_Item__c prevItem = previousItemsMap.get(item.wfrecon__Previous_Bill_Line_Item__c);
@@ -260,47 +268,150 @@ public with sharing class BillingDetailsPageController {
                         if (prevItem.wfrecon__Total_Retainage_Amount__c != null) {
                             previousTotalRetainage = prevItem.wfrecon__Total_Retainage_Amount__c;
                         }
-                        if (prevItem.wfrecon__Remaining_Billing_Amount__c != null) {
-                            previousRemainingAmount = prevItem.wfrecon__Remaining_Billing_Amount__c;
-                        }
                     }
                 } else {
-                    previousRemainingAmount = contractAmount;
-                }
-
-                if (previousTotalRetainage == 0 && item.wfrecon__Total_Retainage_Amount__c != null) {
                     Decimal currentRetainage = item.wfrecon__This_Retainage_Amount__c != null ? item.wfrecon__This_Retainage_Amount__c : 0;
-                    Decimal inferredPreviousRetainage = item.wfrecon__Total_Retainage_Amount__c - currentRetainage;
+                    Decimal totalRetainage = item.wfrecon__Total_Retainage_Amount__c != null ? item.wfrecon__Total_Retainage_Amount__c : 0;
+                    Decimal inferredPreviousRetainage = totalRetainage - currentRetainage;
                     if (inferredPreviousRetainage > 0) {
                         previousTotalRetainage = inferredPreviousRetainage;
                     }
                 }
 
-                // if (previousRemainingAmount == 0 && item.wfrecon__Remaining_Billing_Amount__c != null) {
-                //     previousRemainingAmount = item.wfrecon__Remaining_Billing_Amount__c;
-                // }
+                previousTotalBilled = previousTotalBilled.setScale(2, roundingMode);
+                previousTotalRetainage = previousTotalRetainage.setScale(2, roundingMode);
 
-                // if (previousRemainingAmount == 0) {
-                //     // Fallback to contract less previous billed amount when remaining is not available
-                //     previousRemainingAmount = contractAmount - previousTotalBilled;
-                // }
-                // if (previousRemainingAmount < 0) {
-                //     previousRemainingAmount = 0;
-                // }
+                Decimal previousBilledPercent = item.wfrecon__Previous_Billed_Percent__c != null ? item.wfrecon__Previous_Billed_Percent__c : 0;
+                Decimal currentCompletePercent = item.wfrecon__Scope_Complete__c != null ? item.wfrecon__Scope_Complete__c : 0;
+                Decimal minRequiredPercent = previousBilledPercent > currentCompletePercent ? previousBilledPercent : currentCompletePercent;
 
-                Decimal grossBillingAmount = (contractAmount * updatedBillingPercent) / 100;
-                Decimal retainageAmount = (previousRemainingAmount * updatedRetainagePercent) / 100;
-                Decimal totalRetainageAmount = previousTotalRetainage + retainageAmount;
-                Decimal thisBillingValue = grossBillingAmount - totalRetainageAmount - previousTotalBilled;
-                Decimal totalBilledValue = previousTotalBilled + thisBillingValue;
+                Decimal previousGross = previousTotalBilled + previousTotalRetainage;
+                Decimal factor = 1 + (retainagePercent / 100);
 
-                item.wfrecon__This_Billing_Percent__c = updatedBillingPercent;
-                item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c = updatedRetainagePercent;
-                item.wfrecon__This_Retainage_Amount__c = retainageAmount;
-                item.wfrecon__Total_Retainage_Amount__c = totalRetainageAmount;
-                item.wfrecon__This_Billing_Value__c = thisBillingValue;
-                item.wfrecon__Total_Billed_Value__c = totalBilledValue;
-                // item.wfrecon__Due_This_Billing__c = thisBillingValue;
+                Boolean enforceLimits = contractAmount > 0;
+                Decimal maxAmount = 0;
+                Decimal minAmount = 0;
+
+                if (enforceLimits) {
+                    Decimal availableGross = contractAmount - previousGross;
+                    if (availableGross < 0) {
+                        availableGross = 0;
+                    }
+                    maxAmount = factor != 0 ? availableGross / factor : availableGross;
+
+                    Decimal requiredGross = contractAmount * (minRequiredPercent / 100);
+                    Decimal remainingGrossNeeded = requiredGross - previousGross;
+                    if (remainingGrossNeeded < 0) {
+                        remainingGrossNeeded = 0;
+                    }
+                    minAmount = factor != 0 ? remainingGrossNeeded / factor : remainingGrossNeeded;
+
+                    maxAmount = maxAmount.setScale(2, roundingMode);
+                    minAmount = minAmount.setScale(2, roundingMode);
+                }
+
+                Decimal thisRetainageAmount;
+                Decimal totalRetainageAmount;
+                Decimal totalBilledAmount;
+                Decimal grossToDate;
+
+                if (hasAmountUpdate) {
+                    if (thisBillingAmount < 0) {
+                        throw new AuraHandledException('This Billing Amount cannot be negative.');
+                    }
+                    if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
+                        throw new AuraHandledException('This Billing Amount plus retainage exceeds the contract value. Adjust the amount or retainage percentage.');
+                    }
+                    if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
+                        throw new AuraHandledException('This Billing Amount results in completion below the required minimum. Increase the amount or review retainage.');
+                    }
+
+                    thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
+                    totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
+                    totalBilledAmount = previousTotalBilled + thisBillingAmount;
+                    grossToDate = totalBilledAmount + totalRetainageAmount;
+
+                    if (enforceLimits && grossToDate > contractAmount + tolerance) {
+                        throw new AuraHandledException('This Billing Amount and retainage exceed the contract value.');
+                    }
+
+                    thisBillingPercent = enforceLimits ? (grossToDate / contractAmount) * 100 : 0;
+                    if (thisBillingPercent > 100 + tolerance) {
+                        throw new AuraHandledException('This Billing Complete % cannot exceed 100%.');
+                    }
+                } else if (hasPercentUpdate) {
+                    if (thisBillingPercent < 0) {
+                        throw new AuraHandledException('This Billing Complete % cannot be negative.');
+                    }
+                    if (thisBillingPercent > 100) {
+                        throw new AuraHandledException('This Billing Complete % cannot exceed 100%.');
+                    }
+                    if (thisBillingPercent < minRequiredPercent - tolerance) {
+                        throw new AuraHandledException('This Billing Complete % must be at least ' + String.valueOf(minRequiredPercent.setScale(2, roundingMode)) + '%.');
+                    }
+
+                    grossToDate = enforceLimits ? (contractAmount * thisBillingPercent) / 100 : 0;
+                    Decimal grossContribution = grossToDate - previousGross;
+                    if (grossContribution < 0) {
+                        grossContribution = 0;
+                    }
+
+                    thisBillingAmount = factor != 0 ? grossContribution / factor : grossContribution;
+
+                    if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
+                        throw new AuraHandledException('The requested Billing % would exceed the contract value. Reduce the percentage or adjust retainage.');
+                    }
+                    if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
+                        throw new AuraHandledException('The requested Billing % results in completion below the required minimum. Increase the percentage.');
+                    }
+
+                    thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
+                    totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
+                    totalBilledAmount = previousTotalBilled + thisBillingAmount;
+                    grossToDate = totalBilledAmount + totalRetainageAmount;
+                } else {
+                    if (thisBillingAmount < 0) {
+                        throw new AuraHandledException('This Billing Amount cannot be negative.');
+                    }
+                    if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
+                        throw new AuraHandledException('Retainage % change makes the current Billing Amount exceed the contract value. Adjust the amount before saving.');
+                    }
+                    if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
+                        throw new AuraHandledException('Retainage % change requires a higher Billing Amount to meet completion minimums. Adjust the amount before saving.');
+                    }
+
+                    thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
+                    totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
+                    totalBilledAmount = previousTotalBilled + thisBillingAmount;
+                    grossToDate = totalBilledAmount + totalRetainageAmount;
+                    thisBillingPercent = enforceLimits ? (grossToDate / contractAmount) * 100 : thisBillingPercent;
+                }
+
+                Decimal roundedAmount = thisBillingAmount.setScale(2, roundingMode);
+                Decimal roundedRetainage = thisRetainageAmount.setScale(2, roundingMode);
+                Decimal roundedTotalRetainage = totalRetainageAmount.setScale(2, roundingMode);
+                Decimal roundedTotalBilled = totalBilledAmount.setScale(2, roundingMode);
+                Decimal roundedGross = roundedTotalBilled + roundedTotalRetainage;
+                Decimal roundedPercent = enforceLimits ? (roundedGross / contractAmount) * 100 : thisBillingPercent;
+                roundedPercent = roundedPercent.setScale(2, roundingMode);
+
+                if (roundedPercent > 100 + tolerance) {
+                    throw new AuraHandledException('This Billing Complete % cannot exceed 100%.');
+                }
+
+                Decimal dueThisBilling = roundedAmount - roundedRetainage;
+                if (dueThisBilling < 0) {
+                    dueThisBilling = 0;
+                }
+                dueThisBilling = dueThisBilling.setScale(2, roundingMode);
+
+                item.wfrecon__This_Billing_Value__c = roundedAmount;
+                item.wfrecon__This_Billing_Percent__c = roundedPercent;
+                item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c = retainagePercent.setScale(2, roundingMode);
+                item.wfrecon__This_Retainage_Amount__c = roundedRetainage;
+                item.wfrecon__Total_Retainage_Amount__c = roundedTotalRetainage;
+                item.wfrecon__Total_Billed_Value__c = roundedTotalBilled;
+                item.wfrecon__Previous_Billed_Value__c = previousTotalBilled;
 
                 itemsToUpdate.add(item);
             }
@@ -312,12 +423,13 @@ public with sharing class BillingDetailsPageController {
             return 'SUCCESS';
         } catch (Exception e) {
             System.debug('Error saving billing line items: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingDetailsPageController', 'methodName' => 'saveBillingLineItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
     private static String buildAddress(Account acc) {
-        if (acc == null) return '-';
+        if (acc == null) return '--';
         
         List<String> addressParts = new List<String>();
         
@@ -334,7 +446,7 @@ public with sharing class BillingDetailsPageController {
             addressParts.add(acc.BillingPostalCode);
         }
         
-        return !addressParts.isEmpty() ? String.join(addressParts, ', ') : '-';
+        return !addressParts.isEmpty() ? String.join(addressParts, ', ') : '--';
     }
 
     // ---------------------------

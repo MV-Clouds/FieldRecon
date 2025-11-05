@@ -5,84 +5,75 @@
         </div>
     </template>
 
-    <div class="wrapper">
-        <!-- Tab Navigation -->
-        <div class="tab-navigation">
-            <button class={billingsTabClass} onclick={handleBillingsTab} data-tab="billings">
-                Billings
-            </button>
-            <button class={paymentsTabClass} onclick={handlePaymentsTab} data-tab="payments">
-                Payments
-            </button>
-        </div>
-
-        <!-- Tab Content -->
-        <div class="tab-content">
-            <template if:true={isBillingsTabActive}>
-                <div class="tab-panel">
-                    <div class="tab-container">
-                        <template if:true={isBillCreatable}>
-                            <div class="filter-bar">
-                                <div class="search-div">
-                                    <lightning-input type="search" data-field="billing" variant="label-hidden" placeholder="Search Bill Number or Date (e.g. 2025-10-11)" onchange={handleSearch} value={searchTerm}></lightning-input>
-                                </div>
+    <template if:true={isFullAccess}>
+        <div class="wrapper">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class={billingsTabClass} onclick={handleBillingsTab} data-tab="billings">
+                    Billings
+                </button>
+                <button class={paymentsTabClass} onclick={handlePaymentsTab} data-tab="payments">
+                    Payments
+                </button>
+            </div>
     
-                                <div class="status-filter">
-                                    <lightning-combobox name="statusFilter" class="slds-m-left--medium" variant="label-hidden" value={selectedStatus} placeholder="Filter by Status" options={statusOptions} onchange={handleStatusChange}></lightning-combobox>
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <template if:true={isBillingsTabActive}>
+                    <div class="tab-panel">
+                        <div class="tab-container">
+                            <template if:true={isBillCreatable}>
+                                <div class="filter-bar">
+                                    <div class="search-div">
+                                        <lightning-input type="search" data-field="billing" variant="label-hidden" placeholder="Search Bill Number or Date (e.g. 2025-10-11)" onchange={handleSearch} value={searchTerm}></lightning-input>
+                                    </div>
+        
+                                    <div class="status-filter">
+                                        <lightning-combobox name="statusFilter" class="slds-m-left--medium" variant="label-hidden" value={selectedStatus} placeholder="Filter by Status" options={statusOptions} onchange={handleStatusChange}></lightning-combobox>
+                                    </div>
+        
+                                    <div class="btnContainer">
+                                        <button class="createBillingBtn" onclick={handleCreateBilling}>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
+                                            </svg>
+                                            Create Billing
+                                        </button>
+                                    </div>
                                 </div>
-    
-                                <div class="btnContainer">
-                                    <button class="createBillingBtn" onclick={handleCreateBilling}>
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
-                                        </svg>
-                                        Create Billing
-                                    </button>
-                                </div>
-                            </div>
-    
-                            <template if:true={billDetails.length}>
-                                <div class="table-content">
-                                    <table class="slds-table">
-                                        <thead>
-                                            <tr>
-                                                <template for:each={visibleBillingsColumns} for:item="col">
-                                                    <th key={col.fieldName} scope="col" style={col.style}>
-                                                        <div class="slds-truncate" title={col.label}>{col.label}</div>
-                                                    </th>
-                                                </template>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <template for:each={billDetails} for:item="billing" for:index="index">
-                                                <tr key={billing.key}>
-                                                    <template for:each={billing.values} for:item="val">
-                                                        <td key={val} style={val.style}>
-                                                            <template if:true={val.isActions}>
-                                                                <div class="action-button-container">
-                                                                    <template if:false={billing.disableApprove}>
-                                                                        <button class="approve-icon-btn" title="Approve Billing" data-id={billing.billId} data-action="approveBilling" onclick={handleActionClick}>
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            </svg>
-                                                                        </button>
-                                                                        <button class="delete-icon-btn" title="Delete Billing" data-id={billing.billId} data-action="deleteBilling" onclick={handleActionClick}>
-                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                        </svg>
-                                                                    </button>
-                                                                    </template>
-                                                                    <template if:true={billing.disableApprove}>
-                                                                        <!-- Disabled approve button when billing is already approved -->
-                                                                        <button class="approve-icon-btn disabled" title="Already Approved" aria-disabled="true" disabled>
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            </svg>
-                                                                        </button>
-                                                                        <button class="delete-icon-btn disabled" title="Delete Billing" aria-disabled="true" disabled>
+        
+                                <template if:true={billDetails.length}>
+                                    <div class="table-content">
+                                        <table class="slds-table">
+                                            <thead>
+                                                <tr>
+                                                    <template for:each={visibleBillingsColumns} for:item="col">
+                                                        <th key={col.fieldName} scope="col" style={col.style}>
+                                                            <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                                        </th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={billDetails} for:item="billing" for:index="index">
+                                                    <tr key={billing.key}>
+                                                        <template for:each={billing.values} for:item="val">
+                                                            <td key={val} style={val.style}>
+                                                                <template if:true={val.isActions}>
+                                                                    <div class="action-button-container">
+                                                                        <template if:false={billing.disableApprove}>
+                                                                            <button class="clone-icon-btn" title="Clone Billing" data-id={billing.billId} data-action="cloneBilling" onclick={handleActionClick}>
+                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+                                                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                            <button class="approve-icon-btn" title="Approve Billing" data-id={billing.billId} data-action="approveBilling" onclick={handleActionClick}>
+                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                            <button class="delete-icon-btn" title="Delete Billing" data-id={billing.billId} data-action="deleteBilling" onclick={handleActionClick}>
                                                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                                 <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                                                                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -90,330 +81,373 @@
                                                                                 <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                                                             </svg>
                                                                         </button>
+                                                                        </template>
+                                                                        <template if:true={billing.disableApprove}>
+                                                                            <!-- Clone button always enabled -->
+                                                                            <button class="clone-icon-btn" title="Clone Billing" data-id={billing.billId} data-action="cloneBilling" onclick={handleActionClick}>
+                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+                                                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                            <!-- Disabled approve button when billing is already approved -->
+                                                                            <button class="approve-icon-btn disabled" title="Already Approved" aria-disabled="true" disabled>
+                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                            <button class="delete-icon-btn disabled" title="Delete Billing" aria-disabled="true" disabled>
+                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                    <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                    <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                        </template>
+                                                                    </div>
+                                                                </template>                                            
+                                                                <template if:false={val.isActions}>
+                                                                    <template if:true={val.recordLink}>
+                                                                        <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
+                                                                            <div class="cell-content" title={val.value}>
+                                                                                {val.value}
+                                                                            </div>
+                                                                        </a>
                                                                     </template>
-                                                                </div>
-                                                            </template>                                            
-                                                            <template if:false={val.isActions}>
-                                                                <template if:true={val.recordLink}>
-                                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
+                                                                    <template if:false={val.recordLink}>
                                                                         <div class="cell-content" title={val.value}>
                                                                             {val.value}
                                                                         </div>
-                                                                    </a>
+                                                                    </template>
                                                                 </template>
-                                                                <template if:false={val.recordLink}>
-                                                                    <div class="cell-content" title={val.value}>
-                                                                        {val.value}
-                                                                    </div>
-                                                                </template>
-                                                            </template>
-                                                        </td>
-                                                    </template>
-                                                </tr>
-                                            </template>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </template>
-                            <template if:false={billDetails.length}>
-                                <div class="no-records-message">
-                                    <div class="empty-state">
-                                        <div class="empty-state__content">
-                                            <div class="empty-state__icon">
-                                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
-                                            </div>
-                                            <div class="empty-state__message">No data available to show</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </template>
-                        <template if:false={isBillCreatable}>
-                            <div class="empty-state-container">
-                                <div class="empty-state-content">
-                                    <div class="empty-state-title">Can't Create Billing</div>
-                                    <div class="empty-state-message">No approved scope entries found for this job.</div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </template>
-
-            <template if:true={isPaymentsTabActive}>
-                <div class="tab-panel">
-                    <div class="tab-container">
-                        <template if:true={isPaymentCreatable}>
-                            <div class="filter-bar">
-                                <div class="search-div">
-                                    <lightning-input type="search" data-field="payment" variant="label-hidden" placeholder="Search Payment Number or Date (e.g. 2025-10-11)" onchange={handleSearch} value={searchTerm}></lightning-input>
-                                </div>
-    
-                                <div class="btnContainer">
-                                    <button class="receivePaymentBtn" onclick={handleReceivePayment}>
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
-                                        </svg>
-                                        Receive Payment
-                                    </button>
-                                </div>
-                            </div>
-    
-                            <template if:true={paymentDetails.length}>
-                                <div class="table-content">
-                                    <table class="slds-table">
-                                        <thead>
-                                            <tr>
-                                                <template for:each={paymentsColumns} for:item="col">
-                                                    <th key={col.fieldName} scope="col" style={col.style}>
-                                                        <div class="slds-truncate" title={col.label}>{col.label}</div>
-                                                    </th>
+                                                            </td>
+                                                        </template>
+                                                    </tr>
                                                 </template>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <template for:each={paymentDetails} for:item="payment" for:index="index">
-                                                <tr key={payment.Id}>
-                                                    <template for:each={payment.values} for:item="val">
-                                                        <td key={val} style={val.style}>
-                                                            <template if:true={val.isActions}>
-                                                                <div class="action-button-container">
-                                                                    <button class="delete-icon-btn" title="Delete Payment" data-id={payment.paymentId} data-action="deletePayment" onclick={handleActionClick}>
-                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                        </svg>
-                                                                    </button>
-                                                                </div>
-                                                            </template>
-        
-                                                            <template if:false={val.isActions}>
-                                                                <template if:true={val.recordLink}>
-                                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
-                                                                        <div class="cell-content" title={val.value}>
-                                                                            {val.value}
-                                                                        </div>
-                                                                    </a>
-                                                                </template>
-                                                                <template if:false={val.recordLink}>
-                                                                    <div class="cell-content" title={val.value}>
-                                                                        {val.value}
-                                                                    </div>
-                                                                </template>
-                                                            </template>
-                                                        </td>
-                                                    </template>
-                                                </tr>
-                                            </template>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </template>
-                            <template if:false={paymentDetails.length}>
-                                <div class="no-records-message">
-                                    <div class="empty-state">
-                                        <div class="empty-state__content">
-                                            <div class="empty-state__icon">
-                                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+                                <template if:false={billDetails.length}>
+                                    <div class="no-records-message">
+                                        <div class="empty-state">
+                                            <div class="empty-state__content">
+                                                <div class="empty-state__icon">
+                                                    <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                                </div>
+                                                <div class="empty-state__message">No data available to show</div>
                                             </div>
-                                            <div class="empty-state__message">No data available to show</div>
                                         </div>
+                                    </div>
+                                </template>
+                            </template>
+                            <template if:false={isBillCreatable}>
+                                <div class="empty-state-container">
+                                    <div class="empty-state-content">
+                                        <div class="empty-state-title">Can't Create Billing</div>
+                                        <div class="empty-state-message">No approved scope entries found for this job.</div>
                                     </div>
                                 </div>
                             </template>
-                        </template>
-                        <template if:false={isPaymentCreatable}>
-                            <div class="empty-state-container">
-                                <div class="empty-state-content">
-                                    <div class="empty-state-title">Payment creation is not allowed.</div>
-                                    <div class="empty-state-message">No approved billing records found for this job.</div>
+                        </div>
+                    </div>
+                </template>
+    
+                <template if:true={isPaymentsTabActive}>
+                    <div class="tab-panel">
+                        <div class="tab-container">
+                            <template if:true={isPaymentCreatable}>
+                                <div class="filter-bar">
+                                    <div class="search-div">
+                                        <lightning-input type="search" data-field="payment" variant="label-hidden" placeholder="Search Payment Number or Date (e.g. 2025-10-11)" onchange={handleSearch} value={searchTerm}></lightning-input>
+                                    </div>
+        
+                                    <div class="btnContainer">
+                                        <button class="receivePaymentBtn" onclick={handleReceivePayment}>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
+                                            </svg>
+                                            Receive Payment
+                                        </button>
+                                    </div>
+                                </div>
+        
+                                <template if:true={paymentDetails.length}>
+                                    <div class="table-content">
+                                        <table class="slds-table">
+                                            <thead>
+                                                <tr>
+                                                    <template for:each={paymentsColumns} for:item="col">
+                                                        <th key={col.fieldName} scope="col" style={col.style}>
+                                                            <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                                        </th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={paymentDetails} for:item="payment" for:index="index">
+                                                    <tr key={payment.Id}>
+                                                        <template for:each={payment.values} for:item="val">
+                                                            <td key={val} style={val.style}>
+                                                                <template if:true={val.isActions}>
+                                                                    <div class="action-button-container">
+                                                                        <button class="delete-icon-btn" title="Delete Payment" data-id={payment.paymentId} data-action="deletePayment" onclick={handleActionClick}>
+                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
+                                                                </template>
+            
+                                                                <template if:false={val.isActions}>
+                                                                    <template if:true={val.recordLink}>
+                                                                        <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
+                                                                            <div class="cell-content" title={val.value}>
+                                                                                {val.value}
+                                                                            </div>
+                                                                        </a>
+                                                                    </template>
+                                                                    <template if:false={val.recordLink}>
+                                                                        <div class="cell-content" title={val.value}>
+                                                                            {val.value}
+                                                                        </div>
+                                                                    </template>
+                                                                </template>
+                                                            </td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+                                <template if:false={paymentDetails.length}>
+                                    <div class="no-records-message">
+                                        <div class="empty-state">
+                                            <div class="empty-state__content">
+                                                <div class="empty-state__icon">
+                                                    <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                                </div>
+                                                <div class="empty-state__message">No data available to show</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </template>
+                            <template if:false={isPaymentCreatable}>
+                                <div class="empty-state-container">
+                                    <div class="empty-state-content">
+                                        <div class="empty-state-title">Payment creation is not allowed.</div>
+                                        <div class="empty-state-message">No approved billing records found for this job.</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+    
+            <template if:true={createNewBillModal}>
+                <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+                <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
+                    <div class="slds-modal__container">
+                        <!-- Close Button -->
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeNewBillModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                        </button>
+    
+                        <div class="slds-modal__content pop-up" id="modal-content-id-4">
+                            <!-- Heading -->
+                            <div class="pop-heading">
+                                Create New Bill
+                            </div>
+    
+                            <!-- Body -->
+                            <div class="popUpBody slds-p-around--medium">
+                                <div class="form-container">
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Job Name</label>
+                                            <div class="select-wrapper">
+                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Job Retainage</label>
+                                            <div class="select-wrapper">
+                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobRetainage} read-only></lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Select Previous Approved Billing (Optional)</label>
+                                            <div class="select-wrapper">
+                                                <lightning-combobox name="prevBillId" label="Select Previous Approved Billing" variant="label-hidden" placeholder="Select a Previous Billing" value={newBill.prevBillId} options={approvedBillingOptionsForNew} onchange={handleNewBillChange}></lightning-combobox>
+                                            </div>
+                                        </div>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Billing Type</label>
+                                            <div class="select-wrapper">
+                                                <lightning-combobox name="billingType" label="Billing Type" variant="label-hidden" placeholder="Select Billing Type" value={newBill.billingType} options={billingTypeOptions} onchange={handleNewBillChange}></lightning-combobox>
+                                            </div>
+                                        </div>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Start Date</label>
+                                            <div class="select-wrapper">
+                                                <lightning-input type="date" class="custom-select width-100" variant="label-hidden" name="Start_Date__c" value={newBill.Start_Date__c} onchange={handleNewBillChange}></lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">End Date</label>
+                                            <div class="select-wrapper">
+                                                <lightning-input type="date" class="custom-select width-100" variant="label-hidden" name="End_Date__c" value={newBill.End_Date__c} onchange={handleNewBillChange}></lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </template>
+    
+                            <!-- Footer -->
+                            <div class="popUpFooter">
+                                <button class="createBillingBtn" onclick={handleSaveNewBill}>Save</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </section>
+            </template>
+    
+            <template if:true={createNewPaymentModal}>
+                <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+                <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
+                    <div class="slds-modal__container">
+                        <!-- Close Button -->
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeNewPaymentModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                        </button>
+    
+                        <div class="slds-modal__content pop-up" id="modal-content-id-3">
+                            <!-- Heading -->
+                            <div class="pop-heading">
+                                Create New Payment
+                            </div>
+    
+                            <!-- Body -->
+                            <div class="popUpBody slds-p-around--medium">
+                                <div class="form-container">
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Job Name</label>
+                                            <div class="select-wrapper">
+                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label required">Select Approved Billing</label>
+                                            <div class="select-wrapper">
+                                                <lightning-combobox name="billId" label="Select Approved Billing" variant="label-hidden" placeholder="Select a Billing" value={newPayment.billId} options={approvedBillingOptions} onchange={handleNewPaymentChange}></lightning-combobox>
+                                            </div>
+                                        </div>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Payment Reference</label>
+                                            <div class="select-wrapper">
+                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" name="Payment_Reference__c" value={newPayment.Payment_Reference__c} onchange={handleNewPaymentChange}></lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
+    
+                                    <div class="form-group">
+                                        <div class="input-column">
+                                            <label class="select-label">Payment Received Date</label>
+                                            <div class="select-wrapper">
+                                                <lightning-input type="date" class="custom-select width-100 payment-date-input" variant="label-hidden" name="Payment_Received_Date__c" value={newPayment.Payment_Received_Date__c} onchange={handleNewPaymentChange}></lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+    
+                            </div>
+    
+                            <!-- Footer -->
+                            <div class="popUpFooter">
+                                <button class="createBillingBtn" onclick={handleSaveNewPayment}>Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </template>
+    
+            <template if:true={showConfirmModal}>
+                <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+                <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
+                    <div class="slds-modal__container">
+                        <!-- Close Button -->
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeConfirmModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                        </button>
+    
+                        <div class="slds-modal__content pop-up" id="modal-content-id-5">
+                            <!-- Heading -->
+                            <div class="pop-heading">
+                                {popupProperties.heading}
+                            </div>
+    
+                            <!-- Body -->
+                            <div class="popUpBody slds-p-around--medium">
+                                <div>
+                                    {popupProperties.body}
+                                </div>
+                            </div>
+                            <!-- Footer -->
+                            <div class="popUpFooter">
+                                <button class="createBillingBtn" onclick={handleConfirmClick}>{popupProperties.buttonLabel}</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </template>
         </div>
+    </template>
 
-        <template if:true={createNewBillModal}>
-            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
-            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
-                <div class="slds-modal__container">
-                    <!-- Close Button -->
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeNewBillModal}>
-                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
-                    </button>
-
-                    <div class="slds-modal__content pop-up" id="modal-content-id-4">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Create New Bill
+    <template if:false={isFullAccess}>
+        <div class="sov-container">
+            <div class="no-prop">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                         </div>
-
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
-                            <div class="form-container">
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Job Name</label>
-                                        <div class="select-wrapper">
-                                            <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Job Retainage</label>
-                                        <div class="select-wrapper">
-                                            <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobRetainage} read-only></lightning-input>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Select Previous Approved Billing (Optional)</label>
-                                        <div class="select-wrapper">
-                                            <lightning-combobox name="prevBillId" label="Select Previous Approved Billing" variant="label-hidden" placeholder="Select a Previous Billing" value={newBill.prevBillId} options={approvedBillingOptionsForNew} onchange={handleNewBillChange}></lightning-combobox>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Billing Type</label>
-                                        <div class="select-wrapper">
-                                            <lightning-combobox name="billingType" label="Billing Type" variant="label-hidden" placeholder="Select Billing Type" value={newBill.billingType} options={billingTypeOptions} onchange={handleNewBillChange}></lightning-combobox>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Start Date</label>
-                                        <div class="select-wrapper">
-                                            <lightning-input type="date" class="custom-select width-100" variant="label-hidden" name="Start_Date__c" value={newBill.Start_Date__c} onchange={handleNewBillChange}></lightning-input>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">End Date</label>
-                                        <div class="select-wrapper">
-                                            <lightning-input type="date" class="custom-select width-100" variant="label-hidden" name="End_Date__c" value={newBill.End_Date__c} onchange={handleNewBillChange}></lightning-input>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Footer -->
-                        <div class="popUpFooter">
-                            <button class="createBillingBtn" onclick={handleSaveNewBill}>Save</button>
+                        <div class="empty-state__message">Access Denied</div>
+                        <div class="empty-state__subtitle">
+                            You don't have permission to access to this module. Please contact your system administrator to request access.
                         </div>
                     </div>
                 </div>
-            </section>
-        </template>
+            </div>
+        </div>
+    </template>
 
-        <template if:true={createNewPaymentModal}>
-            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
-            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
-                <div class="slds-modal__container">
-                    <!-- Close Button -->
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeNewPaymentModal}>
-                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
-                    </button>
-
-                    <div class="slds-modal__content pop-up" id="modal-content-id-3">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            Create New Payment
-                        </div>
-
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
-                            <div class="form-container">
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Job Name</label>
-                                        <div class="select-wrapper">
-                                            <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label required">Select Approved Billing</label>
-                                        <div class="select-wrapper">
-                                            <lightning-combobox name="billId" label="Select Approved Billing" variant="label-hidden" placeholder="Select a Billing" value={newPayment.billId} options={approvedBillingOptions} onchange={handleNewPaymentChange}></lightning-combobox>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Payment Reference</label>
-                                        <div class="select-wrapper">
-                                            <lightning-input type="text" class="custom-select width-100" variant="label-hidden" name="Payment_Reference__c" value={newPayment.Payment_Reference__c} onchange={handleNewPaymentChange}></lightning-input>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="input-column">
-                                        <label class="select-label">Payment Received Date</label>
-                                        <div class="select-wrapper">
-                                            <lightning-input type="date" class="custom-select width-100" variant="label-hidden" name="Payment_Received_Date__c" value={newPayment.Payment_Received_Date__c} onchange={handleNewPaymentChange}></lightning-input>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <!-- Footer -->
-                        <div class="popUpFooter">
-                            <button class="createBillingBtn" onclick={handleSaveNewPayment}>Save</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </template>
-
-        <template if:true={showConfirmModal}>
-            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
-            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
-                <div class="slds-modal__container">
-                    <!-- Close Button -->
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeConfirmModal}>
-                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
-                    </button>
-
-                    <div class="slds-modal__content pop-up" id="modal-content-id-5">
-                        <!-- Heading -->
-                        <div class="pop-heading">
-                            {popupProperties.heading}
-                        </div>
-
-                        <!-- Body -->
-                        <div class="popUpBody slds-p-around--medium">
-                            <div>
-                                {popupProperties.body}
-                            </div>
-                        </div>
-                        <!-- Footer -->
-                        <div class="popUpFooter">
-                            <button class="createBillingBtn" onclick={handleConfirmClick}>{popupProperties.buttonLabel}</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </template>
-    </div>
 </template>

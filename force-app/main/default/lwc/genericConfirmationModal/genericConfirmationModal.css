@@ -190,6 +190,29 @@
     outline: none;
 }
 
+.cancel-btn{
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s ease;
+    height: 36px;
+    min-width: 108px;
+    background: #fff;
+    color: rgba(94, 90, 219, 1);
+    border: 1px solid rgba(94, 90, 219, 0.35);
+}
+
+.cancel-btn:hover:not(:disabled){
+    filter: brightness(0.95);
+}
+
+.modal-footer{
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
 @media (max-width: 768px) {
     .generic-modal .slds-modal__container {
         margin: 1rem;

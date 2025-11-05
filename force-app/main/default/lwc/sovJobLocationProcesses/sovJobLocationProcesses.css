@@ -133,6 +133,37 @@
     text-decoration: underline;
 }
 
+/* Text Truncation for all text fields */
+.process-name-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+.location-name-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+.text-truncate {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
 .no-prop {
     font-size: 20px;
     display: flex;
@@ -274,6 +305,22 @@
     text-align: center;
     flex-shrink: 0;
     white-space: nowrap;
+}
+
+/* Disabled slider styles */
+.completion-slider:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.completion-slider:disabled::-webkit-slider-thumb {
+    cursor: not-allowed;
+    background: #ccc;
+}
+
+.completion-slider:disabled::-moz-range-thumb {
+    cursor: not-allowed;
+    background: #ccc;
 }
 
 /* Fallback for browsers that don't support :has() */

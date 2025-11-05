@@ -32,36 +32,6 @@
     overflow: hidden;
     padding-bottom: 14px;
 }
-/* 
-.data-table-container,
-.location-container,
-.process-library-container {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(94, 90, 219, 1) transparent;
-}
-
-.data-table-container::-webkit-scrollbar,
-.location-container::-webkit-scrollbar,
-.process-library-container::-webkit-scrollbar,
-.accordion-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.data-table-container::-webkit-scrollbar-track,
-.location-container::-webkit-scrollbar-track,
-.process-library-container::-webkit-scrollbar-track,
-.accordion-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.data-table-container::-webkit-scrollbar-thumb,
-.location-container::-webkit-scrollbar-thumb,
-.process-library-container::-webkit-scrollbar-thumb,
-.accordion-container::-webkit-scrollbar-thumb {
-    background-color: rgba(94, 90, 219, 1);
-    border-radius: 4px;
-} */
 
 .location-container{
     margin-bottom: 1rem;
@@ -78,10 +48,6 @@
     margin-bottom: 1rem;
     border: 1px solid #ddd;
 }
-
-/* .data-table-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(94, 90, 219, 1);
-} */
 
 .custom-data-table {
     width: 100%;
@@ -141,6 +107,43 @@
 
 .name-link:hover {
     text-decoration: underline;
+}
+
+.scope-name {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: left;
+}
+
+/* Text truncation for all text fields */
+.text-truncate {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+/* Process name text truncation in nested tables */
+.process-name-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: ltr;
+    text-align: center;
+}
+
+/* Ensure nested table cells handle truncation properly */
+.nested-table-row .center-trancate-text {
+    max-width: 200px;
 }
 
 /* Inline Editing Styles */
@@ -920,8 +923,6 @@
     height: 100%;
     overflow: auto;
     scroll-behavior: smooth;
-    /* scrollbar-width: thin;
-    scrollbar-color: rgba(94, 90, 219, 1) transparent; */
 }
 
 .accordion-container lightning-accordion {
@@ -940,8 +941,6 @@
     border-radius: 8px;
     margin: 16px 0;
     background-color: white;
-    /* scrollbar-width: thin;
-    scrollbar-color: rgba(94, 90, 219, 1) transparent; */
 }
 
 /* Summary Cards */
@@ -996,7 +995,6 @@
     line-height: 1.2;
 }
 
-/* Ensure summary cards are always visible and unaffected by search */
 .summary-cards-container,
 .summary-cards-container .summary-card {
     visibility: visible !important;
@@ -1324,7 +1322,6 @@
     --slds-c-input-color-border-focus: rgba(94, 90, 219, 1);
 }
 
-/* Sort Description */
 /* Sort Description */
 .sort-description-container {
     padding: 8px 2px;
@@ -1766,7 +1763,6 @@
     }
 }
 
-/* Add right-control layout to sovJobScope.css after line 600 */
 .right-control {
     display: flex;
     justify-content: space-between;
@@ -1925,11 +1921,6 @@
 .editing-cell .edit-indicator {
     display: none !important;
 }
-
-/* Change Order Modal */
-
-
-
 
 /* Step Header */
 .step-header {

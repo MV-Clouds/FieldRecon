@@ -46,7 +46,7 @@ public with sharing class SovJobScopeController {
                          ' WHERE wfrecon__Job__c = :jobId' +
                          ' ORDER BY CreatedDate DESC';
     
-                List<SObject> rawScopeEntries = Database.query(query, AccessLevel.USER_MODE);
+                List<SObject> rawScopeEntries = Database.query(String.escapeSingleQuotes(query), AccessLevel.USER_MODE);
                 scopeEntries.addAll(rawScopeEntries);
     
 
@@ -197,6 +197,7 @@ public with sharing class SovJobScopeController {
     @description     : Method is used to get Scope Entry Configuration
     @return          : Map<String, Object> - Configuration data
     @author          : Rachit Shah
+    @note            : Not cacheable to ensure fresh metadata retrieval
     ********************************************************
     */
     @AuraEnabled
@@ -204,21 +205,29 @@ public with sharing class SovJobScopeController {
         Map<String, Object> configData = new Map<String, Object>();
         
         try {
+            // Query all records and use the first one (metadata should have only one record ideally)
             List<ScopeEntryConfigration__mdt> configs = [
-                SELECT Fields_Data__c, PageSize__c 
+                SELECT FieldValue__c, PageSize__c, DeveloperName, MasterLabel
                 FROM ScopeEntryConfigration__mdt 
                 WITH USER_MODE 
+                ORDER BY DeveloperName
                 LIMIT 1
             ];
 
             if (!configs.isEmpty()) {
                 ScopeEntryConfigration__mdt config = configs[0];
-                configData.put('fieldsData', config.Fields_Data__c);
+                configData.put('fieldsData', config.FieldValue__c);
                 configData.put('pageSize', config.PageSize__c);
+                configData.put('timestamp', String.valueOf(System.now().getTime()));
+                
+                System.debug('Configuration fetched: ' + config.DeveloperName);
+                System.debug('Fields Data: ' + config.FieldValue__c);
             }
             else{
                 configData.put('fieldsData', '');
                 configData.put('pageSize', 10);
+                configData.put('timestamp', String.valueOf(System.now().getTime()));
+                System.debug('No configuration found, using defaults');
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getScopeEntryConfiguration','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Scope Entry Configuration.','apiResponse' => null});
@@ -243,7 +252,7 @@ public with sharing class SovJobScopeController {
             newScopeEntry.Contract_Value__c = (Decimal) scopeEntryData.get('contractValue');
             newScopeEntry.Description__c = (String) scopeEntryData.get('description');
             newScopeEntry.Job__c = (Id) scopeEntryData.get('jobId');
-            newScopeEntry.Type__c = (String) scopeEntryData.get('type'); // Add type field
+            newScopeEntry.Type__c = (String) scopeEntryData.get('type'); 
             newScopeEntry.Scope_Entry_Status__c = 'Draft';
             
             insert as user newScopeEntry;
@@ -324,7 +333,7 @@ public with sharing class SovJobScopeController {
             if (relatedLocationsCount > 0) {
                 // Fetch entry for recalculation
                 Map<Id, Scope_Entry__c> entryMap = new Map<Id, Scope_Entry__c>(
-                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId]
+                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId WITH USER_MODE]
                 );
                 recalculateLocationProcessesBulk(entryMap);
             }            
@@ -446,7 +455,7 @@ public with sharing class SovJobScopeController {
 
             if (relatedLocationsCount > 0) {
                 Map<Id, Scope_Entry__c> entryMap = new Map<Id, Scope_Entry__c>(
-                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId]
+                    [SELECT Id, Contract_Value__c FROM Scope_Entry__c WHERE Id = :scopeEntryId WITH USER_MODE]
                 );
                 recalculateLocationProcessesBulk(entryMap);
             }
@@ -456,39 +465,6 @@ public with sharing class SovJobScopeController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createScopeEntryProcessesFromLibrary','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating Scope Entry Processes from Library.','apiResponse' => null});
             return 'Error: ' + e.getMessage();
         }
-    }
-
-    /*
-    *********************************************************
-    @description     : Method is used to get unique Process Types for filter
-    @return          : List<String> - List of unique Process Types
-    @author          : Rachit Shah
-    ********************************************************
-    */
-    @AuraEnabled
-    public static List<String> getProcessTypes() {
-        List<String> processTypes = new List<String>();
-        try {
-            List<AggregateResult> results = [
-                SELECT Process_Type__c
-                FROM Process__c
-                WHERE Process_Type__c != null
-                WITH USER_MODE
-                GROUP BY Process_Type__c
-                ORDER BY Process_Type__c ASC
-               
-            ];
-            
-            for (AggregateResult result : results) {
-                String processType = (String) result.get('wfrecon__Process_Type__c');
-                if (String.isNotBlank(processType)) {
-                    processTypes.add(processType);
-                }
-            }
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProcessTypes','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching Process Types.','apiResponse' => null});
-        }
-        return processTypes;
     }
 
     /*
@@ -553,15 +529,7 @@ public with sharing class SovJobScopeController {
             result.put('selectedLocationIds', selectedLocationIds);
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getLocationsByScopeEntry',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while fetching locations for scope entry: ' + scopeEntryId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getLocationsByScopeEntry','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error occurred while fetching locations for scope entry: ' + scopeEntryId,'apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Error: ' + e.getMessage());
             result.put('allLocations', allLocations);
@@ -583,7 +551,9 @@ public with sharing class SovJobScopeController {
     public static String createLocationProcesses(Map<String, Object> locationData) {
         try {
             String scopeEntryId = (String) locationData.get('scopeEntryId');
-            if (String.isBlank(scopeEntryId)) return 'Error: Scope Entry ID is required.';
+            if (String.isBlank(scopeEntryId)) {
+                return 'Error: Scope Entry ID is required.';
+            }
 
             List<String> addedLocationIds = convertToStringList((List<Object>) locationData.get('addedLocationIds'));
             List<String> removedLocationIds = convertToStringList((List<Object>) locationData.get('removedLocationIds'));
@@ -599,8 +569,9 @@ public with sharing class SovJobScopeController {
                 LIMIT 1
             ];
 
-            if (scopeEntry == null || scopeEntry.Contract_Value__c == null || scopeEntry.Contract_Value__c == 0)
+            if (scopeEntry == null || scopeEntry.Contract_Value__c == null || scopeEntry.Contract_Value__c == 0){
                 return 'Error: Invalid or missing Contract Value on Scope Entry.';
+            }
 
             // Fetch all processes for this Scope Entry
             List<Scope_Entry_Process__c> processes = [
@@ -611,14 +582,19 @@ public with sharing class SovJobScopeController {
                 ORDER BY Sequence__c ASC
                 
             ];
-            if (processes.isEmpty()) return 'Error: No processes found for this Scope Entry.';
+            if (processes.isEmpty()){
+                return 'Error: No processes found for this Scope Entry.';
+            }
 
             // Calculate total process weight
             Decimal totalWeight = 0;
-            for (Scope_Entry_Process__c p : processes)
+            for (Scope_Entry_Process__c p : processes){
                 totalWeight += (p.Weight__c != null ? p.Weight__c : 0);
+            }
 
-            if (totalWeight == 0) return 'Error: Total process weight cannot be zero.';
+            if (totalWeight == 0){
+                return 'Error: Total process weight cannot be zero.';
+            }
 
             // Fetch selected locations for recalculation
             List<Location__c> selectedLocations = new List<Location__c>();
@@ -638,7 +614,9 @@ public with sharing class SovJobScopeController {
                 locationQtyMap.put(loc.Id, qty);
                 totalQty += qty;
             }
-            if (totalQty == 0) return 'Error: Total Quantity cannot be zero.';
+            if (totalQty == 0){
+              return 'Error: Total Quantity cannot be zero.';  
+            } 
 
             // Initialize record lists
             List<Location_Scope_Entry__c> junctionsToCreate = new List<Location_Scope_Entry__c>();
@@ -655,7 +633,9 @@ public with sharing class SovJobScopeController {
                     AND Location__c IN :removedLocationIds
                     WITH USER_MODE
                 ];
-                if (!existingJunctions.isEmpty()) junctionsToDelete.addAll(existingJunctions);
+                if (!existingJunctions.isEmpty()){
+                    junctionsToDelete.addAll(existingJunctions);
+                }
 
                 List<Location_Process__c> existingProcesses = [
                     SELECT Id
@@ -664,9 +644,13 @@ public with sharing class SovJobScopeController {
                     AND Location__c IN :removedLocationIds
                     WITH USER_MODE
                 ];
-                if (!existingProcesses.isEmpty()) delete existingProcesses;
+                if (!existingProcesses.isEmpty()){
+                    delete as user existingProcesses;
+                }
 
-                if (!junctionsToDelete.isEmpty()) delete junctionsToDelete;
+                if (!junctionsToDelete.isEmpty()) {
+                    delete as user junctionsToDelete;
+                }
             }
 
             // Handle additions
@@ -677,27 +661,42 @@ public with sharing class SovJobScopeController {
                         Location__c = locId
                     ));
                 }
-                if (!junctionsToCreate.isEmpty()) insert junctionsToCreate;
+                if (!junctionsToCreate.isEmpty()){
+                    insert as user junctionsToCreate;
+                }
+
+                // Bulk query: Get the current maximum sequence for all new locations at once
+                List<AggregateResult> maxSequenceResults = [
+                    SELECT Location__c, MAX(Sequence__c) maxSeq
+                    FROM Location_Process__c
+                    WHERE Location__c IN :addedLocationIds
+                    WITH USER_MODE
+                    GROUP BY Location__c
+                ];
+                
+                // Build a map of Location ID to max sequence
+                Map<String, Integer> locationMaxSequenceMap = new Map<String, Integer>();
+                for (AggregateResult ar : maxSequenceResults) {
+                    String locationId = (String) ar.get('wfrecon__Location__c');
+                    Decimal maxSeq = (Decimal) ar.get('maxSeq');
+                    if (maxSeq != null) {
+                        locationMaxSequenceMap.put(locationId, maxSeq.intValue());
+                    }
+                }
 
                 // Create Location Processes for new locations
                 for (String locId : addedLocationIds) {
                     Decimal locQty = locationQtyMap.get(locId);
-                    if (locQty == null) continue;
+                    if (locQty == null) {
+                        continue;
+                    }
                     Decimal locShare = locQty / totalQty;
                     Decimal locValue = scopeEntry.Contract_Value__c * locShare;
 
-                    // Get the current maximum sequence for this location
-                    List<AggregateResult> maxSequenceResult = [
-                        SELECT MAX(Sequence__c) maxSeq
-                        FROM Location_Process__c
-                        WHERE Location__c = :locId
-                        WITH USER_MODE
-                    ];
-                    
-                    Integer startingSequence = 1;
-                    if (!maxSequenceResult.isEmpty() && maxSequenceResult[0].get('maxSeq') != null) {
-                        startingSequence = ((Decimal) maxSequenceResult[0].get('maxSeq')).intValue() + 1;
-                    }
+                    // Get the starting sequence from the map (defaults to 1 if not found)
+                    Integer startingSequence = locationMaxSequenceMap.containsKey(locId) 
+                        ? locationMaxSequenceMap.get(locId) + 1 
+                        : 1;
 
                     Integer sequenceCounter = startingSequence;
                     for (Scope_Entry_Process__c p : processes) {
@@ -712,13 +711,15 @@ public with sharing class SovJobScopeController {
                         sequenceCounter++;
                     }
                 }
-                if (!processesToCreate.isEmpty()) insert processesToCreate;
+                if (!processesToCreate.isEmpty()){
+                    insert as user processesToCreate;
+                }
             }
 
             // Handle updates (recalculate existing ones)
             if (hasChanges && !selectedLocationIds.isEmpty()) {
                 List<Location_Process__c> existingToUpdate = [
-                    SELECT Id, Location__c, Scope_Entry_Process__c
+                    SELECT Id, Location__c, Scope_Entry_Process__c , Scope_Entry_Process__r.Scope_Entry__c
                     FROM Location_Process__c
                     WHERE Scope_Entry_Process__r.Scope_Entry__c = :scopeEntryId
                     AND Location__c IN :selectedLocationIds
@@ -726,19 +727,35 @@ public with sharing class SovJobScopeController {
                 ];
 
                 Map<Id, Decimal> weightMap = new Map<Id, Decimal>();
-                for (Scope_Entry_Process__c p : processes)
+                for (Scope_Entry_Process__c p : processes){
                     weightMap.put(p.Id, p.Weight__c != null ? p.Weight__c : 0);
+                }
 
                 for (Location_Process__c lp : existingToUpdate) {
                     Decimal locQty = locationQtyMap.get(lp.Location__c);
-                    if (locQty == null) continue;
+                    if (locQty == null){
+                        continue;
+                    }
                     Decimal locShare = locQty / totalQty;
                     Decimal weightShare = (weightMap.get(lp.Scope_Entry_Process__c) / totalWeight);
                     lp.Contract_Price__c = scopeEntry.Contract_Value__c * locShare * weightShare;
                     processesToUpdate.add(lp);
                 }
 
-                if (!processesToUpdate.isEmpty()) update processesToUpdate;
+                if (!processesToUpdate.isEmpty() &&
+                Schema.sObjectType.Location_Process__c.fields.Location__c.isAccessible() &&
+                Schema.sObjectType.Location_Process__c.fields.Location__c.isUpdateable() &&
+                Schema.sObjectType.Location_Process__c.fields.Scope_Entry_Process__c.isAccessible() &&
+                Schema.sObjectType.Location_Process__c.fields.Scope_Entry_Process__c.isUpdateable() &&
+                Schema.sObjectType.Location_Process__c.fields.Contract_Price__c.isAccessible() &&
+                Schema.sObjectType.Location_Process__c.fields.Contract_Price__c.isUpdateable() &&
+                Schema.sObjectType.Scope_Entry_Process__c.fields.Scope_Entry__c.isAccessible() &&
+                Schema.sObjectType.Scope_Entry_Process__c.fields.Scope_Entry__c.isUpdateable() &&
+                Schema.sObjectType.Scope_Entry_Process__c.fields.Weight__c.isAccessible() &&
+                Schema.sObjectType.Scope_Entry_Process__c.fields.Weight__c.isUpdateable())
+                {
+                    update processesToUpdate;
+                }
             }
 
             return 'Success: ' +
@@ -748,13 +765,7 @@ public with sharing class SovJobScopeController {
                 (processesToUpdate.isEmpty() ? '' : processesToUpdate.size() + ' processes updated.');
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'createLocationProcesses',
-                'isApiException' => false,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while creating/updating location processes.'
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createLocationProcesses','isApiException' => false,'exceptionObj' => e,'moreDetails' => 'Error occurred while creating/updating location processes.'});
             return 'Error: ' + e.getMessage();
         }
     }
@@ -822,7 +833,6 @@ public with sharing class SovJobScopeController {
             for (Scope_Entry__c entry : updatedScopeEntries) {
                 String originalStatus = originalStatuses.get(entry.Id);
                 if (entry.Scope_Entry_Status__c == 'Approved' && originalStatus != 'Approved') {
-                    // Set approval date - use wfrecon namespace prefix
                     entry.put('wfrecon__Approved_Date__c', currentDate);
                 }
             }
@@ -873,8 +883,7 @@ public with sharing class SovJobScopeController {
             // Build final response
             String responseMessage = '';
             if (!failedRecords.isEmpty()) {
-                responseMessage = successCount + ' record(s) updated successfully. Failed records: ' +
-                                  String.join(failedRecords, ', ');
+                responseMessage = successCount + ' record(s) updated successfully. Failed records: ' + String.join(failedRecords, ', ');
                 if (!String.isBlank(recalcMessage)) {
                     responseMessage += ' Warnings: ' + recalcMessage;
                 }
@@ -943,7 +952,7 @@ public with sharing class SovJobScopeController {
             // Fetch existing Location Processes
             Map<Id, List<Location_Process__c>> entryToLocProcesses = new Map<Id, List<Location_Process__c>>();
             for (Location_Process__c lp : [
-                SELECT Id, Scope_Entry_Process__c, 
+                SELECT Id, Scope_Entry_Process__c, Sequence__c, 
                     Scope_Entry_Process__r.Scope_Entry__c, 
                     Location__c
                 FROM Location_Process__c
@@ -1025,11 +1034,9 @@ public with sharing class SovJobScopeController {
 
                         String key = junc.Location__c + '_' + proc.Id;
                         if (existingMap.containsKey(key)) {
-                            // Update existing - preserve existing sequence, only update price
                             toUpdate.add(new Location_Process__c(
                                 Id = existingMap.get(key).Id,
                                 Contract_Price__c = newPrice
-                                // Note: Deliberately NOT updating sequence to preserve existing sequence
                             ));
                         } else {
                             // Create missing Location Process with next available sequence for this location
@@ -1056,7 +1063,9 @@ public with sharing class SovJobScopeController {
             }
 
             // DML operations
-            if (!toInsert.isEmpty()) insert toInsert;
+            if (!toInsert.isEmpty()) {
+                insert toInsert;
+            }
             if (!toUpdate.isEmpty()) update toUpdate;
 
             return 'Success: ' + toInsert.size() + ' new and ' + toUpdate.size() +
