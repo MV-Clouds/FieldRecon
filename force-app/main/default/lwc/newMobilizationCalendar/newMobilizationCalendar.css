@@ -60,6 +60,7 @@
 
 .mob-popup-body:has(.main-resources-edit-div){
   min-height: min(32rem, 90%);
+  height: min(32rem, 90%);
 }
 
 .mob-popup-header, .confirm-popup-header{

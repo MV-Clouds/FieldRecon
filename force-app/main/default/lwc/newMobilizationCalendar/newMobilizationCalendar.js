@@ -13,6 +13,9 @@ import deleteMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarCon
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
 import assignResourceToJob from '@salesforce/apex/MobSchedulerController.assignResourceToJob';
 
+// Permission Checker
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
+
 export default class NewMobilizationCalendar extends LightningElement {
     fullCalendarLoaded = false;
     @track events = {};
@@ -72,6 +75,9 @@ export default class NewMobilizationCalendar extends LightningElement {
     confirmationBtnLabel2 = null;
 
     isOverlapJob = false;
+
+    // Permissions Flags
+    hasFullAccess = false;
 
     get isEdit() {
         return this.jobName.length ? true : false;
@@ -170,7 +176,7 @@ export default class NewMobilizationCalendar extends LightningElement {
 
     connectedCallback() {
         this.isSpinner = true;
-        this.loadAllResources(new Date().toISOString());
+        this.fetchPermissions();
         loadScript(this, FULL_CALENDAR + '/fullcalendar3/jquery.min.js')
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/moment.js'))
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.js'))
@@ -195,9 +201,24 @@ export default class NewMobilizationCalendar extends LightningElement {
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to load calendar or events', 'error');
-                console.error(error);
+                console.error('Error in NewMobilizationCalendar.ConnectedCallback > loadScript', error?.body?.message || error?.message);
                 this.isSpinner = false;
             });
+    }
+
+    fetchPermissions(){
+        try{
+            checkPermissionSetsAssigned({ psNames : ['FR_Mobilization_Calendar']})
+            .then((result) => {
+                this.hasFullAccess = result.isAdmin || result.all;
+                this.hasFullAccess && this.loadAllResources(new Date().toISOString());
+            })
+            .catch((e) => {
+                console.error('Error in NewMobilizationCalendar.fetchPermissions > checkPermissionSetsAssigned', e?.body?.message || e?.message);
+            })
+        } catch(e){
+            console.error('Error in function NewMobilizationCalendar.fetchPermissions:::', e?.message);
+        }
     }
     
 
@@ -435,6 +456,10 @@ export default class NewMobilizationCalendar extends LightningElement {
     
     handleDateRangeSelect(start, end) {
         try {
+            if(!this.hasFullAccess) {
+                this.showToast('Error', 'You do not have permission to create events.', 'error');
+                return;
+            }
             this.isSpinner = true;
             this.selectedEventId = '';
             this.status = 'Confirmed';
@@ -501,10 +526,13 @@ export default class NewMobilizationCalendar extends LightningElement {
     
 
     handleEventClick(recordId) {
+        if(!this.hasFullAccess){
+            this.showToast('Warning', 'You do not have permission to edit this event.','error');
+            return;
+        }
         this.isSpinner = true;
         getMobilizationGroup({recordId: recordId})
         .then((result)=>{
-            console.log("result==> ", result);
             this.isSpinner = false;
             this.startDateTime = result.startDate;
             this.endDateTime = result.endDate;

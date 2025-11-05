@@ -1,32 +1,42 @@
 public with sharing class NewMobilizationCalendarController {
+    private static final String CLASSNAME = 'NewMobilizationCalendarController';
         // ==============================
         // Event Fetching for FullCalendar
         // ==============================
     @AuraEnabled
     public static List<Map<String, Object>> getEvents(Id job, String status) {
         try {
+            Map<String, Object> permissionMap = PermissionsUtility.checkPermissionSetsAssigned(new List<String>{'FR_Mobilization_Calendar'});
+            Boolean isAdmin = (Boolean) permissionMap.get('isAdmin');
+            Boolean isCalendarPS = (Boolean) permissionMap.get('all');
+
             String baseQuery = 'SELECT Id, Name, Start_Date__c, End_Date__c, Mobilization_Status__c, Description__c, Include_Sunday__c, Include_Saturday__c, ' +
                        'Job__c, Job__r.Job_Name__c, Job__r.Name, Job__r.Address__c ' +
                        'FROM Mobilization_Group__c ';
 
             // List to hold dynamic filters
             List<String> filters = new List<String>();
-            System.debug(job);
             if (job != null) {
-                System.debug('Inside Job');
                 filters.add('Job__c = :job');
             }
-            System.debug(status);
             if (status != null && status != '') {
-                System.debug('Inside status');
                 filters.add('Mobilization_Status__c = :status');
+            }
+            if(!isAdmin && !isCalendarPS){
+                List<Mobilization_Member__c> mobGroupMap = [SELECT Mobilization__r.Mobilization_Group__c FROM Mobilization_Member__c WHERE Contact__r.User__c =: UserInfo.getUserId() WITH USER_MODE];
+                Set<Id> mobGroupIds = new Set<Id>();
+                for(Mobilization_Member__c mobGroup : mobGroupMap){
+                    mobGroupIds.add(mobGroup.Mobilization__r.Mobilization_Group__c);
+                }
+                if(!mobGroupIds.isEmpty()){
+                    filters.add('Id IN :mobGroupIds');
+                }
             }
         
             // Combine filters into the query
             if (!filters.isEmpty()) {
                 baseQuery += ' WHERE ' + String.join(filters, ' AND ');
             }
-            System.debug(baseQuery);
 
             // Execute dynamic query
             List<Mobilization_Group__c> mobGroups = Database.query(baseQuery);
@@ -67,8 +77,7 @@ public with sharing class NewMobilizationCalendarController {
             return result;
 
         } catch (Exception e) {
-            System.debug('Error in getEvents: ' + e.getMessage());
-            return new List<Map<String, Object>>();
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getEvents', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching events for mobilization calendar.', 'apiResponse' => null}); return new List<Map<String, Object>>();
         }
     }
 
@@ -85,39 +94,13 @@ public with sharing class NewMobilizationCalendarController {
         }
     }
 
-    // ==============================
-    // Filter events
-    // ==============================
-    @AuraEnabled(cacheable=true)
-    public static List<Mobilization_Group__c> getFilterData(
-        String JobId, DateTime StartDateTime, DateTime EndDateTime, String Status
-    ){
-        String baseQuery = 'SELECT Id, Name, Start_Date__c, End_Date__c, Mobilization_Status__c, ' +
-                         'Job__c, Job__r.Job_Name__c ' +
-                         'FROM Mobilization_Group__c';
-        
-        List<String> conditions = new List<String>();
-        
-        if (JobId != null) conditions.add('Job__c = :JobId');
-        if (StartDateTime != null) conditions.add('Start_Date__c >= :StartDateTime');
-        if (EndDateTime != null) conditions.add('End_Date__c <= :EndDateTime');
-        if (Status != null) conditions.add('Mobilization_Status__c = :Status');
-        
-        if (!conditions.isEmpty()) {
-            baseQuery += ' WHERE ' + String.join(conditions, ' AND ');
-        }
-        
-        return Database.query(baseQuery);
-    }
-
     @AuraEnabled(cacheable=true)
     public static List<Job__c> getJobs(){
         try {
             List<Job__c> jobsList = [SELECT Id, Name FROM Job__c WITH USER_MODE];
             return jobsList;
         } catch (Exception e) {
-            System.debug(e);
-            return null;
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getJobs', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching jobs for mobilization calendar.', 'apiResponse' => null}); return null;
         }
     }
 
@@ -142,24 +125,9 @@ public with sharing class NewMobilizationCalendarController {
     // }
 
     // ==============================
-    // Get picklist values
-    // ==============================
-    @AuraEnabled(cacheable=true)
-    public static List<String> getPickListValues(String ObjName, String FieldName) {
-        return Util.getPickListValues(ObjName, FieldName);
-    }
-
-    // ==============================
     // Utility Methods
     // ==============================
     private static Datetime updateDateFromTime(Time target, Datetime source) {
-        return Datetime.newInstance(
-            source.year(), source.month(), source.day(),
-            target.hour(), target.minute(), target.second()
-        );
-    }
-
-    private static Datetime updateDateFromDatetime(Datetime target, Datetime source) {
         return Datetime.newInstance(
             source.year(), source.month(), source.day(),
             target.hour(), target.minute(), target.second()
@@ -238,16 +206,13 @@ public with sharing class NewMobilizationCalendarController {
         Mobilization_Group__c mgObj = mg.getMobilizationGroupSObject();
         mgObj.Start_Date__c = updateDateFromTime(shiftStart, mg.startDate);
         mgObj.End_Date__c = updateDateFromTime(shiftEnd, mg.endDate);
-        System.debug(mgObj);
-        Lib_Security.ws().dbUpsert(new Mobilization_Group__c[]{mgObj});
+        upsert mgObj;
         return 'SUCCESS';
     }
 
     @AuraEnabled
     public static Wrapper.MobilizationGroup getMobilizationGroup(Id recordId){
-        String soql = 'SELECT Id, Description__c,Name, Job__c,Job__r.Job_Name__c,Job__r.Name, Include_Saturday__c, Include_Sunday__c, Start_Date__c, End_Date__c, Mobilization_Status__c,toLabel(Mobilization_Status__c) mobStatus '+
-            ' FROM Mobilization_Group__c WHERE Id = :arg1 LIMIT 1';
-        List<Mobilization_Group__c> mobiGroups = Lib_Security.ws().dbQuery(soql,new Object[]{recordId});
+        List<Mobilization_Group__c> mobiGroups = [SELECT Id, Description__c,Name, Job__c,Job__r.Job_Name__c,Job__r.Name, Include_Saturday__c, Include_Sunday__c, Start_Date__c, End_Date__c, Mobilization_Status__c,toLabel(Mobilization_Status__c) mobStatus FROM Mobilization_Group__c WHERE Id = :recordId LIMIT 1];
         return new Wrapper.MobilizationGroup(mobiGroups[0]);
     }   
 

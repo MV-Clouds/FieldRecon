@@ -88,21 +88,6 @@ public class NewMobilizationCalendarControllerTest {
     }
 
     @IsTest
-    static void testGetFilterData(){
-        Id jobId = [SELECT Id FROM wfrecon__Job__c LIMIT 1].Id;
-        DateTime startDt = DateTime.newInstance(2025,10,1,0,0,0);
-        DateTime endDt   = DateTime.newInstance(2025,10,10,0,0,0);
-        
-        List<wfrecon__Mobilization_Group__c> filtered =
-            NewMobilizationCalendarController.getFilterData(jobId, startDt, endDt, 'Confirmed');
-        System.assert(!filtered.isEmpty(), 'Expected filtered groups');
-        
-        List<wfrecon__Mobilization_Group__c> allGroups =
-            NewMobilizationCalendarController.getFilterData(null, null, null, null);
-        System.assert(!allGroups.isEmpty(), 'Should return all groups when no filters applied');
-    }
-
-    @IsTest
     static void testGetJobs(){
         List<wfrecon__Job__c> jobs = NewMobilizationCalendarController.getJobs();
         System.assert(!jobs.isEmpty(), 'Expected job list');
