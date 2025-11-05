@@ -4,26 +4,30 @@
 
 	<!-- Modal popup: rendered only when isOpen is true -->
 	<template if:true={isOpen}>
-		<div class="backdrop" onclick={handleBackdropClick}></div>
-		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="aiBillTitle" onclick={stopPropagation}>
-			<lightning-spinner if:true={isLoading} alternative-text="Loading" size="medium" variant="brand"></lightning-spinner>
-			<button class="modal-close" onclick={close} title="Close" aria-label="Close">×</button>
-			<div class="modal-content card-container">
-				<div class="modal-header">
-					<h2 id="aiBillTitle">AIA Billing Form</h2>
-					<div class="modal-actions">
-						<!-- <button class="btn-generate-pdf" onclick={handleGeneratePDF} disabled={isGeneratingPDF}>{pdfButtonLabel}</button> -->
-						<template if:true={pdfUrl}>
-							<!-- <button class="btn-toggle-view" onclick={toggleView}>{toggleViewLabel}</button> -->
-							<a href={pdfUrl} download="AIA-Billing-Form.pdf" class="btn-download-pdf"> Download PDF </a>
-						</template>
+		<section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+			<div class="slds-modal__container modal">
+				<!-- Modal header -->
+				<header class="slds-modal__header modal-header">
+					<button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse modal-close" 
+							title="Close" onclick={close} aria-label="Close">
+						<lightning-icon icon-name="utility:close" size="small" alternative-text="close"></lightning-icon>
+						<span class="slds-assistive-text">Close</span>
+					</button>
+					<h2 id="aiBillTitle" class="slds-text-heading_medium">AIA Billing Form</h2>
+				</header>
+				
+				<!-- Modal content -->
+				<div class="slds-modal__content slds-p-around--medium modal-content" style="position: relative;">
+					<template if:true={isLoading}>
+						<div class="slds-spinner_container">
+							<lightning-spinner alternative-text="Loading" size="medium" variant="brand"></lightning-spinner>
+						</div>
+					</template>
+					<div class="pdf-viewer-container">
+						<div class="pdf-canvas-container"></div>
 					</div>
-				</div>
-				<div class="pdf-viewer-container">
-					<div class="pdf-canvas-container"></div>
-				</div>
-				<div class="pdf-content"></div>
-				<div class={formContentClass} style="background-color: #ffffff; max-width: 100%; padding: 24px; margin: auto; font-family: Arial; font-size: 11pt; color: #000">
+					<div class="pdf-content"></div>
+					<div class={formContentClass} style="background-color: #ffffff; max-width: 100%; padding: 24px; margin: auto; font-family: Arial; font-size: 11pt; color: #000">
 					<div class="page1">
 						<div style="width: 100%; display:flex">
 							<div style="width: 50%;font-weight: bold; font-size: 8pt;">APPLICATION AND CERTIFICATE FOR PAYMENT</div>
@@ -266,10 +270,19 @@
 						</table>
 						<hr style="border: 1px solid #000" />
 					</div>
+					</div>
 				</div>
+				
+				<!-- Modal Footer -->
+				<footer class="slds-modal__footer modal-footer" if:true={pdfUrl}>
+					<a href={pdfUrl} download="AIA-Billing-Form.pdf" class="btn-download-pdf">
+						<lightning-icon icon-name="utility:download" size="x-small"></lightning-icon>
+						Download PDF
+					</a>
+				</footer>
 			</div>
-		</div>
+		</section>
+		<!-- Modal Backdrop -->
+		<div class="slds-backdrop slds-backdrop_open"></div>
 	</template>
-
-	
 </template>
