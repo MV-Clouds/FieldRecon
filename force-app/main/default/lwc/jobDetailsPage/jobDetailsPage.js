@@ -362,7 +362,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
     get clockInMinBoundary() {
+        const jobRecord = this.getCurrentJobRecord();
         const reference = this.currentJobStartDateTime
+            || jobRecord?.startDate
             || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobStartTime : null)
             || this.defaultStartTime;
         const dateKey = this.extractDateKey(reference);
@@ -370,31 +372,40 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
     get clockInMaxBoundary() {
-        const reference = this.currentJobStartDateTime
-            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobStartTime : null)
+        const jobRecord = this.getCurrentJobRecord();
+        const reference = this.currentJobEndDateTime
+            || jobRecord?.endDate
+            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobEndTime : null)
+            || this.defaultEndTime
             || this.defaultStartTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T23:59` : null;
     }
 
     get clockOutMinBoundary() {
-        const reference = this.currentJobEndDateTime
-            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobEndTime : null)
-            || this.defaultEndTime;
+        const jobRecord = this.getCurrentJobRecord();
+        const reference = this.currentJobStartDateTime
+            || jobRecord?.startDate
+            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobStartTime : null)
+            || this.defaultStartTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T00:00` : null;
     }
 
     get clockOutMaxBoundary() {
+        const jobRecord = this.getCurrentJobRecord();
         const reference = this.currentJobEndDateTime
+            || jobRecord?.endDate
             || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobEndTime : null)
-            || this.defaultEndTime;
+            || this.defaultEndTime
+            || this.defaultStartTime;
         const dateKey = this.extractDateKey(reference);
         if (!dateKey) {
             return null;
         }
         const nextDay = this.addDaysToDateKey(dateKey, 1);
-        return nextDay ? `${nextDay}T23:59` : null;
+        const boundaryKey = nextDay || dateKey;
+        return `${boundaryKey}T23:59`;
     }
 
     getCurrentJobRecord() {

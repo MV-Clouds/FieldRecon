@@ -125,32 +125,59 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         return true;
     }
 
+    getCurrentModalJobRecord() {
+        if (!this.selectedMobilizationId || !Array.isArray(this.todayJobList)) {
+            return null;
+        }
+
+        return this.todayJobList.find(job => job.mobId === this.selectedMobilizationId);
+    }
+
     get clockInMinBoundary() {
-        const reference = this.currentModalJobStartDateTime || this.clockInTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobStartDateTime
+            || jobRecord?.jobStartTimeIso
+            || jobRecord?.jobStartTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T00:00` : null;
     }
 
     get clockInMaxBoundary() {
-        const reference = this.currentModalJobStartDateTime || this.clockInTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobEndDateTime
+            || jobRecord?.jobEndTimeIso
+            || jobRecord?.jobEndTime
+            || this.clockOutTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T23:59` : null;
     }
 
     get clockOutMinBoundary() {
-        const reference = this.currentModalJobEndDateTime || this.clockOutTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobStartDateTime
+            || jobRecord?.jobStartTimeIso
+            || jobRecord?.jobStartTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T00:00` : null;
     }
 
     get clockOutMaxBoundary() {
-        const reference = this.currentModalJobEndDateTime || this.clockOutTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobEndDateTime
+            || jobRecord?.jobEndTimeIso
+            || jobRecord?.jobEndTime
+            || this.clockOutTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         if (!dateKey) {
             return null;
         }
         const nextDay = this.addDaysToDateKey(dateKey, 1);
-        return nextDay ? `${nextDay}T23:59` : null;
+        const boundaryKey = nextDay || dateKey;
+        return `${boundaryKey}T23:59`;
     }
 
     /** 
