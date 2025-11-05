@@ -193,6 +193,11 @@
 /* Table */
 
 /* No records */
+.no-prop {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
 .empty-state {
     width: 100%;
     height: 100%;

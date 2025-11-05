@@ -13,9 +13,11 @@ import deleteRecordApex from '@salesforce/apex/BillingAndPaymentTabController.de
 import approveBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.approveBilling';
 import createPayment from '@salesforce/apex/BillingAndPaymentTabController.createPayment';
 import cloneBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.cloneBilling';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class BillingAndPaymentTab extends NavigationMixin(LightningElement) {
     @api recordId;
+    @track isFullAccess = false;
     @track accountId;
     @track isLoading = false;
     @track activeTab = 'billings';
@@ -323,9 +325,70 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
      * @description: LWC lifecycle hook to initialize loading, job details and billing data.
      */
     connectedCallback() {
-        this.isLoading = true;
-        this.loadJobData();
-        this.loadBillingData();
+        try {
+            this.isLoading = true;
+            this.checkUserPermissions();
+        } catch (error) {
+            console.error('Error in connectedCallback:', error);
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: checkUserPermissions
+     * @description: Checks user permissions based on permission sets.
+     */
+    checkUserPermissions() {
+        try {
+            this.isLoading = true;
+            const permissionSetsToCheck = ['FR_Finance'];
+
+            checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+                .then(result => {
+                    if (result.error) {
+                        console.error('Error checking permission sets:', result.error);
+                        this.setDefaultPermissions();
+                        return;
+                    }
+
+                    console.log('Permission check result ==> ', result);
+                    
+                    const assignedMap = result.assignedMap || {};
+                    const isAdmin = result.isAdmin || false;
+                    const hasFRFinance = assignedMap['FR_Finance'] || false;
+                    console.log('User permissions ==> ', { isAdmin, hasFRFinance });
+                    
+                    if (isAdmin || hasFRFinance) {
+                        // Admin or FR_Finance → Full access
+                        this.isFullAccess = true;
+                        this.loadJobData();
+                        this.loadBillingData();
+                    } else {
+                        // No specific permissions - no access
+                        this.setDefaultPermissions();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in checkUserPermissions:', error);
+                    this.setDefaultPermissions();
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        }
+        catch (error) {
+            console.error('Error in outer block:', error);
+            this.setDefaultPermissions();
+            this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: setDefaultPermissions
+     * @description: Sets default permissions (no access)
+     */
+    setDefaultPermissions() {
+        this.isFullAccess = false;
     }
 
     /** 
