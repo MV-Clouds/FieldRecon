@@ -1,0 +1,175 @@
+/* Hidden VF iframe for PDF generation */
+.vf-pdf-iframe {
+	position: absolute;
+	width: 0;
+	height: 0;
+	border: none;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+/* Modal styles for aiBillForm popup */
+.backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	z-index: 9000;
+}
+
+.modal {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	max-width: 96vw;
+	width: 1000px;
+	z-index: 10000;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+	border-radius: 6px;
+	background: transparent;
+}
+
+.modal-content {
+	background: #fff;
+	border-radius: 6px;
+	overflow: auto;
+	max-height: 85vh;
+	box-sizing: border-box;
+	padding: 12px;
+}
+
+.modal-close {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	background: transparent;
+	border: none;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+	z-index: 10100;
+}
+
+.modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 16px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+}
+
+.modal-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.btn-generate-pdf,
+.btn-download-pdf,
+.btn-toggle-view {
+	padding: 8px 16px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.2s;
+	text-decoration: none;
+	display: inline-block;
+}
+
+.btn-generate-pdf {
+	background: #0070d2;
+	color: white;
+}
+
+.btn-generate-pdf:hover:not(:disabled) {
+	background: #005fb2;
+}
+
+.btn-generate-pdf:disabled {
+	background: #ccc;
+	cursor: not-allowed;
+}
+
+.btn-toggle-view {
+	background: #f3f3f3;
+	color: #080707;
+	border: 1px solid #c9c9c9;
+}
+
+.btn-toggle-view:hover {
+	background: #e5e5e5;
+	border-color: #aeaeae;
+	opacity: 0.6;
+}
+
+.btn-download-pdf {
+	background: #2e844a;
+	color: white;
+}
+
+.btn-download-pdf:hover {
+	background: #25694d;
+}
+
+.pdf-viewer-container {
+	width: 100%;
+	max-height: 70vh;
+	margin-top: 16px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	overflow-y: auto;
+	background: #f5f5f5;
+	padding: 16px;
+}
+
+.pdf-canvas-container {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+
+/* Hide the original form content when PDF is shown */
+.test123 {
+	display: block;
+}
+
+.hidden {
+	display: none !important;
+}
+
+@media (max-width: 640px) {
+	.modal {
+		width: 94vw;
+	}
+	.modal-content {
+		padding: 8px;
+	}
+
+	.modal-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.modal-actions {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.pdf-viewer-container {
+		height: 60vh;
+	}
+}
