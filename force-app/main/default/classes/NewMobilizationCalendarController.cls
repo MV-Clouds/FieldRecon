@@ -50,10 +50,10 @@ public with sharing class NewMobilizationCalendarController {
                 Map<String, Object> ev = new Map<String, Object>();
                 ev.put('id', mob.Id);
                 ev.put('title', mob.Job__r.Job_Name__c + ' - ' + mob.Job__r.Name);
-                ev.put('start', mob.Start_Date__c);
+                ev.put('start', mob.Start_Date__c?.format());
                 ev.put('timestart', mob.Start_Date__c.format('hh:mm a'));
                 ev.put('timeend', mob.End_Date__c.format('hh:mm a'));
-                ev.put('end', mob.End_Date__c != null ? mob.End_Date__c.addDays(1) : mob.End_Date__c);
+                ev.put('end', mob.End_Date__c?.addDays(1)?.format());
                 ev.put('saturday', mob.Include_Saturday__c);
                 ev.put('sunday', mob.Include_Sunday__c);
                 ev.put('jobId', mob.Job__c);
@@ -135,7 +135,7 @@ public with sharing class NewMobilizationCalendarController {
     }
 
     @AuraEnabled(cacheable=true)
-    public static DefaultTimeWrapper getJobDefaultTimes() {
+    public static DefaultTimeWrapper getJobDefaultTimes(String startDate, String endDate) {
         DefaultTimeWrapper defaults = new DefaultTimeWrapper();
         
         try {
@@ -143,52 +143,46 @@ public with sharing class NewMobilizationCalendarController {
             if (jobDefaultTimes.isEmpty()) throw new AuraHandledException('No default times found');
 
             Job_Default_Times__c jobDefault = jobDefaultTimes[0];
+            String startTimeStr = jobDefault.Start_Time__c;
+            String endTimeStr = jobDefault.End_Time__c;
 
-            // Parse Start Time
-            String startTimeStr = jobDefault.Start_Time__c; // format: "07:00 AM"
-            Matcher startMatch = Pattern.compile('(\\d+):(\\d+)\\s?(AM|PM)').matcher(startTimeStr);
-            if (startMatch.matches()) {
-                Integer startHour = Integer.valueOf(startMatch.group(1));
-                Integer startMinute = Integer.valueOf(startMatch.group(2));
-                String ampm = startMatch.group(3);
+            Date onlyStartDate = Date.valueOf(startDate);
+            Date onlyEndDate = Date.valueOf(endDate);
+
+            // Start Time
+            if(startTimeStr != null) {
+                List<String> startParts = startTimeStr.split(' ');
+                List<String> hm = startParts[0].split(':');
+                Integer hour = Integer.valueOf(hm[0]);
+                Integer minute = Integer.valueOf(hm[1]);
+                String modifier = startParts[1];
                 
-                if (ampm == 'PM' && startHour != 12) startHour += 12;
-                if (ampm == 'AM' && startHour == 12) startHour = 0;
-                
-                defaults.StartHour = String.valueOf(startHour);
-                defaults.StartMinute = String.valueOf(startMinute);
-            } else {
-                defaults.StartHour = '07';
-                defaults.StartMinute = '00';
+                if(modifier == 'PM' && hour < 12) hour += 12;
+                if(modifier == 'AM' && hour == 12) hour = 0;
+
+                defaults.startDateTime = DateTime.newInstance(onlyStartDate, Time.newInstance(hour, minute, 0, 0));
             }
-
-            // Parse End Time
-            String endTimeStr = jobDefault.End_Time__c; // format: "06:00 PM"
-            Matcher endMatch = Pattern.compile('(\\d+):(\\d+)\\s?(AM|PM)').matcher(endTimeStr);
-            if (endMatch.matches()) {
-                Integer endHour = Integer.valueOf(endMatch.group(1));
-                Integer endMinute = Integer.valueOf(endMatch.group(2));
-                String ampm = endMatch.group(3);
+            
+            // End Time
+            if(endTimeStr != null) {
+                List<String> endParts = endTimeStr.split(' ');
+                List<String> hm = endParts[0].split(':');
+                Integer hour = Integer.valueOf(hm[0]);
+                Integer minute = Integer.valueOf(hm[1]);
+                String modifier = endParts[1];
                 
-                if (ampm == 'PM' && endHour != 12) endHour += 12;
-                if (ampm == 'AM' && endHour == 12) endHour = 0;
+                if(modifier == 'PM' && hour < 12) hour += 12;
+                if(modifier == 'AM' && hour == 12) hour = 0;
                 
-                defaults.EndHour = String.valueOf(endHour);
-                defaults.EndMinute = String.valueOf(endMinute);
-            } else {
-                defaults.EndHour = '18';
-                defaults.EndMinute = '00';
+                defaults.endDateTime = DateTime.newInstance(onlyEndDate, Time.newInstance(hour, minute, 0, 0));
             }
-
             defaults.IncludeSaturday = jobDefault.Include_Saturday__c;
             defaults.IncludeSunday = jobDefault.Include_Sunday__c;
 
         } catch (Exception e) {
             // Fallback default values
-            defaults.StartHour = '07';
-            defaults.StartMinute = '00';
-            defaults.EndHour = '18';
-            defaults.EndMinute = '00';
+            defaults.startDateTime = null;
+            defaults.endDateTime = null;
             defaults.IncludeSaturday = false;
             defaults.IncludeSunday = false;
         }
@@ -217,10 +211,8 @@ public with sharing class NewMobilizationCalendarController {
     }   
 
     public class DefaultTimeWrapper {
-        @AuraEnabled public String StartHour { get; set; }
-        @AuraEnabled public String StartMinute { get; set; }
-        @AuraEnabled public String EndHour { get; set; }
-        @AuraEnabled public String EndMinute { get; set; }
+        @AuraEnabled public DateTime startDateTime { get; set; }
+        @AuraEnabled public DateTime endDateTime{ get; set; }
         @AuraEnabled public Boolean IncludeSaturday { get; set; }
         @AuraEnabled public Boolean IncludeSunday { get; set; }
     }

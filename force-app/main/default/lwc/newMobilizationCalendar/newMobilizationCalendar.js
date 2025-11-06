@@ -460,12 +460,12 @@ export default class NewMobilizationCalendar extends LightningElement {
                 this.showToast('Error', 'You do not have permission to create events.', 'error');
                 return;
             }
+                        
             this.isSpinner = true;
             this.selectedEventId = '';
-            this.status = 'Confirmed';
             this.Heading = 'Create Mobilization';
 
-            const startDate = new Date(start); // UTC from FullCalendar
+            const startDate = new Date(start);
             const endDate = new Date(end);
 
             // Convert both to local time for comparison
@@ -482,23 +482,12 @@ export default class NewMobilizationCalendar extends LightningElement {
             // Subtract 1 day from end to make it inclusive
             endDate.setDate(endDate.getDate() - 1);
 
-
-            getJobDefaultTimes()
+            getJobDefaultTimes({ startDate: startDate.toLocaleDateString('en-CA'), endDate: endDate.toLocaleDateString('en-CA')})
             .then(defaults => {
-                // Apply default start time
-                startDate.setHours(Number(defaults.StartHour));
-                startDate.setMinutes(Number(defaults.StartMinute));
-                startDate.setSeconds(0);
-
-                // Apply default end time
-                endDate.setHours(Number(defaults.EndHour));
-                endDate.setMinutes(Number(defaults.EndMinute));
-                endDate.setSeconds(0);
-
                 // Format for lightning-input using helper
-                this.startDateTime = this.formatForInput(startDate);
+                this.startDateTime = defaults.startDateTime
                 
-                this.endDateTime   = this.formatForInput(endDate);
+                this.endDateTime   = defaults.endDateTime;
                 // Include Saturday/Sunday checkboxes
                 this.includeSaturday = defaults.IncludeSaturday;
                 this.includeSunday = defaults.IncludeSunday;
@@ -518,12 +507,6 @@ export default class NewMobilizationCalendar extends LightningElement {
             
         }
     }
-
-    formatForInput(date) {
-        const d = new Date(date);
-        return d.toISOString();
-    }
-    
 
     handleEventClick(recordId) {
         if(!this.hasFullAccess){
