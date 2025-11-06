@@ -9,7 +9,6 @@ import getJobLocationProcesses from '@salesforce/apex/SovJobLocationProcessesCon
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
-import uploadCameraPhoto from '@salesforce/apex/ShiftEndLogEntriesController.uploadCameraPhoto';
 
 export default class ShiftEndLogEntries extends LightningElement {
     @api jobId = '';

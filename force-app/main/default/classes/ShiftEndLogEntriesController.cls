@@ -739,32 +739,4 @@ public with sharing class ShiftEndLogEntriesController {
             throw new AuraHandledException('Error deleting content documents: ' + e.getMessage());
         }
     }
-
-    @AuraEnabled
-    public static String uploadCameraPhoto(String fileName, String base64Data, String recordId) {
-        try {
-            // Create ContentVersion
-            ContentVersion cv = new ContentVersion();
-            cv.Title = fileName;
-            cv.PathOnClient = fileName;
-            cv.VersionData = EncodingUtil.base64Decode(base64Data);
-            cv.FirstPublishLocationId = recordId;
-            cv.IsMajorVersion = false;
-            
-            insert as user cv;
-            
-            // Get ContentDocument Id
-            ContentVersion insertedCV = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE LIMIT 1];
-            
-            return insertedCV.ContentDocumentId;
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ShiftEndLogEntriesController',
-                'methodName' => 'uploadCameraPhoto',
-                'exceptionObj' => e,
-                'moreDetails' => e.getMessage()
-            });
-            throw new AuraHandledException('Error uploading camera photo: ' + e.getMessage());
-        }
-    }
 }
