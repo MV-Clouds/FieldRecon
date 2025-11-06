@@ -1,7 +1,6 @@
 import { LightningElement, wire, track } from 'lwc';
-import getShiftEndLogs from '@salesforce/apex/ShiftEndLogV2Controller.getShiftEndLogs';
+import getShiftEndLogsWithCrewInfo from '@salesforce/apex/ShiftEndLogV2Controller.getShiftEndLogsWithCrewInfo';
 import updateShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLog';
-import getCurrentUserCrewInfo from '@salesforce/apex/ShiftEndLogV2Controller.getCurrentUserCrewInfo';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -144,8 +143,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     
     connectedCallback() {
         this.isLoading = true;
-        this.loadShiftEndLogs();
-        this.loadCrewInfo();
+        this.loadShiftEndLogsWithCrewInfo();
     }
 
     renderedCallback() {
@@ -172,29 +170,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
     }
 
-    // Load crew information for current user
-    loadCrewInfo() {
-        if (!this.recordId) {
-            return;
-        }
-
-        getCurrentUserCrewInfo({ jobId: this.recordId })
-            .then(data => {
-                if (data) {
-                    this.crewLeaderId = data.crewLeaderId;
-                    this.crewIds = data.crewIds || [];
-                    console.log('Crew Leader ID:', this.crewLeaderId);
-                    console.log('Crew IDs where user is leader:', this.crewIds);
-                }
-            })
-            .catch(error => {
-                console.error('Error loading crew info:', error);
-                // Don't show error to user as this is supplementary information
-            });
-    }
-
-    // Load shift end logs method
-    loadShiftEndLogs() {
+    // Load shift end logs with crew information
+    loadShiftEndLogsWithCrewInfo() {
         if (!this.recordId) {
             this.isLoading = false;
             this.hasError = true;
@@ -202,9 +179,18 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             return;
         }
 
-        getShiftEndLogs({ jobId: this.recordId })
+        getShiftEndLogsWithCrewInfo({ jobId: this.recordId })
             .then(data => {
-                this.shiftEndLogs = data.map(wrapper => {
+                // Extract crew information
+                if (data.crewInfo) {
+                    this.crewLeaderId = data.crewInfo.crewLeaderId;
+                    this.crewIds = data.crewInfo.crewIds || [];
+                    console.log('Crew Leader ID:', this.crewLeaderId);
+                    console.log('Crew IDs where user is leader:', this.crewIds);
+                }
+
+                // Extract and process shift end logs
+                this.shiftEndLogs = data.shiftEndLogs.map(wrapper => {
                     const log = wrapper.logEntry;
                     const images = wrapper.images || [];
                     
@@ -232,6 +218,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         imageCount: images.length
                     };
                 });
+                
                 this.filteredLogs = [...this.shiftEndLogs];
                 this.currentPage = 1; // Reset to first page
                 this.updateDisplayedLogs(); // Initialize displayed logs
@@ -240,7 +227,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             })
             .catch(error => {
                 this.hasError = true;
-                this.errorMessage = error.body?.message || 'Error loading shift end logs';
+                this.errorMessage = error.body?.message || 'Error loading shift end logs and crew info';
                 this.showToast('Error', this.errorMessage, 'error');
                 this.isLoading = false;
             });
@@ -406,7 +393,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             .then(() => {
                 this.showToast('Success', 'Shift End Log updated successfully', 'success');
                 this.handleCloseModal();
-                this.loadShiftEndLogs();
+                this.loadShiftEndLogsWithCrewInfo();
             })
             .catch(error => {
                 const errorMessage = error.body?.message || 'Error updating shift end log';

@@ -3,30 +3,105 @@ public with sharing class ShiftEndLogV2Controller {
     public static final String CLASSNAME = 'ShiftEndLogV2Controller';
 
     @AuraEnabled
-    public static List<ShiftEndLogWrapper> getShiftEndLogs(Id jobId) {
-        List<ShiftEndLogWrapper> wrapperList = new List<ShiftEndLogWrapper>();
+    public static ShiftEndLogWithCrewWrapper getShiftEndLogsWithCrewInfo(Id jobId) {
+        ShiftEndLogWithCrewWrapper resultWrapper = new ShiftEndLogWithCrewWrapper();
 
         try {
-            List<Log_Entry__c> shiftEndLogs = [SELECT Id, Name, Job__c, Work_Performed__c, Work_Performed_Date__c, 
-                            Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, 
-                            CreatedBy.Name, CreatedDate, LastModifiedDate
-                FROM Log_Entry__c 
-                WHERE Job__c = :jobId 
+            // -----------------------------
+            // Step 1: Get Current User's Crew Info
+            // -----------------------------
+            Id userId = UserInfo.getUserId();
+            Contact userContact = [
+                SELECT Id, User__c 
+                FROM Contact 
+                WHERE User__c = :userId
                 WITH USER_MODE
-                ORDER BY CreatedDate DESC];
+                LIMIT 1
+            ];
+
+            System.debug('User Contact: ' + userContact);
+
+            if(userContact != null) {
+                // Get Mobilizations related to the job
+                List<Mobilization__c> mobilizations = jobId != null 
+                    ? [SELECT Id FROM Mobilization__c WHERE Job__c = :jobId WITH USER_MODE] 
+                    : new List<Mobilization__c>();
+
+                    System.debug('Found Mobilizations: ' + mobilizations);
+
+                if(!mobilizations.isEmpty()) {
+                    Set<Id> mobilizationIds = new Set<Id>();
+                    for(Mobilization__c mob : mobilizations){
+                        mobilizationIds.add(mob.Id);
+                    }
+
+                    System.debug('Found Mobilization IDs: ' + mobilizationIds);
+
+                    // Get Crew IDs from Mobilization Members
+                    Set<Id> crewIdsFromMobilizations = new Set<Id>();
+                    for(Mobilization_Member__c mm : [
+                        SELECT Crew__c 
+                        FROM Mobilization_Member__c 
+                        WHERE Mobilization__c IN :mobilizationIds
+                        AND Crew__c != null
+                        WITH USER_MODE
+                    ]) {
+                        crewIdsFromMobilizations.add(mm.Crew__c);
+                    }
+
+                    System.debug('Found Crew IDs from Mobilizations: ' + crewIdsFromMobilizations);
+
+                    // Get Crews where user is leader
+                    if(!crewIdsFromMobilizations.isEmpty()) {
+
+                        // Query Crew Member records where user is marked as leader
+                        List<Crew_Member__c> leaderCrewMembers = [
+                            SELECT Id, Crew__c, Contact__c
+                            FROM Crew_Member__c
+                            WHERE Crew__c IN :crewIdsFromMobilizations
+                            AND Contact__c = :userContact.Id
+                            AND Member_Type__c = 'Leader'
+                            WITH USER_MODE
+                        ];
+
+                        if (!leaderCrewMembers.isEmpty()) {
+                            resultWrapper.crewInfo.crewLeaderId = String.valueOf(userContact.Id);
+
+                            for (Crew_Member__c member : leaderCrewMembers) {
+                                resultWrapper.crewInfo.crewIds.add(String.valueOf(member.Crew__c));
+                            }
+
+                            System.debug('Set Crew Leader ID: ' + resultWrapper.crewInfo.crewLeaderId);
+                            System.debug('Set Crew IDs: ' + resultWrapper.crewInfo.crewIds);
+                        }
+                    }
+                }
+            }
+
+            // -----------------------------
+            // Step 2: Get Shift End Logs with Images
+            // -----------------------------
+            List<Log_Entry__c> shiftEndLogs = jobId != null
+                ? [SELECT Id, Name, Job__c, Work_Performed__c, Work_Performed_Date__c, 
+                        Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, 
+                        CreatedBy.Name, CreatedDate, LastModifiedDate
+                   FROM Log_Entry__c 
+                   WHERE Job__c = :jobId 
+                   WITH USER_MODE
+                   ORDER BY CreatedDate DESC]
+                : new List<Log_Entry__c>();
 
             Set<Id> logIds = new Set<Id>();
-            for(Log_Entry__c log : shiftEndLogs) {
-                logIds.add(log.Id);
-            }
+            for(Log_Entry__c log : shiftEndLogs) logIds.add(log.Id);
 
             Map<Id, List<ContentVersion>> logImagesMap = new Map<Id, List<ContentVersion>>();
             if(!logIds.isEmpty()) {
-                List<ContentDocumentLink> contentLinks = [SELECT Id, LinkedEntityId, ContentDocumentId, 
-                                   ContentDocument.LatestPublishedVersionId
-                        FROM ContentDocumentLink 
-                        WHERE LinkedEntityId IN :logIds
-                        WITH USER_MODE];
+                List<ContentDocumentLink> contentLinks = [
+                    SELECT Id, LinkedEntityId, ContentDocumentId, ContentDocument.LatestPublishedVersionId
+                    FROM ContentDocumentLink 
+                    WHERE LinkedEntityId IN :logIds
+                    WITH USER_MODE
+                ];
 
                 Set<Id> versionIds = new Set<Id>();
                 Map<Id, Id> versionToLogMap = new Map<Id, Id>();
@@ -36,18 +111,18 @@ public with sharing class ShiftEndLogV2Controller {
                 }
 
                 if(!versionIds.isEmpty()) {
-                    List<ContentVersion> versions = [SELECT Id, Title, FileExtension, ContentSize, CreatedDate
-                            FROM ContentVersion 
-                            WHERE Id IN :versionIds 
-                            AND FileExtension IN ('jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg')
-                            WITH USER_MODE
-                            ORDER BY CreatedDate DESC];
+                    List<ContentVersion> versions = [
+                        SELECT Id, Title, FileExtension, ContentSize, CreatedDate
+                        FROM ContentVersion 
+                        WHERE Id IN :versionIds 
+                        AND FileExtension IN ('jpg','jpeg','png','gif','bmp','svg')
+                        WITH USER_MODE
+                        ORDER BY CreatedDate DESC
+                    ];
 
                     for(ContentVersion cv : versions) {
                         Id logId = versionToLogMap.get(cv.Id);
-                        if(!logImagesMap.containsKey(logId)) {
-                            logImagesMap.put(logId, new List<ContentVersion>());
-                        }
+                        if(!logImagesMap.containsKey(logId)) logImagesMap.put(logId, new List<ContentVersion>());
                         logImagesMap.get(logId).add(cv);
                     }
                 }
@@ -57,22 +132,22 @@ public with sharing class ShiftEndLogV2Controller {
                 ShiftEndLogWrapper wrapper = new ShiftEndLogWrapper();
                 wrapper.logEntry = log;
                 wrapper.images = logImagesMap.containsKey(log.Id) ? logImagesMap.get(log.Id) : new List<ContentVersion>();
-                wrapperList.add(wrapper);
+                resultWrapper.shiftEndLogs.add(wrapper);
             }
 
-        } catch (Exception e) {
+        } catch(Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'getShiftEndLogs', 
-                'isApiException' => false, 
-                'statusCode' => null, 
+                'className' => CLASSNAME,
+                'methodName' => 'getShiftEndLogsWithCrewInfo',
+                'isApiException' => false,
+                'statusCode' => null,
                 'exceptionObj' => e,
-                'moreDetails' => 'Error retrieving Shift End Logs for Job Id: ' + jobId, 
+                'moreDetails' => 'Error retrieving shift end logs and crew info for jobId: ' + jobId,
                 'apiResponse' => null
             });
         }
 
-        return wrapperList;
+        return resultWrapper;
     }
 
     @AuraEnabled
@@ -99,94 +174,19 @@ public with sharing class ShiftEndLogV2Controller {
         }
     }
 
-   @AuraEnabled
-    public static CrewInfoWrapper getCurrentUserCrewInfo(Id jobId) {
-        CrewInfoWrapper crewInfo = new CrewInfoWrapper();
+    // -----------------------------
+    // Wrapper classes
+    // -----------------------------
+    public class ShiftEndLogWithCrewWrapper {
+        @AuraEnabled public CrewInfoWrapper crewInfo { get; set; }
+        @AuraEnabled public List<ShiftEndLogWrapper> shiftEndLogs { get; set; }
 
-        try {
-            // Step 1: Get current user's Contact Id
-            Id userId = UserInfo.getUserId();
-            Contact userContact = [
-                SELECT Id, User__c 
-                FROM Contact 
-                WHERE User__c = :userId
-                WITH USER_MODE
-                LIMIT 1
-            ];
-
-            if (userContact == null) {
-                return crewInfo; // No contact, return empty wrapper
-            }
-
-            // Step 2: Get Mobilization records related to the Job
-            List<Mobilization__c> mobilizations = new List<Mobilization__c>();
-            if (jobId != null) {
-                mobilizations = [
-                    SELECT Id
-                    FROM Mobilization__c
-                    WHERE Job__c = :jobId
-                    WITH USER_MODE
-                ];
-            }
-
-            if (mobilizations.isEmpty()) {
-                return crewInfo; // No mobilizations, return empty wrapper
-            }
-
-            // Step 3: Collect all Crew IDs from Mobilization Members
-            Set<Id> mobilizationIds = new Set<Id>();
-            for (Mobilization__c mob : mobilizations) {
-                mobilizationIds.add(mob.Id);
-            }
-
-            Set<Id> crewIdsFromMobilizations = new Set<Id>();
-            if (!mobilizationIds.isEmpty()) {
-                for (Mobilization_Member__c mobMember : [
-                    SELECT Crew__c 
-                    FROM Mobilization_Member__c 
-                    WHERE Mobilization__c IN :mobilizationIds
-                    AND Crew__c != null
-                    WITH USER_MODE
-                ]) {
-                    crewIdsFromMobilizations.add(mobMember.Crew__c);
-                }
-            }
-
-            // Step 4: Query Crew records where current contact is the Crew Lead
-            if (!crewIdsFromMobilizations.isEmpty()) {
-                List<Crew__c> leaderCrews = [
-                    SELECT Id, Name, Crew_Leader__c
-                    FROM Crew__c
-                    WHERE Id IN :crewIdsFromMobilizations
-                    AND Crew_Leader__c = :userContact.Id
-                    WITH USER_MODE
-                ];
-
-                if (!leaderCrews.isEmpty()) {
-                    crewInfo.crewLeaderId = String.valueOf(userContact.Id);
-                    for (Crew__c crew : leaderCrews) {
-                        crewInfo.crewIds.add(String.valueOf(crew.Id));
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'CrewInfoController',
-                'methodName' => 'getCurrentUserCrewInfo',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error retrieving crew info for jobId: ' + jobId,
-                'apiResponse' => null
-            });
+        public ShiftEndLogWithCrewWrapper() {
+            crewInfo = new CrewInfoWrapper();
+            shiftEndLogs = new List<ShiftEndLogWrapper>();
         }
-
-        return crewInfo;
     }
 
-
-    // Wrapper class to return data to LWC
     public class CrewInfoWrapper {
         @AuraEnabled public String crewLeaderId { get; set; }
         @AuraEnabled public List<String> crewIds { get; set; }
