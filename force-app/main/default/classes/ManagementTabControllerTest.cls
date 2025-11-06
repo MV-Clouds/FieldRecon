@@ -205,10 +205,11 @@ private class ManagementTabControllerTest {
         Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
         
         Test.startTest();
-        Map<String, Object> result = ManagementTabController.getCrewMobilizationSummary(crew.Id);
+        Integer result = ManagementTabController.getCrewMobilizationSummary(crew.Id);
         Test.stopTest();
         
         System.assertNotEquals(null, result, 'Result should not be null');
+        System.assert(result >= 0, 'Result should be >= 0');
     }
 
     @IsTest

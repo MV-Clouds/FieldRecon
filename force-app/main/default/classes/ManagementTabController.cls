@@ -26,7 +26,10 @@ public with sharing class ManagementTabController {
         
         try {
             crewMembers = [
-                SELECT Id, Name, Description__c, Color_Code__c, Crew_Member_Count__c
+                SELECT Id, Name, Description__c, Color_Code__c, Crew_Member_Count__c,
+                       Crew_Leader__c,
+                       Crew_Leader__r.Contact__c,
+                       Crew_Leader__r.Contact__r.Name
                 FROM Crew__c
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC
@@ -93,6 +96,8 @@ public with sharing class ManagementTabController {
             if (idValue != null) {
                 crewId = idValue instanceof Id ? (Id)idValue : Id.valueOf(String.valueOf(idValue));
             }
+
+            Boolean isExistingCrew = crewId != null;
 
             String crewName = (String)crewData.get('Name');
             if (String.isBlank(crewName)) {
@@ -235,6 +240,34 @@ public with sharing class ManagementTabController {
                 }
             }
 
+            Id leaderContactId;
+            if (crewData.containsKey('leaderContactId') && crewData.get('leaderContactId') != null) {
+                Object leaderValue = crewData.get('leaderContactId');
+                String leaderString = String.valueOf(leaderValue).trim();
+
+                if ('__none__'.equalsIgnoreCase(leaderString)) {
+                    leaderString = '';
+                }
+
+                if (!String.isBlank(leaderString)) {
+                    try {
+                        leaderContactId = leaderValue instanceof Id
+                            ? (Id)leaderValue
+                            : Id.valueOf(leaderString);
+                    } catch (Exception leaderParseEx) {
+                        ExceptionHandler.logException(new Map<String, Object>{
+                            'className' => CLASSNAME,
+                            'methodName' => 'saveCrew',
+                            'isApiException' => false,
+                            'statusCode' => null,
+                            'exceptionObj' => leaderParseEx,
+                            'moreDetails' => 'Invalid leader contact Id supplied for crew save operation',
+                            'apiResponse' => null
+                        });
+                    }
+                }
+            }
+
             if (crewRecord.Id == null) {
                 insert crewRecord;
             } else {
@@ -305,6 +338,61 @@ public with sharing class ManagementTabController {
                         mobilizationsEvaluated = propagationResult.mobilizationsEvaluated;
                         mobilizationAssignmentsCreated = propagationResult.assignmentsCreated;
                         response.put('mobilizationAssignmentsSkipped', propagationResult.assignmentsSkipped);
+                    }
+                }
+            }
+
+            if (crewId != null) {
+                List<Crew_Member__c> crewMembersForLeaderSync = [
+                    SELECT Id, Contact__c, Member_Type__c
+                    FROM Crew_Member__c
+                    WHERE Crew__c = :crewId
+                    WITH USER_MODE
+                ];
+
+                List<Crew_Member__c> memberTypeUpdates = new List<Crew_Member__c>();
+                Id assignedLeaderCrewMemberId;
+
+                for (Crew_Member__c crewMemberRecord : crewMembersForLeaderSync) {
+                    if (crewMemberRecord == null) {
+                        continue;
+                    }
+
+                    Boolean isLeader = leaderContactId != null && crewMemberRecord.Contact__c == leaderContactId;
+                    String desiredType = isLeader ? 'Leader' : 'Member';
+                    String currentType = crewMemberRecord.Member_Type__c;
+
+                    if (isLeader) {
+                        assignedLeaderCrewMemberId = crewMemberRecord.Id;
+                    }
+
+                    if ((currentType == null && desiredType != null) || (currentType != null && desiredType != null && currentType != desiredType)) {
+                        memberTypeUpdates.add(new Crew_Member__c(
+                            Id = crewMemberRecord.Id,
+                            Member_Type__c = desiredType
+                        ));
+                    }
+                }
+
+                if (!memberTypeUpdates.isEmpty()) {
+                    update memberTypeUpdates;
+                }
+
+                Boolean shouldUpdateCrewLeader = assignedLeaderCrewMemberId != null || leaderContactId != null || isExistingCrew;
+                if (shouldUpdateCrewLeader) {
+                    Crew__c crewLeaderUpdate = new Crew__c(Id = crewId, Crew_Leader__c = assignedLeaderCrewMemberId);
+                    update crewLeaderUpdate;
+
+                    if (leaderContactId != null && assignedLeaderCrewMemberId == null) {
+                        ExceptionHandler.logException(new Map<String, Object>{
+                            'className' => CLASSNAME,
+                            'methodName' => 'saveCrew',
+                            'isApiException' => false,
+                            'statusCode' => null,
+                            'exceptionObj' => null,
+                            'moreDetails' => 'Crew leader contact provided but not associated with crew after save operation.',
+                            'apiResponse' => null
+                        });
                     }
                 }
             }
@@ -520,9 +608,29 @@ public with sharing class ManagementTabController {
         };
 
         try {
+            Id crewLeaderMemberId;
+            if (crewId != null) {
+                try {
+                    Crew__c crewDetails = [
+                        SELECT Crew_Leader__c
+                        FROM Crew__c
+                        WHERE Id = :crewId
+                        WITH USER_MODE
+                        LIMIT 1
+                    ];
+
+                    if (crewDetails != null) {
+                        crewLeaderMemberId = crewDetails.Crew_Leader__c;
+                    }
+                } catch (Exception leaderLookupEx) {
+                    ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => leaderLookupEx,'moreDetails' => 'Error fetching crew leader mapping : ' + leaderLookupEx.getMessage(), 'apiResponse' => null});
+                }
+            }
+
+            Id crewLeaderContactId;
             List<Contact> crewCandidates = [
                 SELECT Id, Name,
-                    (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
+                    (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c, Member_Type__c
                      FROM Crew_Members__r)
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
@@ -537,6 +645,8 @@ public with sharing class ManagementTabController {
                 contactDto.name = contactRecord.Name;
                 contactDto.isAssignedElsewhere = false;
                 contactDto.isAssignedToCurrentCrew = false;
+                contactDto.isCurrentCrewLeader = false;
+                contactDto.currentCrewMemberType = null;
 
                 if (contactRecord.Crew_Members__r != null && !contactRecord.Crew_Members__r.isEmpty()) {
                     List<String> crewNames = new List<String>();
@@ -547,6 +657,7 @@ public with sharing class ManagementTabController {
                         memberDto.crewId = member.Crew__c;
                         memberDto.crewName = member.Crew__r != null ? member.Crew__r.Name : null;
                         memberDto.colorCode = member.Crew__r != null ? member.Crew__r.Color_Code__c : null;
+                        memberDto.memberType = member.Member_Type__c;
                         contactDto.members.add(memberDto);
 
                         if (!String.isBlank(memberDto.crewName)) {
@@ -556,8 +667,15 @@ public with sharing class ManagementTabController {
                         if (crewId != null && member.Crew__c == crewId) {
                             contactDto.isAssignedToCurrentCrew = true;
                             contactDto.currentCrewMemberId = member.Id;
+                            contactDto.currentCrewMemberType = member.Member_Type__c;
                         } else if (member.Crew__c != null) {
                             contactDto.isAssignedElsewhere = true;
+                        }
+
+                        if ((crewLeaderMemberId != null && member.Id == crewLeaderMemberId)
+                            || ('Leader'.equalsIgnoreCase(member.Member_Type__c) && crewId != null && member.Crew__c == crewId)) {
+                            contactDto.isCurrentCrewLeader = true;
+                            crewLeaderContactId = contactRecord.Id;
                         }
 
                         if (String.isBlank(contactDto.primaryCrewColor) && !String.isBlank(memberDto.colorCode)) {
@@ -577,6 +695,9 @@ public with sharing class ManagementTabController {
 
             availableContacts.sort();
             assignedContacts.sort();
+
+            response.put('crewLeaderContactId', crewLeaderContactId);
+            response.put('crewLeaderMemberId', crewLeaderMemberId);
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching crew contacts : ' + e.getMessage(), 'apiResponse' => null});
         }
@@ -1014,6 +1135,7 @@ public with sharing class ManagementTabController {
         @AuraEnabled public Id crewId;
         @AuraEnabled public String crewName;
         @AuraEnabled public String colorCode;
+        @AuraEnabled public String memberType;
     }
 
     public class CrewContactDTO implements Comparable {
@@ -1024,6 +1146,8 @@ public with sharing class ManagementTabController {
         @AuraEnabled public String assignedCrewNames;
         @AuraEnabled public String primaryCrewColor;
         @AuraEnabled public Id currentCrewMemberId;
+        @AuraEnabled public Boolean isCurrentCrewLeader;
+        @AuraEnabled public String currentCrewMemberType;
         @AuraEnabled public List<CrewMemberDTO> members = new List<CrewMemberDTO>();
 
         public Integer compareTo(Object obj) {
