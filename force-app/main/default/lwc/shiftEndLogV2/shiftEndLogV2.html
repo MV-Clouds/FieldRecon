@@ -152,4 +152,8 @@
         <!-- Modal Backdrop -->
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
+
+    <template if:true={showEntryPopup}>
+        <c-shift-end-log-entries onclose={handleCloseEntryPopup} job-id={recordId}></c-shift-end-log-entries>
+    </template>
 </template>

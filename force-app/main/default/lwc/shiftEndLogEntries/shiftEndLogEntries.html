@@ -1,0 +1,460 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+        aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_full">
+        <div class="slds-modal__container shiftEndLogEntries-modal-container">
+            <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
+                onclick={handleDialogueClose}>
+                <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                    size="small"></lightning-icon>
+            </button>
+
+            <div class="pop-heading">Create Shift End Log</div>
+
+            <!-- Progress Indicator -->
+            <div class="progress-container">
+                <lightning-progress-indicator current-step={currentStep} type="path" variant="base">
+                    <lightning-progress-step label="Clock Status" value="step1"></lightning-progress-step>
+                    <lightning-progress-step label="Timesheet Entries" value="step2"></lightning-progress-step>
+                    <lightning-progress-step label="Log Details" value="step3"></lightning-progress-step>
+                    <lightning-progress-step label="Gallery" value="step4"></lightning-progress-step>
+                </lightning-progress-indicator>
+            </div>
+
+            <div class="slds-modal__content wizard-content" id="modal-content-id-1">
+                <!-- Step 1: Mobilization Selection & Clock In/Out Status -->
+                <template if:true={isStep1}>
+                    <div class="step-container">
+                        <!-- Mobilization Selector -->
+                        <div class="mobilization-selector">
+                            <label class="form-label required">Select Mobilization</label>
+                            <lightning-combobox name="mobilization" label="" placeholder="-- Select Mobilization --"
+                                options={mobilizationOptions} value={selectedMobilizationId}
+                                onchange={handleMobilizationChange}>
+                            </lightning-combobox>
+                        </div>
+
+                        <template if:true={selectedMobilizationId}>
+                            <!-- Clock Status Cards -->
+                            <div class="clock-status-container">
+                                <template for:each={crewMembers} for:item="member">
+                                    <div key={member.contactId} class="crew-member-card">
+                                        <div class="member-info">
+                                            <div class="member-name">{member.contactName}</div>
+                                            <div class="member-status-row">
+                                                <span class={member.statusClass}>{member.statusText}</span>
+                                                <template if:true={member.hoursWorked}>
+                                                    <span class="hours-worked">Today: {member.hoursWorked} hrs</span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div class="member-actions">
+                                            <template if:true={member.canClockIn}>
+                                                <button class="clock-btn clock-in-btn" data-id={member.contactId}
+                                                    onclick={handleClockInClick}>
+                                                    Clock In
+                                                </button>
+                                            </template>
+                                            <template if:true={member.canClockOut}>
+                                                <button class="clock-btn clock-out-btn" data-id={member.contactId}
+                                                    onclick={handleClockOutClick}>
+                                                    Clock Out
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Step 2: Timesheet Entries Table -->
+                <template if:true={isStep2}>
+                    <div class="step-container">
+                        <div class="table-content timesheet-table">
+                            <table class="slds-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 4rem">Sr.</th>
+                                        <th style="width: 4rem">Edit</th>
+                                        <th style="width: 12rem">Name</th>
+                                        <th style="width: 10rem">Clock In</th>
+                                        <th style="width: 10rem">Clock Out</th>
+                                        <th style="width: 6rem">Hours</th>
+                                        <th style="width: 6rem">Travel</th>
+                                        <th style="width: 8rem">Cost Code</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={timesheetEntries} for:item="entry" for:index="index">
+                                        <tr key={entry.id}>
+                                            <td>{entry.srNo}</td>
+                                            <td>
+                                                <button class="edit-icon-btn" data-id={entry.id}
+                                                    onclick={handleEditTimesheetEntry}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2">
+                                                        <path
+                                                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7">
+                                                        </path>
+                                                        <path
+                                                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                            <td>{entry.contactName}</td>
+                                            <td>{entry.clockInTime}</td>
+                                            <td>{entry.clockOutTime}</td>
+                                            <td>{entry.workHours}</td>
+                                            <td>{entry.travelTime}</td>
+                                            <td>{entry.costCodeName}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Step 3: Log Details & Location Progress -->
+                <template if:true={isStep3}>
+                    <div class="step-container">
+                        <div class="log-details-form">
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label required">What We Done Today</label>
+                                    <lightning-textarea data-field="whatWeDone" variant="label-hidden"
+                                        value={step3Data.whatWeDone} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label required">Plan for Tomorrow</label>
+                                    <lightning-textarea data-field="planForTomorrow" variant="label-hidden"
+                                        value={step3Data.planForTomorrow} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label">Exceptions/Concerns</label>
+                                    <lightning-textarea data-field="exceptions" variant="label-hidden"
+                                        value={step3Data.exceptions} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label">Notes to Office</label>
+                                    <lightning-textarea data-field="notesToOffice" variant="label-hidden"
+                                        value={step3Data.notesToOffice} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <!-- Location Process Progress Sliders -->
+                            <template if:true={groupedLocationProcesses}>
+                                <template if:true={groupedLocationProcesses.length}>
+                                    <div class="location-progress-section">
+                                        <div class="section-header">
+                                            <h3 class="section-title">Location Process Progress</h3>
+                                            <template if:true={hasModifications}>
+                                                <div class="action-buttons">
+                                                    <button class="action-btn discard-btn"
+                                                        onclick={handleDiscardProcessChanges} disabled={isSaving}>
+                                                        Discard Changes
+                                                    </button>
+                                                    <button class="action-btn save-btn"
+                                                        onclick={handleSaveProcessChanges} disabled={isSaving}>
+                                                        Save Changes
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <!-- Group by Location -->
+                                        <template for:each={groupedLocationProcesses} for:item="locationGroup">
+                                            <div key={locationGroup.locationId} class="location-group">
+                                                <h4 class="location-group-title">{locationGroup.locationName}</h4>
+
+                                                <!-- Process Sliders -->
+                                                <template for:each={locationGroup.processes} for:item="process">
+                                                    <div key={process.id} class="location-slider-container">
+                                                        <div class="slider-header">
+                                                            <div class="process-info">
+                                                                <span class="process-name">{process.name}</span>
+                                                                <template if:true={process.sequence}>
+                                                                    <span class="process-sequence">Seq:
+                                                                        {process.sequence}</span>
+                                                                </template>
+                                                            </div>
+                                                            <span
+                                                                class="progress-percentage">{process.completedPercent}%
+                                                                Complete</span>
+                                                        </div>
+                                                        <div class="slider-wrapper">
+                                                            <div class="slider-track">
+                                                                <div class="slider-section completed" lwc:dom="manual">
+                                                                </div>
+                                                                <div class="slider-section today" lwc:dom="manual">
+                                                                </div>
+                                                                <div class="slider-section remaining" lwc:dom="manual">
+                                                                </div>
+                                                            </div>
+                                                            <input type="range" class="progress-slider"
+                                                                min={process.previousPercent} max="100" step="0.5"
+                                                                value={process.completedPercent} data-id={process.id}
+                                                                data-process-id={process.id}
+                                                                data-original-value={process.previousPercent}
+                                                                onchange={handleSliderChange}
+                                                                oninput={handleSliderInput}>
+                                                        </div>
+                                                        <div class="slider-labels">
+                                                            <span class="label-completed">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
+                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Completed: {process.previousPercent}%
+                                                            </span>
+                                                            <span class="label-today">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
+                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Today: {process.todayPercent}%
+                                                            </span>
+                                                            <span class="label-remaining">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
+                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Remaining: {process.remainingPercent}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Step 4: Gallery -->
+                <template if:true={isStep4}>
+                    <div class="step-container">
+                        <div class="gallery-section">
+                            <div class="upload-options">
+                                <label class="upload-btn">
+                                    <input type="file" accept="image/*" multiple onchange={handleFileUpload}
+                                        class="file-input">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="17 8 12 3 7 8"></polyline>
+                                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                                    </svg>
+                                    Upload Photos
+                                </label>
+                            </div>
+
+                            <!-- Photo Preview Grid -->
+                            <template if:true={uploadedPhotos}>
+                                <template if:true={uploadedPhotos.length}>
+                                    <div class="photo-grid">
+                                        <template for:each={uploadedPhotos} for:item="photo">
+                                            <div key={photo.id} class="photo-item">
+                                                <img src={photo.url} alt={photo.name} class="photo-thumbnail"
+                                                    data-id={photo.id} onclick={handlePhotoClick}>
+                                                <button class="remove-photo-btn" data-id={photo.id}
+                                                    onclick={handleRemovePhoto}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2">
+                                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                    </svg>
+                                                </button>
+                                                <div class="photo-name">{photo.name}</div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <template if:true={isLoading}>
+                    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+                </template>
+            </div>
+
+            <!-- Footer with Navigation Buttons -->
+            <div class="wizard-footer">
+                <template if:false={isStep1}>
+                    <button class="nav-btn prev-btn" onclick={handlePrevious}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Previous
+                    </button>
+                </template>
+                <div class="spacer"></div>
+                <template if:false={isStep4}>
+                    <button class="nav-btn next-btn" onclick={handleNext}>
+                        Next
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </template>
+                <template if:true={isStep4}>
+                    <button class="nav-btn done-btn" onclick={handleDone}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Done
+                    </button>
+                </template>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+
+    <!-- Clock In Modal -->
+    <template if:true={showClockInModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeClockInModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Clock In</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="clock-in-container">
+                        <div class="input-column">
+                            <label class="select-label required">Cost Code</label>
+                            <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
+                                <option value="">-- Select Cost Code --</option>
+                                <template for:each={costCodeOptions} for:item="cc">
+                                    <option key={cc.value} value={cc.value}>{cc.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock In Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="clockIn"
+                                value={clockInTime} onchange={handleInputChange} min={clockInMinBoundary}
+                                max={clockInMaxBoundary}>
+                        </div>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="clock-in-button" onclick={saveClockIn}>Clock In</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+    <!-- Clock Out Modal -->
+    <template if:true={showClockOutModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeClockOutModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Clock Out</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="clock-in-container">
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock Out Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="clockOut"
+                                value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary}
+                                max={clockOutMaxBoundary}>
+                        </div>
+                        <template if:true={previousClockInTime}>
+                            <div class="info-message">
+                                Previous Clock In: {previousClockInTime}
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="clock-in-button" onclick={saveClockOut}>Clock Out</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+    <!-- Edit Timesheet Modal -->
+    <template if:true={showEditTimesheetModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeEditTimesheetModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Edit Timesheet Entry</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="clock-in-container">
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock In Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="editClockIn"
+                                value={editTimesheetData.clockInTime} onchange={handleEditInputChange}>
+                        </div>
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock Out Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="editClockOut"
+                                value={editTimesheetData.clockOutTime} onchange={handleEditInputChange}>
+                        </div>
+                        <div class="input-column">
+                            <label class="select-label">Travel Time (hours)</label>
+                            <input type="number" step="0.01" class="custom-datetime" data-field="editTravelTime"
+                                value={editTimesheetData.travelTime} onchange={handleEditInputChange}>
+                        </div>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="clock-in-button" onclick={saveEditedTimesheet}>Save</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+    <!-- Photo Preview Modal -->
+    <template if:true={showPhotoPreview}>
+        <section role="dialog" class="slds-modal slds-fade-in-open photo-preview-modal">
+            <div class="slds-modal__container photo-preview-container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closePhotoPreview}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="photo-preview-content">
+                    <img src={previewPhotoUrl} alt="Preview" class="preview-image">
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+</template>

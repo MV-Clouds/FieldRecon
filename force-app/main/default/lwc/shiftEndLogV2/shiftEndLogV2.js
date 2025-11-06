@@ -14,6 +14,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track errorMessage = '';
     @track showEditModal = false;
     @track editLogId = null;
+    showEntryPopup = false;
 
     // Check if there are logs to display
     get hasLogs() {
@@ -125,9 +126,11 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     // Handle create button click
     handleCreate() {
-        // Navigate to new log entry creation
-        console.log('In the handlecreate');
-        
+        this.showEntryPopup = true;
+    }
+
+    handleCloseEntryPopup() {
+        this.showEntryPopup = false;
     }
 
     // Handle edit button click
