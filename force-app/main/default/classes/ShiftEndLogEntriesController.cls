@@ -671,9 +671,8 @@ public with sharing class ShiftEndLogEntriesController {
             
             insert as user logEntry;
             
-            List<ContentDocumentLink> links = new List<ContentDocumentLink>();
-            
             // Process camera photos if any
+            // Note: FirstPublishLocationId automatically creates ContentDocumentLink, so no manual linking needed
             if (String.isNotBlank(cameraPhotosJson)) {
                 List<Object> cameraPhotos = (List<Object>) JSON.deserializeUntyped(cameraPhotosJson);
                 List<ContentVersion> contentVersions = new List<ContentVersion>();
@@ -687,34 +686,19 @@ public with sharing class ShiftEndLogEntriesController {
                     cv.Title = fileName;
                     cv.PathOnClient = fileName;
                     cv.VersionData = EncodingUtil.base64Decode(base64Data);
-                    cv.FirstPublishLocationId = logEntry.Id;
+                    cv.FirstPublishLocationId = logEntry.Id; // This automatically creates the link
                     contentVersions.add(cv);
                 }
                 
                 if (!contentVersions.isEmpty()) {
                     insert as user contentVersions;
-                    
-                    // Query ContentDocumentIds to create links
-                    Set<Id> cvIds = new Set<Id>();
-                    for (ContentVersion cv : contentVersions) {
-                        cvIds.add(cv.Id);
-                    }
-                    
-                    List<ContentVersion> insertedCVs = [SELECT ContentDocumentId FROM ContentVersion WHERE Id IN :cvIds WITH USER_MODE];
-                    
-                    for (ContentVersion cv : insertedCVs) {
-                        ContentDocumentLink link = new ContentDocumentLink();
-                        link.ContentDocumentId = cv.ContentDocumentId;
-                        link.LinkedEntityId = logEntry.Id;
-                        link.ShareType = 'V';
-                        link.Visibility = 'AllUsers';
-                        links.add(link);
-                    }
+                    // Links are automatically created by FirstPublishLocationId
                 }
             }
             
             // Link regular uploaded files to Log Entry if any
             if (contentDocumentIds != null && !contentDocumentIds.isEmpty()) {
+                List<ContentDocumentLink> links = new List<ContentDocumentLink>();
                 for (String docId : contentDocumentIds) {
                     ContentDocumentLink link = new ContentDocumentLink();
                     link.ContentDocumentId = docId;
@@ -723,10 +707,6 @@ public with sharing class ShiftEndLogEntriesController {
                     link.Visibility = 'AllUsers';
                     links.add(link);
                 }
-            }
-            
-            // Insert all links at once
-            if (!links.isEmpty()) {
                 insert as user links;
             }
         } catch (Exception e) {

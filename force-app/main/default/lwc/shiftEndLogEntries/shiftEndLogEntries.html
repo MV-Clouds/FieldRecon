@@ -376,10 +376,6 @@
                         </div>
                     </div>
                 </template>
-
-                <template if:true={isLoading}>
-                    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
-                </template>
             </div>
 
             <!-- Footer with Navigation Buttons -->
@@ -413,6 +409,10 @@
                     </button>
                 </template>
             </div>
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+            </template>
         </div>
     </section>
     <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
