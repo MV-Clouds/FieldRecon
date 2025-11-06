@@ -334,26 +334,28 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return utcDate.toISOString().slice(0, 10);
     }
 
-    validateClockInDate(clockInValue, jobStartValue) {
+    validateClockInDate (clockInValue, jobStartValue, jobEndValue) {
         const clockInDate = this.extractDateKey(clockInValue);
         const jobStartDate = this.extractDateKey(jobStartValue);
+        const jobEndDate = this.extractDateKey(jobEndValue);
 
-        if (clockInDate && jobStartDate && clockInDate !== jobStartDate) {
-            this.showToast('Error', 'Clock In time must be on the job start date', 'error');
+        if (clockInDate && jobStartDate && clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
+            this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
             return false;
         }
 
         return true;
     }
 
-    validateClockOutDate(clockOutValue, jobEndValue) {
+    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
         const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
 
         if (clockOutDate && jobEndDate) {
             const nextDay = this.addDaysToDateKey(jobEndDate, 1);
-            if (clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
-                this.showToast('Error', 'Clock Out time must be on the job end date or the following day', 'error');
+            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
+                this.showToast('Error', 'Clock Out time must be on the job start date, job end date or the following day', 'error');
                 return false;
             }
         }
@@ -884,7 +886,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
 
             const jobEndReference = selectedRecordDetails?.jobEndTime || this.currentJobEndDateTime;
-            if (!this.validateClockOutDate(this.clockOutTime, jobEndReference)) {
+            const jobStartReference = selectedRecordDetails?.jobStartTime || this.currentJobStartDateTime;
+
+            if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
                 return;
             }
             
@@ -1020,17 +1024,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.currentJobEndDateTime = jobRecord.endDate;
             }
 
-            let jobStartDate = this.jobDetailsRaw.map(job => {
-                let dt = new Date(job.startDate); // parse ISO string
-                let year = dt.getFullYear();
-                let month = dt.getMonth() + 1; // JS months are 0-based
-                let day = dt.getDate();
-                
-                let dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                return dateStr;
-            });
-
-            getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: jobStartDate.toString() })
+            getTimeSheetEntryItems({ mobId: this.mobId })
                 .then((data) => {
                     if(data != null) {
                         this.timesheetDetailsRaw = data.map(item => {
@@ -1140,11 +1134,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
-            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference, jobEndReference)) {
                 return;
             }
 
-            if (!this.validateClockOutDate(this.clockOutTime, jobEndReference)) {
+            if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
                 return;
             }
             console.log('this.enteredManualPerDiem  ::', this.enteredManualPerDiem );
@@ -1374,11 +1368,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
-            if (!this.validateClockInDate(entry.ClockIn, jobStartReference)) {
+            if (!this.validateClockInDate(entry.ClockIn, jobStartReference, jobEndReference)) {
                 return;
             }
 
-            if (!this.validateClockOutDate(entry.ClockOut, jobEndReference)) {
+            if (!this.validateClockOutDate(entry.ClockOut, jobStartReference, jobEndReference)) {
                 return;
             }
 
