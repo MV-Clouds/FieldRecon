@@ -15,6 +15,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track showEditModal = false;
     @track editLogId = null;
     @track showEntryPopup = false;
+    @track isStylesLoaded = false;
 
     // Check if there are logs to display
     get hasLogs() {
@@ -36,6 +37,30 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     connectedCallback() {
         this.isLoading = true;
         this.loadShiftEndLogs();
+    }
+
+    renderedCallback() {
+        if(!this.isStylesLoaded) {
+            this.applyCustomStyling();
+        }
+    }
+
+    applyCustomStyling() {
+            const style = document.createElement('style');
+            style.textContent = `
+                 .date-filter lightning-input .slds-form-element__help,
+                 .date-filter lightning-input .slds-assistive-text {
+                     display: none !important;
+                 }  
+            `;
+
+            const dateContainer = this.template.querySelector('.date-filter');
+            if (dateContainer) {
+                dateContainer.appendChild(style);
+                console.log('dateContainer found and style applied' , dateContainer);
+                
+                this.isStylesLoaded = true;
+            }
     }
 
     // Load shift end logs method
@@ -98,6 +123,12 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Handle date filter
     handleDateFilter(event) {
         this.filterDate = event.target.value;
+        this.filterLogs();
+    }
+
+    // Handle clear filter
+    handleClearFilter() {
+        this.filterDate = '';
         this.filterLogs();
     }
 

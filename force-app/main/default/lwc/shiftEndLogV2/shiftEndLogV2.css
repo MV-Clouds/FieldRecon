@@ -6,8 +6,12 @@
 
 .shift-end-log-container {
     padding: 1rem;
-    min-height: 100vh;
     background: #f4f6f9;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
 .spinner-container {
@@ -28,32 +32,80 @@
     top: 0;
     background: transparent;
     margin-bottom: 1rem;
+    z-index: 100;
 }
 
-.header-nav-tab-with-button {
+.filter-search-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 1rem;
+    padding: 8px 2px;
+    border-radius: 8px;
+    flex-wrap: wrap;
 }
 
-.search-wrapper {
-    min-width: 200px;
+.search-bar {
+    flex: 0 0 auto;
 }
 
-.search-input {
-    width: 100%;
+.search-bar lightning-input {
+    width: 300px;
 }
 
-.btns-div {
+.search-bar-input {
+    width: 300px;
+}
+
+.right-controls {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .date-filter {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem;
+    position: relative;
+}
+
+.date-filter lightning-input .slds-form-element__help,
+.date-filter lightning-input .slds-assistive-text {
+    display: none !important;
+}
+
+
+.date-filter-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.clear-filter-btn {
+    background: #f4f6f9;
+    border: 1px solid #c9c7c5;
     border-radius: 0.25rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    width: 32px;
+}
+
+.clear-filter-btn:hover {
+    background: #e0e0e0;
+    border-color: #706e6b;
+}
+
+.clear-filter-btn svg {
+    fill: #5e5adb;
+    width: 16px;
+    height: 16px;
 }
 
 .create-btn {
@@ -77,22 +129,40 @@
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
-.empty-state-msg {
+/* Empty state styling */
+.empty-state {
+    width: 100%;
+    height: 100%;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     padding: 3rem 1rem;
-    color: #706e6b;
-    gap: 1rem;
 }
 
-.empty-state-msg svg {
-    fill: #c9c7c5;
+.empty-state__content {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
 }
 
-.empty-state-msg div {
-    font-size: 1rem;
+.empty-state__content .empty-state__icon {
+    height: auto;
+    max-width: 300px;
+}
+
+.empty-state__content .empty-state__icon img {
+    width: 100%;
+    height: auto;
+}
+
+.empty-state__content .empty-state__message {
+    color: rgba(94, 90, 219, 1);
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
     text-align: center;
 }
 
@@ -184,7 +254,13 @@
     white-space: nowrap;
     display: block;
     font-size: 0.95rem;
-    color: #181818;
+    color: rgba(94, 90, 219, 1);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.log-card-name:hover {
+    text-decoration: underline;
 }
 
 .log-card-date {
@@ -249,34 +325,7 @@
     gap: 0.5rem;
 }
 
-.status-tile {
-    font-weight: 600;
-    padding: 0.3rem 0.6rem;
-    border-radius: 0.25rem;
-    text-transform: uppercase;
-    width: fit-content;
-    font-size: 0.65rem;
-    line-height: 0.65rem;
-    background: var(--primary-theme-color-shade-20, #5e5adb20);
-    color: var(--primary-theme-color, #5e5adb);
-    white-space: nowrap;
-}
 
-.status-tile[data-type="Shift End"],
-.status-tile[data-type="Standard"] {
-    background: #e8f4e8;
-    color: #2e7d32;
-}
-
-.status-tile[data-type="Emergency"] {
-    background: #fdecea;
-    color: #c23934;
-}
-
-.status-tile[data-type="Exception"] {
-    background: #fff4e5;
-    color: #ed6c02;
-}
 
 .section-label {
     font-weight: 600;
@@ -448,17 +497,28 @@
         display: block;
     }
 
-    .header-nav-tab-with-button {
+    .filter-search-container {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .search-wrapper {
+    .search-bar,
+    .search-bar lightning-input,
+    .search-bar-input {
         width: 100%;
     }
 
-    .create-btn {
+    .right-controls {
         width: 100%;
+        justify-content: space-between;
+    }
+
+    .date-filter-wrapper {
+        flex: 1;
+    }
+
+    .create-btn {
+        flex: 1;
         justify-content: center;
     }
 }
