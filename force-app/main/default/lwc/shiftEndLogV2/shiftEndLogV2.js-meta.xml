@@ -6,5 +6,15 @@
     <description>Advanced Shift End Log component with search, mobile/tablet support, and responsive design for record pages</description>
     <targets>
         <target>lightning__RecordPage</target>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
     </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage, lightning__AppPage, lightning__HomePage">
+            <supportedFormFactors>
+                <supportedFormFactor type="Large" /> <!-- Desktop -->
+                <supportedFormFactor type="Small" /> <!-- Mobile / Tablet -->
+            </supportedFormFactors>
+        </targetConfig>
+    </targetConfigs>
 </LightningComponentBundle>
