@@ -112,7 +112,7 @@ public with sharing class ShiftEndLogV2Controller {
 
                 if(!versionIds.isEmpty()) {
                     List<ContentVersion> versions = [
-                        SELECT Id, Title, FileExtension, ContentSize, CreatedDate
+                        SELECT Id, ContentDocumentId, Title, FileExtension, ContentSize, CreatedDate
                         FROM ContentVersion 
                         WHERE Id IN :versionIds 
                         AND FileExtension IN ('jpg','jpeg','png','gif','bmp','svg')

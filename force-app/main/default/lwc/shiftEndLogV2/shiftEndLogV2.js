@@ -209,6 +209,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         statusVariant: this.getStatusVariant(log.wfrecon__Log_Type__c),
                         images: images.map(img => ({
                             Id: img.Id,
+                            ContentDocumentId: img.ContentDocumentId,
                             Title: img.Title,
                             FileExtension: img.FileExtension,
                             thumbnailUrl: `/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=${img.Id}`,
@@ -419,14 +420,17 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     // Handle image preview
     handleImagePreview(event) {
-        const imageId = event.currentTarget.dataset.id;
+        event.stopPropagation();
+        const contentDocumentId = event.currentTarget.dataset.id;
+        const versionId = event.currentTarget.dataset.versionId;
+        
         this[NavigationMixin.Navigate]({
             type: 'standard__namedPage',
             attributes: {
                 pageName: 'filePreview'
             },
             state: {
-                selectedRecordId: imageId
+                selectedRecordId: contentDocumentId || versionId
             }
         });
     }

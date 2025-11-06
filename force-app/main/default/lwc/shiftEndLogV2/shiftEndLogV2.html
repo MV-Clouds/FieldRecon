@@ -50,11 +50,12 @@
                 </template>
             </template>
         </template>
+        
         <template if:true={hasLogs}>
             <div class="logs-grid">
                 <template for:each={displayedLogs} for:item="log">
                     <div key={log.Id} class="card-placeholder">
-                        <div class="log-card">
+                        <div class="log-card" data-id={log.Id}>
                             <div class="log-card-header">
                                 <div class="log-header-detail">
                                     <div class="log-card-name-status">
@@ -93,7 +94,7 @@
                                 </div>
                                 <div class="images-grid">
                                     <template for:each={log.images} for:item="image">
-                                        <div key={image.Id} class="image-thumbnail" data-id={image.Id} onclick={handleImagePreview}>
+                                        <div key={image.Id} class="image-thumbnail" data-id={image.ContentDocumentId} data-version-id={image.Id} onclick={handleImagePreview}>
                                             <img src={image.thumbnailUrl} alt={image.Title} />
                                         </div>
                                     </template>
@@ -104,7 +105,9 @@
 
                 </template>
             </div>
+        </template>
 
+        <template if:true={hasLogs}>
             <!-- Pagination Section -->
             <div class="pagination-section">
                 <div class="pagination-container">
