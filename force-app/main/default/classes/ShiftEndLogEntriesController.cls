@@ -654,18 +654,81 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static String createLogEntry(String jobId, String workPerformed, String planForTomorrow, String exceptions, String workPerformedDate) {
+    public static void createLogEntry(String jobId, String step3DataJson, List<String> contentDocumentIds, String cameraPhotosJson, String workPerformedDate) {
         try {
+            // Deserialize step3 data
+            Map<String, Object> step3Data = (Map<String, Object>) JSON.deserializeUntyped(step3DataJson);
+            
+            // Create Log Entry record
             wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c();
             logEntry.wfrecon__Job__c = jobId;
             logEntry.wfrecon__Log_Type__c = 'Shift End';
-            logEntry.wfrecon__Work_Performed__c = workPerformed;
-            logEntry.wfrecon__Plan_for_Tomorrow__c = planForTomorrow;
-            logEntry.wfrecon__Exceptions__c = exceptions;
+            logEntry.wfrecon__Work_Performed__c = (String) step3Data.get('whatWeDone');
+            logEntry.wfrecon__Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
+            logEntry.wfrecon__Exceptions__c = (String) step3Data.get('exceptions');
+            logEntry.wfrecon__Notes_to_Office__c = (String) step3Data.get('notesToOffice');
             logEntry.wfrecon__Work_Performed_Date__c = Date.valueOf(workPerformedDate.substring(0, 10));
             
             insert as user logEntry;
-            return logEntry.Id;
+            
+            List<ContentDocumentLink> links = new List<ContentDocumentLink>();
+            
+            // Process camera photos if any
+            if (String.isNotBlank(cameraPhotosJson)) {
+                List<Object> cameraPhotos = (List<Object>) JSON.deserializeUntyped(cameraPhotosJson);
+                List<ContentVersion> contentVersions = new List<ContentVersion>();
+                
+                for (Object photoObj : cameraPhotos) {
+                    Map<String, Object> photo = (Map<String, Object>) photoObj;
+                    String fileName = (String) photo.get('fileName');
+                    String base64Data = (String) photo.get('base64Data');
+                    
+                    ContentVersion cv = new ContentVersion();
+                    cv.Title = fileName;
+                    cv.PathOnClient = fileName;
+                    cv.VersionData = EncodingUtil.base64Decode(base64Data);
+                    cv.FirstPublishLocationId = logEntry.Id;
+                    contentVersions.add(cv);
+                }
+                
+                if (!contentVersions.isEmpty()) {
+                    insert as user contentVersions;
+                    
+                    // Query ContentDocumentIds to create links
+                    Set<Id> cvIds = new Set<Id>();
+                    for (ContentVersion cv : contentVersions) {
+                        cvIds.add(cv.Id);
+                    }
+                    
+                    List<ContentVersion> insertedCVs = [SELECT ContentDocumentId FROM ContentVersion WHERE Id IN :cvIds WITH USER_MODE];
+                    
+                    for (ContentVersion cv : insertedCVs) {
+                        ContentDocumentLink link = new ContentDocumentLink();
+                        link.ContentDocumentId = cv.ContentDocumentId;
+                        link.LinkedEntityId = logEntry.Id;
+                        link.ShareType = 'V';
+                        link.Visibility = 'AllUsers';
+                        links.add(link);
+                    }
+                }
+            }
+            
+            // Link regular uploaded files to Log Entry if any
+            if (contentDocumentIds != null && !contentDocumentIds.isEmpty()) {
+                for (String docId : contentDocumentIds) {
+                    ContentDocumentLink link = new ContentDocumentLink();
+                    link.ContentDocumentId = docId;
+                    link.LinkedEntityId = logEntry.Id;
+                    link.ShareType = 'V';
+                    link.Visibility = 'AllUsers';
+                    links.add(link);
+                }
+            }
+            
+            // Insert all links at once
+            if (!links.isEmpty()) {
+                insert as user links;
+            }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => 'ShiftEndLogEntriesController',
@@ -674,35 +737,6 @@ public with sharing class ShiftEndLogEntriesController {
                 'moreDetails' => e.getMessage()
             });
             throw new AuraHandledException('Error creating Log Entry: ' + e.getMessage());
-        }
-    }
-
-    @AuraEnabled
-    public static void linkFilesToLogEntry(String logEntryId, List<String> contentDocumentIds) {
-        try {
-            if (contentDocumentIds == null || contentDocumentIds.isEmpty()) {
-                return;
-            }
-
-            List<ContentDocumentLink> links = new List<ContentDocumentLink>();
-            for (String docId : contentDocumentIds) {
-                ContentDocumentLink link = new ContentDocumentLink();
-                link.ContentDocumentId = docId;
-                link.LinkedEntityId = logEntryId;
-                link.ShareType = 'V';
-                link.Visibility = 'AllUsers';
-                links.add(link);
-            }
-
-            insert as user links;
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ShiftEndLogEntriesController',
-                'methodName' => 'linkFilesToLogEntry',
-                'exceptionObj' => e,
-                'moreDetails' => e.getMessage()
-            });
-            throw new AuraHandledException('Error linking files to Log Entry: ' + e.getMessage());
         }
     }
 
@@ -723,6 +757,34 @@ public with sharing class ShiftEndLogEntriesController {
                 'moreDetails' => e.getMessage()
             });
             throw new AuraHandledException('Error deleting content documents: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String uploadCameraPhoto(String fileName, String base64Data, String recordId) {
+        try {
+            // Create ContentVersion
+            ContentVersion cv = new ContentVersion();
+            cv.Title = fileName;
+            cv.PathOnClient = fileName;
+            cv.VersionData = EncodingUtil.base64Decode(base64Data);
+            cv.FirstPublishLocationId = recordId;
+            cv.IsMajorVersion = false;
+            
+            insert as user cv;
+            
+            // Get ContentDocument Id
+            ContentVersion insertedCV = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE LIMIT 1];
+            
+            return insertedCV.ContentDocumentId;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'uploadCameraPhoto',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+            throw new AuraHandledException('Error uploading camera photo: ' + e.getMessage());
         }
     }
 }

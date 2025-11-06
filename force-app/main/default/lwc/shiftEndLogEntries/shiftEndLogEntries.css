@@ -1140,6 +1140,41 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
+/* Upload Actions */
+.upload-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1.5rem;
+    justify-content: space-between;
+}
+
+.camera-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.camera-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.camera-btn svg {
+    stroke: white;
+}
+
 /* File Preview Grid */
 .file-preview-grid {
     display: grid;
@@ -1169,6 +1204,15 @@
     display: block;
 }
 
+.file-icon-container {
+    width: 100%;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+}
+
 .remove-file-btn {
     position: absolute;
     top: 8px;
@@ -1185,6 +1229,7 @@
     color: white;
     transition: all 0.2s ease;
     padding: 0;
+    z-index: 2;
 }
 
 .remove-file-btn:hover {
@@ -1204,6 +1249,122 @@
     overflow: hidden;
     text-overflow: ellipsis;
     text-align: center;
+}
+
+/* Camera Modal */
+.camera-modal-container {
+    max-width: 800px;
+    width: 90vw;
+}
+
+.camera-modal-content {
+    padding: 0 !important;
+}
+
+.camera-container {
+    width: 100%;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    position: relative;
+}
+
+.camera-video {
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+}
+
+.captured-photo {
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+}
+
+.camera-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    padding: 1.5rem;
+    background: white;
+}
+
+.camera-capture-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: rgba(94, 90, 219, 1);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
+.camera-capture-btn:hover {
+    background: rgba(84, 80, 209, 1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.35);
+}
+
+.camera-capture-btn svg {
+    stroke: white;
+    fill: white;
+}
+
+.camera-retake-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.camera-retake-btn:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+}
+
+.camera-retake-btn svg {
+    stroke: white;
+}
+
+.camera-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.camera-save-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.camera-save-btn svg {
+    stroke: white;
 }
 
 /* Responsive */

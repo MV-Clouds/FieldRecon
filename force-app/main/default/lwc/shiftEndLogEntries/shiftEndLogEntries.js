@@ -1,6 +1,5 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { deleteRecord } from 'lightning/uiRecordApi';
 import getMobilizationList from '@salesforce/apex/ShiftEndLogEntriesController.getMobilizationList';
 import getMobilizationMembersWithStatus from '@salesforce/apex/ShiftEndLogEntriesController.getMobilizationMembersWithStatus';
 import createTimesheetRecords from '@salesforce/apex/ShiftEndLogEntriesController.createTimesheetRecords';
@@ -9,8 +8,8 @@ import updateTimesheets from '@salesforce/apex/ShiftEndLogEntriesController.upda
 import getJobLocationProcesses from '@salesforce/apex/SovJobLocationProcessesController.getJobLocationProcesses';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
-import linkFilesToLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.linkFilesToLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
+import uploadCameraPhoto from '@salesforce/apex/ShiftEndLogEntriesController.uploadCameraPhoto';
 
 export default class ShiftEndLogEntries extends LightningElement {
     @api jobId = '';
@@ -52,7 +51,19 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track showEditTimesheetModal = false;
     @track editTimesheetData = {};
 
+    // Camera Modal
+    @track showCameraModal = false;
+    @track cameraStream = null;
+    @track capturedPhoto = null;
+
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
+    
+    get isDesktopDevice() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /iphone|ipad|ipod|android|blackberry|windows phone|mobile/i.test(userAgent);
+        const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent);
+        return !isMobile && !isTablet;
+    }
 
     get isStep1() { return this.currentStep === 'step1'; }
     get isStep2() { return this.currentStep === 'step2'; }
@@ -817,30 +828,174 @@ export default class ShiftEndLogEntries extends LightningElement {
     handleUploadFinished(event) {
         const uploadedFilesFromEvent = event.detail.files;
         uploadedFilesFromEvent.forEach(file => {
+            const fileType = this.getFileType(file.name);
             this.uploadedFiles.push({
                 id: file.documentId,
                 name: file.name,
-                url: `/sfc/servlet.shepherd/document/download/${file.documentId}`
+                url: `/sfc/servlet.shepherd/document/download/${file.documentId}`,
+                fileType: fileType,
+                isImage: fileType === 'image',
+                icon: this.getFileIcon(file.name)
             });
         });
         this.showToast('Success', `${uploadedFilesFromEvent.length} file(s) uploaded successfully`, 'success');
     }
 
+    getFileType(fileName) {
+        const extension = fileName.split('.').pop().toLowerCase();
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'];
+        const documentExtensions = ['pdf', 'doc', 'docx'];
+        
+        if (imageExtensions.includes(extension)) {
+            return 'image';
+        } else if (documentExtensions.includes(extension)) {
+            return 'document';
+        }
+        return 'file';
+    }
+
+    getFileIcon(fileName) {
+        const extension = fileName.split('.').pop().toLowerCase();
+        
+        switch(extension) {
+            case 'pdf':
+                return 'doctype:pdf';
+            case 'doc':
+            case 'docx':
+                return 'doctype:word';
+            default:
+                return 'doctype:attachment';
+        }
+    }
+
     async handleRemoveFile(event) {
         const fileId = event.currentTarget.dataset.id;
         
+        // Find the file to check if it's a camera photo
+        const fileToRemove = this.uploadedFiles.find(file => file.id === fileId);
+        
         try {
-            // Delete from Salesforce
-            await deleteContentDocuments({ contentDocumentIds: [fileId] });
+            // Only delete from Salesforce if it's not a camera photo
+            // Camera photos are not yet saved to Salesforce
+            if (!fileToRemove?.isCamera) {
+                await deleteContentDocuments({ contentDocumentIds: [fileId] });
+            }
             
             // Remove from local array
             this.uploadedFiles = this.uploadedFiles.filter(file => file.id !== fileId);
             
-            this.showToast('Success', 'File deleted successfully', 'success');
+            this.showToast('Success', 'File removed successfully', 'success');
         } catch (error) {
-            console.error('Error deleting file:', error);
-            this.showToast('Error', 'Failed to delete file: ' + (error.body?.message || error.message), 'error');
+            console.error('Error removing file:', error);
+            this.showToast('Error', 'Failed to remove file: ' + (error.body?.message || error.message), 'error');
         }
+    }
+
+    // Camera Functions
+    handleOpenCamera() {
+        this.showCameraModal = true;
+        this.capturedPhoto = null;
+        
+        // Wait for modal to render, then start camera
+        setTimeout(() => {
+            this.startCamera();
+        }, 100);
+    }
+
+    async startCamera() {
+        try {
+            const videoElement = this.template.querySelector('.camera-video');
+            if (videoElement) {
+                this.cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
+                videoElement.srcObject = this.cameraStream;
+            }
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            this.showToast('Error', 'Unable to access camera. Please check permissions.', 'error');
+            this.closeCameraModal();
+        }
+    }
+
+    handleCapturePhoto() {
+        const videoElement = this.template.querySelector('.camera-video');
+        const canvasElement = this.template.querySelector('.camera-canvas');
+        
+        if (videoElement && canvasElement) {
+            const context = canvasElement.getContext('2d');
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            context.drawImage(videoElement, 0, 0);
+            
+            // Get image data URL
+            this.capturedPhoto = canvasElement.toDataURL('image/jpeg', 0.8);
+        }
+    }
+
+    handleRetakePhoto() {
+        this.capturedPhoto = null;
+    }
+
+    handleSaveCapturedPhoto() {
+        if (!this.capturedPhoto) return;
+        
+        try {
+            // Convert base64 to blob for size validation
+            const base64Data = this.capturedPhoto.split(',')[1];
+            const blob = this.base64ToBlob(base64Data, 'image/jpeg');
+            
+            // Check file size (4MB limit)
+            const fileSizeInMB = blob.size / (1024 * 1024);
+            if (fileSizeInMB > 4) {
+                this.showToast('Error', 'Photo size exceeds 4MB limit. Please try again with lower quality.', 'error');
+                return;
+            }
+            
+            // Create file name
+            const fileName = `Camera_${new Date().getTime()}.jpg`;
+            
+            // Store temporarily in uploaded files list (will be saved on final submit)
+            this.uploadedFiles.push({
+                id: `temp_${new Date().getTime()}`, // Temporary ID
+                name: fileName,
+                url: this.capturedPhoto, // Use base64 URL for preview
+                fileType: 'image',
+                isImage: true,
+                icon: 'doctype:image',
+                isCamera: true, // Flag to identify camera photos
+                base64Data: base64Data // Store base64 for later upload
+            });
+            
+            this.closeCameraModal();
+            this.showToast('Success', 'Photo captured successfully. It will be saved when you complete the log entry.', 'success');
+        } catch (error) {
+            console.error('Error saving photo:', error);
+            this.showToast('Error', 'Failed to capture photo: ' + error.message, 'error');
+        }
+    }
+
+    base64ToBlob(base64, mimeType) {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
+    }
+
+    closeCameraModal() {
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+        }
+        this.showCameraModal = false;
+        this.capturedPhoto = null;
     }
 
     get hasUploadedFiles() {
@@ -854,6 +1009,18 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.showToast('Error', 'Please select a mobilization', 'error');
                 return;
             }
+            
+            // Validate that all crew members have at least one clock in and clock out
+            const allClockedOut = this.crewMembers.every(member => {
+                // Check if member has recent clock in and clock out times
+                return member.recentClockIn && member.recentClockOut;
+            });
+            
+            if (!allClockedOut) {
+                this.showToast('Error', 'All crew members must have at least one clock in and clock out before proceeding', 'error');
+                return;
+            }
+            
             this.currentStep = 'step2';
             this.loadTimesheetEntries();
         } else if (this.currentStep === 'step2') {
@@ -864,7 +1031,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.showToast('Warning', 'Please save or discard your progress changes before proceeding', 'warning');
                 return;
             }
-            if (!this.step3Data.whatWeDone || !this.step3Data.planForTomorrow) {
+            if (!this.step3Data.whatWeDone?.trim() || !this.step3Data.planForTomorrow?.trim()) {
                 this.showToast('Error', 'Please fill required fields', 'error');
                 return;
             }
@@ -891,26 +1058,40 @@ export default class ShiftEndLogEntries extends LightningElement {
         this.isLoading = true;
         
         try {
-            // Create Log Entry record
-            const logEntryId = await createLogEntry({
+            // Prepare step3 data with trimmed values
+            const step3DataToSave = {
+                whatWeDone: this.step3Data.whatWeDone?.trim(),
+                planForTomorrow: this.step3Data.planForTomorrow?.trim(),
+                exceptions: this.step3Data.exceptions?.trim(),
+                notesToOffice: this.step3Data.notesToOffice?.trim()
+            };
+
+            // Separate camera photos and regular uploaded files
+            const cameraPhotos = this.uploadedFiles.filter(file => file.isCamera);
+            const regularFiles = this.uploadedFiles.filter(file => !file.isCamera);
+
+            // Get ContentDocument IDs from regular uploaded files
+            const fileIds = regularFiles.map(file => file.id);
+
+            // Prepare camera photos data
+            const cameraPhotosData = cameraPhotos.map(photo => ({
+                fileName: photo.name,
+                base64Data: photo.base64Data
+            }));
+
+            // Create Log Entry record with files and camera photos in single call
+            await createLogEntry({
                 jobId: this.jobId,
-                workPerformed: this.step3Data.whatWeDone,
-                planForTomorrow: this.step3Data.planForTomorrow,
-                exceptions: this.step3Data.exceptions,
+                step3DataJson: JSON.stringify(step3DataToSave),
+                contentDocumentIds: fileIds,
+                cameraPhotosJson: JSON.stringify(cameraPhotosData),
                 workPerformedDate: new Date().toISOString()
             });
 
-            // Link uploaded files to the Log Entry
-            const fileIds = this.uploadedFiles.map(file => file.id);
-            if (fileIds.length > 0) {
-                await linkFilesToLogEntry({
-                    logEntryId: logEntryId,
-                    contentDocumentIds: fileIds
-                });
-            }
-
             this.showToast('Success', 'Shift End Log created successfully', 'success');
-            this.dispatchEvent(new CustomEvent('close'));
+            this.dispatchEvent(new CustomEvent('close', { 
+                detail: { isRecordCreated: true } 
+            }));
         } catch (error) {
             console.error('Error creating log entry:', error);
             this.showToast('Error', 'Failed to create Shift End Log: ' + (error.body?.message || error.message), 'error');
@@ -920,8 +1101,11 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     async handleDialogueClose() {
-        // Delete uploaded files if user cancels without saving
-        const fileIds = this.uploadedFiles.map(file => file.id);
+        // Delete only regular uploaded files if user cancels without saving
+        // Camera photos are not saved yet, so no need to delete them
+        const regularFiles = this.uploadedFiles.filter(file => !file.isCamera);
+        const fileIds = regularFiles.map(file => file.id);
+        
         if (fileIds.length > 0) {
             try {
                 await deleteContentDocuments({ contentDocumentIds: fileIds });
@@ -929,7 +1113,9 @@ export default class ShiftEndLogEntries extends LightningElement {
                 console.error('Error deleting files:', error);
             }
         }
-        this.dispatchEvent(new CustomEvent('close'));
+        this.dispatchEvent(new CustomEvent('close', { 
+            detail: { isRecordCreated: false } 
+        }));
     }
 
     // Utility Methods

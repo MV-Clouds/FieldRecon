@@ -325,19 +325,43 @@
                 <template if:true={isStep4}>
                     <div class="step-container">
                         <div class="gallery-section">
-                            <lightning-file-upload
-                                label="Upload Files"
-                                accept={acceptedFormats}
-                                multiple
-                                onuploadfinished={handleUploadFinished}>
-                            </lightning-file-upload>
+                            <div class="upload-actions">
+                                <lightning-file-upload
+                                    label="Upload Files"
+                                    accept={acceptedFormats}
+                                    multiple
+                                    onuploadfinished={handleUploadFinished}>
+                                </lightning-file-upload>
+                                
+                                <!-- Camera Button - Only for Desktop -->
+                                <template if:true={isDesktopDevice}>
+                                    <button class="camera-btn" onclick={handleOpenCamera}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                            <circle cx="12" cy="13" r="4"></circle>
+                                        </svg>
+                                        Take Photo
+                                    </button>
+                                </template>
+                            </div>
 
                             <!-- File Preview Grid -->
                             <template if:true={hasUploadedFiles}>
                                 <div class="file-preview-grid">
                                     <template for:each={uploadedFiles} for:item="file">
                                         <div key={file.id} class="file-preview-item">
-                                            <img src={file.url} alt={file.name} class="file-preview-thumbnail">
+                                            <!-- Image Preview -->
+                                            <template if:true={file.isImage}>
+                                                <img src={file.url} alt={file.name} class="file-preview-thumbnail">
+                                            </template>
+                                            
+                                            <!-- Document/File Icon Preview -->
+                                            <template if:false={file.isImage}>
+                                                <div class="file-icon-container">
+                                                    <lightning-icon icon-name={file.icon} size="large"></lightning-icon>
+                                                </div>
+                                            </template>
+                                            
                                             <button class="remove-file-btn" data-id={file.id} onclick={handleRemoveFile} title="Remove file">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -500,5 +524,58 @@
         <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
     </template>
 
+    <!-- Camera Modal -->
+    <template if:true={showCameraModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container camera-modal-container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeCameraModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Capture Photo</div>
+                <div class="slds-modal__content camera-modal-content">
+                    <template if:false={capturedPhoto}>
+                        <!-- Live Camera View -->
+                        <div class="camera-container">
+                            <video class="camera-video" autoplay playsinline></video>
+                            <canvas class="camera-canvas" style="display: none;"></canvas>
+                        </div>
+                        <div class="camera-actions">
+                            <button class="camera-capture-btn" onclick={handleCapturePhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                </svg>
+                                Capture
+                            </button>
+                        </div>
+                    </template>
+                    
+                    <template if:true={capturedPhoto}>
+                        <!-- Captured Photo Preview -->
+                        <div class="camera-container">
+                            <img src={capturedPhoto} alt="Captured" class="captured-photo">
+                        </div>
+                        <div class="camera-actions">
+                            <button class="camera-retake-btn" onclick={handleRetakePhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="1 4 1 10 7 10"></polyline>
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                </svg>
+                                Retake
+                            </button>
+                            <button class="camera-save-btn" onclick={handleSaveCapturedPhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Save Photo
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
 
 </template>
