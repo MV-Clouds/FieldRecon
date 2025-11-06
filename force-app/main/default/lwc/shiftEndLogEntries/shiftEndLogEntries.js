@@ -1,16 +1,20 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { deleteRecord } from 'lightning/uiRecordApi';
 import getMobilizationList from '@salesforce/apex/ShiftEndLogEntriesController.getMobilizationList';
 import getMobilizationMembersWithStatus from '@salesforce/apex/ShiftEndLogEntriesController.getMobilizationMembersWithStatus';
-import createTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createTimesheetRecords';
-import getTimeSheetEntryItems from '@salesforce/apex/JobDetailsPageController.getTimeSheetEntryItems';
-import updateTimesheets from '@salesforce/apex/JobDetailsPageController.updateTimesheets';
+import createTimesheetRecords from '@salesforce/apex/ShiftEndLogEntriesController.createTimesheetRecords';
+import getTimeSheetEntryItems from '@salesforce/apex/ShiftEndLogEntriesController.getTimeSheetEntryItems';
+import updateTimesheets from '@salesforce/apex/ShiftEndLogEntriesController.updateTimesheets';
 import getJobLocationProcesses from '@salesforce/apex/SovJobLocationProcessesController.getJobLocationProcesses';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
+import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
+import linkFilesToLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.linkFilesToLogEntry';
+import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
 
 export default class ShiftEndLogEntries extends LightningElement {
-    @api jobId;
-    @api crewLeaderId;
+    @api jobId = '';
+    @api crewLeaderId = '';
     @api crewIds = [];
 
     @track isLoading = false;
@@ -31,7 +35,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track modifiedProcesses = new Map();
     @track hasModifications = false;
     @track isSaving = false;
-    @track uploadedPhotos = [];
+    @track uploadedFiles = [];
 
     // Clock In/Out Modal
     @track showClockInModal = false;
@@ -48,16 +52,16 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track showEditTimesheetModal = false;
     @track editTimesheetData = {};
 
-    // Photo Preview Modal
-    @track showPhotoPreview = false;
-    @track previewPhotoUrl;
-
-    photoCounter = 0;
+    acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
 
     get isStep1() { return this.currentStep === 'step1'; }
     get isStep2() { return this.currentStep === 'step2'; }
     get isStep3() { return this.currentStep === 'step3'; }
     get isStep4() { return this.currentStep === 'step4'; }
+
+    get hasTimesheetEntries() {
+        return this.timesheetEntries && this.timesheetEntries.length > 0;
+    }
 
     get clockInMinBoundary() {
         const reference = this.currentJobStartDateTime || this.clockInTime;
@@ -86,6 +90,10 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     connectedCallback() {
+        console.log('jobId -> ', this.jobId);
+        console.log('crewLeaderId -> ', this.crewLeaderId);
+        console.log('crewIds -> ', this.crewIds);
+
         this.loadMobilizationList();
         this.loadLocationProcesses();
     }
@@ -214,7 +222,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                             timesheetId: member.timesheetId,
                             isTimesheetNull: member.isTimesheetNull,
                             isTimesheetEntryNull: member.isTimesheetEntryNull,
-                            mobMemberId: member.mobMemberId
+                            mobMemberId: member.mobMemberId,
+                            recentClockIn: member.recentClockIn ? this.formatDateTime(member.recentClockIn) : null,
+                            recentClockOut: member.recentClockOut ? this.formatDateTime(member.recentClockOut) : null,
+                            hasRecentTimes: !!(member.recentClockIn || member.recentClockOut)
                         });
                     });
 
@@ -234,11 +245,21 @@ export default class ShiftEndLogEntries extends LightningElement {
                             isTimesheetNull: member.isTimesheetNull,
                             isTimesheetEntryNull: member.isTimesheetEntryNull,
                             timesheetEntryId: member.timesheetEntryId,
-                            mobMemberId: member.mobMemberId
+                            mobMemberId: member.mobMemberId,
+                            recentClockIn: member.clockInTime ? this.formatDateTime(member.clockInTime) : null,
+                            recentClockOut: member.recentClockOut ? this.formatDateTime(member.recentClockOut) : null,
+                            hasRecentTimes: !!(member.clockInTime || member.recentClockOut)
                         });
                     });
 
                     this.crewMembers = Array.from(allMembers.values());
+
+                    // Sort crew members by contact name in ascending order
+                    this.crewMembers.sort((a, b) => {
+                        const nameA = a.contactName ? a.contactName.toLowerCase() : '';
+                        const nameB = b.contactName ? b.contactName.toLowerCase() : '';
+                        return nameA.localeCompare(nameB);
+                    });
 
                     // Store cost code options
                     if (result.costCodeDetails && result.costCodeDetails.length > 0) {
@@ -451,6 +472,19 @@ export default class ShiftEndLogEntries extends LightningElement {
                         TSEId: entry.TSEId,
                         rawClockIn: entry.clockInTime,
                         rawClockOut: entry.clockOutTime
+                    }));
+
+                    // Sort timesheet entries by contact name in ascending order
+                    this.timesheetEntries.sort((a, b) => {
+                        const nameA = a.contactName ? a.contactName.toLowerCase() : '';
+                        const nameB = b.contactName ? b.contactName.toLowerCase() : '';
+                        return nameA.localeCompare(nameB);
+                    });
+
+                    // Update serial numbers after sorting
+                    this.timesheetEntries = this.timesheetEntries.map((entry, index) => ({
+                        ...entry,
+                        srNo: index + 1
                     }));
                 }
             })
@@ -779,43 +813,38 @@ export default class ShiftEndLogEntries extends LightningElement {
         }, 0);
     }
 
-    // Step 4: Gallery
-    handleFileUpload(event) {
-        const files = event.target.files;
-        if (files.length > 0) {
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.photoCounter++;
-                    this.uploadedPhotos = [...this.uploadedPhotos, {
-                        id: `photo-${this.photoCounter}`,
-                        name: file.name,
-                        url: e.target.result,
-                        file: file
-                    }];
-                };
-                reader.readAsDataURL(file);
+    // Step 4: Gallery - Lightning File Upload
+    handleUploadFinished(event) {
+        const uploadedFilesFromEvent = event.detail.files;
+        uploadedFilesFromEvent.forEach(file => {
+            this.uploadedFiles.push({
+                id: file.documentId,
+                name: file.name,
+                url: `/sfc/servlet.shepherd/document/download/${file.documentId}`
             });
+        });
+        this.showToast('Success', `${uploadedFilesFromEvent.length} file(s) uploaded successfully`, 'success');
+    }
+
+    async handleRemoveFile(event) {
+        const fileId = event.currentTarget.dataset.id;
+        
+        try {
+            // Delete from Salesforce
+            await deleteContentDocuments({ contentDocumentIds: [fileId] });
+            
+            // Remove from local array
+            this.uploadedFiles = this.uploadedFiles.filter(file => file.id !== fileId);
+            
+            this.showToast('Success', 'File deleted successfully', 'success');
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            this.showToast('Error', 'Failed to delete file: ' + (error.body?.message || error.message), 'error');
         }
     }
 
-    handleRemovePhoto(event) {
-        const photoId = event.currentTarget.dataset.id;
-        this.uploadedPhotos = this.uploadedPhotos.filter(photo => photo.id !== photoId);
-    }
-
-    handlePhotoClick(event) {
-        const photoId = event.currentTarget.dataset.id;
-        const photo = this.uploadedPhotos.find(p => p.id === photoId);
-        if (photo) {
-            this.previewPhotoUrl = photo.url;
-            this.showPhotoPreview = true;
-        }
-    }
-
-    closePhotoPreview() {
-        this.showPhotoPreview = false;
-        this.previewPhotoUrl = null;
+    get hasUploadedFiles() {
+        return this.uploadedFiles && this.uploadedFiles.length > 0;
     }
 
     // Navigation
@@ -830,6 +859,11 @@ export default class ShiftEndLogEntries extends LightningElement {
         } else if (this.currentStep === 'step2') {
             this.currentStep = 'step3';
         } else if (this.currentStep === 'step3') {
+            // Check for unsaved progress bar changes
+            if (this.hasModifications) {
+                this.showToast('Warning', 'Please save or discard your progress changes before proceeding', 'warning');
+                return;
+            }
             if (!this.step3Data.whatWeDone || !this.step3Data.planForTomorrow) {
                 this.showToast('Error', 'Please fill required fields', 'error');
                 return;
@@ -842,19 +876,59 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.currentStep === 'step2') {
             this.currentStep = 'step1';
         } else if (this.currentStep === 'step3') {
+            // Check for unsaved progress bar changes
+            if (this.hasModifications) {
+                this.showToast('Warning', 'Please save or discard your progress changes before going back', 'warning');
+                return;
+            }
             this.currentStep = 'step2';
         } else if (this.currentStep === 'step4') {
             this.currentStep = 'step3';
         }
     }
 
-    handleDone() {
-        // Here you would save the shift end log record
-        this.showToast('Success', 'Shift End Log created successfully', 'success');
-        this.handleDialogueClose();
+    async handleDone() {
+        this.isLoading = true;
+        
+        try {
+            // Create Log Entry record
+            const logEntryId = await createLogEntry({
+                jobId: this.jobId,
+                workPerformed: this.step3Data.whatWeDone,
+                planForTomorrow: this.step3Data.planForTomorrow,
+                exceptions: this.step3Data.exceptions,
+                workPerformedDate: new Date().toISOString()
+            });
+
+            // Link uploaded files to the Log Entry
+            const fileIds = this.uploadedFiles.map(file => file.id);
+            if (fileIds.length > 0) {
+                await linkFilesToLogEntry({
+                    logEntryId: logEntryId,
+                    contentDocumentIds: fileIds
+                });
+            }
+
+            this.showToast('Success', 'Shift End Log created successfully', 'success');
+            this.dispatchEvent(new CustomEvent('close'));
+        } catch (error) {
+            console.error('Error creating log entry:', error);
+            this.showToast('Error', 'Failed to create Shift End Log: ' + (error.body?.message || error.message), 'error');
+        } finally {
+            this.isLoading = false;
+        }
     }
 
-    handleDialogueClose() {
+    async handleDialogueClose() {
+        // Delete uploaded files if user cancels without saving
+        const fileIds = this.uploadedFiles.map(file => file.id);
+        if (fileIds.length > 0) {
+            try {
+                await deleteContentDocuments({ contentDocumentIds: fileIds });
+            } catch (error) {
+                console.error('Error deleting files:', error);
+            }
+        }
         this.dispatchEvent(new CustomEvent('close'));
     }
 
@@ -902,6 +976,17 @@ export default class ShiftEndLogEntries extends LightningElement {
             }
         }
         return true;
+    }
+
+    formatDateTime(dateValue) {
+        if (!dateValue) return '--';
+        
+        try {
+            const iso = new Date(dateValue).toISOString();
+            return iso.slice(0, 16).replace('T', ' ');
+        } catch (error) {
+            return '--';
+        }
     }
 
     showToast(title, message, variant) {
