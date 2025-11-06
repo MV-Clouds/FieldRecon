@@ -1,6 +1,7 @@
 import { LightningElement, wire, track } from 'lwc';
 import getShiftEndLogs from '@salesforce/apex/ShiftEndLogV2Controller.getShiftEndLogs';
 import updateShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLog';
+import getCurrentUserCrewInfo from '@salesforce/apex/ShiftEndLogV2Controller.getCurrentUserCrewInfo';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -31,6 +32,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         exceptions: '',
         planForTomorrow: ''
     };
+
+    // Crew information for current user
+    @track crewLeaderId = null;
+    @track crewIds = [];
 
     // Check if there are logs to display
     get hasLogs() {
@@ -140,6 +145,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     connectedCallback() {
         this.isLoading = true;
         this.loadShiftEndLogs();
+        this.loadCrewInfo();
     }
 
     renderedCallback() {
@@ -164,6 +170,27 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 
                 this.isStylesLoaded = true;
             }
+    }
+
+    // Load crew information for current user
+    loadCrewInfo() {
+        if (!this.recordId) {
+            return;
+        }
+
+        getCurrentUserCrewInfo({ jobId: this.recordId })
+            .then(data => {
+                if (data) {
+                    this.crewLeaderId = data.crewLeaderId;
+                    this.crewIds = data.crewIds || [];
+                    console.log('Crew Leader ID:', this.crewLeaderId);
+                    console.log('Crew IDs where user is leader:', this.crewIds);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading crew info:', error);
+                // Don't show error to user as this is supplementary information
+            });
     }
 
     // Load shift end logs method

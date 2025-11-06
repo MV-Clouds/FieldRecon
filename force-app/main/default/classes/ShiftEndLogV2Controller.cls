@@ -7,11 +7,11 @@ public with sharing class ShiftEndLogV2Controller {
         List<ShiftEndLogWrapper> wrapperList = new List<ShiftEndLogWrapper>();
 
         try {
-            List<Log_Entry__c> shiftEndLogs = [SELECT Id, Name, wfrecon__Job__c, wfrecon__Work_Performed__c, wfrecon__Work_Performed_Date__c, 
-                            wfrecon__Log_Type__c, wfrecon__Exceptions__c, wfrecon__Plan_for_Tomorrow__c, 
+            List<Log_Entry__c> shiftEndLogs = [SELECT Id, Name, Job__c, Work_Performed__c, Work_Performed_Date__c, 
+                            Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, 
                             CreatedBy.Name, CreatedDate, LastModifiedDate
                 FROM Log_Entry__c 
-                WHERE wfrecon__Job__c = :jobId 
+                WHERE Job__c = :jobId 
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC];
 
@@ -99,8 +99,107 @@ public with sharing class ShiftEndLogV2Controller {
         }
     }
 
+   @AuraEnabled
+    public static CrewInfoWrapper getCurrentUserCrewInfo(Id jobId) {
+        CrewInfoWrapper crewInfo = new CrewInfoWrapper();
+
+        try {
+            // Step 1: Get current user's Contact Id
+            Id userId = UserInfo.getUserId();
+            Contact userContact = [
+                SELECT Id, User__c 
+                FROM Contact 
+                WHERE User__c = :userId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+
+            if (userContact == null) {
+                return crewInfo; // No contact, return empty wrapper
+            }
+
+            // Step 2: Get Mobilization records related to the Job
+            List<Mobilization__c> mobilizations = new List<Mobilization__c>();
+            if (jobId != null) {
+                mobilizations = [
+                    SELECT Id
+                    FROM Mobilization__c
+                    WHERE Job__c = :jobId
+                    WITH USER_MODE
+                ];
+            }
+
+            if (mobilizations.isEmpty()) {
+                return crewInfo; // No mobilizations, return empty wrapper
+            }
+
+            // Step 3: Collect all Crew IDs from Mobilization Members
+            Set<Id> mobilizationIds = new Set<Id>();
+            for (Mobilization__c mob : mobilizations) {
+                mobilizationIds.add(mob.Id);
+            }
+
+            Set<Id> crewIdsFromMobilizations = new Set<Id>();
+            if (!mobilizationIds.isEmpty()) {
+                for (Mobilization_Member__c mobMember : [
+                    SELECT Crew__c 
+                    FROM Mobilization_Member__c 
+                    WHERE Mobilization__c IN :mobilizationIds
+                    AND Crew__c != null
+                    WITH USER_MODE
+                ]) {
+                    crewIdsFromMobilizations.add(mobMember.Crew__c);
+                }
+            }
+
+            // Step 4: Query Crew records where current contact is the Crew Lead
+            if (!crewIdsFromMobilizations.isEmpty()) {
+                List<Crew__c> leaderCrews = [
+                    SELECT Id, Name, Crew_Leader__c
+                    FROM Crew__c
+                    WHERE Id IN :crewIdsFromMobilizations
+                    AND Crew_Leader__c = :userContact.Id
+                    WITH USER_MODE
+                ];
+
+                if (!leaderCrews.isEmpty()) {
+                    crewInfo.crewLeaderId = String.valueOf(userContact.Id);
+                    for (Crew__c crew : leaderCrews) {
+                        crewInfo.crewIds.add(String.valueOf(crew.Id));
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'CrewInfoController',
+                'methodName' => 'getCurrentUserCrewInfo',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error retrieving crew info for jobId: ' + jobId,
+                'apiResponse' => null
+            });
+        }
+
+        return crewInfo;
+    }
+
+
+    // Wrapper class to return data to LWC
+    public class CrewInfoWrapper {
+        @AuraEnabled public String crewLeaderId { get; set; }
+        @AuraEnabled public List<String> crewIds { get; set; }
+
+        public CrewInfoWrapper() {
+            crewLeaderId = null;
+            crewIds = new List<String>();
+        }
+    }
+
     public class ShiftEndLogWrapper {
         @AuraEnabled public Log_Entry__c logEntry { get; set; }
         @AuraEnabled public List<ContentVersion> images { get; set; }
     }
+
 }
