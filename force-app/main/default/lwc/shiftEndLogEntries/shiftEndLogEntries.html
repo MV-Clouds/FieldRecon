@@ -34,10 +34,27 @@
                         </div>
 
                         <template if:true={selectedMobilizationId}>
+                            <!-- No Crew Members Message -->
+                            <template if:false={hasCrewMembers}>
+                                <div class="no-data-message">
+                                    <div class="no-data-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="9" cy="7" r="4"></circle>
+                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="no-data-title">No Crew Members</h3>
+                                    <p class="no-data-description">There are no crew members assigned to the selected mobilization.</p>
+                                </div>
+                            </template>
+
                             <!-- Clock Status Cards -->
-                            <div class="clock-status-container">
-                                <template for:each={crewMembers} for:item="member">
-                                    <div key={member.contactId} class="crew-member-card">
+                            <template if:true={hasCrewMembers}>
+                                <div class="clock-status-container">
+                                    <template for:each={crewMembers} for:item="member">
+                                        <div key={member.contactId} class="crew-member-card">
                                         <div class="member-info">
                                             <div class="member-header">
                                                 <div class="member-name">{member.contactName}</div>
@@ -122,6 +139,7 @@
                                     </div>
                                 </template>
                             </div>
+                        </template>
                         </template>
                     </div>
                 </template>

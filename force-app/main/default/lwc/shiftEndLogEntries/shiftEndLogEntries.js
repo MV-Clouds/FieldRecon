@@ -69,6 +69,10 @@ export default class ShiftEndLogEntries extends LightningElement {
     get isStep3() { return this.currentStep === 'step3'; }
     get isStep4() { return this.currentStep === 'step4'; }
 
+    get hasCrewMembers() {
+        return this.crewMembers && this.crewMembers.length > 0;
+    }
+
     get hasTimesheetEntries() {
         return this.timesheetEntries && this.timesheetEntries.length > 0;
     }
@@ -168,7 +172,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     loadMobilizationList() {
         this.isLoading = true;
-        getMobilizationList({ jobId: this.jobId })
+        getMobilizationList({ jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 if (result) {
                     this.mobilizationOptions = Object.keys(result).map(key => ({
@@ -205,10 +209,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     loadCrewMembers() {
         this.isLoading = true;
-        getMobilizationMembersWithStatus({
-            mobId: this.selectedMobilizationId,
-            jobId: this.jobId
-        })
+        getMobilizationMembersWithStatus({ mobId: this.selectedMobilizationId, jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 if (result) {
                     // Process clock in members
@@ -467,7 +468,7 @@ export default class ShiftEndLogEntries extends LightningElement {
             new Date(this.currentJobStartDateTime).toISOString().split('T')[0] :
             new Date().toISOString().split('T')[0];
 
-        getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: jobStartDate })
+        getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: jobStartDate, mobId: this.selectedMobilizationId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 if (result) {
                     this.timesheetEntries = result.map((entry, index) => ({
@@ -1006,6 +1007,12 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.currentStep === 'step1') {
             if (!this.selectedMobilizationId) {
                 this.showToast('Error', 'Please select a mobilization', 'error');
+                return;
+            }
+            
+            // Check if there are any crew members
+            if (!this.crewMembers || this.crewMembers.length === 0) {
+                this.showToast('Error', 'No crew members found for the selected mobilization', 'error');
                 return;
             }
             

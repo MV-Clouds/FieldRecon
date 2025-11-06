@@ -2,13 +2,21 @@ public with sharing class ShiftEndLogEntriesController {
     public static TimeZone userTz = UserInfo.getTimeZone();
 
     @AuraEnabled
-    public static Map<String, String> getMobilizationList(String jobId){
+    public static Map<String, String> getMobilizationList(String jobId, String crewLeaderId){
         try {
             Map<String, String> result = new Map<String, String>();
-            List<Mobilization__c> mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c FROM Mobilization__c WHERE Job__c = :jobId WITH USER_MODE];
-            for (Mobilization__c mob : mobList) {
-                result.put(mob.Id, mob.Name + '(' + mob.wfrecon__Start_Date_Text__c + ')');
+            if (String.isNotBlank(crewLeaderId) && crewLeaderId != null) {
+                String todayStr = String.valueOf(Date.today());
+                
+                List<Mobilization__c> mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c FROM Mobilization__c WHERE Job__c = :jobId 
+                                                    AND Id IN (SELECT Mobilization__c FROM Mobilization_Member__c WHERE wfrecon__Crew_Leader_Id__c = :crewLeaderId)
+                                                    AND wfrecon__Start_Date_Text__c <= :todayStr
+                                                    WITH USER_MODE];
+                for (Mobilization__c mob : mobList) {
+                    result.put(mob.Id, mob.Name + '(' + mob.wfrecon__Start_Date_Text__c + ')');
+                }
             }
+
             return result;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getMobilizationList', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
@@ -17,7 +25,7 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static Map<String, List<WrapperMember>> getMobilizationMembersWithStatus(String mobId, String jobId) {
+    public static Map<String, List<WrapperMember>> getMobilizationMembersWithStatus(String mobId, String jobId, String crewLeaderId) {
         try {
             Map<String, List<WrapperMember>> result = new Map<String, List<WrapperMember>>();
             result.put('clockIn', new List<WrapperMember>());
@@ -28,7 +36,8 @@ public with sharing class ShiftEndLogEntriesController {
 
             List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
                                                     FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
-                                                    AND Contact__r.Can_Clock_In_Out__c = true WITH USER_MODE ORDER BY Contact__r.Name ASC];
+                                                    AND Contact__r.Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    WITH USER_MODE ORDER BY Contact__r.Name ASC];
     
             Set<Id> contactIds = new Set<Id>();
             for (Mobilization_Member__c m : members) {
@@ -372,14 +381,29 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String jobStartDate){
+    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String jobStartDate, String mobId, String crewLeaderId){
         try {
+            List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
+                                                    FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
+                                                    AND Contact__r.Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    WITH USER_MODE ORDER BY Contact__r.Name ASC];
+    
+            Set<Id> contactIds = new Set<Id>();
+            for (Mobilization_Member__c m : members) {
+                contactIds.add(m.Contact__c);
+            }
+
+            if (contactIds.isEmpty()) {
+                return null;
+            }
+
             Date startDate = Date.valueOf(jobStartDate);
 
             List<Timesheet_Entry_Item__c> items = [SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
                                                     Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
                                                     Cost_Code__r.Name, Clock_In_Date__c, Premium__c FROM Timesheet_Entry_Item__c 
                                                     WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId AND Clock_In_Date__c = :startDate
+                                                    AND Timesheet_Entry__r.TimeSheet__r.Contact__c IN :contactIds
                                                     WITH USER_MODE ORDER BY Timesheet_Entry__r.TimeSheet__r.Contact__r.Name ASC];
 
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
