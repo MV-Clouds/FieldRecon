@@ -4,7 +4,7 @@ public with sharing class NewMobilizationCalendarController {
         // Event Fetching for FullCalendar
         // ==============================
     @AuraEnabled
-    public static List<Map<String, Object>> getEvents(Id job, String status) {
+    public static List<Map<String, Object>> getEvents(Id job, List<String> status) {
         try {
             Map<String, Object> permissionMap = PermissionsUtility.checkPermissionSetsAssigned(new List<String>{'FR_Mobilization_Calendar'});
             Boolean isAdmin = (Boolean) permissionMap.get('isAdmin');
@@ -19,8 +19,10 @@ public with sharing class NewMobilizationCalendarController {
             if (job != null) {
                 filters.add('Job__c = :job');
             }
-            if (status != null && status != '') {
-                filters.add('Mobilization_Status__c = :status');
+            if (status != null && status.size() > 0) {
+                filters.add('Mobilization_Status__c  IN :status');
+            }else{
+                filters.add('Mobilization_Status__c != \'Overhead Job\'');
             }
             if(!isAdmin && !isCalendarPS){
                 List<Mobilization_Member__c> mobGroupMap = [SELECT Mobilization__r.Mobilization_Group__c FROM Mobilization_Member__c WHERE Contact__r.User__c =: UserInfo.getUserId() WITH USER_MODE];
@@ -94,14 +96,19 @@ public with sharing class NewMobilizationCalendarController {
         }
     }
 
-    @AuraEnabled(cacheable=true)
-    public static List<Job__c> getJobs(){
+    @AuraEnabled
+    public static List<Map<String,String>> getMobStatusOptions(){
+        List<Map<String,String>> result = new List<Map<String,String>>();
         try {
-            List<Job__c> jobsList = [SELECT Id, Name FROM Job__c WITH USER_MODE];
-            return jobsList;
+            Schema.DescribeFieldResult fieldResult = Mobilization_Group__c.Mobilization_Status__c.getDescribe();
+            List<Schema.PicklistEntry> ple = fieldResult.getPicklistValues();
+            for( Schema.PicklistEntry f : ple){
+                result.add(new Map<String,String>{'label' => f.getLabel(), 'value' => f.getValue()});
+            }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getJobs', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching jobs for mobilization calendar.', 'apiResponse' => null}); return null;
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getMobStatusOptions', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching status options.', 'apiResponse' => null}); return null;
         }
+        return result;
     }
 
     // ==============================

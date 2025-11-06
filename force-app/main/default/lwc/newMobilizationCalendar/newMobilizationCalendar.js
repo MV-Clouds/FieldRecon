@@ -3,11 +3,11 @@ import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
 import FULL_CALENDAR from '@salesforce/resourceUrl/FullCalendarJS3';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getEvents from '@salesforce/apex/NewMobilizationCalendarController.getEvents';
-import getJobs from '@salesforce/apex/NewMobilizationCalendarController.getJobs';
 import getJobDefaultTimes from '@salesforce/apex/NewMobilizationCalendarController.getJobDefaultTimes';
 import saveJobSchedule from '@salesforce/apex/NewMobilizationCalendarController.SaveJobSchedule';
 import getMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.getMobilizationGroup';
 import deleteMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.deleteMobilizationGroup';
+import getMobStatusOptions from '@salesforce/apex/NewMobilizationCalendarController.getMobStatusOptions';
 
 // Resource Assignment Imports
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
@@ -32,17 +32,13 @@ export default class NewMobilizationCalendar extends LightningElement {
     includeSunday = false;
     status;
     description;
-    statusOptions = [
-        { label: 'None', value: ''},
-        { label: 'Pending', value: 'Pending' },
-        { label: 'Confirmed', value: 'Confirmed' }
-    ];
+    @track statusOptions = [];
     confirmationPopup;
     showConfirmationPopup;
     confirmationTitle;
     confirmationMessage;
     event;
-    filterstatus = '';
+    filterStatus = [];
     filterjobs;
 
     displayJobs = {
@@ -184,7 +180,7 @@ export default class NewMobilizationCalendar extends LightningElement {
             .then(() => loadStyle(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.css'))
             .then(() => {
                 this.fullCalendarLoaded = true;
-                this.loadJobOptions();
+                this.loadStatusOptions();
                 return getEvents();
             })
             .then(result => {
@@ -360,14 +356,22 @@ export default class NewMobilizationCalendar extends LightningElement {
             });
     }
 
-    loadJobOptions() {
-        getJobs()
-            .then(result => {                
-                this.jobOptions = result.map((Id, Name) => ({ label: Name, value: Id }));
+    loadStatusOptions(){
+        try {
+            getMobStatusOptions()
+            .then((result) => {
+                this.statusOptions = result || [];
+                this.statusOptions.forEach(opt => {
+                    opt.isSelected = opt.label?.toLowerCase() == 'overhead job' ? false : true
+                })
+                this.filterStatus = this.statusOptions?.filter(opt => opt.isSelected)?.map(opt => opt.value) || [];
             })
             .catch(error => {
-                console.error(error);
-            });
+                console.error('Error in function NewMobilizationCalendar.loadStatusOptions:::', error?.body?.message || error?.message);
+            })
+        } catch (e) {
+            console.error('Error in function loadStatusOptions:::', e?.message);
+        }
     }
 
     handleResourceItemUpdate(event){
@@ -381,7 +385,7 @@ export default class NewMobilizationCalendar extends LightningElement {
 
     refreshCalendar() {
         this.isSpinner = true;
-        getEvents({job: this.filterjobs, status: this.filterstatus})
+        getEvents({job: this.filterjobs, status: this.filterStatus})
         .then((result) => {
             if (result && Array.isArray(result)) {                
                 this.events = result.map(ev => ({
@@ -392,7 +396,6 @@ export default class NewMobilizationCalendar extends LightningElement {
             } else {
                 this.events = [];
             }
-            this.isSpinner = false;
 
             if (!this.$cal) return;
 
@@ -401,7 +404,7 @@ export default class NewMobilizationCalendar extends LightningElement {
 
             // Add the entire updated events array
             this.$cal.fullCalendar('addEventSource', this.events);
-
+            this.isSpinner = false;
         });
     }
 
@@ -573,15 +576,18 @@ export default class NewMobilizationCalendar extends LightningElement {
         try {
             if(event.target.name === 'jobId') {
                 this.filterjobs = event.detail.recordId;
-            } else if(event.target.name === 'status') {
-                this.filterstatus = event.detail.value;
+            } else {
+                let value = event.currentTarget.dataset.value;
+                let statusToUpdate = this.statusOptions.find(opt => opt.value == value);
+                statusToUpdate.isSelected = !statusToUpdate.isSelected;
+                
+                this.filterStatus = this.statusOptions?.filter(opt => opt.isSelected)?.map(opt => opt.value) || [];
             }
             this.refreshCalendar();
         } catch (e) {
             console.error('Error in function NewMobilizationCalendar.handleFilter:::', e?.message);
         }
     }
-
 
     // Resource Allocation Popup Methods
     loadAllResources(selectedDate){
