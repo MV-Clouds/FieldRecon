@@ -52,7 +52,7 @@
         </template>
         <template if:true={hasLogs}>
             <div class="logs-grid">
-                <template for:each={filteredLogs} for:item="log">
+                <template for:each={displayedLogs} for:item="log">
                     <div key={log.Id} class="card-placeholder">
                         <div class="log-card">
                             <div class="log-card-header">
@@ -104,6 +104,46 @@
 
                 </template>
             </div>
+
+            <!-- Pagination Section -->
+            <div class="pagination-section">
+                <div class="pagination-container">
+                    <button 
+                        class="pagination-button" 
+                        onclick={handlePrevious} 
+                        disabled={isFirstPage}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Previous
+                    </button>
+                    
+                    <template for:each={pageNumbers} for:item="page">
+                        <template if:false={page.isEllipsis}>
+                            <button 
+                                key={page.number}
+                                class={page.cssClass}
+                                data-page={page.number}
+                                onclick={handlePageChange}>
+                                {page.number}
+                            </button>
+                        </template>
+                        <template if:true={page.isEllipsis}>
+                            <span key={page.number} class="pagination-ellipsis">...</span>
+                        </template>
+                    </template>
+                    
+                    <button 
+                        class="pagination-button" 
+                        onclick={handleNext} 
+                        disabled={isLastPage}>
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </template>
     </div>
 
@@ -116,9 +156,8 @@
                     <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
                             title="Close" 
                             onclick={handleCloseModal}>
-                        <svg class="slds-button__icon slds-button__icon_large" aria-hidden="true">
-                            <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
-                        </svg>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close"
+                                        class="slds-button__icon slds-button__icon_large"></lightning-icon>
                         <span class="slds-assistive-text">Close</span>
                     </button>
                     <h2 class="slds-text-heading_medium">Edit Shift End Log</h2>
@@ -126,37 +165,64 @@
 
                 <!-- Modal content -->
                 <div class="slds-modal__content slds-p-around--medium edit-modal-body">
-                    <lightning-record-edit-form 
-                        object-api-name="wfrecon__Log_Entry__c" 
-                        record-id={editLogId}
-                        onsuccess={handleUpdateSuccess}
-                        onerror={handleUpdateError}>
-                        
-                        <div class="slds-grid slds-wrap slds-gutters">
-                            <div class="slds-col slds-size_1-of-1">
-                                <lightning-input-field field-name="wfrecon__Work_Performed_Date__c"></lightning-input-field>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1">
-                                <lightning-input-field field-name="wfrecon__Work_Performed__c"></lightning-input-field>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1">
-                                <lightning-input-field field-name="wfrecon__Exceptions__c"></lightning-input-field>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1">
-                                <lightning-input-field field-name="wfrecon__Plan_for_Tomorrow__c"></lightning-input-field>
-                            </div>
+                    <form onsubmit={handleSaveEdit}>
+                        <!-- Work Performed Date Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-input
+                                type="date"
+                                label="Work Performed Date"
+                                value={editFormData.workPerformedDate}
+                                data-field="workPerformedDate"
+                                onchange={handleEditInputChange}
+                                required>
+                            </lightning-input>
                         </div>
 
-                        <div class="slds-modal__footer modal-footer-btns">
-                            <button class="slds-button slds-button_neutral cancel-btn" onclick={handleCloseModal}>Cancel</button>
-                            <lightning-button 
-                                variant="brand" 
-                                type="submit" 
-                                label="Save"
-                                class="save-btn">
-                            </lightning-button>
+                        <!-- Work Performed Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-textarea
+                                label="Work Performed"
+                                value={editFormData.workPerformed}
+                                data-field="workPerformed"
+                                onchange={handleEditInputChange}
+                                placeholder="Enter work performed details..."
+                                max-length="32000"
+                                required>
+                            </lightning-textarea>
                         </div>
-                    </lightning-record-edit-form>
+
+                        <!-- Exceptions Field (Optional) -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-textarea
+                                label="Exceptions"
+                                value={editFormData.exceptions}
+                                data-field="exceptions"
+                                onchange={handleEditInputChange}
+                                placeholder="Enter any exceptions (Optional)..."
+                                max-length="32000">
+                            </lightning-textarea>
+                        </div>
+
+                        <!-- Plan for Tomorrow Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-textarea
+                                label="Plan for Tomorrow"
+                                value={editFormData.planForTomorrow}
+                                data-field="planForTomorrow"
+                                onchange={handleEditInputChange}
+                                placeholder="Enter plan for tomorrow..."
+                                max-length="32000"
+                                required>
+                            </lightning-textarea>
+                        </div>
+                        
+                        <!-- Control buttons -->
+                        <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+                            <button class="save-btn" type="button" onclick={handleSaveEdit} disabled={isLoading}>
+                                Update
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </section>

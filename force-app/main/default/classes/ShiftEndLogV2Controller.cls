@@ -75,6 +75,30 @@ public with sharing class ShiftEndLogV2Controller {
         return wrapperList;
     }
 
+    @AuraEnabled
+    public static void updateShiftEndLog(Log_Entry__c logEntry) {
+        try {
+            if(logEntry == null) {
+                throw new AuraHandledException('Invalid log entry');
+            }
+
+        
+            update as user logEntry;
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'updateShiftEndLog', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error updating Shift End Log with Id: ' + logEntry?.Id,
+                'apiResponse' => null
+            });
+            throw new AuraHandledException('Error updating shift end log: ' + e.getMessage());
+        }
+    }
+
     public class ShiftEndLogWrapper {
         @AuraEnabled public Log_Entry__c logEntry { get; set; }
         @AuraEnabled public List<ContentVersion> images { get; set; }

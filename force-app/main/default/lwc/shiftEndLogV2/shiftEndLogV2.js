@@ -1,5 +1,6 @@
 import { LightningElement, wire, track } from 'lwc';
 import getShiftEndLogs from '@salesforce/apex/ShiftEndLogV2Controller.getShiftEndLogs';
+import updateShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLog';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -17,9 +18,111 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track showEntryPopup = false;
     @track isStylesLoaded = false;
 
+    // Pagination properties
+    @track currentPage = 1;
+    @track pageSize = 9;
+    @track visiblePages = 5;
+    @track displayedLogs = [];
+
+    // Edit form fields object
+    @track editFormData = {
+        workPerformedDate: '',
+        workPerformed: '',
+        exceptions: '',
+        planForTomorrow: ''
+    };
+
     // Check if there are logs to display
     get hasLogs() {
         return this.filteredLogs && this.filteredLogs.length > 0;
+    }
+
+    // Pagination getters
+    get totalItems() {
+        return this.filteredLogs ? this.filteredLogs.length : 0;
+    }
+
+    get totalPages() {
+        return Math.ceil(this.totalItems / this.pageSize);
+    }
+
+    get isFirstPage() {
+        return this.currentPage === 1;
+    }
+
+    get isLastPage() {
+        return this.currentPage === this.totalPages;
+    }
+
+    get startIndex() {
+        return (this.currentPage - 1) * this.pageSize + 1;
+    }
+
+    get endIndex() {
+        return Math.min(this.currentPage * this.pageSize, this.totalItems);
+    }
+
+    get pageNumbers() {
+        const pages = [];
+        const totalPages = this.totalPages;
+        
+        if (totalPages <= this.visiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push({
+                    number: i,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
+                });
+            }
+        } else {
+            const halfVisible = Math.floor(this.visiblePages / 2);
+            let startPage = Math.max(1, this.currentPage - halfVisible);
+            let endPage = Math.min(totalPages, startPage + this.visiblePages - 1);
+
+            if (endPage - startPage < this.visiblePages - 1) {
+                startPage = Math.max(1, endPage - this.visiblePages + 1);
+            }
+
+            if (startPage > 1) {
+                pages.push({
+                    number: 1,
+                    cssClass: 'pagination-button',
+                    isEllipsis: false
+                });
+                if (startPage > 2) {
+                    pages.push({
+                        number: 'ellipsis-start',
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
+                    });
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pages.push({
+                    number: i,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
+                });
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pages.push({
+                        number: 'ellipsis-end',
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
+                    });
+                }
+                pages.push({
+                    number: totalPages,
+                    cssClass: 'pagination-button',
+                    isEllipsis: false
+                });
+            }
+        }
+        
+        return pages;
     }
 
     get noLogsMessage() {
@@ -103,6 +206,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     };
                 });
                 this.filteredLogs = [...this.shiftEndLogs];
+                this.currentPage = 1; // Reset to first page
+                this.updateDisplayedLogs(); // Initialize displayed logs
                 this.hasError = false;
                 this.isLoading = false;
             })
@@ -153,6 +258,36 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         }
 
         this.filteredLogs = logs;
+        this.currentPage = 1; // Reset to first page when filtering
+        this.updateDisplayedLogs();
+    }
+
+    // Update displayed logs based on current page
+    updateDisplayedLogs() {
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        this.displayedLogs = this.filteredLogs.slice(startIndex, endIndex);
+    }
+
+    // Pagination handlers
+    handlePrevious() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.updateDisplayedLogs();
+        }
+    }
+
+    handleNext() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+            this.updateDisplayedLogs();
+        }
+    }
+
+    handlePageChange(event) {
+        const pageNumber = parseInt(event.currentTarget.dataset.page, 10);
+        this.currentPage = pageNumber;
+        this.updateDisplayedLogs();
     }
 
     // Handle create button click
@@ -168,6 +303,18 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleEdit(event) {
         const logId = event.currentTarget.dataset.id;
         this.editLogId = logId;
+        
+        // Find the log to edit and populate form fields
+        const logToEdit = this.shiftEndLogs.find(log => log.Id === logId);
+        if (logToEdit) {
+            this.editFormData = {
+                workPerformedDate: logToEdit.wfrecon__Work_Performed_Date__c || '',
+                workPerformed: logToEdit.wfrecon__Work_Performed__c || '',
+                exceptions: logToEdit.wfrecon__Exceptions__c || '',
+                planForTomorrow: logToEdit.wfrecon__Plan_for_Tomorrow__c || ''
+            };
+        }
+        
         this.showEditModal = true;
     }
 
@@ -175,21 +322,72 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleCloseModal() {
         this.showEditModal = false;
         this.editLogId = null;
+        this.clearEditForm();
     }
 
-    // Handle update success
-    handleUpdateSuccess() {
-        this.showEditModal = false;
-        this.editLogId = null;
-        this.showToast('Success', 'Shift End Log updated successfully', 'success');
-        // Reload the logs
-        this.loadShiftEndLogs();
+    // Clear edit form
+    clearEditForm() {
+        this.editFormData = {
+            workPerformedDate: '',
+            workPerformed: '',
+            exceptions: '',
+            planForTomorrow: ''
+        };
     }
 
-    // Handle update error
-    handleUpdateError(event) {
-        const errorMessage = event.detail?.message || 'Error updating shift end log';
-        this.showToast('Error', errorMessage, 'error');
+    // Handle input change in edit form
+    handleEditInputChange(event) {
+        const fieldName = event.target.dataset.field;
+        const value = event.target.value;
+        
+        this.editFormData = {
+            ...this.editFormData,
+            [fieldName]: value
+        };
+    }
+
+    // Handle save button click
+    handleSaveEdit() {
+        // Validate required fields
+        if (!this.editFormData.workPerformedDate) {
+            this.showToast('Error', 'Work Performed Date is required', 'error');
+            return;
+        }
+
+        if (!this.editFormData.workPerformed || this.editFormData.workPerformed.trim() === '') {
+            this.showToast('Error', 'Work Performed is required', 'error');
+            return;
+        }
+
+        if (!this.editFormData.planForTomorrow || this.editFormData.planForTomorrow.trim() === '') {
+            this.showToast('Error', 'Plan for Tomorrow is required', 'error');
+            return;
+        }
+
+        const formData = {
+            Id: this.editLogId,
+            wfrecon__Work_Performed_Date__c: this.editFormData.workPerformedDate,
+            wfrecon__Work_Performed__c: this.editFormData.workPerformed,
+            wfrecon__Exceptions__c: this.editFormData.exceptions,
+            wfrecon__Plan_for_Tomorrow__c: this.editFormData.planForTomorrow
+        };
+
+        this.isLoading = true;
+
+        // Pass the entire form data object to Apex
+        updateShiftEndLog({ logEntry: formData })
+            .then(() => {
+                this.showToast('Success', 'Shift End Log updated successfully', 'success');
+                this.handleCloseModal();
+                this.loadShiftEndLogs();
+            })
+            .catch(error => {
+                const errorMessage = error.body?.message || 'Error updating shift end log';
+                this.showToast('Error', errorMessage, 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
     }
 
     // Handle record navigation
