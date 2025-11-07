@@ -87,12 +87,45 @@ public with sharing class ShiftEndLogV2Controller {
                         CreatedBy.Name, CreatedDate, LastModifiedDate
                    FROM Log_Entry__c 
                    WHERE Job__c = :jobId 
-                   WITH USER_MODE
+                   AND Log_Type__c = 'Shift End'
                    ORDER BY CreatedDate DESC]
                 : new List<Log_Entry__c>();
 
             Set<Id> logIds = new Set<Id>();
             for(Log_Entry__c log : shiftEndLogs) logIds.add(log.Id);
+
+            // Get current location processes for the job
+            Map<Id, List<LocationProcessSnapshot>> jobLocationProcessesMap = new Map<Id, List<LocationProcessSnapshot>>();
+            if(jobId != null) {
+                List<Location_Process__c> locationProcesses = [
+                    SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
+                           wfrecon__Location__c, wfrecon__Location__r.Name
+                    FROM Location_Process__c 
+                    WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId 
+                    WITH USER_MODE
+                    ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
+                ];
+
+                List<LocationProcessSnapshot> processSnapshots = new List<LocationProcessSnapshot>();
+                for(Location_Process__c lp : locationProcesses) {
+                    LocationProcessSnapshot snapshot = new LocationProcessSnapshot();
+                    snapshot.processId = lp.Id;
+                    snapshot.processName = lp.Name;
+                    snapshot.locationName = lp.wfrecon__Location__r.Name;
+                    snapshot.completionPercentage = lp.wfrecon__Completed_Percentage__c != null 
+                        ? lp.wfrecon__Completed_Percentage__c 
+                        : 0;
+                    snapshot.sequence = lp.wfrecon__Sequence__c != null 
+                        ? Integer.valueOf(lp.wfrecon__Sequence__c) 
+                        : null;
+                    processSnapshots.add(snapshot);
+                }
+                
+                // Store location processes for this job
+                if(!processSnapshots.isEmpty()) {
+                    jobLocationProcessesMap.put(jobId, processSnapshots);
+                }
+            }
 
             Map<Id, List<ContentVersion>> logImagesMap = new Map<Id, List<ContentVersion>>();
             if(!logIds.isEmpty()) {
@@ -132,6 +165,12 @@ public with sharing class ShiftEndLogV2Controller {
                 ShiftEndLogWrapper wrapper = new ShiftEndLogWrapper();
                 wrapper.logEntry = log;
                 wrapper.images = logImagesMap.containsKey(log.Id) ? logImagesMap.get(log.Id) : new List<ContentVersion>();
+                
+                // Get current location processes for this job
+                wrapper.locationProcesses = jobLocationProcessesMap.containsKey(log.wfrecon__Job__c) 
+                    ? jobLocationProcessesMap.get(log.wfrecon__Job__c) 
+                    : new List<LocationProcessSnapshot>();
+                
                 resultWrapper.shiftEndLogs.add(wrapper);
             }
 
@@ -241,6 +280,15 @@ public with sharing class ShiftEndLogV2Controller {
     public class ShiftEndLogWrapper {
         @AuraEnabled public Log_Entry__c logEntry { get; set; }
         @AuraEnabled public List<ContentVersion> images { get; set; }
+        @AuraEnabled public List<LocationProcessSnapshot> locationProcesses { get; set; }
+    }
+
+    public class LocationProcessSnapshot {
+        @AuraEnabled public String processId { get; set; }
+        @AuraEnabled public String processName { get; set; }
+        @AuraEnabled public String locationName { get; set; }
+        @AuraEnabled public Decimal completionPercentage { get; set; }
+        @AuraEnabled public Integer sequence { get; set; }
     }
 
 }

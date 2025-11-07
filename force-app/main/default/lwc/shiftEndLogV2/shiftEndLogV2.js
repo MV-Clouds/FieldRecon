@@ -175,6 +175,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.loadShiftEndLogsWithCrewInfo();
     }
 
+    renderedCallback() {
+        // Update progress bar widths dynamically
+        const progressBars = this.template.querySelectorAll('.process-progress-fill');
+        progressBars.forEach(bar => {
+            const percentage = bar.dataset.percentage || 0;
+            bar.style.width = `${percentage}%`;
+        });
+    }
+
     // Load shift end logs with crew information
     loadShiftEndLogsWithCrewInfo() {
         if (!this.recordId) {
@@ -198,6 +207,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 this.shiftEndLogs = data.shiftEndLogs.map(wrapper => {
                     const log = wrapper.logEntry;
                     const images = wrapper.images || [];
+                    const locationProcesses = wrapper.locationProcesses || [];
                     
                     return {
                         Id: log.Id,
@@ -228,7 +238,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             previewUrl: `/sfc/servlet.shepherd/version/renditionDownload?rendition=SVGZ&versionId=${img.Id}`
                         })),
                         hasImages: images.length > 0,
-                        imageCount: images.length
+                        imageCount: images.length,
+                        // Location processes
+                        locationProcesses: locationProcesses,
+                        hasLocationProcesses: locationProcesses.length > 0
                     };
                 });
                 
