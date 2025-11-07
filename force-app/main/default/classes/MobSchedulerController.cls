@@ -1,6 +1,6 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 92% (2025-11-03)
+ * Test Class: MobSchedulerControllerTest - 92% (2025-11-06)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
  * Update: 2025-10-27 (Kevin)   - Updated the logic for the start and end date to fix timezone based issues
@@ -10,6 +10,7 @@
  * Update: 2025-10-30 (Kevin)   - Modified code to allow assignments from the Calendar, by getting the first mobilization of the group to assign resources
  * Update: 2025-10-31 (Dhairya) - Modified the resource assignment according to the crew implementation and fixed the duplicate assignment bug for resource assignment to mob
  * Update: 2025-11-03 (Kevin)   - Updated the return statement for already assigned resource
+ * Update: 2025-11-06 (Kevin)   - Updated the getDefaultValues methods to also retrieve the status options
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -121,7 +122,7 @@ public with sharing class MobSchedulerController {
      */
     @AuraEnabled
     public static Map<String, Object> getDefaultValues() {
-        Map<String, Object> defaultValues = new Map<String, Object>{'time' => null, 'status' => null, 'result' => null};
+        Map<String, Object> defaultValues = new Map<String, Object>{'statusOptions' => null, 'time' => null, 'status' => null, 'result' => null};
 
         try {
             List<Job_Default_Times__c> timeDefaults = [
@@ -134,6 +135,15 @@ public with sharing class MobSchedulerController {
                 FROM Mobilization_Status_Color__c 
                 WITH USER_MODE
             ];
+
+            List<Map<String,String>> options = new List<Map<String,String>>();
+            Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+            List<Schema.PicklistEntry> ple = fieldResult.getPicklistValues();
+            for( Schema.PicklistEntry f : ple){
+                options.add(new Map<String,String>{'label' => f.getLabel(), 'value' => f.getValue()});
+            }
+
+            defaultValues.put('statusOptions', options);
 
             if(timeDefaults != null && !timeDefaults.isEmpty()) {
                 Map<String, Object> defaultMap = new Map<String, Object>{'start' => null, 'end' => null, 'includeSaturday' => timeDefaults[0].Include_Saturday__c, 'includeSunday' => timeDefaults[0].Include_Sunday__c};
@@ -436,32 +446,33 @@ public with sharing class MobSchedulerController {
         try {
             // Get Details about the Mobilization Group
             Mobilization__c currentMob = new Mobilization__c();
+            List<SObject> recordsToDelete = new List<SObject>();
+
             if(allUpcoming == 'true'){
                 currentMob = [SELECT Id, Mobilization_Group__c FROM Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
                 // Delete all upcoming mobilizations under the same Mobilization Group
                 DateTime nowDT = System.now();
                 if(type == 'CrewMaster'){
-                    List<Mobilization_Member__c> mobMembersToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
-                    delete as user mobMembersToDelete;
+                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
                 } else if(type == 'Crew' || type == 'SubContractor'){
-                    List<Mobilization_Member__c> mobMember = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
-                    delete as user mobMember;
+                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
                 } else if (type == 'Asset'){
-                    List<Mobilization_Asset__c> mobAsset = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
-                    delete as user mobAsset;
+                    recordsToDelete = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
                 }
-                return 'success';
+            }else{
+                if(type == 'CrewMaster'){
+                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                } else if(type == 'Crew' || type == 'SubContractor'){
+                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                } else if (type == 'Asset'){
+                    recordsToDelete = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                }
             }
 
-            if(type == 'CrewMaster'){
-                List<Mobilization_Member__c> mobMembersToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
-                delete as user mobMembersToDelete;
-            } else if(type == 'Crew' || type == 'SubContractor'){
-                Mobilization_Member__c mobMember = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
-                delete as user mobMember;
-            } else if (type == 'Asset'){
-                Mobilization_Asset__c mobAsset = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
-                delete as user mobAsset;
+            if(recordsToDelete?.size() >= 10000 || Test.isRunningTest()){
+                Database.executeBatch(new GenericDmlBatch(recordsToDelete, 'DELETE'), 200);
+            }else{
+                delete as user recordsToDelete;
             }
             return 'success';
         } catch (Exception e) {
@@ -882,8 +893,14 @@ public with sharing class MobSchedulerController {
             }
 
             // Instruction: Insert new assignments in user mode when any prepared.
+            System.debug('Size is :: '+ newAssignments.size());
             if (!newAssignments.isEmpty()) {
-                insert as user newAssignments;
+                if (newAssignments.size() >= 10000 || Test.isRunningTest()){
+                    System.debug('Going to batch');
+                    Database.executeBatch(new GenericDmlBatch(newAssignments, 'INSERT'), 200);
+                } else {
+                    insert as user newAssignments;
+                }
             }
 
             return JSON.serialize(new Map<String, Object>{

@@ -32,17 +32,21 @@ export default class AiBillForm extends LightningElement {
     contractSUM;
     totalCompletedandStoredtoDate;
     contractDate;
+    acccountName;
     isLoading = true;
     _previousBodyOverflow = null;
     _boundMessageHandler = null;
     _boundKeyHandler = null;
     pdfLibsInitialized = false;
     pdfJsLoaded = false;
-	conSumPrevious_Billed_Percent;
-	conSumPrevious_Billed_Value;
-	conSumThis_Billing_Percent;
-	conSumTotal_Billing_Value_Retainage;
-	conSumThis_Retainage_Amount;
+	totalC;
+	totalD;
+	totalE;
+	totalF;
+    totalG;
+    totalH;
+    totalI;
+    totalJ;
 
 	changSumPrevious_Billed_Percent;
 	changSumPrevious_Billed_Value;
@@ -57,6 +61,20 @@ export default class AiBillForm extends LightningElement {
     thisMonthDeduction;
     totalAddition;
     totalDeduction;
+
+    companyAddress;
+    jobAddress;
+    billEndDate;
+    comName;
+    totalContractValue;
+    contractSumToDate;
+    totalBilledAmount;
+    wfreconRetainageOnBill;
+    retainageCompletedToDate;
+    totalAmountEarnedLessRetainage;
+    lessPreviousCertificatedforPayment;
+    currentPaymentDue;
+    balanceToFinishRetainage;
 
     connectedCallback() {
         this._boundKeyHandler = this._handleKeydown.bind(this);
@@ -73,28 +91,6 @@ export default class AiBillForm extends LightningElement {
         }
     }
 
-    // renderedCallback() {
-    //     if (this.pdfLibsInitialized) {
-    //         return;
-    //     }
-    //     this.pdfLibsInitialized = true;
-
-    //     // Load PDF.js only (we do NOT load html2pdf here because your VF page handles pdf generation)
-    //     loadScript(this, pdfLibs + "/pdfJS/web/pdf.js")
-    //         .then(() => {
-    //             if (window['pdfjs-dist/build/pdf']) {
-    //                 window.pdfjsLib = window['pdfjs-dist/build/pdf'];
-    //             } else if (window.pdfjsLib) {
-    //                 // already present
-    //             }
-    //             this.pdfJsLoaded = !!window.pdfjsLib;
-    //             console.log("PDF.js loaded:", this.pdfJsLoaded);
-    //         })
-    //         .catch((error) => {
-    //             console.error("Error loading PDF Libraries: ", error);
-    //             this.showToast("Error", "Failed to load PDF libraries.", "error");
-    //         });
-    // }
     renderedCallback() {
 		// Load PDF.js library
 		if (this.pdfLibsInitialized) {
@@ -140,53 +136,92 @@ export default class AiBillForm extends LightningElement {
         const data = await getBillingData({ recordId });
         if (data) {
                 console.log("Raw billing data from Apex:", data);
-                console.log("Raw billing data from Apex:", data);
+                // console.log("Raw billing data from Apex:", data);
 
                 this.billingRecord = data.billingRecord || {};
                 this.contractList = data.contractLineItems || [];
                 this.changeOrderList = data.changeOrderLineItems || [];
                 this.contractSums = data.contractSums || {};
-                this.changeOrderSummary = data.changeOrderSums || {};
+                this.changeOrderSummary = data.changeOrderSummary || {};
                 this.error = undefined;
 
                 const br = this.billingRecord || {};
                 this.toContractor = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Contractor__c : "";
+                this.acccountName = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Account__r ? br.wfrecon__Job__r.wfrecon__Account__r.Name : "" : "";
                 this.project = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Job_Name__c : "";
                 this.applicationNo = br.wfrecon__Application_Number__c || "";
                 this.distributionTo = br.wfrecon__Distribution_To__c || "";
                 this.fromSubcontractor = br.wfrecon__From_Subcontractor__c || "";
-                this.viaArchitect = br.wfrecon__Via_Architect__c || "";
+                this.viaArchitect = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Architect__r.Name : "";
                 this.periodTo = br.wfrecon__Period_To__c || "";
                 this.projectNo = br.wfrecon__Job__r ? br.wfrecon__Job__r.Name : "";
                 this.originalContractSum = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Contract_Price__c : 0;
-                this.netchangebyChangeOrders = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c : 0;
+                this.netchangebyChangeOrders = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c : 0.00;
                 this.contractSUM = br.wfrecon__Total_Contract_Sum__c || 0;
                 this.totalCompletedandStoredtoDate = br.wfrecon__Total_Completed_Stored_to_Date__c || 0;
-
+                this.jobAddress = [
+                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Street__c : "",
+                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__City__c : "",
+                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__State__c : "",
+                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Zip_Code__c : "",
+                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Country__c : ""
+                    ]
+                        .filter(part => part && part.trim() !== '')
+                        .join(', '); 
+                this.billEndDate = br.wfrecon__End_Date__c || "";
+                this.totalContractValue = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Contract_Value__c || 0.00 : 0.00;
+                this.contractSumToDate = br.wfrecon__Contract_Sum_to_Date__c || 0.00;
+                this.totalBilledAmount = br.wfrecon__Total_Billed_Amount__c || 0.00;
+                this.wfreconRetainageOnBill = br.wfrecon__Retainage_on_Bill__c || 0;
+                this.retainageCompletedToDate = br.wfrecon__Retainage_Completed_to_Date__c || 0.00;
+                this.totalAmountEarnedLessRetainage = br.wfrecon__Total_Amount_Earned_Less_Retainage__c || 0.00;
+                this.lessPreviousCertificatedforPayment = br.wfrecon__Less_Previous_Certificated_for_Payment__c || 0.00;
+                this.currentPaymentDue = br.wfrecon__Current_Payment_Due_FM__c || 0.00;
+                this.balanceToFinishRetainage = br.wfrecon__Balance_to_Finish_Retainage__c || 0.00;
                 const conSum = this.contractSums || {};
-                this.conSumPrevious_Billed_Percent = conSum.Previous_Billed_Percent || 0;
-                this.conSumPrevious_Billed_Value = conSum.Previous_Billed_Value || 0;
-                this.conSumThis_Billing_Percent = conSum.This_Billing_Percent || 0;
-                this.conSumTotal_Billing_Value_Retainage = conSum.Total_Billing_Value_Retainage || 0;
-                this.conSumThis_Retainage_Amount = conSum.This_Retainage_Amount || 0;
+                this.totalC = conSum.totalC;
+                this.totalD = conSum.totalD;
+                this.totalE = conSum.totalE;
+                this.totalF = conSum.totalF;
+                this.totalG = conSum.totalG;
+                this.totalH = conSum.totalH;
+                this.totalI = conSum.totalI;
+                this.totalJ = conSum.totalJ;
+
 
                 const changeOrderSummary = this.changeOrderSummary || {};
-                this.netChanges = changeOrderSummary.Net_Changes || 0;
-                this.previousAddition = changeOrderSummary.Previous_Addition || 0;
-                this.previousDeduction = changeOrderSummary.Previous_Deduction || 0;
-                this.thisMonthAddition = changeOrderSummary.This_Month_Addition || 0;
-                this.thisMonthDeduction = changeOrderSummary.This_Month_Deduction || 0;
-                this.totalAddition = changeOrderSummary.Total_Addition || 0;
-                this.totalDeduction = changeOrderSummary.Total_Deduction || 0;
+                this.netChanges = changeOrderSummary.netChanges || 0.00;
+                this.previousAddition = changeOrderSummary.previousAddition || 0.00;
+                this.previousDeduction = changeOrderSummary.previousDeduction || 0.00;
+                this.thisMonthAddition = changeOrderSummary.thisMonthAddition || 0.00;
+                this.thisMonthDeduction = changeOrderSummary.thisMonthDeduction || 0.00;
+                this.totalAddition = changeOrderSummary.totalAddition || 0.00;
+                this.totalDeduction = changeOrderSummary.totalDeduction || 0.00;
+                this.companyAddress = changeOrderSummary.companyAddress || "";
+                this.comName = this.changeOrderSummary.comName || "";
+                // console.log('changeOrderSummary.companyAddress *** :',changeOrderSummary.companyAddress);
+                // console.log('this.companyAddress *** :',this.companyAddress);
+
+                // const today = new Date();
+                // const formattedDate = `${(today.getMonth() + 1)
+                // .toString()
+                // .padStart(2, '0')}/${today
+                // .getDate()
+                // .toString()
+                // .padStart(2, '0')}/${today.getFullYear()}`;
+                // this.contractDate = formattedDate;
 
                 const today = new Date();
-                const formattedDate = `${(today.getMonth() + 1)
+                const formattedDate = `${today.getFullYear()}-${(today.getMonth() + 1)
                 .toString()
-                .padStart(2, '0')}/${today
+                .padStart(2, '0')}-${today
                 .getDate()
                 .toString()
-                .padStart(2, '0')}/${today.getFullYear()}`;
+                .padStart(2, '0')}`;
+
                 this.contractDate = formattedDate;
+
+                
 
                 const container = this.template.querySelector('.dynamic-container');
                 const tabel2 = this.template.querySelector('.dynamic-container-2tabel');
@@ -220,14 +255,14 @@ export default class AiBillForm extends LightningElement {
                                 <tr>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${startIndex + i + 1}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Scope_Entry__r || ''}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Scheduled_Value__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Previous_Billed_Value__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__This_Billing_Value__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Total_Billing_Value__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Total_Billed_Percent__c || 0}%</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Balance_To_Finish__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__This_Retainage_Amount__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Previous_Application__c || 0}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueOf_G}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r}</td>
                                 </tr>`;
                         });
 
@@ -250,12 +285,12 @@ export default class AiBillForm extends LightningElement {
                         lastChunkCount = end - i; // <-- count rows in last chunk
 
                         if (tableCount == 0) {
-                            console.log('tableCount *** : ', tableCount);
+                            // console.log('tableCount *** : ', tableCount);
                             htmlContent += buildTable(this.contractList, i, end);
                             tableCount++;
                             chunkSize = 28;
                         } else {
-                            console.log('tableCount else *** : ', tableCount);
+                            // console.log('tableCount else *** : ', tableCount);
                             htmlContent += `<div style="width: 100%; display:flex; justify-content: space-between;">
                                                 <div style="font-weight: bold; font-size: 8pt;">SCHEDULE OF VALUES</div>
                                                 <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
@@ -268,8 +303,8 @@ export default class AiBillForm extends LightningElement {
                     }
 
                     // ✅ Log total number of chunks and last chunk size
-                    console.log('Total number of table chunks:', tableCount);
-                    console.log('Number of rows in last chunk:', lastChunkCount);
+                    // console.log('Total number of table chunks:', tableCount);
+                    // console.log('Number of rows in last chunk:', lastChunkCount);
                     totalTabelContractList = tableCount;
 
                     container.innerHTML = htmlContent;
@@ -297,16 +332,16 @@ export default class AiBillForm extends LightningElement {
                         list.slice(startIndex, endIndex).forEach((item, i) => {
                             rows += `
                                 <tr>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">#${startIndex + i + 1}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${startIndex + i + 1}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Scope_Entry__r || ''}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Previous_Billed_Percent__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__This_Billing_Percent__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__This_Billing_Value__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Total_Billing_Value_Retainage__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Total_Billed_Percent__c || 0}%</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__This_Retainage_Amount__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__This_Retainage_Amount__c || 0}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Previous_Application__c || 0}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueOf_G}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r}</td>
                                 </tr>`;
                         });
 
@@ -322,22 +357,22 @@ export default class AiBillForm extends LightningElement {
                     let chunkSize = 30;
                     if(lastChunkCount >= 29){
                         chunkSize = 30;
-                        console.log('you are in 1 if');
+                        // console.log('you are in 1 if');
                         
                     }else{
                         if(lastChunkCount < 24){
                             chunkSize = 24-lastChunkCount;
-                            console.log('you are in 2 if');
+                            // console.log('you are in 2 if');
                         }else{
                         chunkSize = 30;
-                        console.log('you are in  2 if elase');
+                        // console.log('you are in  2 if elase');
                         }
                         
                     }
                     let tableCount = 0;
                     for (let i = 0; i < this.changeOrderList.length; i += chunkSize) {
                         if(tableCount == 0){
-                            console.log('tableCount *** : ',tableCount);
+                            // console.log('tableCount *** : ',tableCount);
                             const end = Math.min(i + chunkSize, this.changeOrderList.length);
                             if (chunkSize == 30 || totalTabelContractList == 1 && lastChunkCount == 19 ) {
                             htmlContent += `<div style="margin-top: 40px;"></div>
@@ -351,7 +386,7 @@ export default class AiBillForm extends LightningElement {
                             tableCount++;
                             chunkSize = 30;
                         }else{
-                            console.log('tableCount else *** : ',tableCount);
+                            // console.log('tableCount else *** : ',tableCount);
                             const end = Math.min(i + chunkSize, this.changeOrderList.length);
                             htmlContent += `<div style="margin-top: 40px;"></div>
                                             <div style="width: 100%; display:flex; justify-content: space-between">
@@ -467,7 +502,7 @@ export default class AiBillForm extends LightningElement {
                 html2canvas: { scale: 3, useCORS: true, letterRendering: true },
                 // pagebreak: { mode: ["avoid-all", "css", "legacy"] },
                 pagebreak: { mode: ['css', 'legacy'], before: '.html2pdf__page-break' },
-                jsPDF: { unit: "px", format: "a4", orientation: "landscape", hotfixes: ["px_scaling"] }
+                jsPDF: { unit: "px", format: "letter", orientation: "landscape", hotfixes: ["px_scaling"] }
             };
 
             this.isGeneratingPDF = true;
@@ -537,6 +572,7 @@ export default class AiBillForm extends LightningElement {
                 canvas.width = Math.floor(viewport.width);
                 canvas.height = Math.floor(viewport.height);
                 canvas.classList.add("canvasClass");
+                canvas.style.width = "inherit !important";
                 await page.render({ canvasContext: context, viewport }).promise;
             }
         } catch (err) {

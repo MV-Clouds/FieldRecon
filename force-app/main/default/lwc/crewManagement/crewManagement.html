@@ -226,6 +226,21 @@
                         </div>
                     </div>
 
+                    <div class="crew-leader-section">
+                        <lightning-combobox
+                            class="crew-leader-combobox"
+                            name="crewLeader"
+                            label="Crew Leader (optional)"
+                            value={crewLeaderSelectionValue}
+                            options={crewLeaderOptions}
+                            onchange={handleCrewLeaderChange}
+                            placeholder="Select a crew leader"
+                            disabled={isCrewLeaderSelectionDisabled}
+                            dropdown-alignment="left">
+                        </lightning-combobox>
+                        <p class="crew-leader-helper">Only members added above are available for selection.</p>
+                    </div>
+
                 </div>
                 <div class="slds-modal__footer slds-grid slds-grid--align-center slds-p-vertical--medium crew-bottom-footer-btn">
                     <button class="crew-save-btn" onclick={handleSaveCrew} disabled={isLoading}>

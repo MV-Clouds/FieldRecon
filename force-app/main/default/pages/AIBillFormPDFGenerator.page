@@ -50,7 +50,7 @@
         
         // Listen for messages from parent LWC
         window.addEventListener('message', function(event) {
-            console.log('VF received message:', event.data);
+            // console.log('VF received message:', event.data);
             
             if (event.data && event.data.action === 'generatePDF') {
                 console.log('optiuons : ', event.data.options);
@@ -86,7 +86,7 @@
                 
                 // Set content
                 const contentDiv = document.getElementById('content');
-                console.log('Setting content div innerHTML', contentDiv);
+                // console.log('Setting content div innerHTML', contentDiv);
                 
                 // Clean up the HTML content
                 let cleanedHtml = htmlContent
@@ -96,8 +96,8 @@
                 
                 contentDiv.innerHTML = cleanedHtml;
                 
-                console.log('Content div innerHTML set, length:', contentDiv.innerHTML.length);
-                console.log('Content div first 1000 chars:', contentDiv.innerHTML.substring(0, 1000));
+                // console.log('Content div innerHTML set, length:', contentDiv.innerHTML.length);
+                // console.log('Content div first 1000 chars:', contentDiv.innerHTML.substring(0, 1000));
                 
                 // Make sure the content is visible for rendering (but off-screen)
                 contentDiv.style.position = 'absolute';
@@ -117,22 +117,22 @@
                     jsPDF: { unit: 'px', format: 'a4', orientation: 'landscape', hotfixes: ['px_scaling'] }
                 };
                 
-                console.log('Starting PDF generation with options:', opt);
-                console.log('Content div element:', contentDiv);
-                console.log('Content div offsetHeight:', contentDiv.offsetHeight);
-                console.log('Content div offsetWidth:', contentDiv.offsetWidth);
+                // console.log('Starting PDF generation with options:', opt);
+                // console.log('Content div element:', contentDiv);
+                // console.log('Content div offsetHeight:', contentDiv.offsetHeight);
+                // console.log('Content div offsetWidth:', contentDiv.offsetWidth);
                 
                 // Wait a bit for DOM to fully render
                 setTimeout(function() {
-                    console.log('Starting html2pdf generation...');
-                    console.log('Final content check - offsetHeight:', contentDiv.offsetHeight);
+                    // console.log('Starting html2pdf generation...');
+                    // console.log('Final content check - offsetHeight:', contentDiv.offsetHeight);
                     
-                    console.log('contentDiv.children[0] : ', contentDiv.children[0]?.innerHTML);
+                    // console.log('contentDiv.children[0] : ', contentDiv.children[0]?.innerHTML);
                     
                     // Generate PDF
                     html2pdf().set(opt).from(contentDiv.children[0]).outputPdf('datauristring')
                     .then(function(pdfDataUri) {
-                        console.log('PDF generated! Data URI length:', pdfDataUri.length);
+                        // console.log('PDF generated! Data URI length:', pdfDataUri.length);
                         document.getElementById('status').textContent = 'PDF generated successfully!';
                         
                         // Send PDF data back to parent LWC
@@ -156,7 +156,7 @@
                     });
                 }, 100);
                     
-                console.log('PDF generation scheduled');
+                // console.log('PDF generation scheduled');
             } catch (error) {
                 console.error('Exception in generatePDF:', error);
                 sendError(error.message || error.toString());

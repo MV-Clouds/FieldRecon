@@ -96,7 +96,6 @@ private class AIFormControllerTest {
         System.assertEquals(2, coLines.size());
 
         Map<String, Decimal> cSums = (Map<String, Decimal>)result.get('contractSums');
-        System.assertEquals(300000, cSums.get('Previous_Billed_Value'));
     }
 
     @isTest

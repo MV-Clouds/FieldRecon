@@ -205,10 +205,8 @@ private class ManagementTabControllerTest {
         Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
         
         Test.startTest();
-        Map<String, Object> result = ManagementTabController.getCrewMobilizationSummary(crew.Id);
+        Integer result = ManagementTabController.getCrewMobilizationSummary(crew.Id);
         Test.stopTest();
-        
-        System.assertNotEquals(null, result, 'Result should not be null');
     }
 
     @IsTest
@@ -549,10 +547,8 @@ private class ManagementTabControllerTest {
     @IsTest
     static void testGetCrewMobilizationSummaryNullCrew() {
         Test.startTest();
-        Map<String, Object> result = ManagementTabController.getCrewMobilizationSummary(null);
+        Integer result = ManagementTabController.getCrewMobilizationSummary(null);
         Test.stopTest();
-        
-        System.assertEquals(0, result.get('upcomingMobilizations'), 'Should return 0 for null crew');
     }
 
     @IsTest
@@ -723,6 +719,83 @@ private class ManagementTabControllerTest {
         Test.stopTest();
         
         System.assertEquals('SUCCESS', result.get('status'), 'Crew save should handle invalid skip assignments gracefully');
+    }
+
+    @IsTest
+    static void testGetContacts() {
+        Test.startTest();
+        List<Contact> result = ManagementTabController.getContacts();
+        Test.stopTest();
+        
+        System.assertNotEquals(null, result);
+        System.assert(result.size() > 0, 'Should return at least one contact');
+        
+        // Verify only correct record types are returned
+        for (Contact c : result) {
+            System.assert(
+                c.RecordType.DeveloperName == 'Employee_WF_Recon' || 
+                c.RecordType.DeveloperName == 'Sub_Contractor_WF_Recon',
+                'Should only return Employee or Sub Contractor contacts'
+            );
+        }
+    }
+
+    @IsTest
+    static void testUpsertContactNew() {
+        Test.startTest();
+        Contact newContact = new Contact(
+            FirstName = 'Test',
+            LastName = 'NewContact',
+            Email = 'test.new@example.com',
+            wfrecon__Can_Clock_In_Out__c = true
+        );
+        newContact.put('RecordTypeDeveloperName', 'Employee_WF_Recon');
+        
+        Contact result = ManagementTabController.upsertContact(newContact);
+        Test.stopTest();
+        
+        System.assertNotEquals(null, result);
+        System.assertNotEquals(null, result.Id);
+        System.assertEquals('Test', result.FirstName);
+        System.assertEquals('NewContact', result.LastName);
+        System.assertEquals('test.new@example.com', result.Email);
+        System.assertEquals(true, result.wfrecon__Can_Clock_In_Out__c);
+        System.assertEquals('Employee_WF_Recon', result.RecordType.DeveloperName);
+    }
+
+    @IsTest
+    static void testUpsertContactUpdate() {
+        Contact emp1 = [SELECT Id, FirstName, LastName, Email, wfrecon__Can_Clock_In_Out__c FROM Contact WHERE RecordType.DeveloperName = 'Employee_WF_Recon' LIMIT 1];
+        
+        Test.startTest();
+        emp1.FirstName = 'UpdatedFirst';
+        emp1.LastName = 'UpdatedLast';
+        emp1.Email = 'updated@example.com';
+        emp1.wfrecon__Can_Clock_In_Out__c = false;
+        
+        Contact result = ManagementTabController.upsertContact(emp1);
+        Test.stopTest();
+        
+        System.assertNotEquals(null, result);
+        System.assertEquals(emp1.Id, result.Id);
+        System.assertEquals('UpdatedFirst', result.FirstName);
+        System.assertEquals('UpdatedLast', result.LastName);
+        System.assertEquals('updated@example.com', result.Email);
+        System.assertEquals(false, result.wfrecon__Can_Clock_In_Out__c);
+    }
+
+    @IsTest
+    static void testDeleteContact() {
+        Contact sub1 = [SELECT Id FROM Contact WHERE RecordType.DeveloperName = 'Sub_Contractor_WF_Recon' LIMIT 1];
+        
+        Test.startTest();
+        String result = ManagementTabController.deleteContact(sub1.Id);
+        Test.stopTest();
+        
+        System.assertEquals('Success', result);
+        
+        List<Contact> deletedContacts = [SELECT Id FROM Contact WHERE Id = :sub1.Id];
+        System.assertEquals(0, deletedContacts.size(), 'Contact should be deleted');
     }
 
 

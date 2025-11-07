@@ -91,7 +91,7 @@ public class JobDetailsPageControllerTest {
         Mobilization__c mob = [SELECT Id, Start_Date__c FROM Mobilization__c WHERE Job__c=:job.Id LIMIT 1];
         Test.startTest();
         List<JobDetailsPageController.TimesheetEntryItemWrapper> items =
-            JobDetailsPageController.getTimeSheetEntryItems(job.Id, mob.Start_Date__c.format('yyyy-MM-dd'));
+            JobDetailsPageController.getTimeSheetEntryItems(mob.Id);
         Test.stopTest();
     }
 

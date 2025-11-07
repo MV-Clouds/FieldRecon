@@ -65,44 +65,45 @@
                             <tr key={job.Id}>
                                 <template for:each={job.values} for:item="val">
                                     <td key={val} style={val.style}>
-                                        <template if:true={val.isActions}>
-                                            <!-- Two action buttons in one column -->
-                                             
-                                            <div class="action-button-container">
-                                                <button class="clock-icon" title="Clock In/Out" data-job={job.jobId} data-mobid={job.key} data-action="clock" onclick={handleActionClick}>
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
-                                                        <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" fill="none"/>
-                                                    </svg>
-                                                </button>
-                                                
-                                                <button class="timesheet-icon" title="Timesheet" data-job={job.jobId} data-mobid={job.key} data-action="list" onclick={handleActionClick}>
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <line x1="8" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
-                                                        <line x1="8" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2"/>
-                                                        <line x1="8" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2"/>
-                                                        <circle cx="4" cy="6" r="1" fill="currentColor"/>
-                                                        <circle cx="4" cy="12" r="1" fill="currentColor"/>
-                                                        <circle cx="4" cy="18" r="1" fill="currentColor"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </template>
+                                        <div class="slds-truncate cell-wrapper" title={val.value}>
+                                            <template if:true={val.isActions}>
+                                                <!-- Two action buttons in one column -->
+                                                <div class="action-button-container">
+                                                    <button class="clock-icon" title="Clock In/Out" data-job={job.jobId} data-mobid={job.key} data-action="clock" onclick={handleActionClick}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                                                            <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" fill="none"/>
+                                                        </svg>
+                                                    </button>
+                                                    
+                                                    <button class="timesheet-icon" title="Timesheet" data-job={job.jobId} data-mobid={job.key} data-action="list" onclick={handleActionClick}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <line x1="8" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
+                                                            <line x1="8" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2"/>
+                                                            <line x1="8" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2"/>
+                                                            <circle cx="4" cy="6" r="1" fill="currentColor"/>
+                                                            <circle cx="4" cy="12" r="1" fill="currentColor"/>
+                                                            <circle cx="4" cy="18" r="1" fill="currentColor"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </template>
 
-                                        <template if:false={val.isActions}>
-                                            <template if:true={val.recordLink}>
-                                                <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                            <template if:false={val.isActions}>
+                                                <template if:true={val.recordLink}>
+                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                                        <div class="cell-content" title={val.value}>
+                                                            {val.value}
+                                                        </div>
+                                                    </a>
+                                                </template>
+                                                <template if:false={val.recordLink}>
                                                     <div class="cell-content" title={val.value}>
                                                         {val.value}
                                                     </div>
-                                                </a>
+                                                </template>
                                             </template>
-                                            <template if:false={val.recordLink}>
-                                                <div class="cell-content" style={val.style} title={val.value}>
-                                                    {val.value}
-                                                </div>
-                                            </template>
-                                        </template>
+                                        </div>
                                     </td>
                                 </template>
                             </tr>

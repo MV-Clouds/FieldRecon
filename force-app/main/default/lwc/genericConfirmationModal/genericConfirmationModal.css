@@ -98,6 +98,9 @@
     cursor: pointer;
     transition: background-color 0.2s;
     min-width: 120px;
+    white-space: normal;
+    word-wrap: break-word;
+    line-height: 1.3;
 }
 
 .close-btn:hover:not(:disabled) {
@@ -125,6 +128,10 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    white-space: normal;
+    word-wrap: break-word;
+    line-height: 1.3;
+    text-align: center;
 }
 
 .clock-in-button:hover:not(:disabled) {
@@ -201,6 +208,13 @@
     background: #fff;
     color: rgba(94, 90, 219, 1);
     border: 1px solid rgba(94, 90, 219, 0.35);
+    white-space: normal;
+    word-wrap: break-word;
+    line-height: 1.3;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .cancel-btn:hover:not(:disabled){
@@ -213,20 +227,110 @@
     gap: 1rem;
 }
 
-@media (max-width: 768px) {
+/* 1. Mobile Devices (up to 767px) */
+@media only screen and (max-width: 767px) {
+    .generic-modal.slds-modal {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
     .generic-modal .slds-modal__container {
-        margin: 1rem;
+        margin: 0 auto;
         max-width: calc(100vw - 2rem);
         width: calc(100vw - 2rem);
     }
 
-    .popUpFooter {
-        flex-direction: column;
+    .pop-heading {
+        font-size: 16px;
+        height: auto;
+        padding: 0.75rem 0.5rem;
+        min-height: 40px;
+    }
+
+    .modal-message {
+        font-size: 13px;
+        padding: 0.5rem 0;
+    }
+
+    .popUpBody {
+        padding: 1rem 0.75rem;
+    }
+
+    .modal-footer {
+        flex-direction: row;
+        padding: 0.75rem;
+        gap: 0.5rem;
+        align-items: center;
     }
 
     .close-btn,
-    .clock-in-button {
-        width: 100%;
-        max-width: 220px;
+    .clock-in-button,
+    .cancel-btn {
+        flex: 1;
+        height: 32px;
+        min-width: auto;
+        font-size: 13px;
+        padding: 0.4rem 0.5rem;
     }
+
+    .pop-up {
+        max-height: 60vh;
+    }
+}
+
+/* 2. Tablets (768px to 1023px) */
+@media only screen and (min-width: 768px) and (max-width: 1023px) {
+    .generic-modal.slds-modal {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .generic-modal .slds-modal__container {
+        margin: 1rem auto;
+        max-width: 500px;
+        width: 500px;
+    }
+
+    .generic-modal.slds-modal_medium .slds-modal__container {
+        max-width: 600px;
+        width: 600px;
+    }
+
+    .pop-heading {
+        font-size: 20px;
+        height: 50px;
+    }
+
+    .modal-message {
+        font-size: 15px;
+    }
+
+    .popUpBody {
+        padding: 1.25rem;
+    }
+
+    .modal-footer {
+        padding: 1rem;
+        gap: 0.75rem;
+    }
+
+    .close-btn,
+    .clock-in-button,
+    .cancel-btn {
+        height: 34px;
+        font-size: 14px;
+        min-width: 110px;
+    }
+
+    .pop-up {
+        max-height: 65vh;
+    }
+}
+
+/* 3. Laptops & Desktops (1024px and above) */
+@media only screen and (min-width: 1024px) {
+    /* Desktop maintains default styles */
 }

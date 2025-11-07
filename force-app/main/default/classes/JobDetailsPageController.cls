@@ -136,20 +136,14 @@ public with sharing class JobDetailsPageController {
     ********************************************************
     */
     @AuraEnabled
-    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String jobStartDate){
+    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String mobId){
         try {
-            System.debug('jobId: ' + jobId);
-            System.debug('jobStartDate: ' + jobStartDate);
-            
-            Date startDate = Date.valueOf(jobStartDate);
-
             List<Timesheet_Entry_Item__c> items = [
                 SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
                        Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
                        Cost_Code__r.Name, Clock_In_Date__c, Premium__c
                 FROM Timesheet_Entry_Item__c 
-                WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId
-                  AND Clock_In_Date__c = :startDate
+                WHERE Timesheet_Entry__r.Mobilization__c = :mobId
                 WITH USER_MODE
                 ORDER BY Clock_In_Time__c ASC
             ];
@@ -160,7 +154,6 @@ public with sharing class JobDetailsPageController {
             }
 
             return result;
-
         } catch (Exception e) {
             System.debug('Exception in getTimeSheetEntryItems: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'getTimeSheetEntryItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});

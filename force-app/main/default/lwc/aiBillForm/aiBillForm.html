@@ -40,7 +40,7 @@
 						<table style="border-collapse: collapse; width: 100%; font-size: 8pt; text-align: left">
 							<tr>
 								<td style="width: 9%; padding: 2pt" rowspan="2">TO CONTRACTOR:</td>
-								<td style="width: 16%; padding: 2pt" rowspan="2">{toContractor}</td>
+								<td style="width: 16%; padding: 2pt" rowspan="2">{acccountName} <br> {jobAddress}</td>
 								<td style="width: 9%; padding: 2pt" rowspan="2">PROJECT:</td>
 								<td style="width: 16%; padding: 2pt" rowspan="2">{project}</td>
 								<td style="width: 9%; padding: 2pt">APPLICATION NO:</td>
@@ -50,13 +50,13 @@
 							</tr>
 							<tr>
 								<td style="padding: 2pt">PERIOD TO:</td>
-								<td style="padding: 2pt">{periodTo}</td>
+								<td style="padding: 2pt">{billEndDate}</td>
 								<td style="padding: 2pt">OWNER</td>
 								<td style="padding: 2pt"><input type="checkbox"></td>
 							</tr>
 							<tr>
 								<td style="padding: 2pt" rowspan="2">FROM SUBCONTRACTOR:</td>
-								<td style="padding: 2pt" rowspan="2">{fromSubcontractor}</td>
+								<td style="padding: 2pt" rowspan="2">{companyAddress}</td>
 								<td style="padding: 2pt" rowspan="2">VIA ARCHITECT:</td>
 								<td style="padding: 2pt" rowspan="2">{viaArchitect}</td>
 								<td style="padding: 2pt">PROJECT NO:</td>
@@ -88,51 +88,51 @@
 									<table style="width: 100%; border-collapse: collapse">
 										<tr>
 											<td style="width: 75%; padding: 3pt; font-size: 8pt;">1. ORIGINAL CONTRACT SUM</td>
-											<td style="width: 25%; text-align: right; padding: 3pt; font-size: 8pt;">{contractSUM}</td>
+											<td style="width: 25%; text-align: right; padding: 3pt; font-size: 8pt;">${totalContractValue}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">2. Net change by Change Orders</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">$&nbsp;&nbsp;&nbsp;&nbsp;</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${netchangebyChangeOrders}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">3. CONTRACT SUM TO DATE (Line 1±2)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">$0.00</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${contractSumToDate}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">4. TOTAL COMPLETED &amp; STORED TO DATE (Column G on G703)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">{totalCompletedandStoredtoDate}</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">{totalBilledAmount}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">5. RETAINAGE</td>
 											<td style="text-align: right; padding: 3pt; font-size: 8pt;">&nbsp;</td>
 										</tr>
 										<tr>
-											<td style="padding: 3pt; font-size: 8pt;">&nbsp;&nbsp;a. 10% of completed work (Column D+E on G703)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">&nbsp;</td>
+											<td style="padding: 3pt; font-size: 8pt;">&nbsp;&nbsp;a. {wfreconRetainageOnBill}% of completed work (Column D+E on G703)</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${retainageCompletedToDate}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">&nbsp;&nbsp;b. % of Stored Material (Column F on G703)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">&nbsp;</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">$0.00</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">Total Retainage (Lines 5a + 5b or Total in Column I of G703)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">$0.00</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${retainageCompletedToDate}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">6. TOTAL EARNED LESS RETAINAGE (Line 4 Less Line 5 Total)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">$0.00</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${totalAmountEarnedLessRetainage}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">7. LESS PREVIOUS CERTIFICATES FOR PAYMENT (Line 6 from prior Certificate)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">$0.00</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${lessPreviousCertificatedforPayment}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">8. CURRENT PAYMENT DUE</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;">&nbsp;</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${currentPaymentDue}</td>
 										</tr>
 										<tr>
 											<td style="padding: 3pt; font-size: 8pt;">9. BALANCE TO FINISH, INCLUDING RETAINAGE (Line 3 less line 6)</td>
-											<td style="text-align: right; padding: 3pt; font-size: 8pt;	">&nbsp;</td>
+											<td style="text-align: right; padding: 3pt; font-size: 8pt;	">${balanceToFinishRetainage}</td>
 										</tr>
 									</table>
 								</div>
@@ -161,7 +161,7 @@
 									</tr>
 									<tr>
 										<td style="border: 1pt solid #000; padding: 5pt">NET CHANGE by Change Order</td>
-										<td style="border: 1pt solid #000; padding: 5pt; text-align: right" >{totalDeduction}</td>
+										<td style="border: 1pt solid #000; padding: 5pt; text-align: right" >${totalDeduction}</td>
 										<td style="border: 1pt solid #000; padding: 5pt; text-align: right" >&nbsp;&nbsp;&nbsp;</td>
 									</tr>
 								</table>
@@ -169,26 +169,26 @@
 							<div style="width: 45%; margin-left: 4%; min-width: 260px">
 								<!-- Contractor certification block (preserved as requested) -->
 								<div style="margin-top: 14px">
-									<p style="margin: 0 0 6px 0; font-weight: bold; font-size: 8pt">The Undersigned Contractor certifies that to the best of the Contractor's knowledge information, and belief the Work covered by this Application for Payment has been completed in accordance with the Contract Documents, that all amounts have been paid by the Contractor for Work for which previous Certificates for Payment were issued and payments received from the Owner, and that current payment shown herein is now due.</p>
+									<p style="margin: 0 0 6px 0; font-size: 8pt">The Undersigned Contractor certifies that to the best of the Contractor's knowledge information, and belief the Work covered by this Application for Payment has been completed in accordance with the Contract Documents, that all amounts have been paid by the Contractor for Work for which previous Certificates for Payment were issued and payments received from the Owner, and that current payment shown herein is now due.</p>
 
-									<p style="margin: 8px 0 4px 0; font-weight: bold; font-size: 8pt">SUBCONTRACTOR: Applied Flooring, Inc</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">By:_______________________________ &nbsp;Date:______________________________</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">State of:____________________________ County of: _________________________</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">Subscribed and sworn to before me this____________ day of____________________,</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">Notary Public: &nbsp; ________________________________________________________</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">My Commission Expires On: _____________________________________________</p>
+									<p style="margin: 8px 0 4px 0; font-size: 8pt">SUBCONTRACTOR: {comName}</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">By:_______________________________ &nbsp;Date:______________________________</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">State of:____________________________ County of: _________________________</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">Subscribed and sworn to before me this____________ day of____________________,</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">Notary Public: &nbsp; ________________________________________________________</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">My Commission Expires On: _____________________________________________</p>
 								</div>
 
 								<!-- Architect's certificate block (preserved) -->
 								<div style="margin-top: 12px">
 									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">ARCHITECT'S CERTIFICATE FOR PAYMENT</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">In accordance with the Contract Documents, based on on-site observations and the data comprising the above application, the Architect certifies to the Owner that to the best of the Architect's knowledge, information and belief the Work has progressed as indicated, the quality of the Work is in accordance with the Contract Documents, and</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">the Contractor is entitled to payment of the AMOUNT CERTIFIED.</p>
-									<p style="margin: 8px 0 4px 0; font-weight: bold; font-size: 8pt">AMOUNT CERTIFIED..............................$</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">(Attach explanation if amount certified differs from the amount applied. Initial all figures on this Application and onthe Continuation Sheet that are changed to conform with the amount certified.)</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">ARCHITECT:</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">By: &nbsp;________________________________ &nbsp;Date:________________________</p>
-									<p style="margin: 6px 0 4px 0; font-weight: bold; font-size: 8pt">This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the Contractor named herein.Issuance, payment and acceptance of payment are without prejudice to any rights of the Owner or Contractor under this Contract.</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">In accordance with the Contract Documents, based on on-site observations and the data comprising the above application, the Architect certifies to the Owner that to the best of the Architect's knowledge, information and belief the Work has progressed as indicated, the quality of the Work is in accordance with the Contract Documents, and</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">the Contractor is entitled to payment of the AMOUNT CERTIFIED.</p>
+									<p style="margin: 8px 0 4px 0; font-size: 8pt">AMOUNT CERTIFIED..............................$</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">(Attach explanation if amount certified differs from the amount applied. Initial all figures on this Application and onthe Continuation Sheet that are changed to conform with the amount certified.)</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">ARCHITECT:</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">By: &nbsp;________________________________ &nbsp;Date:________________________</p>
+									<p style="margin: 6px 0 4px 0; font-size: 8pt">This Certificate is not negotiable. The AMOUNT CERTIFIED is payable only to the Contractor named herein.Issuance, payment and acceptance of payment are without prejudice to any rights of the Owner or Contractor under this Contract.</p>
 								</div>
 							</div>
 						</div>
@@ -203,24 +203,24 @@
 						<table role="presentation" style="width: 100%; border-collapse: collapse; margin-top: 14px">
 							<tr>
 								<td style="width:12%; padding: 8px; font-size: 8pt;">Project:</td>
-								<td style="width:35%; border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">&nbsp;</td>
+								<td style="width:35%; border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">{project}</td>
 								<td style="width:16%; font-size: 8pt;">&nbsp;</td>
 								<td style="width:12%; padding: 8px; font-size: 8pt;">Application #:</td>
-								<td style="width:25%; border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">&nbsp;</td>
+								<td style="width:25%; border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">{applicationNo}</td>
 							</tr>
 							<tr>
 								<td style="padding: 8px; font-size: 8pt; font-size: 8pt;">Subcontract:</td>
-								<td style="border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">&nbsp;</td>
+								<td style="border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">{comName}</td>
 								<td >&nbsp;</td>
 								<td style="padding: 8px; font-size: 8pt;">Period To:</td>
-								<td style="border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">&nbsp;</td>
+								<td style="border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">{billEndDate}</td>
 							</tr>
 							<tr>
 								<td style="padding: 8px; font-size: 8pt;">Vendor ID:</td>
 								<td style="border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">&nbsp;</td>
 								<td>&nbsp;</td>
 								<td style="padding: 8px; font-size: 8pt;">Application Date:</td>
-								<td style="border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">&nbsp;</td>
+								<td style="border-bottom: 1px solid #8c8c8c; padding: 8px; font-size: 8pt;">{contractDate}</td>
 							</tr>
 						</table>
 
@@ -228,44 +228,44 @@
 
 						<table role="presentation" style="width: 100%; border-collapse: collapse; margin-top: 8pt">
 							<tr>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 4%; font-size: 8pt; font-weight: bold;">A</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 23%; font-size: 8pt; font-weight: bold;">B</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">C</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">D</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">E</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">F</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">G</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">H</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">I</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">J</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 4%; font-size: 8pt; font-weight: bold;">A</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 23%; font-size: 8pt; font-weight: bold;">B</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">C</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">D</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">E</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">F</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">G</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">H</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">I</td>
+								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 4pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">J</td>
 							</tr>
 						</table>
 						<div class="dynamic-container"></div>
 						<div class="dynamic-container-2tabel"></div>
 						<table role="presentation" style="width: 100%; border-collapse: collapse; margin-top: 8px">
 							<tr>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 4%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 23%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="background-color:#dfdcdc; border: 1px solid #000; padding: 8pt; text-align: center; width: 7%; font-size: 8pt; font-weight: bold;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:4%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:23%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
+								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
 							</tr>
 							<tr>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">Total</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">{conSumPrevious_Billed_Percent}</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">{conSumPrevious_Billed_Value}</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">{conSumThis_Billing_Percent}</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">{conSumTotal_Billing_Value_Retainage}</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">-</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">{conSumThis_Retainage_Amount}</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">-</td>
-								<td style="border: 1pt solid #000; padding: 6pt; font-size: 8pt; font-weight: bold;">-</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">&nbsp;</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">Total</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalC}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalD}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalE}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalF}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalG}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalH}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">{totalI}%</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalJ}</td>
 							</tr>
 						</table>
 						<hr style="border: 1px solid #000" />

@@ -26,7 +26,10 @@ public with sharing class ManagementTabController {
         
         try {
             crewMembers = [
-                SELECT Id, Name, Description__c, Color_Code__c, Crew_Member_Count__c
+                SELECT Id, Name, Description__c, Color_Code__c, Crew_Member_Count__c,
+                       Crew_Leader__c,
+                       Crew_Leader__r.Contact__c,
+                       Crew_Leader__r.Contact__r.Name
                 FROM Crew__c
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC
@@ -39,38 +42,36 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static Map<String, Object> getCrewMobilizationSummary(Id crewId) {
-        Map<String, Object> response = new Map<String, Object>{
-            'upcomingMobilizations' => 0
-        };
-
+    public static Integer getCrewMobilizationSummary(Id crewId) {
         if (crewId == null) {
-            return response;
+            return 0;
         }
 
         try {
-            Date today = Date.today();
             Set<Id> mobilizationIds = new Set<Id>();
-
-            for (Mobilization_Member__c crewMobilization : [
+            for (Mobilization_Member__c member : [
                 SELECT Mobilization__c
                 FROM Mobilization_Member__c
                 WHERE Crew__c = :crewId
-                AND Mobilization__r.Start_Date__c >= :today
+                AND Mobilization__r.Start_Date__c >= TODAY
                 AND Mobilization__c != null
                 WITH USER_MODE
             ]) {
-                if (crewMobilization.Mobilization__c != null) {
-                    mobilizationIds.add(crewMobilization.Mobilization__c);
-                }
+                mobilizationIds.add(member.Mobilization__c);
             }
-
-            response.put('upcomingMobilizations', mobilizationIds.size());
+            return mobilizationIds.size();
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewMobilizationSummary','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching crew mobilization summary : ' + e.getMessage(),'apiResponse' => null});
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'getCrewMobilizationSummary',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching crew mobilization summary : ' + e.getMessage(),
+                'apiResponse' => null
+            });
+            return 0;
         }
-
-        return response;
     }
 
     @AuraEnabled
@@ -93,6 +94,8 @@ public with sharing class ManagementTabController {
             if (idValue != null) {
                 crewId = idValue instanceof Id ? (Id)idValue : Id.valueOf(String.valueOf(idValue));
             }
+
+            Boolean isExistingCrew = crewId != null;
 
             String crewName = (String)crewData.get('Name');
             if (String.isBlank(crewName)) {
@@ -118,119 +121,66 @@ public with sharing class ManagementTabController {
                 crewRecord.Color_Code__c = colorCode;
             }
 
+            // Extract member IDs to add
             List<Id> membersToAdd = new List<Id>();
-            if (crewData.containsKey('membersToAdd') && crewData.get('membersToAdd') != null) {
+            if (crewData.get('membersToAdd') != null) {
                 for (Object memberVal : (List<Object>)crewData.get('membersToAdd')) {
-                    if (memberVal == null) {
-                        continue;
+                    if (memberVal != null) {
+                        membersToAdd.add(memberVal instanceof Id ? (Id)memberVal : Id.valueOf(String.valueOf(memberVal)));
                     }
-                    membersToAdd.add(memberVal instanceof Id ? (Id)memberVal : Id.valueOf(String.valueOf(memberVal)));
                 }
             }
 
+            // Extract member record IDs to remove
             List<Id> memberRecordIdsToRemove = new List<Id>();
-            if (crewData.containsKey('membersToRemove') && crewData.get('membersToRemove') != null) {
+            if (crewData.get('membersToRemove') != null) {
                 for (Object memberVal : (List<Object>)crewData.get('membersToRemove')) {
-                    if (memberVal == null) {
+                    if (memberVal != null) {
+                        memberRecordIdsToRemove.add(memberVal instanceof Id ? (Id)memberVal : Id.valueOf(String.valueOf(memberVal)));
+                    }
+                }
+            }
+
+            // Extract boolean flags
+            Boolean assignToFutureMobilizations = crewData.get('assignToFutureMobilizations') == true;
+            Boolean removeFromFutureMobilizations = crewData.get('removeFromFutureMobilizations') == true;
+
+            // Extract mobilization assignments to skip
+            Map<Id, Set<Id>> mobilizationAssignmentsToSkip = new Map<Id, Set<Id>>();
+            if (crewData.get('mobilizationAssignmentsToSkip') instanceof Map<Object, Object>) {
+                Map<Object, Object> skipMap = (Map<Object, Object>)crewData.get('mobilizationAssignmentsToSkip');
+                for (Object contactKey : skipMap.keySet()) {
+                    try {
+                        Id contactId = Id.valueOf(String.valueOf(contactKey));
+                        Set<Id> mobilizationIds = new Set<Id>();
+                        
+                        if (skipMap.get(contactKey) instanceof List<Object>) {
+                            for (Object mobId : (List<Object>)skipMap.get(contactKey)) {
+                                if (mobId != null) {
+                                    mobilizationIds.add(Id.valueOf(String.valueOf(mobId)));
+                                }
+                            }
+                        }
+                        
+                        if (!mobilizationIds.isEmpty()) {
+                            mobilizationAssignmentsToSkip.put(contactId, mobilizationIds);
+                        }
+                    } catch (Exception ex) {
+                        // Skip invalid entries
                         continue;
                     }
-                    memberRecordIdsToRemove.add(memberVal instanceof Id ? (Id)memberVal : Id.valueOf(String.valueOf(memberVal)));
                 }
             }
 
-            Boolean assignToFutureMobilizations = false;
-            if (crewData.containsKey('assignToFutureMobilizations') && crewData.get('assignToFutureMobilizations') != null) {
-                Object assignValue = crewData.get('assignToFutureMobilizations');
-                if (assignValue instanceof Boolean) {
-                    assignToFutureMobilizations = (Boolean)assignValue;
-                } else {
-                    assignToFutureMobilizations = 'true'.equalsIgnoreCase(String.valueOf(assignValue));
-                }
-            }
-
-            Boolean removeFromFutureMobilizations = false;
-            if (crewData.containsKey('removeFromFutureMobilizations') && crewData.get('removeFromFutureMobilizations') != null) {
-                Object removeValue = crewData.get('removeFromFutureMobilizations');
-                if (removeValue instanceof Boolean) {
-                    removeFromFutureMobilizations = (Boolean)removeValue;
-                } else {
-                    removeFromFutureMobilizations = 'true'.equalsIgnoreCase(String.valueOf(removeValue));
-                }
-            }
-
-            Map<Id, Set<Id>> mobilizationAssignmentsToSkip = new Map<Id, Set<Id>>();
-            if (crewData.containsKey('mobilizationAssignmentsToSkip') && crewData.get('mobilizationAssignmentsToSkip') != null) {
-                Object skipPayload = crewData.get('mobilizationAssignmentsToSkip');
-                if (skipPayload instanceof Map<Object, Object>) {
-                    Map<Object, Object> rawSkipMapGeneric = (Map<Object, Object>)skipPayload;
-                    for (Object contactKeyObj : rawSkipMapGeneric.keySet()) {
-                        String contactKey = contactKeyObj != null ? String.valueOf(contactKeyObj) : null;
-                        if (String.isBlank(contactKey)) {
-                            continue;
-                        }
-
-                        try {
-                            Object mobilizationValuesObj = rawSkipMapGeneric.get(contactKeyObj);
-                            if (!(mobilizationValuesObj instanceof List<Object>)) {
-                                continue;
-                            }
-
-                            List<Object> mobilizationValues = (List<Object>)mobilizationValuesObj;
-                            if (mobilizationValues == null || mobilizationValues.isEmpty()) {
-                                continue;
-                            }
-
-                            Set<Id> skipMobilizations = new Set<Id>();
-                            for (Object mobilizationValue : mobilizationValues) {
-                                if (mobilizationValue == null) {
-                                    continue;
-                                }
-
-                                try {
-                                    Id mobilizationId = mobilizationValue instanceof Id
-                                        ? (Id)mobilizationValue
-                                        : Id.valueOf(String.valueOf(mobilizationValue));
-                                    skipMobilizations.add(mobilizationId);
-                                } catch (Exception innerEx) {
-                                    ExceptionHandler.logException(new Map<String, Object>{
-                                        'className' => CLASSNAME,
-                                        'methodName' => 'saveCrew',
-                                        'isApiException' => false,
-                                        'statusCode' => null,
-                                        'exceptionObj' => innerEx,
-                                        'moreDetails' => 'Invalid mobilization Id supplied for skip list',
-                                        'apiResponse' => null
-                                    });
-                                }
-                            }
-
-                            if (!skipMobilizations.isEmpty()) {
-                                try {
-                                    Id parsedContactId = Id.valueOf(contactKey);
-                                    mobilizationAssignmentsToSkip.put(parsedContactId, skipMobilizations);
-                                } catch (Exception contactParseEx) {
-                                    ExceptionHandler.logException(new Map<String, Object>{
-                                        'className' => CLASSNAME,
-                                        'methodName' => 'saveCrew',
-                                        'isApiException' => false,
-                                        'statusCode' => null,
-                                        'exceptionObj' => contactParseEx,
-                                        'moreDetails' => 'Invalid contact Id supplied for mobilization skip map',
-                                        'apiResponse' => null
-                                    });
-                                }
-                            }
-                        } catch (Exception parsingEx) {
-                            ExceptionHandler.logException(new Map<String, Object>{
-                                'className' => CLASSNAME,
-                                'methodName' => 'saveCrew',
-                                'isApiException' => false,
-                                'statusCode' => null,
-                                'exceptionObj' => parsingEx,
-                                'moreDetails' => 'Error parsing mobilizationAssignmentsToSkip payload',
-                                'apiResponse' => null
-                            });
-                        }
+            // Extract leader contact ID
+            Id leaderContactId;
+            if (crewData.get('leaderContactId') != null) {
+                String leaderString = String.valueOf(crewData.get('leaderContactId')).trim();
+                if (String.isNotBlank(leaderString) && !'__none__'.equalsIgnoreCase(leaderString)) {
+                    try {
+                        leaderContactId = Id.valueOf(leaderString);
+                    } catch (Exception ex) {
+                        // Invalid ID format, leave as null
                     }
                 }
             }
@@ -309,24 +259,63 @@ public with sharing class ManagementTabController {
                 }
             }
 
-            Integer memberCount;
-            if (crewData.containsKey('selectedMemberIds') && crewData.get('selectedMemberIds') != null) {
-                memberCount = ((List<Object>)crewData.get('selectedMemberIds')).size();
-            } else {
-                memberCount = [
-                    SELECT COUNT()
+            if (crewId != null) {
+                List<Crew_Member__c> crewMembersForLeaderSync = [
+                    SELECT Id, Contact__c, Member_Type__c
                     FROM Crew_Member__c
                     WHERE Crew__c = :crewId
+                    WITH USER_MODE
                 ];
+
+                List<Crew_Member__c> memberTypeUpdates = new List<Crew_Member__c>();
+                Id assignedLeaderCrewMemberId;
+
+                for (Crew_Member__c crewMemberRecord : crewMembersForLeaderSync) {
+                    if (crewMemberRecord == null) {
+                        continue;
+                    }
+
+                    Boolean isLeader = leaderContactId != null && crewMemberRecord.Contact__c == leaderContactId;
+                    String desiredType = isLeader ? 'Leader' : 'Member';
+                    String currentType = crewMemberRecord.Member_Type__c;
+
+                    if (isLeader) {
+                        assignedLeaderCrewMemberId = crewMemberRecord.Id;
+                    }
+
+                    if ((currentType == null && desiredType != null) || (currentType != null && desiredType != null && currentType != desiredType)) {
+                        memberTypeUpdates.add(new Crew_Member__c(
+                            Id = crewMemberRecord.Id,
+                            Member_Type__c = desiredType
+                        ));
+                    }
+                }
+
+                if (!memberTypeUpdates.isEmpty()) {
+                    update memberTypeUpdates;
+                }
+
+                Boolean shouldUpdateCrewLeader = assignedLeaderCrewMemberId != null || leaderContactId != null || isExistingCrew;
+                if (shouldUpdateCrewLeader) {
+                    Crew__c crewLeaderUpdate = new Crew__c(Id = crewId, Crew_Leader__c = assignedLeaderCrewMemberId);
+                    update crewLeaderUpdate;
+
+                    if (leaderContactId != null && assignedLeaderCrewMemberId == null) {
+                        ExceptionHandler.logException(new Map<String, Object>{
+                            'className' => CLASSNAME,
+                            'methodName' => 'saveCrew',
+                            'isApiException' => false,
+                            'statusCode' => null,
+                            'exceptionObj' => null,
+                            'moreDetails' => 'Crew leader contact provided but not associated with crew after save operation.',
+                            'apiResponse' => null
+                        });
+                    }
+                }
             }
 
             response.put('status', 'SUCCESS');
             response.put('message', 'Crew saved successfully.');
-            response.put('crewId', crewId);
-            response.put('memberCount', memberCount);
-            response.put('membersAdded', membersToAdd.size());
-            response.put('membersRemoved', memberRecordIdsToRemove.size());
-            response.put('mobilizationsEvaluated', mobilizationsEvaluated);
             response.put('mobilizationAssignmentsCreated', mobilizationAssignmentsCreated);
             return response;
         } catch (Exception e) {
@@ -505,7 +494,7 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertProcess', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Process : ' + e.getMessage(), 'apiResponse' => null});
-            return null;
+            throw new AuraHandledException('Error saving process: ' + e.getMessage());
         }
     }
 
@@ -520,9 +509,25 @@ public with sharing class ManagementTabController {
         };
 
         try {
+            // Get current crew leader member ID for comparison
+            Id crewLeaderMemberId;
+            if (crewId != null) {
+                List<Crew__c> crews = [
+                    SELECT Crew_Leader__c
+                    FROM Crew__c
+                    WHERE Id = :crewId
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+                if (!crews.isEmpty()) {
+                    crewLeaderMemberId = crews[0].Crew_Leader__c;
+                }
+            }
+
+            Id crewLeaderContactId;
             List<Contact> crewCandidates = [
                 SELECT Id, Name,
-                    (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
+                    (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c, Member_Type__c
                      FROM Crew_Members__r)
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
@@ -537,6 +542,8 @@ public with sharing class ManagementTabController {
                 contactDto.name = contactRecord.Name;
                 contactDto.isAssignedElsewhere = false;
                 contactDto.isAssignedToCurrentCrew = false;
+                contactDto.isCurrentCrewLeader = false;
+                contactDto.currentCrewMemberType = null;
 
                 if (contactRecord.Crew_Members__r != null && !contactRecord.Crew_Members__r.isEmpty()) {
                     List<String> crewNames = new List<String>();
@@ -547,6 +554,7 @@ public with sharing class ManagementTabController {
                         memberDto.crewId = member.Crew__c;
                         memberDto.crewName = member.Crew__r != null ? member.Crew__r.Name : null;
                         memberDto.colorCode = member.Crew__r != null ? member.Crew__r.Color_Code__c : null;
+                        memberDto.memberType = member.Member_Type__c;
                         contactDto.members.add(memberDto);
 
                         if (!String.isBlank(memberDto.crewName)) {
@@ -556,8 +564,15 @@ public with sharing class ManagementTabController {
                         if (crewId != null && member.Crew__c == crewId) {
                             contactDto.isAssignedToCurrentCrew = true;
                             contactDto.currentCrewMemberId = member.Id;
+                            contactDto.currentCrewMemberType = member.Member_Type__c;
                         } else if (member.Crew__c != null) {
                             contactDto.isAssignedElsewhere = true;
+                        }
+
+                        if ((crewLeaderMemberId != null && member.Id == crewLeaderMemberId)
+                            || ('Leader'.equalsIgnoreCase(member.Member_Type__c) && crewId != null && member.Crew__c == crewId)) {
+                            contactDto.isCurrentCrewLeader = true;
+                            crewLeaderContactId = contactRecord.Id;
                         }
 
                         if (String.isBlank(contactDto.primaryCrewColor) && !String.isBlank(memberDto.colorCode)) {
@@ -577,8 +592,18 @@ public with sharing class ManagementTabController {
 
             availableContacts.sort();
             assignedContacts.sort();
+
+            response.put('crewLeaderContactId', crewLeaderContactId);
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching crew contacts : ' + e.getMessage(), 'apiResponse' => null});
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'getCrewContacts', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching crew contacts : ' + e.getMessage(), 
+                'apiResponse' => null
+            });
         }
 
         return response;
@@ -643,7 +668,7 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertCostCode', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});
-            return null;
+            throw new AuraHandledException('Error saving cost code: ' + e.getMessage());
         }
     }
 
@@ -909,6 +934,108 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
+    public static List<Contact> getContacts() {
+        List<Contact> contacts = new List<Contact>();
+        
+        try {
+            contacts = [
+                SELECT Id, FirstName, LastName, Name, Email, 
+                       RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
+                FROM Contact
+                WHERE RecordType.DeveloperName IN ('Employee_WF_Recon', 'Sub_Contractor_WF_Recon')
+                WITH USER_MODE
+                ORDER BY Name ASC
+            ];
+        } catch (Exception e) {
+            System.debug('Error in getContacts: ' + e.getMessage());
+            throw new AuraHandledException('Error retrieving contacts: ' + e.getMessage());
+        }
+
+        return contacts;
+    }
+
+    @AuraEnabled
+    public static Contact upsertContact(Map<String, Object> contactData) {
+        try {
+            if (contactData == null || contactData.isEmpty()) {
+                throw new AuraHandledException('Contact data is required.');
+            }
+
+            // Extract RecordTypeDeveloperName before creating Contact record
+            String recordTypeDeveloperName = (String) contactData.get('RecordTypeDeveloperName');
+            
+            // Remove the custom field from the map so it doesn't cause issues
+            contactData.remove('RecordTypeDeveloperName');
+            
+            // Create Contact record from the remaining data
+            Contact contactRecord = new Contact();
+            
+            // Set Id if it exists (for updates)
+            if (contactData.containsKey('Id') && contactData.get('Id') != null) {
+                contactRecord.Id = (Id) contactData.get('Id');
+            }
+            
+            // Set other fields
+            if (contactData.containsKey('FirstName')) {
+                contactRecord.FirstName = (String) contactData.get('FirstName');
+            }
+            if (contactData.containsKey('LastName')) {
+                contactRecord.LastName = (String) contactData.get('LastName');
+            }
+            if (contactData.containsKey('Email')) {
+                contactRecord.Email = (String) contactData.get('Email');
+            }
+            if (contactData.containsKey('wfrecon__Can_Clock_In_Out__c')) {
+                contactRecord.wfrecon__Can_Clock_In_Out__c = (Boolean) contactData.get('wfrecon__Can_Clock_In_Out__c');
+            }
+            
+            // Handle RecordType assignment for new records
+            if (contactRecord.Id == null && String.isNotBlank(recordTypeDeveloperName)) {
+                List<RecordType> recordTypes = [
+                    SELECT Id 
+                    FROM RecordType 
+                    WHERE DeveloperName = :recordTypeDeveloperName 
+                    AND SObjectType = 'Contact' 
+                    LIMIT 1
+                ];
+                
+                if (!recordTypes.isEmpty()) {
+                    contactRecord.RecordTypeId = recordTypes[0].Id;
+                } else {
+                    throw new AuraHandledException('Invalid Record Type: ' + recordTypeDeveloperName);
+                }
+            }
+            
+            upsert as user contactRecord;
+            
+            // Return the full contact record with RecordType info
+            return [
+                SELECT Id, FirstName, LastName, Name, Email, 
+                       RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
+                FROM Contact
+                WHERE Id = :contactRecord.Id
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        } catch (Exception e) {
+            System.debug('Error in upsertContact: ' + e.getMessage());
+            throw new AuraHandledException('Error saving contact: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String deleteContact(String contactId) {
+        try {
+            Contact contactToDelete = [SELECT Id FROM Contact WHERE Id = :contactId WITH USER_MODE LIMIT 1];
+            delete as user contactToDelete;
+            return 'Success';
+        } catch (Exception e) {
+            System.debug('Error in deleteContact: ' + e.getMessage());
+            return 'Error: ' + e.getMessage();
+        }
+    }
+    
+    @AuraEnabled
     public static List<StatusColorWrapper> getMobilizationStatusColors() {
         List<StatusColorWrapper> statusColorList = new List<StatusColorWrapper>();
         
@@ -928,6 +1055,7 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getMobilizationStatusColors', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching mobilization status colors: ' + e.getMessage(), 'apiResponse' => null});
+            throw new AuraHandledException('Error fetching mobilization status colors: ' + e.getMessage());
         }
         
         return statusColorList;
@@ -1013,6 +1141,7 @@ public with sharing class ManagementTabController {
         @AuraEnabled public Id crewId;
         @AuraEnabled public String crewName;
         @AuraEnabled public String colorCode;
+        @AuraEnabled public String memberType;
     }
 
     public class CrewContactDTO implements Comparable {
@@ -1023,6 +1152,8 @@ public with sharing class ManagementTabController {
         @AuraEnabled public String assignedCrewNames;
         @AuraEnabled public String primaryCrewColor;
         @AuraEnabled public Id currentCrewMemberId;
+        @AuraEnabled public Boolean isCurrentCrewLeader;
+        @AuraEnabled public String currentCrewMemberType;
         @AuraEnabled public List<CrewMemberDTO> members = new List<CrewMemberDTO>();
 
         public Integer compareTo(Object obj) {

@@ -210,6 +210,7 @@
 	border-radius: 0 0 0.5rem 0.5rem;
 }
 
+
 /* Responsive Design */
 @media (max-width: 768px) {
 	.modal {

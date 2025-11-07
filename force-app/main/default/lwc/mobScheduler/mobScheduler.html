@@ -49,17 +49,18 @@
           <button class="nav-tab-btn" data-selected={resourceType} name="Asset" onclick={selectResourceType}>Assets</button>
         </div>
         <div class="filters-and-nav slds-grid slds-wrap slds-grid--vertical-align-center">
-          <lightning-record-edit-form
-            class="nav-bar-element"
-            density="compact"
-            object-api-name="wfrecon__Mobilization__c">
-            <lightning-input-field 
-              variant="label-hidden"
-              field-name="wfrecon__Mobilization_Status__c"
-              value={selectedStatusFilter}
-              onchange={handleStatusFilterChange}
-            ></lightning-input-field>
-          </lightning-record-edit-form>
+          <div class="status-filter-picklist">
+            <div class="status-picklist-label">
+              Status
+              <lightning-icon icon-name='utility:check' alternative-text='check' size='xx-small' variant="success" title='check' lwc:if={selectedStatusFilter.length}></lightning-icon>
+              <lightning-icon icon-name='utility:down' alternative-text='down' size='xx-small' title='down' lwc:else></lightning-icon>
+            </div>
+            <div class="status-options-selection-div slds-is-absolute">
+              <template for:each={statusOptions} for:item="opt">
+                <div class="status-options" key={opt.value} data-value={opt.value} data-selected={opt.isSelected} onclick={handleStatusFilterChange}>{opt.label}</div>
+              </template>
+            </div>
+          </div>
           <lightning-input
             class="nav-bar-element"
             type="search"
@@ -241,7 +242,7 @@
                 <lightning-input-field class="slds-size--1-of-1" data-id="end" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" value="Pending" required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" required></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Description__c"></lightning-input-field>
               </div>
               <!-- Control buttons -->

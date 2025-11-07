@@ -69,7 +69,7 @@ public class NewMobilizationCalendarControllerTest {
 
     @IsTest
     static void testGetEvents(){
-        List<Map<String,Object>> evts = NewMobilizationCalendarController.getEvents(null,'');
+        List<Map<String,Object>> evts = NewMobilizationCalendarController.getEvents(null,null);
         System.assert(!evts.isEmpty(), 'Expected calendar events');
         Map<String,Object> first = evts[0];
         System.assertEquals('#0070d2', first.get('backgroundColor'));
@@ -88,19 +88,15 @@ public class NewMobilizationCalendarControllerTest {
     }
 
     @IsTest
-    static void testGetJobs(){
-        List<wfrecon__Job__c> jobs = NewMobilizationCalendarController.getJobs();
-        System.assert(!jobs.isEmpty(), 'Expected job list');
-    }
-
-    @IsTest
     static void testGetJobDefaultTimes(){
-        NewMobilizationCalendarController.DefaultTimeWrapper wrap =
-            NewMobilizationCalendarController.getJobDefaultTimes();
-        System.assertEquals('7', wrap.StartHour);
-        System.assertEquals('0', wrap.StartMinute);
-        System.assertEquals('18', wrap.EndHour);
-        System.assertEquals('0', wrap.EndMinute);
+
+        NewMobilizationCalendarController.getMobStatusOptions();
+        NewMobilizationCalendarController.DefaultTimeWrapper wrap = NewMobilizationCalendarController.getJobDefaultTimes('2025-11-03', '2025-11-06');
+
+        delete [SELECT Id FROM wfrecon__Job_Default_Times__c];
+        NewMobilizationCalendarController.getJobDefaultTimes('', '');
+        System.assertNotEquals(null, wrap.startDateTime);
+        System.assertNotEquals(null, wrap.endDateTime);
         System.assertEquals(false, wrap.IncludeSaturday);
         System.assertEquals(false, wrap.IncludeSunday);
     }
@@ -146,23 +142,7 @@ public class NewMobilizationCalendarControllerTest {
     @IsTest
     static void testGetEventsEmpty(){ 
         delete [SELECT Id FROM wfrecon__Mobilization_Group__c];
-        List<Map<String,Object>> evts = NewMobilizationCalendarController.getEvents(null,'');
+        List<Map<String,Object>> evts = NewMobilizationCalendarController.getEvents(null, null);
         System.assert(evts.isEmpty(), 'Should return empty list on exception/empty DB');
     }
-
-    @IsTest
-    static void testGetJobsException(){ 
-        delete [SELECT Id FROM wfrecon__Job__c];
-        List<wfrecon__Job__c> jobs = NewMobilizationCalendarController.getJobs();
-    }
-
-    @IsTest
-    static void testGetJobDefaultTimesFallback(){
-        delete [SELECT Id FROM wfrecon__Job_Default_Times__c];
-        NewMobilizationCalendarController.DefaultTimeWrapper wrap =
-            NewMobilizationCalendarController.getJobDefaultTimes();
-        System.assertEquals('07', wrap.StartHour);
-        System.assertEquals('18', wrap.EndHour);
-    }
-
 }

@@ -8,36 +8,28 @@
         Mobilization Calendar
       </div>
       <div class="filters-and-search slds-grid">
-        <!-- <lightning-combobox 
-                      label="Status" 
-                      variant="label-hidden"
-                      name="status"
-                      value={filterstatus} 
-                      options={statusOptions} 
-                      onchange={handleFilter}>
-        </lightning-combobox> -->
-        <lightning-record-edit-form
-                  class="nav-bar-element"
-                  density="compact"
-                  object-api-name="wfrecon__Mobilization__c">
-                  <lightning-input-field 
-                    variant="label-hidden"
-                    field-name="wfrecon__Mobilization_Status__c"
-                    value={filterstatus}
-                    name="status"
-                    onchange={handleFilter}
-                  ></lightning-input-field>
-                </lightning-record-edit-form>
+        <div class="status-filter-picklist">
+          <div class="status-picklist-label">
+            Status
+            <lightning-icon icon-name='utility:check' alternative-text='check' size='xx-small' variant="success" title='check' lwc:if={filterStatus.length}></lightning-icon>
+            <lightning-icon icon-name='utility:down' alternative-text='down' size='xx-small' title='down' lwc:else></lightning-icon>
+          </div>
+          <div class="status-options-selection-div slds-is-absolute">
+            <template for:each={statusOptions} for:item="opt">
+              <div class="status-options" key={opt.value} data-value={opt.value} data-selected={opt.isSelected} onclick={handleFilter}>{opt.label}</div>
+            </template>
+          </div>
+        </div>
         <lightning-record-picker
-                  variant="label-hidden"
-                  label="Jobs"
-                  placeholder="Search Jobs..."
-                  object-api-name="wfrecon__Job__c"
-                  display-info={displayJobs}
-                  matching-info={matchingJobs}
-                  name="jobId"
-                  value={filterjobs}
-                  onchange={handleFilter}>
+          variant="label-hidden"
+          label="Jobs"
+          placeholder="Search Jobs..."
+          object-api-name="wfrecon__Job__c"
+          display-info={displayJobs}
+          matching-info={matchingJobs}
+          name="jobId"
+          value={filterjobs}
+          onchange={handleFilter}>
         </lightning-record-picker>
       </div>
     </div>
@@ -76,7 +68,7 @@
                         <lightning-input-field field-name="wfrecon__Include_Sunday__c" value={includeSunday}> </lightning-input-field>
                     </div>
                 </div>
-                <lightning-input-field field-name="wfrecon__Mobilization_Status__c" value={status}> </lightning-input-field>
+                <lightning-input-field field-name="wfrecon__Mobilization_Status__c"> </lightning-input-field>
                 <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
                 <footer class="mob-modal-footer slds-grid slds-grid--align-center">
                     <button class="assign-btn footer-btn" type="button" if:true={isEdit} onclick={handleResourceAssign}>Assign Resources</button>

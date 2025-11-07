@@ -125,32 +125,59 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         return true;
     }
 
+    getCurrentModalJobRecord() {
+        if (!this.selectedMobilizationId || !Array.isArray(this.todayJobList)) {
+            return null;
+        }
+
+        return this.todayJobList.find(job => job.mobId === this.selectedMobilizationId);
+    }
+
     get clockInMinBoundary() {
-        const reference = this.currentModalJobStartDateTime || this.clockInTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobStartDateTime
+            || jobRecord?.jobStartTimeIso
+            || jobRecord?.jobStartTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T00:00` : null;
     }
 
     get clockInMaxBoundary() {
-        const reference = this.currentModalJobStartDateTime || this.clockInTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobEndDateTime
+            || jobRecord?.jobEndTimeIso
+            || jobRecord?.jobEndTime
+            || this.clockOutTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T23:59` : null;
     }
 
     get clockOutMinBoundary() {
-        const reference = this.currentModalJobEndDateTime || this.clockOutTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobStartDateTime
+            || jobRecord?.jobStartTimeIso
+            || jobRecord?.jobStartTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T00:00` : null;
     }
 
     get clockOutMaxBoundary() {
-        const reference = this.currentModalJobEndDateTime || this.clockOutTime;
+        const jobRecord = this.getCurrentModalJobRecord();
+        const reference = this.currentModalJobEndDateTime
+            || jobRecord?.jobEndTimeIso
+            || jobRecord?.jobEndTime
+            || this.clockOutTime
+            || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
         if (!dateKey) {
             return null;
         }
         const nextDay = this.addDaysToDateKey(dateKey, 1);
-        return nextDay ? `${nextDay}T23:59` : null;
+        const boundaryKey = nextDay || dateKey;
+        return `${boundaryKey}T23:59`;
     }
 
     /** 
@@ -286,7 +313,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             getMobilizationMembers({ filterDate: this.apexFormattedDate, mode: this.activeTab })
                 .then((data) => {
                     console.log('getMobilizationMembers fetched successfully:', data);
-                    if(data != null){
+                    if(data && !data?.ERROR){
                         if (data && Object.keys(data).length !== 0) {
                             if(this.activeTab == 'today') {
                                 this.todayJobList = data.dayJobs || [];
@@ -334,7 +361,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                             }
                         }
                     } else {
-                        this.showToast('Error', 'Failed to load data!', 'error');
+                        this.showToast('Error', data.ERROR, 'error');
                     }
                 })
                 .catch((error) => {
@@ -419,13 +446,13 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             getTimeSheetEntryItems()
                 .then(result => {
                     console.log('getTimeSheetEntryItems result :: ', result);
-                    
-                    if(result != null) {  
-                        if (result && result.length !== 0) {
-                            this.timesheetDetailsRaw = result;
+
+                    if(result && !result?.ERROR){  
+                        if (result && result.timesheetEntries.length !== 0) {
+                            this.timesheetDetailsRaw = result.timesheetEntries;
                         } 
                     } else {
-                        this.showToast('Error', 'Failed to load data!', 'error');
+                        this.showToast('Error', result?.ERROR, 'error');
                     }
                 })
                 .catch(error => {

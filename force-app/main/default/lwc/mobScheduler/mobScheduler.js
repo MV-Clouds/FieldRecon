@@ -33,9 +33,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     currentWeekStart;
     searchKey = '';
     resourceSearchKey = '';
+    @track statusOptions = [];
 
     // Filter Variables
-    selectedStatusFilter = null;
+    selectedStatusFilter = [];
 
     defaultMobGValues = {
         'start': null,
@@ -281,6 +282,12 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             .then(result =>{                
                 let timeDefaults = result?.time;
                 this.defaultMobGValues = timeDefaults;
+                this.statusOptions = result?.statusOptions;
+                this.statusOptions.forEach(opt => {
+                    opt.isSelected = opt.label?.toLowerCase() == 'overhead job' ? false : true
+                })
+                this.selectedStatusFilter = this.statusOptions?.filter(opt => opt.isSelected)?.map(opt => opt.value) || [];
+                this.applySearchFilter();
             })
             .catch(e => {
                 console.error('MobScheduler.loadDefaultMobGroupValues apex:getDefaultValues error:', e?.body?.message || e?.message);
@@ -430,7 +437,11 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
     handleStatusFilterChange(event){
         try {
-            this.selectedStatusFilter = event.detail?.value;
+            let value = event.currentTarget.dataset.value;
+            let statusToUpdate = this.statusOptions.find(opt => opt.value == value);
+            statusToUpdate.isSelected = !statusToUpdate.isSelected;
+
+            this.selectedStatusFilter = this.statusOptions?.filter(opt => opt.isSelected)?.map(opt => opt.value) || [];
             this.applySearchFilter();
         } catch (e) {
             console.error('MobScheduler.handleStatusFilterChange error:', e?.message);
@@ -573,7 +584,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     applySearchFilter() {
         try {
             const key = this.searchKey?.toLowerCase();
-            const statusFilter = this.selectedStatusFilter; // null or specific status
+            const statusFilter = this.selectedStatusFilter.length > 0 ? this.selectedStatusFilter : null; // null or specific status
 
             if (!key && !statusFilter) {
                 if (!this.isResourceView) {
@@ -581,7 +592,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     this.isWeekView ? this.mapWeekData() : this.mapDayData();
                     return;
                 } else {
-                    this.filteredResources = JSON.parse(JSON.stringify(this.resources));
+                    this.filteredResources = JSON.parse(JSON.stringify(this.resources)).sort((a, b) => a.name.localeCompare(b.name));
                     return;
                 }
             }
@@ -602,7 +613,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     const updatedDays = resource.days.map(day => {
                         // filter matching events for this day
                         const filteredEvents = day.events.filter(event =>
-                            (statusFilter == null || event.status == statusFilter) && (isResourceMatch || (event.jobName?.toLowerCase().includes(keyLower) ||
+                            (statusFilter == null || statusFilter.includes(event.status)) && (isResourceMatch || (event.jobName?.toLowerCase().includes(keyLower) ||
                             event.jobId?.toLowerCase().includes(keyLower)))
                         );
 
@@ -621,7 +632,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     }
 
                     return null;
-                }).filter(r => r !== null);
+                }).filter(r => r !== null)
+                .sort((a, b) => a.name.localeCompare(b.name));
 
                 return;
             }
@@ -629,7 +641,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             // Event view (week/day)
             this.filteredEvents = this.weekEvents.filter(event => {
                 // First, check status if filter applied
-                if (statusFilter && event.status !== statusFilter) return false;
+                if (statusFilter && !statusFilter.includes(event.status)) return false;
 
                 // Match Job Name or Location
                 if ((event.jobId && event.jobId.toLowerCase().includes(key)) ||

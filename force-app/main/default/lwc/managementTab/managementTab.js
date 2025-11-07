@@ -7,9 +7,8 @@ export default class ManagementTab extends LightningElement {
         { label: 'Crew', value: 'crew' },
         { label: 'Cost Code', value: 'costcode' },
         { label: 'Process Library', value: 'processlibrary' },
-        { label: 'Mobilization Status Color ', value: 'isMobStatusColorConfig' }
-        // { label: 'Employee', value: 'employee' },
-        
+        { label: 'Mobilization Status Color ', value: 'isMobStatusColorConfig' },
+        { label: 'Employee', value: 'employee' }
     ];
 
     get tabs() {

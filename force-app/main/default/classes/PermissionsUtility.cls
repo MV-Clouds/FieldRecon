@@ -22,13 +22,9 @@ public with sharing class PermissionsUtility {
             if (psNames == null || psNames.isEmpty()) {
                 return result;
             }
-            
-            System.debug('Checking Permission Sets: ' + psNames);
-            System.debug('UserInfo.getUserId : ' + UserInfo.getUserId());
 
             Set<String> assignedSet = new Set<String>();
 
-            // System.debug('Permission Sets: ' + psNames);
             List<String> psNamesWithDefaultPs = new List<String>();
             psNamesWithDefaultPs.addAll(psNames);
             psNamesWithDefaultPs.add('FR_Base');
@@ -43,8 +39,6 @@ public with sharing class PermissionsUtility {
                       AND PermissionSet.Name IN :psNamesWithDefaultPs
                 WITH USER_MODE
             ]) {
-
-                System.debug('Permission Set Assigned: ' + psa.PermissionSet.Name);
                 if(psa.PermissionSet.Name == 'FR_Base'){
                     result.put('isBase', true);
                 } else if(psa.PermissionSet.Name == 'FR_Admin'){
