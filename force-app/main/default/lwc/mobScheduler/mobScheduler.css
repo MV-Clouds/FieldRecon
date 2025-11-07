@@ -149,6 +149,10 @@
   height: 2rem;
 }
 
+.nav-bar-element .slds-input{
+  max-height: 2rem;
+}
+
 .status-filter-picklist {
     height: 2rem;
     overflow: hidden;
@@ -183,7 +187,7 @@
 }
 
 .status-picklist-label {
-    height: 2rem;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -688,10 +692,13 @@
 
   .filters-and-nav {
     width: 100%;
+    max-width: 100%;
+    overflow: scroll;
+    margin-bottom: 0.5rem;
   }
 
   .filters-and-nav .nav-bar-element{
-    min-width: 30% !important;
+    /* min-width: 30% !important; */
     flex-grow: 1;
   }
 

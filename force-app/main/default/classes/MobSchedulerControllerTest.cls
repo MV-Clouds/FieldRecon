@@ -190,7 +190,7 @@ private class MobSchedulerControllerTest {
         System.assertEquals('success', assetRemove, 'Should succeed in removing asset');
 
         // Error case with invalid id (keep minimal)
-        String errorResult = MobSchedulerController.removeJobResource('invalidId', 'Crew', member.Mobilization__c, 'false');
+        String errorResult = MobSchedulerController.removeJobResource('test', 'Crew', 'test', 'true');
         System.assertNotEquals('success', errorResult, 'Should return error message');
     }
 
@@ -234,6 +234,7 @@ private class MobSchedulerControllerTest {
 
         assignmentData.put('type', 'CrewMaster');
         assignmentData.put('resourceId', crews[0].Id);
+        assignmentData.put('allowOverlap', false);
         MobSchedulerController.assignResourceToMob(assignmentData);
 
         // Asset path: trigger ELSE-IF query for assets (line ~378) expecting OVERLAP with existing day 0 asset

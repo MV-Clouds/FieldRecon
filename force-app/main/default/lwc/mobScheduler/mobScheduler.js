@@ -592,7 +592,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     this.isWeekView ? this.mapWeekData() : this.mapDayData();
                     return;
                 } else {
-                    this.filteredResources = JSON.parse(JSON.stringify(this.resources));
+                    this.filteredResources = JSON.parse(JSON.stringify(this.resources)).sort((a, b) => a.name.localeCompare(b.name));
                     return;
                 }
             }
