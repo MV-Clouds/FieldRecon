@@ -1,6 +1,7 @@
 import { LightningElement, wire, track } from 'lwc';
 import getShiftEndLogsWithCrewInfo from '@salesforce/apex/ShiftEndLogV2Controller.getShiftEndLogsWithCrewInfo';
-import updateShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLog';
+import updateShiftEndLogWithImages from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLogWithImages';
+import deleteShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.deleteShiftEndLog';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -18,6 +19,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track showEntryPopup = false;
     @track isStylesLoaded = false;
 
+    // Confirmation Modal Properties
+    @track showConfirmationModal = false;
+    @track confirmationTitle = '';
+    @track confirmationMessage = '';
+    @track confirmationAction = '';
+    @track confirmationButtonLabel = 'Confirm';
+    @track confirmationButtonVariant = 'brand';
+    @track confirmationData = null;
+
     // Pagination properties
     @track currentPage = 1;
     @track pageSize = 9;
@@ -32,9 +42,29 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         planForTomorrow: ''
     };
 
+    // Image handling
+    @track existingImages = [];
+    @track newUploadedFiles = [];
+    @track imagesToDelete = [];
+
+    // Camera Modal
+    @track showCameraModal = false;
+    @track cameraStream = null;
+    @track capturedPhoto = null;
+
     // Crew information for current user
     @track crewLeaderId = null;
     @track crewIds = [];
+
+    acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff';
+
+    // Desktop only for camera (mobile file uploader has built-in camera)
+    get isDesktopDevice() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /iphone|ipad|ipod|android|blackberry|windows phone|mobile/i.test(userAgent);
+        const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent);
+        return !isMobile && !isTablet;
+    }
 
     // Check if there are logs to display
     get hasLogs() {
@@ -328,6 +358,19 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 exceptions: logToEdit.wfrecon__Exceptions__c || '',
                 planForTomorrow: logToEdit.wfrecon__Plan_for_Tomorrow__c || ''
             };
+
+            // Load existing images
+            this.existingImages = logToEdit.images ? logToEdit.images.map(img => ({
+                id: img.ContentDocumentId,
+                versionId: img.Id,
+                name: img.Title + '.' + img.FileExtension,
+                url: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`,
+                isExisting: true
+            })) : [];
+            
+            // Reset new uploads and delete tracking
+            this.newUploadedFiles = [];
+            this.imagesToDelete = [];
         }
         
         this.showEditModal = true;
@@ -348,6 +391,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             exceptions: '',
             planForTomorrow: ''
         };
+        this.existingImages = [];
+        this.newUploadedFiles = [];
+        this.imagesToDelete = [];
     }
 
     // Handle input change in edit form
@@ -362,7 +408,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }
 
     // Handle save button click
-    handleSaveEdit() {
+    async handleSaveEdit() {
         // Validate required fields
         if (!this.editFormData.workPerformedDate) {
             this.showToast('Error', 'Work Performed Date is required', 'error');
@@ -389,33 +435,168 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         this.isLoading = true;
 
-        // Pass the entire form data object to Apex
-        updateShiftEndLog({ logEntry: formData })
-            .then(() => {
-                this.showToast('Success', 'Shift End Log updated successfully', 'success');
-                this.handleCloseModal();
-                this.loadShiftEndLogsWithCrewInfo();
-            })
-            .catch(error => {
-                const errorMessage = error.body?.message || 'Error updating shift end log';
-                this.showToast('Error', errorMessage, 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
+        try {
+            // Combined update: delete removed images and update log entry
+            await updateShiftEndLogWithImages({ 
+                logEntry: formData, 
+                contentDocumentIdsToDelete: this.imagesToDelete 
             });
+
+            this.showToast('Success', 'Shift End Log updated successfully', 'success');
+            this.handleCloseModal();
+            this.loadShiftEndLogsWithCrewInfo();
+        } catch (error) {
+            const errorMessage = error.body?.message || 'Error updating shift end log';
+            this.showToast('Error', errorMessage, 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }   
+
+    // Handle file upload
+    handleUploadFinished(event) {
+        const uploadedFilesFromEvent = event.detail.files;
+        uploadedFilesFromEvent.forEach(file => {
+            this.newUploadedFiles.push({
+                id: file.documentId,
+                name: file.name,
+                url: `/sfc/servlet.shepherd/document/download/${file.documentId}`,
+                isExisting: false
+            });
+        });
+        this.showToast('Success', `${uploadedFilesFromEvent.length} file(s) uploaded successfully`, 'success');
     }
 
-    // Handle record navigation
-    handleRecordNavigation(event) {
-        const logId = event.currentTarget.dataset.id;
-        this[NavigationMixin.Navigate]({
-            type: 'standard__recordPage',
-            attributes: {
-                recordId: logId,
-                objectApiName: 'wfrecon__Log_Entry__c',
-                actionName: 'view'
+    // Handle remove image
+    handleRemoveImage(event) {
+        const imageId = event.currentTarget.dataset.id;
+        const isExisting = event.currentTarget.dataset.existing === 'true';
+        const isCamera = event.currentTarget.dataset.camera === 'true';
+
+        if (isExisting) {
+            // Mark existing image for deletion
+            this.imagesToDelete.push(imageId);
+            this.existingImages = this.existingImages.filter(img => img.id !== imageId);
+        } else {
+            // Remove from newly uploaded files (including camera photos)
+            this.newUploadedFiles = this.newUploadedFiles.filter(img => img.id !== imageId);
+        }
+
+        this.showToast('Success', 'Image removed', 'success');
+    }
+
+    // Get all images (existing + new)
+    get allImages() {
+        return [...this.existingImages, ...this.newUploadedFiles];
+    }
+
+    get hasImages() {
+        return this.allImages.length > 0;
+    }
+
+    // Camera Functions
+    handleOpenCamera() {
+        this.showCameraModal = true;
+        this.capturedPhoto = null;
+        
+        // Wait for modal to render, then start camera
+        setTimeout(() => {
+            this.startCamera();
+        }, 100);
+    }
+
+    async startCamera() {
+        try {
+            const videoElement = this.template.querySelector('.camera-video');
+            if (videoElement) {
+                this.cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment', // Use back camera by default
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
+                videoElement.srcObject = this.cameraStream;
             }
-        });
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            this.showToast('Error', 'Unable to access camera. Please check permissions.', 'error');
+            this.closeCameraModal();
+        }
+    }
+
+    handleCapturePhoto() {
+        const videoElement = this.template.querySelector('.camera-video');
+        const canvasElement = this.template.querySelector('.camera-canvas');
+        
+        if (videoElement && canvasElement) {
+            const context = canvasElement.getContext('2d');
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            context.drawImage(videoElement, 0, 0);
+            
+            // Get image data URL
+            this.capturedPhoto = canvasElement.toDataURL('image/jpeg', 0.8);
+        }
+    }
+
+    handleRetakePhoto() {
+        this.capturedPhoto = null;
+    }
+
+    handleSaveCapturedPhoto() {
+        if (!this.capturedPhoto) return;
+        
+        try {
+            // Convert base64 to blob for size validation
+            const base64Data = this.capturedPhoto.split(',')[1];
+            const blob = this.base64ToBlob(base64Data, 'image/jpeg');
+            
+            // Check file size (4MB limit)
+            const fileSizeInMB = blob.size / (1024 * 1024);
+            if (fileSizeInMB > 4) {
+                this.showToast('Error', 'Photo size exceeds 4MB limit. Please try again.', 'error');
+                return;
+            }
+            
+            // Create file name
+            const fileName = `Camera_${new Date().getTime()}.jpg`;
+            
+            // Store temporarily in uploaded files list
+            this.newUploadedFiles.push({
+                id: `temp_${new Date().getTime()}`,
+                name: fileName,
+                url: this.capturedPhoto,
+                isExisting: false,
+                isCamera: true,
+                base64Data: base64Data
+            });
+            
+            this.closeCameraModal();
+            this.showToast('Success', 'Photo captured successfully', 'success');
+        } catch (error) {
+            console.error('Error saving photo:', error);
+            this.showToast('Error', 'Failed to capture photo: ' + error.message, 'error');
+        }
+    }
+
+    base64ToBlob(base64, mimeType) {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
+    }
+
+    closeCameraModal() {
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+        }
+        this.showCameraModal = false;
+        this.capturedPhoto = null;
     }
 
     // Handle image preview
@@ -444,6 +625,86 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             month: 'short',
             day: 'numeric'
         });
+    }
+
+    // Handle delete button click
+    handleDelete(event) {
+        event.stopPropagation();
+        const logId = event.currentTarget.dataset.id;
+        const logName = event.currentTarget.dataset.name;
+        
+        // Show confirmation modal
+        this.confirmationTitle = 'Delete Shift End Log';
+        this.confirmationMessage = `Are you sure you want to delete <strong>${logName}</strong>? This action cannot be undone.`;
+        this.confirmationButtonLabel = 'Delete';
+        this.confirmationButtonVariant = 'destructive';
+        this.confirmationAction = 'deleteLog';
+        this.confirmationData = logId;
+        this.showConfirmationModal = true;
+    }
+
+    // Handle confirmation modal confirm action
+    handleConfirmationConfirm() {
+        try {
+            switch (this.confirmationAction) {
+                case 'deleteLog':
+                    this.showConfirmationModal = false;
+                    this.proceedWithLogDeletion(this.confirmationData);
+                    break;
+                default:
+                    this.showConfirmationModal = false;
+                    break;
+            }
+        } catch (error) {
+            this.showToast('Error', 'An error occurred while processing the action', 'error');
+            this.showConfirmationModal = false;
+        } finally {
+            this.resetConfirmationState();
+        }
+    }
+
+    // Handle confirmation modal cancel action
+    handleConfirmationCancel() {
+        this.showConfirmationModal = false;
+        this.resetConfirmationState();
+    }
+
+    // Handle confirmation modal close action
+    handleConfirmationClose() {
+        this.showConfirmationModal = false;
+        this.resetConfirmationState();
+    }
+
+    // Reset confirmation modal state
+    resetConfirmationState() {
+        this.confirmationTitle = '';
+        this.confirmationMessage = '';
+        this.confirmationAction = '';
+        this.confirmationButtonLabel = 'Confirm';
+        this.confirmationButtonVariant = 'brand';
+        this.confirmationData = null;
+    }
+
+    // Proceed with actual deletion after confirmation
+    proceedWithLogDeletion(logId) {
+        this.isLoading = true;
+        
+        deleteShiftEndLog({ logId: logId })
+            .then(result => {
+                if (result.includes('Success')) {
+                    this.showToast('Success', 'Shift end log deleted successfully', 'success');
+                    this.loadShiftEndLogsWithCrewInfo();
+                } else {
+                    this.showToast('Error', 'Unable to delete shift end log. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                const errorMessage = error.body?.message || 'Error deleting shift end log';
+                this.showToast('Error', errorMessage, 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
     }
 
     // Show toast message

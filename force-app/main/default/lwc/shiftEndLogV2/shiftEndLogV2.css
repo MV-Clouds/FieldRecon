@@ -12,7 +12,6 @@
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed;
-    min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
@@ -51,7 +50,7 @@
 
 .search-bar {
     flex: 1 1 auto;
-    min-width: 200px;
+    max-width: 300px;
 }
 
 .right-controls {
@@ -252,12 +251,6 @@
     display: block;
     font-size: 0.95rem;
     color: var(--primary-theme-color);
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-}
-
-.log-card-name:hover {
-    text-decoration: underline;
 }
 
 .log-card-date {
@@ -350,6 +343,7 @@
     color: #d83b01;
 }
 
+/* Images grid for viewing (in cards) */
 .images-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
@@ -381,6 +375,39 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* Photo grid for edit modal */
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.photo-item {
+    position: relative;
+    border: 1px solid #dddbda;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    transition: box-shadow 0.2s ease;
+}
+
+.photo-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.photo-thumbnail {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.2s ease;
+}
+
+.photo-item:hover .photo-thumbnail {
+    transform: scale(1.05);
 }
 
 .edit-modal-header {
@@ -441,12 +468,166 @@
     justify-content: center;
 }
 
+.photo-name {
+    padding: 8px 10px;
+    font-size: 11px;
+    color: white;
+    background: var(--primary-theme-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-top: 1px solid #f3f2f2;
+    font-weight: 500;
+    text-align: center;
+}
+
+.remove-photo-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: rgba(194, 57, 52, 0.9);
+    border: 2px solid white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 1;
+}
+
+.remove-photo-btn:hover {
+    background-color: #c23934;
+    transform: scale(1.1);
+}
+
+.upload-options {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.camera-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: var(--primary-theme-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    height: 36px;
+}
+
+.camera-btn:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.camera-btn:active {
+    transform: translateY(0);
+}
+
+/* Camera Modal Styles */
+.camera-modal-container {
+    width: 90%;
+    max-width: 600px;
+}
+
+.camera-modal-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+}
+
+.camera-video,
+.captured-preview {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    background: #000;
+}
+
+.camera-capture-btn {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-theme-color);
+    border: 4px solid white;
+    border-radius: 50%;
+    width: 70px;
+    height: 70px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.camera-capture-btn:hover {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.camera-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    justify-content: center;
+}
+
+.retake-btn,
+.save-photo-btn {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.retake-btn {
+    background: #706e6b;
+    color: white;
+}
+
+.retake-btn:hover {
+    background: #5a5858;
+    transform: translateY(-1px);
+}
+
+.save-photo-btn {
+    background: var(--primary-theme-color);
+    color: white;
+}
+
+.save-photo-btn:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
 .pagination-section {
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 1rem 0;
-    background: #f4f6f9;
     margin-top: 1rem;
 }
 
@@ -544,7 +725,7 @@
     }
 
     .log-card::before {
-        opacity: 1;
+        display: none !important;
     }
 
     .log-card-name {
@@ -590,6 +771,10 @@
     .card-placeholder {
         height: 5.4rem;
     }
+
+    .log-card::before {
+        display: none !important;
+    }
 }
 
 /* 3. Laptops & Desktops (1024px and above) */
@@ -603,4 +788,3 @@
         height: 5.4rem;
     }
 }
-

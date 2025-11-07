@@ -151,19 +151,33 @@ public with sharing class ShiftEndLogV2Controller {
     }
 
     @AuraEnabled
-    public static void updateShiftEndLog(Log_Entry__c logEntry) {
+    public static void updateShiftEndLogWithImages(Log_Entry__c logEntry, List<String> contentDocumentIdsToDelete) {
         try {
             if(logEntry == null) {
                 throw new AuraHandledException('Invalid log entry');
             }
 
-        
+            // Step 1: Delete removed images if any
+            if (contentDocumentIdsToDelete != null && !contentDocumentIdsToDelete.isEmpty()) {
+                List<ContentDocument> docsToDelete = [
+                    SELECT Id 
+                    FROM ContentDocument 
+                    WHERE Id IN :contentDocumentIdsToDelete 
+                    WITH USER_MODE
+                ];
+                
+                if (!docsToDelete.isEmpty()) {
+                    delete as user docsToDelete;
+                }
+            }
+
+            // Step 2: Update the log entry
             update as user logEntry;
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME, 
-                'methodName' => 'updateShiftEndLog', 
+                'methodName' => 'updateShiftEndLogWithImages', 
                 'isApiException' => false, 
                 'statusCode' => null, 
                 'exceptionObj' => e,
@@ -171,6 +185,33 @@ public with sharing class ShiftEndLogV2Controller {
                 'apiResponse' => null
             });
             throw new AuraHandledException('Error updating shift end log: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String deleteShiftEndLog(Id logId) {
+        try {
+            if(logId == null) {
+                throw new AuraHandledException('Invalid log entry ID');
+            }
+
+            Log_Entry__c logToDelete = new Log_Entry__c(Id = logId);
+
+            delete as user logToDelete;
+            
+            return 'Success: Shift end log deleted successfully';
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'deleteShiftEndLog', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error deleting Shift End Log with Id: ' + logId,
+                'apiResponse' => null
+            });
+            throw new AuraHandledException('Error deleting shift end log: ' + e.getMessage());
         }
     }
 
