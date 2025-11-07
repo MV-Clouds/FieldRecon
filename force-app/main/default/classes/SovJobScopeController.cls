@@ -27,28 +27,21 @@ public with sharing class SovJobScopeController {
         Map<String, Object> result = new Map<String, Object>();
         List<SObject> scopeEntries = new List<SObject>();
         Map<Id, List<Scope_Entry_Process__c>> scopeEntryProcessMap = new Map<Id, List<Scope_Entry_Process__c>>();
-    
+
         try {
             String objectName = 'wfrecon__Scope_Entry__c';
             String allScopeEntryFields = getAllFields(objectName);
-            String allJobFields = getAllFields('wfrecon__Job__c');
-    
+            
             if (String.isNotBlank(allScopeEntryFields)) {
-                // Dynamic SOQL for Scope Entries
-                String query = 'SELECT ' + allScopeEntryFields;
-                if (String.isNotBlank(allJobFields)) {
-                    String jobRelationshipFields = convertToRelationshipFields(allJobFields, 'wfrecon__Job__r');
-                    if (String.isNotBlank(jobRelationshipFields)) {
-                        query += ', ' + jobRelationshipFields;
-                    }
-                }
-                query += ' FROM ' + objectName +
-                         ' WHERE wfrecon__Job__c = :jobId' +
-                         ' ORDER BY CreatedDate DESC';
-    
+                // ✅ Include only the one Job field needed
+                String query = 'SELECT ' + allScopeEntryFields +
+                            ', wfrecon__Job__r.wfrecon__Total_Contract_Price__c' +
+                            ' FROM ' + objectName +
+                            ' WHERE wfrecon__Job__c = :jobId' +
+                            ' ORDER BY CreatedDate DESC';
+
                 List<SObject> rawScopeEntries = Database.query(String.escapeSingleQuotes(query), AccessLevel.USER_MODE);
                 scopeEntries.addAll(rawScopeEntries);
-    
 
                 if (!rawScopeEntries.isEmpty()) {
                     // Collect all Scope Entry IDs
@@ -56,7 +49,7 @@ public with sharing class SovJobScopeController {
                     for (SObject entry : rawScopeEntries) {
                         scopeEntryIds.add(entry.Id);
                     }
-    
+
                     // Fetch location counts for each scope entry
                     Map<Id, Integer> scopeEntryLocationCounts = new Map<Id, Integer>();
                     List<AggregateResult> locationCounts = [
@@ -72,14 +65,14 @@ public with sharing class SovJobScopeController {
                         Integer count = (Integer) ar.get('locationCount');
                         scopeEntryLocationCounts.put(scopeEntryId, count);
                     }
-    
+
                     // --- Fetch all related Scope Entry Processes in bulk ---
                     List<Scope_Entry_Process__c> allScopeEntryProcesses = [
                         SELECT Id, Name, Sequence__c, Process_Name__c, 
-                               Contract_Price__c, Completed_Percentage__c, 
-                               Current_Complete_Value__c, Weight__c, 
-                               Process_Library__r.Name, Process_Library__c,
-                               IsManual__c, Scope_Entry__c
+                            Contract_Price__c, Completed_Percentage__c, 
+                            Current_Complete_Value__c, Weight__c, 
+                            Process_Library__r.Name, Process_Library__c,
+                            IsManual__c, Scope_Entry__c
                         FROM Scope_Entry_Process__c
                         WHERE Scope_Entry__c IN :scopeEntryIds
                         WITH USER_MODE
@@ -88,47 +81,37 @@ public with sharing class SovJobScopeController {
 
                     System.debug('All Scope Entry Processes: ' + allScopeEntryProcesses);
 
-
                     // Group processes by scope entry
-                    Map<Id, Set<Id>> scopeEntryToProcessIds = new Map<Id, Set<Id>>();
                     for (Scope_Entry_Process__c process : allScopeEntryProcesses) {
                         Id scopeEntryId = process.Scope_Entry__c;
-                        
-                        // Add to the process map for UI display
                         if (!scopeEntryProcessMap.containsKey(scopeEntryId)) {
                             scopeEntryProcessMap.put(scopeEntryId, new List<Scope_Entry_Process__c>());
                         }
                         scopeEntryProcessMap.get(scopeEntryId).add(process);
-                        
-                        // Track process IDs for setup flag calculation
-                        if (!scopeEntryToProcessIds.containsKey(scopeEntryId)) {
-                            scopeEntryToProcessIds.put(scopeEntryId, new Set<Id>());
-                        }
-                        scopeEntryToProcessIds.get(scopeEntryId).add(process.Id);
                     }
-                    
-                    // Add location counts to result
+
                     result.put('scopeEntryLocationCounts', scopeEntryLocationCounts);
                 }
             }
-    
+
             result.put('scopeEntries', scopeEntries);
             result.put('scopeEntryProcessMap', scopeEntryProcessMap);
             result.put('scopeEntryLocationCounts', result.containsKey('scopeEntryLocationCounts') ? result.get('scopeEntryLocationCounts') : new Map<Id, Integer>());
             result.put('success', true);
-    
+
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getScopeEntries', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Scope Entries dynamically (bulk-safe version).','apiResponse' => null});
-    
+
             result.put('scopeEntries', new List<SObject>());
             result.put('scopeEntryProcessMap', new Map<Id, List<Scope_Entry_Process__c>>());
             result.put('scopeEntryLocationCounts', new Map<Id, Integer>());
             result.put('success', false);
             result.put('error', e.getMessage());
         }
-    
+
         return result;
     }
+
 
     /*
     *********************************************************
