@@ -112,10 +112,6 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     connectedCallback() {
-        console.log('jobId -> ', this.jobId);
-        console.log('crewLeaderId -> ', this.crewLeaderId);
-        console.log('crewIds -> ', this.crewIds);
-
         this.loadMobilizationList();
         this.loadLocationProcesses();
     }
