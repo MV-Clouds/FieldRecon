@@ -87,7 +87,7 @@ export default class aIAForm extends LightningElement {
             this.loadBillingData(this.recordId);
         } else {
             console.warn("No recordId found to fetch billing data");
-            this
+            // this
         }
     }
 
@@ -132,9 +132,9 @@ export default class aIAForm extends LightningElement {
     }
 
     async loadBillingData(recordId) {
-    try {
-        const data = await getBillingData({ recordId });
-        if (data) {
+        try {
+            const data = await getBillingData({ recordId });
+            if (data) {
                 console.log("Raw billing data from Apex:", data);
                 // console.log("Raw billing data from Apex:", data);
 
@@ -149,7 +149,7 @@ export default class aIAForm extends LightningElement {
                 this.toContractor = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Contractor__c : "";
                 this.acccountName = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Account__r ? br.wfrecon__Job__r.wfrecon__Account__r.Name : "" : "";
                 this.project = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Job_Name__c : "";
-                this.applicationNo = br.wfrecon__Job__r ? br.Job_Number__c : "";
+                this.applicationNo = br.wfrecon__Job__r ? br.wfrecon__Job_Number__c : "";
                 this.distributionTo = br.wfrecon__Distribution_To__c || "";
                 this.fromSubcontractor = br.wfrecon__From_Subcontractor__c || "";
                 this.viaArchitect = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Architect__r.Name : "";
@@ -161,14 +161,14 @@ export default class aIAForm extends LightningElement {
                 this.contractSUM = br.wfrecon__Total_Contract_Sum__c || 0;
                 this.totalCompletedandStoredtoDate = br.wfrecon__Total_Completed_Stored_to_Date__c || 0;
                 this.jobAddress = [
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Street__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__City__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__State__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Zip_Code__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Country__c : ""
-                    ]
-                        .filter(part => part && part.trim() !== '')
-                        .join(', '); 
+                    br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Street__c : "",
+                    br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__City__c : "",
+                    br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__State__c : "",
+                    br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Zip_Code__c : "",
+                    br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Country__c : ""
+                ]
+                .filter(part => part && part.trim() !== '')
+                .join(', '); 
                 this.billEndDate = br.wfrecon__End_Date__c || "";
                 this.contractDate = br.wfrecon__Job__r ? br.wfrecon__Job__r.Contract_Date__c : "";
                 this.totalContractValue = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Contract_Value__c || 0.00 : 0.00) || 0.00; 
@@ -180,6 +180,7 @@ export default class aIAForm extends LightningElement {
                 this.lessPreviousCertificatedforPayment = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Less_Previous_Certificated_for_Payment__c || 0.00) || 0.00; 
                 this.currentPaymentDue = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Current_Payment_Due_FM__c || 0.00) || 0.00; 
                 this.balanceToFinishRetainage = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Balance_to_Finish_Retainage__c || 0.00) || 0.00; 
+                
                 const conSum = this.contractSums || {};
                 this.totalC = conSum.totalC;
                 this.totalC = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalC || 0.00) || 0.00; 
@@ -190,7 +191,6 @@ export default class aIAForm extends LightningElement {
                 this.totalH = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalH || 0.00) || 0.00; 
                 this.totalI = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalI || 0.00) || 0.00; 
                 this.totalJ = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalJ || 0.00) || 0.00; 
-
 
                 const changeOrderSummary = this.changeOrderSummary || {};
                 this.netChanges = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.netChanges || 0.00) || 0.00; 
@@ -262,7 +262,7 @@ export default class aIAForm extends LightningElement {
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueOf_G}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r}</td>
@@ -340,7 +340,7 @@ export default class aIAForm extends LightningElement {
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueOf_G}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r}</td>
@@ -406,7 +406,7 @@ export default class aIAForm extends LightningElement {
                 }
 
             } else if (error) {
-                console.error("Error fetching billing data:", error);
+                console.error("Error fetching billing data in else if:", error);
                 this.error = error;
                 this.billingRecord = {};
                 this.contractList = [];
@@ -414,7 +414,7 @@ export default class aIAForm extends LightningElement {
                 this.contractSums = {};
             }
         } catch (error) {
-            console.error("Error fetching billing data:", error);
+            console.error("Error fetching billing data in catch:", error);
             this.error = error;
             this.billingRecord = {};
             this.contractList = [];
