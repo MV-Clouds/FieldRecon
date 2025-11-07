@@ -8,6 +8,7 @@ public class HomeTabControllerTest {
         Contact testContact = new Contact(
             FirstName = 'Test',
             LastName = 'Contact',
+            Email = 'test.contact@example.com',
             RecordTypeId = [SELECT Id FROM RecordType WHERE SObjectType='Contact' AND DeveloperName='Employee_WF_Recon' LIMIT 1].Id
         );
         insert testContact;
