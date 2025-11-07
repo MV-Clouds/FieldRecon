@@ -313,7 +313,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             getMobilizationMembers({ filterDate: this.apexFormattedDate, mode: this.activeTab })
                 .then((data) => {
                     console.log('getMobilizationMembers fetched successfully:', data);
-                    if(data != null){
+                    if(data && !data?.ERROR){
                         if (data && Object.keys(data).length !== 0) {
                             if(this.activeTab == 'today') {
                                 this.todayJobList = data.dayJobs || [];
@@ -361,7 +361,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                             }
                         }
                     } else {
-                        this.showToast('Error', 'Failed to load data!', 'error');
+                        this.showToast('Error', data.ERROR, 'error');
                     }
                 })
                 .catch((error) => {
@@ -446,13 +446,13 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             getTimeSheetEntryItems()
                 .then(result => {
                     console.log('getTimeSheetEntryItems result :: ', result);
-                    
-                    if(result != null) {  
-                        if (result && result.length !== 0) {
-                            this.timesheetDetailsRaw = result;
+
+                    if(result && !result?.ERROR){  
+                        if (result && result.timesheetEntries.length !== 0) {
+                            this.timesheetDetailsRaw = result.timesheetEntries;
                         } 
                     } else {
-                        this.showToast('Error', 'Failed to load data!', 'error');
+                        this.showToast('Error', result?.ERROR, 'error');
                     }
                 })
                 .catch(error => {

@@ -27,11 +27,11 @@ public with sharing class HomeTabController {
             Map<String, Object> result = new Map<String, Object>();
 
             String userId = UserInfo.getUserId();
-            Contact currentUserContact = new Contact();
+            List<Contact> currentUserContactList = new List<Contact>();
             if(Test.isRunningTest()) {
-                currentUserContact = [SELECT Id, Name FROM Contact WITH USER_MODE LIMIT 1];
+                currentUserContactList = [SELECT Id, Name FROM Contact WITH USER_MODE LIMIT 1];
             } else {
-                currentUserContact = [
+                currentUserContactList = [
                     SELECT Id, Name 
                     FROM Contact 
                     WHERE User__c = :userId
@@ -41,9 +41,13 @@ public with sharing class HomeTabController {
                 ];
             }
 
-            if(currentUserContact == null) {
+            if(currentUserContactList == null || currentUserContactList.isEmpty()) {
                 System.debug('No associated Contact found for the current user.');
+                result.put('ERROR', 'No associated Contact found for the current user.');
+                return result;
             }
+
+            Contact currentUserContact = currentUserContactList[0];
 
             // Compute start/end datetime
             DateTime startDateTime;
@@ -224,14 +228,16 @@ public with sharing class HomeTabController {
     ********************************************************
     */
     @AuraEnabled
-    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(){
+    public static Map<String, Object> getTimeSheetEntryItems(){
         try {
+            Map<String, Object> result = new Map<String, Object>();
+
             String userId = UserInfo.getUserId();
-            Contact currentUserContact = new Contact();
+            List<Contact> currentUserContactList = new List<Contact>();
             if(Test.isRunningTest()) {
-                currentUserContact = [SELECT Id, Name FROM Contact WITH USER_MODE LIMIT 1];
+                currentUserContactList = [SELECT Id, Name FROM Contact WITH USER_MODE LIMIT 1];
             } else {
-                currentUserContact = [
+                currentUserContactList = [
                     SELECT Id, Name 
                     FROM Contact 
                     WHERE User__c = :userId
@@ -241,9 +247,13 @@ public with sharing class HomeTabController {
                 ];
             }
 
-            if(currentUserContact == null) {
+            if(currentUserContactList == null || currentUserContactList.isEmpty()) {
                 System.debug('No associated Contact found for the current user.');
+                result.put('ERROR', 'No associated Contact found for the current user.');
+                return result;
             }
+
+            Contact currentUserContact = currentUserContactList[0];
             
             Date todayDate = Date.today();
 
@@ -263,11 +273,12 @@ public with sharing class HomeTabController {
                 ORDER BY CreatedDate DESC
             ];
 
-            List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
+            List<TimesheetEntryItemWrapper> timesheetList = new List<TimesheetEntryItemWrapper>();
             for(Timesheet_Entry_Item__c item : items) {
-                result.add(new TimesheetEntryItemWrapper(item));
+                timesheetList.add(new TimesheetEntryItemWrapper(item));
             }
 
+            result.put('timesheetEntries', timesheetList);
             return result;
         } catch (Exception e) {
             System.debug('Exception in getTimeSheetEntryItems: ' + e.getMessage());

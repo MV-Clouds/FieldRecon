@@ -97,7 +97,7 @@ public class HomeTabControllerTest {
     @IsTest
     static void testGetTimeSheetEntryItems() {
         Test.startTest();
-        List<HomeTabController.TimesheetEntryItemWrapper> items = HomeTabController.getTimeSheetEntryItems();
+        Map<String, Object> result = HomeTabController.getTimeSheetEntryItems();
         Test.stopTest();
     }
 }
