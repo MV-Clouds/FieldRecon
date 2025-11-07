@@ -14,7 +14,7 @@
     background-attachment: fixed;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .spinner-container {
