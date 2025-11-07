@@ -23,11 +23,12 @@ public with sharing class PermissionsUtility {
                 return result;
             }
 
-            psNames.add('FR_Base');
-            psNames.add('FR_Admin');
-
             Set<String> assignedSet = new Set<String>();
 
+            List<String> psNamesWithDefaultPs = new List<String>();
+            psNamesWithDefaultPs.addAll(psNames);
+            psNamesWithDefaultPs.add('FR_Base');
+            psNamesWithDefaultPs.add('FR_Admin');
 
             // Direct assignments (Permission Set → User)
             // Permission Set that are assigned through the groups are also included in PermissionSetAssignment
@@ -35,11 +36,9 @@ public with sharing class PermissionsUtility {
                 SELECT PermissionSet.Name
                 FROM PermissionSetAssignment
                 WHERE AssigneeId = :UserInfo.getUserId()
-                      AND PermissionSet.Name IN :psNames
+                      AND PermissionSet.Name IN :psNamesWithDefaultPs
                 WITH USER_MODE
             ]) {
-
-                System.debug('Permission Set Assigned: ' + psa.PermissionSet.Name);
                 if(psa.PermissionSet.Name == 'FR_Base'){
                     result.put('isBase', true);
                 } else if(psa.PermissionSet.Name == 'FR_Admin'){
