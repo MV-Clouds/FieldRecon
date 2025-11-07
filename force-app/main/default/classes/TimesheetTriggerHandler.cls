@@ -23,7 +23,7 @@ public with sharing class TimesheetTriggerHandler {
             recursionController = true;
             List<Timesheet__c> tsListToUpdate = new List<Timesheet__c>();
             for (Timesheet__c ts : newRecordList) {
-                if (ts.Time_In__c != null && ts.Time_Out__c != null) {
+                if (ts.Time_In__c != null && ts.Time_Out__c != null && ts.Do_Not_Execute__c == false) {
                     if(Trigger.isUpdate) {
                         Timesheet__c oldTimesheet = oldRecordMap.get(ts.Id);
                         if(oldTimesheet.Time_Out__c != ts.Time_Out__c) {

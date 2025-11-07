@@ -314,7 +314,6 @@ public with sharing class ManagementTabController {
 
             if (!membersToAdd.isEmpty()) {
                 Set<Id> contactIdsToInsert = new Set<Id>(membersToAdd);
-
                 List<Crew_Member__c> existingMembers = [
                     SELECT Id, Contact__c
                     FROM Crew_Member__c
@@ -698,6 +697,7 @@ public with sharing class ManagementTabController {
 
             response.put('crewLeaderContactId', crewLeaderContactId);
             response.put('crewLeaderMemberId', crewLeaderMemberId);
+
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching crew contacts : ' + e.getMessage(), 'apiResponse' => null});
         }
@@ -767,6 +767,7 @@ public with sharing class ManagementTabController {
             throw new AuraHandledException('Error saving cost code: ' + e.getMessage());
         }
     }
+
 
     private class MobilizationPropagationResult {
         public Integer mobilizationsEvaluated = 0;
