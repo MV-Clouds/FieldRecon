@@ -43,6 +43,11 @@ public with sharing class ShiftEndLogEntriesController {
             for (Mobilization_Member__c m : members) {
                 contactIds.add(m.Contact__c);
             }
+            
+            // Add crew leader to contactIds if not already present
+            if (String.isNotBlank(crewLeaderId) && !contactIds.contains(crewLeaderId)) {
+                contactIds.add(crewLeaderId);
+            }
     
             if (contactIds.isEmpty()) {
                 return result;
@@ -391,6 +396,11 @@ public with sharing class ShiftEndLogEntriesController {
             Set<Id> contactIds = new Set<Id>();
             for (Mobilization_Member__c m : members) {
                 contactIds.add(m.Contact__c);
+            }
+            
+            // Add crew leader to contactIds if not already present
+            if (String.isNotBlank(crewLeaderId) && !contactIds.contains(crewLeaderId)) {
+                contactIds.add(crewLeaderId);
             }
 
             if (contactIds.isEmpty()) {

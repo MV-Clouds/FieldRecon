@@ -606,7 +606,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         const prevPercent = parseFloat(proc.wfrecon__Completed_Percentage__c || 0);
                         return {
                             id: proc.Id,
-                            name: proc.Name,
+                            name: proc.Name + ' - Location: ' + proc.wfrecon__Location__r?.Name,
                             locationId: proc.wfrecon__Location__c,
                             locationName: proc.wfrecon__Location__r?.Name || 'Unknown Location',
                             sequence: proc.wfrecon__Sequence__c,
