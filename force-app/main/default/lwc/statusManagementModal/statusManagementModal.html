@@ -1,0 +1,139 @@
+<template>
+    <template if:true={isModalOpen}>
+
+        <template if:true={isLoading}>
+            <div class="spinner-container">
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            </div>
+        </template>
+        
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open popup-1">
+            <div class="slds-modal__container crew-popup">
+
+                <!-- Modal Header -->
+                <header class="slds-modal__header crew-popup-header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCancel}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close" class="slds-button__icon slds-button__icon_large"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-text-heading_medium">Manage Mobilization Statuses</h2>
+                </header>
+
+                <!-- Modal Content -->
+                <div class="slds-modal__content slds-p-around--medium crew-popup-body">
+                    <!-- Add New Status Section -->
+                    <div class="section-container">
+                        <div class="section-header">
+                            <h3 class="section-title">Add New Status</h3>
+                        </div>
+                        <div class="add-status-container">
+                            <div class="input-group">
+                                <lightning-input
+                                    type="text"
+                                    variant="label-hidden"
+                                    placeholder="Enter new status name..."
+                                    value={newStatusInput}
+                                    onchange={handleNewStatusInputChange}
+                                    onkeypress={handleKeyPress}
+                                    class="status-input">
+                                </lightning-input>
+                                <button 
+                                    class="crew-action-button crew-create-button"
+                                    onclick={handleAddNewStatus}
+                                    disabled={isAddDisabled}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Add Status
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- New Statuses to Add -->
+                        <template if:true={newStatusesToAdd.length}>
+                            <div class="new-statuses-section">
+                                <h4 class="sub-section-title">New Statuses to Add:</h4>
+                                <div class="selected-record-tiles">
+                                    <template for:each={newStatusesToAdd} for:item="status">
+                                        <span class="tile" key={status.value}>
+                                            <div class="slds-truncate" title={status.label}>{status.label}</div>
+                                            <svg 
+                                                class="remove-btn-svg" 
+                                                data-status={status.value}
+                                                onclick={handleRemoveNewStatus}
+                                                role="button" 
+                                                tabindex="0" 
+                                                focusable="true" 
+                                                xmlns="http://www.w3.org/2000/svg" 
+                                                viewBox="0 0 640 640" 
+                                                width="16" 
+                                                height="16" 
+                                                fill="#5a5adb">
+                                                <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
+                                            </svg>
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Existing Statuses Section -->
+                    <div class="section-container">
+                        <div class="section-header">
+                            <h3 class="section-title">Existing Statuses</h3>
+                        </div>
+                        
+                        <template if:true={existingStatuses.length}>
+                            <div class="existing-statuses-tiles-container">
+                                <template for:each={existingStatuses} for:item="status">
+                                    <span 
+                                        key={status.value} 
+                                        class={status.cssClass}
+                                        title={status.tooltipText}>
+                                        <div class="slds-truncate" title={status.label}>{status.label}</div>
+                                        <template if:true={status.isMarkedForRemoval}>
+                                            <svg class="remove-btn-svg" data-status={status.value} onclick={handleToggleStatusRemoval} xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" xml:space="preserve" fill="#000000"><g  stroke-width="0"></g><g stroke-linecap="round" stroke-linejoin="round"></g><g> <path style="fill:#B3404A;" d="M254.223,282.774L83.817,157.143c-5.192-3.829-5.192-11.59,0-15.418L254.223,16.093 c6.323-4.663,15.261-0.148,15.261,7.708v251.264C269.485,282.922,260.547,287.437,254.223,282.774z"></path> <path style="fill:#B3404A;" d="M283.691,87.902V23.801C283.691,10.678,273.005,0,259.87,0c-5.076,0-9.943,1.61-14.076,4.657 L75.387,130.288c-6.055,4.464-9.67,11.621-9.67,19.143c0,7.522,3.614,14.679,9.67,19.145l170.406,125.631 c4.133,3.049,9,4.658,14.077,4.658c13.135,0,23.821-10.678,23.821-23.801V116.585c84.076,12.709,149.741,82.337,156.316,168.248 h-77.176c-7.846,0-14.206,6.36-14.206,14.206c0,51.073-41.551,92.624-92.624,92.624s-92.624-41.551-92.624-92.624 c0-7.846-6.36-14.206-14.206-14.206H57.245c-7.846,0-14.206,6.36-14.206,14.206C43.039,416.466,138.573,512,256,512 s212.961-95.534,212.961-212.961C468.96,190.999,388.08,101.519,283.691,87.902z M255.278,265.901L97.3,149.433L255.278,32.965 V265.901z M256,483.587c-96.977,0-176.725-75.197-184.007-170.342h63.799c7.056,60.069,58.275,106.831,120.207,106.831 s113.151-46.763,120.207-106.831h63.799C432.725,408.39,352.977,483.587,256,483.587z"></path> </g></svg>                                       
+                                        </template>
+                                        <template if:false={status.isMarkedForRemoval}>
+                                            <svg 
+                                                class="remove-btn-svg" 
+                                                data-status={status.value}
+                                                onclick={handleToggleStatusRemoval}
+                                                role="button" 
+                                                tabindex="0" 
+                                                xmlns="http://www.w3.org/2000/svg" 
+                                                viewBox="0 0 640 640" 
+                                                width="16" 
+                                                height="16" 
+                                                fill="#5a5adb">
+                                                <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
+                                            </svg>
+                                        </template>
+                                    </span>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template if:false={existingStatuses.length}>
+                            <div class="empty-state">
+                                <p class="empty-message">No existing statuses found</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="slds-modal__footer slds-grid slds-grid--align-center slds-p-vertical--medium crew-bottom-footer-btn">
+                    <button 
+                        class="crew-save-btn"
+                        onclick={handleSave}
+                        disabled={isSaveDisabled}>
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open backdrop-1"></div>
+    </template>
+</template>

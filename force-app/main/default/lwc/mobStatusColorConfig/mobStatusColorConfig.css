@@ -1,0 +1,470 @@
+* {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    user-select: none;
+    scrollbar-width: none !important;
+}
+
+.spinner-container{
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+    z-index: 9999;
+}
+
+.filter-search-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 8px 2px;
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.search-bar {
+    flex: 0 0 auto;
+}
+
+.search-bar lightning-input {
+    width: 300px;
+}
+
+.main-card {
+    transition: margin-left 0.3s ease;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 14px;
+    height: 100%;
+}
+
+/* Data Table Wrapper with Fixed Height */
+.data-table-container {
+    flex: 1;
+    overflow: auto;
+    border-radius: 8px;
+    margin: 16px 0;
+}
+
+.custom-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    font-size: 14px;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.table-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.header-cell {
+    padding: 10px;
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border: none;
+}
+
+.table-body {
+    position: relative;
+}
+
+.custom-data-table td {
+    padding: 10px;
+    text-align: center;
+    border: none;
+    vertical-align: middle;
+}
+
+.custom-data-table tr:nth-child(odd) {
+    background-color: rgb(244, 244, 255);
+}
+
+.custom-data-table tr:hover {
+    background-color: rgb(244, 244, 255) !important;
+    border: none;
+}
+
+.custom-data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.center-trancate-text {
+    text-align: center;
+    color: #585858;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+    position: relative;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+}
+
+.column-label {
+    font-weight: 600;
+}
+
+.no-prop {
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    height: 100%;
+}
+
+/* Empty state styling */
+.empty-state {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.empty-state__content {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.empty-state__content .empty-state__icon {
+    width: 65%;
+    height: 100%;
+}
+
+.empty-state__content .empty-state__message {
+    color: rgba(94, 90, 219, 1);
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+/* Search bar input styling */
+.search-bar-input {
+    --slds-c-input-color-border: rgba(94, 90, 219, 0.3);
+    --slds-c-input-color-border-focus: rgba(94, 90, 219, 1);
+}
+
+.right-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    color: #333;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    height: 36px;
+    background-color: white;
+    font-size: 14px;
+    min-width: 108px;
+}
+
+.action-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.action-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
+    pointer-events: none;
+}
+
+.save-button {
+    background-color: rgba(94, 90, 219, 1);
+    border-color: rgba(94, 90, 219, 1);
+    color: white;
+}
+
+.save-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.save-button:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Discard Button Styles */
+.action-button.discard-btn {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.action-button.discard-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+}
+
+.action-button.discard-btn:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
+}
+
+/* Manage Statuses Button Styles */
+.action-button.manage-statuses-btn {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.action-button.manage-statuses-btn:hover:not(:disabled) {
+    background-color: rgba(84, 80, 199, 1);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.action-button.manage-statuses-btn:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* SVG Icon Sizing */
+.action-button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.custom-icon path {
+ fill:none;stroke:#ffffff;stroke-linecap:round;stroke-linejoin:round;
+}
+
+/* Status Name Cell */
+.status-name-cell {
+    position: relative;
+}
+
+.status-name {
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+    /* Dynamic styling will be applied via JavaScript */
+}
+
+/* Color Picker Styling */
+.color-picker-cell {
+    padding: 8px !important;
+}
+
+.color-picker-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.color-picker {
+    width: 40px;
+    height: 30px;
+    border: 2px solid rgba(94, 90, 219, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.color-picker:hover {
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.color-picker:focus {
+    outline: none;
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
+}
+
+.color-value {
+    font-family: monospace;
+    font-size: 12px;
+    color: #666;
+    background-color: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    min-width: 70px;
+    text-align: center;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+}
+
+.color-value:hover {
+    background-color: #e9ecef;
+    border-color: rgba(94, 90, 219, 0.3);
+}
+
+/* Modified Row Highlighting */
+tr.true {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    border-left: 3px solid #ffc107;
+}
+
+tr.true:hover {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+/* Modified Cell Highlighting - Only highlight specific cells */
+.modified-cell {
+    background-color: #FBF8EF !important;
+    border-radius: 0.25rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Add a subtle left border indicator for modified cells */
+.modified-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #F0AD4E !important;
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 900px) {
+    .filter-search-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-bar lightning-input {
+        width: 100%;
+    }
+
+    .right-controls {
+        justify-content: center;
+    }
+
+    .color-picker-container {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .color-value {
+        font-size: 10px;
+        min-width: 60px;
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .main-card {
+        padding: 8px;
+    }
+
+    .custom-data-table {
+        font-size: 12px;
+    }
+
+    .header-cell,
+    .custom-data-table td {
+        padding: 6px;
+    }
+
+    .action-button {
+        padding: 0.4rem 0.8rem;
+        font-size: 14px;
+        height: 32px;
+    }
+
+    .color-picker {
+        width: 35px;
+        height: 25px;
+    }
+}
+
+@media only screen and (max-width: 480px) {
+    .search-bar lightning-input {
+        width: 100%;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .action-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .custom-data-table {
+        font-size: 11px;
+    }
+
+    .header-cell,
+    .custom-data-table td {
+        padding: 4px;
+    }
+
+    .color-picker-container {
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .color-picker {
+        width: 30px;
+        height: 20px;
+    }
+
+    .color-value {
+        font-size: 9px;
+        min-width: 50px;
+    }
+}

@@ -1,0 +1,160 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container slds-is-fixed">
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="main-card">
+        <!-- Header Section -->
+        <div class="filter-search-container">
+            <div class="search-bar">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search by Status Name..."
+                    value={searchTerm}
+                    max-length="255"
+                    onchange={handleSearch}
+                    class="search-bar-input">
+                </lightning-input>
+            </div>
+
+            <div class="right-controls">
+                <!-- Manage Statuses Button -->
+                <button 
+                    class="action-button manage-statuses-btn"
+                    onclick={handleManageStatuses}>
+                    <svg class="custom-icon" height="16" width="16" viewBox="-4.8 -4.8 57.60 57.60" xmlns="http://www.w3.org/2000/svg" fill="#000000" stroke="#000000" stroke-width="3.216" transform="rotate(0)matrix(1, 0, 0, 1, 0, 0)"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#ffffffCCCCCC" stroke-width="0.9600000000000002"></g><g id="SVGRepo_iconCarrier"><path class="a" d="M37.385,19.3475,37.3077,5.5H5.4911V39.5762l13.5539.083"></path><path class="a" d="M12.1881,14.203l19.001.0887"></path><path class="a" d="M11.8576,22.9841,22.68,22.8954"></path><path class="a" d="M11.94,31.233h6.6917"></path><path class="a" d="M31.5376,42.5a8.6859,8.6859,0,0,1-6.7425-8.7469,8.6409,8.6409,0,0,1,6.8631-8.6238,8.176,8.176,0,0,1,9.0954,5.79,9.11,9.11,0,0,1-3.7451,10.609"></path><path class="a" d="M37.0134,41.5257l.0012-5.9"></path><path class="a" d="M37.0134,41.5257l5.4955-.0145"></path></g></svg>           
+                    Manage Statuses
+                </button>
+
+                <!-- Action Buttons - Always present but enabled/disabled based on state -->
+                <div class="action-buttons">
+                    <button 
+                        class="action-button discard-btn"
+                        onclick={handleCancel}
+                        disabled={isButtonsDisabled}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Discard Changes
+                    </button>
+                    <button 
+                        class="action-button save-button"
+                        onclick={handleSave}
+                        disabled={isButtonsDisabled}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table Container -->
+        <div class="data-table-container">
+            <template if:true={isDataAvailable}>
+                <table class="custom-data-table">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="header-cell" style="width: 8%;">
+                                <div class="header-content">
+                                    <span class="column-label">Sr. No.</span>
+                                </div>
+                            </th>
+                            <th class="header-cell" style="width: 32%;">
+                                <div class="header-content">
+                                    <span class="column-label">Status Name</span>
+                                </div>
+                            </th>
+                            <th class="header-cell" style="width: 30%;">
+                                <div class="header-content">
+                                    <span class="column-label">Text Color</span>
+                                </div>
+                            </th>
+                            <th class="header-cell" style="width: 30%;">
+                                <div class="header-content">
+                                    <span class="column-label">Background Color</span>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <template for:each={filteredStatusColors} for:item="statusRecord" for:index="index">
+                            <tr key={statusRecord.picklistValue}>
+                                <!-- Serial Number -->
+                                <td class="center-trancate-text">
+                                    {statusRecord.serialNumber}
+                                </td>
+                                
+                                <!-- Status Name with dynamic styling -->
+                                <td class="center-trancate-text status-name-cell">
+                                    <span class="status-name" data-text-color={statusRecord.textColor} data-bg-color={statusRecord.backgroundColor}>
+                                        {statusRecord.picklistValue}
+                                    </span>
+                                </td>
+                                
+                                <!-- Text Color -->
+                                <td class={statusRecord.isTextColorModified}>
+                                    <div class="color-picker-container">
+                                        <input 
+                                            type="color" 
+                                            value={statusRecord.textColor}
+                                            data-record-id={statusRecord.picklistValue}
+                                            data-field-type="textColor"
+                                            onchange={handleColorChange}
+                                            oninput={handleColorInput}
+                                            class="color-picker">
+                                        <span class="color-value">{statusRecord.textColor}</span>
+                                    </div>
+                                </td>
+                                
+                                <!-- Background Color -->
+                                <td class={statusRecord.isBackgroundColorModified}>
+                                    <div class="color-picker-container">
+                                        <input 
+                                            type="color" 
+                                            value={statusRecord.backgroundColor}
+                                            data-record-id={statusRecord.picklistValue}
+                                            data-field-type="backgroundColor"
+                                            onchange={handleColorChange}
+                                            oninput={handleColorInput}
+                                            class="color-picker">
+                                        <span class="color-value">{statusRecord.backgroundColor}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <template if:false={isDataAvailable}>
+                <div class="no-prop">
+                    <div class="empty-state">
+                        <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            </div>
+                            <div class="empty-state__message">No status records are found</div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    
+    <!-- Status Management Modal -->
+    <template if:true={showStatusModal}>
+        <c-status-management-modal onclose={handleCloseStatusModal}></c-status-management-modal>
+    </template>
+</template>
