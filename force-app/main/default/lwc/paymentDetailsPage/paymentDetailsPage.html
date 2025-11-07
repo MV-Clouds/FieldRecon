@@ -1,0 +1,308 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <!-- Fixed Payment Header -->
+        <div class="billing-header-fixed">
+            <div class="billing-header-info">
+                <div class="billing-name-section">
+                    <div class="billing-name-label">Payment Number</div>
+                    <div class="billing-name-value">
+                        <a href="javascript:void(0)" onclick={navigateToRecord} data-val={paymentDetails.Id} class="record-link">
+                            {paymentDetails.Name}
+                        </a>
+                    </div>
+                </div>
+                <div class="billing-name-section">
+                    <div class="billing-name-label">Related Bill Number</div>
+                    <div class="billing-name-value">
+                        <template if:true={paymentDetails.BillingId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={paymentDetails.BillingId} class="record-link">
+                                {paymentDetails.BillingNumber}
+                            </a>
+                        </template>
+                        <template if:false={paymentDetails.BillingId}>
+                            {paymentDetails.BillingNumber}
+                        </template>
+                    </div>
+                </div>
+                <div class="job-number-section">
+                    <div class="job-number-label">Job Number</div>
+                    <div class="job-number-value">
+                        <template if:true={paymentDetails.JobId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={paymentDetails.JobId} class="record-link">
+                                {paymentDetails.JobNumber}
+                            </a>
+                        </template>
+                        <template if:false={paymentDetails.JobId}>
+                            {paymentDetails.JobNumber}
+                        </template>
+                    </div>
+                </div>
+                <div class="payment-due-section">
+                    <div class="payment-due-label">Total Paid Amount</div>
+                    <div class="payment-due-value">{formattedTotalPaidAmount}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="scrollable-content">
+            <!-- Payment Information Section-->
+            <div class="billing-info-section">
+                <!-- Payment Information Content -->
+                <div class="billing-info-content">
+                    <div class="table-header-section">
+                        <h2 class="table-title">Payment Details</h2>
+                        <div class="table-actions">
+                            <button class="action-button save-button" onclick={handleSavePaymentInfo} disabled={isSavePaymentDisabled}>
+                                <template if:true={isSavingPaymentInfo}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                        <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span style="margin-left: 0.5rem;">{savePaymentButtonLabel}</span>
+                                </template>
+                                <template if:false={isSavingPaymentInfo}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span style="margin-left: 0.5rem;">{savePaymentButtonLabel}</span>
+                                </template>
+                            </button>
+                        </div>
+                    </div>
+                
+                    <div class="payment-details-layout">
+                        <!-- Left Column - 50% width -->
+                        <div class="payment-left-column">
+                            <div class="field-group">
+                                <lightning-input label="Job Name" type="text" value={paymentDetails.JobName} disabled></lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input label="Account Name" type="text" value={paymentDetails.AccountName} disabled></lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input label="Address" type="text" value={paymentDetails.Address} disabled></lightning-input>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Column - 50% width -->
+                        <div class="payment-right-column">
+                            <div class="field-group">
+                                <lightning-input 
+                                    label="Payment Reference Number" 
+                                    type="text"
+                                    value={paymentDetails.PaymentReference} 
+                                    onchange={handlePaymentFieldChange}
+                                    data-field-name="paymentReference">
+                                </lightning-input>
+                            </div>
+                            <div class="field-group">
+                                <lightning-input 
+                                    label="Payment Received Date" 
+                                    type="date"
+                                    value={paymentDetails.PaymentReceivedDate} 
+                                    onchange={handlePaymentFieldChange}
+                                    data-field-name="paymentReceivedDate">
+                                </lightning-input>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Base Contract Line Items Table -->
+                <div class="table-section">
+                    <div class="table-header-section">
+                        <h2 class="table-title">Base Contract Line Items</h2>
+                        <div class="table-actions">
+                            <button 
+                                class="action-button save-button" 
+                                onclick={handleSaveContractChanges} 
+                                disabled={isContractSaveDisabled}>
+                                <template if:true={isSavingContract}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                        <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span style="margin-left: 0.5rem;">{contractSaveButtonLabel}</span>
+                                </template>
+                                <template if:false={isSavingContract}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span style="margin-left: 0.5rem;">{contractSaveButtonLabel}</span>
+                                </template>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="data-table-container">
+                        <template if:true={contractLineItems.length}>
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell">Sr No.</th>
+                                        <th class="header-cell">Scope Entry Name</th>
+                                        <th class="header-cell">Contract Value</th>
+                                        <th class="header-cell">Total Billed Amount</th>
+                                        <th class="header-cell">Total Amount Paid</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={contractLineItems} for:item="item">
+                                        <tr key={item.Id} data-record-id={item.Id}>
+                                            <td class="data-cell center-trancate-text">{item.SerialNumber}</td>
+                                            <td class="data-cell center-trancate-text">{item.ScopeEntryName}</td>
+                                            <td class="data-cell center-trancate-text">{item.FormattedContractValue}</td>
+                                            <td class="data-cell center-trancate-text">{item.FormattedTotalBilledAmount}</td>
+                                            <td class="data-cell editable-cell center-trancate-text" 
+                                                data-record-id={item.Id} 
+                                                data-field="AmountReceived"
+                                                onclick={handleCellClick}
+                                                onmouseenter={handleCellMouseEnter}
+                                                onmouseleave={handleCellMouseLeave}>
+                                                <template if:false={item.IsEditingAmountReceived}>
+                                                    <span class="cell-value">{item.FormattedAmountReceived}</span>
+                                                    <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </template>
+                                                <template if:true={item.IsEditingAmountReceived}>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.01"
+                                                        class="cell-input" 
+                                                        value={item.AmountReceived}
+                                                        data-record-id={item.Id}
+                                                        data-field="AmountReceived"
+                                                        onchange={handleCellInputChange}
+                                                        onblur={handleCellInputBlur} />
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <!-- Totals Row -->
+                                    <tr class="totals-row">
+                                        <td class="data-cell totals-label"></td>
+                                        <td class="data-cell totals-label">Total</td>
+                                        <td class="data-cell totals-label">{contractTotals.FormattedContractValue}</td>
+                                        <td class="data-cell totals-label">{contractTotals.FormattedTotalBilledAmount}</td>
+                                        <td class="data-cell totals-label">{contractTotals.FormattedAmountReceived}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={contractLineItems.length}>
+                            <div class="no-data-message">
+                                <p>No base contract line items found.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Change Orders Line Items Table -->
+                <div class="table-section">
+                    <div class="table-header-section">
+                        <h2 class="table-title">Change Orders</h2>
+                        <div class="table-actions">
+                            <button 
+                                class="action-button save-button" 
+                                onclick={handleSaveChangeOrderChanges} 
+                                disabled={isChangeOrderSaveDisabled}>
+                                <template if:true={isSavingChangeOrder}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                        <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span style="margin-left: 0.5rem;">{changeOrderSaveButtonLabel}</span>
+                                </template>
+                                <template if:false={isSavingChangeOrder}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span style="margin-left: 0.5rem;">{changeOrderSaveButtonLabel}</span>
+                                </template>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="data-table-container">
+                        <template if:true={changeOrderLineItems.length}>
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell">Sr No.</th>
+                                        <th class="header-cell">Scope Entry Name</th>
+                                        <th class="header-cell">Contract Value</th>
+                                        <th class="header-cell">Total Billed Amount</th>
+                                        <th class="header-cell">Total Amount Paid</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={changeOrderLineItems} for:item="item">
+                                        <tr key={item.Id} data-record-id={item.Id}>
+                                            <td class="data-cell center-trancate-text">{item.SerialNumber}</td>
+                                            <td class="data-cell center-trancate-text">{item.ScopeEntryName}</td>
+                                            <td class="data-cell center-trancate-text">{item.FormattedContractValue}</td>
+                                            <td class="data-cell center-trancate-text">{item.FormattedTotalBilledAmount}</td>
+                                            <td class="data-cell editable-cell center-trancate-text" 
+                                                data-record-id={item.Id} 
+                                                data-field="AmountReceived"
+                                                onclick={handleCellClick}
+                                                onmouseenter={handleCellMouseEnter}
+                                                onmouseleave={handleCellMouseLeave}>
+                                                <template if:false={item.IsEditingAmountReceived}>
+                                                    <span class="cell-value">{item.FormattedAmountReceived}</span>
+                                                    <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </template>
+                                                <template if:true={item.IsEditingAmountReceived}>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.01"
+                                                        class="cell-input" 
+                                                        value={item.AmountReceived}
+                                                        data-record-id={item.Id}
+                                                        data-field="AmountReceived"
+                                                        onchange={handleCellInputChange}
+                                                        onblur={handleCellInputBlur} />
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <!-- Totals Row -->
+                                    <tr class="totals-row">
+                                        <td class="data-cell totals-label"></td>
+                                        <td class="data-cell totals-label">Total</td>
+                                        <td class="data-cell totals-label">{changeOrderTotals.FormattedContractValue}</td>
+                                        <td class="data-cell totals-label">{changeOrderTotals.FormattedTotalBilledAmount}</td>
+                                        <td class="data-cell totals-label">{changeOrderTotals.FormattedAmountReceived}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={changeOrderLineItems.length}>
+                            <div class="no-data-message">
+                                <p>No change order line items found.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div> <!-- End scrollable-content -->
+        </div>
+    </div>
+</template>
