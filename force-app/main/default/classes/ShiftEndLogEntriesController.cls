@@ -510,94 +510,14 @@ public with sharing class ShiftEndLogEntriesController {
     public static List<Location_Process__c> getJobLocationProcesses(Id jobId) {
         List<Location_Process__c> processes = new List<Location_Process__c>();
         try {
-            processes = [SELECT Id, Name, Contract_Price__c, Completed_Percentage__c, Current_Completed_Value__c, Process_Status__c, Sequence__c,
-                            Location__c, Location__r.Name, Location__r.Job__c FROM Location_Process__c WHERE Location__r.Job__c = :jobId WITH USER_MODE
-                            ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC];
+            processes = [SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
+                            wfrecon__Location__c, wfrecon__Location__r.Name
+                            FROM Location_Process__c WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId WITH USER_MODE
+                            ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getJobLocationProcesses', 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Processes for Job ID: ' + jobId, 'apiResponse' => null});
         }
         return processes;
-    }
-
-    @AuraEnabled
-    public static BatchUpdateResult batchUpdateProcessCompletion(List<ProcessUpdateWrapper> processUpdates) {
-        BatchUpdateResult result = new BatchUpdateResult();
-        result.isSuccess = true;
-        result.successCount = 0;
-        result.errorCount = 0;
-        result.errorDetails = new List<String>();
-        
-        if (processUpdates == null || processUpdates.isEmpty()) {
-            result.isSuccess = false;
-            result.errorDetails.add('No processes provided for update');
-            return result;
-        }
-        
-        try {
-            // Get all process IDs
-            Set<Id> processIds = new Set<Id>();
-            for (ProcessUpdateWrapper updateInstance : processUpdates) {
-                processIds.add(updateInstance.processId);
-            }
-            
-            // Query existing processes
-            Map<Id, Location_Process__c> processMap = new Map<Id, Location_Process__c>([
-                SELECT Id, Completed_Percentage__c 
-                FROM Location_Process__c 
-                WHERE Id IN :processIds 
-                WITH USER_MODE
-            ]);
-            
-            // Prepare processes for update
-            List<Location_Process__c> processesToUpdate = new List<Location_Process__c>();
-            
-            for (ProcessUpdateWrapper updateInstance : processUpdates) {
-                if (processMap.containsKey(updateInstance.processId)) {
-                    Location_Process__c processToUpdate = processMap.get(updateInstance.processId);
-                    processToUpdate.Completed_Percentage__c = updateInstance.completionPercentage;
-                    processesToUpdate.add(processToUpdate);
-                } else {
-                    result.errorCount++;
-                    result.errorDetails.add('Process not found: ' + updateInstance.processId);
-                }
-            }
-            
-            // Perform batch update
-            if (!processesToUpdate.isEmpty()) {
-                List<Database.SaveResult> saveResults = Database.update(processesToUpdate, false);
-                
-                // Process results
-                for (Integer i = 0; i < saveResults.size(); i++) {
-                    Database.SaveResult saveResult = saveResults[i];
-                    if (saveResult.isSuccess()) {
-                        result.successCount++;
-                    } else {
-                        result.errorCount++;
-                        String errorMsg = 'Process ID: ' + processesToUpdate[i].Id + ' - ';
-                        for (Database.Error error : saveResult.getErrors()) {
-                            errorMsg += error.getMessage() + '; ';
-                        }
-                        result.errorDetails.add(errorMsg);
-                    }
-                }
-            }
-            
-            // Set overall success status
-            result.isSuccess = (result.errorCount == 0);
-            result.message = result.isSuccess ? 
-                'All processes updated successfully' : 
-                'Some processes failed to update';
-                
-        } catch (Exception e) {
-            result.isSuccess = false;
-            result.errorCount = processUpdates.size();
-            result.message = 'Batch update failed: ' + e.getMessage();
-            result.errorDetails.add(e.getMessage());
-            
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'batchUpdateProcessCompletion', 'exceptionObj' => e, 'moreDetails' => 'Error occurred during batch update of Location Processes', 'apiResponse' => null});
-        }
-        
-        return result;
     }
 
     public static Datetime convertUtc(String utcDateTimeStr) {
@@ -657,19 +577,6 @@ public with sharing class ShiftEndLogEntriesController {
         }
     }
 
-    public class ProcessUpdateWrapper {
-        @AuraEnabled public Id processId { get; set; }
-        @AuraEnabled public Decimal completionPercentage { get; set; }
-    }
-
-    public class BatchUpdateResult {
-        @AuraEnabled public Boolean isSuccess { get; set; }
-        @AuraEnabled public String message { get; set; }
-        @AuraEnabled public Integer successCount { get; set; }
-        @AuraEnabled public Integer errorCount { get; set; }
-        @AuraEnabled public List<String> errorDetails { get; set; }
-    }
-
     public class WrapperMember {
         @AuraEnabled public Id contactId;
         @AuraEnabled public String contactName;
@@ -688,7 +595,7 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static void createLogEntry(String jobId, String step3DataJson, List<String> contentDocumentIds, String cameraPhotosJson, String workPerformedDate) {
+    public static void createLogEntry(String jobId, String step3DataJson, List<String> contentDocumentIds, String cameraPhotosJson, String workPerformedDate, String processUpdatesJson) {
         try {
             // Deserialize step3 data
             Map<String, Object> step3Data = (Map<String, Object>) JSON.deserializeUntyped(step3DataJson);
@@ -743,6 +650,49 @@ public with sharing class ShiftEndLogEntriesController {
                 }
                 insert as user links;
             }
+            
+            // Update Location Process completion percentages if any
+            if (String.isNotBlank(processUpdatesJson)) {
+                List<Object> processUpdatesRaw = (List<Object>) JSON.deserializeUntyped(processUpdatesJson);
+                
+                if (!processUpdatesRaw.isEmpty()) {
+                    Set<Id> processIds = new Set<Id>();
+                    Map<Id, Decimal> processCompletionMap = new Map<Id, Decimal>();
+                    
+                    // Extract process IDs and completion percentages
+                    for (Object updateObj : processUpdatesRaw) {
+                        Map<String, Object> updateMap = (Map<String, Object>) updateObj;
+                        Id processId = (Id) updateMap.get('processId');
+                        Decimal completionPercentage = Decimal.valueOf(String.valueOf(updateMap.get('completionPercentage')));
+                        
+                        processIds.add(processId);
+                        processCompletionMap.put(processId, completionPercentage);
+                    }
+                    
+                    // Query existing processes
+                    Map<Id, Location_Process__c> processMap = new Map<Id, Location_Process__c>([
+                        SELECT Id, wfrecon__Completed_Percentage__c 
+                        FROM Location_Process__c 
+                        WHERE Id IN :processIds
+                        WITH USER_MODE
+                    ]);
+                    
+                    // Update processes
+                    List<Location_Process__c> processesToUpdate = new List<Location_Process__c>();
+                    for (Id processId : processIds) {
+                        if (processMap.containsKey(processId)) {
+                            Location_Process__c proc = processMap.get(processId);
+                            proc.wfrecon__Completed_Percentage__c = processCompletionMap.get(processId);
+                            processesToUpdate.add(proc);
+                        }
+                    }
+                    
+                    // Perform update
+                    if (!processesToUpdate.isEmpty()) {
+                        update as user processesToUpdate;
+                    }
+                }
+            }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => 'ShiftEndLogEntriesController',
@@ -752,9 +702,7 @@ public with sharing class ShiftEndLogEntriesController {
             });
             throw new AuraHandledException('Error creating Log Entry: ' + e.getMessage());
         }
-    }
-
-    @AuraEnabled
+    }    @AuraEnabled
     public static void deleteContentDocuments(List<String> contentDocumentIds) {
         try {
             if (contentDocumentIds == null || contentDocumentIds.isEmpty()) {

@@ -5,8 +5,7 @@ import getMobilizationMembersWithStatus from '@salesforce/apex/ShiftEndLogEntrie
 import createTimesheetRecords from '@salesforce/apex/ShiftEndLogEntriesController.createTimesheetRecords';
 import getTimeSheetEntryItems from '@salesforce/apex/ShiftEndLogEntriesController.getTimeSheetEntryItems';
 import updateTimesheets from '@salesforce/apex/ShiftEndLogEntriesController.updateTimesheets';
-import getJobLocationProcesses from '@salesforce/apex/SovJobLocationProcessesController.getJobLocationProcesses';
-import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
+import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
 
@@ -29,11 +28,12 @@ export default class ShiftEndLogEntries extends LightningElement {
         notesToOffice: ''
     };
     @track locationProcesses = [];
+    @track allLocationProcesses = [];
     @track groupedLocationProcesses = [];
     @track modifiedProcesses = new Map();
-    @track hasModifications = false;
-    @track isSaving = false;
     @track uploadedFiles = [];
+    @track locationOptions = [];
+    @track selectedLocationId;
 
     // Clock In/Out Modal
     @track showClockInModal = false;
@@ -75,6 +75,14 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     get hasTimesheetEntries() {
         return this.timesheetEntries && this.timesheetEntries.length > 0;
+    }
+
+    get hasLocationOptions() {
+        return this.locationOptions && this.locationOptions.length > 0;
+    }
+
+    get hasLocationProcesses() {
+        return this.locationProcesses && this.locationProcesses.length > 0;
     }
 
     get clockInMinBoundary() {
@@ -602,11 +610,11 @@ export default class ShiftEndLogEntries extends LightningElement {
         getJobLocationProcesses({ jobId: this.jobId })
             .then(result => {
                 if (result && result.length > 0) {
-                    this.locationProcesses = result.map(proc => {
+                    this.allLocationProcesses = result.map(proc => {
                         const prevPercent = parseFloat(proc.wfrecon__Completed_Percentage__c || 0);
                         return {
                             id: proc.Id,
-                            name: proc.Name + ' - Location: ' + proc.wfrecon__Location__r?.Name,
+                            name: proc.Name,
                             locationId: proc.wfrecon__Location__c,
                             locationName: proc.wfrecon__Location__r?.Name || 'Unknown Location',
                             sequence: proc.wfrecon__Sequence__c,
@@ -616,7 +624,12 @@ export default class ShiftEndLogEntries extends LightningElement {
                             remainingPercent: parseFloat((100 - prevPercent).toFixed(1))
                         };
                     });
-                    this.groupProcessesByLocation();
+                    
+                    // Build location options
+                    this.buildLocationOptions();
+                    
+                    // Set default location to "Job Site" or first available
+                    this.setDefaultLocation();
                 }
             })
             .catch(error => {
@@ -628,8 +641,70 @@ export default class ShiftEndLogEntries extends LightningElement {
             });
     }
 
+    buildLocationOptions() {
+        const locationMap = new Map();
+        
+        this.allLocationProcesses.forEach(proc => {
+            if (!locationMap.has(proc.locationId)) {
+                locationMap.set(proc.locationId, {
+                    label: proc.locationName,
+                    value: proc.locationId
+                });
+            }
+        });
+        
+        this.locationOptions = Array.from(locationMap.values());
+    }
+
+    setDefaultLocation() {
+        // Try to find "Job Site" location
+        const jobSiteLocation = this.locationOptions.find(loc => 
+            loc.label.toLowerCase() === 'job site'
+        );
+        
+        if (jobSiteLocation) {
+            this.selectedLocationId = jobSiteLocation.value;
+        } else if (this.locationOptions.length > 0) {
+            // If no "Job Site", select first location
+            this.selectedLocationId = this.locationOptions[0].value;
+        }
+        
+        // Filter processes for selected location
+        this.filterProcessesByLocation();
+    }
+
+    handleLocationChange(event) {
+        this.selectedLocationId = event.detail.value;
+        this.filterProcessesByLocation();
+    }
+
+    filterProcessesByLocation() {
+        if (!this.selectedLocationId) {
+            this.locationProcesses = [];
+            this.groupedLocationProcesses = [];
+            return;
+        }
+        
+        // Filter processes for selected location
+        this.locationProcesses = this.allLocationProcesses.filter(
+            proc => proc.locationId === this.selectedLocationId
+        );
+        
+        // Apply any saved modifications to the filtered processes
+        this.locationProcesses.forEach(proc => {
+            if (this.modifiedProcesses.has(proc.id)) {
+                const modification = this.modifiedProcesses.get(proc.id);
+                proc.completedPercent = parseFloat(modification.newValue.toFixed(1));
+                proc.todayPercent = parseFloat((modification.newValue - proc.previousPercent).toFixed(1));
+                proc.remainingPercent = parseFloat((100 - modification.newValue).toFixed(1));
+            }
+        });
+        
+        this.groupProcessesByLocation();
+    }
+
     groupProcessesByLocation() {
-        // Group processes by location
+        // Group processes by location for display
         const locationMap = new Map();
 
         this.locationProcesses.forEach(proc => {
@@ -709,22 +784,13 @@ export default class ShiftEndLogEntries extends LightningElement {
         // Track the modification
         if (newValue !== originalValue) {
             this.modifiedProcesses.set(processId, {
+                processId: processId,
                 originalValue: originalValue,
                 newValue: newValue
             });
-
-            // Update process in local array
-            const proc = this.findProcessById(processId);
-            if (proc) {
-                proc.completedPercent = newValue;
-                proc.todayPercent = parseFloat((newValue - proc.previousPercent).toFixed(1));
-                proc.remainingPercent = parseFloat((100 - newValue).toFixed(1));
-            }
         } else {
             this.modifiedProcesses.delete(processId);
         }
-
-        this.hasModifications = this.modifiedProcesses.size > 0;
 
         // Update visual feedback
         this.handleSliderInput(event);
@@ -753,75 +819,6 @@ export default class ShiftEndLogEntries extends LightningElement {
             if (proc) return proc;
         }
         return null;
-    }
-
-    handleSaveProcessChanges() {
-        if (this.modifiedProcesses.size === 0) return;
-
-        this.isSaving = true;
-
-        const processUpdates = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
-            processId: processId,
-            completionPercentage: modification.newValue
-        }));
-
-        batchUpdateProcessCompletion({ processUpdates: processUpdates })
-            .then(result => {
-                if (result.isSuccess) {
-                    this.showToast('Success', `Successfully updated ${result.successCount} process${result.successCount !== 1 ? 'es' : ''}`, 'success');
-                    this.modifiedProcesses.clear();
-                    this.hasModifications = false;
-                    this.clearAllHighlighting();
-                    this.loadLocationProcesses();
-                } else {
-                    this.showToast('Error', result.message || 'Failed to update some processes', 'error');
-                    if (result.successCount > 0) {
-                        this.modifiedProcesses.clear();
-                        this.hasModifications = false;
-                        this.clearAllHighlighting();
-                        this.loadLocationProcesses();
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error saving process changes:', error);
-                this.showToast('Error', 'Unable to save changes. Please try again.', 'error');
-            })
-            .finally(() => {
-                this.isSaving = false;
-            });
-    }
-
-    handleDiscardProcessChanges() {
-        // Reset all sliders to original values
-        this.modifiedProcesses.forEach((modification, processId) => {
-            const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
-            if (slider) {
-                slider.value = modification.originalValue;
-
-                const proc = this.findProcessById(processId);
-                if (proc) {
-                    proc.completedPercent = parseFloat(modification.originalValue.toFixed(1));
-                    proc.todayPercent = parseFloat((modification.originalValue - proc.previousPercent).toFixed(1));
-                    proc.remainingPercent = parseFloat((100 - modification.originalValue).toFixed(1));
-                }
-            }
-        });
-
-        this.modifiedProcesses.clear();
-        this.hasModifications = false;
-        this.clearAllHighlighting();
-        this.updateSliderStyles();
-        this.showToast('Success', 'All changes have been discarded', 'success');
-    }
-
-    clearAllHighlighting() {
-        setTimeout(() => {
-            const allContainers = this.template.querySelectorAll('.location-slider-container.modified-field');
-            allContainers.forEach(container => {
-                container.classList.remove('modified-field');
-            });
-        }, 0);
     }
 
     // Step 4: Gallery - Lightning File Upload
@@ -934,11 +931,21 @@ export default class ShiftEndLogEntries extends LightningElement {
             
             // Get image data URL
             this.capturedPhoto = canvasElement.toDataURL('image/jpeg', 0.8);
+            
+            // Stop camera stream after capturing
+            if (this.cameraStream) {
+                this.cameraStream.getTracks().forEach(track => track.stop());
+                this.cameraStream = null;
+            }
         }
     }
 
     handleRetakePhoto() {
         this.capturedPhoto = null;
+        // Restart camera after clearing captured photo
+        setTimeout(() => {
+            this.startCamera();
+        }, 100);
     }
 
     handleSaveCapturedPhoto() {
@@ -1049,11 +1056,6 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.currentStep === 'step2') {
             this.currentStep = 'step1';
         } else if (this.currentStep === 'step3') {
-            // Check for unsaved progress bar changes
-            if (this.hasModifications) {
-                this.showToast('Warning', 'Please save or discard your progress changes before going back', 'warning');
-                return;
-            }
             this.currentStep = 'step2';
         } else if (this.currentStep === 'step4') {
             this.currentStep = 'step3';
@@ -1085,13 +1087,20 @@ export default class ShiftEndLogEntries extends LightningElement {
                 base64Data: photo.base64Data
             }));
 
-            // Create Log Entry record with files and camera photos in single call
+            // Prepare location process updates
+            const processUpdates = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
+                processId: processId,
+                completionPercentage: modification.newValue
+            }));
+
+            // Create Log Entry record with files, camera photos, and location process updates in single call
             await createLogEntry({
                 jobId: this.jobId,
                 step3DataJson: JSON.stringify(step3DataToSave),
                 contentDocumentIds: fileIds,
                 cameraPhotosJson: JSON.stringify(cameraPhotosData),
-                workPerformedDate: new Date().toISOString()
+                workPerformedDate: new Date().toISOString(),
+                processUpdatesJson: JSON.stringify(processUpdates)
             });
 
             this.showToast('Success', 'Shift End Log created successfully', 'success');

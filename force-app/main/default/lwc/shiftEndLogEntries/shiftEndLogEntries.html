@@ -149,7 +149,7 @@
                     <div class="step-container">
                         <template if:true={hasTimesheetEntries}>
                             <div class="table-content timesheet-table">
-                                <table class="slds-table">
+                                <table class="slds-table timesheet-entries-table">
                                 <thead>
                                     <tr>
                                         <th style="width: 4rem">Sr.</th>
@@ -249,26 +249,42 @@
                             </div>
 
                             <!-- Location Process Progress Sliders -->
-                            <template if:true={groupedLocationProcesses}>
-                                <template if:true={groupedLocationProcesses.length}>
-                                    <div class="location-progress-section">
-                                        <div class="section-header">
-                                            <h3 class="section-title">Location Process Progress</h3>
-                                            <template if:true={hasModifications}>
-                                                <div class="action-buttons">
-                                                    <button class="action-btn discard-btn"
-                                                        onclick={handleDiscardProcessChanges} disabled={isSaving}>
-                                                        Discard Changes
-                                                    </button>
-                                                    <button class="action-btn save-btn"
-                                                        onclick={handleSaveProcessChanges} disabled={isSaving}>
-                                                        Save Changes
-                                                    </button>
-                                                </div>
-                                            </template>
-                                        </div>
+                            <template if:true={hasLocationOptions}>
+                                <div class="location-progress-section">
+                                    <div class="section-header">
+                                        <h3 class="section-title">Location Process Progress</h3>
+                                    </div>
 
-                                        <!-- Group by Location -->
+                                    <!-- Location Selector -->
+                                    <div class="location-selector">
+                                        <label class="form-label">Select Location</label>
+                                        <lightning-combobox 
+                                            name="location" 
+                                            label="" 
+                                            placeholder="-- Select Location --"
+                                            options={locationOptions} 
+                                            value={selectedLocationId}
+                                            onchange={handleLocationChange}>
+                                        </lightning-combobox>
+                                    </div>
+
+                                    <!-- No Location Processes Message -->
+                                    <template if:false={hasLocationProcesses}>
+                                        <div class="no-data-message">
+                                            <div class="no-data-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                                </svg>
+                                            </div>
+                                            <h3 class="no-data-title">No Location Processes</h3>
+                                            <p class="no-data-description">There are no location processes for the selected location.</p>
+                                        </div>
+                                    </template>
+
+                                    <!-- Group by Location -->
+                                    <template if:true={hasLocationProcesses}>
                                         <template for:each={groupedLocationProcesses} for:item="locationGroup">
                                             <div key={locationGroup.locationId} class="location-group">
                                                 <h4 class="location-group-title">{locationGroup.locationName}</h4>
@@ -332,8 +348,8 @@
                                                 </template>
                                             </div>
                                         </template>
-                                    </div>
-                                </template>
+                                    </template>
+                                </div>
                             </template>
                         </div>
                     </div>
@@ -359,6 +375,12 @@
                                             <circle cx="12" cy="13" r="4"></circle>
                                         </svg>
                                         Take Photo
+                                    </button>
+                                    <button type="button" class="camera-btn" onclick={handleOpenCamera} title="Capture Photo">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16" fill="white">
+                                            <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
+                                        </svg>
+                                        Capture Photo
                                     </button>
                                 </template>
                             </div>

@@ -31,6 +31,57 @@
     border-bottom: 1px solid #e0e0e0;
     flex-shrink: 0;
     pointer-events: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    scrollbar-width: thin; /* Firefox */
+}
+
+/* Hide scrollbar but keep functionality */
+.progress-container::-webkit-scrollbar {
+    height: 4px;
+}
+
+.progress-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.progress-container::-webkit-scrollbar-thumb {
+    background: #d8d8d8;
+    border-radius: 4px;
+}
+
+.progress-container::-webkit-scrollbar-thumb:hover {
+    background: #c0c0c0;
+}
+
+/* Make progress indicator scrollable on mobile */
+.progress-container lightning-progress-indicator {
+    min-width: max-content;
+    width: 100%;
+}
+
+/* Mobile responsive adjustments for progress indicator */
+@media screen and (max-width: 768px) {
+    .progress-container {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    /* Reduce font size on mobile for step labels */
+    .progress-container lightning-progress-indicator {
+        font-size: 0.7rem;
+    }
+}
+
+/* Extra small devices (phones in portrait) */
+@media screen and (max-width: 480px) {
+    .progress-container {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .progress-container lightning-progress-indicator {
+        font-size: 0.65rem;
+    }
 }
 
 /* Wizard Content */
@@ -403,13 +454,13 @@
     max-height: calc(90vh - 300px);
 }
 
-.slds-table {
+.timesheet-entries-table {
     table-layout: fixed;
     min-width: 100%;
 }
 
-.slds-table th,
-.slds-table td {
+.timesheet-entries-table th,
+.timesheet-entries-table td {
     text-align: center;
     font-size: 14px;
     font-weight: 400;
@@ -419,7 +470,7 @@
     text-overflow: ellipsis;
 }
 
-.slds-table th {
+.timesheet-entries-table th {
     background-color: rgba(94, 90, 219, 1);
     color: white;
     padding: 0.6rem;
@@ -430,16 +481,16 @@
     z-index: 10;
 }
 
-.slds-table td {
+.timesheet-entries-table td {
     height: 45px;
     padding: 0.6rem;
 }
 
-.slds-table tbody tr:nth-child(odd) {
+.timesheet-entries-table tbody tr:nth-child(odd) {
     background-color: rgb(244, 244, 255);
 }
 
-.slds-table tbody tr:hover {
+.timesheet-entries-table tbody tr:hover {
     background-color: rgb(227, 227, 251) !important;
 }
 
@@ -543,6 +594,14 @@
     margin-top: 2rem;
     padding-top: 2rem;
     border-top: 1px solid #e0e0e0;
+}
+
+.location-selector {
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
 }
 
 .section-header {
@@ -1067,11 +1126,6 @@
     padding: 2px;
 }
 
-.slds-modal__container {
-    border-radius: 1.25rem;
-    overflow: hidden;
-}
-
 /* Sub modals */
 .sub-modal {
     z-index: 9002;
@@ -1150,29 +1204,30 @@
 }
 
 .camera-btn {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    background: #28a745;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: #5e5adb;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-weight: 600;
     font-size: 14px;
+    font-weight: 600;
     transition: all 0.2s ease;
-    white-space: nowrap;
+    height: 36px;
+    margin-top: 1.4rem;
 }
 
 .camera-btn:hover {
-    background: #218838;
+    background: rgba(94, 90, 219, 0.9);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
-.camera-btn svg {
-    stroke: white;
+.camera-btn:active {
+    transform: translateY(0);
 }
 
 /* File Preview Grid */
