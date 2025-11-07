@@ -10,7 +10,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track shiftEndLogs = [];
     @track filteredLogs = [];
     @track searchTerm = '';
-    @track filterDate = '';
     @track isLoading = false;
     @track hasError = false;
     @track errorMessage = '';
@@ -160,7 +159,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }
 
     get noLogsMessage() {
-        if (this.searchTerm || this.filterDate) {
+        if (this.searchTerm) {
             return 'No logs found matching your search criteria.';
         }
         return 'No shift end logs found for this job.';
@@ -237,31 +236,21 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 this.currentPage = 1; // Reset to first page
                 this.updateDisplayedLogs(); // Initialize displayed logs
                 this.hasError = false;
-                this.isLoading = false;
             })
             .catch(error => {
                 this.hasError = true;
                 this.errorMessage = error.body?.message || 'Error loading shift end logs and crew info';
                 this.showToast('Error', this.errorMessage, 'error');
+            })
+            .finally(() => {
                 this.isLoading = false;
+                this.filterLogs();
             });
     }
 
     // Handle search functionality
     handleSearch(event) {
         this.searchTerm = event.target.value.toLowerCase();
-        this.filterLogs();
-    }
-
-    // Handle date filter
-    handleDateFilter(event) {
-        this.filterDate = event.target.value;
-        this.filterLogs();
-    }
-
-    // Handle clear filter
-    handleClearFilter() {
-        this.filterDate = '';
         this.filterLogs();
     }
 
