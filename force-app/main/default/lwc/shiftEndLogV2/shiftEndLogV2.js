@@ -39,7 +39,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         workPerformedDate: '',
         workPerformed: '',
         exceptions: '',
-        planForTomorrow: ''
+        planForTomorrow: '',
+        notesToOffice: ''
     };
 
     // Image handling
@@ -232,11 +233,18 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         wfrecon__Log_Type__c: log.wfrecon__Log_Type__c || 'Standard',
                         wfrecon__Exceptions__c: log.wfrecon__Exceptions__c,
                         wfrecon__Plan_for_Tomorrow__c: log.wfrecon__Plan_for_Tomorrow__c,
+                        wfrecon__Notes_to_Office__c: log.wfrecon__Notes_to_Office__c,
                         CreatedBy: log.CreatedBy,
                         formattedDate: this.formatDate(log.wfrecon__Work_Performed_Date__c),
                         hasExceptions: log.wfrecon__Exceptions__c && log.wfrecon__Exceptions__c.trim() !== '',
                         createdByName: log.CreatedBy?.Name || 'Unknown User',
                         statusVariant: this.getStatusVariant(log.wfrecon__Log_Type__c),
+                        // Display properties with dash for empty values
+                        displayWorkPerformed: log.wfrecon__Work_Performed__c || '-',
+                        displayExceptions: log.wfrecon__Exceptions__c || '-',
+                        displayPlanForTomorrow: log.wfrecon__Plan_for_Tomorrow__c || '-',
+                        displayNotesToOffice: log.wfrecon__Notes_to_Office__c || '-',
+                        exceptionContentClass: (log.wfrecon__Exceptions__c && log.wfrecon__Exceptions__c.trim() !== '') ? 'exception-content' : 'plan-content',
                         images: images.map(img => ({
                             Id: img.Id,
                             ContentDocumentId: img.ContentDocumentId,
@@ -356,7 +364,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 workPerformedDate: logToEdit.wfrecon__Work_Performed_Date__c || '',
                 workPerformed: logToEdit.wfrecon__Work_Performed__c || '',
                 exceptions: logToEdit.wfrecon__Exceptions__c || '',
-                planForTomorrow: logToEdit.wfrecon__Plan_for_Tomorrow__c || ''
+                planForTomorrow: logToEdit.wfrecon__Plan_for_Tomorrow__c || '',
+                notesToOffice: logToEdit.wfrecon__Notes_to_Office__c || ''
             };
 
             // Load existing images
@@ -389,7 +398,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             workPerformedDate: '',
             workPerformed: '',
             exceptions: '',
-            planForTomorrow: ''
+            planForTomorrow: '',
+            notesToOffice: ''
         };
         this.existingImages = [];
         this.newUploadedFiles = [];
@@ -430,7 +440,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             wfrecon__Work_Performed_Date__c: this.editFormData.workPerformedDate,
             wfrecon__Work_Performed__c: this.editFormData.workPerformed,
             wfrecon__Exceptions__c: this.editFormData.exceptions,
-            wfrecon__Plan_for_Tomorrow__c: this.editFormData.planForTomorrow
+            wfrecon__Plan_for_Tomorrow__c: this.editFormData.planForTomorrow,
+            wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice
         };
 
         this.isLoading = true;
@@ -529,19 +540,31 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const videoElement = this.template.querySelector('.camera-video');
         const canvasElement = this.template.querySelector('.camera-canvas');
         
-        if (videoElement && canvasElement) {
+        if (videoElement && canvasElement && videoElement.videoWidth > 0) {
             const context = canvasElement.getContext('2d');
             canvasElement.width = videoElement.videoWidth;
             canvasElement.height = videoElement.videoHeight;
-            context.drawImage(videoElement, 0, 0);
+            context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
             
             // Get image data URL
-            this.capturedPhoto = canvasElement.toDataURL('image/jpeg', 0.8);
+            this.capturedPhoto = canvasElement.toDataURL('image/jpeg', 0.9);
+            
+            // Stop camera stream after capture
+            if (this.cameraStream) {
+                this.cameraStream.getTracks().forEach(track => track.stop());
+                this.cameraStream = null;
+            }
+        } else {
+            this.showToast('Error', 'Camera not ready. Please try again.', 'error');
         }
     }
 
     handleRetakePhoto() {
         this.capturedPhoto = null;
+        // Restart camera
+        setTimeout(() => {
+            this.startCamera();
+        }, 100);
     }
 
     handleSaveCapturedPhoto() {
@@ -554,8 +577,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             
             // Check file size (4MB limit)
             const fileSizeInMB = blob.size / (1024 * 1024);
-            if (fileSizeInMB > 4) {
-                this.showToast('Error', 'Photo size exceeds 4MB limit. Please try again.', 'error');
+            if (fileSizeInMB > 8) {
+                this.showToast('Error', 'Photo size exceeds 8MB limit. Please try again.', 'error');
                 return;
             }
             
@@ -599,8 +622,25 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.capturedPhoto = null;
     }
 
-    // Handle image preview
+    // Handle image preview (for card view - opens in Salesforce)
     handleImagePreview(event) {
+        event.stopPropagation();
+        const contentDocumentId = event.currentTarget.dataset.id;
+        const versionId = event.currentTarget.dataset.versionId;
+        
+        this[NavigationMixin.Navigate]({
+            type: 'standard__namedPage',
+            attributes: {
+                pageName: 'filePreview'
+            },
+            state: {
+                selectedRecordId: contentDocumentId || versionId
+            }
+        });
+    }
+
+    // Handle image preview in modal (opens in Salesforce - same as card view)
+    handleModalImagePreview(event) {
         event.stopPropagation();
         const contentDocumentId = event.currentTarget.dataset.id;
         const versionId = event.currentTarget.dataset.versionId;

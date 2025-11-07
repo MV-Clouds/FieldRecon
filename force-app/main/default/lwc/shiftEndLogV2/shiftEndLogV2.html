@@ -78,18 +78,17 @@
                                     <span>{log.createdByName}</span>
                                 </div>
                             </div>
-                            <template if:true={log.wfrecon__Work_Performed__c}>
-                                <div class="section-label">Work Performed:</div>
-                                <div class="work-content">{log.wfrecon__Work_Performed__c}</div>
-                            </template>
-                            <template if:true={log.hasExceptions}>
-                                <div class="section-label">Exceptions:</div>
-                                <div class="exception-content">{log.wfrecon__Exceptions__c}</div>
-                            </template>
-                            <template if:true={log.wfrecon__Plan_for_Tomorrow__c}>
-                                <div class="section-label">Plan for Tomorrow:</div>
-                                <div class="plan-content">{log.wfrecon__Plan_for_Tomorrow__c}</div>
-                            </template>
+                            <div class="section-label">Work Performed:</div>
+                            <div class="work-content">{log.displayWorkPerformed}</div>
+                            
+                            <div class="section-label">Exceptions:</div>
+                            <div class={log.exceptionContentClass}>{log.displayExceptions}</div>
+                            
+                            <div class="section-label">Plan for Tomorrow:</div>
+                            <div class="plan-content">{log.displayPlanForTomorrow}</div>
+                            
+                            <div class="section-label">Notes to Office:</div>
+                            <div class="plan-content">{log.displayNotesToOffice}</div>
                             <template if:true={log.hasImages}>
                                 <div class="section-label images-label">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="14" height="14"><path d="M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM323.8 202.5c-4.5-6.6-11.9-10.5-19.8-10.5s-15.4 3.9-19.8 10.5l-87 127.6L170.7 297c-4.6-5.7-11.5-9-18.7-9s-14.2 3.3-18.7 9l-64 80c-5.8 7.2-6.9 17.1-2.9 25.4s12.4 13.6 21.6 13.6h96 32H424c8.9 0 17.1-4.9 21.2-12.8s3.6-17.4-1.4-24.7l-120-176zM112 192a48 48 0 1 0 0-96 48 48 0 1 0 0 96z"/></svg>
@@ -197,6 +196,19 @@
                             </lightning-textarea>
                         </div>
 
+                        <!-- Plan for Tomorrow Field -->
+                        <div class="slds-m-bottom_medium">
+                            <lightning-textarea
+                                label="Plan for Tomorrow"
+                                data-field="planForTomorrow"
+                                value={editFormData.planForTomorrow}
+                                onchange={handleEditInputChange}
+                                placeholder="Enter plan for tomorrow..."
+                                max-length="32000"
+                                required>
+                            </lightning-textarea>
+                        </div>
+
                         <!-- Exceptions Field (Optional) -->
                         <div class="slds-m-bottom_medium">
                             <lightning-textarea
@@ -209,16 +221,15 @@
                             </lightning-textarea>
                         </div>
 
-                        <!-- Plan for Tomorrow Field -->
+                        <!-- Notes to Office Field (Optional) -->
                         <div class="slds-m-bottom_medium">
                             <lightning-textarea
-                                label="Plan for Tomorrow"
-                                value={editFormData.planForTomorrow}
-                                data-field="planForTomorrow"
+                                label="Notes to Office"
+                                data-field="notesToOffice"
+                                value={editFormData.notesToOffice}
                                 onchange={handleEditInputChange}
-                                placeholder="Enter plan for tomorrow..."
-                                max-length="32000"
-                                required>
+                                placeholder="Enter notes to office..."
+                                max-length="32000">
                             </lightning-textarea>
                         </div>
 
@@ -233,28 +244,39 @@
                             
                             <!-- Upload Options -->
                             <div class="upload-options">
-                                <lightning-file-upload
-                                    label="Upload Images"
-                                    name="imageUpload"
-                                    accept={acceptedFormats}
-                                    record-id={editLogId}
-                                    onuploadfinished={handleUploadFinished}
-                                    multiple>
-                                </lightning-file-upload>
+                                <div class="upload-left">
+                                    <lightning-file-upload
+                                        label="Upload Images"
+                                        name="imageUpload"
+                                        accept={acceptedFormats}
+                                        record-id={editLogId}
+                                        onuploadfinished={handleUploadFinished}
+                                        multiple>
+                                    </lightning-file-upload>
+                                </div>
                                 <template if:true={isDesktopDevice}>
-                                    <button type="button" class="upload-btn camera-btn" onclick={handleOpenCamera} title="Capture Photo">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16" fill="white">
-                                            <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
-                                        </svg>
-                                        Capture Photo
-                                    </button>
+                                    <div class="upload-right">
+                                        <button type="button" class="upload-btn camera-btn" onclick={handleOpenCamera} title="Capture Photo">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16" fill="white">
+                                                <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
+                                            </svg>
+                                            Capture Photo
+                                        </button>
+                                    </div>
                                 </template>
-                            </div>                            <!-- Image Display Grid -->
+                            </div>                            
+                            <!-- Image Display Grid -->
                             <template if:true={hasImages}>
                                 <div class="photo-grid">
                                     <template for:each={allImages} for:item="image">
                                         <div key={image.id} class="photo-item">
-                                            <img src={image.url} alt={image.name} class="photo-thumbnail" loading="lazy" />
+                                            <img src={image.url} 
+                                                 alt={image.name} 
+                                                 class="photo-thumbnail" 
+                                                 loading="lazy"
+                                                 data-id={image.id}
+                                                 data-version-id={image.versionId}
+                                                 onclick={handleModalImagePreview} />
                                             <button 
                                                 class="remove-photo-btn" 
                                                 data-id={image.id}
@@ -272,14 +294,14 @@
                                 </div>
                             </template>
                         </div>
-                        
-                        <!-- Control buttons -->
-                        <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
-                            <button class="save-btn" type="button" onclick={handleSaveEdit} disabled={isLoading}>
-                                Update
-                            </button>
-                        </div>
                     </form>
+                </div>
+                
+                <!-- Control buttons - Sticky Footer -->
+                <div class="bottom-footer-btn">
+                    <button class="save-btn" type="button" onclick={handleSaveEdit} disabled={isLoading}>
+                        Update
+                    </button>
                 </div>
             </div>
         </section>

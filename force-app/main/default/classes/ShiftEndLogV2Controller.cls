@@ -83,7 +83,7 @@ public with sharing class ShiftEndLogV2Controller {
             // -----------------------------
             List<Log_Entry__c> shiftEndLogs = jobId != null
                 ? [SELECT Id, Name, Job__c, Work_Performed__c, Work_Performed_Date__c, 
-                        Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, 
+                        Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, Notes_to_Office__c,
                         CreatedBy.Name, CreatedDate, LastModifiedDate
                    FROM Log_Entry__c 
                    WHERE Job__c = :jobId 
