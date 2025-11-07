@@ -71,6 +71,26 @@
     align-items: center;
 }
 
+.native-date-input {
+    height: 32px;
+    padding: 0 0.5rem;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    background: white;
+    transition: all 0.2s ease-in-out;
+}
+
+.native-date-input:hover {
+    border-color: #706e6b;
+}
+
+.native-date-input:focus {
+    outline: none;
+    border-color: var(--primary-theme-color);
+    box-shadow: 0 0 3px var(--primary-theme-color);
+}
+
 .clear-filter-btn {
     background: #f4f6f9;
     border: 1px solid #c9c7c5;
@@ -196,7 +216,7 @@
 
 .log-card:hover {
     height: fit-content;
-    max-height: 50rem;
+    max-height: 20rem;
     overflow: auto;
     scrollbar-width: none;
     box-shadow: 0 3px 6px rgba(94, 90, 219, 0.4);
@@ -732,6 +752,7 @@
 
     .search-bar {
         width: 100%;
+        max-width: none !important;
     }
 
     .right-controls {

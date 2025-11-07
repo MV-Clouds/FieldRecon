@@ -8,7 +8,7 @@
                 <div class="right-controls">
                     <div class="date-filter-wrapper">
                         <div class="date-filter">
-                            <lightning-input type="date" placeholder="Select date for filter" value={filterDate} onchange={handleDateFilter} variant="label-hidden"></lightning-input>
+                            <input type="date" value={filterDate} onchange={handleDateFilter} class="native-date-input" />
                         </div>
                         <template if:true={filterDate}>
                             <button class="clear-filter-btn" onclick={handleClearFilter} title="Clear date filter">

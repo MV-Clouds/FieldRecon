@@ -17,7 +17,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track showEditModal = false;
     @track editLogId = null;
     @track showEntryPopup = false;
-    @track isStylesLoaded = false;
 
     // Confirmation Modal Properties
     @track showConfirmationModal = false;
@@ -175,30 +174,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     connectedCallback() {
         this.isLoading = true;
         this.loadShiftEndLogsWithCrewInfo();
-    }
-
-    renderedCallback() {
-        if(!this.isStylesLoaded) {
-            this.applyCustomStyling();
-        }
-    }
-
-    applyCustomStyling() {
-            const style = document.createElement('style');
-            style.textContent = `
-                 .date-filter lightning-input .slds-form-element__help,
-                 .date-filter lightning-input .slds-assistive-text {
-                     display: none !important;
-                 }  
-            `;
-
-            const dateContainer = this.template.querySelector('.date-filter');
-            if (dateContainer) {
-                dateContainer.appendChild(style);
-                console.log('dateContainer found and style applied' , dateContainer);
-                
-                this.isStylesLoaded = true;
-            }
     }
 
     // Load shift end logs with crew information
