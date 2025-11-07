@@ -446,8 +446,8 @@ public with sharing class ShiftEndLogEntriesController {
             Datetime clkOutUserTz = convertUtc((String)jsonList.get('ClockOut'));
 
             Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
-            Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
-            Boolean premium = Boolean.valueOf((String)jsonList.get('premium'));
+            // Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
+            // Boolean premium = Boolean.valueOf((String)jsonList.get('premium'));
             
             Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
 
@@ -463,8 +463,8 @@ public with sharing class ShiftEndLogEntriesController {
                 tsItem.Clock_In_Time__c = clkInUserTz;
                 tsItem.Clock_Out_Time__c = firstDayEnd;
                 tsItem.Travel_Time__c = travelTime;
-                tsItem.Per_Diem__c = perDiem;
-                tsItem.Premium__c = premium;
+                // tsItem.Per_Diem__c = perDiem;
+                // tsItem.Premium__c = premium;
                 update tsItem;
 
                 // Create new entry for day 2
@@ -490,8 +490,8 @@ public with sharing class ShiftEndLogEntriesController {
                 tsItem.Clock_In_Time__c = clkInUserTz;
                 tsItem.Clock_Out_Time__c = clkOutUserTz;
                 tsItem.Travel_Time__c = travelTime;
-                tsItem.Per_Diem__c = perDiem;
-                tsItem.Premium__c = premium;
+                // tsItem.Per_Diem__c = perDiem;
+                // tsItem.Premium__c = premium;
                 update tsItem;
 
                 tsEntry.Clock_In_Time__c = clkInUserTz;
