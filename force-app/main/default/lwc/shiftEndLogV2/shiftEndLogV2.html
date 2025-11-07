@@ -77,26 +77,59 @@
                             </div>
 
                             <div class="log-card-body">
-                                <div class="section-label">Work Performed:</div>
-                                <div class="work-content">{log.displayWorkPerformed}</div>
+                                <div class="section-label">
+                                    Work Performed:
+                                    <template if:true={log.workPerformedChanged}>
+                                        <span class="changed-today-badge">Modified Today</span>
+                                    </template>
+                                </div>
+                                <div class={log.workPerformedChanged} data-changed={log.workPerformedChanged}>
+                                    <div class="work-content" data-is-changed={log.workPerformedChanged}>{log.displayWorkPerformed}</div>
+                                </div>
                                 
-                                <div class="section-label">Exceptions:</div>
-                                <div class={log.exceptionContentClass}>{log.displayExceptions}</div>
+                                <div class="section-label">
+                                    Exceptions:
+                                    <template if:true={log.exceptionsChanged}>
+                                        <span class="changed-today-badge">Modified Today</span>
+                                    </template>
+                                </div>
+                                <div class={log.exceptionsChanged} data-changed={log.exceptionsChanged}>
+                                    <div class={log.exceptionContentClass} data-is-changed={log.exceptionsChanged}>{log.displayExceptions}</div>
+                                </div>
                                 
-                                <div class="section-label">Plan for Tomorrow:</div>
-                                <div class="plan-content">{log.displayPlanForTomorrow}</div>
+                                <div class="section-label">
+                                    Plan for Tomorrow:
+                                    <template if:true={log.planForTomorrowChanged}>
+                                        <span class="changed-today-badge">Modified Today</span>
+                                    </template>
+                                </div>
+                                <div class={log.planForTomorrowChanged} data-changed={log.planForTomorrowChanged}>
+                                    <div class="plan-content" data-is-changed={log.planForTomorrowChanged}>{log.displayPlanForTomorrow}</div>
+                                </div>
                                 
-                                <div class="section-label">Notes to Office:</div>
-                                <div class="plan-content">{log.displayNotesToOffice}</div>
+                                <div class="section-label">
+                                    Notes to Office:
+                                    <template if:true={log.notesToOfficeChanged}>
+                                        <span class="changed-today-badge">Modified Today</span>
+                                    </template>
+                                </div>
+                                <div class={log.notesToOfficeChanged} data-changed={log.notesToOfficeChanged}>
+                                    <div class="plan-content" data-is-changed={log.notesToOfficeChanged}>{log.displayNotesToOffice}</div>
+                                </div>
                                 
                                 <template if:true={log.hasLocationProcesses}>
                                     <div class="section-label">Location Processes:</div>
                                     <div class="location-processes-list">
                                         <template for:each={log.locationProcesses} for:item="process">
-                                            <div key={process.processId} class="process-item">
+                                            <div key={process.processId} class="process-item" data-changed={process.changedToday}>
                                                 <div class="process-header">
                                                     <span class="process-location">{process.locationName}</span>
-                                                    <span class="process-percentage">{process.completionPercentage}%</span>
+                                                    <div class="process-percentage-container">
+                                                        <span class="process-percentage">{process.completionPercentage}%</span>
+                                                        <template if:true={process.changedToday}>
+                                                            <span class="process-changed-badge">Updated Today</span>
+                                                        </template>
+                                                    </div>
                                                 </div>
                                                 <div class="process-name-row">
                                                     <template if:true={process.sequence}>
@@ -105,7 +138,19 @@
                                                     <span class="process-name">{process.processName}</span>
                                                 </div>
                                                 <div class="process-progress-bar">
-                                                    <div class="process-progress-fill" data-percentage={process.completionPercentage}></div>
+                                                    <!-- Yesterday's progress (base) -->
+                                                    <div class="process-progress-fill yesterday-progress" 
+                                                         data-percentage={process.yesterdayPercentage}
+                                                         data-color={process.progressBarColor}>
+                                                    </div>
+                                                    <!-- Today's change (overlay on top of yesterday's) -->
+                                                    <template if:true={process.changedToday}>
+                                                        <div class="process-progress-fill today-progress" 
+                                                             data-percentage={process.completionPercentage}
+                                                             data-yesterday={process.yesterdayPercentage}
+                                                             data-color={process.todayChangeColor}>
+                                                        </div>
+                                                    </template>
                                                 </div>
                                             </div>
                                         </template>
