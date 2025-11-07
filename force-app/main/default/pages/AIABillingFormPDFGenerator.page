@@ -1,0 +1,180 @@
+<apex:page showHeader="false" sidebar="false" standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false">
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>PDF Generator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #status {
+            padding: 10px;
+            background: #f0f0f0;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        /* ✅ Page-break fix (do not hide, prevents blank page) */
+        .page-break {
+            display: block;
+            page-break-after: always;
+            break-after: page;
+            height: 0;
+            content: "";
+        }
+        .html2pdf__page-break {
+            display: block !important;
+            height: 1px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            page-break-before: always !important;
+            break-before: page !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">Waiting for data...</div>
+    <div id="content"></div>
+
+    <!-- Load PDF libraries from static resource -->
+    <script src="{!URLFOR($Resource.pdfLibs, '/html2pdf.bundle-0.9.3.js')}"></script>
+    <script src="{!URLFOR($Resource.pdfLibs, '/pdfJS/web/pdf.js')}"></script>
+    
+    <script>
+        console.log('VF PDF Generator loaded');
+        
+        // Listen for messages from parent LWC
+        window.addEventListener('message', function(event) {
+            // console.log('VF received message:', event.data);
+            
+            if (event.data && event.data.action === 'generatePDF') {
+                console.log('optiuons : ', event.data.options);
+                generatePDF(event.data.htmlContent, event.data.options);
+            }
+        });
+        
+        // Notify parent that VF page is ready
+        if (window.parent) {
+            window.parent.postMessage({
+                action: 'vfReady'
+            }, '*');
+        }
+        
+        function generatePDF(htmlContent, options) {
+            document.getElementById('status').textContent = 'Generating PDF...';
+            
+            console.log('generatePDF called with:', {
+                htmlLength: htmlContent ? htmlContent.length : 0,
+                options: options
+            });
+            
+            try {
+                if (typeof html2pdf === 'undefined') {
+                    sendError('html2pdf library not loaded');
+                    return;
+                }
+                
+                if (!htmlContent || htmlContent.length === 0) {
+                    sendError('No HTML content provided');
+                    return;
+                }
+                
+                // Set content
+                const contentDiv = document.getElementById('content');
+                // console.log('Setting content div innerHTML', contentDiv);
+                
+                // Clean up the HTML content
+                let cleanedHtml = htmlContent
+                    .replaceAll('bis_skin_checked="1"', '')
+                    .replace(/lwc-[\\w-]+="[\w-]*"\\s*/g, '')
+                    .replace(/data-[\\w-]+="[\w-]*"\\s*/g, '');
+                
+                contentDiv.innerHTML = cleanedHtml;
+                
+                // console.log('Content div innerHTML set, length:', contentDiv.innerHTML.length);
+                // console.log('Content div first 1000 chars:', contentDiv.innerHTML.substring(0, 1000));
+                
+                // Make sure the content is visible for rendering (but off-screen)
+                contentDiv.style.position = 'absolute';
+                contentDiv.style.left = '0';
+                contentDiv.style.top = '0';
+                contentDiv.style.visibility = 'visible';
+                contentDiv.style.width = '800px';
+                contentDiv.style.display = 'block';
+                
+                // PDF options - use the options object directly as it's already in the right format
+                const opt = options || {
+                    margin: [0, 0, 0, 0],
+                    filename: 'AIA-Billing-Form.pdf',
+                    image: { type: 'jpeg', quality: 1 },
+                    html2canvas: { scale: 3, useCORS: true, letterRendering: true },
+                    pagebreak: { mode: ['css', 'legacy'], before: '.html2pdf__page-break' },
+                    jsPDF: { unit: 'px', format: 'a4', orientation: 'landscape', hotfixes: ['px_scaling'] }
+                };
+                
+                // console.log('Starting PDF generation with options:', opt);
+                // console.log('Content div element:', contentDiv);
+                // console.log('Content div offsetHeight:', contentDiv.offsetHeight);
+                // console.log('Content div offsetWidth:', contentDiv.offsetWidth);
+                
+                // Wait a bit for DOM to fully render
+                setTimeout(function() {
+                    // console.log('Starting html2pdf generation...');
+                    // console.log('Final content check - offsetHeight:', contentDiv.offsetHeight);
+                    
+                    // console.log('contentDiv.children[0] : ', contentDiv.children[0]?.innerHTML);
+                    
+                    // Generate PDF
+                    html2pdf().set(opt).from(contentDiv.children[0]).outputPdf('datauristring')
+                    .then(function(pdfDataUri) {
+                        // console.log('PDF generated! Data URI length:', pdfDataUri.length);
+                        document.getElementById('status').textContent = 'PDF generated successfully!';
+                        
+                        // Send PDF data back to parent LWC
+                        if (window.parent) {
+                            window.parent.postMessage({
+                                action: 'pdfGenerated',
+                                pdfDataUri: pdfDataUri,
+                                success: true
+                            }, '*');
+                        }
+                        
+                        // Clean up
+                        contentDiv.innerHTML = '';
+                        contentDiv.style.display = 'none';
+                    })
+                    .catch(function(error) {
+                        console.error('PDF generation error:', error);
+                        sendError(error.message || 'Unknown error');
+                        contentDiv.innerHTML = '';
+                        contentDiv.style.display = 'none';
+                    });
+                }, 100);
+                    
+                // console.log('PDF generation scheduled');
+            } catch (error) {
+                console.error('Exception in generatePDF:', error);
+                sendError(error.message || error.toString());
+            }
+        }
+        
+        function sendError(errorMessage) {
+            document.getElementById('status').textContent = 'Error: ' + errorMessage;
+            
+            if (window.parent) {
+                window.parent.postMessage({
+                    action: 'pdfError',
+                    error: errorMessage,
+                    success: false
+                }, '*');
+            }
+        }
+    </script>
+</body>
+</html>
+</apex:page>
