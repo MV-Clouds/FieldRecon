@@ -54,6 +54,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Crew information for current user
     @track crewLeaderId = null;
     @track crewIds = [];
+    @track isCurrentUserCrewLeader = false;
 
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff';
 
@@ -214,6 +215,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 // Extract crew information
                 if (data.crewInfo) {
                     this.crewLeaderId = data.crewInfo.crewLeaderId;
+                    this.isCurrentUserCrewLeader = data?.crewInfo?.crewLeaderId != null ? true : false;
                     this.crewIds = data.crewInfo.crewIds || [];
                     console.log('Crew Leader ID:', this.crewLeaderId);
                     console.log('Crew IDs where user is leader:', this.crewIds);

@@ -13,7 +13,7 @@ public with sharing class ShiftEndLogEntriesController {
                                                     AND wfrecon__Start_Date_Text__c <= :todayStr
                                                     WITH USER_MODE];
                 for (Mobilization__c mob : mobList) {
-                    result.put(mob.Id, mob.Name + '(' + mob.wfrecon__Start_Date_Text__c + ')');
+                    result.put(mob.Id, mob.wfrecon__Start_Date_Text__c);
                 }
             }
 

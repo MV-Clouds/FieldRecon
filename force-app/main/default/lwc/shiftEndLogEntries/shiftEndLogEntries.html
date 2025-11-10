@@ -26,7 +26,7 @@
                     <div class="step-container">
                         <!-- Mobilization Selector -->
                         <div class="mobilization-selector">
-                            <label class="form-label required">Select Mobilization</label>
+                            <label class="form-label required">Select Date</label>
                             <lightning-combobox name="mobilization" label="" placeholder="-- Select Mobilization --"
                                 options={mobilizationOptions} value={selectedMobilizationId}
                                 onchange={handleMobilizationChange}>
@@ -235,7 +235,7 @@
                         <div class="log-details-form">
                             <div class="form-row">
                                 <div class="form-group full-width">
-                                    <label class="form-label required">What We Done Today</label>
+                                    <label class="form-label required">Work Performed</label>
                                     <lightning-textarea data-field="whatWeDone" variant="label-hidden"
                                         value={step3Data.whatWeDone} onchange={handleStep3InputChange}>
                                     </lightning-textarea>
@@ -253,7 +253,7 @@
 
                             <div class="form-row">
                                 <div class="form-group full-width">
-                                    <label class="form-label">Exceptions/Concerns</label>
+                                    <label class="form-label">Exceptions</label>
                                     <lightning-textarea data-field="exceptions" variant="label-hidden"
                                         value={step3Data.exceptions} onchange={handleStep3InputChange}>
                                     </lightning-textarea>
