@@ -120,7 +120,7 @@ global class PostInstallSetup implements InstallHandler {
             }
 
             if (!toInsert.isEmpty() && !Test.isRunningTest()) {
-                Database.executeBatch(new BatchAssignPermissionSets(toInsert), 1);
+                Database.executeBatch(new GenericDmlBatch(toInsert, 'INSERT'), 1);
             }
 
         } catch (Exception e) {

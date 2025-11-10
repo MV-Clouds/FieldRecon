@@ -30,7 +30,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     @track resourceType = 'CrewMaster';
     @track resourceTypeForAssign = 'Crew';
 
-    currentWeekStart;
+    @track currentWeekStart;
     searchKey = '';
     resourceSearchKey = '';
     @track statusOptions = [];
@@ -429,6 +429,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             let val = event.currentTarget?.value;
             if(!val) return;
             this.currentWeekStart = new Date(val);
+            
             this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
         }catch(e){
             console.error('MobScheduler.handleDateToGoTo error:', e?.message);
@@ -471,7 +472,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         this.showLoading(true);
         const start = new Date(date);
         start.setDate(start.getDate() - start.getDay()); // Sunday
-        this.currentWeekStart = start;
+        this.currentWeekStart = new Date(date);
+        
 
         const days = [];
         for (let i = 0; i < 7; i++) {
@@ -760,11 +762,13 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             const start = Date.parse(details.wfrecon__Start_Date__c);
             const end = Date.parse(details.wfrecon__End_Date__c);
 
-            if (start < new Date()) {
+            if (start == end) {
+                this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
+            } else if (start < new Date()) {
                 this.showToast('Error', 'Start date/time can not be in past.', 'error');
-            }else if (start > end) {
-                this.showToast('Error', 'End date should be after the start date.', 'error');
-            }else{
+            } else if (start > end) {
+                this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');
+            } else {
                 this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
             }
         } catch (e) {
@@ -798,6 +802,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             removeJobResource({ id: id, type: type , mobId: mobId, allUpcoming: allUpcoming })
             .then(result => {
                 if(result === 'success'){
+                    this.showToast('Error', 'The resource assignment is been removed!', 'success');
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
                 }else{
                     this.showToast('Error', 'Could not remove job, please try again...', 'error');

@@ -1083,11 +1083,17 @@ export default class ShiftEndLogEntries extends LightningElement {
                 base64Data: photo.base64Data
             }));
 
-            // Prepare location process updates
-            const processUpdates = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
-                processId: processId,
-                completionPercentage: modification.newValue
-            }));
+            // Prepare location process updates with full snapshot data for viewing
+            const processUpdates = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => {
+                const process = this.findProcessById(processId);
+                return {
+                    processId: processId,
+                    processName: process?.Name || '',
+                    locationName: process?.Location__r?.Name || '',
+                    completionPercentage: modification.newValue,
+                    sequence: process?.Sequence__c || null
+                };
+            });
 
             // Create Log Entry record with files, camera photos, and location process updates in single call
             await createLogEntry({

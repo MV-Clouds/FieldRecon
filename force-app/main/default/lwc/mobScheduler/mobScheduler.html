@@ -233,11 +233,11 @@
           </lightning-record-edit-form>
 
           <!-- Form To Create The Mobilization Group -->
-          <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate}>
+          <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate} novalidate="novalidate">
             <div class="main-mob-creation-form-div">
               <div class="slds-grow slds-scrollable--y slds-grid slds-wrap">
                 <lightning-messages></lightning-messages>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required formnovalidate></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" data-id="start" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" data-id="end" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>

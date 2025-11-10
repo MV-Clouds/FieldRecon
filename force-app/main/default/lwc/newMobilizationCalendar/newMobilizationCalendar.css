@@ -51,7 +51,18 @@
 }
 
 .empty-state-msg{
+    width: 100%;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--primary-theme-color, #5a5adb);
+    font-weight: 600;
+    padding: 2rem 1rem;
+    font-size: 14px;
+    text-align: center;
 }
 
 .main-resources-edit-div .empty-state-msg img{

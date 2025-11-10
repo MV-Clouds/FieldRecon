@@ -1,5 +1,5 @@
-public with sharing class AIFormController {
-
+public with sharing class AIAFormController {
+    
     @AuraEnabled(cacheable=true)
     public static Map<String, Object> getBillingData(Id recordId) {
         if (!Test.isRunningTest()) {
@@ -247,6 +247,7 @@ public with sharing class AIFormController {
 
         return result;
     }
+    
     public static String formatCurrency(Decimal inputValue) {
         try {
             Decimal amount = inputValue != null ? inputValue : 0.00;

@@ -21,7 +21,7 @@ export default class NewMobilizationCalendar extends LightningElement {
     @track events = {};
     isSpinner = false;
     openModal = false;
-    Heading = 'Create Mobilization';
+    Heading = 'Create Mobilization Group';
     jobId;
     @track jobOptions = [];
     jobName = '';
@@ -466,7 +466,7 @@ export default class NewMobilizationCalendar extends LightningElement {
                         
             this.isSpinner = true;
             this.selectedEventId = '';
-            this.Heading = 'Create Mobilization';
+            this.Heading = 'Create Mobilization Group';
 
             const startDate = new Date(start);
             const endDate = new Date(end);

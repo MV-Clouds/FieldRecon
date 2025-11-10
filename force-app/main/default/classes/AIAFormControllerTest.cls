@@ -1,6 +1,6 @@
 @isTest
-private class AIFormControllerTest {
-
+public with sharing class AIAFormControllerTest {
+    
     @TestSetup
     static void setupData() {
         Account arch = new Account(Name = 'ABC Architects');

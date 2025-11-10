@@ -33,24 +33,13 @@ public with sharing class SovJobLocationsController {
             
             // Get all accessible fields dynamically
             String allLocationFields = getAllFields(objectName);
-            String allJobFields = getAllFields('wfrecon__Job__c');
             
             if (String.isNotBlank(allLocationFields)) {
-                // Build dynamic SOQL with Job relationship fields
-                String query = 'SELECT ' + allLocationFields;
-                
-                // Add Job relationship fields if we have them
-                if (String.isNotBlank(allJobFields)) {
-                    // Convert Job fields to relationship notation (Job__r.FieldName)
-                    String jobRelationshipFields = convertToRelationshipFields(allJobFields, 'wfrecon__Job__r');
-                    if (String.isNotBlank(jobRelationshipFields)) {
-                        query += ', ' + jobRelationshipFields;
-                    }
-                }
-                
-                query += ' FROM ' + objectName +
-                        ' WHERE wfrecon__Job__c = :jobId ' +
-                        ' ORDER BY CreatedDate DESC';
+                // Build dynamic SOQL without Job relationship fields
+                String query = 'SELECT ' + allLocationFields +
+                            ' FROM ' + objectName +
+                            ' WHERE wfrecon__Job__c = :jobId ' +
+                            ' ORDER BY CreatedDate DESC';
                 
                 locationEntries = Database.query(query, AccessLevel.USER_MODE);
 
@@ -64,8 +53,9 @@ public with sharing class SovJobLocationsController {
                     // --- Fetch all related Location Processes in bulk ---
                     List<Location_Process__c> allLocationProcesses = [
                         SELECT Id, Name, Contract_Price__c, Completed_Percentage__c, 
-                               Current_Completed_Value__c, Process_Status__c, Scope_Entry_Process__r.wfrecon__Process_Name__c,	
-                               Sequence__c, Location__c
+                            Current_Completed_Value__c, Process_Status__c, 
+                            Scope_Entry_Process__r.wfrecon__Process_Name__c,
+                            Sequence__c, Location__c
                         FROM Location_Process__c
                         WHERE Location__c IN :locationIds
                         WITH USER_MODE
@@ -87,10 +77,9 @@ public with sharing class SovJobLocationsController {
             result.put('locationProcessMap', locationProcessMap);
             result.put('success', true);
             
-            // Add debugging information
+            // Debug logs
             System.debug('LocationEntries getLocationEntries - Found ' + locationEntries.size() + ' locations');
             System.debug('LocationEntries getLocationEntries - Process map has ' + locationProcessMap.size() + ' entries');
-            System.debug('LocationEntries getLocationEntries - Query executed: ' + (String.isNotBlank(allLocationFields) ? 'true' : 'false'));
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getLocationEntries', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Entries with processes dynamically for Job ID: ' + jobId,'apiResponse' => null});
@@ -101,6 +90,7 @@ public with sharing class SovJobLocationsController {
         }
         return result;
     }
+
 
     /*
     *********************************************************

@@ -61,15 +61,7 @@ public with sharing class ManagementTabController {
             }
             return mobilizationIds.size();
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'getCrewMobilizationSummary',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching crew mobilization summary : ' + e.getMessage(),
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewMobilizationSummary','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching crew mobilization summary : ' + e.getMessage(),'apiResponse' => null});
             return 0;
         }
     }
@@ -301,15 +293,7 @@ public with sharing class ManagementTabController {
                     update crewLeaderUpdate;
 
                     if (leaderContactId != null && assignedLeaderCrewMemberId == null) {
-                        ExceptionHandler.logException(new Map<String, Object>{
-                            'className' => CLASSNAME,
-                            'methodName' => 'saveCrew',
-                            'isApiException' => false,
-                            'statusCode' => null,
-                            'exceptionObj' => null,
-                            'moreDetails' => 'Crew leader contact provided but not associated with crew after save operation.',
-                            'apiResponse' => null
-                        });
+                        ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'saveCrew','isApiException' => false,'statusCode' => null,'exceptionObj' => null,'moreDetails' => 'Crew leader contact provided but not associated with crew after save operation.','apiResponse' => null});
                     }
                 }
             }
@@ -453,15 +437,7 @@ public with sharing class ManagementTabController {
                 }
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getMobilizationOverlapConflicts',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error computing mobilization overlap conflicts : ' + e.getMessage(),
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getMobilizationOverlapConflicts','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error computing mobilization overlap conflicts : ' + e.getMessage(),'apiResponse' => null});
         }
 
         return conflicts;
@@ -595,15 +571,7 @@ public with sharing class ManagementTabController {
 
             response.put('crewLeaderContactId', crewLeaderContactId);
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'getCrewContacts', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching crew contacts : ' + e.getMessage(), 
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getCrewContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching crew contacts : ' + e.getMessage(), 'apiResponse' => null});
         }
 
         return response;

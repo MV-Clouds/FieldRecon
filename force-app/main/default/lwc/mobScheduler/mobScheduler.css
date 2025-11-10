@@ -147,6 +147,9 @@
 .nav-bar-element{
   max-width: 16rem;
   height: 2rem;
+}
+
+.nav-bar-element .slds-input{
   max-height: 2rem;
 }
 
@@ -689,10 +692,13 @@
 
   .filters-and-nav {
     width: 100%;
+    max-width: 100%;
+    overflow: auto;
+    margin-bottom: 0.5rem;
   }
 
   .filters-and-nav .nav-bar-element{
-    min-width: 30% !important;
+    /* min-width: 30% !important; */
     flex-grow: 1;
   }
 

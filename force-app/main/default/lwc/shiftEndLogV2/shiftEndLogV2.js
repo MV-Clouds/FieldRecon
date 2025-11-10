@@ -175,6 +175,31 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.loadShiftEndLogsWithCrewInfo();
     }
 
+    // Helper to update progress bars after DOM is ready
+    updateProgressBars() {
+        setTimeout(() => {
+            // Update yesterday's progress bars (base layer - theme purple)
+            const yesterdayBars = this.template.querySelectorAll('.yesterday-progress');
+            yesterdayBars.forEach(bar => {
+                const percentage = bar.dataset.percentage || 0;
+                const color = bar.dataset.color || '#5a5adb'; // Theme purple
+                bar.style.width = `${percentage}%`;
+                bar.style.backgroundColor = color;
+            });
+
+            // Update today's progress bars (showing only the change portion - orange)
+            const todayBars = this.template.querySelectorAll('.today-progress');
+            todayBars.forEach(bar => {
+                const totalPercentage = parseFloat(bar.dataset.percentage) || 0;
+                const yesterdayPercentage = parseFloat(bar.dataset.yesterday) || 0;
+                const changePercentage = totalPercentage - yesterdayPercentage; // Only the difference
+                const color = bar.dataset.color || '#F0AD4E'; // Orange
+                bar.style.width = `${changePercentage}%`;
+                bar.style.backgroundColor = color;
+            });
+        }, 0);
+    }
+
     // Load shift end logs with crew information
     loadShiftEndLogsWithCrewInfo() {
         if (!this.recordId) {
@@ -198,6 +223,35 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 this.shiftEndLogs = data.shiftEndLogs.map(wrapper => {
                     const log = wrapper.logEntry;
                     const images = wrapper.images || [];
+                    const locationProcesses = wrapper.locationProcesses || [];
+                    const fieldChanges = wrapper.fieldChanges || [];
+
+                    console.log('fieldChanges ==> ', fieldChanges);
+                    
+                    
+                    // Map field API names to display names
+                    const fieldNameMap = {
+                        'wfrecon__Work_Performed__c': 'Work_Performed',
+                        'wfrecon__Exceptions__c': 'Exceptions',
+                        'wfrecon__Plan_for_Tomorrow__c': 'Plan_for_Tomorrow',
+                        'wfrecon__Notes_to_Office__c': 'Notes_to_Office',
+                        'wfrecon__Work_Performed_Date__c': 'Work_Performed_Date'
+                    };
+
+                    // Create a set of fields that changed today
+                    const changedFieldsToday = new Set();
+                    const fieldChangeDetails = {};
+                    
+                    fieldChanges.forEach(change => {
+                        const mappedFieldName = fieldNameMap[change.fieldName] || change.fieldName;
+                        changedFieldsToday.add(mappedFieldName);
+                        fieldChangeDetails[mappedFieldName] = {
+                            oldValue: change.oldValue,
+                            newValue: change.newValue,
+                            changedBy: change.changedBy,
+                            changedDate: change.changedDate
+                        };
+                    });
                     
                     return {
                         Id: log.Id,
@@ -219,6 +273,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         displayPlanForTomorrow: log.wfrecon__Plan_for_Tomorrow__c || '-',
                         displayNotesToOffice: log.wfrecon__Notes_to_Office__c || '-',
                         exceptionContentClass: (log.wfrecon__Exceptions__c && log.wfrecon__Exceptions__c.trim() !== '') ? 'exception-content' : 'plan-content',
+                        // Field change tracking
+                        changedFieldsToday: Array.from(changedFieldsToday),
+                        fieldChangeDetails: fieldChangeDetails,
+                        hasChangesToday: changedFieldsToday.size > 0,
+                        workPerformedChanged: changedFieldsToday.has('Work_Performed'),
+                        exceptionsChanged: changedFieldsToday.has('Exceptions'),
+                        planForTomorrowChanged: changedFieldsToday.has('Plan_for_Tomorrow'),
+                        notesToOfficeChanged: changedFieldsToday.has('Notes_to_Office'),
+                        workPerformedDateChanged: changedFieldsToday.has('Work_Performed_Date'),
                         images: images.map(img => ({
                             Id: img.Id,
                             ContentDocumentId: img.ContentDocumentId,
@@ -228,13 +291,17 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             previewUrl: `/sfc/servlet.shepherd/version/renditionDownload?rendition=SVGZ&versionId=${img.Id}`
                         })),
                         hasImages: images.length > 0,
-                        imageCount: images.length
+                        imageCount: images.length,
+                        // Location processes
+                        locationProcesses: locationProcesses,
+                        hasLocationProcesses: locationProcesses.length > 0
                     };
                 });
                 
                 this.filteredLogs = [...this.shiftEndLogs];
                 this.currentPage = 1; // Reset to first page
                 this.updateDisplayedLogs(); // Initialize displayed logs
+                this.updateProgressBars(); // Update progress bars
                 this.hasError = false;
             })
             .catch(error => {
@@ -284,6 +351,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const startIndex = (this.currentPage - 1) * this.pageSize;
         const endIndex = startIndex + this.pageSize;
         this.displayedLogs = this.filteredLogs.slice(startIndex, endIndex);
+        this.updateProgressBars(); // Update progress bars after changing displayed logs
     }
 
     // Pagination handlers
@@ -312,8 +380,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.showEntryPopup = true;
     }
 
-    handleCloseEntryPopup() {
+    handleCloseEntryPopup(event) {
         this.showEntryPopup = false;
+        
+        // Check if a record was created and refresh data
+        if (event && event.detail && event.detail.isRecordCreated) {
+            this.loadShiftEndLogsWithCrewInfo();
+        }
     }
 
     // Handle edit button click

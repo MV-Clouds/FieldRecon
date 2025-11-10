@@ -742,16 +742,16 @@ private class ManagementTabControllerTest {
 
     @IsTest
     static void testUpsertContactNew() {
-        Test.startTest();
-        Contact newContact = new Contact(
-            FirstName = 'Test',
-            LastName = 'NewContact',
-            Email = 'test.new@example.com',
-            wfrecon__Can_Clock_In_Out__c = true
-        );
-        newContact.put('RecordTypeDeveloperName', 'Employee_WF_Recon');
+        Map<String, Object> contactData = new Map<String, Object>{
+            'FirstName' => 'Test',
+            'LastName' => 'NewContact',
+            'Email' => 'test.new@example.com',
+            'RecordTypeDeveloperName' => 'Employee_WF_Recon',
+            'wfrecon__Can_Clock_In_Out__c' => true
+        };
         
-        Contact result = ManagementTabController.upsertContact(newContact);
+        Test.startTest();
+        Contact result = ManagementTabController.upsertContact(contactData);
         Test.stopTest();
         
         System.assertNotEquals(null, result);
@@ -767,13 +767,16 @@ private class ManagementTabControllerTest {
     static void testUpsertContactUpdate() {
         Contact emp1 = [SELECT Id, FirstName, LastName, Email, wfrecon__Can_Clock_In_Out__c FROM Contact WHERE RecordType.DeveloperName = 'Employee_WF_Recon' LIMIT 1];
         
-        Test.startTest();
-        emp1.FirstName = 'UpdatedFirst';
-        emp1.LastName = 'UpdatedLast';
-        emp1.Email = 'updated@example.com';
-        emp1.wfrecon__Can_Clock_In_Out__c = false;
+        Map<String, Object> contactData = new Map<String, Object>{
+            'Id' => emp1.Id,
+            'FirstName' => 'UpdatedFirst',
+            'LastName' => 'UpdatedLast',
+            'Email' => 'updated@example.com',
+            'wfrecon__Can_Clock_In_Out__c' => false
+        };
         
-        Contact result = ManagementTabController.upsertContact(emp1);
+        Test.startTest();
+        Contact result = ManagementTabController.upsertContact(contactData);
         Test.stopTest();
         
         System.assertNotEquals(null, result);

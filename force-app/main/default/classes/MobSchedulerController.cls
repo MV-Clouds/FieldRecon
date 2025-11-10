@@ -1,6 +1,6 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 92% (2025-11-06)
+ * Test Class: MobSchedulerControllerTest - 93% (2025-11-07)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
  * Update: 2025-10-27 (Kevin)   - Updated the logic for the start and end date to fix timezone based issues
@@ -11,6 +11,7 @@
  * Update: 2025-10-31 (Dhairya) - Modified the resource assignment according to the crew implementation and fixed the duplicate assignment bug for resource assignment to mob
  * Update: 2025-11-03 (Kevin)   - Updated the return statement for already assigned resource
  * Update: 2025-11-06 (Kevin)   - Updated the getDefaultValues methods to also retrieve the status options
+ * Update: 2025-11-07 (Kevin)   - Updated the DML operations with the large data set with the batch class
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -893,10 +894,8 @@ public with sharing class MobSchedulerController {
             }
 
             // Instruction: Insert new assignments in user mode when any prepared.
-            System.debug('Size is :: '+ newAssignments.size());
             if (!newAssignments.isEmpty()) {
                 if (newAssignments.size() >= 10000 || Test.isRunningTest()){
-                    System.debug('Going to batch');
                     Database.executeBatch(new GenericDmlBatch(newAssignments, 'INSERT'), 200);
                 } else {
                     insert as user newAssignments;

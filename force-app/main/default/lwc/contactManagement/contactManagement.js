@@ -45,7 +45,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track contactTableColumns = [
         { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false, headerClass: 'header-cell non-sortable-header' },
         { label: 'Actions', fieldName: 'Actions', type: 'text', isActions: true, sortable: false, headerClass: 'header-cell non-sortable-header' },
-        { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true, headerClass: 'header-cell sortable-header' },
+        { label: 'Name', fieldName: 'Name', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
         { label: 'Type', fieldName: 'RecordType.DeveloperName', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
         { label: 'Can Clock In / Out', fieldName: 'wfrecon__Can_Clock_In_Out__c', type: 'checkbox', isCheckboxField: true, sortable: true, headerClass: 'header-cell sortable-header' }
     ];
@@ -76,14 +76,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                         return {
                             key,
                             isActions: true
-                        };
-                    }
-                    
-                    if (col.isNameField) {
-                        return {
-                            key,
-                            isNameField: true,
-                            value: this.getFieldValue(contact, col.fieldName)
                         };
                     }
 
@@ -596,25 +588,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         } catch (error) {
             console.error('Error updating sort icons:', error);
         }
-    }
-
-    /**
-     * Method Name: handleNavigateToRecord
-     * @description: Navigate to contact record page in new tab
-     */
-    handleNavigateToRecord(event) {
-        event.preventDefault();
-        const recordId = event.currentTarget.dataset.recordId;
-        
-        this[NavigationMixin.GenerateUrl]({
-            type: 'standard__recordPage',
-            attributes: {
-                recordId: recordId,
-                actionName: 'view'
-            }
-        }).then(url => {
-            window.open(url, '_blank');
-        });
     }
 
     /**

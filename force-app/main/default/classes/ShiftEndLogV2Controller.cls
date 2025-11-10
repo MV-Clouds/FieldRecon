@@ -83,16 +83,134 @@ public with sharing class ShiftEndLogV2Controller {
             // -----------------------------
             List<Log_Entry__c> shiftEndLogs = jobId != null
                 ? [SELECT Id, Name, Job__c, Work_Performed__c, Work_Performed_Date__c, 
-                        Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, 
+                        Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, Notes_to_Office__c,
                         CreatedBy.Name, CreatedDate, LastModifiedDate
                    FROM Log_Entry__c 
                    WHERE Job__c = :jobId 
-                   WITH USER_MODE
+                   AND Log_Type__c = 'Shift End'
                    ORDER BY CreatedDate DESC]
                 : new List<Log_Entry__c>();
 
             Set<Id> logIds = new Set<Id>();
             for(Log_Entry__c log : shiftEndLogs) logIds.add(log.Id);
+
+            // Get field history for today's changes
+            Map<Id, List<FieldChangeInfo>> logFieldChangesMap = new Map<Id, List<FieldChangeInfo>>();
+            if(!logIds.isEmpty()) {
+                Date today = Date.today();
+                List<Log_Entry__History> historyRecords = [
+                    SELECT ParentId, Field, OldValue, NewValue, CreatedDate, CreatedBy.Name
+                    FROM Log_Entry__History
+                    WHERE ParentId IN :logIds
+                    AND CreatedDate = TODAY
+                    WITH USER_MODE
+                    ORDER BY CreatedDate DESC
+                ];
+
+                for(Log_Entry__History hist : historyRecords) {
+                    if(!logFieldChangesMap.containsKey(hist.ParentId)) {
+                        logFieldChangesMap.put(hist.ParentId, new List<FieldChangeInfo>());
+                    }
+                    
+                    FieldChangeInfo changeInfo = new FieldChangeInfo();
+                    changeInfo.fieldName = hist.Field;
+                    // Convert null to empty string, otherwise convert to string
+                    changeInfo.oldValue = hist.OldValue != null ? String.valueOf(hist.OldValue) : '(blank)';
+                    changeInfo.newValue = hist.NewValue != null ? String.valueOf(hist.NewValue) : '(blank)';
+                    changeInfo.changedBy = hist.CreatedBy?.Name;
+                    changeInfo.changedDate = hist.CreatedDate;
+                    
+                    logFieldChangesMap.get(hist.ParentId).add(changeInfo);
+                }
+            }
+
+            // Get current location processes for the job
+            Map<Id, List<LocationProcessSnapshot>> jobLocationProcessesMap = new Map<Id, List<LocationProcessSnapshot>>();
+            if(jobId != null) {
+                List<Location_Process__c> locationProcesses = [
+                    SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
+                           wfrecon__Location__c, wfrecon__Location__r.Name
+                    FROM Location_Process__c 
+                    WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId 
+                    WITH USER_MODE
+                    ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
+                ];
+
+                // Get location process IDs for history tracking
+                Set<Id> locationProcessIds = new Set<Id>();
+                for(Location_Process__c lp : locationProcesses) {
+                    locationProcessIds.add(lp.Id);
+                }
+
+                // Get completion percentage changes for today
+                Map<Id, wfrecon__Location_Process__History> processChangesMap = new Map<Id, wfrecon__Location_Process__History>();
+                if(!locationProcessIds.isEmpty()) {
+                    List<wfrecon__Location_Process__History> processHistoryRecords = [
+                        SELECT ParentId, Field, OldValue, NewValue, CreatedDate, CreatedBy.Name
+                        FROM wfrecon__Location_Process__History
+                        WHERE ParentId IN :locationProcessIds
+                        AND Field = 'wfrecon__Completed_Percentage__c'
+                        AND CreatedDate = TODAY
+                        WITH USER_MODE
+                        ORDER BY CreatedDate DESC
+                    ];
+
+                    for(wfrecon__Location_Process__History hist : processHistoryRecords) {
+                        if(!processChangesMap.containsKey(hist.ParentId)) {
+                            processChangesMap.put(hist.ParentId, hist);
+                        }
+                    }
+                }
+
+                List<LocationProcessSnapshot> processSnapshots = new List<LocationProcessSnapshot>();
+                for(Location_Process__c lp : locationProcesses) {
+                    LocationProcessSnapshot snapshot = new LocationProcessSnapshot();
+                    snapshot.processId = lp.Id;
+                    snapshot.processName = lp.Name;
+                    snapshot.locationName = lp.wfrecon__Location__r.Name;
+                    snapshot.completionPercentage = lp.wfrecon__Completed_Percentage__c != null 
+                        ? lp.wfrecon__Completed_Percentage__c 
+                        : 0;
+                    snapshot.sequence = lp.wfrecon__Sequence__c != null 
+                        ? Integer.valueOf(lp.wfrecon__Sequence__c) 
+                        : null;
+                    
+                    // Add change tracking information
+                    if(processChangesMap.containsKey(lp.Id)) {
+                        wfrecon__Location_Process__History histRecord = processChangesMap.get(lp.Id);
+                        snapshot.changedToday = true;
+                        snapshot.oldPercentage = histRecord.OldValue != null ? Decimal.valueOf(String.valueOf(histRecord.OldValue)) : 0;
+                        snapshot.newPercentage = histRecord.NewValue != null ? Decimal.valueOf(String.valueOf(histRecord.NewValue)) : 0;
+                        snapshot.changedBy = histRecord.CreatedBy?.Name;
+                        
+                        // Calculate progress bar segments
+                        snapshot.yesterdayPercentage = snapshot.oldPercentage;
+                        snapshot.todayChangePercentage = snapshot.newPercentage - snapshot.oldPercentage;
+                        
+                        // Set colors: Theme purple for yesterday's progress, Orange for today's change
+                        snapshot.progressBarColor = '#5a5adb'; // Theme purple for yesterday's progress
+                        snapshot.todayChangeColor = '#F0AD4E'; // Orange for today's change (increase or decrease)
+                    } else {
+                        snapshot.changedToday = false;
+                        snapshot.oldPercentage = null;
+                        snapshot.newPercentage = null;
+                        snapshot.changedBy = null;
+                        
+                        // No change today - use current percentage
+                        snapshot.yesterdayPercentage = snapshot.completionPercentage;
+                        snapshot.todayChangePercentage = 0;
+                        snapshot.progressBarColor = '#5a5adb'; // Theme purple for all progress
+                        snapshot.todayChangeColor = null;
+                    }
+                    
+                    processSnapshots.add(snapshot);
+                }
+                
+                // Store location processes for this job
+                if(!processSnapshots.isEmpty()) {
+                    jobLocationProcessesMap.put(jobId, processSnapshots);
+                }
+            }
 
             Map<Id, List<ContentVersion>> logImagesMap = new Map<Id, List<ContentVersion>>();
             if(!logIds.isEmpty()) {
@@ -132,6 +250,17 @@ public with sharing class ShiftEndLogV2Controller {
                 ShiftEndLogWrapper wrapper = new ShiftEndLogWrapper();
                 wrapper.logEntry = log;
                 wrapper.images = logImagesMap.containsKey(log.Id) ? logImagesMap.get(log.Id) : new List<ContentVersion>();
+                
+                // Get current location processes for this job
+                wrapper.locationProcesses = jobLocationProcessesMap.containsKey(log.wfrecon__Job__c) 
+                    ? jobLocationProcessesMap.get(log.wfrecon__Job__c) 
+                    : new List<LocationProcessSnapshot>();
+                
+                // Get field changes for today
+                wrapper.fieldChanges = logFieldChangesMap.containsKey(log.Id) 
+                    ? logFieldChangesMap.get(log.Id) 
+                    : new List<FieldChangeInfo>();
+                
                 resultWrapper.shiftEndLogs.add(wrapper);
             }
 
@@ -241,6 +370,34 @@ public with sharing class ShiftEndLogV2Controller {
     public class ShiftEndLogWrapper {
         @AuraEnabled public Log_Entry__c logEntry { get; set; }
         @AuraEnabled public List<ContentVersion> images { get; set; }
+        @AuraEnabled public List<LocationProcessSnapshot> locationProcesses { get; set; }
+        @AuraEnabled public List<FieldChangeInfo> fieldChanges { get; set; }
+    }
+
+    public class LocationProcessSnapshot {
+        @AuraEnabled public String processId { get; set; }
+        @AuraEnabled public String processName { get; set; }
+        @AuraEnabled public String locationName { get; set; }
+        @AuraEnabled public Decimal completionPercentage { get; set; }
+        @AuraEnabled public Integer sequence { get; set; }
+        @AuraEnabled public Boolean changedToday { get; set; }
+        @AuraEnabled public Decimal oldPercentage { get; set; }
+        @AuraEnabled public Decimal newPercentage { get; set; }
+        @AuraEnabled public String changedBy { get; set; }
+        
+        // Progress bar segments for visual display
+        @AuraEnabled public Decimal yesterdayPercentage { get; set; }  // Percentage completed till yesterday
+        @AuraEnabled public Decimal todayChangePercentage { get; set; } // Additional % completed today
+        @AuraEnabled public String progressBarColor { get; set; }       // Base color for progress
+        @AuraEnabled public String todayChangeColor { get; set; }       // Color for today's change
+    }
+
+    public class FieldChangeInfo {
+        @AuraEnabled public String fieldName { get; set; }
+        @AuraEnabled public String oldValue { get; set; }
+        @AuraEnabled public String newValue { get; set; }
+        @AuraEnabled public String changedBy { get; set; }
+        @AuraEnabled public DateTime changedDate { get; set; }
     }
 
 }

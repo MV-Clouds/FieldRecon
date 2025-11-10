@@ -1,10 +1,10 @@
 import { LightningElement, track, wire, api } from "lwc";
-import getBillingData from "@salesforce/apex/AIFormController.getBillingData";
+import getBillingData from "@salesforce/apex/AIAFormController.getBillingData";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import { loadScript } from "lightning/platformResourceLoader";
 import pdfLibs from "@salesforce/resourceUrl/pdfLibs";
 
-export default class AiBillForm extends LightningElement {
+export default class aIAForm extends LightningElement {
     @api recordId;
     @track billingRecord = {};
     @track contractList = []; // must be array
@@ -17,7 +17,7 @@ export default class AiBillForm extends LightningElement {
     @track pdfUrl = null;
     @track showPdfViewer = false;
 
-    vfPageUrl = "/apex/wfrecon__AIBillFormPDFGenerator";
+    vfPageUrl = "/apex/wfrecon__AIABillingFormPDFGenerator";
     vfIframeReady = false;
     toContractor;
     project;
@@ -87,7 +87,7 @@ export default class AiBillForm extends LightningElement {
             this.loadBillingData(this.recordId);
         } else {
             console.warn("No recordId found to fetch billing data");
-            this
+            // this
         }
     }
 
@@ -132,99 +132,92 @@ export default class AiBillForm extends LightningElement {
     }
 
     async loadBillingData(recordId) {
-    try {
-        const data = await getBillingData({ recordId });
-        if (data) {
-                console.log("Raw billing data from Apex:", data);
-                // console.log("Raw billing data from Apex:", data);
+        this.isLoading = true;
+        try {
+            const data = await getBillingData({ recordId });
+            
+            if (!data) {
+                console.warn("No data returned from Apex");
+                this.initializeDefaultValues();
+                this.isLoading = false;
+                return;
+            }
 
-                this.billingRecord = data.billingRecord || {};
-                this.contractList = data.contractLineItems || [];
-                this.changeOrderList = data.changeOrderLineItems || [];
-                this.contractSums = data.contractSums || {};
-                this.changeOrderSummary = data.changeOrderSummary || {};
-                this.error = undefined;
+            console.log("Raw billing data from Apex:", data);
 
-                const br = this.billingRecord || {};
-                this.toContractor = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Contractor__c : "";
-                this.acccountName = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Account__r ? br.wfrecon__Job__r.wfrecon__Account__r.Name : "" : "";
-                this.project = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Job_Name__c : "";
-                this.applicationNo = br.wfrecon__Job__r ? br.Job_Number__c : "";
-                this.distributionTo = br.wfrecon__Distribution_To__c || "";
-                this.fromSubcontractor = br.wfrecon__From_Subcontractor__c || "";
-                this.viaArchitect = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Architect__r.Name : "";
-                this.periodTo = br.wfrecon__Period_To__c || "";
-                this.projectNo = br.wfrecon__Job__r ? br.wfrecon__Job__r.Name : "";
-                this.originalContractSum = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Contract_Price__c : 0;
-                // this.netchangebyChangeOrders = br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c : 0.00;
-                this.netchangebyChangeOrders = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c : 0.00) || 0.00; 
-                this.contractSUM = br.wfrecon__Total_Contract_Sum__c || 0;
-                this.totalCompletedandStoredtoDate = br.wfrecon__Total_Completed_Stored_to_Date__c || 0;
+            this.billingRecord = data.billingRecord || {};
+            this.contractList = data.contractLineItems || [];
+            this.changeOrderList = data.changeOrderLineItems || [];
+            this.contractSums = data.contractSums || {};
+            this.changeOrderSummary = data.changeOrderSummary || {};
+            this.error = undefined;
+
+            const br = this.billingRecord;
+            const job = (br && br.wfrecon__Job__r) ? br.wfrecon__Job__r : {};
+            const account = (job && job.wfrecon__Account__r) ? job.wfrecon__Account__r : {};
+            const architect = (job && job.wfrecon__Architect__r) ? job.wfrecon__Architect__r : {};
+
+            // Safe field assignments with proper null checks
+            this.toContractor = (job && job.wfrecon__Contractor__c) || "";
+            this.acccountName = (account && account.Name) || "";
+            this.project = (job && job.wfrecon__Job_Name__c) || "";
+            this.applicationNo = (job && job.wfrecon__Job_Number__c) || "";
+            this.distributionTo = (br && br.wfrecon__Distribution_To__c) || "";
+            this.fromSubcontractor = (br && br.wfrecon__From_Subcontractor__c) || "";
+            this.viaArchitect = (architect && architect.Name) || "";
+            this.periodTo = (br && br.wfrecon__Period_To__c) || "";
+            this.projectNo = (job && job.Name) || "";
+            this.originalContractSum = (job && job.wfrecon__Total_Contract_Price__c) || 0;
+            
+            const changeOrderValue = (job && job.wfrecon__Total_Change_Order_Value__c) || 0;
+            this.netchangebyChangeOrders = this.formatCurrency(changeOrderValue);
+            
+            this.contractSUM = (br && br.wfrecon__Total_Contract_Sum__c) || 0;
+            this.totalCompletedandStoredtoDate = (br && br.wfrecon__Total_Completed_Stored_to_Date__c) || 0;
                 this.jobAddress = [
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Street__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__City__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__State__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Zip_Code__c : "",
-                        br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Country__c : ""
-                    ]
-                        .filter(part => part && part.trim() !== '')
-                        .join(', '); 
-                this.billEndDate = br.wfrecon__End_Date__c || "";
-                this.contractDate = br.wfrecon__Job__r ? br.wfrecon__Job__r.Contract_Date__c : "";
-                this.totalContractValue = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Job__r ? br.wfrecon__Job__r.wfrecon__Total_Contract_Value__c || 0.00 : 0.00) || 0.00; 
-                this.contractSumToDate = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Contract_Sum_to_Date__c || 0.00) || 0.00; 
-                this.totalBilledAmount = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Total_Billed_Amount__c || 0.00) || 0.00; 
-                this.wfreconRetainageOnBill = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Retainage_on_Bill__c || 0) || 0.00; 
-                this.retainageCompletedToDate = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Retainage_Completed_to_Date__c || 0.00) || 0.00; 
-                this.totalAmountEarnedLessRetainage = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Total_Amount_Earned_Less_Retainage__c || 0.00) || 0.00; 
-                this.lessPreviousCertificatedforPayment = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Less_Previous_Certificated_for_Payment__c || 0.00) || 0.00; 
-                this.currentPaymentDue = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Current_Payment_Due_FM__c || 0.00) || 0.00; 
-                this.balanceToFinishRetainage = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(br.wfrecon__Balance_to_Finish_Retainage__c || 0.00) || 0.00; 
-                const conSum = this.contractSums || {};
-                this.totalC = conSum.totalC;
-                this.totalC = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalC || 0.00) || 0.00; 
-                this.totalD = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalD || 0.00) || 0.00; 
-                this.totalE = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalE || 0.00) || 0.00; 
-                this.totalF = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalF || 0.00) || 0.00; 
-                this.totalG = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalG || 0.00) || 0.00; 
-                this.totalH = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalH || 0.00) || 0.00; 
-                this.totalI = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalI || 0.00) || 0.00; 
-                this.totalJ = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(conSum.totalJ || 0.00) || 0.00; 
-
-
-                const changeOrderSummary = this.changeOrderSummary || {};
-                this.netChanges = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.netChanges || 0.00) || 0.00; 
-                this.previousAddition = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.previousAddition || 0.00) || 0.00; 
-                this.previousDeduction = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.previousDeduction || 0.00) || 0.00; 
-                this.thisMonthAddition = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.thisMonthAddition || 0.00) || 0.00; 
-                this.thisMonthDeduction = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.thisMonthDeduction || 0.00) || 0.00; 
-                this.totalAddition = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.totalAddition || 0.00) || 0.00; 
-                this.totalDeduction = new Intl.NumberFormat('en-US', {minimumFractionDigits: 2,maximumFractionDigits: 2}).format(changeOrderSummary.totalDeduction || 0.00) || 0.00; 
-                this.companyAddress = changeOrderSummary.companyAddress || "";
-                this.comName = this.changeOrderSummary.comName || "";
-                // console.log('changeOrderSummary.companyAddress *** :',changeOrderSummary.companyAddress);
-                // console.log('this.companyAddress *** :',this.companyAddress);
-
-                // const today = new Date();
-                // const formattedDate = `${(today.getMonth() + 1)
-                // .toString()
-                // .padStart(2, '0')}/${today
-                // .getDate()
-                // .toString()
-                // .padStart(2, '0')}/${today.getFullYear()}`;
-                // this.contractDate = formattedDate;
-
-                // const today = new Date();
-                // const formattedDate = `${today.getFullYear()}-${(today.getMonth() + 1)
-                // .toString()
-                // .padStart(2, '0')}-${today
-                // .getDate()
-                // .toString()
-                // .padStart(2, '0')}`;
-
-                // this.contractDate = formattedDate;
-
+                    (job && job.wfrecon__Street__c) || "",
+                    (job && job.wfrecon__City__c) || "",
+                    (job && job.wfrecon__State__c) || "",
+                    (job && job.wfrecon__Zip_Code__c) || "",
+                    (job && job.wfrecon__Country__c) || ""
+                ]
+                .filter(part => part && part.trim() !== '')
+                .join(', '); 
                 
+                this.billEndDate = (br && br.wfrecon__End_Date__c) || "";
+                this.contractDate = (job && job.Contract_Date__c) || "";
+                
+                // Format all currency values with proper null checks
+                this.totalContractValue = this.formatCurrency((job && job.wfrecon__Total_Contract_Value__c) || 0);
+                this.contractSumToDate = this.formatCurrency((br && br.wfrecon__Contract_Sum_to_Date__c) || 0);
+                this.totalBilledAmount = this.formatCurrency((br && br.wfrecon__Total_Billed_Amount__c) || 0);
+                this.wfreconRetainageOnBill = this.formatCurrency((br && br.wfrecon__Retainage_on_Bill__c) || 0);
+                this.retainageCompletedToDate = this.formatCurrency((br && br.wfrecon__Retainage_Completed_to_Date__c) || 0);
+                this.totalAmountEarnedLessRetainage = this.formatCurrency((br && br.wfrecon__Total_Amount_Earned_Less_Retainage__c) || 0);
+                this.lessPreviousCertificatedforPayment = this.formatCurrency((br && br.wfrecon__Less_Previous_Certificated_for_Payment__c) || 0);
+                this.currentPaymentDue = this.formatCurrency((br && br.wfrecon__Current_Payment_Due_FM__c) || 0);
+                this.balanceToFinishRetainage = this.formatCurrency((br && br.wfrecon__Balance_to_Finish_Retainage__c) || 0); 
+                
+                const conSum = this.contractSums || {};
+                this.totalC = this.formatCurrency(conSum.totalC);
+                this.totalD = this.formatCurrency(conSum.totalD);
+                this.totalE = this.formatCurrency(conSum.totalE);
+                this.totalF = this.formatCurrency(conSum.totalF);
+                this.totalG = this.formatCurrency(conSum.totalG);
+                this.totalH = this.formatCurrency(conSum.totalH);
+                this.totalI = this.formatCurrency(conSum.totalI);
+                this.totalJ = this.formatCurrency(conSum.totalJ);
+
+                const changeOrderSum = this.changeOrderSummary || {};
+                this.netChanges = this.formatCurrency(changeOrderSum.netChanges);
+                this.previousAddition = this.formatCurrency(changeOrderSum.previousAddition);
+                this.previousDeduction = this.formatCurrency(changeOrderSum.previousDeduction);
+                this.thisMonthAddition = this.formatCurrency(changeOrderSum.thisMonthAddition);
+                this.thisMonthDeduction = this.formatCurrency(changeOrderSum.thisMonthDeduction);
+                this.totalAddition = this.formatCurrency(changeOrderSum.totalAddition);
+                this.totalDeduction = this.formatCurrency(changeOrderSum.totalDeduction);
+                this.companyAddress = changeOrderSum.companyAddress || "";
+                this.comName = changeOrderSum.comName || "";
 
                 const container = this.template.querySelector('.dynamic-container');
                 const tabel2 = this.template.querySelector('.dynamic-container-2tabel');
@@ -258,14 +251,14 @@ export default class AiBillForm extends LightningElement {
                                 <tr>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${startIndex + i + 1}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Scope_Entry__r || ''}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueOf_G}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c}%</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G || '0'}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || '0'}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r || '0.00'}</td>
                                 </tr>`;
                         });
 
@@ -336,14 +329,14 @@ export default class AiBillForm extends LightningElement {
                                 <tr>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${startIndex + i + 1}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Scope_Entry__r || ''}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueOf_G}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c}%</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G || '0'}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || '0'}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r || '0.00'}</td>
                                 </tr>`;
                         });
 
@@ -405,22 +398,91 @@ export default class AiBillForm extends LightningElement {
 
                 }
 
-            } else if (error) {
-                console.error("Error fetching billing data:", error);
-                this.error = error;
-                this.billingRecord = {};
-                this.contractList = [];
-                this.changeOrderList = [];
-                this.contractSums = {};
-            }
         } catch (error) {
-            console.error("Error fetching billing data:", error);
+            console.error("Error fetching billing data in catch:", error);
+            console.error("Error message:", error.message);
+            console.error("Error body:", error.body);
+            console.error("Error stack:", error.stack);
+            console.error("Full error object:", JSON.stringify(error));
             this.error = error;
-            this.billingRecord = {};
-            this.contractList = [];
-            this.changeOrderList = [];
-            this.contractSums = {};
+            this.initializeDefaultValues();
+            
+            let errorMessage = "Failed to load billing data.";
+            if (error.body && error.body.message) {
+                errorMessage = error.body.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
+            this.showToast("Error", errorMessage, "error");
+        } finally {
+            // Keep spinner until PDF is generated
+            // this.isLoading = false will be set in _handlePDFGenerated
         }
+    }
+
+    // Helper method to format currency
+    formatCurrency(value) {
+        const numValue = Number(value) || 0;
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(numValue);
+    }
+
+    // Helper method to initialize default values
+    initializeDefaultValues() {
+        this.billingRecord = {};
+        this.contractList = [];
+        this.changeOrderList = [];
+        this.contractSums = {};
+        this.changeOrderSummary = {};
+        
+        // Set all display values to default
+        this.toContractor = "";
+        this.acccountName = "";
+        this.project = "";
+        this.applicationNo = "";
+        this.distributionTo = "";
+        this.fromSubcontractor = "";
+        this.viaArchitect = "";
+        this.periodTo = "";
+        this.projectNo = "";
+        this.originalContractSum = 0;
+        this.netchangebyChangeOrders = "0.00";
+        this.contractSUM = 0;
+        this.totalCompletedandStoredtoDate = 0;
+        this.jobAddress = "";
+        this.billEndDate = "";
+        this.contractDate = "";
+        this.totalContractValue = "0.00";
+        this.contractSumToDate = "0.00";
+        this.totalBilledAmount = "0.00";
+        this.wfreconRetainageOnBill = "0.00";
+        this.retainageCompletedToDate = "0.00";
+        this.totalAmountEarnedLessRetainage = "0.00";
+        this.lessPreviousCertificatedforPayment = "0.00";
+        this.currentPaymentDue = "0.00";
+        this.balanceToFinishRetainage = "0.00";
+        this.totalC = "0.00";
+        this.totalD = "0.00";
+        this.totalE = "0.00";
+        this.totalF = "0.00";
+        this.totalG = "0.00";
+        this.totalH = "0.00";
+        this.totalI = "0.00";
+        this.totalJ = "0.00";
+        this.netChanges = "0.00";
+        this.previousAddition = "0.00";
+        this.previousDeduction = "0.00";
+        this.thisMonthAddition = "0.00";
+        this.thisMonthDeduction = "0.00";
+        this.totalAddition = "0.00";
+        this.totalDeduction = "0.00";
+        this.companyAddress = "";
+        this.comName = "";
     }
 
     // UI helpers
@@ -460,7 +522,12 @@ export default class AiBillForm extends LightningElement {
         if (event.key === "Escape" && this.isOpen) this.close();
     }
     _lockBodyScroll() {
-        try { this._previousBodyOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; } catch (e) {}
+        try { 
+            this._previousBodyOverflow = document.body.style.overflow; 
+            document.body.style.overflow = "hidden"; 
+        } catch (e) {
+            console.error("Error locking body scroll:", e);
+        }
     }
     _restoreBodyOverflow() {
         try {
@@ -470,7 +537,9 @@ export default class AiBillForm extends LightningElement {
             } else {
                 document.body.style.overflow = "";
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("Error restoring body overflow:", e);
+        }
     }
 
     get pdfButtonLabel() { return this.isGeneratingPDF ? "Generating PDF..." : "Generate PDF"; }
@@ -535,15 +604,18 @@ export default class AiBillForm extends LightningElement {
 
     _handlePDFGenerated(pdfDataUri) {
         try {
+            console.log("PDF generated successfully");
             this.isGeneratingPDF = false;
             this.pdfUrl = pdfDataUri;
             this.showPdfViewer = true;
             this._renderPdfWithPdfJs(pdfDataUri);
-            // this.showToast("Success", "PDF generated successfully!", "success");
+            this.showToast("Success", "PDF generated successfully!", "success");
+            // Turn off spinner after PDF is generated
             this.isLoading = false;
         } catch (err) {
             console.error("Error handling generated PDF:", err);
             this.showToast("Error", "Failed to display PDF.", "error");
+            this.isLoading = false;
         }
     }
 

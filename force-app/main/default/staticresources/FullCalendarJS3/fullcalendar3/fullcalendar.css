@@ -45,6 +45,8 @@
     font-weight: 500;
     font-size: 1rem;
     font-weight: 600;
+    flex-grow: 1;
+    max-width: 15rem;
 }
 
 .fullcalendarjs .fc-center{
@@ -52,6 +54,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: fit-content;
 }
 
 .fullcalendarjs .fc-button-group{
@@ -172,3 +175,16 @@
 /* You may not need these if you correctly use themeSystem: 'jquery-ui' and load the CSS */
 /* .fullcalendarjs .ui-widget-header { background: none; } */
 /* .fullcalendarjs .ui-state-default { background: none; } */
+
+/* Media Queries */
+@media screen and (max-width: 768px) {
+    .fullcalendarjs .fc-today a{
+        background-color: transparent !important;
+    }
+
+    .fullcalendarjs .fc-toolbar{
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}

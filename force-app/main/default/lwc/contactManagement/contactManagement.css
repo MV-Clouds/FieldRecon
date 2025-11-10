@@ -549,19 +549,6 @@
         gap: 0.3rem;
     }
     
-    /* Adjust column widths for mobile */
-    .custom-data-table td:nth-child(1) { width: 10%; max-width: 40px; }
-    .custom-data-table td:nth-child(2) { width: 15%; max-width: 60px; }
-    .custom-data-table td:nth-child(3) { width: 30%; max-width: 120px; }
-    .custom-data-table td:nth-child(4) { width: 25%; max-width: 100px; }
-    .custom-data-table td:nth-child(5) { width: 20%; max-width: 80px; }
-    
-    .custom-data-table th:nth-child(1) { width: 10%; }
-    .custom-data-table th:nth-child(2) { width: 15%; }
-    .custom-data-table th:nth-child(3) { width: 30%; }
-    .custom-data-table th:nth-child(4) { width: 25%; }
-    .custom-data-table th:nth-child(5) { width: 20%; }
-    
     /* Reduce font size for mobile */
     .custom-data-table {
         font-size: 11px;
