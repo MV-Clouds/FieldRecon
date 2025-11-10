@@ -148,6 +148,10 @@ private class MobSchedulerControllerTest {
         Date startDate = Date.today();
         Date endDate = Date.today().addDays(10);
 
+        Equipment__c equipment = [SELECT Id FROM Equipment__c LIMIT 1];
+        Mobilization__c mob = [SELECT Id, Start_Date__c, Mobilization_Group__c FROM Mobilization__c LIMIT 1];
+        insert new Mobilization_Asset__c(Mobilization__c = mob.Id, Equipment__c = equipment.Id);
+
         Test.startTest();
         List<Map<String, Object>> crewResult = MobSchedulerController.getResourceDetails(startDate, endDate, 'Crew');
         List<Map<String, Object>> subResult = MobSchedulerController.getResourceDetails(startDate, endDate, 'SubContractor');

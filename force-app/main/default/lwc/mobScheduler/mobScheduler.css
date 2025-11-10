@@ -693,7 +693,7 @@
   .filters-and-nav {
     width: 100%;
     max-width: 100%;
-    overflow: scroll;
+    overflow: auto;
     margin-bottom: 0.5rem;
   }
 

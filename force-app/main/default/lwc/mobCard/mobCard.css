@@ -147,7 +147,7 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     max-height: 11rem;
-    overflow-y: scroll;
+    overflow-y: auto;
 }
 
 .selected-record-tiles .tile{
