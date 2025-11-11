@@ -85,6 +85,10 @@ export default class ShiftEndLogEntries extends LightningElement {
         return this.locationProcesses && this.locationProcesses.length > 0;
     }
 
+    get hasMobilizationOptions() {
+        return this.mobilizationOptions && this.mobilizationOptions.length > 0;
+    }
+
     get clockInMinBoundary() {
         const reference = this.currentJobStartDateTime || this.clockInTime;
         const dateKey = this.extractDateKey(reference);
@@ -163,7 +167,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     updateRowHighlighting() {
         // Highlight modified sliders
-        this.modifiedProcesses.forEach((modification, processId) => {
+        this.modifiedProcesses.forEach((processId) => {
             const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
             if (slider) {
                 const sliderContainer = slider.closest('.location-slider-container');

@@ -10,28 +10,51 @@
 
             <div class="pop-heading">Create Shift End Log</div>
 
-            <!-- Progress Indicator -->
-            <div class="progress-container">
-                <lightning-progress-indicator current-step={currentStep} type="path" variant="base">
-                    <lightning-progress-step label="Clock Status" value="step1"></lightning-progress-step>
-                    <lightning-progress-step label="Timesheet Entries" value="step2"></lightning-progress-step>
-                    <lightning-progress-step label="Log Details" value="step3"></lightning-progress-step>
-                    <lightning-progress-step label="Gallery" value="step4"></lightning-progress-step>
-                </lightning-progress-indicator>
-            </div>
+            <!-- Progress Indicator - Hidden when no mobilization options -->
+            <template if:true={hasMobilizationOptions}>
+                <div class="progress-container">
+                    <lightning-progress-indicator current-step={currentStep} type="path" variant="base">
+                        <lightning-progress-step label="Clock Status" value="step1"></lightning-progress-step>
+                        <lightning-progress-step label="Timesheet Entries" value="step2"></lightning-progress-step>
+                        <lightning-progress-step label="Log Details" value="step3"></lightning-progress-step>
+                        <lightning-progress-step label="Gallery" value="step4"></lightning-progress-step>
+                    </lightning-progress-indicator>
+                </div>
+            </template>
 
             <div class="slds-modal__content wizard-content" id="modal-content-id-1">
                 <!-- Step 1: Mobilization Selection & Clock In/Out Status -->
                 <template if:true={isStep1}>
                     <div class="step-container">
+                        <!-- No Dates Available Message -->
+                        <template if:false={hasMobilizationOptions}>
+                            <div class="no-data-message">
+                                <div class="no-data-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                        <line x1="10" y1="14" x2="14" y2="18"></line>
+                                        <line x1="14" y1="14" x2="10" y2="18"></line>
+                                    </svg>
+                                </div>
+                                <h3 class="no-data-title">No Dates Available</h3>
+                                <p class="no-data-description">There are no scheduled dates available for this job.</p>
+                            </div>
+                        </template>
+
                         <!-- Mobilization Selector -->
-                        <div class="mobilization-selector">
-                            <label class="form-label required">Select Date</label>
-                            <lightning-combobox name="mobilization" label="" placeholder="-- Select Mobilization --"
-                                options={mobilizationOptions} value={selectedMobilizationId}
-                                onchange={handleMobilizationChange}>
-                            </lightning-combobox>
-                        </div>
+                        <template if:true={hasMobilizationOptions}>
+                            <div class="mobilization-selector">
+                                <label class="form-label required">Select Date</label>
+                                <lightning-combobox name="mobilization" label="" placeholder="-- Select Date --"
+                                    options={mobilizationOptions} value={selectedMobilizationId}
+                                    onchange={handleMobilizationChange}>
+                                </lightning-combobox>
+                            </div>
+                        </template>
 
                         <template if:true={selectedMobilizationId}>
                             <!-- No Crew Members Message -->
@@ -434,37 +457,39 @@
                 </template>
             </div>
 
-            <!-- Footer with Navigation Buttons -->
-            <div class="wizard-footer">
-                <template if:false={isStep1}>
-                    <button class="nav-btn prev-btn" onclick={handlePrevious}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                        Previous
-                    </button>
-                </template>
-                <div class="spacer"></div>
-                <template if:false={isStep4}>
-                    <button class="nav-btn next-btn" onclick={handleNext}>
-                        Next
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
-                </template>
-                <template if:true={isStep4}>
-                    <button class="nav-btn done-btn" onclick={handleDone}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                        Done
-                    </button>
-                </template>
-            </div>
+            <!-- Footer with Navigation Buttons - Hidden when no mobilization options -->
+            <template if:true={hasMobilizationOptions}>
+                <div class="wizard-footer">
+                    <template if:false={isStep1}>
+                        <button class="nav-btn prev-btn" onclick={handlePrevious}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            Previous
+                        </button>
+                    </template>
+                    <div class="spacer"></div>
+                    <template if:false={isStep4}>
+                        <button class="nav-btn next-btn" onclick={handleNext}>
+                            Next
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </template>
+                    <template if:true={isStep4}>
+                        <button class="nav-btn done-btn" onclick={handleDone}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Done
+                        </button>
+                    </template>
+                </div>
+            </template>
 
             <template if:true={isLoading}>
                 <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>

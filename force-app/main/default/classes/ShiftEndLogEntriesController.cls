@@ -63,8 +63,10 @@ public with sharing class ShiftEndLogEntriesController {
             }
 
             Date startDate = mobilizationRecord[0].Start_Date__c.date();
+            DateTime startDateTime = DateTime.newInstance(startDate, Time.newInstance(0,0,0,0));
+            DateTime endDateTime   = DateTime.newInstance(startDate, Time.newInstance(23,59,59,999));
             List<Timesheet_Entry__c> entries = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__r.Contact__c FROM Timesheet_Entry__c
-                                                WHERE Timesheet__c IN :tsList AND Clock_In_Time__c >= :startDate AND Clock_In_Time__c < :startDate.addDays(1)
+                                                WHERE Timesheet__c IN :tsList AND Clock_In_Time__c >= :startDateTime AND Clock_In_Time__c < :endDateTime
                                                 WITH USER_MODE];
 
             Map<Id, List<Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<Timesheet_Entry__c>>();
@@ -528,6 +530,9 @@ public with sharing class ShiftEndLogEntriesController {
             if(!Pattern.matches('\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}', utcDateTimeStr)) {
                 if(Pattern.matches('\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}', utcDateTimeStr)) {
                     utcDateTimeStr += ':00';
+                } else {
+                    // Invalid format
+                    System.debug('Invalid datetime format: ' + utcDateTimeStr);
                 }
             }
     
@@ -539,7 +544,8 @@ public with sharing class ShiftEndLogEntriesController {
 
             return utcDT;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'convertUtc', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            System.debug('Error in convertUtc: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'convertUtc', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return null;
         }
     }

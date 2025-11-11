@@ -94,7 +94,7 @@
     background-size: cover;
     min-height: 0;
     position: relative;
-    padding-bottom: 0;
+    /* padding-bottom: 0; */
 }
 
 .step-container {
@@ -519,10 +519,12 @@
 .no-data-message {
     background: white;
     border-radius: 8px;
-    padding: 3rem 2rem;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .no-data-icon {
@@ -1000,25 +1002,16 @@
     transition: all 0.2s ease;
 }
 
-.prev-btn {
-    background: #6c757d;
-    color: white;
-}
-
-.prev-btn:hover {
-    background: #5a6268;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
-}
-
 .next-btn,
-.done-btn {
+.done-btn,
+.prev-btn {
     background: rgba(94, 90, 219, 1);
     color: white;
 }
 
 .next-btn:hover,
-.done-btn:hover {
+.done-btn:hover,
+.prev-btn:hover {
     background: rgba(94, 90, 219, 0.9);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
