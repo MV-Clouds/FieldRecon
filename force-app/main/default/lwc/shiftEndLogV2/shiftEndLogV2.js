@@ -289,8 +289,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             ContentDocumentId: img.ContentDocumentId,
                             Title: img.Title,
                             FileExtension: img.FileExtension,
-                            thumbnailUrl: `/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=${img.Id}`,
-                            previewUrl: `/sfc/servlet.shepherd/version/renditionDownload?rendition=SVGZ&versionId=${img.Id}`
+                            thumbnailUrl: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`,
+                            previewUrl: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`
                         })),
                         hasImages: images.length > 0,
                         imageCount: images.length,

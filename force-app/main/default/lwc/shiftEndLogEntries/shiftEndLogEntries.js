@@ -917,7 +917,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     async handleRemoveFile(event) {
         const fileId = event.currentTarget.dataset.id;
-        
+        this.isLoading = true;
         // Find the file to check if it's a camera photo
         const fileToRemove = this.uploadedFiles.find(file => file.id === fileId);
         
@@ -935,6 +935,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         } catch (error) {
             console.error('Error removing file:', error);
             this.showToast('Error', 'Failed to remove file: ' + (error.body?.message || error.message), 'error');
+        } finally {
+            this.isLoading = false;
         }
     }
 
