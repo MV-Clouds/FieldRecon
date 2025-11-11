@@ -680,7 +680,7 @@
     transition: all 0.3s ease;
 }
 
-.location-slider-container .modified-field {
+.location-slider-container.modified-field {
     background: rgb(255, 248, 220);
     border: 2px solid rgba(94, 90, 219, 0.5);
     box-shadow: 0 2px 8px rgba(94, 90, 219, 0.2);

@@ -123,8 +123,11 @@ export default class ShiftEndLogEntries extends LightningElement {
     renderedCallback() {
         // Apply slider styles manually in DOM for dynamic progress bars
         if (this.isStep3 && this.groupedLocationProcesses.length > 0) {
-            this.updateSliderStyles();
-            this.updateRowHighlighting();
+            // Use setTimeout to ensure DOM is fully rendered
+            setTimeout(() => {
+                this.updateSliderStyles();
+                this.updateRowHighlighting();
+            }, 0);
         }
     }
 
@@ -134,6 +137,9 @@ export default class ShiftEndLogEntries extends LightningElement {
             locationGroup.processes.forEach(proc => {
                 const slider = this.template.querySelector(`[data-process-id="${proc.id}"]`);
                 if (slider) {
+                    // Set the slider value to reflect current completion percentage
+                    slider.value = proc.completedPercent;
+                    
                     const sliderTrack = slider.closest('.slider-wrapper')?.querySelector('.slider-track');
                     if (sliderTrack) {
                         const completed = sliderTrack.querySelector('.completed');
@@ -167,7 +173,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     updateRowHighlighting() {
         // Highlight modified sliders
-        this.modifiedProcesses.forEach((processId) => {
+        this.modifiedProcesses.forEach((modification, processId) => {
             const slider = this.template.querySelector(`[data-process-id="${processId}"]`);
             if (slider) {
                 const sliderContainer = slider.closest('.location-slider-container');
@@ -676,6 +682,12 @@ export default class ShiftEndLogEntries extends LightningElement {
     handleLocationChange(event) {
         this.selectedLocationId = event.detail.value;
         this.filterProcessesByLocation();
+        
+        // Force re-render after short delay to apply slider values
+        setTimeout(() => {
+            this.updateSliderStyles();
+            this.updateRowHighlighting();
+        }, 100);
     }
 
     filterProcessesByLocation() {
@@ -790,6 +802,44 @@ export default class ShiftEndLogEntries extends LightningElement {
             });
         } else {
             this.modifiedProcesses.delete(processId);
+        }
+
+        // Update in allLocationProcesses to persist across location changes
+        const allProcessIndex = this.allLocationProcesses.findIndex(p => p.id === processId);
+        if (allProcessIndex !== -1) {
+            // Create a new object to trigger reactivity
+            this.allLocationProcesses = this.allLocationProcesses.map((proc, index) => {
+                if (index === allProcessIndex) {
+                    return {
+                        ...proc,
+                        completedPercent: newValue,
+                        previousPercent: originalValue,
+                        todayPercent: Math.max(0, newValue - originalValue),
+                        remainingPercent: Math.max(0, 100 - newValue)
+                    };
+                }
+                return proc;
+            });
+        }
+
+        // Update in locationProcesses for current display
+        const processIndex = this.locationProcesses.findIndex(p => p.id === processId);
+        if (processIndex !== -1) {
+            this.locationProcesses = this.locationProcesses.map((proc, index) => {
+                if (index === processIndex) {
+                    return {
+                        ...proc,
+                        completedPercent: newValue,
+                        previousPercent: originalValue,
+                        todayPercent: Math.max(0, newValue - originalValue),
+                        remainingPercent: Math.max(0, 100 - newValue)
+                    };
+                }
+                return proc;
+            });
+            
+            // Rebuild grouped processes
+            this.groupProcessesByLocation();
         }
 
         // Update visual feedback
