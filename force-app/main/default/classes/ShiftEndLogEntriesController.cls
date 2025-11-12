@@ -708,7 +708,9 @@ public with sharing class ShiftEndLogEntriesController {
             });
             throw new AuraHandledException('Error creating Log Entry: ' + e.getMessage());
         }
-    }    @AuraEnabled
+    }    
+    
+    @AuraEnabled
     public static void deleteContentDocuments(List<String> contentDocumentIds) {
         try {
             if (contentDocumentIds == null || contentDocumentIds.isEmpty()) {
