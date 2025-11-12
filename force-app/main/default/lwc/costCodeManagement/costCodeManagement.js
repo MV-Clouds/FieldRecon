@@ -354,9 +354,12 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
      * @description: Populate form fields for editing
      */
     populateFormFields(costCodeRecord) {
+
+        console.log('costCodeRecord ==> ', costCodeRecord);
         this.costCodeName = costCodeRecord.Name || '';
         this.classificationType = costCodeRecord.wfrecon__Classification_Type__c || '';
-        this.levelCode = costCodeRecord.wfrecon__Level_Code__c || '';
+        // Handle Level Code properly to show 0 values
+        this.levelCode = costCodeRecord.wfrecon__Level_Code__c || 0;
     }
 
     /**
@@ -375,13 +378,9 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
                 this.classificationType = value;
                 break;
             case 'levelCode':
-                // Remove leading zeros and keep only valid number
-                if (value) {
-                    const numValue = parseInt(value, 10);
-                    this.levelCode = isNaN(numValue) ? '' : String(numValue);
-                } else {
-                    this.levelCode = value;
-                }
+                // Keep the value as is, allowing users to type leading zeros
+                // The leading zeros will be removed when saving
+                this.levelCode = value;
                 break;
             default:
                 break;
@@ -400,10 +399,11 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
         this.isLoading = true;
 
         // Trim values before saving
+        const levelCodeValue = this.levelCode ? parseInt(this.levelCode, 10) : null;
         const costCodeRecord = {
             Name: this.costCodeName.trim(),
             wfrecon__Classification_Type__c: this.classificationType.trim(),
-            wfrecon__Level_Code__c: parseInt(this.levelCode, 10) || null
+            wfrecon__Level_Code__c: !isNaN(levelCodeValue) ? levelCodeValue : null
         };
 
         if (this.isEditMode && this.recordIdToEdit) {
