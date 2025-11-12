@@ -46,6 +46,33 @@
     overflow: auto;
     border-radius: 8px;
     margin: 16px 0;
+    max-height: calc(100vh - 200px);
+}
+
+/* Custom scrollbar styling */
+.data-table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.data-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.data-table-container::-webkit-scrollbar-thumb {
+    background: rgba(94, 90, 219, 0.5);
+    border-radius: 4px;
+}
+
+.data-table-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(94, 90, 219, 0.8);
+}
+
+/* Firefox scrollbar */
+.data-table-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
 }
 
 .custom-data-table {
