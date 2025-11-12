@@ -115,6 +115,17 @@
     gap: 1rem;
 }
 
+.record-nav-link{
+    cursor: pointer;
+    color: #5a5adbaa;
+    transition: all 0.2s ease-in-out;
+}
+
+.record-nav-link:hover{
+    color: var(--primary-theme-color, #5a5adb);
+    text-decoration: underline;
+}
+
 .header{
     height: fit-content;
     display: flex;
@@ -132,6 +143,22 @@
 
 .filters-and-search{
     gap: 0.5rem;
+}
+
+.main-mob-group-popup-form{
+    max-height: min(32rem, 60vh);
+    display: flex;
+    flex-direction: column;
+    padding-block: 1rem;
+}
+
+.bottom-footer-btn{
+    width: calc(100% + 2rem);
+    margin-left: -1rem;
+    margin-bottom: -1rem;
+    background: white;
+    border-top: 1px solid lightgray;
+    margin-top: 0.5rem;
 }
 
 .footer-btn{

@@ -1,0 +1,197 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <!-- Header -->
+        <header class="header slds-modal__header">
+            <h2 class="title">Crew Clock In/Out</h2>
+        </header>
+
+        <!-- No Data or Access Denied Message -->
+        <template if:false={isCrewLeader}>
+            <div class="no-records-message">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="100" height="100" class="empty-state__icon">
+                            <path fill="#db5a5a" d="M26 2C12.7 2 2 12.7 2 26s10.7 24 24 24 24-10.7 24-24S39.3 2 26 2zm0 44C14.9 46 6 37.1 6 26S14.9 6 26 6s20 8.9 20 20-8.9 20-20 20z"/>
+                            <path fill="#db5a5a" d="M24 16h4v12h-4zM24 32h4v4h-4z"/>
+                        </svg>
+                        <div class="empty-state__message">
+                            🚫 Access Restricted - {errorMessage}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Crew and Mobilization Selection -->
+        <template if:true={isCrewLeader}>
+            <div class="content-section">
+                
+                <!-- Crew Selection (if multiple crews) -->
+                <template if:true={showCrewSelector}>
+                    <div class="selector-card">
+                        <label class="form-label required">Select Crew</label>
+                        <lightning-combobox name="crew" placeholder="-- Select Crew --" options={crewOptions} value={selectedCrewId} onchange={handleCrewChange} variant="label-hidden"></lightning-combobox>
+                    </div>
+                </template>
+
+                <!-- Mobilization Date Selection -->
+                <template if:true={showMobilizationSelector}>
+                    <div class="selector-card">
+                        <label class="form-label required">Select Date</label>
+                        <lightning-combobox name="mobilization" placeholder="-- Select Date --" options={mobilizationOptions} value={selectedMobilizationId} onchange={handleMobilizationChange} variant="label-hidden"></lightning-combobox>
+                    </div>
+                </template>
+
+                <!-- No Mobilizations Message -->
+                <template if:true={hasSelectedCrew}>
+                    <template if:false={hasMobilizations}>
+                        <div class="info-message">
+                            <p>📅 {errorMessage}</p>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </template>
+
+        <!-- Main Content with Tabset -->
+        <template if:true={hasData}>
+            <div class="content-section">
+                <!-- Tab Navigation -->
+                <div class="tab-navigation">
+                    <button class={clockInTabClass} onclick={handleClockInTab}>
+                        Clock In ({clockInMembersCount})
+                    </button>
+                    <button class={clockOutTabClass} onclick={handleClockOutTab}>
+                        Clock Out ({clockOutMembersCount})
+                    </button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Clock In Tab -->
+                    <template if:true={isClockInActive}>
+                        <div class="tab-panel">
+                            <template if:true={hasClockInMembers}>
+                                <div class="clock-in-container">
+                                    <div class="member-list">
+                                        <template for:each={clockInMembers} for:item="member">
+                                            <div key={member.contactId} class="crew-member-card">
+                                                <div class="member-info-content">
+                                                    <div class="member-header">
+                                                        <div class="member-name">{member.contactName}</div>
+                                                        <template if:true={member.isAgain}>
+                                                            <span class="status-badge status-again">⚡ Clocking in again</span>
+                                                        </template>
+                                                        <template if:false={member.isAgain}>
+                                                            <span class="status-badge status-not-clocked">Not Clocked In</span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <!-- Inline Form for Clock In -->
+                                    <div class="inline-form-container">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label class="select-label required">Select Cost Code</label>
+                                                <select class="custom-select-costcode" data-field="bulkCostCode" onchange={handleBulkInputChange}>
+                                                    <option value="">-- Select a cost code --</option>
+                                                    <template for:each={costCodes} for:item="option">
+                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="datetime-label required">Clock In DateTime</label>
+                                                <input type="datetime-local" class="custom-datetime" data-field="bulkClockInTime" value={bulkClockInTime} onchange={handleBulkInputChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <template if:false={hasClockInMembers}>
+                                <div class="empty-state-container">
+                                    <div class="empty-state-content">
+                                        <div class="empty-state-title">No Pending Clock Ins</div>
+                                        <div class="empty-state-message">All crew members are clocked in.</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Clock Out Tab -->
+                    <template if:true={isClockOutActive}>
+                        <div class="tab-panel">
+                            <template if:true={hasClockOutMembers}>
+                                <div class="clock-in-container">
+                                    <div class="member-list">
+                                        <template for:each={clockOutMembers} for:item="member">
+                                            <div key={member.contactId} class="crew-member-card">
+                                                <div class="member-info-content">
+                                                    <div class="member-header">
+                                                        <div class="member-name">{member.contactName}</div>
+                                                        <span class="status-badge status-clocked">✓ Clocked In</span>
+                                                    </div>
+                                                    <template if:true={member.clockInTime}>
+                                                        <div class="member-clock-time">
+                                                            Clock In: {member.formattedClockInTime}
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <!-- Inline Form for Clock Out -->
+                                    <div class="inline-form-container">
+                                        <div class="form-group">
+                                            <label class="datetime-label required">Clock Out DateTime</label>
+                                            <input type="datetime-local" class="custom-datetime" data-field="bulkClockOutTime" value={bulkClockOutTime} onchange={handleBulkInputChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <template if:false={hasClockOutMembers}>
+                                <div class="empty-state-container">
+                                    <div class="empty-state-content">
+                                        <div class="empty-state-title">No Pending Clock Outs</div>
+                                        <div class="empty-state-message">All crew members are clocked out.</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <template if:true={isClockInActive}>
+                <template if:true={hasClockInMembers}>
+                    <div class="button-container">
+                        <button class="clock-in-button" onclick={handleConfirmBulkClockIn} disabled={isLoading}>
+                            Clock In All Members ({clockInMembersCount})
+                        </button>
+                    </div>
+                </template>
+            </template>
+
+            <template if:true={isClockOutActive}>
+                <template if:true={hasClockOutMembers}>
+                    <div class="button-container">
+                        <button class="clock-in-button" onclick={handleBulkClockOut} disabled={isLoading}>
+                            Clock Out All Members ({clockOutMembersCount})
+                        </button>
+                    </div>
+                </template>
+            </template>
+        </template>
+    </div>
+</template>

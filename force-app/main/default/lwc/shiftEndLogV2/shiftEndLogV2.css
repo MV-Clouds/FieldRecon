@@ -860,11 +860,113 @@
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
+/* Edit Modal Multi-Step Styles */
+.edit-progress-container {
+    padding: 1rem 1.5rem;
+    background-color: #f3f3f3;
+    border-bottom: 1px solid #dddbda;
+    overflow-x: auto;
+}
+
+.edit-progress-container::-webkit-scrollbar {
+    height: 4px;
+}
+
+.edit-progress-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.edit-progress-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 2px;
+}
+
+.edit-step-container {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.edit-location-progress-section {
+    margin-top: 1rem;
+}
+
+.edit-location-selector {
+    margin-bottom: 1.5rem;
+}
+
+.edit-location-processes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.edit-location-slider-container {
+    padding: 1rem;
+    background: white;
+    border: 1px solid #dddbda;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.edit-location-slider-container:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #0176d3;
+}
+
+.edit-modal .bottom-footer-btn {
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.nav-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    border: 1px solid #dddbda;
+    background-color: white;
+    color: #0176d3;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+    background-color: #f3f3f3;
+    border-color: #0176d3;
+}
+
+.nav-btn:active {
+    transform: scale(0.98);
+}
+
+.next-btn {
+    background-color: #0176d3;
+    color: white;
+    border-color: #0176d3;
+}
+
+.next-btn:hover {
+    background-color: #014486;
+    border-color: #014486;
+}
+
+/* Slider styles for edit modal */
+.edit-yesterday-progress {
+    background: linear-gradient(90deg, #7b68ee 0%, #9370db 100%);
+}
+
+.edit-today-progress {
+    background: linear-gradient(90deg, #ff8c00 0%, #ffa500 100%);
+}
+
 .pagination-section {
+    margin-top: 2rem;
     display: flex;
     justify-content: center;
-    align-items: center;
-    padding: 1rem 0;
 }
 
 .pagination-container {

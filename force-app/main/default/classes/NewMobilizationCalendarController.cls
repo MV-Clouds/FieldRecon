@@ -52,10 +52,10 @@ public with sharing class NewMobilizationCalendarController {
                 Map<String, Object> ev = new Map<String, Object>();
                 ev.put('id', mob.Id);
                 ev.put('title', mob.Job__r.Job_Name__c + ' - ' + mob.Job__r.Name);
-                ev.put('start', mob.Start_Date__c?.format());
+                ev.put('start', mob.Start_Date__c?.format('MM/dd/yyyy, h:mm a'));
                 ev.put('timestart', mob.Start_Date__c.format('hh:mm a'));
                 ev.put('timeend', mob.End_Date__c.format('hh:mm a'));
-                ev.put('end', mob.End_Date__c?.addDays(1)?.format());
+                ev.put('end', mob.End_Date__c?.addDays(1)?.format('MM/dd/yyyy, h:mm a'));
                 ev.put('saturday', mob.Include_Saturday__c);
                 ev.put('sunday', mob.Include_Sunday__c);
                 ev.put('jobId', mob.Job__c);
@@ -154,7 +154,7 @@ public with sharing class NewMobilizationCalendarController {
             String endTimeStr = jobDefault.End_Time__c;
 
             Date onlyStartDate = Date.valueOf(startDate);
-            Date onlyEndDate = Date.valueOf(endDate);
+            Date onlyEndDate = Date.valueOf(endDate).addDays(-1);
 
             // Start Time
             if(startTimeStr != null) {

@@ -247,6 +247,7 @@ public with sharing class JobDetailsPageController {
                 }
                 contactEntriesMap.get(e.Timesheet__r.Contact__c).add(e);
             }
+            System.debug('contactEntriesMap: ' + contactEntriesMap);
     
             // 4. Build wrapper list
             for (Mobilization_Member__c m : members) {

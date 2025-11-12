@@ -76,58 +76,78 @@ export default class aIAForm extends LightningElement {
     currentPaymentDue;
     balanceToFinishRetainage;
 
+    get formContentClass() { 
+        return this.showPdfViewer ? "test123 hidden" : "test123"; 
+    }
+
     connectedCallback() {
-        this._boundKeyHandler = this._handleKeydown.bind(this);
-        window.addEventListener("keydown", this._boundKeyHandler);
-
-        this._boundMessageHandler = this._handlePostMessage.bind(this);
-        window.addEventListener("message", this._boundMessageHandler);
-
-        if (this.recordId) {
-            this.loadBillingData(this.recordId);
-        } else {
-            console.warn("No recordId found to fetch billing data");
-            // this
+        try {
+            // this._boundKeyHandler = this._handleKeydown.bind(this);
+            // window.addEventListener("keydown", this._boundKeyHandler);
+    
+            this._boundMessageHandler = this._handlePostMessage.bind(this);
+            window.addEventListener("message", this._boundMessageHandler);
+    
+            if (this.recordId) {
+                this.loadBillingData(this.recordId);
+            } else {
+                console.warn("No recordId found to fetch billing data");
+                // this
+            }
+        } catch (error) {
+            console.error('Error in connectedCallback:', error);
         }
     }
 
     renderedCallback() {
-		// Load PDF.js library
-		if (this.pdfLibsInitialized) {
-			return;
-		}
-		this.pdfLibsInitialized = true;
-		loadScript(this, pdfLibs + "/pdfJS/web/pdf.js")
-			.then(() => {
-				console.log("PDF Libraries loaded successfully.");
-			})
-			.catch((error) => {
-				console.error("Error loading PDF Libraries: ", error);
-				this.showToast("Error", "Failed to load PDF libraries.", "error");
-			});
+        try {
+            // Load PDF.js library
+            if (this.pdfLibsInitialized) {
+                return;
+            }
+            this.pdfLibsInitialized = true;
+            loadScript(this, pdfLibs + "/pdfJS/web/pdf.js")
+                .then(() => {
+                    console.log("PDF Libraries loaded successfully.");
+                })
+                .catch((error) => {
+                    console.error("Error loading PDF Libraries: ", error);
+                    this.showToast("Error", "Failed to load PDF libraries.", "error");
+                });
+        } catch (error) {
+            console.error('Error in renderedCallback:', error);
+        }
 	}
 
     disconnectedCallback() {
-        window.removeEventListener("keydown", this._boundKeyHandler);
-        this._boundKeyHandler = null;
-        window.removeEventListener("message", this._boundMessageHandler);
-        this._boundMessageHandler = null;
-        this._restoreBodyOverflow();
+        try {
+            window.removeEventListener("keydown", this._boundKeyHandler);
+            this._boundKeyHandler = null;
+            window.removeEventListener("message", this._boundMessageHandler);
+            this._boundMessageHandler = null;
+            this._restoreBodyOverflow();
+        } catch (error) {
+            console.error('Error in disconnectedCallback:', error);
+        }
     }
 
     _handlePostMessage(event) {
-        const message = event.data || {};
-        if (message.action === "vfReady") {
-            this.vfIframeReady = true;
-            console.log("VF iframe is ready");
-            this.handleGeneratePDF();
-        } else if (message.action === "pdfGenerated") {
-            console.log("PDF generated successfully");
-            this._handlePDFGenerated(message.pdfDataUri);
-        } else if (message.action === "pdfError") {
-            console.error("PDF generation error:", message.error);
-            this.showToast("Error", "PDF generation failed: " + (message.error || "unknown"), "error");
-            this.isGeneratingPDF = false;
+        try {
+            const message = event.data || {};
+            if (message.action === "vfReady") {
+                this.vfIframeReady = true;
+                console.log("VF iframe is ready");
+                this.handleGeneratePDF();
+            } else if (message.action === "pdfGenerated") {
+                console.log("PDF generated successfully");
+                this._handlePDFGenerated(message.pdfDataUri);
+            } else if (message.action === "pdfError") {
+                console.error("PDF generation error:", message.error);
+                this.showToast("Error", "PDF generation failed: " + (message.error || "unknown"), "error");
+                this.isGeneratingPDF = false;
+            }
+        } catch (error) {
+            console.error('Error in _handlePostMessage:', error);
         }
     }
 
@@ -167,13 +187,13 @@ export default class aIAForm extends LightningElement {
             this.viaArchitect = (architect && architect.Name) || "";
             this.periodTo = (br && br.wfrecon__Period_To__c) || "";
             this.projectNo = (job && job.Name) || "";
-            this.originalContractSum = (job && job.wfrecon__Total_Contract_Price__c) || 0;
+            this.originalContractSum = (job && job.wfrecon__Total_Contract_Price__c) || 0.00;
             
-            const changeOrderValue = (job && job.wfrecon__Total_Change_Order_Value__c) || 0;
+            const changeOrderValue = (job && job.wfrecon__Total_Change_Order_Value__c) || 0.00;
             this.netchangebyChangeOrders = this.formatCurrency(changeOrderValue);
             
-            this.contractSUM = (br && br.wfrecon__Total_Contract_Sum__c) || 0;
-            this.totalCompletedandStoredtoDate = (br && br.wfrecon__Total_Completed_Stored_to_Date__c) || 0;
+            this.contractSUM = (br && br.wfrecon__Total_Contract_Sum__c) || 0.00;
+            this.totalCompletedandStoredtoDate = (br && br.wfrecon__Total_Completed_Stored_to_Date__c) || 0.00;
                 this.jobAddress = [
                     (job && job.wfrecon__Street__c) || "",
                     (job && job.wfrecon__City__c) || "",
@@ -188,15 +208,15 @@ export default class aIAForm extends LightningElement {
                 this.contractDate = (job && job.Contract_Date__c) || "";
                 
                 // Format all currency values with proper null checks
-                this.totalContractValue = this.formatCurrency((job && job.wfrecon__Total_Contract_Value__c) || 0);
-                this.contractSumToDate = this.formatCurrency((br && br.wfrecon__Contract_Sum_to_Date__c) || 0);
-                this.totalBilledAmount = this.formatCurrency((br && br.wfrecon__Total_Billed_Amount__c) || 0);
-                this.wfreconRetainageOnBill = this.formatCurrency((br && br.wfrecon__Retainage_on_Bill__c) || 0);
-                this.retainageCompletedToDate = this.formatCurrency((br && br.wfrecon__Retainage_Completed_to_Date__c) || 0);
-                this.totalAmountEarnedLessRetainage = this.formatCurrency((br && br.wfrecon__Total_Amount_Earned_Less_Retainage__c) || 0);
-                this.lessPreviousCertificatedforPayment = this.formatCurrency((br && br.wfrecon__Less_Previous_Certificated_for_Payment__c) || 0);
-                this.currentPaymentDue = this.formatCurrency((br && br.wfrecon__Current_Payment_Due_FM__c) || 0);
-                this.balanceToFinishRetainage = this.formatCurrency((br && br.wfrecon__Balance_to_Finish_Retainage__c) || 0); 
+                this.totalContractValue = this.formatCurrency((job && job.wfrecon__Total_Contract_Value__c) || 0.00);
+                this.contractSumToDate = this.formatCurrency((br && br.wfrecon__Contract_Sum_to_Date__c) || 0.00);
+                this.totalBilledAmount = this.formatCurrency((br && br.wfrecon__Total_Billed_Amount__c) || 0.00);
+                this.wfreconRetainageOnBill = this.formatCurrency((br && br.wfrecon__Retainage_on_Bill__c) || 0.00);
+                this.retainageCompletedToDate = this.formatCurrency((br && br.wfrecon__Retainage_Completed_to_Date__c) || 0.00);
+                this.totalAmountEarnedLessRetainage = this.formatCurrency((br && br.wfrecon__Total_Amount_Earned_Less_Retainage__c) || 0.00);
+                this.lessPreviousCertificatedforPayment = this.formatCurrency((br && br.wfrecon__Less_Previous_Certificated_for_Payment__c) || 0.00);
+                this.currentPaymentDue = this.formatCurrency((br && br.wfrecon__Current_Payment_Due_FM__c) || 0.00);
+                this.balanceToFinishRetainage = this.formatCurrency((br && br.wfrecon__Balance_to_Finish_Retainage__c) || 0.00); 
                 
                 const conSum = this.contractSums || {};
                 this.totalC = this.formatCurrency(conSum.totalC);
@@ -236,9 +256,9 @@ export default class aIAForm extends LightningElement {
                             <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">Scheduled Value</td>
                             <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">From Previous Applications (WORK COMPLETED)</td>
                             <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">This Period In Place (WORK COMPLETED)</td>
-                            <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">Total Completed and Stored To Date (D+E+F)</td>
-                            <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">%(G/C)</td>
-                            <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">Balance To Finish (C-G)</td>
+                            <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">Total Completed and Stored To Date (D+E)</td>
+                            <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">%(F/C)</td>
+                            <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">Balance To Finish (C-F)</td>
                             <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">Retainage</td>
                             <td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold;">Retainage Previous Application</td>
                         </tr>`;
@@ -249,15 +269,15 @@ export default class aIAForm extends LightningElement {
                         list.slice(startIndex, endIndex).forEach((item, i) => {
                             rows += `
                                 <tr>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${startIndex + i + 1}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.Sr_No__c}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Scope_Entry__r || ''}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c || '0.00'}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c || '0.00'}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c || '0.00'}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E || '0.00'}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G || '0'}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G || '0.00'}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H || '0.00'}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || '0'}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || '0.00'}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r || '0.00'}</td>
                                 </tr>`;
                         });
@@ -270,22 +290,27 @@ export default class aIAForm extends LightningElement {
                             `;
                     };
 
-                    // Create multiple tables (10 rows each)
-                    let chunkSize = 22;
-                    // let pageNo = 3;
-                    
+                    let srNo = 1;
+                    let firstChunkSize = 22;
+                    let otherChunkSize = 29;
+                    pageNo = 3; // keep your existing initialization semantics
+                    tableCount = 0;
+                    lastChunkCount = 0;
+                    let totalContractTables = 0;
 
-                    for (let i = 0; i < this.contractList.length; i += chunkSize) {
-                        const end = Math.min(i + chunkSize, this.contractList.length);
-                        lastChunkCount = end - i; // <-- count rows in last chunk
-
-                        if (tableCount == 0) {
-                            // console.log('tableCount *** : ', tableCount);
+                    for (let i = 0; i < this.contractList.length; ) {
+                        let remaining = this.contractList.length;
+                        // remaining -= firstContractChunk;
+                        totalContractTables = 1; // first table
+                        // totalContractTables += Math.ceil(remaining / otherContractChunk);
+                        const currentChunkSize = (tableCount === 0) ? firstChunkSize : otherChunkSize;
+                        const end = Math.min(i + currentChunkSize, this.contractList.length);
+                        lastChunkCount = end - i; // rows in this chunk
+                        
+                        if (tableCount === 0) {
                             htmlContent += buildTable(this.contractList, i, end);
                             tableCount++;
-                            chunkSize = 29;
                         } else {
-                            // console.log('tableCount else *** : ', tableCount);
                             htmlContent += `<div style="width: 100%; display:flex; justify-content: space-between;  margin-top:30pt;">
                                                 <div style="font-weight: bold; font-size: 8pt;">SCHEDULE OF VALUES</div>
                                                 <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
@@ -295,13 +320,10 @@ export default class aIAForm extends LightningElement {
                             tableCount++;
                             pageNo++;
                         }
+                        i = end;
                     }
 
-                    // ✅ Log total number of chunks and last chunk size
-                    // console.log('Total number of table chunks:', tableCount);
-                    // console.log('Number of rows in last chunk:', lastChunkCount);
                     totalTabelContractList = tableCount;
-
                     container.innerHTML = htmlContent;
                 }
 
@@ -327,7 +349,7 @@ export default class aIAForm extends LightningElement {
                         list.slice(startIndex, endIndex).forEach((item, i) => {
                             rows += `
                                 <tr>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${startIndex + i + 1}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.Sr_No__c}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Scope_Entry__r || ''}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Scope_Contract_Amount__c || '0.00'}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c || '0.00'}</td>
@@ -347,42 +369,52 @@ export default class aIAForm extends LightningElement {
                             </table>`;
                     };
 
-                    // Create multiple tables (10 rows each)
-                    
-                    let chunkSize = 30;
-                    if(lastChunkCount >= 30){
-                        chunkSize = 32;
-                        // console.log('you are in 1 if');
-                        
-                    }else{
-                        if(lastChunkCount < 26){
-                            chunkSize = 28-lastChunkCount;
-                            // console.log('you are in 2 if');
-                        }else{
-                        chunkSize = 32;
-                        // console.log('you are in  2 if elase');
+                    let coTableCount = 0;
+                    // determine initial chunkSize for change orders using lastChunkCount from contractList
+                    let coChunkSize = 30;
+                    // your existing logic attempted dynamic sizing based on lastChunkCount — preserve intent but compute per-iteration
+                    let totalChangeOrderTables = 0;
+                    if (typeof lastChunkCount === 'number') {
+                        if (lastChunkCount >= 30 || (this.contractList.length <=20 && this.contractList.length <= 22)) {
+                            coChunkSize = 32;
+                        } else if (lastChunkCount < 26) {
+                            // keep a positive fallback (if lastChunkCount is 0, chunkSize becomes 28)
+                            coChunkSize = Math.max(1, 28 - lastChunkCount);
+                        } else {
+                            coChunkSize = 32;
                         }
-                        
                     }
-                    let tableCount = 0;
-                    for (let i = 0; i < this.changeOrderList.length; i += chunkSize) {
-                        if(tableCount == 0){
-                            // console.log('tableCount *** : ',tableCount);
-                            const end = Math.min(i + chunkSize, this.changeOrderList.length);
-                            if (chunkSize == 30 || totalTabelContractList == 1 && lastChunkCount == 19 ) {
-                            htmlContent += `<div style="margin-top: 40px;"></div>
-                                            <div style="width: 100%; display:flex; justify-content: space-between;">
-                                                <div style="font-weight: bold; font-size: 8pt;">SCHEDULE OF VALUES</div>
-                                                <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
-                                            </div>
-                                            <hr style="border: 1px solid #000" />`;
+
+                    // iterate safely without mutating the loop-control variable inside header
+                    for (let i = 0; i < this.changeOrderList.length; ) {
+                        // For subsequent pages you want chunkSize 30 — choose based on table count
+                        const currentChunkSize = (coTableCount === 0) ? coChunkSize : 30;
+                        const end = Math.min(i + currentChunkSize, this.changeOrderList.length);
+
+                        if (coTableCount === 0) {
+                            if (currentChunkSize === 30 || (totalTabelContractList == 1 && lastChunkCount == 20)) {
+                                if(this.contractList.length == 20){
+                                    htmlContent += `<div style="margin-top: 90px;"></div>
+                                                <div style="width: 100%; display:flex; justify-content: space-between;">
+                                                    <div style="font-weight: bold; font-size: 8pt;">SCHEDULE OF VALUES</div>
+                                                    <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
+                                                </div>
+                                                <hr style="border: 1px solid #000" />`;
+
+                                }else{
+                                    htmlContent += `<div style="margin-top: 40px;"></div>
+                                                <div style="width: 100%; display:flex; justify-content: space-between;">
+                                                    <div style="font-weight: bold; font-size: 8pt;">SCHEDULE OF VALUES</div>
+                                                    <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
+                                                </div>
+                                                <hr style="border: 1px solid #000" />`;
+                                }
+                                
                             }
                             htmlContent += buildTable(this.changeOrderList, i, end);
-                            tableCount++;
-                            chunkSize = 30;
-                        }else{
-                            // console.log('tableCount else *** : ',tableCount);
-                            const end = Math.min(i + chunkSize, this.changeOrderList.length);
+                            coTableCount++;
+                            // preserve that subsequent chunkSize should be 30
+                        } else {
                             htmlContent += `<div style="margin-top: 40px;"></div>
                                             <div style="width: 100%; display:flex; justify-content: space-between">
                                                 <div style="font-weight: bold; font-size: 8pt;">SCHEDULE OF VALUES</div>
@@ -390,12 +422,14 @@ export default class aIAForm extends LightningElement {
                                             </div>
                                             <hr style="border: 1px solid #000" />`;
                             htmlContent += buildTable(this.changeOrderList, i, end);
-                            tableCount++;
-
+                            coTableCount++;
                         }
+
+                        // advance i safely
+                        i = end;
+                        pageNo++; // increment pageNo each chunk just like you did previously
                     }
                     tabel2.innerHTML = htmlContent;
-
                 }
 
         } catch (error) {
@@ -425,64 +459,72 @@ export default class aIAForm extends LightningElement {
 
     // Helper method to format currency
     formatCurrency(value) {
-        const numValue = Number(value) || 0;
-        return new Intl.NumberFormat('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(numValue);
+        try {
+            const numValue = Number(value) || 0;
+            return new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(numValue);
+        } catch (error) {
+            console.error('Error in formatCurrency:', error);
+        }
     }
 
     // Helper method to initialize default values
     initializeDefaultValues() {
-        this.billingRecord = {};
-        this.contractList = [];
-        this.changeOrderList = [];
-        this.contractSums = {};
-        this.changeOrderSummary = {};
-        
-        // Set all display values to default
-        this.toContractor = "";
-        this.acccountName = "";
-        this.project = "";
-        this.applicationNo = "";
-        this.distributionTo = "";
-        this.fromSubcontractor = "";
-        this.viaArchitect = "";
-        this.periodTo = "";
-        this.projectNo = "";
-        this.originalContractSum = 0;
-        this.netchangebyChangeOrders = "0.00";
-        this.contractSUM = 0;
-        this.totalCompletedandStoredtoDate = 0;
-        this.jobAddress = "";
-        this.billEndDate = "";
-        this.contractDate = "";
-        this.totalContractValue = "0.00";
-        this.contractSumToDate = "0.00";
-        this.totalBilledAmount = "0.00";
-        this.wfreconRetainageOnBill = "0.00";
-        this.retainageCompletedToDate = "0.00";
-        this.totalAmountEarnedLessRetainage = "0.00";
-        this.lessPreviousCertificatedforPayment = "0.00";
-        this.currentPaymentDue = "0.00";
-        this.balanceToFinishRetainage = "0.00";
-        this.totalC = "0.00";
-        this.totalD = "0.00";
-        this.totalE = "0.00";
-        this.totalF = "0.00";
-        this.totalG = "0.00";
-        this.totalH = "0.00";
-        this.totalI = "0.00";
-        this.totalJ = "0.00";
-        this.netChanges = "0.00";
-        this.previousAddition = "0.00";
-        this.previousDeduction = "0.00";
-        this.thisMonthAddition = "0.00";
-        this.thisMonthDeduction = "0.00";
-        this.totalAddition = "0.00";
-        this.totalDeduction = "0.00";
-        this.companyAddress = "";
-        this.comName = "";
+        try {
+            this.billingRecord = {};
+            this.contractList = [];
+            this.changeOrderList = [];
+            this.contractSums = {};
+            this.changeOrderSummary = {};
+            
+            // Set all display values to default
+            this.toContractor = "";
+            this.acccountName = "";
+            this.project = "";
+            this.applicationNo = "";
+            this.distributionTo = "";
+            this.fromSubcontractor = "";
+            this.viaArchitect = "";
+            this.periodTo = "";
+            this.projectNo = "";
+            this.originalContractSum = 0;
+            this.netchangebyChangeOrders = "0.00";
+            this.contractSUM = 0;
+            this.totalCompletedandStoredtoDate = 0;
+            this.jobAddress = "";
+            this.billEndDate = "";
+            this.contractDate = "";
+            this.totalContractValue = "0.00";
+            this.contractSumToDate = "0.00";
+            this.totalBilledAmount = "0.00";
+            this.wfreconRetainageOnBill = "0.00";
+            this.retainageCompletedToDate = "0.00";
+            this.totalAmountEarnedLessRetainage = "0.00";
+            this.lessPreviousCertificatedforPayment = "0.00";
+            this.currentPaymentDue = "0.00";
+            this.balanceToFinishRetainage = "0.00";
+            this.totalC = "0.00";
+            this.totalD = "0.00";
+            this.totalE = "0.00";
+            this.totalF = "0.00";
+            this.totalG = "0.00";
+            this.totalH = "0.00";
+            this.totalI = "0.00";
+            this.totalJ = "0.00";
+            this.netChanges = "0.00";
+            this.previousAddition = "0.00";
+            this.previousDeduction = "0.00";
+            this.thisMonthAddition = "0.00";
+            this.thisMonthDeduction = "0.00";
+            this.totalAddition = "0.00";
+            this.totalDeduction = "0.00";
+            this.companyAddress = "";
+            this.comName = "";
+        } catch (error) {
+            console.error('Error in initializeDefaultValues:', error);
+        }
     }
 
     // UI helpers
@@ -490,6 +532,7 @@ export default class aIAForm extends LightningElement {
         this.isOpen = true;
         this._lockBodyScroll();
     }
+
     @api close() {
         this.isOpen = false;
         this._restoreBodyOverflow();
@@ -500,35 +543,20 @@ export default class aIAForm extends LightningElement {
         this.showPdfViewer = false;
         this.dispatchEvent(new CustomEvent("close"));
     }
-    stopPropagation(e) { e.stopPropagation(); }
-    handleBackdropClick() { this.close(); }
-    toggleView() {
-        this.showPdfViewer = !this.showPdfViewer;
-        if (this.showPdfViewer && this.pdfUrl) {
-            setTimeout(() => this._renderPdfWithPdfJs(this.pdfUrl), 0);
-        }
-    }
-    @api previewPDF() {
-        if (!this.pdfUrl) {
-            this.showToast("Warning", "No PDF available. Please generate a PDF first.", "warning");
-            return;
-        }
-        this.showPdfViewer = true;
-        setTimeout(() => this._renderPdfWithPdfJs(this.pdfUrl), 0);
-    }
-    @api hidePDFPreview() { this.showPdfViewer = false; }
 
     _handleKeydown(event) {
         if (event.key === "Escape" && this.isOpen) this.close();
     }
+
     _lockBodyScroll() {
         try { 
             this._previousBodyOverflow = document.body.style.overflow; 
-            document.body.style.overflow = "hidden"; 
+            // document.body.style.overflow = "hidden"; 
         } catch (e) {
             console.error("Error locking body scroll:", e);
         }
     }
+    
     _restoreBodyOverflow() {
         try {
             if (this._previousBodyOverflow !== null) {
@@ -541,10 +569,6 @@ export default class aIAForm extends LightningElement {
             console.error("Error restoring body overflow:", e);
         }
     }
-
-    get pdfButtonLabel() { return this.isGeneratingPDF ? "Generating PDF..." : "Generate PDF"; }
-    get toggleViewLabel() { return this.showPdfViewer ? "Show Form Content" : "Show PDF Preview"; }
-    get formContentClass() { return this.showPdfViewer ? "test123 hidden" : "test123"; }
 
     async handleGeneratePDF() {
         try {
@@ -609,7 +633,6 @@ export default class aIAForm extends LightningElement {
             this.pdfUrl = pdfDataUri;
             this.showPdfViewer = true;
             this._renderPdfWithPdfJs(pdfDataUri);
-            this.showToast("Success", "PDF generated successfully!", "success");
             // Turn off spinner after PDF is generated
             this.isLoading = false;
         } catch (err) {
@@ -667,6 +690,7 @@ export default class aIAForm extends LightningElement {
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
+
     handleClose() {
         this.dispatchEvent(new CustomEvent('close'));
     }

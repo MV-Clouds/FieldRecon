@@ -53,28 +53,29 @@
                   {jobName}
                 </div>
             </header>
-            <div class="slds-modal__content slds-p-around_medium mob-popup-body">
-                
-            <lightning-record-edit-form
-                object-api-name="wfrecon__Mobilization_Group__c" record-id={selectedEventId} onsuccess={handleSuccess}>
-                <lightning-input-field field-name="wfrecon__Job__c" if:false={isEdit} value={jobId}> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>
-                <div class="slds-grid slds-gutters">
-                    <div class="slds-col slds-size_1-of-2">
-                        <lightning-input-field field-name="wfrecon__Include_Saturday__c" value={includeSaturday}> </lightning-input-field>
-                    </div>
-                    <div class="slds-col slds-size_1-of-2">
-                        <lightning-input-field field-name="wfrecon__Include_Sunday__c" value={includeSunday}> </lightning-input-field>
-                    </div>
+            <div class="slds-modal__content mob-popup-body">
+            <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" record-id={selectedEventId} onsuccess={handleSuccess} onsubmit={handleMobFormSubmitted}>
+              <div class="main-mob-group-popup-form">
+                <div class="fields-input-div slds-grow slds-scrollable--y slds-grid slds-wrap slds-p-horizontal--medium">
+                  <div class="job-label-link slds-p-horizontal--xx-small" if:true={isEdit}> <b>Job: </b> <span data-id={jobId} class="record-nav-link" onclick={navigateToRecord}>{jobName}</span></div>
+                  <lightning-input-field field-name="wfrecon__Job__c" if:false={isEdit} value={jobId}> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>
+                  <div class="slds-size_1-of-3">
+                      <lightning-input-field field-name="wfrecon__Include_Saturday__c" value={includeSaturday}> </lightning-input-field>
+                  </div>
+                  <div class="slds-size_1-of-3">
+                      <lightning-input-field field-name="wfrecon__Include_Sunday__c" value={includeSunday}> </lightning-input-field>
+                  </div>
+                  <lightning-input-field field-name="wfrecon__Mobilization_Status__c"> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
                 </div>
-                <lightning-input-field field-name="wfrecon__Mobilization_Status__c"> </lightning-input-field>
-                <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
-                <footer class="mob-modal-footer slds-grid slds-grid--align-center">
+                <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
                     <button class="assign-btn footer-btn" type="button" if:true={isEdit} onclick={handleResourceAssign}>Assign Resources</button>
                     <button class="slds-m-left--small delete-btn footer-btn" type="button" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>
                     <button class="slds-m-left--small save-btn footer-btn" type="submit">Save</button>
-                </footer>
+                </div>
+              </div>
             </lightning-record-edit-form>
             </div>
         </div>
@@ -91,8 +92,8 @@
           <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
             <p>{confirmationMessage}</p>
             <div class="slds-grid slds-grid--align-center slds-p-top--medium confirm-popup-btns">
-              <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleClose}>Cancel</button>
-              <button class="save-btn" name="confirm" title="Confirm" onclick={handleEventDrop}>Confirm</button>
+              <button class="save-btn confirmation-cancel-btn" name="cancel" onclick={handleClose}>Cancel</button>
+              <button class="save-btn" name="confirm" onclick={handleEventDrop}>Confirm</button>
             </div>
           </div>
         </div>
@@ -228,8 +229,8 @@
           <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
             <p class="slds-p-bottom--medium">{confirmationMessage}</p>
             <div class="slds-grid slds-grid--align-center slds-p-vertical--medium confirm-popup-btns bottom-footer-btn">
-              <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleConfirmationAction}>Cancel</button>
-              <button class="save-btn" name="confirm" title="Assign" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
+              <button class="save-btn confirmation-cancel-btn" name="cancel" onclick={handleConfirmationAction}>Cancel</button>
+              <button class="save-btn" name="confirm" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
               <button class="save-btn" name="secondOption" onclick={handleConfirmationAction} if:true={confirmationBtnLabel2}>{confirmationBtnLabel2}</button>
             </div>
           </div>

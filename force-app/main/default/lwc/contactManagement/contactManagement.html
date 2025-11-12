@@ -195,7 +195,9 @@
                                 name="firstName"
                                 value={firstName}
                                 onchange={handleInputChange}
-                                required>
+                                required
+                                max-length="40"
+                                message-when-value-missing="First Name is required">
                             </lightning-input>
                         </div>
 
@@ -206,7 +208,9 @@
                                 name="lastName"
                                 value={lastName}
                                 onchange={handleInputChange}
-                                required>
+                                required
+                                max-length="80"
+                                message-when-value-missing="Last Name is required">
                             </lightning-input>
                         </div>
 
@@ -218,7 +222,11 @@
                                 name="email"
                                 value={email}
                                 onchange={handleInputChange}
-                                required>
+                                required
+                                max-length="80"
+                                pattern="^(?!.*@(yopmail|tempmail|guerrillamail|mailinator|10minutemail|throwaway|trashmail|fakeinbox)\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+                                message-when-pattern-mismatch="Please enter a valid email address. Disposable email addresses are not allowed."
+                                message-when-value-missing="Email is required">
                             </lightning-input>
                         </div>
 

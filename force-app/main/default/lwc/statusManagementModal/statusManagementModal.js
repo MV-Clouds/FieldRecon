@@ -195,7 +195,24 @@ export default class StatusManagementModal extends LightningElement {
         })
             .then(result => {
                 if (result === 'SUCCESS') {
-                    this.showToast('Success', 'Status values updated successfully', 'success');
+                    // Create specific success message based on what was changed
+                    let successMessage = '';
+                    const addedCount = valuesToAdd.length;
+                    const removedCount = valuesToDeactivate.length;
+
+                    if (addedCount > 0 && removedCount > 0) {
+                        successMessage = `${addedCount} status${addedCount > 1 ? 'es' : ''} added and ${removedCount} status${removedCount > 1 ? 'es' : ''} removed successfully`;
+                    } else if (addedCount > 0) {
+                        successMessage = addedCount === 1 
+                            ? `Status "${valuesToAdd[0]}" has been added successfully` 
+                            : `${addedCount} statuses have been added successfully`;
+                    } else if (removedCount > 0) {
+                        successMessage = removedCount === 1 
+                            ? `Status "${valuesToDeactivate[0]}" has been removed successfully` 
+                            : `${removedCount} statuses have been removed successfully`;
+                    }
+
+                    this.showToast('Success', successMessage, 'success');
                     this.changesSaved = true; // Mark that changes were saved
                     this.resetChanges();
                     this.fetchExistingStatuses(); // Refresh the list

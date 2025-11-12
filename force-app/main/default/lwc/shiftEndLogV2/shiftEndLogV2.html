@@ -243,140 +243,263 @@
                     <h2 class="slds-text-heading_medium">Edit Shift End Log</h2>
                 </header>
 
+                <!-- Progress Indicator -->
+                <div class="edit-progress-container">
+                    <lightning-progress-indicator current-step={editCurrentStep} type="path" variant="base">
+                        <lightning-progress-step label="Log Details" value="step1"></lightning-progress-step>
+                        <lightning-progress-step label="Location Progress" value="step2"></lightning-progress-step>
+                        <lightning-progress-step label="Images" value="step3"></lightning-progress-step>
+                    </lightning-progress-indicator>
+                </div>
+
                 <!-- Modal content -->
                 <div class="slds-modal__content slds-p-around--medium edit-modal-body">
-                    <form onsubmit={handleSaveEdit}>
-                        <!-- Work Performed Date Field -->
-                        <div class="slds-m-bottom_medium work-performed-date">
-                            <lightning-input
-                                type="date"
-                                label="Work Performed Date"
-                                value={editFormData.workPerformedDate}
-                                data-field="workPerformedDate"
-                                onchange={handleEditInputChange}
-                                required>
-                            </lightning-input>
-                        </div>
-
-                        <!-- Work Performed Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-textarea
-                                label="Work Performed"
-                                value={editFormData.workPerformed}
-                                data-field="workPerformed"
-                                onchange={handleEditInputChange}
-                                placeholder="Enter work performed details..."
-                                max-length="32000"
-                                required>
-                            </lightning-textarea>
-                        </div>
-
-                        <!-- Plan for Tomorrow Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-textarea
-                                label="Plan for Tomorrow"
-                                data-field="planForTomorrow"
-                                value={editFormData.planForTomorrow}
-                                onchange={handleEditInputChange}
-                                placeholder="Enter plan for tomorrow..."
-                                max-length="32000"
-                                required>
-                            </lightning-textarea>
-                        </div>
-
-                        <!-- Exceptions Field (Optional) -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-textarea
-                                label="Exceptions"
-                                value={editFormData.exceptions}
-                                data-field="exceptions"
-                                onchange={handleEditInputChange}
-                                placeholder="Enter any exceptions (Optional)..."
-                                max-length="32000">
-                            </lightning-textarea>
-                        </div>
-
-                        <!-- Notes to Office Field (Optional) -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-textarea
-                                label="Notes to Office"
-                                data-field="notesToOffice"
-                                value={editFormData.notesToOffice}
-                                onchange={handleEditInputChange}
-                                placeholder="Enter notes to office..."
-                                max-length="32000">
-                            </lightning-textarea>
-                        </div>
-
-                        <!-- Image Gallery Section -->
-                        <div class="slds-m-bottom_medium gallery-section">
-                            <div class="section-label images-label">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="14" height="14" fill="currentColor">
-                                    <path d="M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM323.8 202.5c-4.5-6.6-11.9-10.5-19.8-10.5s-15.4 3.9-19.8 10.5l-87 127.6L170.7 297c-4.6-5.7-11.5-9-18.7-9s-14.2 3.3-18.7 9l-64 80c-5.8 7.2-6.9 17.1-2.9 25.4s12.4 13.6 21.6 13.6h96 32H424c8.9 0 17.1-4.9 21.2-12.8s3.6-17.4-1.4-24.7l-120-176zM112 192a48 48 0 1 0 0-96 48 48 0 1 0 0 96z"/>
-                                </svg>
-                                Images
-                            </div>
-                            
-                            <!-- Upload Options -->
-                            <div class="upload-options">
-                                <div class="upload-left">
-                                    <lightning-file-upload
-                                        label="Upload Images"
-                                        name="imageUpload"
-                                        accept={acceptedFormats}
-                                        record-id={editLogId}
-                                        onuploadfinished={handleUploadFinished}
-                                        multiple>
-                                    </lightning-file-upload>
+                    
+                    <!-- Step 1: Log Details -->
+                    <template if:true={isEditStep1}>
+                        <div class="edit-step-container">
+                            <form onsubmit={handleSaveEdit}>
+                                <!-- Work Performed Date Field -->
+                                <div class="slds-m-bottom_medium work-performed-date">
+                                    <lightning-input
+                                        type="date"
+                                        label="Work Performed Date"
+                                        value={editFormData.workPerformedDate}
+                                        data-field="workPerformedDate"
+                                        onchange={handleEditInputChange}
+                                        required>
+                                    </lightning-input>
                                 </div>
-                                <template if:true={isDesktopDevice}>
-                                    <div class="upload-right">
-                                        <button type="button" class="upload-btn camera-btn" onclick={handleOpenCamera} title="Capture Photo">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16" fill="white">
-                                                <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
-                                            </svg>
-                                            Capture Photo
-                                        </button>
+
+                                <!-- Work Performed Field -->
+                                <div class="slds-m-bottom_medium">
+                                    <lightning-textarea
+                                        label="Work Performed"
+                                        value={editFormData.workPerformed}
+                                        data-field="workPerformed"
+                                        onchange={handleEditInputChange}
+                                        placeholder="Enter work performed details..."
+                                        max-length="32000"
+                                        required>
+                                    </lightning-textarea>
+                                </div>
+
+                                <!-- Plan for Tomorrow Field -->
+                                <div class="slds-m-bottom_medium">
+                                    <lightning-textarea
+                                        label="Plan for Tomorrow"
+                                        data-field="planForTomorrow"
+                                        value={editFormData.planForTomorrow}
+                                        onchange={handleEditInputChange}
+                                        placeholder="Enter plan for tomorrow..."
+                                        max-length="32000"
+                                        required>
+                                    </lightning-textarea>
+                                </div>
+
+                                <!-- Exceptions Field (Optional) -->
+                                <div class="slds-m-bottom_medium">
+                                    <lightning-textarea
+                                        label="Exceptions"
+                                        value={editFormData.exceptions}
+                                        data-field="exceptions"
+                                        onchange={handleEditInputChange}
+                                        placeholder="Enter any exceptions (Optional)..."
+                                        max-length="32000">
+                                    </lightning-textarea>
+                                </div>
+
+                                <!-- Notes to Office Field (Optional) -->
+                                <div class="slds-m-bottom_medium">
+                                    <lightning-textarea
+                                        label="Notes to Office"
+                                        data-field="notesToOffice"
+                                        value={editFormData.notesToOffice}
+                                        onchange={handleEditInputChange}
+                                        placeholder="Enter notes to office..."
+                                        max-length="32000">
+                                    </lightning-textarea>
+                                </div>
+                            </form>
+                        </div>
+                    </template>
+
+                    <!-- Step 2: Location Progress -->
+                    <template if:true={isEditStep2}>
+                        <div class="edit-step-container">
+                            <div class="edit-location-progress-section">
+                                <!-- Location Selector -->
+                                <template if:true={hasEditLocationOptions}>
+                                    <div class="edit-location-selector">
+                                        <lightning-combobox
+                                            name="locationSelect"
+                                            label="Select Location"
+                                            value={editSelectedLocationId}
+                                            placeholder="Choose a location"
+                                            options={editLocationOptions}
+                                            onchange={handleEditLocationChange}
+                                            class="custom-select">
+                                        </lightning-combobox>
                                     </div>
                                 </template>
-                            </div>                            
-                            <!-- Image Display Grid -->
-                            <template if:true={hasImages}>
-                                <div class="photo-grid">
-                                    <template for:each={allImages} for:item="image">
-                                        <div key={image.id} class="photo-item">
-                                            <img src={image.url} 
-                                                 alt={image.name} 
-                                                 class="photo-thumbnail" 
-                                                 loading="lazy"
-                                                 data-id={image.id}
-                                                 data-version-id={image.versionId}
-                                                 onclick={handleModalImagePreview} />
-                                            <button 
-                                                class="remove-photo-btn" 
-                                                data-id={image.id}
-                                                data-existing={image.isExisting}
-                                                data-camera={image.isCamera}
-                                                onclick={handleRemoveImage}
-                                                title="Remove image">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="12" height="12" fill="white">
-                                                    <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
-                                                </svg>
+
+                                <!-- Action Buttons -->
+                                <template if:true={hasModifiedProcesses}>
+                                    <div class="section-header">
+                                        <div class="action-buttons">
+                                            <button type="button" class="action-btn discard-btn" onclick={handleDiscardEditChanges}>
+                                                Discard Changes
                                             </button>
-                                            <div class="photo-name">{image.name}</div>
+                                            <button type="button" class="action-btn save-btn" onclick={handleSaveEditChanges}>
+                                                Save Changes
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Location Processes List -->
+                                <template if:true={hasEditLocationProcesses}>
+                                    <div class="edit-location-processes-list">
+                                        <template for:each={editLocationProcesses} for:item="process">
+                                            <div key={process.processId} class="edit-location-slider-container">
+                                                <div class="slider-header">
+                                                    <div class="process-info">
+                                                        <span class="process-sequence">{process.sequence}</span>
+                                                        <span class="process-name">{process.processName}</span>
+                                                    </div>
+                                                    <span class="progress-percentage">{process.completionPercentage}%</span>
+                                                </div>
+                                                
+                                                <div class="slider-wrapper">
+                                                    <div class="slider-track">
+                                                        <div class="slider-section completed edit-yesterday-progress" 
+                                                             data-percentage={process.oldPercentage}></div>
+                                                        <div class="slider-section today edit-today-progress" 
+                                                             data-process-id={process.processId}></div>
+                                                        <div class="slider-section remaining"></div>
+                                                    </div>
+                                                    <input 
+                                                        type="range" 
+                                                        min="0" 
+                                                        max="100" 
+                                                        step="1"
+                                                        value={process.completionPercentage}
+                                                        data-process-id={process.processId}
+                                                        class="progress-slider"
+                                                        onchange={handleEditSliderChange} />
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <template if:false={hasEditLocationProcesses}>
+                                    <div class="no-data-message">
+                                        <div class="no-data-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor">
+                                                <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zm0-384c13.3 0 24 10.7 24 24V264c0 13.3-10.7 24-24 24s-24-10.7-24-24V152c0-13.3 10.7-24 24-24zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="no-data-title">No Location Processes</div>
+                                        <div class="no-data-description">No location processes available for this job.</div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Step 3: Images -->
+                    <template if:true={isEditStep3}>
+                        <div class="edit-step-container">
+                            <!-- Image Gallery Section -->
+                            <div class="slds-m-bottom_medium gallery-section">
+                                <div class="section-label images-label">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="14" height="14" fill="currentColor">
+                                        <path d="M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM323.8 202.5c-4.5-6.6-11.9-10.5-19.8-10.5s-15.4 3.9-19.8 10.5l-87 127.6L170.7 297c-4.6-5.7-11.5-9-18.7-9s-14.2 3.3-18.7 9l-64 80c-5.8 7.2-6.9 17.1-2.9 25.4s12.4 13.6 21.6 13.6h96 32H424c8.9 0 17.1-4.9 21.2-12.8s3.6-17.4-1.4-24.7l-120-176zM112 192a48 48 0 1 0 0-96 48 48 0 1 0 0 96z"/>
+                                    </svg>
+                                    Images
+                                </div>
+                                
+                                <!-- Upload Options -->
+                                <div class="upload-options">
+                                    <div class="upload-left">
+                                        <lightning-file-upload
+                                            label="Upload Images"
+                                            name="imageUpload"
+                                            accept={acceptedFormats}
+                                            record-id={editLogId}
+                                            onuploadfinished={handleUploadFinished}
+                                            multiple>
+                                        </lightning-file-upload>
+                                    </div>
+                                    <template if:true={isDesktopDevice}>
+                                        <div class="upload-right">
+                                            <button type="button" class="upload-btn camera-btn" onclick={handleOpenCamera} title="Capture Photo">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16" fill="white">
+                                                    <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
+                                                </svg>
+                                                Capture Photo
+                                            </button>
                                         </div>
                                     </template>
-                                </div>
-                            </template>
+                                </div>                            
+                                <!-- Image Display Grid -->
+                                <template if:true={hasImages}>
+                                    <div class="photo-grid">
+                                        <template for:each={allImages} for:item="image">
+                                            <div key={image.id} class="photo-item">
+                                                <img src={image.url} 
+                                                     alt={image.name} 
+                                                     class="photo-thumbnail" 
+                                                     loading="lazy"
+                                                     data-id={image.id}
+                                                     data-version-id={image.versionId}
+                                                     onclick={handleModalImagePreview} />
+                                                <button 
+                                                    class="remove-photo-btn" 
+                                                    data-id={image.id}
+                                                    data-existing={image.isExisting}
+                                                    data-camera={image.isCamera}
+                                                    onclick={handleRemoveImage}
+                                                    title="Remove image">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="12" height="12" fill="white">
+                                                        <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
+                                                    </svg>
+                                                </button>
+                                                <div class="photo-name">{image.name}</div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
-                    </form>
+                    </template>
                 </div>
                 
                 <!-- Control buttons - Sticky Footer -->
                 <div class="bottom-footer-btn">
-                    <button class="save-btn" type="button" onclick={handleSaveEdit} disabled={isLoading}>
-                        Update
-                    </button>
+                    <!-- Previous Button -->
+                    <template if:false={isEditStep1}>
+                        <button class="nav-btn previous-btn" type="button" onclick={handleEditPrevious}>
+                            Previous
+                        </button>
+                    </template>
+                    
+                    <div class="spacer"></div>
+                    
+                    <!-- Next Button -->
+                    <template if:false={isEditStep3}>
+                        <button class="nav-btn next-btn" type="button" onclick={handleEditNext}>
+                            Next
+                        </button>
+                    </template>
+                    
+                    <!-- Update Button (only on last step) -->
+                    <template if:true={isEditStep3}>
+                        <button class="save-btn" type="button" onclick={handleSaveEdit} disabled={isLoading}>
+                            Update
+                        </button>
+                    </template>
                 </div>
             </div>
         </section>

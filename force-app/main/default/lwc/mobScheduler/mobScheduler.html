@@ -61,21 +61,26 @@
               </template>
             </div>
           </div>
-          <lightning-input
+          <div class="nav-bar-element search-bar-input-with-icon slds-is-relative slds-grid slds-grid--vertical-align-center">
+            <lightning-icon class="search-icon slds-is-absolute slds-p-left--x-small" icon-name="utility:search" alternative-text="search" size="xx-small"></lightning-icon>
+            <input type="search" class="simple-html-nav-element search-input-field" placeholder="Search..." onkeyup={handleSearchValueChange} onchange={handleSearchValueChange}></input>
+          </div>
+          <!-- <lightning-input
             class="nav-bar-element"
             type="search"
             variant="label-hidden"
             placeholder="Search..."
             onchange={handleSearchValueChange}
-          ></lightning-input>
-          <lightning-input
+          ></lightning-input> -->
+          <input type="date" class="nav-bar-element simple-html-nav-element" placeholder="Select Date" value={selectedDateToShow} onchange={handleDateToGoTo}></input>
+          <!-- <lightning-input
             type="date"
             class="nav-bar-element"
             variant="label-hidden"
             placeholder="Select Date"
             value={selectedDateToShow}
             onchange={handleDateToGoTo}
-          ></lightning-input>
+          ></lightning-input> -->
         </div>
       </div>
     </div>
@@ -180,7 +185,7 @@
                           <div class="job-card-description record-nav-link" data-id={ev.jId} onclick={handleRecordNavigation}>{ev.jobId}</div>
                       </div>
                       <svg data-mobid={ev.mobId} data-id={ev.id} onclick={handleRemoveAssignment} class="remove-assignment-btn" data-past={ev.isPast}
-                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
+                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="#5a5adb">
                         <path
                           d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z" />
                       </svg>
@@ -219,29 +224,35 @@
         </header>
 
         <!-- Modal content -->
-        <div class="slds-modal__content slds-p-around--medium mob-popup-body">
+        <div class="slds-modal__content mob-popup-body">
 
           <!-- Form To Update The Mobilization -->
           <lightning-record-edit-form object-api-name="wfrecon__Mobilization__c" onload={handleFormLoaded} record-id={mobIdToEdit} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobEditForm}>
-            <lightning-messages></lightning-messages>
-            <lightning-input-field class="slds-size--1-of-1"
-              field-name="wfrecon__Mobilization_Status__c" required></lightning-input-field>
-            <!-- Control buttons -->
-            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
-              <button class="save-btn" type="submit">Save</button>
+            <div class="mob-edit-form slds-p-horizontal--medium">
+              <lightning-messages></lightning-messages>
+              <lightning-input-field class="slds-size--1-of-1"
+                field-name="wfrecon__Mobilization_Status__c" required></lightning-input-field>
+              <!-- Control buttons -->
+              <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+                <button class="save-btn" type="submit">Save</button>
+              </div>
             </div>
           </lightning-record-edit-form>
 
           <!-- Form To Create The Mobilization Group -->
-          <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate} novalidate="novalidate">
+          <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" onload={handleFormLoaded} onsubmit={handleCreateMobSubmitted} onsuccess={handleSuccess} onerror={handleError} lwc:if={isMobGroupCreate}>
             <div class="main-mob-creation-form-div">
-              <div class="slds-grow slds-scrollable--y slds-grid slds-wrap">
+              <div class="slds-grow slds-scrollable--y slds-grid slds-wrap slds-p-horizontal--medium">
                 <lightning-messages></lightning-messages>
-                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required formnovalidate></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" data-id="start" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-1" data-id="end" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
-                <lightning-input-field class="slds-size--1-of-3" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
+                <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Job__c" required></lightning-input-field>
+                <div class="slds-size--1-of-1 date-field-in-mob-form">
+                  <lightning-input-field data-id="start" field-name="wfrecon__Start_Date__c" value={defaultMobGValues.start} required></lightning-input-field>
+                </div>
+                <div class="slds-size--1-of-1 date-field-in-mob-form">
+                  <lightning-input-field data-id="end" field-name="wfrecon__End_Date__c" value={defaultMobGValues.end} required></lightning-input-field>
+                </div>
+                <lightning-input-field class="slds-large-size--1-of-3 slds-medium-size--1-of-2 slds-size--1-of-2" field-name="wfrecon__Include_Saturday__c" value={defaultMobGValues.includeSaturday}></lightning-input-field>
+                <lightning-input-field class="slds-large-size--1-of-3 slds-medium-size--1-of-2 slds-size--1-of-2" field-name="wfrecon__Include_Sunday__c" value={defaultMobGValues.includeSunday}></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Mobilization_Status__c" required></lightning-input-field>
                 <lightning-input-field class="slds-size--1-of-1" field-name="wfrecon__Description__c"></lightning-input-field>
               </div>
@@ -254,7 +265,7 @@
 
           <!-- Form To Assign resource to single Mobilization -->
           <lightning-record-edit-form onload={handleFormLoaded} lwc:elseif={isAssignForm}>
-            <div class="assign-resource-div">
+            <div class="assign-resource-div slds-p-horizontal--medium">
               <lightning-record-picker class="assign-form-picker" label="Select Resource" placeholder="Search Resource..."
                 object-api-name={resourceObjectApi} display-info={displayResource} matching-info={matchingResource} filter={filterResource} name="selectedResourceId"
                 onchange={handleResourceItemUpdate} required></lightning-record-picker>
@@ -271,7 +282,7 @@
             </div>
           </lightning-record-edit-form>
 
-            <div class="main-resources-edit-div" lwc:elseif={isResourcesEditForm}>
+            <div class="main-resources-edit-div slds-p-horizontal--medium" lwc:elseif={isResourcesEditForm}>
               <div class="tabs sub-tabs tab-navigation">
                 <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="Crew" data-for="assign" onclick={selectResourceType}>Crew</button>
                 <button class="nav-tab-btn" data-selected={resourceTypeForAssign} name="SubContractor" data-for="assign" onclick={selectResourceType}>Sub
@@ -380,8 +391,8 @@
           <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
             <p class="slds-p-bottom--medium">{confirmationMessage}</p>
             <div class="slds-grid slds-grid--align-center slds-p-vertical--medium confirm-popup-btns bottom-footer-btn">
-              <button class="save-btn confirmation-cancel-btn" name="cancel" title="Cancel" onclick={handleConfirmationAction}>Cancel</button>
-              <button class="save-btn" name="confirm" title="Assign" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
+              <button class="save-btn confirmation-cancel-btn" name="cancel" onclick={handleConfirmationAction}>Cancel</button>
+              <button class="save-btn" name="confirm" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
               <button class="save-btn" name="secondOption" onclick={handleConfirmationAction} if:true={confirmationBtnLabel2}>{confirmationBtnLabel2}</button>
             </div>
           </div>

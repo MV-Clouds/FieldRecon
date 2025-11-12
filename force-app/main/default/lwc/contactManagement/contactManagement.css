@@ -1,7 +1,6 @@
 * {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     user-select: none;
-    scrollbar-width: none !important;
 }
 
 .spinner-container{
@@ -46,6 +45,38 @@
     overflow: auto;
     border-radius: 8px;
     margin: 16px 0;
+    max-height: calc(100vh - 250px);
+}
+
+/* Custom scrollbar styling */
+.data-table-container::-webkit-scrollbar,
+.contact-popup-body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.data-table-container::-webkit-scrollbar-track,
+.contact-popup-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.data-table-container::-webkit-scrollbar-thumb,
+.contact-popup-body::-webkit-scrollbar-thumb {
+    background: rgba(94, 90, 219, 0.5);
+    border-radius: 4px;
+}
+
+.data-table-container::-webkit-scrollbar-thumb:hover,
+.contact-popup-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(94, 90, 219, 0.8);
+}
+
+/* Firefox scrollbar */
+.data-table-container,
+.contact-popup-body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
 }
 
 .custom-data-table {
@@ -361,6 +392,8 @@
     background-image: url(/resource/wfrecon__FieldReconBG);
     background-repeat: no-repeat;
     background-size: cover;
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
 .contact-popup-header {

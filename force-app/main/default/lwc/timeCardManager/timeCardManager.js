@@ -115,6 +115,9 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             customEndDate: endDate 
         })
         .then(result => {
+
+            console.log('result ===> ', result);
+            
             
             if (result && Array.isArray(result)) {
                 this.contactDetails = result.map(contact => ({
@@ -426,8 +429,12 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             // Filter timesheet entries for this specific contact and job
             // Use the custom date range instead of mobilization dates for better filtering
             const customStartDate = new Date(this.customStartDate);
+            customStartDate.setHours(0, 0, 0, 0); // Start of day
             const customEndDate = new Date(this.customEndDate);
             customEndDate.setHours(23, 59, 59, 999); // End of day
+
+            console.log('contact.timesheetEntries ==> ', contact.timesheetEntries);
+            
             
             const filteredEntries = contact.timesheetEntries.filter(entry => {
                 if (entry.jobId !== jobId) {
@@ -436,7 +443,24 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 
                 // If clockInTime exists, use it for date filtering
                 if (entry.clockInTime) {
+
+                    console.log('Started for JobId ==> ', entry.jobId);
+                    
+
+                    console.log('entry.clockInTime ==> ', entry.clockInTime);
+                    
                     const entryDate = new Date(entry.clockInTime);
+
+                    console.log('entryDate ==> ', entryDate);
+
+                    console.log('customStartDate ==> ', customStartDate);
+                    console.log('customEndDate ==> ', customEndDate);
+
+                    console.log('entryDate >= customStartDate ==> ', entryDate >= customStartDate);
+                    console.log('entryDate <= customEndDate ==> ', entryDate <= customEndDate);
+                    
+                    console.log('Ended for JobId ==> ' , entry.jobId);
+                    
                     return entryDate >= customStartDate && entryDate <= customEndDate;
                 }
                 

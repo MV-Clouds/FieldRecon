@@ -223,24 +223,31 @@
                                 onchange={handleInputChange}
                                 placeholder="Enter Process Name"
                                 max-length="255"
-                                required>
+                                required
+                                message-when-value-missing=""
+                                message-when-range-underflow=""
+                                message-when-range-overflow=""
+                                message-when-bad-input="">
                             </lightning-input>
                         </div>
 
                         <!-- Weight Field -->
                         <div class="slds-m-bottom_medium">
                             <lightning-input
-                                type="number"
+                                type="text"
                                 label="Weight"
                                 value={weight}
                                 data-field="weight"
                                 onchange={handleInputChange}
                                 placeholder="Enter Weight"
-                                min="0"
-                                max="99999"
-                                max-length="5"
-                                step="1"
-                                required>
+                                required
+                                pattern="[0-9]*\.?[0-9]*"
+                                max-length="10"
+                                message-when-value-missing=""
+                                message-when-pattern-mismatch=""
+                                message-when-range-underflow=""
+                                message-when-range-overflow=""
+                                message-when-bad-input="">
                             </lightning-input>
                         </div>
 
@@ -252,7 +259,8 @@
                                 options={unitOfMeasureOptions}
                                 data-field="unitOfMeasure"
                                 onchange={handleInputChange}
-                                required>
+                                required
+                                message-when-value-missing="">
                             </lightning-combobox>
                         </div>
 
@@ -264,17 +272,18 @@
                                 options={processTypeOptions}
                                 data-field="processType"
                                 onchange={handleInputChange}
-                                required>
+                                required
+                                message-when-value-missing="">
                             </lightning-combobox>
                         </div>
-                        
-                        <!-- Control buttons -->
-                        <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
-                            <button class="save-btn" type="button" onclick={handleSave} disabled={isLoading}>
-                                {saveButtonLabel}
-                            </button>
-                        </div>
                     </form>
+
+                    <!-- Control buttons -->
+                    <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+                        <button class="save-btn" type="button" onclick={handleSave} disabled={isLoading}>
+                            {saveButtonLabel}
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>

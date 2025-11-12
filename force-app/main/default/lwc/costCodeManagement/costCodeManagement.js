@@ -354,9 +354,12 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
      * @description: Populate form fields for editing
      */
     populateFormFields(costCodeRecord) {
+
+        console.log('costCodeRecord ==> ', costCodeRecord);
         this.costCodeName = costCodeRecord.Name || '';
         this.classificationType = costCodeRecord.wfrecon__Classification_Type__c || '';
-        this.levelCode = costCodeRecord.wfrecon__Level_Code__c || '';
+        // Handle Level Code properly to show 0 values
+        this.levelCode = costCodeRecord.wfrecon__Level_Code__c || 0;
     }
 
     /**
@@ -365,7 +368,7 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
      */
     handleInputChange(event) {
         const fieldName = event.target.name;
-        const value = event.target.value;
+        let value = event.target.value;
         
         switch(fieldName) {
             case 'costCodeName':
@@ -375,6 +378,8 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
                 this.classificationType = value;
                 break;
             case 'levelCode':
+                // Keep the value as is, allowing users to type leading zeros
+                // The leading zeros will be removed when saving
                 this.levelCode = value;
                 break;
             default:
@@ -393,10 +398,12 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
 
         this.isLoading = true;
 
+        // Trim values before saving
+        const levelCodeValue = this.levelCode ? parseInt(this.levelCode, 10) : null;
         const costCodeRecord = {
-            Name: this.costCodeName,
-            wfrecon__Classification_Type__c: this.classificationType,
-            wfrecon__Level_Code__c: parseInt(this.levelCode) || null
+            Name: this.costCodeName.trim(),
+            wfrecon__Classification_Type__c: this.classificationType.trim(),
+            wfrecon__Level_Code__c: !isNaN(levelCodeValue) ? levelCodeValue : null
         };
 
         if (this.isEditMode && this.recordIdToEdit) {
@@ -423,35 +430,52 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
      * @description: Validate form fields
      */
     validateForm() {
-        let isValid = true;
-        const requiredFields = [
-            { value: this.costCodeName, name: 'Cost Code Name' },
-            { value: this.classificationType, name: 'Classification Type' },
-            { value: this.levelCode, name: 'Level Code' }
-        ];
+        const emptyFields = [];
+
+        // Trim and check each field
+        const costCodeNameTrimmed = this.costCodeName ? this.costCodeName.trim() : '';
+        const classificationTypeTrimmed = this.classificationType ? this.classificationType.trim() : '';
+        const levelCodeTrimmed = this.levelCode ? String(this.levelCode).trim() : '';
 
         // Check for empty required fields
-        for (const field of requiredFields) {
-            if (!field.value || field.value.trim() === '') {
-                this.showToast('Error', `${field.name} is required.`, 'error');
-                isValid = false;
-                break;
+        if (!costCodeNameTrimmed) {
+            emptyFields.push('Cost Code Name');
+        }
+        if (!classificationTypeTrimmed) {
+            emptyFields.push('Classification Type');
+        }
+        if (!levelCodeTrimmed) {
+            emptyFields.push('Level Code');
+        }
+
+        // If all fields are empty, show generic message
+        if (emptyFields.length === 3) {
+            this.showToast('Error', 'Please fill all required fields', 'error');
+            return false;
+        }
+
+        // If some fields are empty, show which ones
+        if (emptyFields.length > 0) {
+            const fieldList = emptyFields.join(', ');
+            this.showToast('Error', `Please fill the following required fields: ${fieldList}`, 'error');
+            return false;
+        }
+
+        // Validate level code is a valid positive number
+        if (levelCodeTrimmed) {
+            const levelCodeNum = parseInt(levelCodeTrimmed, 10);
+            if (isNaN(levelCodeNum)) {
+                this.showToast('Error', 'Level Code must be a valid number', 'error');
+                return false;
+            }
+            if (levelCodeNum < 0) {
+                this.showToast('Error', 'Level Code must be a positive number', 'error');
+                return false;
             }
         }
 
-        // Validate level code is a number
-        if (isValid && this.levelCode) {
-            const levelCodeNum = parseInt(this.levelCode);
-            if (isNaN(levelCodeNum) || levelCodeNum < 0) {
-                this.showToast('Error', 'Level Code must be a valid positive number.', 'error');
-                isValid = false;
-            }
-        }
-
-        return isValid;
+        return true;
     }
-
-
     /**
      * Method Name: handleSortClick
      * @description: Handle column header click for sorting

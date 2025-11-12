@@ -267,6 +267,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     get selectedDateToShow(){
+        console.log('Current Week Start:: ', this.currentWeekStart);
+        
         return this.currentWeekStart ? this.currentWeekStart.toISOString().slice(0,10) : null;
     }
 
@@ -428,13 +430,30 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         try{
             let val = event.currentTarget?.value;
             if(!val) return;
+
+            const valDateRaw = new Date(val);
+            const valDate = this.normalizeDate(valDateRaw);
+
+            const startDateRaw = new Date(this.currentWeekStart);
+            const startDate = this.normalizeDate(startDateRaw);
+
+            const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+            if (!this.isDayView && valDate >= startDate && valDate < endDate) {
+                return;
+            }
+
             this.currentWeekStart = new Date(val);
-            
             this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
-        }catch(e){
+        } catch(e) {
             console.error('MobScheduler.handleDateToGoTo error:', e?.message);
         }
     }
+
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
 
     handleStatusFilterChange(event){
         try {
@@ -472,8 +491,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         this.showLoading(true);
         const start = new Date(date);
         start.setDate(start.getDate() - start.getDay()); // Sunday
-        this.currentWeekStart = new Date(date);
-        
+        this.currentWeekStart = start;
 
         const days = [];
         for (let i = 0; i < 7; i++) {
@@ -567,7 +585,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     if (!resMap[item.id]) {
                         resMap[item.id] = { id: item.id, name: item.name, days: this.weekDays.map(d => ({ iso: d.iso, events: [] })), crewStyle: item.crewStyle};
                     }
-                    const dayIso = new Date(item.start).toISOString().slice(0,10);
+                    const dayIso = new Date(item.start)?.toISOString()?.slice(0,10);
                     const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
                     if (dayObj) dayObj.events.push({ id: item.id, mobId: item.mobId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date() });
                 });
@@ -701,8 +719,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     normalizeEvent(ev) {
         const startTime = new Date(ev.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         const endTime = new Date(ev.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        const startDayTime = new Date(ev.start).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-        const endDayTime = new Date(ev.end).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+        const startDayTime = new Date(ev.start).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+        const endDayTime = new Date(ev.end).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 
         return {
             ...ev,
@@ -713,8 +731,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             assets: ev.assets || [],
             subcontractors: ev.subcontractors || [],
             isPast: new Date(ev.end) < new Date(),
-            startDayTime,
-            endDayTime
+            startDayTime : startDayTime?.replaceAll('am', 'AM')?.replaceAll('pm', 'PM'),
+            endDayTime : endDayTime?.replaceAll('am', 'AM')?.replaceAll('pm', 'PM')
         };
     }
 
@@ -802,7 +820,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             removeJobResource({ id: id, type: type , mobId: mobId, allUpcoming: allUpcoming })
             .then(result => {
                 if(result === 'success'){
-                    this.showToast('Error', 'The resource assignment is been removed!', 'success');
+                    this.showToast('Success', 'The resource assignment is been removed!', 'success');
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
                 }else{
                     this.showToast('Error', 'Could not remove job, please try again...', 'error');

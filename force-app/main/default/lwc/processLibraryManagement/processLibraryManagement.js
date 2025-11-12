@@ -105,10 +105,15 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                     
                 }
                 
+                // For number fields, check if value is a valid number (including 0)
+                const hasValue = col.type === 'number' 
+                    ? (value !== null && value !== undefined && value !== '')
+                    : (value !== null && value !== undefined && value !== '');
+                
                 return {
                     key: `${processRecord.Id}_${key}`,
                     value: value,
-                    hasValue: value !== null && value !== undefined && value !== '',
+                    hasValue: hasValue,
                     isNameField: col.isNameField || false,
                     isSerialNumber: col.isSerialNumber || false,
                     isActions: col.isActions || false,
@@ -441,17 +446,15 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
             return;
         }
 
-        console.log('Here');
-        
-
         this.isLoading = true;
 
+        // Trim values before saving
         const processRecord = {
             Id: this.isEditMode ? this.recordIdToEdit : null,
-            wfrecon__Process_Name__c: this.processName,
+            wfrecon__Process_Name__c: this.processName.trim(),
             wfrecon__Weight__c: parseFloat(this.weight),
-            wfrecon__Unit_of_Measure__c: this.unitOfMeasure,
-            wfrecon__Process_Type__c: this.processType
+            wfrecon__Unit_of_Measure__c: this.unitOfMeasure.trim(),
+            wfrecon__Process_Type__c: this.processType.trim()
         };
 
         upsertProcess({ processRecord: processRecord })
@@ -477,56 +480,63 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
      * @description: Validate form fields
      */
     validateForm() {
-        try {
-            let isValid = true;
-            const errorMessages = [];
+        const emptyFields = [];
 
-            // Process Name validation
-            if (!this.processName || this.processName.trim() === '') {
-                errorMessages.push('Process Name is required');
-                isValid = false;
-            } else if (this.processName.trim().length > 255) {
-                errorMessages.push('Process Name cannot exceed 255 characters');
-                isValid = false;
-            }
+        // Trim and check each field
+        const processNameTrimmed = this.processName ? this.processName.trim() : '';
+        const weightTrimmed = this.weight ? String(this.weight).trim() : '';
+        const unitOfMeasureTrimmed = this.unitOfMeasure ? this.unitOfMeasure.trim() : '';
+        const processTypeTrimmed = this.processType ? this.processType.trim() : '';
 
-            if (!this.weight) {
-                errorMessages.push('Weight is required');
-                isValid = false;
-            } else {
-                // Check if it's a valid integer
-                const weightValue = this.weight;
-                if (!/^\d+$/.test(weightValue)) {
-                    errorMessages.push('Weight must be a valid integer (no decimals allowed)');
-                    isValid = false;
-                } else {
-                    const weightNumber = parseInt(weightValue, 10);
-                    if (weightNumber < 0) {
-                        errorMessages.push('Weight cannot be negative');
-                        isValid = false;
-                    }
-                }
-            }
+        console.log('Weight Trimmed:', weightTrimmed);
 
-            if (!this.unitOfMeasure) {
-                errorMessages.push('Unit of Measure is required');
-                isValid = false;
-            }
-
-            if (!this.processType) {
-                errorMessages.push('Process Type is required');
-                isValid = false;
-            }
-
-            if (!isValid) {
-                this.showToast('Validation Error', errorMessages.join(', '), 'error');
-            }
-
-            return isValid;
-        } catch (error) {
-            console.log('Error ==> ', error);
-            
+        // Check for empty required fields
+        if (!processNameTrimmed) {
+            emptyFields.push('Process Name');
         }
+        if (!weightTrimmed) {
+            emptyFields.push('Weight');
+        }
+        if (!unitOfMeasureTrimmed) {
+            emptyFields.push('Unit of Measure');
+        }
+        if (!processTypeTrimmed) {
+            emptyFields.push('Process Type');
+        }
+
+        // If all fields are empty, show generic message
+        if (emptyFields.length === 4) {
+            this.showToast('Error', 'Please fill all required fields', 'error');
+            return false;
+        }
+
+        // If some fields are empty, show which ones
+        if (emptyFields.length > 0) {
+            const fieldList = emptyFields.join(', ');
+            this.showToast('Error', `Please fill the following required fields: ${fieldList}`, 'error');
+            return false;
+        }
+
+        // Validate Process Name length
+        if (processNameTrimmed.length > 255) {
+            this.showToast('Error', 'Process Name cannot exceed 255 characters', 'error');
+            return false;
+        }
+
+        // Validate weight is a valid number
+        if (weightTrimmed) {
+            const weightNum = parseFloat(weightTrimmed);
+            if (isNaN(weightNum)) {
+                this.showToast('Error', 'Weight must be a valid number', 'error');
+                return false;
+            }
+            if (weightNum <= 0) {
+                this.showToast('Error', 'Weight must be greater than 0', 'error');
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

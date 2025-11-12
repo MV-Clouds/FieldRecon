@@ -231,7 +231,11 @@
                                 value={costCodeName}
                                 onchange={handleInputChange}
                                 required
-                                max-length="255"
+                                max-length="80"
+                                message-when-value-missing=""
+                                message-when-range-underflow=""
+                                message-when-range-overflow=""
+                                message-when-bad-input=""
                                 class="slds-size--1-of-1">
                             </lightning-input>
                         </div>
@@ -245,6 +249,10 @@
                                 options={classificationTypeOptions}
                                 onchange={handleInputChange}
                                 required
+                                message-when-value-missing=""
+                                message-when-range-underflow=""
+                                message-when-range-overflow=""
+                                message-when-bad-input=""
                                 class="slds-size--1-of-1">
                             </lightning-combobox>
                         </div>
@@ -254,13 +262,17 @@
                             <lightning-input
                                 label="Level Code"
                                 name="levelCode"
-                                type="number"
+                                type="text"
                                 value={levelCode}
                                 onchange={handleInputChange}
-                                required
-                                min="0"
-                                step="1"
+                                pattern="[0-9]*"
                                 max-length="5"
+                                required
+                                message-when-pattern-mismatch=""
+                                message-when-range-underflow=""
+                                message-when-range-overflow=""
+                                message-when-bad-input=""
+                                message-when-value-missing=""
                                 class="slds-size--1-of-1">
                             </lightning-input>
                         </div>

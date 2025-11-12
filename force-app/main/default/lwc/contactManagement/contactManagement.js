@@ -11,7 +11,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track filteredContacts = [];
     @track searchTerm = '';
     @track sortField = 'Name';
-    @track sortOrder = 'asc';
+    @track sortOrder = 'desc';
     @track showCreateModal = false;
     @track isEditMode = false;
     @track recordIdToEdit = null;
@@ -470,12 +470,14 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
     /**
      * Method Name: validateForm
-     * @description: Validate form fields
+     * @description: Validate form fields dynamically and show relevant messages
      */
     validateForm() {
         let isValid = true;
+        let errorMessages = [];
+        let missingFields = [];
+
         const inputFields = this.template.querySelectorAll('lightning-input, lightning-combobox');
-        
         inputFields.forEach(field => {
             if (!field.checkValidity()) {
                 field.reportValidity();
@@ -483,24 +485,62 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             }
         });
 
+        // Validate First Name
         if (!this.firstName || !this.firstName.trim()) {
-            this.showToast('Error', 'First Name is required', 'error');
+            missingFields.push('First Name');
             isValid = false;
         }
 
+        // Validate Last Name
         if (!this.lastName || !this.lastName.trim()) {
-            this.showToast('Error', 'Last Name is required', 'error');
+            missingFields.push('Last Name');
             isValid = false;
         }
 
+        // Validate Email
         if (!this.email || !this.email.trim()) {
-            this.showToast('Error', 'Email is required', 'error');
+            missingFields.push('Email');
+            isValid = false;
+        } else {
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailPattern.test(this.email.trim())) {
+                errorMessages.push('Please enter a valid email address');
+                isValid = false;
+            } else {
+                const disposableDomains = [
+                    'yopmail', 'tempmail', 'guerrillamail', 'mailinator',
+                    '10minutemail', 'throwaway', 'trashmail', 'fakeinbox'
+                ];
+                const emailDomain = this.email.split('@')[1]?.toLowerCase();
+                if (emailDomain && disposableDomains.some(domain => emailDomain.includes(domain))) {
+                    errorMessages.push('Disposable email addresses are not allowed');
+                    isValid = false;
+                }
+            }
+        }
+
+        // Validate Record Type
+        if (!this.recordType) {
+            missingFields.push('Type');
             isValid = false;
         }
 
-        if (!this.recordType) {
-            this.showToast('Error', 'Type is required', 'error');
-            isValid = false;
+        // === Determine Message to Show ===
+        if (!isValid) {
+            if (missingFields.length === 4) {
+                // All fields empty
+                this.showToast('Validation Error', 'All fields are required', 'error');
+            } else if (missingFields.length > 0 && errorMessages.length === 0) {
+                // Some missing fields
+                this.showToast(
+                    'Validation Error',
+                    `${missingFields.join(', ')} ${missingFields.length > 1 ? 'are' : 'is'} required`,
+                    'error'
+                );
+            } else if (errorMessages.length > 0) {
+                // Other validation errors
+                this.showToast('Validation Error', errorMessages.join(', '), 'error');
+            }
         }
 
         return isValid;

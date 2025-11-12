@@ -111,7 +111,7 @@
 											<td style="text-align: right; padding: 3pt; font-size: 8pt;">${retainageCompletedToDate}</td>
 										</tr>
 										<tr>
-											<td style="padding: 3pt; font-size: 8pt;">&nbsp;&nbsp;&nbsp;b. % of Stored Material (Column F on G703)</td>
+											<td style="padding: 3pt; font-size: 8pt;">&nbsp;&nbsp;&nbsp;b. % of Stored Material</td>
 											<td style="text-align: right; padding: 3pt; font-size: 8pt;">$0.00</td>
 										</tr>
 										<tr>
@@ -146,22 +146,22 @@
 									</tr>
 									<tr>
 										<td style="border: 1pt solid #000; padding: 5pt; background-color: #f3f3f3">Total changes approved in previous months</td>
-										<td style="border: 1pt solid #000; padding: 5pt; background-color: #f3f3f3; text-align: right">${netChanges}</td>
 										<td style="border: 1pt solid #000; padding: 5pt; background-color: #f3f3f3; text-align: right">${previousAddition}</td>
+										<td style="border: 1pt solid #000; padding: 5pt; background-color: #f3f3f3; text-align: right">${previousDeduction}</td>
 									</tr>
 									<tr>
 										<td style="border: 1pt solid #000; padding: 5pt">Total Approved this Month</td>
-										<td style="border: 1pt solid #000; padding: 5pt; text-align: right">${previousDeduction}</td>
 										<td style="border: 1pt solid #000; padding: 5pt; text-align: right">${thisMonthAddition}</td>
+										<td style="border: 1pt solid #000; padding: 5pt; text-align: right">${thisMonthDeduction}</td>
 									</tr>
 									<tr>
 										<td style="border: 1pt solid #000; padding: 5pt">Totals</td>
-										<td style="border: 1pt solid #000; padding: 5pt; text-align: right">${thisMonthDeduction}</td>
 										<td style="border: 1pt solid #000; padding: 5pt; text-align: right">${totalAddition}</td>
+										<td style="border: 1pt solid #000; padding: 5pt; text-align: right">${totalDeduction}</td>
 									</tr>
 									<tr>
 										<td style="border: 1pt solid #000; padding: 5pt">Net Changes by Change Orders</td>
-										<td style="border: 1pt solid #000; padding: 5pt; text-align: right" >${totalDeduction}</td>
+										<td style="border: 1pt solid #000; padding: 5pt; text-align: right" >${netChanges}</td>
 										<td style="border: 1pt solid #000; padding: 5pt; text-align: right" >&nbsp;&nbsp;&nbsp;</td>
 									</tr>
 								</table>
@@ -243,7 +243,7 @@
 						<div class="dynamic-container"></div>
 						<div class="dynamic-container-2tabel"></div>
 						<table role="presentation" style="width: 100%; border-collapse: collapse; margin-top: 8px">
-							<tr>
+							<!-- <tr>
 								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:4%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
 								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:23%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
 								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
@@ -254,18 +254,18 @@
 								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
 								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
 								<td style="background-color:#dfdcdc; border:1px solid #000; text-align:center; width:7%; font-size:8pt; font-weight:bold; padding:4pt 0pt;">&nbsp;</td>
-							</tr>
+							</tr> -->
 							<tr>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">&nbsp;</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">Total</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalC}</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalD}</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalE}</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalF}</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">-</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalH}</td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;"></td>
-								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;">${totalJ}</td>
+								<!-- <td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width: 4%">&nbsp;</td> -->
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:27%;" colspan="2">Total</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">${totalC}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">${totalD}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">${totalE}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">${totalF}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">-</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">${totalH}</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">-</td>
+								<td style="border: 1pt solid #000; padding: 4pt; font-size: 8pt; font-weight: bold;background-color:#dfdcdc; width:7%">${totalJ}</td>
 							</tr>
 						</table>
 						<hr style="border: 1px solid #000; margin-top: 10px" />

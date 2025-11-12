@@ -1,6 +1,6 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 93% (2025-11-07)
+ * Test Class: MobSchedulerControllerTest - 89% (2025-11-10)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
  * Update: 2025-10-27 (Kevin)   - Updated the logic for the start and end date to fix timezone based issues
@@ -12,6 +12,7 @@
  * Update: 2025-11-03 (Kevin)   - Updated the return statement for already assigned resource
  * Update: 2025-11-06 (Kevin)   - Updated the getDefaultValues methods to also retrieve the status options
  * Update: 2025-11-07 (Kevin)   - Updated the DML operations with the large data set with the batch class
+ * Update: 2025-11-10 (Kevin)   - Added the fallback values for the default job timing and updated the date formatting for supporting different locale settings
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -97,8 +98,8 @@ public with sharing class MobSchedulerController {
                     'jobId' => mob.Job__r.Name,
                     'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
                     'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
-                    'start' => mob.Start_Date__c.format(),
-                    'end' => mob.End_Date__c.format(),
+                    'start' => mob.Start_Date__c.format('MM/dd/yyyy, h:mm a'),
+                    'end' => mob.End_Date__c.format('MM/dd/yyyy, h:mm a'),
                     'status' => mob.Mobilization_Status__c,
                     'crew' => crewMembersList,
                     'subcontractors' => subContractorsList,
@@ -145,12 +146,14 @@ public with sharing class MobSchedulerController {
             }
 
             defaultValues.put('statusOptions', options);
+            // Get today's date
+            Date today = Date.today();
 
+            Map<String, Object> defaultMap = new Map<String, Object>{'start' => null, 'end' => null, 'includeSaturday' => false, 'includeSunday' => false};
             if(timeDefaults != null && !timeDefaults.isEmpty()) {
-                Map<String, Object> defaultMap = new Map<String, Object>{'start' => null, 'end' => null, 'includeSaturday' => timeDefaults[0].Include_Saturday__c, 'includeSunday' => timeDefaults[0].Include_Sunday__c};
-                
-                // Get today's date
-                Date today = Date.today();
+
+                defaultMap.put('includeSaturday', timeDefaults[0].Include_Saturday__c);
+                defaultMap.put('includeSunday', timeDefaults[0].Include_Sunday__c);
                 
                 // Start Time
                 String startTimeStr = timeDefaults[0].Start_Time__c; // e.g., "07:00 AM"
@@ -168,7 +171,7 @@ public with sharing class MobSchedulerController {
                 }
                 
                 // End Time
-                String endTimeStr = timeDefaults[0].End_Time__c; // e.g., "06:20 PM"
+                String endTimeStr = timeDefaults[0].End_Time__c; // e.g., "06:00 PM"
                 if(endTimeStr != null) {
                     List<String> endParts = endTimeStr.split(' ');
                     List<String> hm = endParts[0].split(':');
@@ -181,9 +184,16 @@ public with sharing class MobSchedulerController {
                     
                     defaultMap.put('end', DateTime.newInstance(today, Time.newInstance(hour, minute, 0, 0)));
                 }
-
-                defaultValues.put('time', defaultMap);
             }
+
+            if(defaultMap.get('start') == null){
+                defaultMap.put('start', DateTime.newInstance(today, Time.newInstance(7, 0, 0, 0)));
+            }
+            if(defaultMap.get('end') == null){
+                defaultMap.put('end', DateTime.newInstance(today, Time.newInstance(18, 0, 0, 0)));
+            }
+
+            defaultValues.put('time', defaultMap);
 
             if(statusDefaults != null && !statusDefaults.isEmpty()) {
                 defaultValues.put('status', statusDefaults);
@@ -390,8 +400,8 @@ public with sharing class MobSchedulerController {
                             'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
                             'junctionId' => asset.Id,
                             'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
-                            'start' => mob.Start_Date__c.format(),
-                            'end' => mob.End_Date__c.format(),
+                            'start' => mob.Start_Date__c.format('MM/dd/yyyy, h:mm a'),
+                            'end' => mob.End_Date__c.format('MM/dd/yyyy, h:mm a'),
                             'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
                             'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
@@ -418,8 +428,8 @@ public with sharing class MobSchedulerController {
                             'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
                             'junctionId' => mem.Id,
                             'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
-                            'start' => mob.Start_Date__c.format(),
-                            'end' => mob.End_Date__c.format(),
+                            'start' => mob.Start_Date__c.format('MM/dd/yyyy, h:mm a'),
+                            'end' => mob.End_Date__c.format('MM/dd/yyyy, h:mm a'),
                             'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
                             'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')

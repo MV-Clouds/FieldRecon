@@ -100,6 +100,60 @@ public with sharing class AIAFormController {
 
         Integer contractSr = 1;
         Integer changeOrderSr = 1;
+        
+        // Get billing period dates
+        Id jobId = billingRecord.wfrecon__Job__c;
+        Date billingEndDate = billingRecord.wfrecon__End_Date__c;
+        Date billingStartDate = billingEndDate != null ? billingEndDate.toStartOfMonth() : null;
+        
+        // Query ALL Billing Line Items for ALL billings on this Job (to get cumulative change order amounts)
+        List<wfrecon__Billing_Line_Item__c> allJobBillingLines = [
+            SELECT Id,
+                   Name,
+                   wfrecon__Scope_Entry_Type__c,
+                   wfrecon__This_Billing_Value__c,
+                   wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c,
+                   wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c
+            FROM wfrecon__Billing_Line_Item__c
+            WHERE wfrecon__Billing__r.wfrecon__Job__c = :jobId
+            AND wfrecon__Scope_Entry_Type__c = 'Change Order'
+            AND wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c != null
+        ];
+        
+        System.debug('Found ' + allJobBillingLines.size() + ' change order billing line items for Job: ' + jobId);
+        
+        // Process all change order billing line items for the summary
+        for (wfrecon__Billing_Line_Item__c line : allJobBillingLines) {
+            String changeOrderType = '';
+            Date approvedDate = null;
+            Decimal thisBillingValue = line.wfrecon__This_Billing_Value__c != null ? line.wfrecon__This_Billing_Value__c : 0;
+            
+            if (line.wfrecon__Scope_Entry__r != null) {
+                changeOrderType = line.wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c;
+                approvedDate = line.wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c;
+            }
+            
+            Boolean isThisMonth = false;
+            if (approvedDate != null && billingStartDate != null) {
+                isThisMonth = (approvedDate >= billingStartDate);
+            }
+            
+            System.debug('Billing Line: ' + line.Name + ', Type: ' + changeOrderType + ', Approved: ' + approvedDate + ', This Billing Value: ' + thisBillingValue + ', isThisMonth: ' + isThisMonth);
+            
+            if (changeOrderType == 'Addition') {
+                if (isThisMonth) {
+                    thisMonthAddition += thisBillingValue;
+                } else {
+                    previousAddition += thisBillingValue;
+                }
+            } else if (changeOrderType == 'Deduction') {
+                if (isThisMonth) {
+                    thisMonthDeduction += Math.abs(thisBillingValue);
+                } else {
+                    previousDeduction += Math.abs(thisBillingValue);
+                }
+            }
+        }
 
         // Loop line items and split/sum them
         if (billingRecord.wfrecon__Billing_Line_Items__r != null) {
@@ -112,12 +166,10 @@ public with sharing class AIAFormController {
                 Decimal contractAmt = line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00;
 
                 // Safely compute value of G
-                Decimal valueOfG = 0;
-                if (contractAmt != 0) {
-                    valueOfG = (prevBilled + thisBilled) / contractAmt;
+                Decimal valueOfG = 0.00;
+                if (contractAmt != 0.00) {
+                    valueOfG = ((prevBilled + thisBilled) / contractAmt)*100;
                 }
-            //    Decimal valueOfG = safeDivide(prevBilled + thisBilled, contractAmt);
-
 
                 Map<String, Object> lineMap = new Map<String, Object>{
                     'Sr_No__c' => (type == 'Contract' ? contractSr : changeOrderSr),
@@ -136,7 +188,7 @@ public with sharing class AIAFormController {
                     // 'vlueOf_G' =>((line.wfrecon__Previous_Billed_Value__c != null ? line.wfrecon__Previous_Billed_Value__c : 0.00) + (line.wfrecon__This_Billing_Value__c != null ? line.wfrecon__This_Billing_Value__c : 0.00)/(line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00)),
                     'vlueOf_G' => formatCurrency(valueOfG),
                     // 'vlueof_H' => (line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00) - (line.wfrecon__Previous_Billed_Value__c != null ? line.wfrecon__Previous_Billed_Value__c : 0.00) + (line.wfrecon__This_Billing_Value__c != null ? line.wfrecon__This_Billing_Value__c : 0.00),
-                    'vlueof_H' => formatCurrency((line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00) - (line.wfrecon__Previous_Billed_Value__c != null ? line.wfrecon__Previous_Billed_Value__c : 0.00) + (line.wfrecon__This_Billing_Value__c != null ? line.wfrecon__This_Billing_Value__c : 0.00)),
+                    'vlueof_H' => formatCurrency((line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00) - ((line.wfrecon__Previous_Billed_Value__c != null ? line.wfrecon__Previous_Billed_Value__c : 0.00) + (line.wfrecon__This_Billing_Value__c != null ? line.wfrecon__This_Billing_Value__c : 0.00))),
                     // 'wfrecon__Previous_Billed_Value__c' => line.wfrecon__Previous_Billed_Value__c,
                     'wfrecon__Previous_Billed_Value__c' => formatCurrency(line.wfrecon__Previous_Billed_Value__c),
                     // 'wfrecon__Retainage_Percent_on_Bill_Line_Item__r' => line.wfrecon__Previous_Bill_Line_Item__r != null ? line.wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Retainage_Amount__c : 0.00,
@@ -169,49 +221,6 @@ public with sharing class AIAFormController {
                     contractSums.put('totalH', contractSums.get('totalH') + (line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00) - (line.wfrecon__Previous_Billed_Value__c != null ? line.wfrecon__Previous_Billed_Value__c : 0.00) + (line.wfrecon__This_Billing_Value__c != null ? line.wfrecon__This_Billing_Value__c : 0.00));
                     contractSums.put('totalI', contractSums.get('totalI') + (line.wfrecon__Retainage_Percent_on_Bill_Line_Item__c != null ? line.wfrecon__Retainage_Percent_on_Bill_Line_Item__c : 0.00));
                     contractSums.put('totalJ', contractSums.get('totalJ') + (line.wfrecon__Previous_Bill_Line_Item__r != null ? line.wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Retainage_Amount__c : 0.00));
-                    
-                    // Get the Change Order Type and Approved Date from Scope Entry
-                    String changeOrderType = '';
-                    Date approvedDate = null;
-                    Decimal scopeContractAmount = (line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0);
-                    System.debug('Processing Change Order Line Item: ' + line.Id + ' with Scope Contract Amount: ' + scopeContractAmount);
-                    
-                    if (line.wfrecon__Scope_Entry__r != null) {
-                        if (line.wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c != null) {
-                            changeOrderType = line.wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c;
-                        }
-                        if (line.wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c != null) {
-                            approvedDate = line.wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c;
-                        }
-                    }
-                    
-                    // Get current month and year
-                    Date today = Date.today();
-                    Integer currentMonth = today.month();
-                    Integer currentYear = today.year();
-                    
-                    // Determine if this billing line item is from this month or previous months
-                    Boolean isThisMonth = false;
-                    if (approvedDate != null) {
-                        isThisMonth = (approvedDate.month() == currentMonth && approvedDate.year() == currentYear);
-                    }
-                    
-                    System.debug('Change Order Type: ' + changeOrderType + ', Approved Date: ' + approvedDate + ', isThisMonth: ' + isThisMonth);
-                    // Calculate based on Addition or Deduction type
-                    if (changeOrderType == 'Addition') {
-                        if (isThisMonth) {
-                            thisMonthAddition += scopeContractAmount;
-                        } else {
-                            previousAddition += scopeContractAmount;
-                        }
-                    } else if (changeOrderType == 'Deduction') {
-                        // Deduction is already stored as negative in Scope_Contract_Amount__c
-                        if (isThisMonth) {
-                            thisMonthDeduction += scopeContractAmount;
-                        } else {
-                            previousDeduction += scopeContractAmount;
-                        }
-                    }
                 }
             }
         }
@@ -219,7 +228,15 @@ public with sharing class AIAFormController {
         // Calculate totals for change order summary
         Decimal totalAddition = previousAddition + thisMonthAddition;
         Decimal totalDeduction = previousDeduction + thisMonthDeduction;
-        Decimal netChanges = totalAddition + totalDeduction; // Deduction is stored as negative in Scope_Contract_Amount__c
+        Decimal netChanges = totalAddition - totalDeduction; // Subtract deductions from additions
+        
+        System.debug('Previous Addition: ' + previousAddition);
+        System.debug('This Month Addition: ' + thisMonthAddition);
+        System.debug('Previous Deduction: ' + previousDeduction);
+        System.debug('This Month Deduction: ' + thisMonthDeduction);
+        System.debug('Total Addition: ' + totalAddition);
+        System.debug('Total Deduction: ' + totalDeduction);
+        System.debug('Net Changes: ' + netChanges);
         
         // Populate change order summary
         changeOrderSummary.put('previousAddition', previousAddition);
