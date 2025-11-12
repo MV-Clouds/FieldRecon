@@ -5,12 +5,14 @@
                 <div class="search-bar">
                     <lightning-input type="search" placeholder="Search by name or person..." value={searchTerm} onchange={handleSearch} variant="label-hidden" class="search-bar-input"></lightning-input>
                 </div>
-                <div class="right-controls">
-                    <div class="create-btn" onclick={handleCreate}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="14" height="14" fill="white"><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>
-                        Create Log
+                <template if:true={isCurrentUserCrewLeader}>
+                    <div class="right-controls">
+                        <div class="create-btn" onclick={handleCreate}>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="14" height="14" fill="white"><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>
+                            Create Log
+                        </div>
                     </div>
-                </div>
+                </template>
             </div>
         </div>
         <div class="spinner-container slds-is-fixed" if:true={isLoading}>
@@ -57,15 +59,17 @@
                                             <div class="log-card-date">{log.formattedDate}</div>
                                         </div>
                                     </div>
-                                    <div class="action-btns">
-                                        <div class="edit-btn btn action-btn" data-id={log.Id} onclick={handleEdit}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
+                                    
+                                    <template if:true={isCurrentUserCrewLeader}>
+                                        <div class="action-btns">
+                                            <div class="edit-btn btn action-btn" data-id={log.Id} onclick={handleEdit}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
+                                            </div>
+                                            <div class="delete-btn btn action-btn" data-id={log.Id} data-name={log.Name} onclick={handleDelete}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"/></svg>
+                                            </div>
                                         </div>
-                                        <div class="delete-btn btn action-btn" data-id={log.Id} data-name={log.Name} onclick={handleDelete}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"/></svg>
-                                        </div>
-                                    </div>
-
+                                    </template>
                                 </div>
 
                                 <div class="log-meta-info">
@@ -117,44 +121,44 @@
                                     <div class="plan-content" data-is-changed={log.notesToOfficeChanged}>{log.displayNotesToOffice}</div>
                                 </div>
                                 
-                                <template if:true={log.hasLocationProcesses}>
-                                    <div class="section-label">Location Processes:</div>
-                                    <div class="location-processes-list">
-                                        <template for:each={log.locationProcesses} for:item="process">
-                                            <div key={process.processId} class="process-item" data-changed={process.changedToday}>
-                                                <div class="process-header">
-                                                    <span class="process-location">{process.locationName}</span>
-                                                    <div class="process-percentage-container">
-                                                        <span class="process-percentage">{process.completionPercentage}%</span>
+                                <template if:true={isCurrentUserCrewLeader}>
+                                    <template if:true={log.hasLocationProcesses}>
+                                        <div class="section-label">Location Processes:</div>
+                                        <div class="location-processes-list">
+                                            <template for:each={log.locationProcesses} for:item="process">
+                                                <div key={process.processId} class="process-item" data-changed={process.changedToday}>
+                                                    <div class="process-header">
+                                                        <span class="process-location">{process.locationName}</span>
+                                                        <div class="process-percentage-container">
+                                                            <span class="process-percentage">{process.completionPercentage}%</span>
+                                                            <template if:true={process.changedToday}>
+                                                                <span class="process-changed-badge">Updated Today</span>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                    <div class="process-name-row">
+                                                        <template if:true={process.sequence}>
+                                                            <span class="process-seq">#{process.sequence}</span>
+                                                        </template>
+                                                        <span class="process-name">{process.processName}</span>
+                                                    </div>
+                                                    <div class="process-progress-bar">
+                                                        <div class="process-progress-fill yesterday-progress" 
+                                                             data-percentage={process.yesterdayPercentage}
+                                                             data-color={process.progressBarColor}>
+                                                        </div>
                                                         <template if:true={process.changedToday}>
-                                                            <span class="process-changed-badge">Updated Today</span>
+                                                            <div class="process-progress-fill today-progress" 
+                                                                 data-percentage={process.completionPercentage}
+                                                                 data-yesterday={process.yesterdayPercentage}
+                                                                 data-color={process.todayChangeColor}>
+                                                            </div>
                                                         </template>
                                                     </div>
                                                 </div>
-                                                <div class="process-name-row">
-                                                    <template if:true={process.sequence}>
-                                                        <span class="process-seq">#{process.sequence}</span>
-                                                    </template>
-                                                    <span class="process-name">{process.processName}</span>
-                                                </div>
-                                                <div class="process-progress-bar">
-                                                    <!-- Yesterday's progress (base) -->
-                                                    <div class="process-progress-fill yesterday-progress" 
-                                                         data-percentage={process.yesterdayPercentage}
-                                                         data-color={process.progressBarColor}>
-                                                    </div>
-                                                    <!-- Today's change (overlay on top of yesterday's) -->
-                                                    <template if:true={process.changedToday}>
-                                                        <div class="process-progress-fill today-progress" 
-                                                             data-percentage={process.completionPercentage}
-                                                             data-yesterday={process.yesterdayPercentage}
-                                                             data-color={process.todayChangeColor}>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </template>
                                 
                                 <template if:true={log.hasImages}>

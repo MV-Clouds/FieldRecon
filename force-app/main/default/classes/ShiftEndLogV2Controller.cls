@@ -233,7 +233,7 @@ public with sharing class ShiftEndLogV2Controller {
                         SELECT Id, ContentDocumentId, Title, FileExtension, ContentSize, CreatedDate
                         FROM ContentVersion 
                         WHERE Id IN :versionIds 
-                        AND FileExtension IN ('jpg','jpeg','png','gif','bmp','svg')
+                        // AND FileExtension IN ('jpg','jpeg','png','gif','bmp','svg')
                         WITH USER_MODE
                         ORDER BY CreatedDate DESC
                     ];

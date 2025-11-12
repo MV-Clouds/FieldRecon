@@ -1,0 +1,665 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+        aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_full">
+        <div class="slds-modal__container shiftEndLogEntries-modal-container">
+            <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
+                onclick={handleDialogueClose}>
+                <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                    size="small"></lightning-icon>
+            </button>
+
+            <div class="pop-heading">Create Shift End Log</div>
+
+            <!-- Progress Indicator - Hidden when no mobilization options -->
+            <template if:true={hasMobilizationOptions}>
+                <div class="progress-container">
+                    <lightning-progress-indicator current-step={currentStep} type="path" variant="base">
+                        <lightning-progress-step label="Clock Status" value="step1"></lightning-progress-step>
+                        <lightning-progress-step label="Timesheet Entries" value="step2"></lightning-progress-step>
+                        <lightning-progress-step label="Log Details" value="step3"></lightning-progress-step>
+                        <lightning-progress-step label="Gallery" value="step4"></lightning-progress-step>
+                    </lightning-progress-indicator>
+                </div>
+            </template>
+
+            <div class="slds-modal__content wizard-content" id="modal-content-id-1">
+                <!-- Step 1: Mobilization Selection & Clock In/Out Status -->
+                <template if:true={isStep1}>
+                    <div class="step-container">
+                        <!-- No Dates Available Message -->
+                        <template if:false={hasMobilizationOptions}>
+                            <div class="no-data-message">
+                                <div class="no-data-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                        <line x1="10" y1="14" x2="14" y2="18"></line>
+                                        <line x1="14" y1="14" x2="10" y2="18"></line>
+                                    </svg>
+                                </div>
+                                <h3 class="no-data-title">No Dates Available</h3>
+                                <p class="no-data-description">There are no scheduled dates available for this job.</p>
+                            </div>
+                        </template>
+
+                        <!-- Mobilization Selector -->
+                        <template if:true={hasMobilizationOptions}>
+                            <div class="mobilization-selector">
+                                <label class="form-label required">Select Date</label>
+                                <lightning-combobox name="mobilization" label="" placeholder="-- Select Date --"
+                                    options={mobilizationOptions} value={selectedMobilizationId}
+                                    onchange={handleMobilizationChange}>
+                                </lightning-combobox>
+                            </div>
+                        </template>
+
+                        <template if:true={selectedMobilizationId}>
+                            <!-- No Crew Members Message -->
+                            <template if:false={hasCrewMembers}>
+                                <div class="no-data-message">
+                                    <div class="no-data-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="9" cy="7" r="4"></circle>
+                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="no-data-title">No Crew Members</h3>
+                                    <p class="no-data-description">There are no crew members assigned to the selected
+                                        mobilization.</p>
+                                </div>
+                            </template>
+
+                            <!-- Clock Status Cards -->
+                            <template if:true={hasCrewMembers}>
+                                <div class="clock-status-container">
+                                    <template for:each={crewMembers} for:item="member">
+                                        <div key={member.contactId} class="crew-member-card">
+                                            <div class="member-info">
+                                                <div class="member-header">
+                                                    <div class="member-name">{member.contactName}</div>
+                                                    <div class="member-status-row">
+                                                        <span class={member.statusClass}>{member.statusText}</span>
+                                                        <template if:true={member.hoursWorked}>
+                                                            <span class="hours-worked">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
+                                                                    height="12" viewBox="0 0 24 24" fill="none"
+                                                                    stroke="currentColor" stroke-width="2">
+                                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                                                </svg>
+                                                                {member.hoursWorked} hrs today
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Recent Clock In/Out Times -->
+                                                <template if:true={member.hasRecentTimes}>
+                                                    <div class="recent-times-grid">
+                                                        <template if:true={member.recentClockIn}>
+                                                            <div class="time-card clock-in-card">
+                                                                <div class="time-card-icon">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16"
+                                                                        height="16" viewBox="0 0 24 24" fill="none"
+                                                                        stroke="currentColor" stroke-width="2">
+                                                                        <path
+                                                                            d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83">
+                                                                        </path>
+                                                                    </svg>
+                                                                </div>
+                                                                <div class="time-card-content">
+                                                                    <div class="time-card-label">Recent Clock In</div>
+                                                                    <div class="time-card-value">{member.recentClockIn}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                        <template if:true={member.recentClockOut}>
+                                                            <div class="time-card clock-out-card">
+                                                                <div class="time-card-icon">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16"
+                                                                        height="16" viewBox="0 0 24 24" fill="none"
+                                                                        stroke="currentColor" stroke-width="2">
+                                                                        <circle cx="12" cy="12" r="10"></circle>
+                                                                        <path d="M9 9l6 6m0-6l-6 6"></path>
+                                                                    </svg>
+                                                                </div>
+                                                                <div class="time-card-content">
+                                                                    <div class="time-card-label">Recent Clock Out</div>
+                                                                    <div class="time-card-value">{member.recentClockOut}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template if:false={member.hasRecentTimes}>
+                                                    <div class="no-times-section">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <circle cx="12" cy="12" r="10"></circle>
+                                                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                                        </svg>
+                                                        No recent clock in/out activity
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <div class="member-actions">
+                                                <template if:true={member.canClockIn}>
+                                                    <button class="clock-btn clock-in-btn" data-id={member.contactId}
+                                                        onclick={handleClockInClick}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <path
+                                                                d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83">
+                                                            </path>
+                                                        </svg>
+                                                        Clock In
+                                                    </button>
+                                                </template>
+                                                <template if:true={member.canClockOut}>
+                                                    <button class="clock-btn clock-out-btn" data-id={member.contactId}
+                                                        onclick={handleClockOutClick}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <circle cx="12" cy="12" r="10"></circle>
+                                                            <path d="M9 9l6 6m0-6l-6 6"></path>
+                                                        </svg>
+                                                        Clock Out
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Step 2: Timesheet Entries Table -->
+                <template if:true={isStep2}>
+                    <div class="step-container">
+                        <template if:true={hasTimesheetEntries}>
+                            <div class="table-content timesheet-table">
+                                <table class="slds-table timesheet-entries-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 4rem">Sr.</th>
+                                            <th style="width: 4rem">Edit</th>
+                                            <th style="width: 12rem">Name</th>
+                                            <th style="width: 10rem">Clock In</th>
+                                            <th style="width: 10rem">Clock Out</th>
+                                            <th style="width: 6rem">Working Hours</th>
+                                            <th style="width: 6rem">Travel</th>
+                                            <th style="width: 8rem">Cost Code</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={timesheetEntries} for:item="entry" for:index="index">
+                                            <tr key={entry.id}>
+                                                <td>{entry.srNo}</td>
+                                                <td>
+                                                    <button class="edit-icon-btn" data-id={entry.id}
+                                                        onclick={handleEditTimesheetEntry}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <path
+                                                                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7">
+                                                            </path>
+                                                            <path
+                                                                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                                <td>{entry.contactName}</td>
+                                                <td>{entry.clockInTime}</td>
+                                                <td>{entry.clockOutTime}</td>
+                                                <td>{entry.workHours}</td>
+                                                <td>{entry.travelTime}</td>
+                                                <td>{entry.costCodeName}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                        <template if:false={hasTimesheetEntries}>
+                            <div class="no-data-message">
+                                <div class="no-data-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M9 11l3 3L22 4"></path>
+                                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="no-data-title">No Timesheet Entries</h3>
+                                <p class="no-data-description">There are no timesheet entries available for today.</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Step 3: Log Details & Location Progress -->
+                <template if:true={isStep3}>
+                    <div class="step-container">
+                        <div class="log-details-form">
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label required">Work Performed</label>
+                                    <lightning-textarea data-field="whatWeDone" variant="label-hidden"
+                                        value={step3Data.whatWeDone} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label required">Plan for Tomorrow</label>
+                                    <lightning-textarea data-field="planForTomorrow" variant="label-hidden"
+                                        value={step3Data.planForTomorrow} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label">Exceptions</label>
+                                    <lightning-textarea data-field="exceptions" variant="label-hidden"
+                                        value={step3Data.exceptions} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label class="form-label">Notes to Office</label>
+                                    <lightning-textarea data-field="notesToOffice" variant="label-hidden"
+                                        value={step3Data.notesToOffice} onchange={handleStep3InputChange}>
+                                    </lightning-textarea>
+                                </div>
+                            </div>
+
+                            <!-- Location Process Progress Sliders -->
+                            <template if:true={hasLocationOptions}>
+                                <div class="location-progress-section">
+                                    <div class="section-header">
+                                        <h3 class="section-title">Location Process Progress</h3>
+                                    </div>
+
+                                    <!-- Location Selector -->
+                                    <div class="location-selector">
+                                        <label class="form-label">Select Location</label>
+                                        <lightning-combobox name="location" variant="label-hidden" placeholder="-- Select Location --"
+                                            options={locationOptions} value={selectedLocationId}
+                                            onchange={handleLocationChange}>
+                                        </lightning-combobox>
+                                    </div>
+
+                                    <!-- No Location Processes Message -->
+                                    <template if:false={hasLocationProcesses}>
+                                        <div class="no-data-message">
+                                            <div class="no-data-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="1.5">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                                </svg>
+                                            </div>
+                                            <h3 class="no-data-title">No Location Processes</h3>
+                                            <p class="no-data-description">There are no location processes for the
+                                                selected location.</p>
+                                        </div>
+                                    </template>
+
+                                    <!-- Group by Location -->
+                                    <template if:true={hasLocationProcesses}>
+                                        <template for:each={groupedLocationProcesses} for:item="locationGroup">
+                                            <div key={locationGroup.locationId} class="location-group">
+                                                <h4 class="location-group-title">{locationGroup.locationName}</h4>
+
+                                                <!-- Process Sliders -->
+                                                <template for:each={locationGroup.processes} for:item="process">
+                                                    <div key={process.id} class="location-slider-container">
+                                                        <div class="slider-header">
+                                                            <div class="process-info">
+                                                                <span class="process-name">{process.name}</span>
+                                                                <template if:true={process.sequence}>
+                                                                    <span class="process-sequence">Seq:
+                                                                        {process.sequence}</span>
+                                                                </template>
+                                                            </div>
+                                                            <span
+                                                                class="progress-percentage">{process.completedPercent}%
+                                                                Complete</span>
+                                                        </div>
+                                                        <div class="slider-wrapper">
+                                                            <div class="slider-track">
+                                                                <div class="slider-section completed" lwc:dom="manual">
+                                                                </div>
+                                                                <div class="slider-section today" lwc:dom="manual">
+                                                                </div>
+                                                                <div class="slider-section remaining" lwc:dom="manual">
+                                                                </div>
+                                                            </div>
+                                                            <input type="range" class="progress-slider"
+                                                                min={process.previousPercent} max="100" step="0.5"
+                                                                value={process.completedPercent} data-id={process.id}
+                                                                data-process-id={process.id}
+                                                                data-original-value={process.previousPercent}
+                                                                onchange={handleSliderChange}
+                                                                oninput={handleSliderInput}>
+                                                        </div>
+                                                        <div class="slider-labels">
+                                                            <span class="label-completed">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
+                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Completed: {process.previousPercent}%
+                                                            </span>
+                                                            <span class="label-today">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
+                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Today: {process.todayPercent}%
+                                                            </span>
+                                                            <span class="label-remaining">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
+                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Remaining: {process.remainingPercent}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Step 4: Gallery -->
+                <template if:true={isStep4}>
+                    <div class="step-container">
+                        <div class="gallery-section">
+                            <div class="upload-actions">
+                                <lightning-file-upload label="Upload Files" accept={acceptedFormats} multiple
+                                    onuploadfinished={handleUploadFinished}>
+                                </lightning-file-upload>
+
+                                <!-- Camera Button - Only for Desktop -->
+                                <template if:true={isDesktopDevice}>
+                                    <button type="button" class="camera-btn" onclick={handleOpenCamera}
+                                        title="Capture Photo">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16"
+                                            height="16" fill="white">
+                                            <path
+                                                d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
+                                        </svg>
+                                        Capture Photo
+                                    </button>
+                                </template>
+                            </div>
+
+                            <!-- File Preview Grid -->
+                            <template if:true={hasUploadedFiles}>
+                                <div class="file-preview-grid">
+                                    <template for:each={uploadedFiles} for:item="file">
+                                        <div key={file.id} class="file-preview-item">
+                                            <!-- Image Preview -->
+                                            <template if:true={file.isImage}>
+                                                <img src={file.url} alt={file.name} class="file-preview-thumbnail">
+                                            </template>
+
+                                            <!-- Document/File Icon Preview -->
+                                            <template if:false={file.isImage}>
+                                                <div class="file-icon-container">
+                                                    <lightning-icon icon-name={file.icon} size="large"></lightning-icon>
+                                                </div>
+                                            </template>
+
+                                            <button class="remove-file-btn" data-id={file.id} onclick={handleRemoveFile}
+                                                title="Remove file">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                            <div class="file-preview-name">{file.name}</div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Footer with Navigation Buttons - Hidden when no mobilization options -->
+            <template if:true={hasMobilizationOptions}>
+                <div class="wizard-footer">
+                    <template if:false={isStep1}>
+                        <button class="nav-btn prev-btn" onclick={handlePrevious}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            Previous
+                        </button>
+                    </template>
+                    <div class="spacer"></div>
+                    <template if:false={isStep4}>
+                        <button class="nav-btn next-btn" onclick={handleNext}>
+                            Next
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </template>
+                    <template if:true={isStep4}>
+                        <button class="nav-btn done-btn" onclick={handleDone}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Done
+                        </button>
+                    </template>
+                </div>
+            </template>
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+            </template>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+
+    <!-- Clock In Modal -->
+    <template if:true={showClockInModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeClockInModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Clock In</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="clock-in-container">
+                        <div class="input-column">
+                            <label class="select-label required">Cost Code</label>
+                            <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
+                                <option value="">-- Select Cost Code --</option>
+                                <template for:each={costCodeOptions} for:item="cc">
+                                    <option key={cc.value} value={cc.value}>{cc.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock In Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="clockIn"
+                                value={clockInTime} onchange={handleInputChange} min={clockInMinBoundary}
+                                max={clockInMaxBoundary}>
+                        </div>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="clock-in-button" onclick={saveClockIn}>Clock In</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+    <!-- Clock Out Modal -->
+    <template if:true={showClockOutModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeClockOutModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Clock Out</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="clock-in-container">
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock Out Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="clockOut"
+                                value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary}
+                                max={clockOutMaxBoundary}>
+                        </div>
+                        <template if:true={previousClockInTime}>
+                            <div class="info-message">
+                                Previous Clock In: {previousClockInTime}
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="clock-in-button" onclick={saveClockOut}>Clock Out</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+    <!-- Edit Timesheet Modal -->
+    <template if:true={showEditTimesheetModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeEditTimesheetModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Edit Timesheet Entry</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="clock-in-container">
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock In Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="editClockIn"
+                                value={editTimesheetData.clockInTime} onchange={handleEditInputChange}>
+                        </div>
+                        <div class="input-column">
+                            <label class="datetime-label required">Clock Out Time</label>
+                            <input type="datetime-local" class="custom-datetime" data-field="editClockOut"
+                                value={editTimesheetData.clockOutTime} onchange={handleEditInputChange}>
+                        </div>
+                        <div class="input-column">
+                            <label class="select-label">Travel Time (hours)</label>
+                            <input type="number" step="0.01" class="custom-datetime" data-field="editTravelTime"
+                                value={editTimesheetData.travelTime} onchange={handleEditInputChange}>
+                        </div>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="clock-in-button" onclick={saveEditedTimesheet}>Save</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+    <!-- Camera Modal -->
+    <template if:true={showCameraModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container camera-modal-container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeCameraModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Capture Photo</div>
+                <div class="slds-modal__content camera-modal-content">
+                    <template if:false={capturedPhoto}>
+                        <!-- Live Camera View -->
+                        <div class="camera-container">
+                            <video class="camera-video" autoplay playsinline></video>
+                            <canvas class="camera-canvas" style="display: none;"></canvas>
+                        </div>
+                        <div class="camera-actions">
+                            <button class="camera-capture-btn" onclick={handleCapturePhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                </svg>
+                                Capture
+                            </button>
+                        </div>
+                    </template>
+
+                    <template if:true={capturedPhoto}>
+                        <!-- Captured Photo Preview -->
+                        <div class="camera-container">
+                            <img src={capturedPhoto} alt="Captured" class="captured-photo">
+                        </div>
+                        <div class="camera-actions">
+                            <button class="camera-retake-btn" onclick={handleRetakePhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="1 4 1 10 7 10"></polyline>
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                </svg>
+                                Retake
+                            </button>
+                            <button class="camera-save-btn" onclick={handleSaveCapturedPhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Save Photo
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+</template>
