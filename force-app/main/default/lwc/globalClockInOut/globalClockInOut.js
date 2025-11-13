@@ -4,12 +4,15 @@ import checkCrewLeaderAccess from '@salesforce/apex/GlobalClockInOutController.c
 import getMobilizationDates from '@salesforce/apex/GlobalClockInOutController.getMobilizationDates';
 import getMobilizationMembers from '@salesforce/apex/GlobalClockInOutController.getMobilizationMembers';
 import bulkClockInOut from '@salesforce/apex/GlobalClockInOutController.bulkClockInOut';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
 
 export default class GlobalClockInOut extends LightningElement {
     @track recordId; // Job Id from quick action context
     @track isLoading = false;
+    @track hasAccess = false;
+    @track accessErrorMessage = '';
     @track selectedMobilizationId = '';
     @track clockInMembers = [];
     @track clockOutMembers = [];
@@ -126,20 +129,53 @@ export default class GlobalClockInOut extends LightningElement {
 
     /** 
     * Method Name: connectedCallback
-    * @description: Lifecycle hook called when component is inserted into the DOM. Initiates access check if recordId is available
+    * @description: Lifecycle hook called when component is inserted into the DOM. Initiates permission check first
     */
     connectedCallback() {
         try {
-            // recordId is automatically set from quick action context
-            if (this.recordId) {
-                this.checkAccess();
-            } else {
-                this.hasData = false;
-                this.errorMessage = 'No Job ID provided. Please use this component from a Job record page.';
-            }
+            this.checkUserPermissions();
         } catch (error) {
             console.error('Error in connectedCallback:', error);
         }
+    }
+
+    /** 
+    * Method Name: checkUserPermissions
+    * @description: Check if user has required permissions to access this component
+    */
+    checkUserPermissions() {
+        this.isLoading = true;
+        const permissionSetsToCheck = ['FR_Admin'];
+        
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+                
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    // Proceed with original access check
+                    if (this.recordId) {
+                        this.checkAccess();
+                    } else {
+                        this.hasData = false;
+                        this.errorMessage = 'No Job ID provided. Please use this component from a Job record page.';
+                        this.isLoading = false;
+                    }
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
+                    this.isLoading = false;
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+                console.error('Error checking permissions:', error);
+                this.isLoading = false;
+            });
     }
 
     /** 

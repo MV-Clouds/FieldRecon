@@ -1,33 +1,58 @@
 <template>
+    <!-- Spinner -->
     <template if:true={isLoading}>
         <div class="spinner-container">
             <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
         </div>
     </template>
 
-    <div class="wrapper">
-        <!-- Header -->
-        <header class="header slds-modal__header">
-            <h2 class="title">Crew Clock In/Out</h2>
-        </header>
+    <!-- Access Denied -->
+    <template if:false={hasAccess}>
+        <div class="wrapper">
+            <!-- Header -->
+            <header class="header slds-modal__header">
+                <h2 class="title">Crew Clock In/Out</h2>
+            </header>
 
-        <!-- No Data or Access Denied Message -->
-        <template if:false={isCrewLeader}>
             <div class="no-prop">
                 <div class="empty-state">
                     <div class="empty-state__content">
                         <div class="empty-state__icon">
-                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            <img src="/resource/wfrecon__emptyState" alt="Access Denied" draggable="false">
                         </div>
                         <div class="empty-state__message">Access Denied</div>
-                        <div class="empty-state__subtitle">{errorMessage}</div>
+                        <div class="empty-state__subtitle">{accessErrorMessage}</div>
                     </div>
                 </div>
             </div>
-        </template>
+        </div>
+    </template>
 
-        <!-- Crew and Mobilization Selection -->
-        <template if:true={isCrewLeader}>
+    <!-- Main Content -->
+    <template if:true={hasAccess}>
+        <div class="wrapper">
+            <!-- Header -->
+            <header class="header slds-modal__header">
+                <h2 class="title">Crew Clock In/Out</h2>
+            </header>
+
+            <!-- No Data or Access Denied Message (Crew Leader Check) -->
+            <template if:false={isCrewLeader}>
+                <div class="no-prop">
+                    <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            </div>
+                            <div class="empty-state__message">Access Denied</div>
+                            <div class="empty-state__subtitle">{errorMessage}</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Crew and Mobilization Selection -->
+            <template if:true={isCrewLeader}>
             <div class="content-section">
                 
                 <!-- Crew Selection (if multiple crews) -->
@@ -50,7 +75,7 @@
                 <template if:true={hasSelectedCrew}>
                     <template if:false={hasMobilizations}>
                         <div class="info-message">
-                            <p>{errorMessage}</p>
+                            <p>📅 {errorMessage}</p>
                         </div>
                     </template>
                 </template>
@@ -191,5 +216,6 @@
                 </template>
             </template>
         </template>
-    </div>
+        </div>
+    </template>
 </template>
