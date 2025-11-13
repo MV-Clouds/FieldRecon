@@ -5,7 +5,24 @@
         </div>
     </template>
 
-    <div class="wrapper">
+    <!-- Access Denied Message -->
+    <template if:false={hasAccess}>
+        <div class="wrapper">
+            <div class="no-prop">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">Access Denied</div>
+                        <div class="empty-state__subtitle">{accessErrorMessage}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <div class="wrapper" if:true={hasAccess}>
         <div class="filter-bar">
             <div class="search-div">
                 <lightning-input type="search" variant="label-hidden" placeholder="Search Jobs by Name or Number" onchange={handleSearch} value={searchTerm}></lightning-input>

@@ -9,11 +9,14 @@ import getContactsAndCostcode from '@salesforce/apex/JobDetailsPageController.ge
 import createManualTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createManualTimesheetRecords';
 import updateTimesheets from '@salesforce/apex/JobDetailsPageController.updateTimesheets';
 import deleteTimesheetEntry from '@salesforce/apex/JobDetailsPageController.deleteTimesheetEntry';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track jobDetailsRaw;
     @track filteredJobDetailsRaw;
     @track isLoading = true;
+    @track hasAccess = false;
+    @track accessErrorMessage = 'You don\'t have permission to access this.';
     @track selectedDate;
     @track viewMode = 'day';
     @track weekStart;
@@ -252,10 +255,59 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     connectedCallback() {
         try {
             this.selectedDate = new Date();
-            this.getJobRelatedMoblizationDetails();
+            this.checkUserPermissions();
+            console.log(this.accessErrorMessage);
+            
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in connectedCallback ::', error);
+        }
+    }
+
+    /**
+     * Method Name: checkUserPermissions
+     * @description: Check user permissions based on permission sets
+     */
+    checkUserPermissions() {
+        try {
+            const permissionSetsToCheck = ['FR_Admin'];
+            
+            checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                if (result.error) {
+                    console.error('Error checking permission sets:', result.error);
+                    this.hasAccess = false;
+                    this.accessErrorMessage = 'Unable to verify permissions. Please contact your system administrator.';
+                    return;
+                }
+
+                console.log('Permission check result ==> ', result);
+                
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.getJobRelatedMoblizationDetails();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this module. Please contact your system administrator to request access.";
+                }
+            })
+            .catch(error => {
+                console.error('Error in checkUserPermissions:', error);
+                this.hasAccess = false;
+                this.accessErrorMessage = 'Unable to verify permissions. Please contact your system administrator.';
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+        } catch (error) {
+            console.error('Error in outer block:', error);
+            this.hasAccess = false;
+            this.accessErrorMessage = 'Unable to verify permissions. Please contact your system administrator.';
+            this.isLoading = false;
         }
     }
 

@@ -300,6 +300,11 @@
     color: #333;
 }
 
+.location-text {
+    font-weight: 600;
+    color: #333;
+}
+
 .job-description-content {
     display: inline;
 }

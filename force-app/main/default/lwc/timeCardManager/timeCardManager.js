@@ -2,9 +2,12 @@ import { LightningElement, track } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getAllContactsWithDetails from '@salesforce/apex/TimeCardManagerController.getAllContactsWithDetails';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class TimeCardManager extends NavigationMixin(LightningElement) {
     @track isLoading = true;
+    @track hasAccess = false;
+    @track accessErrorMessage = 'You don\'t have permission to access this.';
     @track contactDetails = [];
     @track filteredContactDetails = [];
     @track searchTerm = '';
@@ -97,7 +100,39 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
      * @description: Initialize component
      */
     connectedCallback() {
-        this.loadContactDetails();
+        this.checkUserPermissions();
+    }
+
+    /**
+     * Method Name: checkUserPermissions
+     * @description: Check if user has required permissions to access this component
+     */
+    checkUserPermissions() {
+        const permissionSetsToCheck = ['FR_Admin'];
+        
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+                
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.loadContactDetails();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+                console.error('Error checking permissions:', error);
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
     }
 
     /**
@@ -131,8 +166,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             this.showToast('Error', 'Unable to load contact details. Please try again.', 'error');
             this.contactDetails = [];
             this.filteredContactDetails = [];
-        })
-        .finally(() => {
             this.isLoading = false;
         });
     }
