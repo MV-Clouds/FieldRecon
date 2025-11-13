@@ -1,6 +1,6 @@
 /**
  * Description: Controller for Mobilization Scheduler LWC. Exposes methods to read mobilizations, resources and perform assignments/removals with user-mode enforcement.
- * Test Class: MobSchedulerControllerTest - 89% (2025-11-10)
+ * Test Class: MobSchedulerControllerTest - 89% (2025-11-13)
  * Created By: Kevin Suvagiya
  * Created Date: 2025-10-06
  * Update: 2025-10-27 (Kevin)   - Updated the logic for the start and end date to fix timezone based issues
@@ -13,6 +13,7 @@
  * Update: 2025-11-06 (Kevin)   - Updated the getDefaultValues methods to also retrieve the status options
  * Update: 2025-11-07 (Kevin)   - Updated the DML operations with the large data set with the batch class
  * Update: 2025-11-10 (Kevin)   - Added the fallback values for the default job timing and updated the date formatting for supporting different locale settings
+ * Update: 2025-11-13 (Kevin)   - Updated the date conversion logic and default date fetching logic
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
@@ -27,9 +28,10 @@ public with sharing class MobSchedulerController {
     public static Map<String,Object> getMobilizationDetails(Date startDate, Date endDate) {
         Map<String,Object> result = new Map<String,Object>{'weekEvents' => null};
 
-        DateTime startOfDay = DateTime.newInstance(startDate, Time.newInstance(0,0,0,0));
-        DateTime endOfDay = DateTime.newInstance(endDate.addDays(1), Time.newInstance(23,59,59,999));
-
+        Date startDate2 = startDate;
+        Date endDate2 = endDate;
+        DateTime startOfDay = DateTime.newInstance(startDate2, Time.newInstance(0,0,0,0));
+        DateTime endOfDay = DateTime.newInstance(endDate2.addDays(1), Time.newInstance(23,59,59,999));
         try{
             // Instruction: Query mobilizations and shape data for LWC consumption.
     
@@ -123,7 +125,7 @@ public with sharing class MobSchedulerController {
      * Return: Job_Default_Times__c record or null if none found/error.
      */
     @AuraEnabled
-    public static Map<String, Object> getDefaultValues() {
+    public static Map<String, Object> getDefaultValues(Date startDate) {
         Map<String, Object> defaultValues = new Map<String, Object>{'statusOptions' => null, 'time' => null, 'status' => null, 'result' => null};
 
         try {
@@ -147,7 +149,7 @@ public with sharing class MobSchedulerController {
 
             defaultValues.put('statusOptions', options);
             // Get today's date
-            Date today = Date.today();
+            Date today = startDate;
 
             Map<String, Object> defaultMap = new Map<String, Object>{'start' => null, 'end' => null, 'includeSaturday' => false, 'includeSunday' => false};
             if(timeDefaults != null && !timeDefaults.isEmpty()) {
@@ -198,6 +200,12 @@ public with sharing class MobSchedulerController {
             if(statusDefaults != null && !statusDefaults.isEmpty()) {
                 defaultValues.put('status', statusDefaults);
             }
+
+            TimeZone userTimeZone = UserInfo.getTimeZone();
+            DateTime currentTime = DateTime.now();
+            Integer offsetMilliseconds = userTimeZone.getOffset(currentTime);
+            Decimal offsetHours = (Decimal)offsetMilliseconds / (1000 * 60 * 60);
+            defaultValues.put('tzOffset', offsetHours);
 
             defaultValues.put('result', 'SUCCESS');
 

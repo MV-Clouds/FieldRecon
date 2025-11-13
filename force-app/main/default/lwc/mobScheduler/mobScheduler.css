@@ -244,6 +244,10 @@
   background: #ffffff;
 }
 
+.resource-calendar-container:has(.empty-state-msg) {
+    overflow: hidden;
+}
+
 .resource-header, .resource-row {
   display: flex;
   border-bottom: 1px solid var(--table-border-color, lightgray);
@@ -521,7 +525,59 @@
 }
 
 
-/* Empty State */
+/* Access Control Styles */
+.no-prop {
+  text-align: center;
+  padding: 3rem 1rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  width: 100%;
+}
+
+.empty-state__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 500px;
+}
+
+.empty-state__icon {
+  width: 100%;
+  height: 100%;
+}
+
+.empty-state__icon img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.empty-state__message {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #3e3e3c;
+  text-align: center;
+}
+
+.empty-state__subtitle {
+  font-size: 1rem;
+  color: #706e6b;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Empty State Messages (for no data) */
 .empty-state-msg{
   width: 100%;
   height: 100%;
@@ -700,8 +756,19 @@
     text-decoration: underline;
 }
 
-/* Media Queries */
+/* Responsive Design for Access Control */
 @media screen and (max-width: 768px) {
+  .empty-state__icon {
+    width: 150px;
+  }
+
+  .empty-state__message {
+    font-size: 1.25rem;
+  }
+
+  .empty-state__subtitle {
+    font-size: 0.9rem;
+  }
 
   .header-text-div{
     display: none;
@@ -738,5 +805,19 @@
   .day-header .date-display-div, .day-header .day-display-div{
     font-size: unset !important;
     line-height: unset !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .empty-state__icon {
+    width: 120px;
+  }
+
+  .empty-state__message {
+    font-size: 1.1rem;
+  }
+
+  .empty-state__subtitle {
+    font-size: 0.85rem;
   }
 }

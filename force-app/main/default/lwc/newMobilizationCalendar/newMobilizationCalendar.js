@@ -5,6 +5,7 @@ import FULL_CALENDAR from '@salesforce/resourceUrl/FullCalendarJS3';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getEvents from '@salesforce/apex/NewMobilizationCalendarController.getEvents';
 import getJobDefaultTimes from '@salesforce/apex/NewMobilizationCalendarController.getJobDefaultTimes';
+import getTimeZoneOffset from '@salesforce/apex/NewMobilizationCalendarController.getTimeZoneOffset';
 import saveJobSchedule from '@salesforce/apex/NewMobilizationCalendarController.SaveJobSchedule';
 import getMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.getMobilizationGroup';
 import deleteMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.deleteMobilizationGroup';
@@ -72,6 +73,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
     confirmationBtnLabel2 = null;
 
     isOverlapJob = false;
+    tzOffset = 0;
 
     // Permissions Flags
     hasFullAccess = false;
@@ -173,6 +175,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
 
     connectedCallback() {
         this.isSpinner = true;
+        this.fetchTimeZoneOffset();
         this.fetchPermissions();
         loadScript(this, FULL_CALENDAR + '/fullcalendar3/jquery.min.js')
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/moment.js'))
@@ -209,13 +212,27 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             checkPermissionSetsAssigned({ psNames : ['FR_Mobilization_Calendar']})
             .then((result) => {
                 this.hasFullAccess = result.isAdmin || result.all;
-                this.hasFullAccess && this.loadAllResources(new Date().toISOString());
+                this.hasFullAccess && this.loadAllResources(new Date().toLocaleDateString('en-CA'));
             })
             .catch((e) => {
                 console.error('Error in NewMobilizationCalendar.fetchPermissions > checkPermissionSetsAssigned', e?.body?.message || e?.message);
             })
         } catch(e){
             console.error('Error in function NewMobilizationCalendar.fetchPermissions:::', e?.message);
+        }
+    }
+
+    fetchTimeZoneOffset(){
+        try {
+            getTimeZoneOffset()
+            .then((result) => {
+                this.tzOffset = result;
+            })
+            .catch((e) => {
+                console.error('Error in fetchTimeZoneOffset > getTimeZoneOffset :: ', e?.body?.message || e?.message);
+            })
+        } catch (e) {
+            console.error('Error in fetchTimeZoneOffset :: ', e?.message);
         }
     }
     
@@ -465,22 +482,18 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                 this.showToast('Error', 'You do not have permission to create events.', 'error');
                 return;
             }
-            console.log(start, end);
             let startStr = JSON.stringify(start)?.replaceAll('"', '');
             let endStr = JSON.stringify(end)?.replaceAll('"', '');
 
-            const startDate = new Date(start);
             const endDate = new Date(end);
             
             this.isSpinner = true;
             this.selectedEventId = '';
             this.Heading = 'Create Mobilization Group';
 
-            // Convert both to local time for comparison
-            const now = new Date();
+            const nowLocal = this.normalizeDate(new Date()).toLocaleDateString('en-CA');
 
-            // ❌ Prevent creation for past start dates (compare local time)
-            if (startDate < now.setHours(0, 0, 0, 0)) {
+            if (startStr < nowLocal) {
                 this.isSpinner = false;
                 this.showToast('Warning', 'Cannot create events in the past.','warn');
                 console.warn('Cannot create events in the past.');
@@ -559,9 +572,20 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             const start = Date.parse(details.wfrecon__Start_Date__c);
             const end = Date.parse(details.wfrecon__End_Date__c);
 
+            const startLocal = this.removeOrgTimeZone(details.wfrecon__Start_Date__c);
+            const nowLocal = new Date();
+
+            if(this.isEdit){
+                let oldStartDate = this.removeOrgTimeZone(this.startDate);
+                if(startLocal.getTime() < oldStartDate.getTime()){
+                    this.showToast('Error', 'Start date can not be moved in past.', 'error');
+                    return;
+                }
+            }
+
             if (start == end) {
                 this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
-            } else if (start < new Date()) {
+            } else if (!this.isEdit && startLocal.getTime() < nowLocal.getTime()) {
                 this.showToast('Error', 'Start date/time can not be in past.', 'error');
             } else if (start > end) {
                 this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');
@@ -571,6 +595,18 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
         } catch (e) {
             console.error('NewMobilizationCalendar.handleMobFormSubmitted error:', e?.message);
         }
+    }
+
+    removeOrgTimeZone(utcDateStr) {
+        const d = new Date(utcDateStr);
+        const orgOffset = this.tzOffset * 60; // Salesforce user zone (UTC−5)
+        const deviceOffset = d.getTimezoneOffset(); // Niue = +660 (minutes)
+        const diffMs = (deviceOffset + orgOffset) * 60 * 1000;
+        return new Date(d.getTime() + diffMs);
+    }
+
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     }
 
     resetTempVariables() {

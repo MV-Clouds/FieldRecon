@@ -9,11 +9,14 @@ import getContactsAndCostcode from '@salesforce/apex/JobDetailsPageController.ge
 import createManualTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createManualTimesheetRecords';
 import updateTimesheets from '@salesforce/apex/JobDetailsPageController.updateTimesheets';
 import deleteTimesheetEntry from '@salesforce/apex/JobDetailsPageController.deleteTimesheetEntry';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track jobDetailsRaw;
     @track filteredJobDetailsRaw;
     @track isLoading = true;
+    @track hasAccess = false;
+    @track accessErrorMessage = 'You don\'t have permission to access this.';
     @track selectedDate;
     @track viewMode = 'day';
     @track weekStart;
@@ -64,8 +67,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             style: 'width: 8rem'
         },
         { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
-        { label: 'Start Date Time', fieldName: 'startDate', style: 'width: 10rem' },
-        { label: 'End Date Time', fieldName: 'endDate', style: 'width: 10rem' },
+        { label: 'Start Date Time', fieldName: 'startDate', style: 'width: 12rem' },
+        { label: 'End Date Time', fieldName: 'endDate', style: 'width: 12rem' },
         { label: 'Total Man Hours', fieldName: 'totalManHours', style: 'width: 10rem' },
         { label: 'Total Hours + Travel', fieldName: 'totalHoursWithTravel', style: 'width: 12rem' },
         { label: 'Job Address', fieldName: 'jobAddress', style: 'width: 15rem' },
@@ -76,8 +79,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
         { label: 'Actions', fieldName: 'actions', style: 'width: 6rem' },
         { label: 'Full Name', fieldName: 'contactName', style: 'width: 12rem' },
-        { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 10rem' },
-        { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
+        { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 12rem' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 12rem' },
         { label: 'Work Hours', fieldName: 'workHours', style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
@@ -139,7 +142,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         }
 
                         if (col.fieldName === 'startDate' || col.fieldName === 'endDate') {
-                            cell.value = this.parseLiteral(cell.value);
+                            cell.value = this.formatToAMPM(cell.value);
                         }
 
                         if (col.fieldName === 'totalManHours') {
@@ -222,7 +225,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
                         // Format dates nicely
                         if (col.fieldName === 'clockInTime' || col.fieldName === 'clockOutTime') {
-                            cell.value = this.parseLiteral(cell.value);
+                            cell.value = this.formatToAMPM(cell.value);
                         }
 
                         // Handle Per Diem - display 0 if not present
@@ -252,10 +255,59 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     connectedCallback() {
         try {
             this.selectedDate = new Date();
-            this.getJobRelatedMoblizationDetails();
+            this.checkUserPermissions();
+            console.log(this.accessErrorMessage);
+            
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in connectedCallback ::', error);
+        }
+    }
+
+    /**
+     * Method Name: checkUserPermissions
+     * @description: Check user permissions based on permission sets
+     */
+    checkUserPermissions() {
+        try {
+            const permissionSetsToCheck = ['FR_Admin'];
+            
+            checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                if (result.error) {
+                    console.error('Error checking permission sets:', result.error);
+                    this.hasAccess = false;
+                    this.accessErrorMessage = 'Unable to verify permissions. Please contact your system administrator.';
+                    return;
+                }
+
+                console.log('Permission check result ==> ', result);
+                
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.getJobRelatedMoblizationDetails();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this module. Please contact your system administrator to request access.";
+                }
+            })
+            .catch(error => {
+                console.error('Error in checkUserPermissions:', error);
+                this.hasAccess = false;
+                this.accessErrorMessage = 'Unable to verify permissions. Please contact your system administrator.';
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+        } catch (error) {
+            console.error('Error in outer block:', error);
+            this.hasAccess = false;
+            this.accessErrorMessage = 'Unable to verify permissions. Please contact your system administrator.';
+            this.isLoading = false;
         }
     }
 
@@ -291,11 +343,48 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
     /** 
-    * Method Name: parseLiteral 
-    * @description: Method is used to parse the ISO date string to "YYYY-MM-DD HH:MM" format
+    * Method Name: formatToAMPM
+    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
     */
-    parseLiteral(iso) {
-        return iso.slice(0, 16).replace('T', ' '); // "2025-10-05 07:00"
+    formatToAMPM(iso) {
+        try {
+            if (!iso) return '';
+            
+            // Extract date and time parts from ISO string
+            // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+            
+            const datePart = parts[0]; // "2025-10-05"
+            const timePart = parts[1].substring(0, 5); // "14:30"
+            
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            // Extract hours and minutes
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+            
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 12, 2025, 03:45 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToAMPM:', error);
+            return iso;
+        }
     }
 
     extractDateKey(value) {
@@ -973,7 +1062,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     );
             
                     if (selectedContact) {
-                        this.previousClockInTime = this.parseLiteral(selectedContact.clockInTime);  
+                        this.previousClockInTime = this.formatToAMPM(selectedContact.clockInTime);  
                     }
                 }
             } else if(dataField == 'manualContact') {

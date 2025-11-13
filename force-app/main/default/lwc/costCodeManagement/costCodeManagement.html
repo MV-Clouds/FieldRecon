@@ -129,7 +129,10 @@
                                                     </template>
                                                     <!-- Level_Code__c Field -->
                                                     <template lwc:elseif={column.isLevelCodeField}>
-                                                        <template lwc:if={costCodeRecord.wfrecon__Level_Code__c}>
+                                                        <template lwc:if={costCodeRecord.isLevelCodeZero}>
+                                                            0
+                                                        </template>
+                                                        <template lwc:elseif={costCodeRecord.wfrecon__Level_Code__c}>
                                                             {costCodeRecord.wfrecon__Level_Code__c}
                                                         </template>
                                                         <template lwc:else>

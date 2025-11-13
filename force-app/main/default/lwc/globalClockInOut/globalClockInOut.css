@@ -46,38 +46,59 @@
     font-weight: 700;
 }
 
-/* No records / Empty State */
-.empty-state {
-    width: 100%;
+/* Empty State Styles (Error/No Access) */
+.no-prop {
+    text-align: center;
+    padding: 3rem 1rem;
     height: 100%;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
 }
 
-.no-records-message {
-    height: 100%;
+.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    width: 100%;
 }
 
 .empty-state__content {
     display: flex;
-    align-items: center;
     flex-direction: column;
-    justify-content: center;
+    align-items: center;
+    max-width: 500px;
 }
 
-.empty-state__content .empty-state__icon {
-    width: 70%;
+.empty-state__icon {
+    margin-bottom: 1.5rem;
+    width: 200px;
+}
+
+.empty-state__icon img {
+    width: 100%;
     height: 100%;
 }
 
-.empty-state__content .empty-state__message {
-    color: rgba(94, 90, 219, 1);
-    font-size: 25px;
-    font-weight: 500;
-    margin-top: 1rem;
-    display: flex;
-    justify-content: center;
+.empty-state__message {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #3e3e3c;
+    margin-bottom: 0.75rem;
+    text-align: center;
+}
+
+.empty-state__subtitle {
+    font-size: 1rem;
+    color: #706e6b;
+    text-align: center;
+    line-height: 1.5;
+    max-width: 400px;
+}
+
+.no-records-message {
+    height: 100%;
 }
 
 /* Content Section */
@@ -529,5 +550,49 @@ lightning-combobox {
 
     .member-list {
         gap: 0.5rem;
+    }
+
+    .no-prop {
+        padding: 2rem 1rem;
+    }
+    
+    .empty-state {
+        min-height: 300px;
+    }
+    
+    .empty-state__icon {
+        width: 150px;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state__message {
+        font-size: 1.25rem;
+    }
+    
+    .empty-state__subtitle {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .no-prop {
+        padding: 1rem 0.5rem;
+    }
+    
+    .empty-state {
+        min-height: 250px;
+    }
+    
+    .empty-state__icon {
+        width: 120px;
+    }
+    
+    .empty-state__message {
+        font-size: 1.1rem;
+    }
+    
+    .empty-state__subtitle {
+        font-size: 0.85rem;
+        max-width: 300px;
     }
 }

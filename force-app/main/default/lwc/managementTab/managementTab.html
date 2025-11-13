@@ -1,6 +1,30 @@
 <template>
-    <div class="wrapper">
-        <div class="main-tab-container">
+    <!-- Spinner -->
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading" size="large"></lightning-spinner>
+    </template>
+
+    <!-- Access Denied -->
+    <template if:false={hasAccess}>
+        <div class="wrapper">
+            <div class="no-prop">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="Access Denied" />
+                        </div>
+                        <div class="empty-state__message">Access Denied</div>
+                        <div class="empty-state__subtitle">{accessErrorMessage}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Main Content -->
+    <template if:true={hasAccess}>
+        <div class="wrapper">
+            <div class="main-tab-container">
             <!-- Tab Navigation -->
             <div class="tab-navigation">
                 <template for:each={tabs} for:item="tab">
@@ -44,4 +68,5 @@
             </div>
         </div>
     </div>
+    </template>
 </template>

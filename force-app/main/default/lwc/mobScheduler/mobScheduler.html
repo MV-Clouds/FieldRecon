@@ -1,11 +1,31 @@
 <template>
-  <div class="scheduler-container">
+  <!-- Spinner -->
+  <div class="spinner-container slds-is-fixed" if:true={showSpinner}>
+    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+  </div>
 
-    <div class="spinner-container slds-is-fixed" if:true={showSpinner}>
-      <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+  <!-- Access Denied -->
+  <template if:false={hasAccess}>
+    <div class="scheduler-container">
+      <div class="no-prop">
+        <div class="empty-state">
+          <div class="empty-state__content">
+            <div class="empty-state__icon">
+              <img src="/resource/wfrecon__emptyState" alt="Access Denied" />
+            </div>
+            <div class="empty-state__message">Access Denied</div>
+            <div class="empty-state__subtitle">{accessErrorMessage}</div>
+          </div>
+        </div>
+      </div>
     </div>
+  </template>
 
-    <div class="header-fixed-div">
+  <!-- Main Content -->
+  <template if:true={hasAccess}>
+    <div class="scheduler-container">
+
+      <div class="header-fixed-div">
       <div class="header-text-div">
         Mobilization Scheduler
       </div>
@@ -400,5 +420,7 @@
       </section>
       <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
     </div>
+  </template>
+  </div>
   </template>
 </template>

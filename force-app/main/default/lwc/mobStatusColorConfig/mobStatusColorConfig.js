@@ -2,6 +2,7 @@ import { LightningElement, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getMobilizationStatusColors from '@salesforce/apex/ManagementTabController.getMobilizationStatusColors';
 import saveStatusColors from '@salesforce/apex/ManagementTabController.saveStatusColors';
+import checkUserHasSalesforceLicense from '@salesforce/apex/ManagementTabController.checkUserHasSalesforceLicense';
 
 export default class MobStatusColorConfig extends LightningElement {
     @track isLoading = true;
@@ -12,6 +13,7 @@ export default class MobStatusColorConfig extends LightningElement {
     @track originalData = [];
     @track modifiedFields = new Map(); // Track which specific fields are modified
     @track showStatusModal = false;
+    @track hasSalesforceLicense = false;
 
     /**
      * Method Name: get isDataAvailable
@@ -46,11 +48,47 @@ export default class MobStatusColorConfig extends LightningElement {
     }
 
     /**
+     * Method Name: get isManageStatusesDisabled
+     * @description: Check if manage statuses button should be disabled
+     */
+    get isManageStatusesDisabled() {
+        return !this.hasSalesforceLicense;
+    }
+
+    /**
+     * Method Name: get manageStatusesTitle
+     * @description: Get the title/tooltip for manage statuses button
+     */
+    get manageStatusesTitle() {
+        return this.hasSalesforceLicense 
+            ? 'Manage mobilization statuses' 
+            : 'Only users with Salesforce license can perform this action. Please contact your admin for more support.';
+    }
+
+    /**
      * Method Name: connectedCallback
      * @description: Load status colors on component load
      */
     connectedCallback() {
+        this.checkUserLicense();
         this.fetchStatusColors();
+    }
+
+    /**
+     * Method Name: checkUserLicense
+     * @description: Check if current user has Salesforce license
+     */
+    checkUserLicense() {
+        checkUserHasSalesforceLicense()
+            .then(result => {
+                console.log(' User has Salesforce license:', result);
+                
+                this.hasSalesforceLicense = result;
+            })
+            .catch(error => {
+                console.error('Error checking user license:', error);
+                this.hasSalesforceLicense = false;
+            });
     }
 
     /**

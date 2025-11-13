@@ -2,9 +2,12 @@ import { LightningElement, track } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getAllContactsWithDetails from '@salesforce/apex/TimeCardManagerController.getAllContactsWithDetails';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class TimeCardManager extends NavigationMixin(LightningElement) {
     @track isLoading = true;
+    @track hasAccess = false;
+    @track accessErrorMessage = 'You don\'t have permission to access this.';
     @track contactDetails = [];
     @track filteredContactDetails = [];
     @track searchTerm = '';
@@ -97,7 +100,39 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
      * @description: Initialize component
      */
     connectedCallback() {
-        this.loadContactDetails();
+        this.checkUserPermissions();
+    }
+
+    /**
+     * Method Name: checkUserPermissions
+     * @description: Check if user has required permissions to access this component
+     */
+    checkUserPermissions() {
+        const permissionSetsToCheck = ['FR_Admin'];
+        
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+                
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.loadContactDetails();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+                console.error('Error checking permissions:', error);
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
     }
 
     /**
@@ -115,9 +150,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             customEndDate: endDate 
         })
         .then(result => {
-
-            console.log('result ===> ', result);
-            
             
             if (result && Array.isArray(result)) {
                 this.contactDetails = result.map(contact => ({
@@ -134,8 +166,6 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             this.showToast('Error', 'Unable to load contact details. Please try again.', 'error');
             this.contactDetails = [];
             this.filteredContactDetails = [];
-        })
-        .finally(() => {
             this.isLoading = false;
         });
     }
@@ -162,7 +192,7 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 let displayValue = value || '--';
                 
                 if (column.isDateTime && value && key !== 'serialNumber' && key !== 'actions') {
-                    displayValue = this.formatDateTime(value);
+                    displayValue = this.formatToAMPM(value);
                 } else if (column.isNumber && value !== null && value !== undefined && key !== 'serialNumber' && key !== 'actions') {
                     displayValue = parseFloat(value).toFixed(2);
                 } else if (value !== null && value !== undefined && String(value).trim() !== '' && key !== 'serialNumber' && key !== 'actions') {
@@ -270,16 +300,46 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: formatDateTime
-     * @description: Format datetime to "2025-10-23 6:30" format
+     * Method Name: formatToAMPM
+     * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
      */
-    formatDateTime(dateValue) {
-        if (!dateValue) return '--';
-        
+    formatToAMPM(iso) {
         try {
-            const iso = new Date(dateValue).toISOString();
-            return iso.slice(0, 16).replace('T', ' '); // "2025-10-05 07:00"
+            if (!iso) return '--';
+            
+            // Extract date and time parts from ISO string
+            // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+            
+            const datePart = parts[0]; // "2025-10-05"
+            const timePart = parts[1].substring(0, 5); // "14:30"
+            
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            // Extract hours and minutes
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+            
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 12, 2025, 03:45 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
+            console.error('Error in formatToAMPM:', error);
             return '--';
         }
     }
@@ -429,12 +489,8 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             // Filter timesheet entries for this specific contact and job
             // Use the custom date range instead of mobilization dates for better filtering
             const customStartDate = new Date(this.customStartDate);
-            customStartDate.setHours(0, 0, 0, 0); // Start of day
             const customEndDate = new Date(this.customEndDate);
             customEndDate.setHours(23, 59, 59, 999); // End of day
-
-            console.log('contact.timesheetEntries ==> ', contact.timesheetEntries);
-            
             
             const filteredEntries = contact.timesheetEntries.filter(entry => {
                 if (entry.jobId !== jobId) {
@@ -443,24 +499,7 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 
                 // If clockInTime exists, use it for date filtering
                 if (entry.clockInTime) {
-
-                    console.log('Started for JobId ==> ', entry.jobId);
-                    
-
-                    console.log('entry.clockInTime ==> ', entry.clockInTime);
-                    
                     const entryDate = new Date(entry.clockInTime);
-
-                    console.log('entryDate ==> ', entryDate);
-
-                    console.log('customStartDate ==> ', customStartDate);
-                    console.log('customEndDate ==> ', customEndDate);
-
-                    console.log('entryDate >= customStartDate ==> ', entryDate >= customStartDate);
-                    console.log('entryDate <= customEndDate ==> ', entryDate <= customEndDate);
-                    
-                    console.log('Ended for JobId ==> ' , entry.jobId);
-                    
                     return entryDate >= customStartDate && entryDate <= customEndDate;
                 }
                 
@@ -484,11 +523,11 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                             break;
                         case 'clockInTime':
                             value = entry.clockInTime;
-                            displayValue = value ? this.formatDateTime(value) : '--';
+                            displayValue = value ? this.formatToAMPM(value) : '--';
                             break;
                         case 'clockOutTime':
                             value = entry.clockOutTime;
-                            displayValue = value ? this.formatDateTime(value) : '--';
+                            displayValue = value ? this.formatToAMPM(value) : '--';
                             break;
                         case 'workHours':
                             value = entry.workHours || 0;

@@ -9,9 +9,12 @@ import assignResourceToJob from '@salesforce/apex/MobSchedulerController.assignR
 import deleteMobilization from '@salesforce/apex/MobSchedulerController.deleteMobilization';
 import getDefaultValues from '@salesforce/apex/MobSchedulerController.getDefaultValues';
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class MobScheduler extends NavigationMixin(LightningElement) {
     showSpinner = false;
+    @track hasAccess = false;
+    @track accessErrorMessage = '';
 
     @track isDayView = true;
     @track isResourceView = false;
@@ -44,6 +47,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         'includeSaturday': false,
         'includeSunday': false
     };
+    tzOffset = 0;
 
     // Modal Popup Variables
     showFormPopup = false;
@@ -267,23 +271,50 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     get selectedDateToShow(){
-        console.log('Current Week Start:: ', this.currentWeekStart);
-        
-        return this.currentWeekStart ? this.currentWeekStart.toISOString().slice(0,10) : null;
+        return this.currentWeekStart ? this.normalizeDate(this.currentWeekStart)?.toLocaleDateString('en-CA') : null;
     }
 
     connectedCallback() {
-        this.showLoading(true);
-        this.initDay(new Date());
-        this.loadDefaultMobGroupValues();
+        this.checkUserPermissions();
+    }
+
+    checkUserPermissions() {
+        this.showSpinner = true;
+        const permissionSetsToCheck = ['FR_Admin', 'FR_Mobilization_Scheduler'];
+        
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+                
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.initDay(new Date());
+                    this.loadDefaultMobGroupValues();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+                console.error('Error checking permissions:', error);
+            })
+            .finally(() => {
+                this.showSpinner = false;
+            });
     }
 
     loadDefaultMobGroupValues(){
         try {
-            getDefaultValues()
-            .then(result =>{                
+            getDefaultValues({startDate: this.selectedDateToShow})
+            .then(result =>{
                 let timeDefaults = result?.time;
                 this.defaultMobGValues = timeDefaults;
+                this.tzOffset = result?.tzOffset;
                 this.statusOptions = result?.statusOptions;
                 this.statusOptions.forEach(opt => {
                     opt.isSelected = opt.label?.toLowerCase() == 'overhead job' ? false : true
@@ -436,14 +467,13 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
             const startDateRaw = new Date(this.currentWeekStart);
             const startDate = this.normalizeDate(startDateRaw);
-
             const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
 
             if (!this.isDayView && valDate >= startDate && valDate < endDate) {
                 return;
             }
 
-            this.currentWeekStart = new Date(val);
+            this.currentWeekStart = new Date(val + 'T00:00:00');
             this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
         } catch(e) {
             console.error('MobScheduler.handleDateToGoTo error:', e?.message);
@@ -495,10 +525,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
         const days = [];
         for (let i = 0; i < 7; i++) {
-            const d = new Date(start);
+            const d = this.normalizeDate(new Date(start));
             d.setDate(start.getDate() + i);
             days.push({
-                iso: d.toISOString().slice(0, 10),
+                iso: d.toLocaleDateString('en-CA'),
                 label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
                 day: d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
                 date: d.getDate().toString(),
@@ -534,12 +564,12 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         this.showLoading(true);
         let startDateStr, endDateStr;
 
-        const start = new Date(this.currentWeekStart);
-        startDateStr = start.toISOString().slice(0, 10);
+        const start = this.normalizeDate(new Date(this.currentWeekStart));
+        startDateStr = start.toLocaleDateString('en-CA');
         if (mode === 'week') {
-            const end = new Date(this.currentWeekStart);
+            const end = this.normalizeDate(new Date(this.currentWeekStart));
             end.setDate(end.getDate() + 6);
-            endDateStr = end.toISOString().slice(0, 10);
+            endDateStr = end.toLocaleDateString('en-CA');
         } else if (mode === 'day') {
             endDateStr = startDateStr;
         } else {
@@ -695,7 +725,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     mapWeekData() {
         this.weekDays = this.weekDays.map(day => {
             const dayEvents = this.filteredEvents?.filter(ev => {
-                const evIso = new Date(ev.start).toLocaleDateString('en-CA');                
+                const evIso = this.normalizeDate(new Date(ev.start)).toLocaleDateString('en-CA');                
                 return evIso === day.iso;
             }).map(ev => this.normalizeEvent(ev));
             return { ...day, events: dayEvents };
@@ -705,9 +735,11 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
     // Map day data
     mapDayData() {
-        const dayIso = this.currentWeekStart.toLocaleDateString('en-CA');
+        let dateToCheck = this.normalizeDate(this.currentWeekStart);
+        const dayIso = dateToCheck.toLocaleDateString('en-CA');
         const dayEvents = this.filteredEvents?.filter(ev => {
-            const evIso = new Date(ev.start).toLocaleDateString('en-CA');
+            
+            const evIso = this.normalizeDate(new Date(ev.start)).toLocaleDateString('en-CA');
             return evIso === dayIso;
         }).map(ev => this.normalizeEvent(ev));
 
@@ -780,9 +812,12 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             const start = Date.parse(details.wfrecon__Start_Date__c);
             const end = Date.parse(details.wfrecon__End_Date__c);
 
+            const startLocal = this.removeOrgTimeZone(details.wfrecon__Start_Date__c);
+            const nowLocal = new Date();
+
             if (start == end) {
                 this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
-            } else if (start < new Date()) {
+            } else if (startLocal.getTime() < nowLocal.getTime()) {
                 this.showToast('Error', 'Start date/time can not be in past.', 'error');
             } else if (start > end) {
                 this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');
@@ -794,6 +829,14 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         }
     }
 
+    removeOrgTimeZone(utcDateStr) {
+        const d = new Date(utcDateStr);
+        const orgOffset = this.tzOffset * 60; // Salesforce user zone (UTC−5)
+        const deviceOffset = d.getTimezoneOffset(); // Niue = +660 (minutes)
+        const diffMs = (deviceOffset + orgOffset) * 60 * 1000;
+        return new Date(d.getTime() + diffMs);
+    }
+    
     handleRemoveAssignment(event){
         try {
             let id = event.currentTarget.dataset.id;

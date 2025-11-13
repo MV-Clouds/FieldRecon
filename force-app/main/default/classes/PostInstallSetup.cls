@@ -7,14 +7,9 @@ global class PostInstallSetup implements InstallHandler {
     public void onInstall(InstallContext context){
         try {
 
-            //String soqlForSchd = 'SELECT Id FROM CronJobDetail WHERE Name = \'FeatureJobSchd\'';
-            String soqlForSchdMerge = 'SELECT Id FROM CronJobDetail WHERE Name = \'Merge Job\'';
-            String soqlForPermSet = 'SELECT Id,PermissionSetId,AssigneeId FROM PermissionSetAssignment WHERE PermissionSet.Name LIKE \'%WF_Recon%\' AND AssigneeId = :arg1';
-            String soqlFirstLevelPerm = 'SELECT Id,Name FROM PermissionSet WHERE Name = \'WF_Recon_Level_1\'';
-            //List<CronJobDetail> schdJobs = Lib_Security.is().dbQuery(soqlForSchd, new Object[]{});
-            List<CronJobDetail> schdJobsMerge = Lib_Security.is().dbQuery(soqlForSchdMerge, new Object[]{});
-            List<PermissionSetAssignment> permAssignes = Lib_Security.is().dbQuery(soqlForPermSet, new Object[]{context.installerID()});
-            List<PermissionSet> firstLevelSet = Lib_Security.is().dbQuery(soqlFirstLevelPerm, new Object[]{});
+            List<CronJobDetail> schdJobsMerge = [SELECT Id FROM CronJobDetail WHERE Name = 'Merge Job'];
+            List<PermissionSetAssignment> permAssignes = [SELECT Id,PermissionSetId,AssigneeId FROM PermissionSetAssignment WHERE PermissionSet.Name LIKE '%WF_Recon%' AND AssigneeId = :context.installerID()];
+            List<PermissionSet> firstLevelSet = [SELECT Id,Name FROM PermissionSet WHERE Name = 'WF_Recon_Level_1'];
             
             // Assign FR_Base to all users and FR_Admin to installer
             assignPermissionSets(context.installerID());
@@ -22,7 +17,7 @@ global class PostInstallSetup implements InstallHandler {
             if(permAssignes.size() > 0 && schdJobsMerge.size() > 0){ return;}
             if(permAssignes.size() == 0 && firstLevelSet.size() >0){
                 PermissionSetAssignment psa = new PermissionSetAssignment(AssigneeId = context.installerID(),PermissionSetId = firstLevelSet[0].Id);
-                Lib_Security.is().dbInsert(new PermissionSetAssignment[]{psa});
+                insert psa;
             }
             /*if(schdJobs.size() == 0){
                 FeatureJob fj = new FeatureJob();

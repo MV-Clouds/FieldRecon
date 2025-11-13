@@ -50,14 +50,14 @@
             </button>
                 <h2 class="slds-text-heading_medium" if:false={isEdit}>{Heading}</h2>
                 <div class="slds-text-heading_medium" if:true={isEdit}>
-                  {jobName}
+                  Edit Mobilization Group
                 </div>
             </header>
             <div class="slds-modal__content mob-popup-body">
             <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Mobilization_Group__c" record-id={selectedEventId} onsuccess={handleSuccess} onsubmit={handleMobFormSubmitted}>
               <div class="main-mob-group-popup-form">
                 <div class="fields-input-div slds-grow slds-scrollable--y slds-grid slds-wrap slds-p-horizontal--medium">
-                  <div class="job-label-link slds-p-horizontal--xx-small" if:true={isEdit}> <b>Job: </b> <span data-id={jobId} class="record-nav-link" onclick={navigateToRecord}>{jobName}</span></div>
+                  <div class="job-label-link slds-p-horizontal--xx-small" if:true={isEdit}> <span class="slds-form-element__label job-label">Job: </span> <span data-id={jobId} class="record-nav-link" onclick={navigateToRecord}>{jobName}</span></div>
                   <lightning-input-field field-name="wfrecon__Job__c" if:false={isEdit} value={jobId}> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>

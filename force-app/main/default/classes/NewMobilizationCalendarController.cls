@@ -197,6 +197,20 @@ public with sharing class NewMobilizationCalendarController {
     }
 
     @AuraEnabled
+    public static Decimal getTimeZoneOffset(){
+        Decimal offsetHours = 0;
+        try {
+            TimeZone userTimeZone = UserInfo.getTimeZone();
+            DateTime currentTime = DateTime.now();
+            Integer offsetMilliseconds = userTimeZone.getOffset(currentTime);
+            offsetHours = (Decimal)offsetMilliseconds / (1000 * 60 * 60);
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getTimeZoneOffset', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching time zone offset.', 'apiResponse' => null });
+        }
+        return offsetHours;
+    }
+
+    @AuraEnabled
     public static String SaveJobSchedule(Object mgp) {
         Wrapper.MobilizationGroup mg = (Wrapper.MobilizationGroup) JSON.deserialize(JSON.serialize(mgp),Wrapper.MobilizationGroup.Class);
         Date startDate = Date.newInstance(mg.startDate.year(), mg.startDate.month(), mg.startDate.day());

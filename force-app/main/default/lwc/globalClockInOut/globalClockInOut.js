@@ -4,12 +4,15 @@ import checkCrewLeaderAccess from '@salesforce/apex/GlobalClockInOutController.c
 import getMobilizationDates from '@salesforce/apex/GlobalClockInOutController.getMobilizationDates';
 import getMobilizationMembers from '@salesforce/apex/GlobalClockInOutController.getMobilizationMembers';
 import bulkClockInOut from '@salesforce/apex/GlobalClockInOutController.bulkClockInOut';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
 
 export default class GlobalClockInOut extends LightningElement {
     @track recordId; // Job Id from quick action context
     @track isLoading = false;
+    @track hasAccess = false;
+    @track accessErrorMessage = '';
     @track selectedMobilizationId = '';
     @track clockInMembers = [];
     @track clockOutMembers = [];
@@ -126,20 +129,53 @@ export default class GlobalClockInOut extends LightningElement {
 
     /** 
     * Method Name: connectedCallback
-    * @description: Lifecycle hook called when component is inserted into the DOM. Initiates access check if recordId is available
+    * @description: Lifecycle hook called when component is inserted into the DOM. Initiates permission check first
     */
     connectedCallback() {
         try {
-            // recordId is automatically set from quick action context
-            if (this.recordId) {
-                this.checkAccess();
-            } else {
-                this.hasData = false;
-                this.errorMessage = 'No Job ID provided. Please use this component from a Job record page.';
-            }
+            this.checkUserPermissions();
         } catch (error) {
             console.error('Error in connectedCallback:', error);
         }
+    }
+
+    /** 
+    * Method Name: checkUserPermissions
+    * @description: Check if user has required permissions to access this component
+    */
+    checkUserPermissions() {
+        this.isLoading = true;
+        const permissionSetsToCheck = ['FR_Admin'];
+        
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+                
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    // Proceed with original access check
+                    if (this.recordId) {
+                        this.checkAccess();
+                    } else {
+                        this.hasData = false;
+                        this.errorMessage = 'No Job ID provided. Please use this component from a Job record page.';
+                        this.isLoading = false;
+                    }
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
+                    this.isLoading = false;
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+                console.error('Error checking permissions:', error);
+                this.isLoading = false;
+            });
     }
 
     /** 
@@ -297,7 +333,7 @@ export default class GlobalClockInOut extends LightningElement {
 
     /** 
     * Method Name: formatToAMPM
-    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "2025-10-05 2:30 PM")
+    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
     */
     formatToAMPM(iso) {
         try {
@@ -311,6 +347,12 @@ export default class GlobalClockInOut extends LightningElement {
             const datePart = parts[0]; // "2025-10-05"
             const timePart = parts[1].substring(0, 5); // "14:30"
             
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
             // Extract hours and minutes
             const [hoursStr, minutesStr] = timePart.split(':');
             let hours = parseInt(hoursStr, 10);
@@ -323,8 +365,11 @@ export default class GlobalClockInOut extends LightningElement {
             hours = hours % 12;
             hours = hours ? hours : 12; // hour '0' should be '12'
             
-            // Format: "2025-10-05 02:30 PM"
-            return `${datePart} ${hours}:${minutes} ${ampm}`;
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 12, 2025, 03:45 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
             console.error('Error in formatToAMPM:', error);
             return iso;

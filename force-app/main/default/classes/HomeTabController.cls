@@ -42,8 +42,8 @@ public with sharing class HomeTabController {
             }
 
             if(currentUserContactList == null || currentUserContactList.isEmpty()) {
-                System.debug('No associated Contact found for the current user.');
-                result.put('ERROR', 'No associated Contact found for the current user.');
+                System.debug('You don’t have an associated contact record. Please contact your administrator.');
+                result.put('ERROR', 'You don’t have an associated contact record. Please contact your administrator.');
                 return result;
             }
 
@@ -248,8 +248,8 @@ public with sharing class HomeTabController {
             }
 
             if(currentUserContactList == null || currentUserContactList.isEmpty()) {
-                System.debug('No associated Contact found for the current user.');
-                result.put('ERROR', 'No associated Contact found for the current user.');
+                System.debug('You don’t have an associated contact record. Please contact your administrator.');
+                result.put('ERROR', 'You don’t have an associated contact record. Please contact your administrator.');
                 return result;
             }
 

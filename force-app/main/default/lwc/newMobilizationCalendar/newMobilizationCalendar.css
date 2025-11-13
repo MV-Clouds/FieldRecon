@@ -117,8 +117,10 @@
 
 .record-nav-link{
     cursor: pointer;
-    color: #5a5adbaa;
     transition: all 0.2s ease-in-out;
+    font-size: 14px;
+    color: black;
+    font-weight: 400;
 }
 
 .record-nav-link:hover{
@@ -363,4 +365,8 @@
 
 .confirmation-backdrop{
   z-index: 9998;
+}
+
+.job-label{
+  font-size: 15px;
 }

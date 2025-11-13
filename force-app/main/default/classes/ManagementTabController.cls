@@ -897,7 +897,7 @@ public with sharing class ManagementTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'updateGlobalPicklistValues', 'isApiException' => true, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error updating global picklist values: ' + e.getMessage(), 'apiResponse' => null});
-            return 'Error: ' + e.getMessage();
+            return 'Error while upading picklist values. Please contact system administrator.';
         }
     }
 
@@ -920,6 +920,27 @@ public with sharing class ManagementTabController {
         }
 
         return contacts;
+    }
+
+    @AuraEnabled
+    public static Boolean checkUserHasSalesforceLicense() {
+        try {
+            User currentUser = [
+                SELECT Profile.UserLicense.Name 
+                FROM User 
+                WHERE Id = :UserInfo.getUserId() 
+                WITH USER_MODE 
+                LIMIT 1
+            ];
+            
+            String licenseName = currentUser.Profile.UserLicense.Name;
+            
+            return licenseName == 'Salesforce';
+        } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR, CLASSNAME + '.checkUserHasSalesforceLicense - Exception: ' + e.getMessage());
+            // Default to false for security - if we can't determine license, restrict access
+            return false;
+        }
     }
 
     @AuraEnabled
@@ -1023,7 +1044,6 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getMobilizationStatusColors', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching mobilization status colors: ' + e.getMessage(), 'apiResponse' => null});
-            throw new AuraHandledException('Error fetching mobilization status colors: ' + e.getMessage());
         }
         
         return statusColorList;
@@ -1082,8 +1102,8 @@ public with sharing class ManagementTabController {
             response.put('message', 'Status colors saved successfully.');
             response.put('recordsProcessed', recordsToSave.size());
         } catch (Exception e) {
-            System.debug('Error saving status colors: ' + e.getMessage());
-            response.put('message', 'Error saving status colors: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveStatusColors', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving mobilization status colors: ' + e.getMessage(), 'apiResponse' => null});
+            response.put('message', 'Error saving status colors, Please Contact System Administrator.');
         }
 
         return response;

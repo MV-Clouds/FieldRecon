@@ -149,7 +149,7 @@ private class MobSchedulerControllerTest {
         Date endDate = Date.today().addDays(10);
 
         Equipment__c equipment = [SELECT Id FROM Equipment__c LIMIT 1];
-        Mobilization__c mob = [SELECT Id, Start_Date__c, Mobilization_Group__c FROM Mobilization__c LIMIT 1];
+        Mobilization__c mob = [SELECT Id, Start_Date__c, Mobilization_Group__c FROM Mobilization__c WHERE Start_Date__c > :System.now() LIMIT 1];
         insert new Mobilization_Asset__c(Mobilization__c = mob.Id, Equipment__c = equipment.Id);
 
         Test.startTest();
@@ -529,14 +529,14 @@ private class MobSchedulerControllerTest {
     @isTest
     static void testGetDefaultValues(){
         Test.startTest();
-        Map<String, Object> defaults = MobSchedulerController.getDefaultValues();
+        Map<String, Object> defaults = MobSchedulerController.getDefaultValues(Date.today());
         Test.stopTest();
         System.assertNotEquals(null, defaults, 'Defaults should be returned');
 
         Job_Default_Times__c defaultRecord = [SELECT Id FROM Job_Default_Times__c LIMIT 1];
         delete defaultRecord;
 
-        Map<String, Object> afterDelete = MobSchedulerController.getDefaultValues();
+        Map<String, Object> afterDelete = MobSchedulerController.getDefaultValues(Date.today());
         // Depending on org data, SOQL may throw caught exception -> returns null
         if (afterDelete == null) {
             System.assertEquals(null, afterDelete, 'When no defaults exist, method returns null due to caught exception');

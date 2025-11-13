@@ -298,7 +298,7 @@
     border-color: #6c757d;
     opacity: 0.5;
     cursor: not-allowed;
-    pointer-events: none;
+    pointer-events: auto; /* Allow pointer events to show tooltip */
 }
 
 /* SVG Icon Sizing */
