@@ -184,22 +184,25 @@ public with sharing class ShiftEndLogV2Controller {
                         snapshot.changedBy = histRecord.CreatedBy?.Name;
                         
                         // Calculate progress bar segments
+                        // yesterdayPercentage = total completed till yesterday (before today's change)
                         snapshot.yesterdayPercentage = snapshot.oldPercentage;
+                        // todayChangePercentage = how much was added/changed today
                         snapshot.todayChangePercentage = snapshot.newPercentage - snapshot.oldPercentage;
                         
-                        // Set colors: Theme purple for yesterday's progress, Orange for today's change
-                        snapshot.progressBarColor = '#5a5adb'; // Theme purple for yesterday's progress
-                        snapshot.todayChangeColor = '#F0AD4E'; // Orange for today's change (increase or decrease)
+                        // Set colors: Green for completed, Purple for today's change
+                        snapshot.progressBarColor = '#28a745'; // Green for completed progress
+                        snapshot.todayChangeColor = 'rgba(94, 90, 219, 1)'; // Purple for today's change
                     } else {
                         snapshot.changedToday = false;
                         snapshot.oldPercentage = null;
                         snapshot.newPercentage = null;
                         snapshot.changedBy = null;
                         
-                        // No change today - use current percentage
+                        // No change today - all progress is from before
+                        // yesterdayPercentage = all completed work (no change today)
                         snapshot.yesterdayPercentage = snapshot.completionPercentage;
                         snapshot.todayChangePercentage = 0;
-                        snapshot.progressBarColor = '#5a5adb'; // Theme purple for all progress
+                        snapshot.progressBarColor = '#28a745'; // Green for all completed progress
                         snapshot.todayChangeColor = null;
                     }
                     

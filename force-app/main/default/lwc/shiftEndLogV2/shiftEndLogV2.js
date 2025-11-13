@@ -493,8 +493,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
             
             this.editCurrentStep = 'step2';
-            // Update progress bars after DOM renders
-            setTimeout(() => this.updateEditProgressBars(), 100);
+            // Update slider visuals after DOM renders
+            setTimeout(() => this.updateEditSliderVisuals(), 100);
         } else if (this.editCurrentStep === 'step2') {
             this.editCurrentStep = 'step3';
         }
@@ -503,7 +503,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleEditPrevious() {
         if (this.editCurrentStep === 'step3') {
             this.editCurrentStep = 'step2';
-            setTimeout(() => this.updateEditProgressBars(), 100);
+            // Update slider visuals after DOM renders
+            setTimeout(() => this.updateEditSliderVisuals(), 100);
         } else if (this.editCurrentStep === 'step2') {
             this.editCurrentStep = 'step1';
         }
@@ -512,7 +513,45 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Load location processes for edit modal
     loadEditLocationProcesses(logToEdit) {
         if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
-            this.editAllLocationProcesses = JSON.parse(JSON.stringify(logToEdit.locationProcesses));
+            console.log('Raw location processes:', JSON.stringify(logToEdit.locationProcesses, null, 2));
+            
+            // Map backend fields to component properties
+            this.editAllLocationProcesses = logToEdit.locationProcesses.map(proc => {
+                // Handle different possible field names from backend
+                const processId = proc.Id || proc.processId;
+                const processName = proc.Name || proc.processName;
+                const locationName = proc.wfrecon__Location__r?.Name || proc.locationName || 'Unknown Location';
+                const sequence = proc.wfrecon__Sequence__c || proc.sequence || 0;
+                
+                // Get yesterday's percentage (total completed before today)
+                const yesterdayPercentage = Math.round(parseFloat(proc.yesterdayPercentage || proc.oldPercentage || 0));
+                
+                // Get current total completed percentage
+                const completionPercentage = Math.round(parseFloat(proc.wfrecon__Completed_Percentage__c || proc.completionPercentage || 0));
+                
+                // Calculate today's change (difference between current and yesterday)
+                const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
+                const remainingProgress = Math.max(0, 100 - completionPercentage);
+                
+                console.log(`Process ${processName}: yesterday=${yesterdayPercentage}%, current=${completionPercentage}%, today=${todayProgress}%`);
+                
+                return {
+                    processId: processId,
+                    processName: processName,
+                    locationName: locationName,
+                    sequence: sequence,
+                    yesterdayPercentage: yesterdayPercentage, // Total completed till yesterday
+                    completionPercentage: completionPercentage, // Current total completed
+                    todayProgress: todayProgress, // Today's change
+                    remainingProgress: remainingProgress,
+                    changedToday: false,
+                    completedStyle: `width: ${yesterdayPercentage}%`,
+                    todayStyle: `width: ${todayProgress}%`,
+                    remainingStyle: `width: ${remainingProgress}%`
+                };
+            });
+            
+            console.log('Processed location processes:', this.editAllLocationProcesses);
             this.buildEditLocationOptions();
             this.setEditDefaultLocation();
         }
@@ -541,7 +580,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleEditLocationChange(event) {
         this.editSelectedLocationId = event.detail.value;
         this.filterEditProcessesByLocation();
-        setTimeout(() => this.updateEditProgressBars(), 100);
+        // Update visual sliders after DOM renders
+        setTimeout(() => this.updateEditSliderVisuals(), 50);
     }
 
     filterEditProcessesByLocation() {
@@ -554,115 +594,199 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             filtered = [...this.editAllLocationProcesses];
         }
         
-        // Add calculated properties for labels
+        // Ensure styles are recalculated for filtered processes
         this.editLocationProcesses = filtered.map(proc => {
-            const todayProgress = proc.completionPercentage - proc.oldPercentage;
-            const remainingProgress = 100 - proc.completionPercentage;
+            const todayProgress = Math.max(0, proc.completionPercentage - proc.yesterdayPercentage);
+            const remainingProgress = Math.max(0, 100 - proc.completionPercentage);
             return {
                 ...proc,
-                todayProgress: todayProgress >= 0 ? todayProgress : 0,
-                remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
+                todayProgress: todayProgress,
+                remainingProgress: remainingProgress,
+                completedStyle: `width: ${proc.yesterdayPercentage}%`,
+                todayStyle: `width: ${todayProgress}%`,
+                remainingStyle: `width: ${remainingProgress}%`
             };
+        });
+        
+        // Update visual sliders after DOM renders
+        setTimeout(() => this.updateEditSliderVisuals(), 50);
+    }
+
+    // Update slider visuals manually in DOM
+    updateEditSliderVisuals() {
+        this.editLocationProcesses.forEach(processData => {
+            const sliderElement = this.template.querySelector(`input[data-process-id="${processData.processId}"]`);
+            if (sliderElement) {
+                // Set the slider value to reflect current completion percentage
+                sliderElement.value = processData.completionPercentage;
+                
+                const sliderContainer = sliderElement.closest('.slider-wrapper');
+                if (sliderContainer) {
+                    const sliderTrack = sliderContainer.querySelector('.slider-track');
+                    if (sliderTrack) {
+                        const completed = sliderTrack.querySelector('.completed');
+                        const today = sliderTrack.querySelector('.today');
+                        const remaining = sliderTrack.querySelector('.remaining');
+
+                        if (completed && today && remaining) {
+                            completed.style.width = `${processData.yesterdayPercentage}%`;
+                            today.style.width = `${processData.todayProgress}%`;
+                            remaining.style.width = `${processData.remainingProgress}%`;
+                        }
+                    }
+                }
+                
+                // Position slider to start at yesterdayPercentage
+                const sliderWidth = 100 - processData.yesterdayPercentage;
+                sliderElement.style.left = `${processData.yesterdayPercentage}%`;
+                sliderElement.style.width = `${sliderWidth}%`;
+
+                // Disable slider if 100% complete
+                if (processData.completionPercentage >= 100) {
+                    sliderElement.disabled = true;
+                    sliderElement.style.cursor = 'not-allowed';
+                } else {
+                    sliderElement.disabled = false;
+                    sliderElement.style.cursor = 'pointer';
+                }
+            }
         });
     }
 
-    handleEditSliderChange(event) {
+    handleEditSliderInput(event) {
         const processId = event.target.dataset.processId;
-        const newValue = parseFloat(event.target.value);
+        const newValue = parseInt(event.target.value, 10);
+        const sliderElement = event.target;
 
-        const processIndex = this.editLocationProcesses.findIndex(p => p.processId === processId);
-        if (processIndex !== -1) {
-            const currentProcess = this.editLocationProcesses[processIndex];
-            const oldValue = currentProcess.completionPercentage;
-            
-            if (newValue !== oldValue) {
-                // Calculate today and remaining progress
-                const todayProgress = newValue - currentProcess.oldPercentage;
-                const remainingProgress = 100 - newValue;
-                
-                // Create a new process object with updated values
-                const updatedProcess = {
-                    ...currentProcess,
-                    completionPercentage: newValue,
-                    changedToday: true,
-                    todayProgress: todayProgress >= 0 ? todayProgress : 0,
-                    remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
-                };
-                
-                // Update the array with new object
-                this.editLocationProcesses = [
-                    ...this.editLocationProcesses.slice(0, processIndex),
-                    updatedProcess,
-                    ...this.editLocationProcesses.slice(processIndex + 1)
-                ];
-                
-                // Track modification
-                this.editModifiedProcesses.set(processId, {
-                    processId: processId,
-                    oldValue: oldValue,
-                    newValue: newValue
-                });
+        // Update visual progress in real-time
+        const sliderContainer = sliderElement.closest('.slider-wrapper');
+        if (sliderContainer) {
+            const sliderTrack = sliderContainer.querySelector('.slider-track');
+            if (sliderTrack) {
+                const proc = this.editLocationProcesses.find(p => p.processId === processId);
+                if (proc) {
+                    // Calculate completed till yesterday, today's progress, and remaining
+                    const todayPercent = Math.max(0, newValue - proc.yesterdayPercentage);
+                    const remainingPercent = Math.max(0, 100 - newValue);
 
-                // Update progress bar colors
-                this.updateSingleEditProgressBar(processId, oldValue, newValue);
-            } else {
-                // If value is back to original, remove from modified
-                this.editModifiedProcesses.delete(processId);
-                
-                // Recalculate values
-                const todayProgress = newValue - currentProcess.oldPercentage;
-                const remainingProgress = 100 - newValue;
-                
-                // Reset changedToday flag
-                const resetProcess = {
-                    ...currentProcess,
-                    changedToday: false,
-                    todayProgress: todayProgress >= 0 ? todayProgress : 0,
-                    remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
-                };
-                
-                this.editLocationProcesses = [
-                    ...this.editLocationProcesses.slice(0, processIndex),
-                    resetProcess,
-                    ...this.editLocationProcesses.slice(processIndex + 1)
-                ];
+                    const completed = sliderTrack.querySelector('.completed');
+                    const today = sliderTrack.querySelector('.today');
+                    const remaining = sliderTrack.querySelector('.remaining');
+
+                    if (completed && today && remaining) {
+                        completed.style.width = `${proc.yesterdayPercentage}%`;
+                        today.style.width = `${todayPercent}%`;
+                        remaining.style.width = `${remainingPercent}%`;
+                    }
+
+                    // Update percentage display
+                    const percentageDisplay = sliderElement.closest('.edit-location-slider-container')?.querySelector('.progress-percentage');
+                    if (percentageDisplay) {
+                        percentageDisplay.textContent = `${newValue}% Complete`;
+                    }
+
+                    // Update labels
+                    const labelsContainer = sliderElement.closest('.edit-location-slider-container')?.querySelector('.slider-labels');
+                    if (labelsContainer) {
+                        // Update completed label to show total completed percentage
+                        const completedLabel = labelsContainer.querySelector('.label-completed');
+                        if (completedLabel) {
+                            const textNodes = Array.from(completedLabel.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
+                            if (textNodes.length > 0) {
+                                textNodes[0].textContent = `Completed: ${newValue}%`;
+                            }
+                        }
+                        
+                        const todayLabel = labelsContainer.querySelector('.label-today');
+                        if (todayLabel) {
+                            // Find the text node after the SVG
+                            const textNodes = Array.from(todayLabel.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
+                            if (textNodes.length > 0) {
+                                textNodes[0].textContent = `Today: ${todayPercent}%`;
+                            }
+                        }
+                        const remainingLabel = labelsContainer.querySelector('.label-remaining');
+                        if (remainingLabel) {
+                            const textNodes = Array.from(remainingLabel.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
+                            if (textNodes.length > 0) {
+                                textNodes[0].textContent = `Remaining: ${remainingPercent}%`;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    updateEditProgressBars() {
-        const yesterdayBars = this.template.querySelectorAll('.edit-yesterday-progress');
-        yesterdayBars.forEach(bar => {
-            const percentage = bar.dataset.percentage;
-            if (percentage) {
-                bar.style.width = percentage + '%';
-            }
-        });
+    handleEditSliderChange(event) {
+        const processId = event.target.dataset.processId;
+        const originalValue = parseInt(event.target.dataset.originalValue, 10);
+        const newValue = parseInt(event.target.value, 10);
 
-        const todayBars = this.template.querySelectorAll('.edit-today-progress');
-        todayBars.forEach(bar => {
-            const processId = bar.dataset.processId;
-            const processData = this.editLocationProcesses.find(p => p.processId === processId);
-            if (processData) {
-                const oldPerc = processData.oldPercentage || 0;
-                const newPerc = processData.completionPercentage || 0;
-                const change = Math.max(0, newPerc - oldPerc);
-                bar.style.width = change + '%';
-                bar.style.left = oldPerc + '%';
-            }
-        });
+        // Track modification
+        if (newValue !== originalValue) {
+            this.editModifiedProcesses.set(processId, {
+                processId: processId,
+                originalValue: originalValue,
+                newValue: newValue
+            });
+        } else {
+            this.editModifiedProcesses.delete(processId);
+        }
+
+        // Update in editAllLocationProcesses to persist across location changes
+        const allProcessIndex = this.editAllLocationProcesses.findIndex(p => p.processId === processId);
+        if (allProcessIndex !== -1) {
+            const proc = this.editAllLocationProcesses[allProcessIndex];
+            const todayProgress = Math.max(0, newValue - proc.yesterdayPercentage);
+            const remainingProgress = Math.max(0, 100 - newValue);
+            
+            this.editAllLocationProcesses = this.editAllLocationProcesses.map((p, index) => {
+                if (index === allProcessIndex) {
+                    return {
+                        ...p,
+                        completionPercentage: newValue,
+                        todayProgress: todayProgress,
+                        remainingProgress: remainingProgress,
+                        changedToday: newValue !== originalValue,
+                        completedStyle: `width: ${p.yesterdayPercentage}%`,
+                        todayStyle: `width: ${todayProgress}%`,
+                        remainingStyle: `width: ${remainingProgress}%`
+                    };
+                }
+                return p;
+            });
+        }
+
+        // Update in editLocationProcesses for current display
+        const processIndex = this.editLocationProcesses.findIndex(p => p.processId === processId);
+        if (processIndex !== -1) {
+            const proc = this.editLocationProcesses[processIndex];
+            const todayProgress = Math.max(0, newValue - proc.yesterdayPercentage);
+            const remainingProgress = Math.max(0, 100 - newValue);
+            
+            this.editLocationProcesses = this.editLocationProcesses.map((p, index) => {
+                if (index === processIndex) {
+                    return {
+                        ...p,
+                        completionPercentage: newValue,
+                        todayProgress: todayProgress,
+                        remainingProgress: remainingProgress,
+                        changedToday: newValue !== originalValue,
+                        completedStyle: `width: ${p.yesterdayPercentage}%`,
+                        todayStyle: `width: ${todayProgress}%`,
+                        remainingStyle: `width: ${remainingProgress}%`
+                    };
+                }
+                return p;
+            });
+        }
+
+        // Update visual feedback
+        this.handleEditSliderInput(event);
     }
 
-    updateSingleEditProgressBar(processId, oldValue, newValue) {
-        setTimeout(() => {
-            const todayBar = this.template.querySelector(`.edit-today-progress[data-process-id="${processId}"]`);
-            if (todayBar) {
-                const change = Math.max(0, newValue - oldValue);
-                todayBar.style.width = change + '%';
-                todayBar.style.left = oldValue + '%';
-            }
-        }, 0);
-    }
+
 
     // Removed handleDiscardEditChanges and handleSaveEditChanges
     // State is now preserved automatically and saved on final Update button click

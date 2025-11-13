@@ -347,31 +347,33 @@
                                 <template if:true={hasEditLocationProcesses}>
                                     <div class="edit-location-processes-list">
                                         <template for:each={editLocationProcesses} for:item="process">
-                                            <div key={process.processId} class="edit-location-slider-container">
+                                            <div key={process.processId} class="edit-location-slider-container" data-changed={process.changedToday}>
                                                 <div class="slider-header">
                                                     <div class="process-info">
-                                                        <span class="process-sequence">Seq: {process.sequence}</span>
                                                         <span class="process-name">{process.processName}</span>
+                                                        <template if:true={process.sequence}>
+                                                            <span class="process-sequence">Seq: {process.sequence}</span>
+                                                        </template>
                                                     </div>
                                                     <span class="progress-percentage">{process.completionPercentage}% Complete</span>
                                                 </div>
                                                 
                                                 <div class="slider-wrapper">
                                                     <div class="slider-track">
-                                                        <div class="slider-section completed edit-yesterday-progress" 
-                                                             data-percentage={process.oldPercentage}></div>
-                                                        <div class="slider-section today edit-today-progress" 
-                                                             data-process-id={process.processId}></div>
-                                                        <div class="slider-section remaining"></div>
+                                                        <div class="slider-section completed" lwc:dom="manual"></div>
+                                                        <div class="slider-section today" lwc:dom="manual"></div>
+                                                        <div class="slider-section remaining" lwc:dom="manual"></div>
                                                     </div>
                                                     <input 
                                                         type="range" 
-                                                        min="0" 
+                                                        min={process.yesterdayPercentage} 
                                                         max="100" 
                                                         step="1"
                                                         value={process.completionPercentage}
                                                         data-process-id={process.processId}
+                                                        data-original-value={process.yesterdayPercentage}
                                                         class="progress-slider"
+                                                        oninput={handleEditSliderInput}
                                                         onchange={handleEditSliderChange} />
                                                 </div>
                                                 <div class="slider-labels">
@@ -379,7 +381,7 @@
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                                             <circle cx="12" cy="12" r="10" />
                                                         </svg>
-                                                        Completed: {process.oldPercentage}%
+                                                        Completed: {process.completionPercentage}%
                                                     </span>
                                                     <span class="label-today">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
