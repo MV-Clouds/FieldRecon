@@ -297,7 +297,7 @@ export default class GlobalClockInOut extends LightningElement {
 
     /** 
     * Method Name: formatToAMPM
-    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "2025-10-05 2:30 PM")
+    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
     */
     formatToAMPM(iso) {
         try {
@@ -311,6 +311,12 @@ export default class GlobalClockInOut extends LightningElement {
             const datePart = parts[0]; // "2025-10-05"
             const timePart = parts[1].substring(0, 5); // "14:30"
             
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
             // Extract hours and minutes
             const [hoursStr, minutesStr] = timePart.split(':');
             let hours = parseInt(hoursStr, 10);
@@ -323,8 +329,11 @@ export default class GlobalClockInOut extends LightningElement {
             hours = hours % 12;
             hours = hours ? hours : 12; // hour '0' should be '12'
             
-            // Format: "2025-10-05 02:30 PM"
-            return `${datePart} ${hours}:${minutes} ${ampm}`;
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 12, 2025, 03:45 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
             console.error('Error in formatToAMPM:', error);
             return iso;

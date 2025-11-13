@@ -159,7 +159,7 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 let displayValue = value || '--';
                 
                 if (column.isDateTime && value && key !== 'serialNumber' && key !== 'actions') {
-                    displayValue = this.formatDateTime(value);
+                    displayValue = this.formatToAMPM(value);
                 } else if (column.isNumber && value !== null && value !== undefined && key !== 'serialNumber' && key !== 'actions') {
                     displayValue = parseFloat(value).toFixed(2);
                 } else if (value !== null && value !== undefined && String(value).trim() !== '' && key !== 'serialNumber' && key !== 'actions') {
@@ -267,16 +267,46 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: formatDateTime
-     * @description: Format datetime to "2025-10-23 6:30" format
+     * Method Name: formatToAMPM
+     * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
      */
-    formatDateTime(dateValue) {
-        if (!dateValue) return '--';
-        
+    formatToAMPM(iso) {
         try {
-            const iso = new Date(dateValue).toISOString();
-            return iso.slice(0, 16).replace('T', ' '); // "2025-10-05 07:00"
+            if (!iso) return '--';
+            
+            // Extract date and time parts from ISO string
+            // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+            
+            const datePart = parts[0]; // "2025-10-05"
+            const timePart = parts[1].substring(0, 5); // "14:30"
+            
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            // Extract hours and minutes
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+            
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 12, 2025, 03:45 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
+            console.error('Error in formatToAMPM:', error);
             return '--';
         }
     }
@@ -460,11 +490,11 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                             break;
                         case 'clockInTime':
                             value = entry.clockInTime;
-                            displayValue = value ? this.formatDateTime(value) : '--';
+                            displayValue = value ? this.formatToAMPM(value) : '--';
                             break;
                         case 'clockOutTime':
                             value = entry.clockOutTime;
-                            displayValue = value ? this.formatDateTime(value) : '--';
+                            displayValue = value ? this.formatToAMPM(value) : '--';
                             break;
                         case 'workHours':
                             value = entry.workHours || 0;

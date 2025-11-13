@@ -5,7 +5,24 @@
         </div>
     </template>
 
-    <div class="wrapper">
+    <!-- Error Message Display -->
+    <template if:true={hasError}>
+        <div class="wrapper">
+            <div class="no-prop">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">Access Denied</div>
+                        <div class="empty-state__subtitle">{errorMessage}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <div class="wrapper" if:false={hasError}>
         <!-- Accordion Sections -->
         <div class="accordion-container">
             <lightning-accordion active-section-name={activeSectionName} allow-multiple-sections-open="true" onsectiontoggle={handleSectionToggle}>
@@ -31,10 +48,31 @@
                                                 <div key={job.mobId} class="job-entry">
                                                     <!-- Left Side -->
                                                     <div class="job-left">
-                                                        <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
-                                                            <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
-                                                        </a>
-                                                        <p class="job-description">{job.jobDescription}</p>
+                                                        <div class="job-header">
+                                                            <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                                                <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                            </a>
+                                                            <div class="job-actions-inline">
+                                                                <template if:true={job.isClockedIn}>
+                                                                    <button class="clock-in-button" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
+                                                                </template>
+                                                                <template if:false={job.isClockedIn}>
+                                                                    <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="job-description-text">
+                                                            <span class="label">Description:</span> 
+                                                            <span class={job.descriptionClass} data-full-text={job.jobDescription}>
+                                                                {job.displayDescription}
+                                                            </span>
+                                                            <template if:true={job.showReadMore}>
+                                                                <button class="read-more-btn" data-id={job.mobId} onclick={handleToggleDescription}>
+                                                                    {job.readMoreText}
+                                                                </button>
+                                                            </template>
+                                                        </div>
 
                                                         <div class="job-time">
                                                             <p class="job-start-time">
@@ -46,15 +84,6 @@
                                                         </div>
 
                                                         <p><span class="label">Location:</span> {job.jobAddress}</p>
-
-                                                        <div class="job-actions">
-                                                            <template if:true={job.isClockedIn}>
-                                                                <button class="clock-in-button" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
-                                                            </template>
-                                                            <template if:false={job.isClockedIn}>
-                                                                <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
-                                                            </template>
-                                                        </div>
 
                                                         <template if:true={job.isAgain}>
                                                             <div class="info-message info-style">
@@ -97,7 +126,17 @@
                                                                             <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
                                                                                 <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
                                                                             </a>
-                                                                            <p class="job-description">{job.jobDescription}</p>
+                                                                            <div class="job-description-text">
+                                                                                <span class="label">Description:</span> 
+                                                                                <span class={job.descriptionClass} data-full-text={job.jobDescription}>
+                                                                                    {job.displayDescription}
+                                                                                </span>
+                                                                                <template if:true={job.showReadMore}>
+                                                                                    <button class="read-more-btn" data-id={job.mobId} onclick={handleToggleDescription}>
+                                                                                        {job.readMoreText}
+                                                                                    </button>
+                                                                                </template>
+                                                                            </div>
         
                                                                             <div class="job-time">
                                                                                 <p class="job-start-time">
