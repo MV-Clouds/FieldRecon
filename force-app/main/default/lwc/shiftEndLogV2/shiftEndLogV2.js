@@ -16,6 +16,14 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track showEditModal = false;
     @track editLogId = null;
     @track showEntryPopup = false;
+    
+    // Edit Modal Multi-Step Properties
+    @track editCurrentStep = 'step1';
+    @track editLocationProcesses = [];
+    @track editAllLocationProcesses = [];
+    @track editModifiedProcesses = new Map();
+    @track editLocationOptions = [];
+    @track editSelectedLocationId = '';
 
     // Confirmation Modal Properties
     @track showConfirmationModal = false;
@@ -419,8 +427,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // Reset new uploads and delete tracking
             this.newUploadedFiles = [];
             this.imagesToDelete = [];
+
+            // Load location processes for step 2
+            this.loadEditLocationProcesses(logToEdit);
         }
         
+        // Reset to step 1
+        this.editCurrentStep = 'step1';
         this.showEditModal = true;
     }
 
@@ -428,6 +441,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleCloseModal() {
         this.showEditModal = false;
         this.editLogId = null;
+        this.editCurrentStep = 'step1';
         this.clearEditForm();
     }
 
@@ -443,18 +457,215 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.existingImages = [];
         this.newUploadedFiles = [];
         this.imagesToDelete = [];
+        this.editLocationProcesses = [];
+        this.editAllLocationProcesses = [];
+        this.editModifiedProcesses = new Map();
+        this.editLocationOptions = [];
+        this.editSelectedLocationId = '';
     }
 
-    // Handle input change in edit form
+        // Handle input change in edit form
     handleEditInputChange(event) {
-        const fieldName = event.target.dataset.field;
-        const value = event.target.value;
-        
-        this.editFormData = {
-            ...this.editFormData,
-            [fieldName]: value
-        };
+        const field = event.target.dataset.field;
+        if (field) {
+            this.editFormData = {
+                ...this.editFormData,
+                [field]: event.target.value
+            };
+        }
     }
+
+    // Edit Modal Navigation
+    handleEditNext() {
+        if (this.editCurrentStep === 'step1') {
+            // Validate Step 1 required fields
+            if (!this.editFormData.workPerformedDate) {
+                this.showToast('Error', 'Work Performed Date is required', 'error');
+                return;
+            }
+            if (!this.editFormData.workPerformed || this.editFormData.workPerformed.trim() === '') {
+                this.showToast('Error', 'Work Performed is required', 'error');
+                return;
+            }
+            if (!this.editFormData.planForTomorrow || this.editFormData.planForTomorrow.trim() === '') {
+                this.showToast('Error', 'Plan for Tomorrow is required', 'error');
+                return;
+            }
+            
+            this.editCurrentStep = 'step2';
+            // Update progress bars after DOM renders
+            setTimeout(() => this.updateEditProgressBars(), 100);
+        } else if (this.editCurrentStep === 'step2') {
+            this.editCurrentStep = 'step3';
+        }
+    }
+
+    handleEditPrevious() {
+        if (this.editCurrentStep === 'step3') {
+            this.editCurrentStep = 'step2';
+            setTimeout(() => this.updateEditProgressBars(), 100);
+        } else if (this.editCurrentStep === 'step2') {
+            this.editCurrentStep = 'step1';
+        }
+    }
+
+    // Load location processes for edit modal
+    loadEditLocationProcesses(logToEdit) {
+        if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
+            this.editAllLocationProcesses = JSON.parse(JSON.stringify(logToEdit.locationProcesses));
+            this.buildEditLocationOptions();
+            this.setEditDefaultLocation();
+        }
+    }
+
+    buildEditLocationOptions() {
+        const locationMap = new Map();
+        this.editAllLocationProcesses.forEach(proc => {
+            if (!locationMap.has(proc.locationName)) {
+                locationMap.set(proc.locationName, {
+                    label: proc.locationName,
+                    value: proc.locationName
+                });
+            }
+        });
+        this.editLocationOptions = Array.from(locationMap.values());
+    }
+
+    setEditDefaultLocation() {
+        if (this.editLocationOptions.length > 0) {
+            this.editSelectedLocationId = this.editLocationOptions[0].value;
+            this.filterEditProcessesByLocation();
+        }
+    }
+
+    handleEditLocationChange(event) {
+        this.editSelectedLocationId = event.detail.value;
+        this.filterEditProcessesByLocation();
+        setTimeout(() => this.updateEditProgressBars(), 100);
+    }
+
+    filterEditProcessesByLocation() {
+        let filtered;
+        if (this.editSelectedLocationId) {
+            filtered = this.editAllLocationProcesses.filter(
+                proc => proc.locationName === this.editSelectedLocationId
+            );
+        } else {
+            filtered = [...this.editAllLocationProcesses];
+        }
+        
+        // Add calculated properties for labels
+        this.editLocationProcesses = filtered.map(proc => {
+            const todayProgress = proc.completionPercentage - proc.oldPercentage;
+            const remainingProgress = 100 - proc.completionPercentage;
+            return {
+                ...proc,
+                todayProgress: todayProgress >= 0 ? todayProgress : 0,
+                remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
+            };
+        });
+    }
+
+    handleEditSliderChange(event) {
+        const processId = event.target.dataset.processId;
+        const newValue = parseFloat(event.target.value);
+
+        const processIndex = this.editLocationProcesses.findIndex(p => p.processId === processId);
+        if (processIndex !== -1) {
+            const currentProcess = this.editLocationProcesses[processIndex];
+            const oldValue = currentProcess.completionPercentage;
+            
+            if (newValue !== oldValue) {
+                // Calculate today and remaining progress
+                const todayProgress = newValue - currentProcess.oldPercentage;
+                const remainingProgress = 100 - newValue;
+                
+                // Create a new process object with updated values
+                const updatedProcess = {
+                    ...currentProcess,
+                    completionPercentage: newValue,
+                    changedToday: true,
+                    todayProgress: todayProgress >= 0 ? todayProgress : 0,
+                    remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
+                };
+                
+                // Update the array with new object
+                this.editLocationProcesses = [
+                    ...this.editLocationProcesses.slice(0, processIndex),
+                    updatedProcess,
+                    ...this.editLocationProcesses.slice(processIndex + 1)
+                ];
+                
+                // Track modification
+                this.editModifiedProcesses.set(processId, {
+                    processId: processId,
+                    oldValue: oldValue,
+                    newValue: newValue
+                });
+
+                // Update progress bar colors
+                this.updateSingleEditProgressBar(processId, oldValue, newValue);
+            } else {
+                // If value is back to original, remove from modified
+                this.editModifiedProcesses.delete(processId);
+                
+                // Recalculate values
+                const todayProgress = newValue - currentProcess.oldPercentage;
+                const remainingProgress = 100 - newValue;
+                
+                // Reset changedToday flag
+                const resetProcess = {
+                    ...currentProcess,
+                    changedToday: false,
+                    todayProgress: todayProgress >= 0 ? todayProgress : 0,
+                    remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
+                };
+                
+                this.editLocationProcesses = [
+                    ...this.editLocationProcesses.slice(0, processIndex),
+                    resetProcess,
+                    ...this.editLocationProcesses.slice(processIndex + 1)
+                ];
+            }
+        }
+    }
+
+    updateEditProgressBars() {
+        const yesterdayBars = this.template.querySelectorAll('.edit-yesterday-progress');
+        yesterdayBars.forEach(bar => {
+            const percentage = bar.dataset.percentage;
+            if (percentage) {
+                bar.style.width = percentage + '%';
+            }
+        });
+
+        const todayBars = this.template.querySelectorAll('.edit-today-progress');
+        todayBars.forEach(bar => {
+            const processId = bar.dataset.processId;
+            const processData = this.editLocationProcesses.find(p => p.processId === processId);
+            if (processData) {
+                const oldPerc = processData.oldPercentage || 0;
+                const newPerc = processData.completionPercentage || 0;
+                const change = Math.max(0, newPerc - oldPerc);
+                bar.style.width = change + '%';
+                bar.style.left = oldPerc + '%';
+            }
+        });
+    }
+
+    updateSingleEditProgressBar(processId, oldValue, newValue) {
+        setTimeout(() => {
+            const todayBar = this.template.querySelector(`.edit-today-progress[data-process-id="${processId}"]`);
+            if (todayBar) {
+                const change = Math.max(0, newValue - oldValue);
+                todayBar.style.width = change + '%';
+                todayBar.style.left = oldValue + '%';
+            }
+        }, 0);
+    }
+
+    // Removed handleDiscardEditChanges and handleSaveEditChanges
+    // State is now preserved automatically and saved on final Update button click
 
     // Handle save button click
     async handleSaveEdit() {
@@ -483,13 +694,26 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice
         };
 
+        // Prepare location process updates if any modifications were made
+        const processUpdates = Array.from(this.editModifiedProcesses.entries()).map(([processId, modification]) => {
+            const process = this.editAllLocationProcesses.find(p => p.processId === processId);
+            return {
+                processId: processId,
+                processName: process?.processName || '',
+                locationName: process?.locationName || '',
+                completionPercentage: modification.newValue,
+                sequence: process?.sequence || null
+            };
+        });
+
         this.isLoading = true;
 
         try {
-            // Combined update: delete removed images and update log entry
+            // Combined update: delete removed images, update log entry, and save location progress
             await updateShiftEndLogWithImages({ 
                 logEntry: formData, 
-                contentDocumentIdsToDelete: this.imagesToDelete 
+                contentDocumentIdsToDelete: this.imagesToDelete,
+                processUpdatesJson: JSON.stringify(processUpdates)
             });
 
             this.showToast('Success', 'Shift End Log updated successfully', 'success');
@@ -542,6 +766,23 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     get hasImages() {
         return this.allImages.length > 0;
+    }
+
+    // Edit Modal Step Getters
+    get isEditStep1() { return this.editCurrentStep === 'step1'; }
+    get isEditStep2() { return this.editCurrentStep === 'step2'; }
+    get isEditStep3() { return this.editCurrentStep === 'step3'; }
+
+    get hasEditLocationOptions() {
+        return this.editLocationOptions && this.editLocationOptions.length > 0;
+    }
+
+    get hasEditLocationProcesses() {
+        return this.editLocationProcesses && this.editLocationProcesses.length > 0;
+    }
+
+    get hasModifiedProcesses() {
+        return this.editModifiedProcesses.size > 0;
     }
 
     // Camera Functions
