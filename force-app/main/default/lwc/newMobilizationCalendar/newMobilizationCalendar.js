@@ -1,9 +1,11 @@
 import { LightningElement, track } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
 import FULL_CALENDAR from '@salesforce/resourceUrl/FullCalendarJS3';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getEvents from '@salesforce/apex/NewMobilizationCalendarController.getEvents';
 import getJobDefaultTimes from '@salesforce/apex/NewMobilizationCalendarController.getJobDefaultTimes';
+import getTimeZoneOffset from '@salesforce/apex/NewMobilizationCalendarController.getTimeZoneOffset';
 import saveJobSchedule from '@salesforce/apex/NewMobilizationCalendarController.SaveJobSchedule';
 import getMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.getMobilizationGroup';
 import deleteMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.deleteMobilizationGroup';
@@ -16,7 +18,7 @@ import assignResourceToJob from '@salesforce/apex/MobSchedulerController.assignR
 // Permission Checker
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
-export default class NewMobilizationCalendar extends LightningElement {
+export default class NewMobilizationCalendar extends NavigationMixin(LightningElement) {
     fullCalendarLoaded = false;
     @track events = {};
     isSpinner = false;
@@ -71,6 +73,7 @@ export default class NewMobilizationCalendar extends LightningElement {
     confirmationBtnLabel2 = null;
 
     isOverlapJob = false;
+    tzOffset = 0;
 
     // Permissions Flags
     hasFullAccess = false;
@@ -172,6 +175,7 @@ export default class NewMobilizationCalendar extends LightningElement {
 
     connectedCallback() {
         this.isSpinner = true;
+        this.fetchTimeZoneOffset();
         this.fetchPermissions();
         loadScript(this, FULL_CALENDAR + '/fullcalendar3/jquery.min.js')
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/moment.js'))
@@ -187,12 +191,13 @@ export default class NewMobilizationCalendar extends LightningElement {
                 if (result && Array.isArray(result)) {
                     this.events = result.map(ev => ({
                         ...ev,
-                        start: new Date(ev.start).toISOString(),
-                        end: ev.end ? new Date(ev.end).toISOString() : null
+                        start: new Date(ev.start).toLocaleDateString('en-CA'),
+                        end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null
                     }));
                 } else {
                     this.events = [];
                 }
+                
                 this.initialiseCalendarJs();
             })
             .catch(error => {
@@ -207,13 +212,27 @@ export default class NewMobilizationCalendar extends LightningElement {
             checkPermissionSetsAssigned({ psNames : ['FR_Mobilization_Calendar']})
             .then((result) => {
                 this.hasFullAccess = result.isAdmin || result.all;
-                this.hasFullAccess && this.loadAllResources(new Date().toISOString());
+                this.hasFullAccess && this.loadAllResources(new Date().toLocaleDateString('en-CA'));
             })
             .catch((e) => {
                 console.error('Error in NewMobilizationCalendar.fetchPermissions > checkPermissionSetsAssigned', e?.body?.message || e?.message);
             })
         } catch(e){
             console.error('Error in function NewMobilizationCalendar.fetchPermissions:::', e?.message);
+        }
+    }
+
+    fetchTimeZoneOffset(){
+        try {
+            getTimeZoneOffset()
+            .then((result) => {
+                this.tzOffset = result;
+            })
+            .catch((e) => {
+                console.error('Error in fetchTimeZoneOffset > getTimeZoneOffset :: ', e?.body?.message || e?.message);
+            })
+        } catch (e) {
+            console.error('Error in fetchTimeZoneOffset :: ', e?.message);
         }
     }
     
@@ -390,8 +409,8 @@ export default class NewMobilizationCalendar extends LightningElement {
             if (result && Array.isArray(result)) {                
                 this.events = result.map(ev => ({
                     ...ev,
-                    start: new Date(ev.start).toISOString(),
-                    end: ev.end ? new Date(ev.end).toISOString() : null
+                    start: new Date(ev.start).toLocaleDateString('en-CA'),
+                    end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null
                 }));
             } else {
                 this.events = [];
@@ -463,29 +482,28 @@ export default class NewMobilizationCalendar extends LightningElement {
                 this.showToast('Error', 'You do not have permission to create events.', 'error');
                 return;
             }
-                        
+            let startStr = JSON.stringify(start)?.replaceAll('"', '');
+            let endStr = JSON.stringify(end)?.replaceAll('"', '');
+
+            const endDate = new Date(end);
+            
             this.isSpinner = true;
             this.selectedEventId = '';
             this.Heading = 'Create Mobilization Group';
 
-            const startDate = new Date(start);
-            const endDate = new Date(end);
+            const nowLocal = this.normalizeDate(new Date()).toLocaleDateString('en-CA');
 
-            // Convert both to local time for comparison
-            const now = new Date();
-
-            // ❌ Prevent creation for past start dates (compare local time)
-            if (startDate < now.setHours(0, 0, 0, 0)) {
+            if (startStr < nowLocal) {
                 this.isSpinner = false;
                 this.showToast('Warning', 'Cannot create events in the past.','warn');
                 console.warn('Cannot create events in the past.');
                 return; // Exit early
             }
-        
+
             // Subtract 1 day from end to make it inclusive
             endDate.setDate(endDate.getDate() - 1);
 
-            getJobDefaultTimes({ startDate: startDate.toLocaleDateString('en-CA'), endDate: endDate.toLocaleDateString('en-CA')})
+            getJobDefaultTimes({ startDate: startStr, endDate: endStr})
             .then(defaults => {
                 // Format for lightning-input using helper
                 this.startDateTime = defaults.startDateTime
@@ -544,6 +562,43 @@ export default class NewMobilizationCalendar extends LightningElement {
         this.openModal = false;
         this.resetTempVariables();
         this.refreshCalendar();
+    }
+
+    handleMobFormSubmitted(event){
+        try {
+            this.isSpinner = true;
+            event.preventDefault();
+            let details = event.detail.fields;
+            const start = Date.parse(details.wfrecon__Start_Date__c);
+            const end = Date.parse(details.wfrecon__End_Date__c);
+
+            const startLocal = this.removeOrgTimeZone(details.wfrecon__Start_Date__c);
+            const nowLocal = new Date();
+
+            if (start == end) {
+                this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
+            } else if (startLocal.getTime() < nowLocal.getTime()) {
+                this.showToast('Error', 'Start date/time can not be in past.', 'error');
+            } else if (start > end) {
+                this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');
+            } else {
+                this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
+            }
+        } catch (e) {
+            console.error('NewMobilizationCalendar.handleMobFormSubmitted error:', e?.message);
+        }
+    }
+
+    removeOrgTimeZone(utcDateStr) {
+        const d = new Date(utcDateStr);
+        const orgOffset = this.tzOffset * 60; // Salesforce user zone (UTC−5)
+        const deviceOffset = d.getTimezoneOffset(); // Niue = +660 (minutes)
+        const diffMs = (deviceOffset + orgOffset) * 60 * 1000;
+        return new Date(d.getTime() + diffMs);
+    }
+
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     }
 
     resetTempVariables() {
@@ -816,6 +871,21 @@ export default class NewMobilizationCalendar extends LightningElement {
             this.confirmationBtnLabel2 = null;
         } catch (e) {
             console.error('MobScheduler.handleConfirmationAction error:', e?.message);
+        }
+    }
+
+    navigateToRecord(event) {
+        try {
+            let recordId = event.currentTarget.dataset.id;
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: recordId,
+                    actionName: 'view',
+                },
+            });
+        } catch (e) {
+            console.error('error in navigateToRecord:', e.message);
         }
     }
 }

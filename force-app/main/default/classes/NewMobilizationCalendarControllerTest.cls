@@ -93,6 +93,9 @@ public class NewMobilizationCalendarControllerTest {
         NewMobilizationCalendarController.getMobStatusOptions();
         NewMobilizationCalendarController.DefaultTimeWrapper wrap = NewMobilizationCalendarController.getJobDefaultTimes('2025-11-03', '2025-11-06');
 
+        Decimal tzOffset = NewMobilizationCalendarController.getTimeZoneOffset();
+        System.assertNotEquals(null, tzOffset, 'Should not return null');
+
         delete [SELECT Id FROM wfrecon__Job_Default_Times__c];
         NewMobilizationCalendarController.getJobDefaultTimes('', '');
         System.assertNotEquals(null, wrap.startDateTime);

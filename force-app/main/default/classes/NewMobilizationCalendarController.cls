@@ -154,7 +154,7 @@ public with sharing class NewMobilizationCalendarController {
             String endTimeStr = jobDefault.End_Time__c;
 
             Date onlyStartDate = Date.valueOf(startDate);
-            Date onlyEndDate = Date.valueOf(endDate);
+            Date onlyEndDate = Date.valueOf(endDate).addDays(-1);
 
             // Start Time
             if(startTimeStr != null) {
@@ -194,6 +194,20 @@ public with sharing class NewMobilizationCalendarController {
             defaults.IncludeSunday = false;
         }
         return defaults;
+    }
+
+    @AuraEnabled
+    public static Decimal getTimeZoneOffset(){
+        Decimal offsetHours = 0;
+        try {
+            TimeZone userTimeZone = UserInfo.getTimeZone();
+            DateTime currentTime = DateTime.now();
+            Integer offsetMilliseconds = userTimeZone.getOffset(currentTime);
+            offsetHours = (Decimal)offsetMilliseconds / (1000 * 60 * 60);
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getTimeZoneOffset', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching time zone offset.', 'apiResponse' => null });
+        }
+        return offsetHours;
     }
 
     @AuraEnabled

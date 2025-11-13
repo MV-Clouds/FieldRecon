@@ -44,6 +44,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         'includeSaturday': false,
         'includeSunday': false
     };
+    tzOffset = 0;
 
     // Modal Popup Variables
     showFormPopup = false;
@@ -267,7 +268,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     get selectedDateToShow(){
-        return this.currentWeekStart ? this.currentWeekStart.toISOString().slice(0,10) : null;
+        return this.currentWeekStart ? this.normalizeDate(this.currentWeekStart)?.toLocaleDateString('en-CA') : null;
     }
 
     connectedCallback() {
@@ -278,10 +279,11 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
     loadDefaultMobGroupValues(){
         try {
-            getDefaultValues()
-            .then(result =>{                
+            getDefaultValues({startDate: this.selectedDateToShow})
+            .then(result =>{
                 let timeDefaults = result?.time;
                 this.defaultMobGValues = timeDefaults;
+                this.tzOffset = result?.tzOffset;
                 this.statusOptions = result?.statusOptions;
                 this.statusOptions.forEach(opt => {
                     opt.isSelected = opt.label?.toLowerCase() == 'overhead job' ? false : true
@@ -428,21 +430,29 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         try{
             let val = event.currentTarget?.value;
             if(!val) return;
-            const valDate = new Date(val);
-            const startDate = new Date(this.currentWeekStart);
 
-            // calculate end date (7 days later)
+            const valDateRaw = new Date(val);
+            const valDate = this.normalizeDate(valDateRaw);
+
+            const startDateRaw = new Date(this.currentWeekStart);
+            const startDate = this.normalizeDate(startDateRaw);
             const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-            if (valDate >= startDate && valDate < endDate) {
+            if (!this.isDayView && valDate >= startDate && valDate < endDate) {
                 return;
             }
-            this.currentWeekStart = new Date(val);
+
+            this.currentWeekStart = new Date(val + 'T00:00:00');
             this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
-        }catch(e){
+        } catch(e) {
             console.error('MobScheduler.handleDateToGoTo error:', e?.message);
         }
     }
+
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
 
     handleStatusFilterChange(event){
         try {
@@ -484,10 +494,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
         const days = [];
         for (let i = 0; i < 7; i++) {
-            const d = new Date(start);
+            const d = this.normalizeDate(new Date(start));
             d.setDate(start.getDate() + i);
             days.push({
-                iso: d.toISOString().slice(0, 10),
+                iso: d.toLocaleDateString('en-CA'),
                 label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
                 day: d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
                 date: d.getDate().toString(),
@@ -523,12 +533,12 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         this.showLoading(true);
         let startDateStr, endDateStr;
 
-        const start = new Date(this.currentWeekStart);
-        startDateStr = start.toISOString().slice(0, 10);
+        const start = this.normalizeDate(new Date(this.currentWeekStart));
+        startDateStr = start.toLocaleDateString('en-CA');
         if (mode === 'week') {
-            const end = new Date(this.currentWeekStart);
+            const end = this.normalizeDate(new Date(this.currentWeekStart));
             end.setDate(end.getDate() + 6);
-            endDateStr = end.toISOString().slice(0, 10);
+            endDateStr = end.toLocaleDateString('en-CA');
         } else if (mode === 'day') {
             endDateStr = startDateStr;
         } else {
@@ -684,7 +694,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     mapWeekData() {
         this.weekDays = this.weekDays.map(day => {
             const dayEvents = this.filteredEvents?.filter(ev => {
-                const evIso = new Date(ev.start).toLocaleDateString('en-CA');                
+                const evIso = this.normalizeDate(new Date(ev.start)).toLocaleDateString('en-CA');                
                 return evIso === day.iso;
             }).map(ev => this.normalizeEvent(ev));
             return { ...day, events: dayEvents };
@@ -694,9 +704,11 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
     // Map day data
     mapDayData() {
-        const dayIso = this.currentWeekStart.toLocaleDateString('en-CA');
+        let dateToCheck = this.normalizeDate(this.currentWeekStart);
+        const dayIso = dateToCheck.toLocaleDateString('en-CA');
         const dayEvents = this.filteredEvents?.filter(ev => {
-            const evIso = new Date(ev.start).toLocaleDateString('en-CA');
+            
+            const evIso = this.normalizeDate(new Date(ev.start)).toLocaleDateString('en-CA');
             return evIso === dayIso;
         }).map(ev => this.normalizeEvent(ev));
 
@@ -708,8 +720,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     normalizeEvent(ev) {
         const startTime = new Date(ev.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         const endTime = new Date(ev.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        const startDayTime = new Date(ev.start).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-        const endDayTime = new Date(ev.end).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+        const startDayTime = new Date(ev.start).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+        const endDayTime = new Date(ev.end).toLocaleTimeString([], { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 
         return {
             ...ev,
@@ -720,8 +732,8 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             assets: ev.assets || [],
             subcontractors: ev.subcontractors || [],
             isPast: new Date(ev.end) < new Date(),
-            startDayTime,
-            endDayTime
+            startDayTime : startDayTime?.replaceAll('am', 'AM')?.replaceAll('pm', 'PM'),
+            endDayTime : endDayTime?.replaceAll('am', 'AM')?.replaceAll('pm', 'PM')
         };
     }
 
@@ -769,9 +781,12 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             const start = Date.parse(details.wfrecon__Start_Date__c);
             const end = Date.parse(details.wfrecon__End_Date__c);
 
+            const startLocal = this.removeOrgTimeZone(details.wfrecon__Start_Date__c);
+            const nowLocal = new Date();
+
             if (start == end) {
                 this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
-            } else if (start < new Date()) {
+            } else if (startLocal.getTime() < nowLocal.getTime()) {
                 this.showToast('Error', 'Start date/time can not be in past.', 'error');
             } else if (start > end) {
                 this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');
@@ -783,6 +798,14 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         }
     }
 
+    removeOrgTimeZone(utcDateStr) {
+        const d = new Date(utcDateStr);
+        const orgOffset = this.tzOffset * 60; // Salesforce user zone (UTC−5)
+        const deviceOffset = d.getTimezoneOffset(); // Niue = +660 (minutes)
+        const diffMs = (deviceOffset + orgOffset) * 60 * 1000;
+        return new Date(d.getTime() + diffMs);
+    }
+    
     handleRemoveAssignment(event){
         try {
             let id = event.currentTarget.dataset.id;
@@ -809,7 +832,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             removeJobResource({ id: id, type: type , mobId: mobId, allUpcoming: allUpcoming })
             .then(result => {
                 if(result === 'success'){
-                    this.showToast('Error', 'The resource assignment is been removed!', 'success');
+                    this.showToast('Success', 'The resource assignment is been removed!', 'success');
                     this.isDayView ? this.initDay(this.currentWeekStart) : this.initWeek(this.currentWeekStart);
                 }else{
                     this.showToast('Error', 'Could not remove job, please try again...', 'error');
