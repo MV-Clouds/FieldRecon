@@ -478,6 +478,20 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Edit Modal Navigation
     handleEditNext() {
         if (this.editCurrentStep === 'step1') {
+            // Validate Step 1 required fields
+            if (!this.editFormData.workPerformedDate) {
+                this.showToast('Error', 'Work Performed Date is required', 'error');
+                return;
+            }
+            if (!this.editFormData.workPerformed || this.editFormData.workPerformed.trim() === '') {
+                this.showToast('Error', 'Work Performed is required', 'error');
+                return;
+            }
+            if (!this.editFormData.planForTomorrow || this.editFormData.planForTomorrow.trim() === '') {
+                this.showToast('Error', 'Plan for Tomorrow is required', 'error');
+                return;
+            }
+            
             this.editCurrentStep = 'step2';
             // Update progress bars after DOM renders
             setTimeout(() => this.updateEditProgressBars(), 100);
@@ -531,13 +545,25 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }
 
     filterEditProcessesByLocation() {
+        let filtered;
         if (this.editSelectedLocationId) {
-            this.editLocationProcesses = this.editAllLocationProcesses.filter(
+            filtered = this.editAllLocationProcesses.filter(
                 proc => proc.locationName === this.editSelectedLocationId
             );
         } else {
-            this.editLocationProcesses = [...this.editAllLocationProcesses];
+            filtered = [...this.editAllLocationProcesses];
         }
+        
+        // Add calculated properties for labels
+        this.editLocationProcesses = filtered.map(proc => {
+            const todayProgress = proc.completionPercentage - proc.oldPercentage;
+            const remainingProgress = 100 - proc.completionPercentage;
+            return {
+                ...proc,
+                todayProgress: todayProgress >= 0 ? todayProgress : 0,
+                remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
+            };
+        });
     }
 
     handleEditSliderChange(event) {
@@ -546,15 +572,21 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         const processIndex = this.editLocationProcesses.findIndex(p => p.processId === processId);
         if (processIndex !== -1) {
-            const process = this.editLocationProcesses[processIndex];
-            const oldValue = process.completionPercentage;
+            const currentProcess = this.editLocationProcesses[processIndex];
+            const oldValue = currentProcess.completionPercentage;
             
             if (newValue !== oldValue) {
+                // Calculate today and remaining progress
+                const todayProgress = newValue - currentProcess.oldPercentage;
+                const remainingProgress = 100 - newValue;
+                
                 // Create a new process object with updated values
                 const updatedProcess = {
-                    ...process,
+                    ...currentProcess,
                     completionPercentage: newValue,
-                    changedToday: true
+                    changedToday: true,
+                    todayProgress: todayProgress >= 0 ? todayProgress : 0,
+                    remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
                 };
                 
                 // Update the array with new object
@@ -577,10 +609,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 // If value is back to original, remove from modified
                 this.editModifiedProcesses.delete(processId);
                 
+                // Recalculate values
+                const todayProgress = newValue - currentProcess.oldPercentage;
+                const remainingProgress = 100 - newValue;
+                
                 // Reset changedToday flag
                 const resetProcess = {
-                    ...process,
-                    changedToday: false
+                    ...currentProcess,
+                    changedToday: false,
+                    todayProgress: todayProgress >= 0 ? todayProgress : 0,
+                    remainingProgress: remainingProgress >= 0 ? remainingProgress : 0
                 };
                 
                 this.editLocationProcesses = [
@@ -605,7 +643,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         todayBars.forEach(bar => {
             const processId = bar.dataset.processId;
             const processData = this.editLocationProcesses.find(p => p.processId === processId);
-            if (process) {
+            if (processData) {
                 const oldPerc = processData.oldPercentage || 0;
                 const newPerc = processData.completionPercentage || 0;
                 const change = Math.max(0, newPerc - oldPerc);
@@ -626,20 +664,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         }, 0);
     }
 
-    handleDiscardEditChanges() {
-        // Reload original data
-        const logToEdit = this.shiftEndLogs.find(log => log.Id === this.editLogId);
-        if (logToEdit) {
-            this.loadEditLocationProcesses(logToEdit);
-            this.editModifiedProcesses.clear();
-        }
-        this.showToast('Info', 'Changes discarded', 'info');
-    }
-
-    handleSaveEditChanges() {
-        // Just show a confirmation toast - actual save happens on final submit
-        this.showToast('Success', 'Location progress saved', 'success');
-    }
+    // Removed handleDiscardEditChanges and handleSaveEditChanges
+    // State is now preserved automatically and saved on final Update button click
 
     // Handle save button click
     async handleSaveEdit() {
@@ -668,13 +694,26 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice
         };
 
+        // Prepare location process updates if any modifications were made
+        const processUpdates = Array.from(this.editModifiedProcesses.entries()).map(([processId, modification]) => {
+            const process = this.editAllLocationProcesses.find(p => p.processId === processId);
+            return {
+                processId: processId,
+                processName: process?.processName || '',
+                locationName: process?.locationName || '',
+                completionPercentage: modification.newValue,
+                sequence: process?.sequence || null
+            };
+        });
+
         this.isLoading = true;
 
         try {
-            // Combined update: delete removed images and update log entry
+            // Combined update: delete removed images, update log entry, and save location progress
             await updateShiftEndLogWithImages({ 
                 logEntry: formData, 
-                contentDocumentIdsToDelete: this.imagesToDelete 
+                contentDocumentIdsToDelete: this.imagesToDelete,
+                processUpdatesJson: JSON.stringify(processUpdates)
             });
 
             this.showToast('Success', 'Shift End Log updated successfully', 'success');

@@ -61,17 +61,18 @@
 }
 
 .create-btn {
-    background-color: var(--primary-theme-color, #5a5adb);
+    background: rgba(94, 90, 219, 1);
     color: white;
     border: none;
-    border-radius: 0.25rem;
-    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 8px;
     white-space: nowrap;
 }
 
@@ -527,9 +528,9 @@
 }
 
 .process-name {
-    font-size: 13px;
-    color: #3e3e3c;
-    font-weight: 500;
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
 }
 
 .process-progress-bar {
@@ -653,29 +654,25 @@
     max-height: 90vh;
 }
 
-.save-btn {
-    background: var(--primary-theme-color);
+/* Update button in footer uses nav-btn styles but with specific overrides if needed */
+.nav-btn.save-btn {
+    background: rgba(94, 90, 219, 1);
     color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 0.5rem 1.5rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-    height: 2.25rem;
-    min-width: 6.75rem;
 }
 
-.save-btn:hover:not(:disabled),
-.save-btn:active:not(:disabled) {
+.nav-btn.save-btn:hover:not(:disabled) {
     background: rgba(94, 90, 219, 0.9);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
-.save-btn:disabled {
-    background-color: rgba(94, 90, 219, 0.5);
+.nav-btn.save-btn:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
 }
 
 .bottom-footer-btn {
@@ -749,18 +746,17 @@
 .camera-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background-color: var(--primary-theme-color);
-    color: white;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
     border: none;
     border-radius: 4px;
-    cursor: pointer;
+    background: rgba(94, 90, 219, 1);
+    color: white;
     font-size: 14px;
     font-weight: 600;
+    cursor: pointer;
     transition: all 0.2s ease;
-    height: 36px;
-    margin-top: 1.3rem;
 }
 
 .camera-btn:hover {
@@ -770,7 +766,7 @@
 }
 
 .camera-btn:active {
-    transform: translateY(0);
+    transform: scale(0.98);
 }
 
 /* Camera Modal Styles */
@@ -828,15 +824,16 @@
 
 .retake-btn,
 .save-photo-btn {
-    padding: 0.5rem 1.5rem;
+    padding: 10px 20px;
     border: none;
-    border-radius: 0.25rem;
+    border-radius: 4px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    transition: all 0.2s ease-in-out;
+    gap: 8px;
+    transition: all 0.2s ease;
 }
 
 .retake-btn {
@@ -847,10 +844,11 @@
 .retake-btn:hover {
     background: #5a5858;
     transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .save-photo-btn {
-    background: var(--primary-theme-color);
+    background: rgba(94, 90, 219, 1);
     color: white;
 }
 
@@ -900,16 +898,413 @@
 }
 
 .edit-location-slider-container {
+    margin-bottom: 1rem;
     padding: 1rem;
-    background: white;
-    border: 1px solid #dddbda;
+    background: rgb(244, 244, 255);
     border-radius: 8px;
     transition: all 0.3s ease;
 }
 
 .edit-location-slider-container:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border-color: #0176d3;
+    background: rgb(240, 240, 255);
+    box-shadow: 0 2px 8px rgba(94, 90, 219, 0.1);
+}
+
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.process-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.process-sequence {
+    font-size: 11px;
+    color: #666;
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.progress-percentage {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(94, 90, 219, 1);
+    background: rgba(94, 90, 219, 0.1);
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+    border: 2px solid rgba(94, 90, 219, 0.2);
+}
+
+.slider-wrapper {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    margin-bottom: 1rem;
+}
+
+.slider-track {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e0e0e0;
+}
+
+.slider-section {
+    height: 100%;
+    transition: width 0.2s ease;
+}
+
+.slider-section.completed {
+    background: linear-gradient(90deg, #1f8e3f 0%, #00aa00 100%);
+}
+
+.slider-section.today {
+    background: linear-gradient(90deg, rgba(94, 90, 219, 0.8) 0%, rgba(94, 90, 219, 1) 100%);
+}
+
+.slider-section.remaining {
+    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.progress-slider {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-25%);
+    height: 8px;
+    opacity: 1;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    z-index: 10;
+    width: 100%;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.progress-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(94, 90, 219, 1);
+    border: 4px solid white;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(94, 90, 219, 0.5);
+    transition: all 0.2s ease;
+    margin-top: -7px;
+}
+
+.progress-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 10px rgba(94, 90, 219, 0.5), 0 0 0 1px rgba(94, 90, 219, 0.7);
+}
+
+.progress-slider::-webkit-slider-thumb:active {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(94, 90, 219, 0.7), 0 0 0 1px rgba(94, 90, 219, 0.9);
+}
+
+.progress-slider:disabled::-webkit-slider-thumb {
+    opacity: 0;
+    cursor: not-allowed;
+}
+
+/* Firefox */
+.progress-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(94, 90, 219, 1);
+    border: 4px solid white;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(94, 90, 219, 0.5);
+    transition: all 0.2s ease;
+}
+
+.progress-slider::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 10px rgba(94, 90, 219, 0.5), 0 0 0 1px rgba(94, 90, 219, 0.7);
+}
+
+.progress-slider::-moz-range-thumb:active {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(94, 90, 219, 0.7), 0 0 0 1px rgba(94, 90, 219, 0.9);
+}
+
+.progress-slider:disabled::-moz-range-thumb {
+    opacity: 0;
+    cursor: not-allowed;
+}
+
+/* Firefox track */
+.progress-slider::-moz-range-track {
+    background: transparent;
+    border: none;
+}
+
+.progress-slider:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #666;
+    margin-top: 0.5rem;
+    gap: 0.5rem;
+}
+
+.slider-labels span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.slider-labels .label-completed {
+    color: #1f8e3f;
+}
+
+.slider-labels .label-completed svg {
+    color: #1f8e3f;
+}
+
+.slider-labels .label-today {
+    color: rgba(94, 90, 219, 1);
+}
+
+.slider-labels .label-today svg {
+    color: rgba(94, 90, 219, 1);
+}
+
+.slider-labels .label-remaining {
+    color: #999;
+}
+
+.slider-labels .label-remaining svg {
+    color: #999;
+}
+
+/* Section Header for Location Progress */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.discard-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.discard-btn:hover:not(:disabled) {
+    background: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+}
+
+.action-btn.save-btn {
+    background: rgba(94, 90, 219, 1);
+    color: white;
+}
+
+.action-btn.save-btn:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Slider Styles for Edit Modal */
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.process-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.process-sequence {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(94, 90, 219, 0.1);
+    color: rgba(94, 90, 219, 1);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.process-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.progress-percentage {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(94, 90, 219, 1);
+    min-width: 45px;
+    text-align: right;
+}
+
+.slider-wrapper {
+    position: relative;
+    margin-top: 0.5rem;
+}
+
+.slider-track {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e0e0e0;
+}
+
+.slider-section {
+    height: 100%;
+    transition: width 0.2s ease;
+}
+
+.slider-section.completed {
+    background: linear-gradient(90deg, #1f8e3f 0%, #00aa00 100%);
+}
+
+.slider-section.today {
+    background: linear-gradient(90deg, rgba(94, 90, 219, 0.8) 0%, rgba(94, 90, 219, 1) 100%);
+}
+
+.slider-section.remaining {
+    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.progress-slider {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-25%);
+    height: 8px;
+    opacity: 1;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    z-index: 10;
+    width: 100%;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.progress-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(94, 90, 219, 1);
+    border: 4px solid white;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(94, 90, 219, 0.5);
+    transition: all 0.2s ease;
+}
+
+.progress-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 10px rgba(94, 90, 219, 0.5), 0 0 0 1px rgba(94, 90, 219, 0.7);
+}
+
+.progress-slider::-webkit-slider-thumb:active {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(94, 90, 219, 0.7), 0 0 0 1px rgba(94, 90, 219, 0.9);
+}
+
+.progress-slider:disabled::-webkit-slider-thumb {
+    opacity: 0;
+    cursor: not-allowed;
+}
+
+/* Firefox */
+.progress-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(94, 90, 219, 1);
+    border: 4px solid white;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(94, 90, 219, 0.5);
+    transition: all 0.2s ease;
+}
+
+.progress-slider::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 10px rgba(94, 90, 219, 0.5), 0 0 0 1px rgba(94, 90, 219, 0.7);
+}
+
+.progress-slider::-moz-range-thumb:active {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(94, 90, 219, 0.7), 0 0 0 1px rgba(94, 90, 219, 0.9);
+}
+
+.progress-slider:disabled::-moz-range-thumb {
+    opacity: 0;
+    cursor: not-allowed;
+}
+
+/* Firefox track */
+.progress-slider::-moz-range-track {
+    background: transparent;
+    border: none;
+}
+
+.progress-slider:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .edit-modal .bottom-footer-btn {
@@ -923,44 +1318,76 @@
 }
 
 .nav-btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    border: 1px solid #dddbda;
-    background-color: white;
-    color: #0176d3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    background: rgba(94, 90, 219, 1);
+    color: white;
 }
 
 .nav-btn:hover {
-    background-color: #f3f3f3;
-    border-color: #0176d3;
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .nav-btn:active {
     transform: scale(0.98);
 }
 
+.nav-btn:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.nav-btn:disabled:hover {
+    background: rgba(94, 90, 219, 1);
+    transform: none;
+    box-shadow: none;
+}
+
 .next-btn {
-    background-color: #0176d3;
+    background: rgba(94, 90, 219, 1);
     color: white;
-    border-color: #0176d3;
 }
 
 .next-btn:hover {
-    background-color: #014486;
-    border-color: #014486;
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
-/* Slider styles for edit modal */
+.prev-btn {
+    background: rgba(94, 90, 219, 1);
+    color: white;
+}
+
+/* Slider styles for edit modal - using same colors as main sliders */
 .edit-yesterday-progress {
-    background: linear-gradient(90deg, #7b68ee 0%, #9370db 100%);
+    background: linear-gradient(90deg, #1f8e3f 0%, #00aa00 100%) !important;
 }
 
 .edit-today-progress {
-    background: linear-gradient(90deg, #ff8c00 0%, #ffa500 100%);
+    background: linear-gradient(90deg, rgba(94, 90, 219, 0.8) 0%, rgba(94, 90, 219, 1) 100%) !important;
+}
+
+.slider-section.completed.edit-yesterday-progress {
+    background: linear-gradient(90deg, #1f8e3f 0%, #00aa00 100%);
+}
+
+.slider-section.today.edit-today-progress {
+    background: linear-gradient(90deg, rgba(94, 90, 219, 0.8) 0%, rgba(94, 90, 219, 1) 100%);
 }
 
 .pagination-section {

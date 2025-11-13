@@ -351,7 +351,6 @@ public with sharing class GlobalClockInOutController {
             
             String clockInTimeString = (String) memberData.get('clockInTime');
             Datetime clkInUserTz = convertUtc(clockInTimeString);
-            
             Boolean isTimesheetNull = (Boolean) memberData.get('isTimesheetNull');
             String timesheetId = (String) memberData.get('timesheetId');
             String costCodeId = (String) memberData.get('costCodeId');
@@ -388,6 +387,7 @@ public with sharing class GlobalClockInOutController {
             
             String clockInTimeString = (String) memberData.get('clockInTime');
             Datetime clkInUserTz = convertUtc(clockInTimeString);
+            System.debug('clkInUserTz :: ' + clkInUserTz);
             Boolean isTimesheetNull = (Boolean) memberData.get('isTimesheetNull');
             String timesheetId = (String) memberData.get('timesheetId');
             String costCodeId = (String) memberData.get('costCodeId');
@@ -407,6 +407,7 @@ public with sharing class GlobalClockInOutController {
             timesheetEntryRec.Cost_Code__c = costCodeId;
             timesheetEntryRec.Mobilization__c = mobId;
             timesheetEntryRec.Do_Not_Execute__c = true;
+            System.debug('timesheetEntryRec :: ' + timesheetEntryRec);
             entriesToInsert.add(timesheetEntryRec);
         }
         

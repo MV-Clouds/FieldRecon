@@ -343,20 +343,6 @@
                                     </div>
                                 </template>
 
-                                <!-- Action Buttons -->
-                                <template if:true={hasModifiedProcesses}>
-                                    <div class="section-header">
-                                        <div class="action-buttons">
-                                            <button type="button" class="action-btn discard-btn" onclick={handleDiscardEditChanges}>
-                                                Discard Changes
-                                            </button>
-                                            <button type="button" class="action-btn save-btn" onclick={handleSaveEditChanges}>
-                                                Save Changes
-                                            </button>
-                                        </div>
-                                    </div>
-                                </template>
-
                                 <!-- Location Processes List -->
                                 <template if:true={hasEditLocationProcesses}>
                                     <div class="edit-location-processes-list">
@@ -364,10 +350,10 @@
                                             <div key={process.processId} class="edit-location-slider-container">
                                                 <div class="slider-header">
                                                     <div class="process-info">
-                                                        <span class="process-sequence">{process.sequence}</span>
+                                                        <span class="process-sequence">Seq: {process.sequence}</span>
                                                         <span class="process-name">{process.processName}</span>
                                                     </div>
-                                                    <span class="progress-percentage">{process.completionPercentage}%</span>
+                                                    <span class="progress-percentage">{process.completionPercentage}% Complete</span>
                                                 </div>
                                                 
                                                 <div class="slider-wrapper">
@@ -387,6 +373,26 @@
                                                         data-process-id={process.processId}
                                                         class="progress-slider"
                                                         onchange={handleEditSliderChange} />
+                                                </div>
+                                                <div class="slider-labels">
+                                                    <span class="label-completed">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="12" r="10" />
+                                                        </svg>
+                                                        Completed: {process.oldPercentage}%
+                                                    </span>
+                                                    <span class="label-today">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="12" r="10" />
+                                                        </svg>
+                                                        Today: {process.todayProgress}%
+                                                    </span>
+                                                    <span class="label-remaining">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="12" r="10" />
+                                                        </svg>
+                                                        Remaining: {process.remainingProgress}%
+                                                    </span>
                                                 </div>
                                             </div>
                                         </template>
@@ -478,12 +484,14 @@
                 
                 <!-- Control buttons - Sticky Footer -->
                 <div class="bottom-footer-btn">
-                    <!-- Previous Button -->
-                    <template if:false={isEditStep1}>
-                        <button class="nav-btn previous-btn" type="button" onclick={handleEditPrevious}>
-                            Previous
-                        </button>
-                    </template>
+                    <!-- Previous Button - Always visible, disabled on step 1 -->
+                    <button class="nav-btn prev-btn" type="button" onclick={handleEditPrevious} disabled={isEditStep1}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Previous
+                    </button>
                     
                     <div class="spacer"></div>
                     
@@ -491,12 +499,20 @@
                     <template if:false={isEditStep3}>
                         <button class="nav-btn next-btn" type="button" onclick={handleEditNext}>
                             Next
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
                         </button>
                     </template>
                     
                     <!-- Update Button (only on last step) -->
                     <template if:true={isEditStep3}>
-                        <button class="save-btn" type="button" onclick={handleSaveEdit} disabled={isLoading}>
+                        <button class="nav-btn save-btn" type="button" onclick={handleSaveEdit} disabled={isLoading}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
                             Update
                         </button>
                     </template>
