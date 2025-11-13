@@ -77,7 +77,8 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
             return {
                 ...record,
                 SerialNumber: startIndex + index + 1,
-                Actions: 'actions'
+                Actions: 'actions',
+                isLevelCodeZero: record.wfrecon__Level_Code__c === 0
             };
         });
     }
@@ -359,7 +360,7 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
         this.costCodeName = costCodeRecord.Name || '';
         this.classificationType = costCodeRecord.wfrecon__Classification_Type__c || '';
         // Handle Level Code properly to show 0 values
-        this.levelCode = costCodeRecord.wfrecon__Level_Code__c || 0;
+        this.levelCode = costCodeRecord.wfrecon__Level_Code__c;
     }
 
     /**
@@ -435,7 +436,7 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
         // Trim and check each field
         const costCodeNameTrimmed = this.costCodeName ? this.costCodeName.trim() : '';
         const classificationTypeTrimmed = this.classificationType ? this.classificationType.trim() : '';
-        const levelCodeTrimmed = this.levelCode ? String(this.levelCode).trim() : '';
+        const levelCodeTrimmed = this.levelCode !== null && this.levelCode !== undefined ? String(this.levelCode).trim() : '';
 
         // Check for empty required fields
         if (!costCodeNameTrimmed) {
@@ -444,7 +445,7 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
         if (!classificationTypeTrimmed) {
             emptyFields.push('Classification Type');
         }
-        if (!levelCodeTrimmed) {
+        if (levelCodeTrimmed === '') {
             emptyFields.push('Level Code');
         }
 
@@ -461,15 +462,15 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
             return false;
         }
 
-        // Validate level code is a valid positive number
-        if (levelCodeTrimmed) {
+        // Validate level code is a valid positive number (including 0)
+        if (levelCodeTrimmed !== '') {
             const levelCodeNum = parseInt(levelCodeTrimmed, 10);
             if (isNaN(levelCodeNum)) {
                 this.showToast('Error', 'Level Code must be a valid number', 'error');
                 return false;
             }
             if (levelCodeNum < 0) {
-                this.showToast('Error', 'Level Code must be a positive number', 'error');
+                this.showToast('Error', 'Level Code must be a positive number or zero', 'error');
                 return false;
             }
         }
@@ -663,7 +664,8 @@ export default class CostCodeManagement extends NavigationMixin(LightningElement
         this.shownCostCodeData = this.filteredCostCodes.slice(startIndex, endIndex).map((record, index) => {
             return {
                 ...record,
-                SerialNumber: startIndex + index + 1
+                SerialNumber: startIndex + index + 1,
+                isLevelCodeZero: record.wfrecon__Level_Code__c === 0
             };
         });
     }

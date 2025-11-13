@@ -432,6 +432,7 @@
 .process-popup-body form {
     flex: 1;
     overflow-y: auto;
+    padding: 0px 6px;
     padding-bottom: 1rem;
 }
 
