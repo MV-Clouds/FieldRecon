@@ -83,7 +83,7 @@ export default class GlobalClockInOut extends LightningElement {
     get clockOutTabClass() {
         return this.activeTab === 'clockout' ? 'active' : '';
     }
-    
+
     get clockInMinBoundary() {
         const reference = this.currentJobStartDateTime || this.bulkClockInTime;
         const dateKey = this.extractDateKey(reference);
@@ -284,11 +284,11 @@ export default class GlobalClockInOut extends LightningElement {
 
     /** 
     * Method Name: parseLiteral
-    * @description: Parses ISO date string to "YYYY-MM-DD HH:MM" format for datetime-local input
+    * @description: Parses ISO date string to "YYYY-MM-DDTHH:MM" format for datetime-local input
     */
     parseLiteral(iso) {
         try {
-            return iso ? iso.slice(0, 16).replace('T', ' ') : ''; // "2025-10-05 07:00"
+            return iso ? iso.slice(0, 16) : ''; // "2025-10-05T07:00"
         } catch (error) {
             console.error('Error in parseLiteral:', error);
             return '';
