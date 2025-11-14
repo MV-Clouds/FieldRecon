@@ -947,5 +947,6 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public String mobMemberId;
         @AuraEnabled public Map<Id, String> costCodeDetails;
         @AuraEnabled public Boolean isAgain;
+        @AuraEnabled public String crewName;
     }
 }
