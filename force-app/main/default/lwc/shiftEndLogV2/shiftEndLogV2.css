@@ -288,15 +288,42 @@
 .log-meta-info {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
     font-size: 0.75rem;
     color: #706e6b;
+    flex-wrap: wrap;
 }
 
 .log-meta-info-name {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Approval Status Badge */
+.approval-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.approval-status-badge.pending {
+    background-color: #fef3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.approval-status-badge.approved {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .section-label {
@@ -512,6 +539,7 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 8px;
+    flex-wrap: wrap;
 }
 
 .process-seq {
@@ -528,9 +556,96 @@
 }
 
 .process-name {
-    font-size: 14px;
-    color: #333;
+    font-size: 12px;
+    color: #3e3e3c;
+    flex: 1;
+}
+
+/* Process Approval Badge in Card View */
+.process-approval-badge-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 2px 6px;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    font-size: 0.6rem;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* Process Approval Info - Detailed Display */
+.process-approval-info {
+    margin-top: 0.5rem;
+    padding: 0.6rem;
+    background: linear-gradient(135deg, #fff9e6 0%, #fffbf0 100%);
+    border-left: 3px solid #ffc107;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.approval-badge-card-detailed {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #856404;
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.4rem;
+}
+
+.approval-badge-card-detailed svg {
+    flex-shrink: 0;
+}
+
+.approval-title {
+    font-weight: 700;
+}
+
+.approval-details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+    color: #5f4c00;
+}
+
+.approval-detail-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.approval-detail-item strong {
+    color: #856404;
+    font-weight: 700;
+}
+
+.approval-detail-item.highlight strong {
+    color: #d97706;
+}
+
+.approval-arrow {
+    font-size: 0.9rem;
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.approval-change-badge {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.3);
 }
 
 .process-progress-bar {
@@ -556,6 +671,16 @@
 .today-progress {
     background-color: rgba(94, 90, 219, 1); /* Purple for today's change - will be overridden by JS */
     border-radius: 0 4px 4px 0;
+}
+
+.approval-progress {
+    background: linear-gradient(135deg, #ff9500 0%, #ff6b35 100%);
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 0 8px rgba(255, 149, 0, 0.5);
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0.85;
 }
 
 .process-progress-fill[data-changed="true"] {
@@ -928,7 +1053,76 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex: 1;
+    flex-wrap: wrap;
+}
+
+/* Process Approval Badge in Edit Modal */
+.process-approval-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.5rem;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Process Approval Info in Edit Modal */
+.process-approval-info-modal {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #fff9e6 0%, #fffbf0 100%);
+    border-left: 4px solid #ffc107;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.approval-badge-modal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #856404;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.6rem;
+}
+
+.approval-badge-modal svg {
+    flex-shrink: 0;
+}
+
+.approval-details-modal {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: #5f4c00;
+}
+
+.detail-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.detail-label strong {
+    color: #856404;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.detail-label.highlight strong {
+    color: #d97706;
+    font-size: 0.9rem;
 }
 
 .process-name {

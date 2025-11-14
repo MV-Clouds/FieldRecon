@@ -207,6 +207,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 bar.style.width = `${changePercentage}%`;
                 bar.style.backgroundColor = color;
             });
+
+            // Update approval progress bars (showing approval percentage in distinct orange)
+            const approvalBars = this.template.querySelectorAll('.approval-progress');
+            approvalBars.forEach(bar => {
+                const approvalPercentage = parseFloat(bar.dataset.percentage) || 0;
+                bar.style.width = `${approvalPercentage}%`;
+            });
         }, 0);
     }
 
@@ -261,6 +268,22 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         };
                     });
                     
+                    // Parse approval data if present
+                    let approvalData = null;
+                    let hasPendingApproval = false;
+                    if (log.wfrecon__Approval_Data__c) {
+                        try {
+                            approvalData = JSON.parse(log.wfrecon__Approval_Data__c);
+                            hasPendingApproval = approvalData && Object.keys(approvalData).length > 0;
+                        } catch (e) {
+                            console.error('Error parsing approval data:', e);
+                        }
+                    }
+
+                    // Check if status is Auto-Approved or Approved
+                    const status = log.wfrecon__Status__c;
+                    const isApprovedStatus = status === 'Auto-Approved' || status === 'Approved';
+                    
                     return {
                         Id: log.Id,
                         Name: log.Name,
@@ -270,11 +293,20 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         wfrecon__Exceptions__c: log.wfrecon__Exceptions__c,
                         wfrecon__Plan_for_Tomorrow__c: log.wfrecon__Plan_for_Tomorrow__c,
                         wfrecon__Notes_to_Office__c: log.wfrecon__Notes_to_Office__c,
+                        wfrecon__Status__c: status,
+                        wfrecon__Approval_Data__c: log.wfrecon__Approval_Data__c,
                         CreatedBy: log.CreatedBy,
                         formattedDate: this.formatDate(log.wfrecon__Work_Performed_Date__c),
                         hasExceptions: log.wfrecon__Exceptions__c && log.wfrecon__Exceptions__c.trim() !== '',
                         createdByName: log.CreatedBy?.Name || 'Unknown User',
                         statusVariant: this.getStatusVariant(log.wfrecon__Log_Type__c),
+                        // Approval-related properties
+                        approvalData: approvalData,
+                        hasPendingApproval: hasPendingApproval,
+                        isApprovedStatus: isApprovedStatus,
+                        canEdit: !isApprovedStatus,
+                        canDelete: !isApprovedStatus,
+                        approvalStatusLabel: hasPendingApproval ? 'Pending Approval' : (status || 'Draft'),
                         // Display properties with dash for empty values
                         displayWorkPerformed: log.wfrecon__Work_Performed__c || '-',
                         displayExceptions: log.wfrecon__Exceptions__c || '-',
@@ -300,8 +332,20 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         })),
                         hasImages: images.length > 0,
                         imageCount: images.length,
-                        // Location processes
-                        locationProcesses: locationProcesses,
+                        // Location processes with approval data
+                        locationProcesses: locationProcesses.map(proc => {
+                            const isPendingApproval = approvalData && approvalData.hasOwnProperty(proc.processId);
+                            const approvalPercentage = isPendingApproval ? approvalData[proc.processId] : null;
+                            const approvalChange = isPendingApproval 
+                                ? Math.round(approvalPercentage - (proc.yesterdayPercentage || 0))
+                                : 0;
+                            return {
+                                ...proc,
+                                isPendingApproval: isPendingApproval,
+                                approvalPercentage: approvalPercentage,
+                                approvalChange: approvalChange
+                            };
+                        }),
                         hasLocationProcesses: locationProcesses.length > 0
                     };
                 });
@@ -535,6 +579,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     loadEditLocationProcesses(logToEdit) {
         if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
             
+            // Check if there's approval data
+            const approvalData = logToEdit.approvalData || {};
+            
             // Map backend fields to component properties
             this.editAllLocationProcesses = logToEdit.locationProcesses.map(proc => {
                 // Handle different possible field names from backend
@@ -552,6 +599,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 // Calculate today's change (difference between current and yesterday)
                 const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
                 const remainingProgress = Math.max(0, 100 - completionPercentage);
+                
+                // Check if this process is pending approval
+                const isPendingApproval = approvalData.hasOwnProperty(processId);
+                const approvalPercentage = isPendingApproval ? approvalData[processId] : null;
+                const approvalChange = isPendingApproval 
+                    ? Math.round(approvalPercentage - yesterdayPercentage)
+                    : 0;
                                 
                 return {
                     processId: processId,
@@ -563,6 +617,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     todayProgress: todayProgress, // Today's change
                     remainingProgress: remainingProgress,
                     changedToday: false,
+                    isPendingApproval: isPendingApproval,
+                    approvalPercentage: approvalPercentage,
+                    approvalChange: approvalChange,
                     completedStyle: `width: ${yesterdayPercentage}%`,
                     todayStyle: `width: ${todayProgress}%`,
                     remainingStyle: `width: ${remainingProgress}%`
