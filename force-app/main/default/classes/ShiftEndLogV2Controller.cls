@@ -303,7 +303,7 @@ public with sharing class ShiftEndLogV2Controller {
                 }
             }
 
-            // Step 2: Update the log entry
+            // Step 2: Update the log entry (including wfrecon__Approval_Data__c if provided)
             update as user logEntry;
 
         } catch (Exception e) {

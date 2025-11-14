@@ -459,7 +459,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
             }
         }
-        
+
         this.showEditModal = false;
         this.editLogId = null;
         this.editCurrentStep = 'step1';
@@ -696,23 +696,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         remaining.style.width = `${remainingPercent}%`;
                     }
 
-                    // Update percentage display
-                    const percentageDisplay = sliderElement.closest('.edit-location-slider-container')?.querySelector('.progress-percentage');
-                    if (percentageDisplay) {
-                        percentageDisplay.textContent = `${newValue}% Complete`;
-                    }
-
                     // Update labels
                     const labelsContainer = sliderElement.closest('.edit-location-slider-container')?.querySelector('.slider-labels');
                     if (labelsContainer) {
-                        // Update completed label to show total completed percentage
-                        const completedLabel = labelsContainer.querySelector('.label-completed');
-                        if (completedLabel) {
-                            const textNodes = Array.from(completedLabel.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
-                            if (textNodes.length > 0) {
-                                textNodes[0].textContent = `Completed: ${newValue}%`;
-                            }
-                        }
                         
                         const todayLabel = labelsContainer.querySelector('.label-today');
                         if (todayLabel) {
@@ -809,7 +795,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // State is now preserved automatically and saved on final Update button click
 
     // Handle save button click
-    async handleSaveEdit() {
+    handleSaveEdit() {
         // Validate required fields
         if (!this.editFormData.workPerformedDate) {
             this.showToast('Error', 'Work Performed Date is required', 'error');
@@ -826,46 +812,50 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             return;
         }
 
+        // Prepare location process updates - only include ID, old value, and new value
+        const processUpdates = Array.from(this.editModifiedProcesses.entries()).map(([processId, modification]) => {
+            return {
+                id: processId,
+                oldValue: modification.originalValue,
+                newValue: modification.newValue
+            };
+        });
+
         const formData = {
             Id: this.editLogId,
             wfrecon__Work_Performed_Date__c: this.editFormData.workPerformedDate,
             wfrecon__Work_Performed__c: this.editFormData.workPerformed,
             wfrecon__Exceptions__c: this.editFormData.exceptions,
             wfrecon__Plan_for_Tomorrow__c: this.editFormData.planForTomorrow,
-            wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice
+            wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice,
         };
 
-        // Prepare location process updates if any modifications were made
-        const processUpdates = Array.from(this.editModifiedProcesses.entries()).map(([processId, modification]) => {
-            const process = this.editAllLocationProcesses.find(p => p.processId === processId);
-            return {
-                processId: processId,
-                processName: process?.processName || '',
-                locationName: process?.locationName || '',
-                completionPercentage: modification.newValue,
-                sequence: process?.sequence || null
-            };
-        });
+        if(processUpdates.length > 0) {
+            formData.wfrecon__Approval_Data__c = JSON.stringify(processUpdates);
+        }
+
+        console.log('formData ==> ', formData);
+        
 
         this.isLoading = true;
 
-        try {
-            // Combined update: delete removed images, update log entry, and save location progress
-            await updateShiftEndLogWithImages({ 
-                logEntry: formData, 
-                contentDocumentIdsToDelete: this.imagesToDelete,
-                processUpdatesJson: JSON.stringify(processUpdates)
-            });
-
+        // Combined update: delete removed images and update log entry
+        updateShiftEndLogWithImages({ 
+            logEntry: formData, 
+            contentDocumentIdsToDelete: this.imagesToDelete
+        })
+        .then(() => {
             this.showToast('Success', 'Shift End Log updated successfully', 'success');
             this.handleCloseModal();
             this.loadShiftEndLogsWithCrewInfo();
-        } catch (error) {
+        })
+        .catch(error => {
             const errorMessage = error.body?.message || 'Error updating shift end log';
             this.showToast('Error', errorMessage, 'error');
-        } finally {
+        })
+        .finally(() => {
             this.isLoading = false;
-        }
+        });
     }   
 
     // Handle file upload
