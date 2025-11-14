@@ -347,6 +347,38 @@ public with sharing class ShiftEndLogV2Controller {
         }
     }
 
+    @AuraEnabled
+    public static void deleteUploadedFiles(List<String> contentDocumentIds) {
+        try {
+            if (contentDocumentIds == null || contentDocumentIds.isEmpty()) {
+                return;
+            }
+
+            List<ContentDocument> docsToDelete = [
+                SELECT Id 
+                FROM ContentDocument 
+                WHERE Id IN :contentDocumentIds 
+                WITH USER_MODE
+            ];
+            
+            if (!docsToDelete.isEmpty()) {
+                delete as user docsToDelete;
+            }
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'deleteUploadedFiles', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error deleting uploaded files: ' + contentDocumentIds,
+                'apiResponse' => null
+            });
+            throw new AuraHandledException('Error deleting uploaded files: ' + e.getMessage());
+        }
+    }
+
     // -----------------------------
     // Wrapper classes
     // -----------------------------

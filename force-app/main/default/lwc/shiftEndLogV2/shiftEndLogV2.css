@@ -741,6 +741,7 @@
 .upload-right {
     flex: 0 0 auto;
     margin-left: auto;
+    margin-top: 1rem;
 }
 
 .camera-btn {
@@ -864,6 +865,7 @@
     background-color: #f3f3f3;
     border-bottom: 1px solid #dddbda;
     overflow-x: auto;
+    pointer-events: none;
 }
 
 .edit-progress-container::-webkit-scrollbar {

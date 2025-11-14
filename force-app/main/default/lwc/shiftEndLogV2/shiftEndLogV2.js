@@ -2,6 +2,7 @@ import { LightningElement, wire, track } from 'lwc';
 import getShiftEndLogsWithCrewInfo from '@salesforce/apex/ShiftEndLogV2Controller.getShiftEndLogsWithCrewInfo';
 import updateShiftEndLogWithImages from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLogWithImages';
 import deleteShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.deleteShiftEndLog';
+import deleteUploadedFiles from '@salesforce/apex/ShiftEndLogV2Controller.deleteUploadedFiles';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -234,10 +235,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     const log = wrapper.logEntry;
                     const images = wrapper.images || [];
                     const locationProcesses = wrapper.locationProcesses || [];
-                    const fieldChanges = wrapper.fieldChanges || [];
-
-                    console.log('fieldChanges ==> ', fieldChanges);
-                    
+                    const fieldChanges = wrapper.fieldChanges || [];                    
                     
                     // Map field API names to display names
                     const fieldNameMap = {
@@ -439,6 +437,29 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     // Handle close modal
     handleCloseModal() {
+        // Delete newly uploaded files before closing (exclude camera photos as they're not yet uploaded)
+        if (this.newUploadedFiles && this.newUploadedFiles.length > 0) {
+            try {
+                // Only delete files that have real ContentDocument IDs (not temporary camera photo IDs)
+                const contentDocumentIds = this.newUploadedFiles
+                    .filter(file => !file.isCamera && !file.id.startsWith('temp_'))
+                    .map(file => file.id);
+                
+                if (contentDocumentIds.length > 0) {
+                    deleteUploadedFiles({ contentDocumentIds })
+                    .then(() => {
+                        console.log('Successfully deleted newly uploaded files on modal close')
+                    })
+                    .catch(error => {
+                        console.error('Error deleting newly uploaded files on modal close:', error)
+                    });
+            }
+            } catch (error) {
+                console.error('Error deleting uploaded files:', error);
+
+            }
+        }
+        
         this.showEditModal = false;
         this.editLogId = null;
         this.editCurrentStep = 'step1';
@@ -513,7 +534,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Load location processes for edit modal
     loadEditLocationProcesses(logToEdit) {
         if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
-            console.log('Raw location processes:', JSON.stringify(logToEdit.locationProcesses, null, 2));
             
             // Map backend fields to component properties
             this.editAllLocationProcesses = logToEdit.locationProcesses.map(proc => {
@@ -532,9 +552,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 // Calculate today's change (difference between current and yesterday)
                 const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
                 const remainingProgress = Math.max(0, 100 - completionPercentage);
-                
-                console.log(`Process ${processName}: yesterday=${yesterdayPercentage}%, current=${completionPercentage}%, today=${todayProgress}%`);
-                
+                                
                 return {
                     processId: processId,
                     processName: processName,
@@ -551,7 +569,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 };
             });
             
-            console.log('Processed location processes:', this.editAllLocationProcesses);
             this.buildEditLocationOptions();
             this.setEditDefaultLocation();
         }
