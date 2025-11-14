@@ -112,14 +112,15 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         return true;
     }
 
-    validateClockOutDate(clockOutValue, jobEndValue) {
+    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
         const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
 
         if (clockOutDate && jobEndDate) {
             const nextDay = this.addDaysToDateKey(jobEndDate, 1);
-            if (clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
-                this.showToast('Error', 'Clock Out time must be on the job end date or the following day', 'error');
+            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
+                this.showToast('Error', 'Clock Out time must be on the job start date, job end date, or the following day', 'error');
                 return false;
             }
         }
@@ -746,8 +747,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
 
+            const jobStartReference = selectedRecordDetails?.jobStartTimeIso || selectedRecordDetails?.jobStartTime;
             const jobEndReference = selectedRecordDetails?.jobEndTimeIso || selectedRecordDetails?.jobEndTime;
-            if (!this.validateClockOutDate(this.clockOutTime, jobEndReference)) {
+            if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
                 return;
             }
             this.isLoading = true;
