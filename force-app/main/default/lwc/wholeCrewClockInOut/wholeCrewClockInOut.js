@@ -236,17 +236,30 @@ export default class WholeCrewClockInOut extends LightningElement {
             
             if (result.hasMembers) {
                 this.hasData = true;
-                this.clockInMembers = (result.clockInMembers || []).map(member => ({
-                    ...member,
-                    isSelected: false
-                }));
+                this.clockInMembers = (result.clockInMembers || []).map(member => {
+                    const hasRecentTimes = member.isAgain && (member.recentClockIn || member.recentClockOut);
+                    return {
+                        ...member,
+                        isSelected: false,
+                        hasRecentTimes: hasRecentTimes,
+                        recentClockIn: member.recentClockIn ? this.formatToAMPM(member.recentClockIn) : null,
+                        recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null
+                    };
+                });
                 
                 // Format clockInTime for display in clockOutMembers with AM/PM
-                this.clockOutMembers = (result.clockOutMembers || []).map(member => ({
-                    ...member,
-                    formattedClockInTime: member.clockInTime ? this.formatToAMPM(member.clockInTime) : '',
-                    isSelected: false
-                }));
+                this.clockOutMembers = (result.clockOutMembers || []).map(member => {
+                    const hasRecentTimes = member.recentClockIn || member.recentClockOut;
+                    return {
+                        ...member,
+                        formattedClockInTime: member.clockInTime ? this.formatToAMPM(member.clockInTime) : '',
+                        isSelected: false,
+                        isFirstTime: !member.isAgain,
+                        hasRecentTimes: hasRecentTimes,
+                        recentClockIn: member.recentClockIn ? this.formatToAMPM(member.recentClockIn) : null,
+                        recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null
+                    };
+                });
                 
                 this.costCodes = result.costCodes || [];
                 this.currentJobStartDateTime = result.jobStartDateTime;
@@ -505,17 +518,19 @@ export default class WholeCrewClockInOut extends LightningElement {
                 return;
             }
 
-            // Prepare members data
+            // Prepare members data matching jobDetailsPage format
             const clockInMembers = selectedMembers.map(member => ({
                 actionType: 'clockIn',
                 jobId: this.recordId,
                 mobId: this.selectedMobilizationId,
-                mobMemberId: member.mobMemberId,
-                timesheetId: member.timesheetId,
-                isTimesheetNull: member.isTimesheetNull,
-                isTimesheetEntryNull: member.isTimesheetEntryNull,
+                contactId: member.contactId,
+                costCodeId: this.selectedBulkCostCodeId,
                 clockInTime: this.bulkClockInTime,
-                costCodeId: this.selectedBulkCostCodeId
+                isTimeSheetNull: member.isTimesheetNull,
+                timesheetId: member.timesheetId,
+                isTimeSheetEntryNull: member.isTimesheetEntryNull,
+                timesheetEntryId: member.timesheetEntryId,
+                mobMemberId: member.mobMemberId
             }));
 
             const clockInParams = {
@@ -567,17 +582,19 @@ export default class WholeCrewClockInOut extends LightningElement {
                 return;
             }
 
+            // Prepare members data matching jobDetailsPage format
             const members = selectedMembers.map(member => ({
                 actionType: 'clockOut',
                 jobId: this.recordId,
                 mobId: this.selectedMobilizationId,
-                mobMemberId: member.mobMemberId,
-                timesheetId: member.timesheetId,
-                timesheetEntryId: member.timesheetEntryId,
-                isTimesheetNull: member.isTimesheetNull,
-                isTimesheetEntryNull: member.isTimesheetEntryNull,
+                contactId: member.contactId,
                 clockInTime: member.clockInTime || null,
-                clockOutTime: this.bulkClockOutTime
+                clockOutTime: this.bulkClockOutTime,
+                isTimeSheetNull: member.isTimesheetNull,
+                timesheetId: member.timesheetId,
+                isTimeSheetEntryNull: member.isTimesheetEntryNull,
+                timesheetEntryId: member.timesheetEntryId,
+                mobMemberId: member.mobMemberId
             }));
 
             const params = {

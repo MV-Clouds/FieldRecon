@@ -8,7 +8,6 @@
     flex-direction: column;
     height: 100%;
     background-color: #ffffff;
-    border-radius: 16px;
     overflow: hidden;
 }
 
@@ -33,6 +32,9 @@
     text-align: center;
     flex-shrink: 0;
     border-radius: 16px 16px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .modal-title {
@@ -43,10 +45,13 @@
 
 .tab-navigation {
     display: flex;
-    border-bottom: 2px solid rgba(94, 90, 219, 1);
+    border-bottom: 1px solid #e0e0e0;
     background: white;
     flex-shrink: 0;
-    margin-top: 1.5rem;
+    position: sticky;
+    top: 60px;
+    z-index: 99;
+    margin-top: 1rem;
 }
 
 .tab-navigation button {
@@ -69,7 +74,7 @@
 
 .tab-navigation button.active {
     color: #5e5adb;
-    border-top: 3px solid rgba(94, 90, 219, 1);
+    border-bottom: 3px solid #5e5adb;
     background: rgba(94, 90, 219, 0.05);
 }
 
@@ -83,7 +88,7 @@
 }
 
 .modal-body::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 
 .modal-body::-webkit-scrollbar-track {
@@ -91,25 +96,42 @@
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
+    background-color: #9b87f5;
+    border-radius: 4px;
 }
 
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background-color: #8b77e5;
+}
+
+.members-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+/* Crew Member Card - Similar to shiftEndLogEntries */
 .member-card {
     background: white;
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 0.75rem;
+    border-radius: 12px;
+    padding: 0;
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    overflow: hidden;
 }
 
 .member-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.member-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: white;
 }
 
 .member-checkbox {
@@ -190,6 +212,83 @@
     color: #666;
 }
 
+/* Recent Times Section - Like shiftEndLogEntries */
+.recent-times-section {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1.25rem 1rem 1.25rem;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.recent-times-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.time-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    background: white;
+    border: 1px solid #e5e7eb;
+}
+
+.time-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.clock-in-card .time-card-icon {
+    background: #d1fae5;
+}
+
+.clock-in-card .time-card-icon svg {
+    width: 14px;
+    height: 14px;
+    color: #059669;
+}
+
+.clock-out-card .time-card-icon {
+    background: #fed7d7;
+}
+
+.clock-out-card .time-card-icon svg {
+    width: 14px;
+    height: 14px;
+    color: #dc2626;
+}
+
+.time-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.time-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    margin-bottom: 2px;
+}
+
+.time-card-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .empty-state-tab {
     display: flex;
     align-items: center;
@@ -225,6 +324,10 @@
     padding: 1rem 1.5rem;
     flex-shrink: 0;
     border-radius: 0 0 16px 16px;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
+    position: relative;
 }
 
 .footer-content {
@@ -235,10 +338,7 @@
 
 .footer-form {
     display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: 1rem;
-    background: #f8f9fa;
-    padding: 1rem;
     border-radius: 8px;
 }
 
@@ -246,16 +346,15 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-}
-
-.form-field-full {
-    grid-column: 1 / -1;
+    width: 100%;
 }
 
 .field-label {
     font-size: 13px;
     font-weight: 600;
     color: #333;
+    justify-content: flex-start;
+    display: flex;
 }
 
 .required-star {
@@ -305,9 +404,14 @@
     cursor: not-allowed;
 }
 
+.content-section {
+    background: white;
+}
+
 .selector-card {
     padding: 1rem 1.5rem;
     background: white;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .form-label {
@@ -372,7 +476,17 @@
     max-width: 400px;
 }
 
+@media (max-width: 1024px) {
+    .members-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
+    .members-grid {
+        grid-template-columns: 1fr;
+    }
+    
     .footer-form {
         grid-template-columns: 1fr;
     }
@@ -382,7 +496,19 @@
     }
     
     .member-card {
+        padding: 0;
+    }
+
+    .member-card-header {
         padding: 0.875rem 1rem;
+    }
+
+    .recent-times-section {
+        padding: 0.75rem 1rem 1rem 1rem;
+    }
+
+    .recent-times-grid {
+        grid-template-columns: 1fr;
     }
     
     .empty-state__icon {

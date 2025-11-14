@@ -241,13 +241,13 @@ public with sharing class WholeCrewClockInOutController {
             
             String clockInTimeString = (String) memberData.get('clockInTime');
             Datetime clkInUserTz = convertUtc(clockInTimeString);
-            Boolean isTimesheetNull = (Boolean) memberData.get('isTimesheetNull');
+            Boolean isTimeSheetNull = (Boolean) memberData.get('isTimeSheetNull');
             String timesheetId = (String) memberData.get('timesheetId');
             String costCodeId = (String) memberData.get('costCodeId');
             String jobId = (String) memberData.get('jobId');
             String mobId = (String) memberData.get('mobId');
             
-            if (isTimesheetNull == true) {
+            if (isTimeSheetNull == true) {
                 // Create new timesheet
                 Timesheet__c timesheetRec = new Timesheet__c();
                 timesheetRec.Contact__c = mm.Contact__c;
@@ -277,13 +277,13 @@ public with sharing class WholeCrewClockInOutController {
             
             String clockInTimeString = (String) memberData.get('clockInTime');
             Datetime clkInUserTz = convertUtc(clockInTimeString);
-            Boolean isTimesheetNull = (Boolean) memberData.get('isTimesheetNull');
+            Boolean isTimeSheetNull = (Boolean) memberData.get('isTimeSheetNull');
             String timesheetId = (String) memberData.get('timesheetId');
             String costCodeId = (String) memberData.get('costCodeId');
             String mobId = (String) memberData.get('mobId');
             
             Id tsId;
-            if (isTimesheetNull == true) {
+            if (isTimeSheetNull == true) {
                 Timesheet__c newTs = (Timesheet__c) memberData.get('newTimesheet');
                 tsId = newTs.Id;
             } else {
@@ -317,14 +317,14 @@ public with sharing class WholeCrewClockInOutController {
         Map<Id, Map<String, Object>> memberDataByEntryId = new Map<Id, Map<String, Object>>();
         
         for (Map<String, Object> member : membersList) {
-            Boolean isTimesheetEntryNull = (Boolean) member.get('isTimesheetEntryNull');
+            Boolean isTimeSheetEntryNull = (Boolean) member.get('isTimeSheetEntryNull');
             String timesheetId = (String) member.get('timesheetId');
             String timesheetEntryId = (String) member.get('timesheetEntryId');
             
-            if (isTimesheetEntryNull == false && timesheetEntryId != null) {
+            if (isTimeSheetEntryNull == false && timesheetEntryId != null) {
                 timesheetEntryIds.add((Id) timesheetEntryId);
                 memberDataByEntryId.put((Id) timesheetEntryId, member);
-            } else if (isTimesheetEntryNull == true && timesheetId != null) {
+            } else if (isTimeSheetEntryNull == true && timesheetId != null) {
                 timesheetIds.add((Id) timesheetId);
             }
         }
@@ -361,16 +361,16 @@ public with sharing class WholeCrewClockInOutController {
                 }
             }
             
-            Boolean isTimesheetNull = (Boolean) memberData.get('isTimesheetNull');
-            Boolean isTimesheetEntryNull = (Boolean) memberData.get('isTimesheetEntryNull');
+            Boolean isTimeSheetNull = (Boolean) memberData.get('isTimeSheetNull');
+            Boolean isTimeSheetEntryNull = (Boolean) memberData.get('isTimeSheetEntryNull');
             String timesheetId = (String) memberData.get('timesheetId');
             String timesheetEntryId = (String) memberData.get('timesheetEntryId');
             String mobId = (String) memberData.get('mobId');
             
             Boolean crossesMidnight = (clkInUserTz != null && clkOutUserTz != null && clkInUserTz.date() != clkOutUserTz.date());
             
-            if (isTimesheetEntryNull == true) {
-                if (isTimesheetNull == false && timesheetId != null) {
+            if (isTimeSheetEntryNull == true) {
+                if (isTimeSheetNull == false && timesheetId != null) {
                     Id tsId = (Id) timesheetId;
                     
                     if (crossesMidnight) {

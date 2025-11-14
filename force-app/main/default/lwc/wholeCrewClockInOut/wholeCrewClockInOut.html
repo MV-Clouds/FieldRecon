@@ -80,26 +80,75 @@
                     <!-- Clock In Tab -->
                     <template if:true={isClockInActive}>
                         <template if:true={hasClockInMembers}>
-                            <!-- Member Cards -->
-                            <template for:each={clockInMembers} for:item="member">
-                                <div key={member.mobMemberId} class="member-card">
-                                    <input 
-                                        type="checkbox" 
-                                        class="member-checkbox"
-                                        data-member-id={member.mobMemberId}
-                                        checked={member.isSelected}
-                                        onchange={handleMemberSelection}
-                                    />
-                                    <div class="member-details">
-                                        <div class="member-name">{member.contactName}</div>
-                                        <div class="member-crew">Crew: <span class="crew-value">{member.crewName}</span></div>
-                                        <div class="member-status">
-                                            <span class="status-indicator status-not-clocked"></span>
-                                            <span class="status-text">Not Clocked In</span>
+                            <!-- Member Cards Grid -->
+                            <div class="members-grid">
+                                <template for:each={clockInMembers} for:item="member">
+                                    <div key={member.mobMemberId} class="member-card">
+                                        <div class="member-card-header">
+                                            <input 
+                                                type="checkbox" 
+                                                class="member-checkbox"
+                                                data-member-id={member.mobMemberId}
+                                                checked={member.isSelected}
+                                                onchange={handleMemberSelection}
+                                            />
+                                            <div class="member-details">
+                                                <div class="member-name">{member.contactName}</div>
+                                                <div class="member-crew">Crew: <span class="crew-value">{member.crewName}</span></div>
+                                                <template if:false={member.isAgain}>
+                                                    <div class="member-status">
+                                                        <span class="status-indicator status-not-clocked"></span>
+                                                        <span class="status-text">Not Clocked In</span>
+                                                    </div>
+                                                </template>
+                                                <template if:true={member.isAgain}>
+                                                    <div class="member-status">
+                                                        <span class="status-indicator status-clock-again"></span>
+                                                        <span class="status-text">Ready to Clock In Again</span>
+                                                    </div>
+                                                </template>
+                                            </div>
                                         </div>
+                                        
+                                        <!-- Recent Times for "Clock In Again" status -->
+                                        <template if:true={member.isAgain}>
+                                            <template if:true={member.hasRecentTimes}>
+                                                <div class="recent-times-section">
+                                                    <div class="recent-times-grid">
+                                                        <template if:true={member.recentClockIn}>
+                                                            <div class="time-card clock-in-card">
+                                                                <div class="time-card-icon">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
+                                                                    </svg>
+                                                                </div>
+                                                                <div class="time-card-content">
+                                                                    <div class="time-card-label">Recent Clock In</div>
+                                                                    <div class="time-card-value">{member.recentClockIn}</div>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                        <template if:true={member.recentClockOut}>
+                                                            <div class="time-card clock-out-card">
+                                                                <div class="time-card-icon">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                        <circle cx="12" cy="12" r="10"></circle>
+                                                                        <path d="M9 9l6 6m0-6l-6 6"></path>
+                                                                    </svg>
+                                                                </div>
+                                                                <div class="time-card-content">
+                                                                    <div class="time-card-label">Recent Clock Out</div>
+                                                                    <div class="time-card-value">{member.recentClockOut}</div>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </template>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
                         </template>
                         <template if:false={hasClockInMembers}>
                             <div class="empty-state-tab">
@@ -114,35 +163,71 @@
                     <!-- Clock Out Tab -->
                     <template if:true={isClockOutActive}>
                         <template if:true={hasClockOutMembers}>
-                            <!-- Member Cards -->
-                            <template for:each={clockOutMembers} for:item="member">
-                                <div key={member.mobMemberId} class="member-card">
-                                    <input 
-                                        type="checkbox" 
-                                        class="member-checkbox"
-                                        data-member-id={member.mobMemberId}
-                                        checked={member.isSelected}
-                                        onchange={handleMemberSelection}
-                                    />
-                                    <div class="member-details">
-                                        <div class="member-name">{member.contactName}</div>
-                                        <div class="member-crew">Crew: <span class="crew-value">{member.crewName}</span></div>
-                                        <template if:true={member.formattedClockInTime}>
-                                            <div class="member-clock-info">Last Clock In: <span class="clock-time-value">{member.formattedClockInTime}</span></div>
-                                        </template>
-                                        <div class="member-status">
-                                            <template if:true={member.isFirstTime}>
-                                                <span class="status-indicator status-clocked-in"></span>
-                                                <span class="status-text">Clocked In</span>
-                                            </template>
-                                            <template if:false={member.isFirstTime}>
-                                                <span class="status-indicator status-clock-again"></span>
-                                                <span class="status-text">Clock In Again</span>
-                                            </template>
+                            <!-- Member Cards Grid -->
+                            <div class="members-grid">
+                                <template for:each={clockOutMembers} for:item="member">
+                                    <div key={member.mobMemberId} class="member-card">
+                                        <div class="member-card-header">
+                                            <input 
+                                                type="checkbox" 
+                                                class="member-checkbox"
+                                                data-member-id={member.mobMemberId}
+                                                checked={member.isSelected}
+                                                onchange={handleMemberSelection}
+                                            />
+                                            <div class="member-details">
+                                                <div class="member-name">{member.contactName}</div>
+                                                <div class="member-crew">Crew: <span class="crew-value">{member.crewName}</span></div>
+                                                <div class="member-status">
+                                                    <template if:true={member.isFirstTime}>
+                                                        <span class="status-indicator status-clocked-in"></span>
+                                                        <span class="status-text">Clocked In</span>
+                                                    </template>
+                                                    <template if:false={member.isFirstTime}>
+                                                        <span class="status-indicator status-clock-again"></span>
+                                                        <span class="status-text">Clock In Again</span>
+                                                    </template>
+                                                </div>
+                                            </div>
                                         </div>
+                                        
+                                        <!-- Recent Times for Clock Out members -->
+                                        <template if:true={member.hasRecentTimes}>
+                                            <div class="recent-times-section">
+                                                <div class="recent-times-grid">
+                                                    <template if:true={member.recentClockIn}>
+                                                        <div class="time-card clock-in-card">
+                                                            <div class="time-card-icon">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                    <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
+                                                                </svg>
+                                                            </div>
+                                                            <div class="time-card-content">
+                                                                <div class="time-card-label">Recent Clock In</div>
+                                                                <div class="time-card-value">{member.recentClockIn}</div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template if:true={member.recentClockOut}>
+                                                        <div class="time-card clock-out-card">
+                                                            <div class="time-card-icon">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                                    <path d="M9 9l6 6m0-6l-6 6"></path>
+                                                                </svg>
+                                                            </div>
+                                                            <div class="time-card-content">
+                                                                <div class="time-card-label">Recent Clock Out</div>
+                                                                <div class="time-card-value">{member.recentClockOut}</div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
                         </template>
                         <template if:false={hasClockOutMembers}>
                             <div class="empty-state-tab">

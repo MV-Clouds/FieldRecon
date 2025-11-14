@@ -285,8 +285,22 @@ public with sharing class JobDetailsPageController {
                 Boolean hasCompletedEntry = false;
                 Timesheet_Entry__c latestOpen;
                 Timesheet_Entry__c latestCompleted;
+                DateTime mostRecentClockIn;
+                DateTime mostRecentClockOut;
     
                 for (Timesheet_Entry__c e : userEntries) {
+                    // Track most recent clock in/out times
+                    if (e.Clock_In_Time__c != null) {
+                        if (mostRecentClockIn == null || e.Clock_In_Time__c > mostRecentClockIn) {
+                            mostRecentClockIn = e.Clock_In_Time__c;
+                        }
+                    }
+                    if (e.Clock_Out_Time__c != null) {
+                        if (mostRecentClockOut == null || e.Clock_Out_Time__c > mostRecentClockOut) {
+                            mostRecentClockOut = e.Clock_Out_Time__c;
+                        }
+                    }
+                    
                     if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
                         hasOpenEntry = true;
                         latestOpen = e;
@@ -310,6 +324,8 @@ public with sharing class JobDetailsPageController {
                         ? latestOpen.Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.Clock_In_Time__c)/1000)
                         : null;
                     wrap.isAgain = false; // Not a new shift yet, finishing current one
+                    wrap.recentClockIn = mostRecentClockIn != null ? mostRecentClockIn.addSeconds(userTz.getOffset(mostRecentClockIn)/1000) : null;
+                    wrap.recentClockOut = mostRecentClockOut != null ? mostRecentClockOut.addSeconds(userTz.getOffset(mostRecentClockOut)/1000) : null;
                     result.get('clockOut').add(wrap);
                 } else if (hasCompletedEntry) {
                     // Only completed entries → eligible for ClockIn again
@@ -317,6 +333,8 @@ public with sharing class JobDetailsPageController {
                     wrap.isTimeSheetNull = false;
                     wrap.isTimesheetEntryNull = true;
                     wrap.isAgain = true;  // ✅ Contact is clocking in AGAIN
+                    wrap.recentClockIn = mostRecentClockIn != null ? mostRecentClockIn.addSeconds(userTz.getOffset(mostRecentClockIn)/1000) : null;
+                    wrap.recentClockOut = mostRecentClockOut != null ? mostRecentClockOut.addSeconds(userTz.getOffset(mostRecentClockOut)/1000) : null;
                     result.get('clockIn').add(wrap);
                 } else {
                     // Default → treat as new ClockIn
@@ -948,5 +966,7 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public Map<Id, String> costCodeDetails;
         @AuraEnabled public Boolean isAgain;
         @AuraEnabled public String crewName;
+        @AuraEnabled public DateTime recentClockIn;
+        @AuraEnabled public DateTime recentClockOut;
     }
 }
