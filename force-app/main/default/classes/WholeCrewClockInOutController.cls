@@ -11,14 +11,16 @@ public with sharing class WholeCrewClockInOutController {
         
         try {
             Date today = Date.today();
+            DateTime startOfDay = DateTime.newInstance(today, Time.newInstance(0,0,0,0));
+            DateTime endOfDay = DateTime.newInstance(today, Time.newInstance(23,59,59,999));
             
             // Query mobilizations that are scheduled for today or include today in their date range
             List<Mobilization__c> mobilizations = [
                 SELECT Id, Name, wfrecon__Start_Date_Text__c, Start_Date__c, End_Date__c
                 FROM Mobilization__c 
                 WHERE Job__c = :jobId 
-                AND Start_Date__c <= :today
-                AND End_Date__c >= :today
+                AND Start_Date__c >= :startOfDay
+                AND Start_Date__c <= :endOfDay
                 WITH USER_MODE
                 ORDER BY Start_Date__c DESC
             ];

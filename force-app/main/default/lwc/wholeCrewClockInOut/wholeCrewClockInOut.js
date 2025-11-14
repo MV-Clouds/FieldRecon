@@ -224,6 +224,7 @@ export default class WholeCrewClockInOut extends LightningElement {
         if (!this.selectedMobilizationId) return;
         
         this.isLoading = true;
+        this.hasData = false; // Reset hasData to prevent flash of "No Members Found"
         this.selectedMemberIds = new Set(); // Reset selection
         
         try {
@@ -612,6 +613,10 @@ export default class WholeCrewClockInOut extends LightningElement {
     handleClockInTab() {
         try {
             this.activeTab = 'clockin';
+            // Uncheck all selections when switching tabs
+            this.selectedMemberIds = new Set();
+            this.clockInMembers = this.clockInMembers.map(m => ({ ...m, isSelected: false }));
+            this.clockOutMembers = this.clockOutMembers.map(m => ({ ...m, isSelected: false }));
         } catch (error) {
             console.error('Error in handleClockInTab:', error);
         }
@@ -624,6 +629,10 @@ export default class WholeCrewClockInOut extends LightningElement {
     handleClockOutTab() {
         try {
             this.activeTab = 'clockout';
+            // Uncheck all selections when switching tabs
+            this.selectedMemberIds = new Set();
+            this.clockInMembers = this.clockInMembers.map(m => ({ ...m, isSelected: false }));
+            this.clockOutMembers = this.clockOutMembers.map(m => ({ ...m, isSelected: false }));
         } catch (error) {
             console.error('Error in handleClockOutTab:', error);
         }
