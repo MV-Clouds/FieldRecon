@@ -136,6 +136,7 @@ export default class WholeCrewClockInOut extends LightningElement {
     connectedCallback() {
         try {
             this.checkUserPermissions();
+            this.overrideSLDS();
         } catch (error) {
             console.error('Error in connectedCallback:', error);
         }
@@ -359,7 +360,7 @@ export default class WholeCrewClockInOut extends LightningElement {
     */
     parseLiteral(iso) {
         try {
-            return iso ? iso.slice(0, 16) : '';
+            return iso ? iso.substring(0, 16) : '';
         } catch (error) {
             console.error('Error in parseLiteral:', error);
             return '';
@@ -677,5 +678,18 @@ export default class WholeCrewClockInOut extends LightningElement {
         } catch (error) {
             console.error('Error in showToast:', error);
         }
+    }
+
+    overrideSLDS(){
+        let style = document.createElement('style');
+        style.innerText = `
+                .uiModal--medium .modal-container {
+                    width: 70%;
+                    max-width: 840px;
+                    min-width: min(480px, calc(100% - 2rem));
+                    margin-inline: auto;
+                }
+        `;
+        this.template.host.appendChild(style);
     }
 }

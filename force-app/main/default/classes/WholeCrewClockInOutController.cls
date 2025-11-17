@@ -16,7 +16,8 @@ public with sharing class WholeCrewClockInOutController {
             
             // Query mobilizations that are scheduled for today or include today in their date range
             List<Mobilization__c> mobilizations = [
-                SELECT Id, Name, wfrecon__Start_Date_Text__c, Start_Date__c, End_Date__c
+                SELECT Id, Name, wfrecon__Start_Date_Text__c, Start_Date__c, End_Date__c,
+                       Job__r.Job_Name__c, Mobilization_Status__c
                 FROM Mobilization__c 
                 WHERE Job__c = :jobId 
                 AND Start_Date__c >= :startOfDay
@@ -33,8 +34,10 @@ public with sharing class WholeCrewClockInOutController {
             
             List<Map<String, String>> mobilizationOptions = new List<Map<String, String>>();
             for (Mobilization__c mob : mobilizations) {
+                String statusLabel = String.isNotBlank(mob.Mobilization_Status__c) ? mob.Mobilization_Status__c : 'N/A';
+                String displayLabel = mob.Job__r.Job_Name__c + ' (Status - ' + statusLabel + ')';
                 mobilizationOptions.add(new Map<String, String>{
-                    'label' => mob.wfrecon__Start_Date_Text__c,
+                    'label' => displayLabel,
                     'value' => String.valueOf(mob.Id)
                 });
             }
@@ -557,7 +560,7 @@ public with sharing class WholeCrewClockInOutController {
             }
 
             // Finally parse it
-            Datetime dt = Datetime.valueOfGmt(utcDateTimeStr.replace('T', ' '));
+            Datetime dt = Datetime.valueOf(utcDateTimeStr.replace('T', ' '));
             return dt;
         } catch (Exception e) {
             System.debug('Error in convertUtc: ' + e.getMessage());

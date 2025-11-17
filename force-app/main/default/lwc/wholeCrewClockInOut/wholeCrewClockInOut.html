@@ -42,10 +42,10 @@
                     <!-- Mobilization Date Selection -->
                     <template if:true={showMobilizationSelector}>
                         <div class="selector-card">
-                            <label class="form-label required">Select Date</label>
+                            <label class="form-label required">Select Scheduled Job</label>
                             <lightning-combobox 
                                 name="mobilization" 
-                                placeholder="-- Select Date --" 
+                                placeholder="-- Select Scheduled Job --" 
                                 options={mobilizationOptions} 
                                 value={selectedMobilizationId} 
                                 onchange={handleMobilizationChange} 
@@ -53,13 +53,21 @@
                             </lightning-combobox>
                         </div>
                     </template>
+                </div>
+            </template>
 
-                    <!-- No Mobilizations Message -->
-                    <template if:false={hasMobilizations}>
-                        <div class="info-message">
-                            <p>📅 {errorMessage}</p>
+            <!-- No Mobilizations Message -->
+            <template if:false={hasMobilizations}>
+                <div class="no-prop">
+                    <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                            </div>
+                            <div class="empty-state__message">No Data to Display</div>
+                            <div class="empty-state__subtitle">{errorMessage}</div>
                         </div>
-                    </template>
+                    </div>
                 </div>
             </template>
 
