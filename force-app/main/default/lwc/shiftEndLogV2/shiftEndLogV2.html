@@ -132,7 +132,7 @@
                                         <div class="section-label">Location Processes:</div>
                                         <div class="location-processes-list">
                                             <template for:each={log.locationProcesses} for:item="process">
-                                                <div key={process.processId} class="process-item" data-changed={process.changedToday}>
+                                                <div key={process.processId} class="process-item" data-changed={process.changedToday} data-has-approval={process.isPendingApproval}>
                                                     <div class="process-header">
                                                         <span class="process-location">{process.locationName}</span>
                                                         <div class="process-percentage-container">
@@ -148,6 +148,7 @@
                                                         </template>
                                                         <span class="process-name">{process.processName}</span>
                                                     </div>
+                                                    
                                                     <div class="process-progress-bar">
                                                         <div class="process-progress-fill yesterday-progress" 
                                                              data-percentage={process.yesterdayPercentage}
@@ -162,8 +163,8 @@
                                                         </template>
                                                         <template if:true={process.isPendingApproval}>
                                                             <div class="process-progress-fill approval-progress" 
-                                                                 data-percentage={process.approvalPercentage}
-                                                                 data-yesterday={process.yesterdayPercentage}>
+                                                                 data-percentage={process.approvalNewValue}
+                                                                 data-yesterday={process.displayYesterdayPercentage}>
                                                             </div>
                                                         </template>
                                                     </div>
@@ -359,7 +360,7 @@
                                 <template if:true={hasEditLocationProcesses}>
                                     <div class="edit-location-processes-list">
                                         <template for:each={editLocationProcesses} for:item="process">
-                                            <div key={process.processId} class="edit-location-slider-container" data-changed={process.changedToday}>
+                                            <div key={process.processId} class="edit-location-slider-container" data-changed={process.changedToday} data-has-approval={process.isPendingApproval}>
                                                 <div class="slider-header">
                                                     <div class="process-info">
                                                         <span class="process-name">{process.processName}</span>
@@ -376,13 +377,12 @@
                                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="12" height="12" fill="currentColor">
                                                                 <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/>
                                                             </svg>
-                                                            <span>Pending Approval</span>
+                                                            <span>Approval Requested</span>
                                                         </div>
                                                         <div class="approval-details-modal">
-                                                            <span class="detail-label">Previous: <strong>{process.yesterdayPercentage}%</strong></span>
+                                                            <span class="detail-label">Base: <strong>{process.yesterdayPercentage}%</strong></span>
                                                             <span class="approval-arrow">→</span>
-                                                            <span class="detail-label highlight">Requested: <strong>{process.approvalPercentage}%</strong></span>
-                                                            <span class="approval-change-badge">+{process.approvalChange}%</span>
+                                                            <span class="detail-label highlight">Approved: <strong>{process.approvalNewValue}%</strong></span>
                                                         </div>
                                                     </div>
                                                 </template>
@@ -390,17 +390,18 @@
                                                 <div class="slider-wrapper">
                                                     <div class="slider-track">
                                                         <div class="slider-section completed" lwc:dom="manual"></div>
+                                                        <div class="slider-section approval" lwc:dom="manual" style="display: none;"></div>
                                                         <div class="slider-section today" lwc:dom="manual"></div>
                                                         <div class="slider-section remaining" lwc:dom="manual"></div>
                                                     </div>
                                                     <input 
                                                         type="range" 
-                                                        min={process.yesterdayPercentage} 
+                                                        min={process.sliderMinValue} 
                                                         max="100" 
                                                         step="1"
                                                         value={process.completionPercentage}
                                                         data-process-id={process.processId}
-                                                        data-original-value={process.yesterdayPercentage}
+                                                        data-original-value={process.sliderMinValue}
                                                         class="progress-slider"
                                                         oninput={handleEditSliderInput}
                                                         onchange={handleEditSliderChange} />
