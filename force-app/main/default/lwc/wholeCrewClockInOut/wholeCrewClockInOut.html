@@ -32,9 +32,9 @@
     <template if:true={hasAccess}>
         <div class="modal-wrapper">
             <!-- Header - Fixed -->
-            <header class="modal-header">
+            <!-- <header class="modal-header">
                 <h2 class="modal-title">Manage Crew Clock In/Out</h2>
-            </header>
+            </header> -->
 
             <!-- Mobilization Selection -->
             <template if:true={hasMobilizations}>
@@ -252,7 +252,7 @@
                 <template if:true={isClockInActive}>
                     <template if:true={hasClockInMembers}>
                         <template if:true={hasSelectedMembers}>
-                            <footer class="slds-modal__footer modal-footer">
+                            <footer class="modal-footer">
                                 <div class="footer-content">
                                     <div class="footer-form">
                                         <div class="form-field">
@@ -292,7 +292,7 @@
                 <template if:true={isClockOutActive}>
                     <template if:true={hasClockOutMembers}>
                         <template if:true={hasSelectedMembers}>
-                            <footer class="slds-modal__footer modal-footer">
+                            <footer class="modal-footer">
                                 <div class="footer-content">
                                     <div class="footer-form">
                                         <div class="form-field form-field-full">

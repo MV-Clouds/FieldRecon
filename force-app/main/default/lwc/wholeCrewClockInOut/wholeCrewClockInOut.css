@@ -52,7 +52,7 @@
     background: white;
     flex-shrink: 0;
     position: sticky;
-    top: 60px;
+    /* top: 60px; */
     z-index: 99;
     margin-top: 1rem;
 }

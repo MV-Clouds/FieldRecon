@@ -123,7 +123,8 @@ export default class WholeCrewClockInOut extends LightningElement {
     setCurrentPageReference(pageRef) {
         try {
             console.log(pageRef);
-            this.recordId = pageRef.state.recordId;
+            this.recordId = pageRef.attributes.recordId || pageRef.state.recordId || this.recordId;
+            console.log(this.recordId);
         } catch (error) {
             console.error('Error in setCurrentPageReference:', error);
         }
@@ -688,6 +689,40 @@ export default class WholeCrewClockInOut extends LightningElement {
                     max-width: 840px;
                     min-width: min(480px, calc(100% - 2rem));
                     margin-inline: auto;
+                }
+
+                .slds-p-around--medium {
+                    padding: unset !important;
+                }
+
+                .slds-modal__header:not(.empty):not(.slds-modal__header_empty){
+                    background-color: #5e5adb;
+                    color: white;
+                    padding: 1.25rem 1.5rem;
+                    text-align: center;
+                    flex-shrink: 0;
+                    border-radius: 16px 16px 0 0;
+                    position: sticky;
+                    top: 0;
+                    z-index: 100;
+                }
+
+                .slds-modal__title {
+                    font-size: 1.25rem !important;
+                    font-weight: 600 !important;
+                    margin: 0 !important;
+                }
+
+                .slds-modal__footer {
+                    display: none !important;
+                }
+
+                .cuf-content {
+                    padding: unset !important;
+                }
+
+                .slds-modal__content{
+                    height: unset !important;
                 }
         `;
         this.template.host.appendChild(style);
