@@ -23,6 +23,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track editLocationProcesses = [];
     @track editAllLocationProcesses = [];
     @track editModifiedProcesses = new Map();
+    @track editOriginalCompletionPercentages = new Map(); // Store original percentages separately
     @track editLocationOptions = [];
     @track editSelectedLocationId = '';
 
@@ -538,6 +539,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.editLocationProcesses = [];
         this.editAllLocationProcesses = [];
         this.editModifiedProcesses = new Map();
+        this.editOriginalCompletionPercentages = new Map();
         this.editLocationOptions = [];
         this.editSelectedLocationId = '';
     }
@@ -592,6 +594,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     loadEditLocationProcesses(logToEdit) {
         if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
             
+            // Clear the original percentages map at the start
+            this.editOriginalCompletionPercentages.clear();
+            
             // Check if there's approval data - parse the JSON array format
             let approvalDataArray = [];
             if (logToEdit.wfrecon__Approval_Data__c) {
@@ -636,6 +641,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 const actualTodayProgress = isPendingApproval 
                     ? Math.max(0, completionPercentage - yesterdayPercentage) // Show total change from yesterday
                     : todayProgress;
+                
+                // Store the original completion percentage in the separate Map
+                this.editOriginalCompletionPercentages.set(processId, completionPercentage);
                                 
                 return {
                     processId: processId,
@@ -869,11 +877,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
         if (!processData) return;
         
-        // Store the ORIGINAL completion percentage when the modal opened
-        // This is what we compare against to detect if user made changes
-        if (!processData.originalCompletionPercentage) {
-            processData.originalCompletionPercentage = processData.completionPercentage;
-        }
+        // Get the ORIGINAL completion percentage from the separate Map
+        const originalCompletionPercentage = this.editOriginalCompletionPercentages.get(processId);
         
         // For modifications tracking in JSON:
         // If in approval: compare new value against approval value (to track changes AFTER approval)
@@ -881,7 +886,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const comparisonValue = processData.isPendingApproval ? processData.approvalNewValue : yesterdayValue;
         
         // Track modification only if changed from the original state
-        if (newValue !== processData.originalCompletionPercentage) {
+        if (newValue !== originalCompletionPercentage) {
             this.editModifiedProcesses.set(processId, {
                 processId: processId,
                 originalValue: comparisonValue, // Track against approval value if in approval, otherwise yesterday
@@ -905,7 +910,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         completionPercentage: newValue,
                         todayProgress: todayProgress,
                         remainingProgress: remainingProgress,
-                        changedToday: newValue !== p.originalCompletionPercentage,
+                        changedToday: newValue !== originalCompletionPercentage,
                         completedStyle: `width: ${p.yesterdayPercentage}%`,
                         todayStyle: `width: ${todayProgress}%`,
                         remainingStyle: `width: ${remainingProgress}%`
@@ -929,7 +934,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         completionPercentage: newValue,
                         todayProgress: todayProgress,
                         remainingProgress: remainingProgress,
-                        changedToday: newValue !== (p.originalCompletionPercentage || p.completionPercentage),
+                        changedToday: newValue !== originalCompletionPercentage,
                         completedStyle: `width: ${p.yesterdayPercentage}%`,
                         todayStyle: `width: ${todayProgress}%`,
                         remainingStyle: `width: ${remainingProgress}%`
@@ -942,8 +947,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Update visual feedback
         this.handleEditSliderInput(event);
     }
-
-
 
     // Removed handleDiscardEditChanges and handleSaveEditChanges
     // State is now preserved automatically and saved on final Update button click
@@ -966,6 +969,22 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             return;
         }
 
+        // Get existing approval data from the current log entry
+        const currentLog = this.shiftEndLogs.find(log => log.Id === this.editLogId);
+        let existingApprovalData = [];
+        
+        if (currentLog && currentLog.wfrecon__Approval_Data__c) {
+            try {
+                existingApprovalData = JSON.parse(currentLog.wfrecon__Approval_Data__c);
+                if (!Array.isArray(existingApprovalData)) {
+                    existingApprovalData = [];
+                }
+            } catch (e) {
+                console.error('Error parsing existing approval data:', e);
+                existingApprovalData = [];
+            }
+        }
+
         // Prepare location process updates - only include ID, old value, and new value
         const processUpdates = Array.from(this.editModifiedProcesses.entries()).map(([processId, modification]) => {
             return {
@@ -974,6 +993,21 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 newValue: modification.newValue
             };
         });
+
+        // Merge new modifications with existing approval data
+        // Create a map of existing data for quick lookup
+        const existingDataMap = new Map();
+        existingApprovalData.forEach(item => {
+            existingDataMap.set(item.id, item);
+        });
+
+        // Update or add new modifications
+        processUpdates.forEach(update => {
+            existingDataMap.set(update.id, update);
+        });
+
+        // Convert map back to array
+        const mergedApprovalData = Array.from(existingDataMap.values());
 
         const formData = {
             Id: this.editLogId,
@@ -984,11 +1018,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice,
         };
 
-        if(processUpdates.length > 0) {
-            formData.wfrecon__Approval_Data__c = JSON.stringify(processUpdates);
+        // Only set approval data if there are any updates (existing or new)
+        if(mergedApprovalData.length > 0) {
+            formData.wfrecon__Approval_Data__c = JSON.stringify(mergedApprovalData);
         }
 
         console.log('formData ==> ', formData);
+        console.log('Existing approval data:', existingApprovalData);
+        console.log('New modifications:', processUpdates);
+        console.log('Merged approval data:', mergedApprovalData);
         
 
         this.isLoading = true;
