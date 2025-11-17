@@ -948,6 +948,83 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.handleEditSliderInput(event);
     }
 
+    // Reset approval for a process (restore to original base)
+    handleResetApproval(event) {
+        const processId = event.currentTarget.dataset.processId;
+        
+        // Find the process in editAllLocationProcesses
+        const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
+        if (!processData || !processData.isPendingApproval) {
+            return;
+        }
+        
+        // Reset to yesterday's percentage (the original base before approval)
+        const resetValue = processData.yesterdayPercentage;
+        
+        // Update in editAllLocationProcesses
+        const allProcessIndex = this.editAllLocationProcesses.findIndex(p => p.processId === processId);
+        if (allProcessIndex !== -1) {
+            this.editAllLocationProcesses = this.editAllLocationProcesses.map((p, index) => {
+                if (index === allProcessIndex) {
+                    return {
+                        ...p,
+                        completionPercentage: resetValue,
+                        todayProgress: 0,
+                        remainingProgress: 100 - resetValue,
+                        changedToday: false,
+                        isPendingApproval: false,
+                        approvalOldValue: 0,
+                        approvalNewValue: 0,
+                        approvalChange: 0,
+                        displayApprovalPercentage: 0,
+                        completedStyle: `width: ${resetValue}%`,
+                        todayStyle: `width: 0%`,
+                        approvalStyle: `width: 0%`,
+                        remainingStyle: `width: ${100 - resetValue}%`
+                    };
+                }
+                return p;
+            });
+        }
+        
+        // Update in editLocationProcesses for current display
+        const processIndex = this.editLocationProcesses.findIndex(p => p.processId === processId);
+        if (processIndex !== -1) {
+            this.editLocationProcesses = this.editLocationProcesses.map((p, index) => {
+                if (index === processIndex) {
+                    return {
+                        ...p,
+                        completionPercentage: resetValue,
+                        todayProgress: 0,
+                        remainingProgress: 100 - resetValue,
+                        changedToday: false,
+                        isPendingApproval: false,
+                        approvalOldValue: 0,
+                        approvalNewValue: 0,
+                        approvalChange: 0,
+                        displayApprovalPercentage: 0,
+                        completedStyle: `width: ${resetValue}%`,
+                        todayStyle: `width: 0%`,
+                        approvalStyle: `width: 0%`,
+                        remainingStyle: `width: ${100 - resetValue}%`
+                    };
+                }
+                return p;
+            });
+        }
+        
+        // Update the original completion percentage map
+        this.editOriginalCompletionPercentages.set(processId, resetValue);
+        
+        // Remove from modified processes if present
+        this.editModifiedProcesses.delete(processId);
+        
+        // Update visual sliders
+        setTimeout(() => this.updateEditSliderVisuals(), 50);
+        
+        this.showToast('Success', 'Approval reset to original base value', 'success');
+    }
+
     // Removed handleDiscardEditChanges and handleSaveEditChanges
     // State is now preserved automatically and saved on final Update button click
 
@@ -1004,6 +1081,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Update or add new modifications
         processUpdates.forEach(update => {
             existingDataMap.set(update.id, update);
+        });
+
+        // Remove processes that have been reset (no longer pending approval)
+        // Get all process IDs that are currently NOT pending approval
+        const resetProcessIds = this.editAllLocationProcesses
+            .filter(p => !p.isPendingApproval)
+            .map(p => p.processId);
+        
+        resetProcessIds.forEach(processId => {
+            existingDataMap.delete(processId);
         });
 
         // Convert map back to array

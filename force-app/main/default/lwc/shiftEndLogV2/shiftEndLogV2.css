@@ -1112,13 +1112,42 @@
 
 /* Process Approval Info in Edit Modal */
 .process-approval-info-modal {
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
-    padding: 0.75rem;
-    background: linear-gradient(135deg, #fff9e6 0%, #fffbf0 100%);
-    border-left: 4px solid #ffc107;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    background: #f3f2ff;
+    border: 1px solid #c7c3ff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.approval-header-with-reset {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.reset-approval-btn {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.reset-approval-btn:active {
+    transform: scale(0.98);
+}
+
+.reset-approval-btn svg {
+    flex-shrink: 0;
 }
 
 .approval-badge-modal {
@@ -1130,7 +1159,6 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 0.6rem;
 }
 
 .approval-badge-modal svg {
