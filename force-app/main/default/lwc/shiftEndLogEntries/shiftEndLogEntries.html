@@ -180,7 +180,19 @@
 
                 <!-- Step 2: Timesheet Entries Table -->
                 <template if:true={isStep2}>
-                    <div class="step-container">
+                                        <div class="step-container">
+                        <!-- Approval Message Banner -->
+                        <template if:true={showApprovalMessage}>
+                            <div class="approval-info-banner">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                <span>{approvalStatus.approvalMessage}</span>
+                            </div>
+                        </template>
+                        
                         <template if:true={hasTimesheetEntries}>
                             <!-- Tab Navigation -->
                             <div class="tab-container">
@@ -215,13 +227,24 @@
                                                             <tr key={entry.id}>
                                                                 <td style="width: 4rem">{entry.srNo}</td>
                                                                 <td style="width: 4rem">
-                                                                    <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                                        </svg>
-                                                                    </button>
+                                                                    <template if:true={entry.canEdit}>
+                                                                        <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                                            </svg>
+                                                                        </button>
+                                                                    </template>
+                                                                    <template if:false={entry.canEdit}>
+                                                                        <button class="edit-icon-btn disabled" disabled>
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                                                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                                                                            </svg>
+                                                                        </button>
+                                                                    </template>
                                                                 </td>
                                                                 <td style="width: 12rem">{entry.contactName}</td>
                                                                 <td style="width: 10rem">{entry.clockInTime}</td>
@@ -332,12 +355,25 @@
                 <!-- Step 3: Log Details & Location Progress -->
                 <template if:true={isStep3}>
                     <div class="step-container">
+                        <!-- Approval Message -->
+                        <template if:true={showApprovalMessage}>
+                            <div class="approval-info-banner">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                <span>{approvalStatus.approvalMessage}</span>
+                            </div>
+                        </template>
+
                         <div class="log-details-form">
                             <div class="form-row">
                                 <div class="form-group full-width">
                                     <label class="form-label required">Work Performed</label>
                                     <lightning-textarea data-field="whatWeDone" variant="label-hidden"
-                                        value={step3Data.whatWeDone} onchange={handleStep3InputChange}>
+                                        value={step3Data.whatWeDone} onchange={handleStep3InputChange}
+                                        disabled={isFormDisabled}>
                                     </lightning-textarea>
                                 </div>
                             </div>
@@ -346,7 +382,8 @@
                                 <div class="form-group full-width">
                                     <label class="form-label required">Plan for Tomorrow</label>
                                     <lightning-textarea data-field="planForTomorrow" variant="label-hidden"
-                                        value={step3Data.planForTomorrow} onchange={handleStep3InputChange}>
+                                        value={step3Data.planForTomorrow} onchange={handleStep3InputChange}
+                                        disabled={isFormDisabled}>
                                     </lightning-textarea>
                                 </div>
                             </div>
@@ -355,7 +392,8 @@
                                 <div class="form-group full-width">
                                     <label class="form-label">Exceptions</label>
                                     <lightning-textarea data-field="exceptions" variant="label-hidden"
-                                        value={step3Data.exceptions} onchange={handleStep3InputChange}>
+                                        value={step3Data.exceptions} onchange={handleStep3InputChange}
+                                        disabled={isFormDisabled}>
                                     </lightning-textarea>
                                 </div>
                             </div>
@@ -364,7 +402,8 @@
                                 <div class="form-group full-width">
                                     <label class="form-label">Notes to Office</label>
                                     <lightning-textarea data-field="notesToOffice" variant="label-hidden"
-                                        value={step3Data.notesToOffice} onchange={handleStep3InputChange}>
+                                        value={step3Data.notesToOffice} onchange={handleStep3InputChange}
+                                        disabled={isFormDisabled}>
                                     </lightning-textarea>
                                 </div>
                             </div>
@@ -416,6 +455,15 @@
                                                                     <span class="process-sequence">Seq:
                                                                         {process.sequence}</span>
                                                                 </template>
+                                                                <template if:true={process.isPendingApproval}>
+                                                                    <span class="process-approval-badge">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                            <circle cx="12" cy="12" r="10"></circle>
+                                                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                                                        </svg>
+                                                                        Pending Approval
+                                                                    </span>
+                                                                </template>
                                                             </div>
                                                             <span
                                                                 class="progress-percentage">{process.completedPercent}%
@@ -436,7 +484,8 @@
                                                                 data-process-id={process.id}
                                                                 data-original-value={process.previousPercent}
                                                                 onchange={handleSliderChange}
-                                                                oninput={handleSliderInput}>
+                                                                oninput={handleSliderInput}
+                                                                disabled={isFormDisabled}>
                                                         </div>
                                                         <div class="slider-labels">
                                                             <span class="label-completed">
@@ -478,13 +527,13 @@
                         <div class="gallery-section">
                             <div class="upload-actions">
                                 <lightning-file-upload label="Upload Files" accept={acceptedFormats} multiple
-                                    onuploadfinished={handleUploadFinished}>
+                                    onuploadfinished={handleUploadFinished} disabled={isFormDisabled}>
                                 </lightning-file-upload>
 
                                 <!-- Camera Button - Only for Desktop -->
                                 <template if:true={isDesktopDevice}>
                                     <button type="button" class="camera-btn" onclick={handleOpenCamera}
-                                        title="Capture Photo">
+                                        title="Capture Photo" disabled={isFormDisabled}>
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16"
                                             height="16" fill="white">
                                             <path
@@ -523,15 +572,17 @@
                                                 </div>
                                             </template>
 
-                                            <button class="remove-file-btn" data-id={file.id} onclick={handleRemoveFile}
-                                                title="Remove file">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                                </svg>
-                                            </button>
+                                            <template if:false={isFormDisabled}>
+                                                <button class="remove-file-btn" data-id={file.id} onclick={handleRemoveFile}
+                                                    title="Remove file">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2">
+                                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                    </svg>
+                                                </button>
+                                            </template>
                                             <div class="file-preview-name">{file.name}</div>
                                         </div>
                                     </template>
@@ -565,13 +616,15 @@
                         </button>
                     </template>
                     <template if:true={isStep4}>
-                        <button class="nav-btn done-btn" onclick={handleDone}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                            Done
-                        </button>
+                        <template if:false={isFormDisabled}>
+                            <button class="nav-btn done-btn" onclick={handleDone}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Done
+                            </button>
+                        </template>
                     </template>
                 </div>
             </template>
