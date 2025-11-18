@@ -80,7 +80,6 @@
   border: none;
 }
 
-
 .save-btn, .nav-btn, .add-btn, .create-btn{
     background-color: var(--primary-theme-color, #5a5adb);
     color: white;
@@ -117,8 +116,10 @@
 
 .record-nav-link{
     cursor: pointer;
-    color: #5a5adbaa;
     transition: all 0.2s ease-in-out;
+    font-size: 14px;
+    color: black;
+    font-weight: 400;
 }
 
 .record-nav-link:hover{
@@ -153,8 +154,9 @@
 }
 
 .bottom-footer-btn{
-    width: calc(100% + 2rem);
-    margin-left: -1rem;
+    /* width: calc(100% + 2rem);
+    margin-left: -1rem; */
+    width: 100%;
     margin-bottom: -1rem;
     background: white;
     border-top: 1px solid lightgray;
@@ -363,4 +365,28 @@
 
 .confirmation-backdrop{
   z-index: 9998;
+}
+
+.job-label{
+  font-size: 15px;
+}
+
+.slds-backdrop{
+  pointer-events: none;
+}
+
+/* Responsive Design for Access Control */
+@media screen and (max-width: 768px) {
+  :host:has(.mob-popup) .main-calendar-div{
+    max-height: 10rem;
+    overflow: hidden;
+  }
+
+  .footer-btn {
+    min-width: 5rem;
+  }
+
+  .date-field-in-mob-form{
+    max-width: min( 100% , 24rem);
+  }
 }

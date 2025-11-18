@@ -515,6 +515,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
 
                 // Open modal
                 this.openModal = true;
+                this.template.querySelector('.header').scrollIntoView({block: 'end'});
 
                 this.isSpinner = false;
             })
@@ -549,6 +550,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             this.groupId = result.id;
             this.Heading = 'Edit Mobilization';
             this.openModal = true;
+            this.template.querySelector('.header').scrollIntoView({block: 'end'});
             this.selectedEventId = recordId;
         })
         .catch((e)=>{
@@ -575,9 +577,21 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             const startLocal = this.removeOrgTimeZone(details.wfrecon__Start_Date__c);
             const nowLocal = new Date();
 
+            let oldStartLocal = this.removeOrgTimeZone(this.startDateTime);
+            
+            if(this.isEdit && (startLocal.getTime() != oldStartLocal.getTime())){
+                if(oldStartLocal.getTime() < nowLocal.getTime()){
+                    this.showToast('Error', 'Can not change the start date/time for in-progress mobilization group.', 'error');
+                    return;
+                }if(startLocal.getTime() < nowLocal.getTime()){
+                    this.showToast('Error', 'Start date/time can not be set in the past.', 'error');
+                    return;
+                }
+            }
+
             if (start == end) {
                 this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
-            } else if (startLocal.getTime() < nowLocal.getTime()) {
+            } else if (!this.isEdit && startLocal.getTime() < nowLocal.getTime()) {
                 this.showToast('Error', 'Start date/time can not be in past.', 'error');
             } else if (start > end) {
                 this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');

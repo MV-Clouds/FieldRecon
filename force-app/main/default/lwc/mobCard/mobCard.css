@@ -53,11 +53,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     display: block;
+    line-height: 1.2rem;
 }
 
 .job-card-description{
     font-size: 0.7rem;
     color: #5a5adb90;
+    line-height: 1rem;
 }
 
 .action-btns{

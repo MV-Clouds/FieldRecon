@@ -9,9 +9,12 @@ import assignResourceToJob from '@salesforce/apex/MobSchedulerController.assignR
 import deleteMobilization from '@salesforce/apex/MobSchedulerController.deleteMobilization';
 import getDefaultValues from '@salesforce/apex/MobSchedulerController.getDefaultValues';
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class MobScheduler extends NavigationMixin(LightningElement) {
     showSpinner = false;
+    @track hasAccess = false;
+    @track accessErrorMessage = '';
 
     @track isDayView = true;
     @track isResourceView = false;
@@ -272,9 +275,37 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     }
 
     connectedCallback() {
-        this.showLoading(true);
-        this.initDay(new Date());
-        this.loadDefaultMobGroupValues();
+        this.checkUserPermissions();
+    }
+
+    checkUserPermissions() {
+        this.showSpinner = true;
+        const permissionSetsToCheck = ['FR_Admin', 'FR_Mobilization_Scheduler'];
+
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.initDay(new Date());
+                    this.loadDefaultMobGroupValues();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+                console.error('Error checking permissions:', error);
+            })
+            .finally(() => {
+                this.showSpinner = false;
+            });
     }
 
     loadDefaultMobGroupValues(){
@@ -612,6 +643,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     return;
                 } else {
                     this.filteredResources = JSON.parse(JSON.stringify(this.resources)).sort((a, b) => a.name.localeCompare(b.name));
+                    if(!this.filteredResources || this.filteredResources.length < 1){
+                        this.template.querySelector('.resource-calendar-container').scrollLeft = 0;
+                    }
                     return;
                 }
             }
@@ -654,6 +688,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 }).filter(r => r !== null)
                 .sort((a, b) => a.name.localeCompare(b.name));
 
+                if(!this.filteredResources || this.filteredResources.length < 1){
+                    this.template.querySelector('.resource-calendar-container').scrollLeft = 0;
+                }
                 return;
             }
 
