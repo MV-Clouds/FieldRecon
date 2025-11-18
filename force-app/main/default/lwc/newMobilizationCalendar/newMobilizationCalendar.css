@@ -80,10 +80,6 @@
   border: none;
 }
 
-.date-field-in-mob-form{
-  max-width: min( 80% , 22rem);
-}
-
 .save-btn, .nav-btn, .add-btn, .create-btn{
     background-color: var(--primary-theme-color, #5a5adb);
     color: white;
@@ -388,5 +384,9 @@
 
   .footer-btn {
     min-width: 5rem;
+  }
+
+  .date-field-in-mob-form{
+    max-width: min( 100% , 24rem);
   }
 }

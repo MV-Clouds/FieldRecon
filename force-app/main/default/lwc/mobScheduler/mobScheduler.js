@@ -281,14 +281,14 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     checkUserPermissions() {
         this.showSpinner = true;
         const permissionSetsToCheck = ['FR_Admin', 'FR_Mobilization_Scheduler'];
-        
+
         checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
             .then(result => {
                 const assignedMap = result.assignedMap || {};
                 const isAdmin = result.isAdmin || false;
-                
+
                 const hasFRAdmin = assignedMap['FR_Admin'] || false;
-                
+
                 if (isAdmin || hasFRAdmin) {
                     this.hasAccess = true;
                     this.initDay(new Date());

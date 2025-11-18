@@ -1084,14 +1084,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         });
 
         // Remove processes that have been reset (no longer pending approval)
-        // Get all process IDs that are currently NOT pending approval
-        const resetProcessIds = this.editAllLocationProcesses
-            .filter(p => !p.isPendingApproval)
-            .map(p => p.processId);
-        
-        resetProcessIds.forEach(processId => {
-            existingDataMap.delete(processId);
-        });
+        // Only do this if there was existing approval data to begin with
+        if (currentLog && currentLog.wfrecon__Approval_Data__c) {
+            const resetProcessIds = this.editAllLocationProcesses
+                .filter(p => !p.isPendingApproval)
+                .map(p => p.processId);
+            
+            resetProcessIds.forEach(processId => {
+                existingDataMap.delete(processId);
+            });
+        }
 
         // Convert map back to array
         const mergedApprovalData = Array.from(existingDataMap.values());

@@ -203,10 +203,6 @@
 
 /* Media Queries */
 @media screen and (max-width: 768px) {
-    /* .fullcalendarjs .fc-today a{
-        background-color: transparent !important;
-    } */
-
     .fullcalendarjs .fc-toolbar{
         display: flex;
         flex-direction: column;

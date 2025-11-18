@@ -787,7 +787,7 @@
   }
 
   .date-field-in-mob-form{
-    max-width: min( 80% , 22rem);
+    max-width: min( 100% , 22rem);
   }
 
   .filters-and-nav .nav-bar-element{

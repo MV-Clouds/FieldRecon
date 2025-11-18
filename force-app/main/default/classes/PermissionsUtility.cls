@@ -1,4 +1,4 @@
-public with sharing class PermissionsUtility {
+public without sharing class PermissionsUtility {
 /**
  * Description: Utility Class for permission related methods
  * Test Class: PermissionsUtilityTest - 85% (2025-11-03)
@@ -37,7 +37,6 @@ public with sharing class PermissionsUtility {
                 FROM PermissionSetAssignment
                 WHERE AssigneeId = :UserInfo.getUserId()
                       AND PermissionSet.Name IN :psNamesWithDefaultPs
-                WITH USER_MODE
             ]) {
                 if(psa.PermissionSet.Name == 'FR_Base'){
                     result.put('isBase', true);

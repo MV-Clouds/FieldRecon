@@ -6,11 +6,15 @@ public with sharing class ShiftEndLogEntriesController {
         try {
             Map<String, String> result = new Map<String, String>();
             if (String.isNotBlank(crewLeaderId) && crewLeaderId != null) {
-                String todayStr = String.valueOf(Date.today());
+                Date today = Date.today();
+                Date yesterday = today.addDays(-1);
+                String todayStr = String.valueOf(today);
+                String yesterdayStr = String.valueOf(yesterday);
                 
+                // Only return today's and yesterday's mobilization dates
                 List<Mobilization__c> mobList = [SELECT Id, Name, Start_Date_Text__c FROM Mobilization__c WHERE Job__c = :jobId 
                                                     AND Id IN (SELECT Mobilization__c FROM Mobilization_Member__c WHERE Crew_Leader_Id__c = :crewLeaderId)
-                                                    AND Start_Date_Text__c <= :todayStr
+                                                    AND (Start_Date_Text__c = :todayStr OR Start_Date_Text__c = :yesterdayStr)
                                                     WITH USER_MODE];
                 for (Mobilization__c mob : mobList) {
                     result.put(mob.Id, mob.Start_Date_Text__c);
@@ -179,6 +183,25 @@ public with sharing class ShiftEndLogEntriesController {
             WrapperMember costCodeDetailsWrap = new WrapperMember();
             costCodeDetailsWrap.costCodeDetails = costCodeDetails;
             result.get('costCodeDetails').add(costCodeDetailsWrap);
+            
+            // Add approval status information
+            Date workDate = mobilizationRecord[0].Start_Date__c.date();
+            Date today = Date.today();
+            
+            String approvalMessage = '';
+            
+            // If creating entry for a past date, show pending approval message
+            if (workDate < today) {
+                approvalMessage = 'This entry will go into pending approval status.';
+            }
+            
+            WrapperMember approvalStatusWrap = new WrapperMember();
+            approvalStatusWrap.approvalMessage = approvalMessage;
+            approvalStatusWrap.canEditTimesheet = true;
+            result.put('approvalStatus', new List<WrapperMember>{approvalStatusWrap});
+
+            System.debug('Approval Status: ' + approvalStatusWrap);
+            
             return result;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getMobilizationMembersWithStatus', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
@@ -597,31 +620,79 @@ public with sharing class ShiftEndLogEntriesController {
         @AuraEnabled public Boolean isAgain;
         @AuraEnabled public DateTime recentClockIn;
         @AuraEnabled public DateTime recentClockOut;
+        @AuraEnabled public String approvalMessage;
+        @AuraEnabled public Boolean canEditTimesheet;
     }
 
     @AuraEnabled
-    public static void createLogEntry(String jobId, String step3DataJson, List<String> contentDocumentIds, String cameraPhotosJson, String workPerformedDate, String approvalDataJson) {
+    public static void createLogEntry(String jobId, String step3DataJson, List<String> contentDocumentIds, String cameraPhotosJson, String workPerformedDate, String approvalDataJson, String mobilizationId) {
         try {
             // Deserialize step3 data
             Map<String, Object> step3Data = (Map<String, Object>) JSON.deserializeUntyped(step3DataJson);
             
+            // Check approval status logic
+            Date workDate = Date.valueOf(workPerformedDate.substring(0, 10));
+            Date yesterday = workDate.addDays(-1);
+            Date today = Date.today();
+            String logStatus = 'Pending'; // Default status
+            
+            // Check if there are already pending or approved logs for today
+            List<Log_Entry__c> todayLogs = [SELECT Id, Status__c FROM Log_Entry__c 
+                                            WHERE Job__c = :jobId 
+                                            AND Mobilization__c = :mobilizationId 
+                                            AND Work_Performed_Date__c = :today 
+                                            AND Log_Type__c = 'Shift End'
+                                            WITH USER_MODE];
+            
+            Boolean hasTodayLogs = !todayLogs.isEmpty();
+            
+            // If creating today's entry
+            if (workDate == today) {
+                // Find yesterday's mobilization to check for pending logs
+                List<Log_Entry__c> yesterdayLogsList = [SELECT Id, Mobilization__c FROM Log_Entry__c 
+                                                        WHERE Job__c = :jobId 
+                                                        AND Work_Performed_Date__c = :yesterday 
+                                                        AND Log_Type__c = 'Shift End'
+                                                        AND Status__c = 'Pending'
+                                                        WITH USER_MODE 
+                                                        LIMIT 1];
+                
+                if (!yesterdayLogsList.isEmpty()) {
+                    String yesterdayMobId = yesterdayLogsList[0].Mobilization__c;
+                    System.debug('Found yesterday mobilization: ' + yesterdayMobId + ' with pending logs');
+                    // Auto-approve yesterday's logs using yesterday's mobilization ID
+                    autoApproveYesterdayLogs(jobId, yesterdayMobId);
+                }
+                
+                logStatus = 'Pending';
+            } else if (workDate == yesterday) {
+                if (hasTodayLogs) {
+                    logStatus = 'Pending';
+                } else {
+                    // Check if yesterday already has unapproved logs
+                    Boolean hasYesterdayPendingLogs = checkTodayPendingLogs(jobId, mobilizationId, yesterday);
+                    logStatus = hasYesterdayPendingLogs ? 'Pending' : 'Approved';
+                }
+            }
+            
             // Create Log Entry record
             Log_Entry__c logEntry = new Log_Entry__c();
             logEntry.Job__c = jobId;
+            logEntry.Mobilization__c = mobilizationId; // Save the Mobilization lookup
             logEntry.Log_Type__c = 'Shift End';
             logEntry.Work_Performed__c = (String) step3Data.get('whatWeDone');
             logEntry.Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
             logEntry.Exceptions__c = (String) step3Data.get('exceptions');
             logEntry.Notes_to_Office__c = (String) step3Data.get('notesToOffice');
-            logEntry.Work_Performed_Date__c = Date.valueOf(workPerformedDate.substring(0, 10));
-            logEntry.Status__c = 'Pending'; // Requires approval for location process changes
+            logEntry.Work_Performed_Date__c = workDate;
+            logEntry.Status__c = logStatus;
             
             // Store approval data JSON directly from LWC (format: [{"id":"recordId","oldValue":73,"newValue":79}])
             if (String.isNotBlank(approvalDataJson)) {
                 logEntry.Approval_Data__c = approvalDataJson;
             }
             
-            insert as user logEntry;
+            insert logEntry;
             
             // Process camera photos if any
             // Note: FirstPublishLocationId automatically creates ContentDocumentLink, so no manual linking needed
@@ -688,6 +759,307 @@ public with sharing class ShiftEndLogEntriesController {
                 'moreDetails' => e.getMessage()
             });
             throw new AuraHandledException('Error deleting content documents: ' + e.getMessage());
+        }
+    }
+    
+    // Helper method: Auto-approve yesterday's pending logs and clear approval data
+    private static void autoApproveYesterdayLogs(String jobId, String mobilizationId) {
+        try {
+            Date yesterday = Date.today().addDays(-1);
+            Date approvedDate = Date.today();
+
+            // ---------------------------
+            // 1. Yesterday Shift End Logs
+            // ---------------------------
+            List<Log_Entry__c> yesterdayLogs = [
+                SELECT Id, Status__c, Approval_Data__c 
+                FROM Log_Entry__c 
+                WHERE Job__c = :jobId
+                AND Mobilization__c = :mobilizationId
+                AND Work_Performed_Date__c = :yesterday
+                AND Log_Type__c = 'Shift End'
+                AND Status__c = 'Pending'
+                WITH USER_MODE
+            ];
+
+            Set<Id> locationProcessIds = new Set<Id>();
+
+            // Collect LocationProcess Ids
+            for (Log_Entry__c log : yesterdayLogs) {
+                if (String.isNotBlank(log.Approval_Data__c)) {
+                    Object parsed = JSON.deserializeUntyped(log.Approval_Data__c);
+                    if (parsed instanceof List<Object>) {
+                        for (Object o : (List<Object>) parsed) {
+                            if (o instanceof Map<String, Object>) {
+                                Map<String, Object> mapVal = (Map<String, Object>) o;
+                                String recId = (String) mapVal.get('id');
+                                if (String.isNotBlank(recId)) {
+                                    locationProcessIds.add(recId);
+                                }
+                            }
+                        }
+                    }
+                }
+                log.Status__c = 'Auto-Approved';
+                log.Approved_Date__c = approvedDate;
+            }
+
+            // ---------------------------
+            // 2. Update Location Process
+            // ---------------------------
+            if (!locationProcessIds.isEmpty()) {
+                Map<Id, Location_Process__c> lpMap = new Map<Id, Location_Process__c>(
+                    [
+                        SELECT Id, Completed_Percentage__c
+                        FROM Location_Process__c
+                        WHERE Id IN :locationProcessIds
+                        WITH USER_MODE
+                    ]
+                );
+
+                for (Log_Entry__c log : yesterdayLogs) {
+                    if (String.isNotBlank(log.Approval_Data__c)) {
+                        Object parsed = JSON.deserializeUntyped(log.Approval_Data__c);
+                        if (parsed instanceof List<Object>) {
+                            for (Object o : (List<Object>) parsed) {
+                                Map<String, Object> mapVal = (Map<String, Object>) o;
+                                String recId = (String) mapVal.get('id');
+                                Object newValueObj = mapVal.get('newValue');
+
+                                if (lpMap.containsKey(recId) && newValueObj != null) {
+                                    lpMap.get(recId).Completed_Percentage__c =
+                                        Decimal.valueOf(String.valueOf(newValueObj));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                update as user lpMap.values();
+            }
+
+            update yesterdayLogs;
+
+            // ---------------------------
+            // 3. Timesheet Entries
+            // ---------------------------
+            List<Timesheet_Entry__c> tsEntries = [
+                SELECT Id, Status__c, Approval_Data__c
+                FROM Timesheet_Entry__c
+                WHERE Mobilization__c = :mobilizationId
+                AND Status__c = 'Pending'
+                WITH USER_MODE
+            ];
+
+            Set<Id> tsEntryIds = new Set<Id>();
+
+            for (Timesheet_Entry__c ts : tsEntries) {
+                ts.Status__c = 'Auto-Approved';
+                ts.Approved_Date__c = approvedDate;
+                tsEntryIds.add(ts.Id);
+
+                if (String.isNotBlank(ts.Approval_Data__c)) {
+                    Object parsed = JSON.deserializeUntyped(ts.Approval_Data__c);
+
+                    if (parsed instanceof List<Object>) {
+                        for (Object o : (List<Object>) parsed) {
+                            Map<String, Object> mapVal = (Map<String, Object>) o;
+                            String fieldApi = (String) mapVal.get('fieldApiName');
+                            Object newValueObj = mapVal.get('newValue');
+
+                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
+                                ts.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
+                            }
+                        }
+                    }
+                }
+            }
+
+            update tsEntries;
+
+            // ---------------------------
+            // 4. Timesheet Items
+            // ---------------------------
+            List<Timesheet_Entry_Item__c> tsItems = [
+                SELECT Id, Status__c, Approval_Data__c
+                FROM Timesheet_Entry_Item__c
+                WHERE Timesheet_Entry__c IN :tsEntryIds
+                AND Status__c = 'Pending'
+                WITH USER_MODE
+            ];
+
+            for (Timesheet_Entry_Item__c item : tsItems) {
+                item.Status__c = 'Auto-Approved';
+                item.Approved_Date__c = approvedDate;
+
+                if (String.isNotBlank(item.Approval_Data__c)) {
+                    Object parsed = JSON.deserializeUntyped(item.Approval_Data__c);
+
+                    if (parsed instanceof List<Object>) {
+                        for (Object o : (List<Object>) parsed) {
+                            Map<String, Object> mapVal = (Map<String, Object>) o;
+                            String fieldApi = (String) mapVal.get('fieldApiName');
+                            Object newValueObj = mapVal.get('newValue');
+
+                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
+                                item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
+                            }
+                        }
+                    }
+                }
+            }
+
+            update tsItems;
+        }
+        catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'autoApproveYesterdayLogs',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+        }
+    }
+    
+    // Helper method: Check if yesterday's log entry is unapproved
+    private static Boolean checkYesterdayUnapproved(String jobId, String mobilizationId, Date yesterday) {
+        try {
+            List<Log_Entry__c> yesterdayLogs = [SELECT Id, Status__c 
+                                                FROM Log_Entry__c 
+                                                WHERE Job__c = :jobId 
+                                                AND Mobilization__c = :mobilizationId 
+                                                AND Work_Performed_Date__c = :yesterday 
+                                                AND Log_Type__c = 'Shift End'
+                                                WITH USER_MODE 
+                                                LIMIT 1];
+            
+            // Return true if yesterday's log exists and is not approved
+            if (!yesterdayLogs.isEmpty()) {
+                return yesterdayLogs[0].Status__c != 'Approved';
+            }
+            return false;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'checkYesterdayUnapproved',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+            return false;
+        }
+    }
+    
+    // Helper method: Check if there are already pending logs for today
+    private static Boolean checkTodayPendingLogs(String jobId, String mobilizationId, Date today) {
+
+        System.debug('Checking today pending logs for Job: ' + jobId + ', Mobilization: ' + mobilizationId + ', Date: ' + today);
+        try {
+            List<Log_Entry__c> todayLogs = [SELECT Id, Status__c 
+                                            FROM Log_Entry__c 
+                                            WHERE Job__c = :jobId 
+                                            AND Mobilization__c = :mobilizationId 
+                                            AND Work_Performed_Date__c = :today 
+                                            AND Log_Type__c = 'Shift End'
+                                            AND Status__c = 'Pending'
+                                            WITH USER_MODE];
+            
+            // Return true if there are any pending logs for today
+
+            System.debug('Today logs: ' + todayLogs);
+            return !todayLogs.isEmpty();
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'checkTodayPendingLogs',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+            return false;
+        }
+    }
+    
+    // Helper method to check if yesterday's logs are approved
+    private static Boolean checkYesterdayApproved(String jobId, String mobilizationId, Date yesterday) {
+        try {
+            List<Log_Entry__c> yesterdayLogs = [SELECT Id, Status__c 
+                                            FROM Log_Entry__c 
+                                            WHERE Job__c = :jobId 
+                                            AND Mobilization__c = :mobilizationId 
+                                            AND Work_Performed_Date__c = :yesterday 
+                                            AND Log_Type__c = 'Shift End'
+                                            WITH USER_MODE];
+            
+            // Return true if any yesterday's log is approved
+            for (Log_Entry__c log : yesterdayLogs) {
+                if (log.Status__c == 'Approved') {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'checkYesterdayApproved',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+            return false;
+        }
+    }
+    
+    // Helper method to check if today has any approved logs
+    private static Boolean checkTodayApprovedLogs(String jobId, String mobilizationId, Date today) {
+        try {
+            List<Log_Entry__c> todayLogs = [SELECT Id, Status__c 
+                                            FROM Log_Entry__c 
+                                            WHERE Job__c = :jobId 
+                                            AND Mobilization__c = :mobilizationId 
+                                            AND Work_Performed_Date__c = :today 
+                                            AND Log_Type__c = 'Shift End'
+                                            AND Status__c = 'Approved'
+                                            WITH USER_MODE];
+            
+            // Return true if there are any approved logs for today
+            return !todayLogs.isEmpty();
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'checkTodayApprovedLogs',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+            return false;
+        }
+    }
+    
+    // Method to check approval status for UI display
+    @AuraEnabled
+    public static Map<String, Object> checkLogApprovalStatus(String jobId, String mobilizationId, String workPerformedDate) {
+        Map<String, Object> result = new Map<String, Object>();
+        try {
+            Date workDate = Date.valueOf(workPerformedDate.substring(0, 10));
+            Date yesterday = workDate.addDays(-1);
+            
+            Boolean yesterdayUnapproved = checkYesterdayUnapproved(jobId, mobilizationId, yesterday);
+            Boolean hasTodayPendingLogs = checkTodayPendingLogs(jobId, mobilizationId, workDate);
+            
+            // Only auto-approve yesterday's logs, not today's
+            Boolean isYesterday = workDate < Date.today();
+            Boolean willAutoApprove = isYesterday && !yesterdayUnapproved && !hasTodayPendingLogs;
+            
+            result.put('yesterdayUnapproved', yesterdayUnapproved);
+            result.put('hasTodayPendingLogs', hasTodayPendingLogs);
+            result.put('willAutoApprove', willAutoApprove);
+            
+            return result;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'checkLogApprovalStatus',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+            throw new AuraHandledException('Error checking log approval status: ' + e.getMessage());
         }
     }
 }

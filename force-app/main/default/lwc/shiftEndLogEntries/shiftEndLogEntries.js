@@ -59,6 +59,11 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     @track activeTab = 'approved';
 
+    // Approval status tracking
+    @track approvalStatus = {
+        approvalMessage: '',
+        canEditTimesheet: true
+    };
 
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
     
@@ -88,6 +93,10 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     get hasPendingTimesheetEntries() {
         return this.pendingTimesheetEntries && this.pendingTimesheetEntries.length > 0;
+    }
+
+    get isFormDisabled() {
+        return !this.approvalStatus.canEditTimesheet;
     }
 
     get hasLocationOptions() {
@@ -143,6 +152,11 @@ export default class ShiftEndLogEntries extends LightningElement {
         const nextDay = this.addDaysToDateKey(dateKey, 1);
         return nextDay ? `${nextDay}T23:59` : null;
     }
+
+    get showApprovalMessage() {
+        return this.approvalStatus.approvalMessage && this.approvalStatus.approvalMessage.trim() !== '';
+    }
+
 
     connectedCallback() {
         this.loadMobilizationList();
@@ -211,7 +225,6 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     loadMobilizationList() {
-        this.isLoading = true;
         getMobilizationList({ jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 if (result) {
@@ -227,7 +240,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     );
                     if (todayMob) {
                         this.selectedMobilizationId = todayMob.value;
-                        this.loadCrewMembers();
+                        this.loadCrewMembersAndApprovalStatus();
                     }
                 }
             })
@@ -235,23 +248,35 @@ export default class ShiftEndLogEntries extends LightningElement {
                 console.error('Error loading mobilizations:', error);
                 this.showToast('Error', 'Failed to load mobilizations', 'error');
             })
-            .finally(() => {
-                this.isLoading = false;
-            });
     }
 
     handleMobilizationChange(event) {
         this.selectedMobilizationId = event.detail.value;
         if (this.selectedMobilizationId) {
-            this.loadCrewMembers();
+            this.loadCrewMembersAndApprovalStatus();
         }
     }
 
-    loadCrewMembers() {
+    loadCrewMembersAndApprovalStatus() {
         this.isLoading = true;
         getMobilizationMembersWithStatus({ mobId: this.selectedMobilizationId, jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 if (result) {
+                    // Process approval status
+                    const approvalStatusList = result.approvalStatus || [];
+                    if (approvalStatusList.length > 0) {
+                        const approvalData = approvalStatusList[0];
+                        this.approvalStatus = {
+                            approvalMessage: approvalData.approvalMessage || '',
+                            canEditTimesheet: approvalData.canEditTimesheet !== false
+                        };
+                    } else {
+                        this.approvalStatus = {
+                            approvalMessage: '',
+                            canEditTimesheet: true
+                        };
+                    }
+                    
                     // Process clock in members
                     const clockInList = result.clockIn || [];
                     const clockOutList = result.clockOut || [];
@@ -263,7 +288,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         allMembers.set(member.contactId, {
                             contactId: member.contactId,
                             contactName: member.contactName,
-                            canClockIn: true,
+                            canClockIn: this.approvalStatus.canEditTimesheet,
                             canClockOut: false,
                             statusText: member.isAgain ? 'Ready to Clock In Again' : 'Not Clocked In',
                             statusClass: 'status-not-clocked',
@@ -285,7 +310,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                             contactId: member.contactId,
                             contactName: member.contactName,
                             canClockIn: false,
-                            canClockOut: true,
+                            canClockOut: this.approvalStatus.canEditTimesheet,
                             statusText: 'Clocked In',
                             statusClass: 'status-clocked-in',
                             hoursWorked: this.calculateHours(member.clockInTime),
@@ -417,7 +442,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 if (result) {
                     this.showToast('Success', 'Clocked In Successfully', 'success');
                     this.closeClockInModal();
-                    this.loadCrewMembers();
+                    this.loadCrewMembersAndApprovalStatus();
                 } else {
                     this.showToast('Error', 'Failed to Clock In', 'error');
                 }
@@ -471,7 +496,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 if (result) {
                     this.showToast('Success', 'Clocked Out Successfully', 'success');
                     this.closeClockOutModal();
-                    this.loadCrewMembers();
+                    this.loadCrewMembersAndApprovalStatus();
                 } else {
                     this.showToast('Error', 'Failed to Clock Out', 'error');
                 }
@@ -486,10 +511,16 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     closeClockInModal() {
-        this.showClockInModal = false;
-        this.selectedContactId = null;
-        this.selectedCostCodeId = null;
-        this.clockInTime = null;
+        try {
+            this.showClockInModal = false;
+            this.selectedContactId = null;
+            this.selectedCostCodeId = null;
+            this.clockInTime = null;
+        } catch (error) {
+            console.log('Error closing Clock In modal:', error);
+            
+        }
+        
     }
 
     closeClockOutModal() {
@@ -554,7 +585,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                             status: entry.status,
                             approvalData: entry.approvalData,
                             pendingChanges: pendingChanges,
-                            hasApprovalData: entry.approvalData && entry.approvalData.trim() !== '' && entry.approvalData !== '[]'
+                            hasApprovalData: entry.approvalData && entry.approvalData.trim() !== '' && entry.approvalData !== '[]',
+                            canEdit: this.approvalStatus.canEditTimesheet && entry.status !== 'Approved'
                         };
                     });
 
@@ -818,7 +850,12 @@ export default class ShiftEndLogEntries extends LightningElement {
                     processes: []
                 });
             }
-            locationMap.get(proc.locationId).processes.push(proc);
+            // Add isPendingApproval flag if process has been modified
+            const processWithApproval = {
+                ...proc,
+                isPendingApproval: this.modifiedProcesses.has(proc.id)
+            };
+            locationMap.get(proc.locationId).processes.push(processWithApproval);
         });
 
         this.groupedLocationProcesses = Array.from(locationMap.values());
@@ -1249,15 +1286,20 @@ export default class ShiftEndLogEntries extends LightningElement {
             console.log('Modified Processes:', Array.from(this.modifiedProcesses.entries()));
             console.log('Approval Data JSON:', approvalDataJson);
 
-            // Create Log Entry record with files, camera photos, and approval data
-            // Status will be set as "Pending" in Apex if approvalDataJson is provided
+            // Get the selected mobilization date
+            const selectedMobOption = this.mobilizationOptions.find(opt => opt.value === this.selectedMobilizationId);
+            const workPerformedDate = selectedMobOption ? selectedMobOption.label : new Date().toISOString().substring(0, 10);
+
+            // Create Log Entry record with files, camera photos, mobilization ID, and approval data
+            // Status will be determined in Apex based on yesterday's approval and today's pending logs
             await createLogEntry({
                 jobId: this.jobId,
                 step3DataJson: JSON.stringify(step3DataToSave),
                 contentDocumentIds: fileIds,
                 cameraPhotosJson: JSON.stringify(cameraPhotosData),
-                workPerformedDate: new Date().toISOString(),
-                approvalDataJson: approvalDataJson
+                workPerformedDate: workPerformedDate,
+                approvalDataJson: approvalDataJson,
+                mobilizationId: this.selectedMobilizationId
             });
 
             this.showToast('Success', 'Shift End Log created successfully', 'success');

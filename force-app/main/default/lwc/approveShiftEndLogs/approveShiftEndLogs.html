@@ -1,0 +1,83 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <div class="filter-bar">
+            <div class="search-div">
+                <lightning-input type="search" variant="label-hidden" placeholder="Search by Job Name" onchange={handleSearch} value={searchTerm}></lightning-input>
+            </div>
+
+            <div class="date-filter-dropdown">
+                <lightning-combobox
+                    name="dateFilter"
+                    label="Date Filter"
+                    value={selectedDateFilter}
+                    placeholder="Select Date Range"
+                    options={dateFilterOptions}
+                    onchange={handleDateFilterChange}
+                    variant="label-hidden">
+                </lightning-combobox>
+            </div>
+        </div>
+
+        <template if:true={logEntries.length}>
+            <div class="table-content">
+                <table class="slds-table">
+                    <thead>
+                        <tr>
+                            <template for:each={logColumns} for:item="col">
+                                <th key={col.fieldName} scope="col" style={col.style}>
+                                    <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={logEntries} for:item="log">
+                            <tr key={log.Id}>
+                                <template for:each={log.values} for:item="val">
+                                    <td key={val} style={val.style}>
+                                        <div class="slds-truncate cell-wrapper" title={val.value}>
+                                            <template if:true={val.isActions}>
+                                                <div class="action-button-container">
+                                                    <button class="approve-icon" title="Approve" data-logid={log.Id} data-action="approve" onclick={handleActionClick}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </template>
+
+                                            <template if:false={val.isActions}>
+                                                <div class="cell-content" title={val.value}>
+                                                    {val.value}
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+        
+        <template if:false={logEntries.length}>
+            <div class="no-records-message">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">No unapproved log entries available</div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

@@ -577,10 +577,18 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             const startLocal = this.removeOrgTimeZone(details.wfrecon__Start_Date__c);
             const nowLocal = new Date();
 
-            if(this.isEdit){
-                let oldStartDate = this.removeOrgTimeZone(this.startDate);
-                if(startLocal.getTime() < oldStartDate.getTime()){
-                    this.showToast('Error', 'Start date can not be moved in past.', 'error');
+            console.log('startLocal : ', startLocal);
+            console.log('oldStartDate : ', this.removeOrgTimeZone(this.startDateTime));
+            console.log('Now is :: ', nowLocal);
+            
+            let oldStartLocal = this.removeOrgTimeZone(this.startDateTime);
+            
+            if(this.isEdit && (startLocal.getTime() != oldStartLocal.getTime())){
+                if(oldStartLocal.getTime() < nowLocal.getTime()){
+                    this.showToast('Error', 'Can not change the start date/time for in-progress mobilization group.', 'error');
+                    return;
+                }if(startLocal.getTime() < nowLocal.getTime()){
+                    this.showToast('Error', 'Start date/time can not be set in the past.', 'error');
                     return;
                 }
             }
