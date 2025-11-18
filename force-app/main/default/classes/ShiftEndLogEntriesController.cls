@@ -766,6 +766,7 @@ public with sharing class ShiftEndLogEntriesController {
     private static void autoApproveYesterdayLogs(String jobId, String mobilizationId) {
         try {
             Date yesterday = Date.today().addDays(-1);
+            Date approvedDate = Date.today();
             
             // Get yesterday's pending log entries
             List<Log_Entry__c> yesterdayPendingLogs = [SELECT Id, Status__c, Approval_Data__c 
@@ -778,20 +779,72 @@ public with sharing class ShiftEndLogEntriesController {
                                                         WITH USER_MODE];
             
             if (!yesterdayPendingLogs.isEmpty()) {
-                // Approve all yesterday's pending logs and clear approval data
+                Set<Id> locationProcessIds = new Set<Id>();
+                
+                // Process Location Process updates from approval data
                 for (Log_Entry__c log : yesterdayPendingLogs) {
-                    log.Status__c = 'Approved';
-                    log.Approval_Data__c = null; // Clear approval data
+                    if (String.isNotBlank(log.Approval_Data__c)) {
+                        try {
+                            List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
+                            for (Object approvalObj : approvalDataList) {
+                                Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
+                                String recordId = (String) approvalMap.get('id');
+                                if (String.isNotBlank(recordId)) {
+                                    locationProcessIds.add(recordId);
+                                }
+                            }
+                        } catch (Exception ex) {
+                            System.debug('Error parsing approval data for log: ' + log.Id + ' - ' + ex.getMessage());
+                        }
+                    }
+                    
+                    // Update log entry status
+                    log.Status__c = 'Auto-Approved';
+                    log.Approved_Date__c = approvedDate;
+                    log.Approval_Data__c = null;
                 }
+                
+                // Update Location Process records
+                if (!locationProcessIds.isEmpty()) {
+                    List<Location_Process__c> locationProcessesToUpdate = [SELECT Id, Completed_Percentage__c 
+                                                                            FROM Location_Process__c 
+                                                                            WHERE Id IN :locationProcessIds
+                                                                            WITH USER_MODE];
+                    
+                    Map<Id, Location_Process__c> locationProcessMap = new Map<Id, Location_Process__c>();
+                    for (Location_Process__c lp : locationProcessesToUpdate) {
+                        locationProcessMap.put(lp.Id, lp);
+                    }
+                    
+                    // Apply new values from approval data
+                    for (Log_Entry__c log : yesterdayPendingLogs) {
+                        if (String.isNotBlank(log.Approval_Data__c)) {
+                            try {
+                                List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
+                                for (Object approvalObj : approvalDataList) {
+                                    Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
+                                    String recordId = (String) approvalMap.get('id');
+                                    Object newValueObj = approvalMap.get('newValue');
+                                    
+                                    if (String.isNotBlank(recordId) && locationProcessMap.containsKey(recordId) && newValueObj != null) {
+                                        Decimal newValue = Decimal.valueOf(String.valueOf(newValueObj));
+                                        locationProcessMap.get(recordId).Completed_Percentage__c = newValue;
+                                    }
+                                }
+                            } catch (Exception ex) {
+                                System.debug('Error applying location process updates: ' + ex.getMessage());
+                            }
+                        }
+                    }
+                    
+                    if (!locationProcessMap.isEmpty()) {
+                        update as user locationProcessMap.values();
+                    }
+                }
+                
                 update yesterdayPendingLogs;
                 
-                // Also clear approval data from related Timesheet Entries and Items
-                Set<Id> logIds = new Set<Id>();
-                for (Log_Entry__c log : yesterdayPendingLogs) {
-                    logIds.add(log.Id);
-                }
-                
-                // Clear timesheet entry approval data for yesterday
+                // Process Timesheet Entries and Items
                 List<Timesheet_Entry__c> timesheetEntries = [SELECT Id, Status__c, Approval_Data__c 
                                                                 FROM Timesheet_Entry__c 
                                                                 WHERE Mobilization__c = :mobilizationId 
@@ -800,14 +853,36 @@ public with sharing class ShiftEndLogEntriesController {
                 
                 if (!timesheetEntries.isEmpty()) {
                     Set<Id> entryIds = new Set<Id>();
+                    
                     for (Timesheet_Entry__c entry : timesheetEntries) {
-                        entry.Status__c = 'Approved';
-                        entry.Approval_Data__c = null;
+                        entry.Status__c = 'Auto-Approved';
+                        entry.Approved_Date__c = approvedDate;
                         entryIds.add(entry.Id);
+                        
+                        // Update fields from approval data
+                        if (String.isNotBlank(entry.Approval_Data__c)) {
+                            try {
+                                List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(entry.Approval_Data__c);
+                                for (Object approvalObj : approvalDataList) {
+                                    Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
+                                    String fieldApiName = (String) approvalMap.get('fieldApiName');
+                                    Object newValueObj = approvalMap.get('newValue');
+                                    
+                                    if (String.isNotBlank(fieldApiName) && newValueObj != null) {
+                                        Decimal newValue = Decimal.valueOf(String.valueOf(newValueObj));
+                                        entry.put(fieldApiName, newValue);
+                                    }
+                                }
+                            } catch (Exception ex) {
+                                System.debug('Error applying timesheet entry updates: ' + ex.getMessage());
+                            }
+                        }
+                        
+                        entry.Approval_Data__c = null;
                     }
                     update timesheetEntries;
                     
-                    // Clear timesheet entry item approval data
+                    // Process Timesheet Entry Items
                     List<Timesheet_Entry_Item__c> timesheetItems = [SELECT Id, Status__c, Approval_Data__c 
                                                                         FROM Timesheet_Entry_Item__c 
                                                                         WHERE Timesheet_Entry__c IN :entryIds
@@ -816,7 +891,28 @@ public with sharing class ShiftEndLogEntriesController {
                     
                     if (!timesheetItems.isEmpty()) {
                         for (Timesheet_Entry_Item__c item : timesheetItems) {
-                            item.Status__c = 'Approved';
+                            item.Status__c = 'Auto-Approved';
+                            item.Approved_Date__c = approvedDate;
+                            
+                            // Update fields from approval data
+                            if (String.isNotBlank(item.Approval_Data__c)) {
+                                try {
+                                    List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(item.Approval_Data__c);
+                                    for (Object approvalObj : approvalDataList) {
+                                        Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
+                                        String fieldApiName = (String) approvalMap.get('fieldApiName');
+                                        Object newValueObj = approvalMap.get('newValue');
+                                        
+                                        if (String.isNotBlank(fieldApiName) && newValueObj != null) {
+                                            Decimal newValue = Decimal.valueOf(String.valueOf(newValueObj));
+                                            item.put(fieldApiName, newValue);
+                                        }
+                                    }
+                                } catch (Exception ex) {
+                                    System.debug('Error applying timesheet item updates: ' + ex.getMessage());
+                                }
+                            }
+                            
                             item.Approval_Data__c = null;
                         }
                         update timesheetItems;
