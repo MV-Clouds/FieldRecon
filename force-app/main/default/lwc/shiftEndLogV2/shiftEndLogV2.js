@@ -341,7 +341,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             let isPendingApproval = false;
                             
                             // Parse approval data - it's stored as JSON array [{ id, oldValue, newValue }]
-                            if (approvalData && Array.isArray(approvalData)) {
+                            // Only show as pending if status is 'Pending' (not approved/auto-approved)
+                            if (approvalData && Array.isArray(approvalData) && !isApprovedStatus) {
                                 approvalDataForProcess = approvalData.find(item => item.id === proc.processId);
                                 isPendingApproval = !!approvalDataForProcess;
                             }
@@ -880,16 +881,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Get the ORIGINAL completion percentage from the separate Map
         const originalCompletionPercentage = this.editOriginalCompletionPercentages.get(processId);
         
-        // For modifications tracking in JSON:
-        // If in approval: compare new value against approval value (to track changes AFTER approval)
-        // If not in approval: compare against yesterday value
-        const comparisonValue = processData.isPendingApproval ? processData.approvalNewValue : yesterdayValue;
-        
+        // For approval data JSON, always use yesterdayPercentage as the base
+        // This ensures approval data always shows changes from the base value
         // Track modification only if changed from the original state
         if (newValue !== originalCompletionPercentage) {
             this.editModifiedProcesses.set(processId, {
                 processId: processId,
-                originalValue: comparisonValue, // Track against approval value if in approval, otherwise yesterday
+                originalValue: yesterdayValue, // Always use yesterday as base for approval data
                 newValue: newValue
             });
         } else {
@@ -1062,41 +1060,44 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
         }
 
-        // Prepare location process updates - only include ID, old value, and new value
-        const processUpdates = Array.from(this.editModifiedProcesses.entries()).map(([processId, modification]) => {
-            return {
+        // Create a map starting with existing approval data
+        const approvalDataMap = new Map();
+        existingApprovalData.forEach(item => {
+            approvalDataMap.set(item.id, item);
+        });
+
+        // Add or update with new modifications
+        Array.from(this.editModifiedProcesses.entries()).forEach(([processId, modification]) => {
+            approvalDataMap.set(processId, {
                 id: processId,
                 oldValue: modification.originalValue,
                 newValue: modification.newValue
-            };
-        });
-
-        // Merge new modifications with existing approval data
-        // Create a map of existing data for quick lookup
-        const existingDataMap = new Map();
-        existingApprovalData.forEach(item => {
-            existingDataMap.set(item.id, item);
-        });
-
-        // Update or add new modifications
-        processUpdates.forEach(update => {
-            existingDataMap.set(update.id, update);
-        });
-
-        // Remove processes that have been reset (no longer pending approval)
-        // Only do this if there was existing approval data to begin with
-        if (currentLog && currentLog.wfrecon__Approval_Data__c) {
-            const resetProcessIds = this.editAllLocationProcesses
-                .filter(p => !p.isPendingApproval)
-                .map(p => p.processId);
-            
-            resetProcessIds.forEach(processId => {
-                existingDataMap.delete(processId);
             });
-        }
+        });
+
+        // Only remove processes that were in the current edit session and were reset back
+        // Don't touch processes that were already in approval but not modified in this session
+        this.editAllLocationProcesses.forEach(proc => {
+            const wasInExistingApproval = existingApprovalData.some(item => item.id === proc.processId);
+            const wasModifiedNow = this.editModifiedProcesses.has(proc.processId);
+            
+            // Only remove if it was modified in THIS session and then reset back
+            // OR if it's a new modification that was later reset (but this shouldn't happen as we check !== in handleEditSliderChange)
+            if (wasModifiedNow) {
+                const originalPercentage = this.editOriginalCompletionPercentages.get(proc.processId);
+                const currentPercentage = proc.completionPercentage;
+                
+                // If modified in this session but reset to original, remove from approval data
+                if (originalPercentage === currentPercentage) {
+                    approvalDataMap.delete(proc.processId);
+                }
+            }
+            // If NOT in existing approval and NOT modified now, don't add it
+            // If IN existing approval and NOT modified now, keep it (already in map)
+        });
 
         // Convert map back to array
-        const mergedApprovalData = Array.from(existingDataMap.values());
+        const mergedApprovalData = Array.from(approvalDataMap.values());
 
         const formData = {
             Id: this.editLogId,
@@ -1114,7 +1115,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         console.log('formData ==> ', formData);
         console.log('Existing approval data:', existingApprovalData);
-        console.log('New modifications:', processUpdates);
+        console.log('New modifications from editModifiedProcesses:', Array.from(this.editModifiedProcesses.entries()));
         console.log('Merged approval data:', mergedApprovalData);
         
 

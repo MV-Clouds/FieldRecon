@@ -187,11 +187,25 @@ public with sharing class ShiftEndLogEntriesController {
             // Add approval status information
             Date workDate = mobilizationRecord[0].Start_Date__c.date();
             Date today = Date.today();
+            Date yesterday = today.addDays(-1);
             
             String approvalMessage = '';
             
-            // If creating entry for a past date, show pending approval message
-            if (workDate < today) {
+            // If creating entry for today, check if yesterday has pending logs
+            if (workDate == today) {
+                // Check if yesterday has any pending logs
+                List<Log_Entry__c> yesterdayPendingLogs = [SELECT Id, Status__c FROM Log_Entry__c 
+                                                            WHERE Job__c = :jobId 
+                                                            AND Work_Performed_Date__c = :yesterday 
+                                                            AND Log_Type__c = 'Shift End'
+                                                            AND Status__c = 'Pending'
+                                                            WITH USER_MODE];
+                
+                if (!yesterdayPendingLogs.isEmpty()) {
+                    approvalMessage = 'Note: Yesterday\'s pending entries will be automatically approved when you submit today\'s log. Today\'s entry will be marked as pending for approval.';
+                }
+            } else if (workDate < today) {
+                // If creating entry for a past date, show pending approval message
                 approvalMessage = 'This entry will go into pending approval status.';
             }
             
@@ -767,159 +781,151 @@ public with sharing class ShiftEndLogEntriesController {
         try {
             Date yesterday = Date.today().addDays(-1);
             Date approvedDate = Date.today();
-            
-            // Get yesterday's pending log entries
-            List<Log_Entry__c> yesterdayPendingLogs = [SELECT Id, Status__c, Approval_Data__c 
-                                                        FROM Log_Entry__c 
-                                                        WHERE Job__c = :jobId 
-                                                        AND Mobilization__c = :mobilizationId 
-                                                        AND Work_Performed_Date__c = :yesterday 
-                                                        AND Log_Type__c = 'Shift End'
-                                                        AND Status__c = 'Pending'
-                                                        WITH USER_MODE];
-            
-            if (!yesterdayPendingLogs.isEmpty()) {
-                Set<Id> locationProcessIds = new Set<Id>();
-                
-                // Process Location Process updates from approval data
-                for (Log_Entry__c log : yesterdayPendingLogs) {
+
+            // ---------------------------
+            // 1. Yesterday Shift End Logs
+            // ---------------------------
+            List<Log_Entry__c> yesterdayLogs = [
+                SELECT Id, Status__c, Approval_Data__c 
+                FROM Log_Entry__c 
+                WHERE Job__c = :jobId
+                AND Mobilization__c = :mobilizationId
+                AND Work_Performed_Date__c = :yesterday
+                AND Log_Type__c = 'Shift End'
+                AND Status__c = 'Pending'
+                WITH USER_MODE
+            ];
+
+            Set<Id> locationProcessIds = new Set<Id>();
+
+            // Collect LocationProcess Ids
+            for (Log_Entry__c log : yesterdayLogs) {
+                if (String.isNotBlank(log.Approval_Data__c)) {
+                    Object parsed = JSON.deserializeUntyped(log.Approval_Data__c);
+                    if (parsed instanceof List<Object>) {
+                        for (Object o : (List<Object>) parsed) {
+                            if (o instanceof Map<String, Object>) {
+                                Map<String, Object> mapVal = (Map<String, Object>) o;
+                                String recId = (String) mapVal.get('id');
+                                if (String.isNotBlank(recId)) {
+                                    locationProcessIds.add(recId);
+                                }
+                            }
+                        }
+                    }
+                }
+                log.Status__c = 'Auto-Approved';
+                log.Approved_Date__c = approvedDate;
+            }
+
+            // ---------------------------
+            // 2. Update Location Process
+            // ---------------------------
+            if (!locationProcessIds.isEmpty()) {
+                Map<Id, Location_Process__c> lpMap = new Map<Id, Location_Process__c>(
+                    [
+                        SELECT Id, Completed_Percentage__c
+                        FROM Location_Process__c
+                        WHERE Id IN :locationProcessIds
+                        WITH USER_MODE
+                    ]
+                );
+
+                for (Log_Entry__c log : yesterdayLogs) {
                     if (String.isNotBlank(log.Approval_Data__c)) {
-                        try {
-                            List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
-                            for (Object approvalObj : approvalDataList) {
-                                Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
-                                String recordId = (String) approvalMap.get('id');
-                                if (String.isNotBlank(recordId)) {
-                                    locationProcessIds.add(recordId);
+                        Object parsed = JSON.deserializeUntyped(log.Approval_Data__c);
+                        if (parsed instanceof List<Object>) {
+                            for (Object o : (List<Object>) parsed) {
+                                Map<String, Object> mapVal = (Map<String, Object>) o;
+                                String recId = (String) mapVal.get('id');
+                                Object newValueObj = mapVal.get('newValue');
+
+                                if (lpMap.containsKey(recId) && newValueObj != null) {
+                                    lpMap.get(recId).Completed_Percentage__c =
+                                        Decimal.valueOf(String.valueOf(newValueObj));
                                 }
                             }
-                        } catch (Exception ex) {
-                            System.debug('Error parsing approval data for log: ' + log.Id + ' - ' + ex.getMessage());
                         }
-                    }
-                    
-                    // Update log entry status
-                    log.Status__c = 'Auto-Approved';
-                    log.Approved_Date__c = approvedDate;
-                    log.Approval_Data__c = null;
-                }
-                
-                // Update Location Process records
-                if (!locationProcessIds.isEmpty()) {
-                    List<Location_Process__c> locationProcessesToUpdate = [SELECT Id, Completed_Percentage__c 
-                                                                            FROM Location_Process__c 
-                                                                            WHERE Id IN :locationProcessIds
-                                                                            WITH USER_MODE];
-                    
-                    Map<Id, Location_Process__c> locationProcessMap = new Map<Id, Location_Process__c>();
-                    for (Location_Process__c lp : locationProcessesToUpdate) {
-                        locationProcessMap.put(lp.Id, lp);
-                    }
-                    
-                    // Apply new values from approval data
-                    for (Log_Entry__c log : yesterdayPendingLogs) {
-                        if (String.isNotBlank(log.Approval_Data__c)) {
-                            try {
-                                List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
-                                for (Object approvalObj : approvalDataList) {
-                                    Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
-                                    String recordId = (String) approvalMap.get('id');
-                                    Object newValueObj = approvalMap.get('newValue');
-                                    
-                                    if (String.isNotBlank(recordId) && locationProcessMap.containsKey(recordId) && newValueObj != null) {
-                                        Decimal newValue = Decimal.valueOf(String.valueOf(newValueObj));
-                                        locationProcessMap.get(recordId).Completed_Percentage__c = newValue;
-                                    }
-                                }
-                            } catch (Exception ex) {
-                                System.debug('Error applying location process updates: ' + ex.getMessage());
-                            }
-                        }
-                    }
-                    
-                    if (!locationProcessMap.isEmpty()) {
-                        update as user locationProcessMap.values();
                     }
                 }
-                
-                update yesterdayPendingLogs;
-                
-                // Process Timesheet Entries and Items
-                List<Timesheet_Entry__c> timesheetEntries = [SELECT Id, Status__c, Approval_Data__c 
-                                                                FROM Timesheet_Entry__c 
-                                                                WHERE Mobilization__c = :mobilizationId 
-                                                                AND Status__c = 'Pending'
-                                                                WITH USER_MODE];
-                
-                if (!timesheetEntries.isEmpty()) {
-                    Set<Id> entryIds = new Set<Id>();
-                    
-                    for (Timesheet_Entry__c entry : timesheetEntries) {
-                        entry.Status__c = 'Auto-Approved';
-                        entry.Approved_Date__c = approvedDate;
-                        entryIds.add(entry.Id);
-                        
-                        // Update fields from approval data
-                        if (String.isNotBlank(entry.Approval_Data__c)) {
-                            try {
-                                List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(entry.Approval_Data__c);
-                                for (Object approvalObj : approvalDataList) {
-                                    Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
-                                    String fieldApiName = (String) approvalMap.get('fieldApiName');
-                                    Object newValueObj = approvalMap.get('newValue');
-                                    
-                                    if (String.isNotBlank(fieldApiName) && newValueObj != null) {
-                                        Decimal newValue = Decimal.valueOf(String.valueOf(newValueObj));
-                                        entry.put(fieldApiName, newValue);
-                                    }
-                                }
-                            } catch (Exception ex) {
-                                System.debug('Error applying timesheet entry updates: ' + ex.getMessage());
+
+                update as user lpMap.values();
+            }
+
+            update yesterdayLogs;
+
+            // ---------------------------
+            // 3. Timesheet Entries
+            // ---------------------------
+            List<Timesheet_Entry__c> tsEntries = [
+                SELECT Id, Status__c, Approval_Data__c
+                FROM Timesheet_Entry__c
+                WHERE Mobilization__c = :mobilizationId
+                AND Status__c = 'Pending'
+                WITH USER_MODE
+            ];
+
+            Set<Id> tsEntryIds = new Set<Id>();
+
+            for (Timesheet_Entry__c ts : tsEntries) {
+                ts.Status__c = 'Auto-Approved';
+                ts.Approved_Date__c = approvedDate;
+                tsEntryIds.add(ts.Id);
+
+                if (String.isNotBlank(ts.Approval_Data__c)) {
+                    Object parsed = JSON.deserializeUntyped(ts.Approval_Data__c);
+
+                    if (parsed instanceof List<Object>) {
+                        for (Object o : (List<Object>) parsed) {
+                            Map<String, Object> mapVal = (Map<String, Object>) o;
+                            String fieldApi = (String) mapVal.get('fieldApiName');
+                            Object newValueObj = mapVal.get('newValue');
+
+                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
+                                ts.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
                             }
                         }
-                        
-                        entry.Approval_Data__c = null;
-                    }
-                    update timesheetEntries;
-                    
-                    // Process Timesheet Entry Items
-                    List<Timesheet_Entry_Item__c> timesheetItems = [SELECT Id, Status__c, Approval_Data__c 
-                                                                        FROM Timesheet_Entry_Item__c 
-                                                                        WHERE Timesheet_Entry__c IN :entryIds
-                                                                        AND Status__c = 'Pending'
-                                                                        WITH USER_MODE];
-                    
-                    if (!timesheetItems.isEmpty()) {
-                        for (Timesheet_Entry_Item__c item : timesheetItems) {
-                            item.Status__c = 'Auto-Approved';
-                            item.Approved_Date__c = approvedDate;
-                            
-                            // Update fields from approval data
-                            if (String.isNotBlank(item.Approval_Data__c)) {
-                                try {
-                                    List<Object> approvalDataList = (List<Object>) JSON.deserializeUntyped(item.Approval_Data__c);
-                                    for (Object approvalObj : approvalDataList) {
-                                        Map<String, Object> approvalMap = (Map<String, Object>) approvalObj;
-                                        String fieldApiName = (String) approvalMap.get('fieldApiName');
-                                        Object newValueObj = approvalMap.get('newValue');
-                                        
-                                        if (String.isNotBlank(fieldApiName) && newValueObj != null) {
-                                            Decimal newValue = Decimal.valueOf(String.valueOf(newValueObj));
-                                            item.put(fieldApiName, newValue);
-                                        }
-                                    }
-                                } catch (Exception ex) {
-                                    System.debug('Error applying timesheet item updates: ' + ex.getMessage());
-                                }
-                            }
-                            
-                            item.Approval_Data__c = null;
-                        }
-                        update timesheetItems;
                     }
                 }
             }
-        } catch (Exception e) {
+
+            update tsEntries;
+
+            // ---------------------------
+            // 4. Timesheet Items
+            // ---------------------------
+            List<Timesheet_Entry_Item__c> tsItems = [
+                SELECT Id, Status__c, Approval_Data__c
+                FROM Timesheet_Entry_Item__c
+                WHERE Timesheet_Entry__c IN :tsEntryIds
+                AND Status__c = 'Pending'
+                WITH USER_MODE
+            ];
+
+            for (Timesheet_Entry_Item__c item : tsItems) {
+                item.Status__c = 'Auto-Approved';
+                item.Approved_Date__c = approvedDate;
+
+                if (String.isNotBlank(item.Approval_Data__c)) {
+                    Object parsed = JSON.deserializeUntyped(item.Approval_Data__c);
+
+                    if (parsed instanceof List<Object>) {
+                        for (Object o : (List<Object>) parsed) {
+                            Map<String, Object> mapVal = (Map<String, Object>) o;
+                            String fieldApi = (String) mapVal.get('fieldApiName');
+                            Object newValueObj = mapVal.get('newValue');
+
+                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
+                                item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
+                            }
+                        }
+                    }
+                }
+            }
+
+            update tsItems;
+        }
+        catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => 'ShiftEndLogEntriesController',
                 'methodName' => 'autoApproveYesterdayLogs',

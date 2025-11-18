@@ -95,6 +95,27 @@ public with sharing class ShiftEndLogV2Controller {
             Set<Id> logIds = new Set<Id>();
             for(Log_Entry__c log : shiftEndLogs) logIds.add(log.Id);
 
+            // Parse approval data from each log to identify pending processes
+            Map<Id, Set<Id>> logPendingProcessesMap = new Map<Id, Set<Id>>();
+            for(Log_Entry__c log : shiftEndLogs) {
+                if(String.isNotBlank(log.wfrecon__Approval_Data__c)) {
+                    try {
+                        List<Object> approvalList = (List<Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                        Set<Id> pendingProcessIds = new Set<Id>();
+                        for(Object item : approvalList) {
+                            Map<String, Object> approvalItem = (Map<String, Object>) item;
+                            String processId = (String) approvalItem.get('id');
+                            if(String.isNotBlank(processId)) {
+                                pendingProcessIds.add(processId);
+                            }
+                        }
+                        logPendingProcessesMap.put(log.Id, pendingProcessIds);
+                    } catch (Exception e) {
+                        System.debug('Error parsing approval data: ' + e.getMessage());
+                    }
+                }
+            }
+
             // Get field history for today's changes
             Map<Id, List<FieldChangeInfo>> logFieldChangesMap = new Map<Id, List<FieldChangeInfo>>();
             if(!logIds.isEmpty()) {
@@ -144,7 +165,19 @@ public with sharing class ShiftEndLogV2Controller {
                 }
 
                 // Get completion percentage changes for today
+                // Exclude processes that are approved/auto-approved (they count as completed, not "changed today")
                 Map<Id, wfrecon__Location_Process__History> processChangesMap = new Map<Id, wfrecon__Location_Process__History>();
+                Set<Id> approvedProcessIds = new Set<Id>();
+                
+                // Collect all approved process IDs from all logs
+                for(Log_Entry__c log : shiftEndLogs) {
+                    if(log.wfrecon__Status__c == 'Approved' || log.wfrecon__Status__c == 'Auto-Approved') {
+                        if(logPendingProcessesMap.containsKey(log.Id)) {
+                            approvedProcessIds.addAll(logPendingProcessesMap.get(log.Id));
+                        }
+                    }
+                }
+                
                 if(!locationProcessIds.isEmpty()) {
                     List<wfrecon__Location_Process__History> processHistoryRecords = [
                         SELECT ParentId, Field, OldValue, NewValue, CreatedDate, CreatedBy.Name
@@ -157,7 +190,8 @@ public with sharing class ShiftEndLogV2Controller {
                     ];
 
                     for(wfrecon__Location_Process__History hist : processHistoryRecords) {
-                        if(!processChangesMap.containsKey(hist.ParentId)) {
+                        // Only mark as "changed today" if not approved
+                        if(!processChangesMap.containsKey(hist.ParentId) && !approvedProcessIds.contains(hist.ParentId)) {
                             processChangesMap.put(hist.ParentId, hist);
                         }
                     }
@@ -176,6 +210,9 @@ public with sharing class ShiftEndLogV2Controller {
                         ? Integer.valueOf(lp.wfrecon__Sequence__c) 
                         : null;
                     
+                    // Check if this process is approved (counts as completed)
+                    Boolean isApproved = approvedProcessIds.contains(lp.Id);
+                    
                     // Add change tracking information
                     if(processChangesMap.containsKey(lp.Id)) {
                         wfrecon__Location_Process__History histRecord = processChangesMap.get(lp.Id);
@@ -193,6 +230,16 @@ public with sharing class ShiftEndLogV2Controller {
                         // Set colors: Green for completed, Purple for today's change
                         snapshot.progressBarColor = '#28a745'; // Green for completed progress
                         snapshot.todayChangeColor = 'rgba(94, 90, 219, 1)'; // Purple for today's change
+                    } else if(isApproved) {
+                        // Approved processes show as completed (all green), no "changed today" badge
+                        snapshot.changedToday = false;
+                        snapshot.oldPercentage = null;
+                        snapshot.newPercentage = null;
+                        snapshot.changedBy = null;
+                        snapshot.yesterdayPercentage = snapshot.completionPercentage;
+                        snapshot.todayChangePercentage = 0;
+                        snapshot.progressBarColor = '#28a745'; // All green for approved/completed
+                        snapshot.todayChangeColor = null;
                     } else {
                         snapshot.changedToday = false;
                         snapshot.oldPercentage = null;
