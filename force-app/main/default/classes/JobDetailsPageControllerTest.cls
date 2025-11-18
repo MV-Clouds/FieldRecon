@@ -88,10 +88,10 @@ public class JobDetailsPageControllerTest {
     @IsTest
     static void testGetTimeSheetEntryItems() {
         Job__c job = [SELECT Id FROM Job__c LIMIT 1];
-        Mobilization__c mob = [SELECT Id, Start_Date__c FROM Mobilization__c WHERE Job__c=:job.Id LIMIT 1];
+        Mobilization__c mob = [SELECT Id, Start_Date__c, End_Date__c FROM Mobilization__c WHERE Job__c=:job.Id LIMIT 1];
         Test.startTest();
         List<JobDetailsPageController.TimesheetEntryItemWrapper> items =
-            JobDetailsPageController.getTimeSheetEntryItems(mob.Id);
+            JobDetailsPageController.getTimeSheetEntryItems(job.Id,  mob.Start_Date__c.date(), mob.End_Date__c.date());
         Test.stopTest();
     }
 

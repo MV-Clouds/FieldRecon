@@ -16,6 +16,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     @track isTodayJobAvailable = false;
     @track isWeekJobAvailable = false;
     @track accordionStyleApplied = false;
+    @track hasError = false;
+    @track errorMessage = '';
     @track showClockInModal = false;
     @track showClockOutModal = false;
     @track costCodeOptions = [];
@@ -34,12 +36,12 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
         { label: 'Job Number', fieldName: 'jobNumber', style: 'width: 10rem', isLink: true, recordIdField: 'jobId' },
         { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
-        { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 10rem' },
-        { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 10rem' },
+        { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 12rem' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 12rem' },
         { label: 'Work Hours', fieldName: 'workHours', style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
-        { label: 'Cost Code', fieldName: 'costCodeName', style: 'width: 8rem' }
+        { label: 'Cost Code', fieldName: 'costCodeName', style: 'width: 10rem' }
     ];
 
     get apexFormattedDate() {
@@ -181,6 +183,51 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     }
 
     /** 
+    * Method Name: formatToAMPM
+    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
+    */
+    formatToAMPM(iso) {
+        try {
+            if (!iso) return '';
+            
+            // Extract date and time parts from ISO string
+            // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+            
+            const datePart = parts[0]; // "2025-10-05"
+            const timePart = parts[1].substring(0, 5); // "14:30"
+            
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            // Extract hours and minutes
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+            
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 12, 2025, 03:45 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToAMPM:', error);
+            return iso;
+        }
+    }
+
+    /** 
     * Method Name: timesheetDetails 
     * @description: This method processes raw timesheet details and formats them for display in the UI.
     */
@@ -213,7 +260,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
 
                         // Format dates nicely
                         if (col.fieldName === 'clockInTime' || col.fieldName === 'clockOutTime') {
-                            cell.value = cell.value.slice(0, 16).replace('T', ' ');
+                            cell.value = this.formatToAMPM(cell.value);
                         }
 
                         // Sum travelTime and totalTime dynamically based on column name
@@ -314,6 +361,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 .then((data) => {
                     console.log('getMobilizationMembers fetched successfully:', data);
                     if(data && !data?.ERROR){
+                        this.hasError = false;
+                        this.errorMessage = '';
                         if (data && Object.keys(data).length !== 0) {
                             if(this.activeTab == 'today') {
                                 this.todayJobList = data.dayJobs || [];
@@ -323,14 +372,22 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                     console.log('job :: ', job);
                                     const rawStart = job.jobStartTime;
                                     const rawEnd = job.jobEndTime;
+                                    const description = job.jobDescription || '--';
+                                    const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
                                     
                                     return {
                                         ...job,
                                         jobStartTimeIso: rawStart,
                                         jobEndTimeIso: rawEnd,
                                         jobId: job.jobId,
-                                        jobStartTime: rawStart ? rawStart.slice(0, 16).replace('T', ' ') : '',
-                                        jobEndTime: rawEnd ? rawEnd.slice(0, 16).replace('T', ' ') : '',
+                                        jobStartTime: this.formatToAMPM(rawStart),
+                                        jobEndTime: this.formatToAMPM(rawEnd),
+                                        jobDescription: description,
+                                        displayDescription: description,
+                                        descriptionClass: needsReadMore ? 'job-description-content collapsed' : 'job-description-content',
+                                        showReadMore: needsReadMore,
+                                        readMoreText: 'Read more...',
+                                        isExpanded: false,
                                         mapMarkers: [{
                                             location: {
                                                 Street: job.jobStreet || '',
@@ -361,7 +418,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                             }
                         }
                     } else {
-                        this.showToast('Error', data.ERROR, 'error');
+                        this.hasError = true;
+                        this.errorMessage = data.ERROR || 'An error occurred while fetching data.';
                     }
                 })
                 .catch((error) => {
@@ -391,26 +449,37 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             const normalizedApexData = {};
             for (let key in apexData) {
                 const date = new Date(key);
-                normalizedApexData[date.toDateString()] = apexData[key].map(job => ({
-                    ...job,
-                    jobStartTimeIso: job.jobStartTime,
-                    jobEndTimeIso: job.jobEndTime,
-                    jobStartTime: job.jobStartTime?.slice(0, 16).replace('T', ' '),
-                    jobEndTime: job.jobEndTime?.slice(0, 16).replace('T', ' '),
-                    mapMarkers: [{
-                    location: {
-                        Street: job.jobStreet || '',
-                        City: job.jobCity || '',
-                        State: job.jobState || '',
-                        PostalCode: job.jobPostalCode || '',
-                        Country: job.jobCountry || ''
-                    },
-                    value: job.mobId,
-                    title: job.jobName ? `${job.jobName} (${job.jobNumber})` : job.jobNumber,
-                    description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
-                    icon: 'standard:account'
-                }]
-                }));
+                normalizedApexData[date.toDateString()] = apexData[key].map(job => {
+                    const description = job.jobDescription || '--';
+                    const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
+                    
+                    return {
+                        ...job,
+                        jobStartTimeIso: job.jobStartTime,
+                        jobEndTimeIso: job.jobEndTime,
+                        jobStartTime: this.formatToAMPM(job.jobStartTime),
+                        jobEndTime: this.formatToAMPM(job.jobEndTime),
+                        jobDescription: description,
+                        displayDescription: description,
+                        descriptionClass: needsReadMore ? 'job-description-content collapsed' : 'job-description-content',
+                        showReadMore: needsReadMore,
+                        readMoreText: 'Read more...',
+                        isExpanded: false,
+                        mapMarkers: [{
+                            location: {
+                                Street: job.jobStreet || '',
+                                City: job.jobCity || '',
+                                State: job.jobState || '',
+                                PostalCode: job.jobPostalCode || '',
+                                Country: job.jobCountry || ''
+                            },
+                            value: job.mobId,
+                            title: job.jobName ? `${job.jobName} (${job.jobNumber})` : job.jobNumber,
+                            description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
+                            icon: 'standard:account'
+                        }]
+                    };
+                });
             }
 
             let weekSections = [];
@@ -452,7 +521,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                             this.timesheetDetailsRaw = result.timesheetEntries;
                         } 
                     } else {
-                        this.showToast('Error', result?.ERROR, 'error');
+                        this.hasError = true;
+                        this.errorMessage = result.ERROR || 'An error occurred while fetching data.';
                     }
                 })
                 .catch(error => {
@@ -526,7 +596,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             this.selectedMobilizationId = selectedMob.mobId;
             this.clockInTime = selectedMob.jobStartTime?.slice(0, 16);
             this.clockOutTime = selectedMob.jobEndTime?.slice(0, 16);
-            this.previousClockInTime = selectedMob.clockInTime.slice(0, 16).replace('T', ' ');
+            this.previousClockInTime = this.formatToAMPM(selectedMob.clockInTime);
             this.currentModalJobStartDateTime = selectedMob.jobStartTimeIso || selectedMob.jobStartTime;
             this.currentModalJobEndDateTime = selectedMob.jobEndTimeIso || selectedMob.jobEndTime;
         }
@@ -799,6 +869,58 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             }
         } catch (error) {
             console.error('Error in handleOpenInMaps :: ', error);
+        }
+    }
+
+    /**
+    * Method Name: checkIfDescriptionNeedsReadMore
+    * @description: Checks if description text needs read more functionality (more than 3 lines)
+    */
+    checkIfDescriptionNeedsReadMore(text) {
+        if (!text || text === '--') return false;
+        // Approximate: if text is longer than 150 characters, it might need read more
+        // This is a rough estimate; actual line count depends on container width
+        return text.length > 150;
+    }
+
+    /**
+    * Method Name: handleToggleDescription
+    * @description: Toggles the expanded/collapsed state of job description
+    */
+    handleToggleDescription(event) {
+        const mobId = event.currentTarget.dataset.id;
+        
+        if (this.activeTab === 'today') {
+            this.todayJobList = this.todayJobList.map(job => {
+                if (job.mobId === mobId) {
+                    const isExpanded = !job.isExpanded;
+                    return {
+                        ...job,
+                        isExpanded: isExpanded,
+                        descriptionClass: isExpanded ? 'job-description-content' : 'job-description-content collapsed',
+                        readMoreText: isExpanded ? 'Read less' : 'Read more...'
+                    };
+                }
+                return job;
+            });
+        } else if (this.activeTab === 'week') {
+            this.weekJobList = this.weekJobList.map(section => {
+                return {
+                    ...section,
+                    jobs: section.jobs.map(job => {
+                        if (job.mobId === mobId) {
+                            const isExpanded = !job.isExpanded;
+                            return {
+                                ...job,
+                                isExpanded: isExpanded,
+                                descriptionClass: isExpanded ? 'job-description-content' : 'job-description-content collapsed',
+                                readMoreText: isExpanded ? 'Read less' : 'Read more...'
+                            };
+                        }
+                        return job;
+                    })
+                };
+            });
         }
     }
 
