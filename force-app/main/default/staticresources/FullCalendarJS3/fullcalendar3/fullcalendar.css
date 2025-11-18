@@ -10,11 +10,36 @@
 
 .fc-view, .fc-view>table{
     border-radius: 1rem 1rem 0 0;
-    overflow: hidden;
+    overflow: auto;
+    width: max( 48rem, 100% );
 }
 
 .fc .fc-row .fc-content-skeleton table, .fc .fc-row .fc-content-skeleton td, .fc .fc-row .fc-helper-skeleton td{
     padding: 0.2rem;
+}
+
+.fc-view-container {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.fc-day-grid-container, .fc-scroller {
+    min-height: 32rem !important;
+    overflow-y: auto !important;
+}
+
+.fc-row.fc-week.fc-widget-content.fc-rigid{
+    min-height: 32rem !important;
+    overflow-y: auto !important;
+}
+
+.fc-month-view .fc-row.fc-week.fc-widget-content.fc-rigid, .fc-month-view .fc-day-grid-container,.fc-month-view .fc-scroller {
+    min-height: 10rem !important;
+    height: unset !important;
+}
+
+.fc-view.fc-listMonth-view.fc-list-view.fc-widget-content, .fc-view.fc-basicDay-view.fc-basic-view, .fc-view.fc-listMonth-view.fc-list-view.fc-widget-content>table, .fc-view.fc-basicDay-view.fc-basic-view>table{
+    width: unset;
 }
 
 .fc-unthemed .fc-content{
@@ -151,7 +176,7 @@
 .fullcalendarjs .fc-today a {
     background-color: #ffffff30;
     border-radius: 0.4rem;
-    padding: 0.5rem;
+    padding: 0.3rem;
 }
 
 /* Events - Standard Pulse Blue/Purple */
@@ -178,9 +203,9 @@
 
 /* Media Queries */
 @media screen and (max-width: 768px) {
-    .fullcalendarjs .fc-today a{
+    /* .fullcalendarjs .fc-today a{
         background-color: transparent !important;
-    }
+    } */
 
     .fullcalendarjs .fc-toolbar{
         display: flex;

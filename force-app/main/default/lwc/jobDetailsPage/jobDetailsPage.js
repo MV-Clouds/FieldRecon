@@ -256,8 +256,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             this.selectedDate = new Date();
             this.checkUserPermissions();
-            console.log(this.accessErrorMessage);
-            
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in connectedCallback ::', error);
@@ -270,6 +268,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      */
     checkUserPermissions() {
         try {
+            this.isLoading = true;
             const permissionSetsToCheck = ['FR_Admin'];
             
             checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
@@ -1111,9 +1110,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             if (jobRecord) {
                 this.currentJobStartDateTime = jobRecord.startDate;
                 this.currentJobEndDateTime = jobRecord.endDate;
+            } else {
+                this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                return;
             }
 
-            getTimeSheetEntryItems({ mobId: this.mobId })
+            getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: this.currentJobStartDateTime.split('T')[0], jobEndDate: this.currentJobEndDateTime.split('T')[0] })
                 .then((data) => {
                     if(data != null) {
                         this.timesheetDetailsRaw = data.map(item => {
@@ -1203,11 +1205,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     */
     createManualTimesheet() {
         try {
-            console.log(this.selectedManualPersonId);
-            console.log(this.selectedCostCodeId);
-            console.log(this.clockInTime);
-            console.log(this.clockOutTime);
-            
             if(!this.selectedManualPersonId || !this.selectedCostCodeId || !this.clockInTime || !this.clockOutTime) {
                 this.showToast('Error', 'Please fill value in all the required fields!', 'error');
                 console.error('No contact/cost code/clock in time/clock out time selected');
@@ -1230,7 +1227,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
                 return;
             }
-            console.log('this.enteredManualPerDiem  ::', this.enteredManualPerDiem );
             
             if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
                 this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
@@ -1239,26 +1235,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
             this.isLoading = true;
     
-            let jobStartDate = this.jobDetailsRaw.map(job => {
-                let dt = new Date(job.startDate); // parse ISO string
-                let year = dt.getFullYear();
-                let month = dt.getMonth() + 1; // JS months are 0-based
-                let day = dt.getDate();
-                
-                let dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                return dateStr;
-            });
-    
-            let jobEndDate = this.jobDetailsRaw.map(job => {
-                let dt = new Date(job.endDate); // parse ISO string
-                let year = dt.getFullYear();
-                let month = dt.getMonth() + 1; // JS months are 0-based
-                let day = dt.getDate();
-                
-                let dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                return dateStr;
-            });
-    
             const params = {
                 jobId : this.jobId,
                 mobId : this.mobId,
@@ -1266,8 +1242,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 costCodeId : this.selectedCostCodeId,
                 clockInTime : this.clockInTime,
                 clockOutTime : this.clockOutTime,
-                jobStartDate : jobStartDate.toString(),
-                jobEndDate : jobEndDate.toString(),
+                jobStartDate : jobRecord.startDate.split('T')[0],
+                jobEndDate : jobRecord.endDate.split('T')[0],
                 travelTime : this.enteredManualTravelTime ? String(this.enteredManualTravelTime) : '0.00',
                 perDiem : this.enteredManualPerDiem ? String(this.enteredManualPerDiem) : '0'
             }

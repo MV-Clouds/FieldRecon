@@ -81,7 +81,7 @@ public with sharing class AIAFormControllerTest {
         wfrecon__Billing__c bill = [SELECT Id FROM wfrecon__Billing__c LIMIT 1];
 
         Test.startTest();
-        Map<String, Object> result = AIFormController.getBillingData(bill.Id);
+        Map<String, Object> result = AIAFormController.getBillingData(bill.Id);
         Test.stopTest();
 
         // NOW ALL LINES EXECUTE
@@ -109,7 +109,7 @@ public with sharing class AIAFormControllerTest {
         wfrecon__Billing__c bill = [SELECT Id FROM wfrecon__Billing__c LIMIT 1];
 
         Test.startTest();
-        Map<String, Object> result = AIFormController.getBillingData(bill.Id);
+        Map<String, Object> result = AIAFormController.getBillingData(bill.Id);
         Test.stopTest();
 
         System.assertEquals(0, ((List<Object>)result.get('contractLineItems')).size());

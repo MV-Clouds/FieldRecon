@@ -191,62 +191,163 @@
                 <template if:true={isStep2}>
                     <div class="step-container">
                         <template if:true={hasTimesheetEntries}>
-                            <div class="table-content timesheet-table">
-                                <table class="slds-table timesheet-entries-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 4rem">Sr.</th>
-                                            <th style="width: 4rem">Edit</th>
-                                            <th style="width: 12rem">Name</th>
-                                            <th style="width: 10rem">Clock In</th>
-                                            <th style="width: 10rem">Clock Out</th>
-                                            <th style="width: 6rem">Working Hours</th>
-                                            <th style="width: 6rem">Travel</th>
-                                            <th style="width: 8rem">Cost Code</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template for:each={timesheetEntries} for:item="entry" for:index="index">
-                                            <tr key={entry.id}>
-                                                <td>{entry.srNo}</td>
-                                                <td>
-                                                    <button class="edit-icon-btn" data-id={entry.id}
-                                                        onclick={handleEditTimesheetEntry}>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                            stroke-width="2">
-                                                            <path
-                                                                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7">
-                                                            </path>
-                                                            <path
-                                                                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z">
-                                                            </path>
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                                <td>{entry.contactName}</td>
-                                                <td>{entry.clockInTime}</td>
-                                                <td>{entry.clockOutTime}</td>
-                                                <td>{entry.workHours}</td>
-                                                <td>{entry.travelTime}</td>
-                                                <td>{entry.costCodeName}</td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
+                            <!-- Tab Navigation -->
+                            <div class="tab-container">
+                                <div class="tab-navigation">
+                                    <button class={approvedTabClass} onclick={handleApprovedTab}>Regular</button>
+                                    <button class={pendingTabClass} onclick={handlePendingTab}>Pending For Approval</button>
+                                </div>
+
+                                <!-- Approved Tab Content -->
+                                <template if:true={showApprovedTab}>
+                                    <template if:true={hasRegularTimesheetEntries}>
+                                        <div class="timesheet-table-wrapper">
+                                            <table class="timesheet-entries-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 4rem">Sr.</th>
+                                                        <th style="width: 4rem">Edit</th>
+                                                        <th style="width: 12rem">Name</th>
+                                                        <th style="width: 10rem">Clock In</th>
+                                                        <th style="width: 10rem">Clock Out</th>
+                                                        <th style="width: 6rem">Work Hours</th>
+                                                        <th style="width: 6rem">Travel</th>
+                                                        <th style="width: 6rem">Total</th>
+                                                        <th style="width: 8rem">Cost Code</th>
+                                                    </tr>
+                                                </thead>
+                                            </table>
+                                            <div class="timesheet-table-body">
+                                                <table class="timesheet-entries-table">
+                                                    <tbody>
+                                                        <template for:each={regularTimesheetEntries} for:item="entry">
+                                                            <tr key={entry.id}>
+                                                                <td style="width: 4rem">{entry.srNo}</td>
+                                                                <td style="width: 4rem">
+                                                                    <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                                        </svg>
+                                                                    </button>
+                                                                </td>
+                                                                <td style="width: 12rem">{entry.contactName}</td>
+                                                                <td style="width: 10rem">{entry.clockInTime}</td>
+                                                                <td style="width: 10rem">{entry.clockOutTime}</td>
+                                                                <td style="width: 6rem">{entry.workHours}</td>
+                                                                <td style="width: 6rem">{entry.travelTime}</td>
+                                                                <td style="width: 6rem">{entry.totalTime}</td>
+                                                                <td style="width: 8rem">{entry.costCodeName}</td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template if:false={hasRegularTimesheetEntries}>
+                                        <div class="no-data-message">
+                                            <div class="no-data-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                                                    stroke="currentColor" stroke-width="1.5">
+                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                                </svg>
+                                            </div>
+                                            <p class="no-data-title">No Approved Entries</p>
+                                            <p class="no-data-description">There are no approved timesheet entries for this date.</p>
+                                        </div>
+                                    </template>
+                                </template>
+
+                                <!-- Pending Tab Content -->
+                                <template if:true={showPendingTab}>
+                                    <template if:true={hasPendingTimesheetEntries}>
+                                        <div class="timesheet-table-wrapper">
+                                            <table class="timesheet-entries-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 4rem">Sr.</th>
+                                                        <th style="width: 4rem">Edit</th>
+                                                        <th style="width: 12rem">Name</th>
+                                                        <th style="width: 10rem">Clock In</th>
+                                                        <th style="width: 10rem">Clock Out</th>
+                                                        <th style="width: 6rem">Work Hours</th>
+                                                        <th style="width: 6rem">Travel</th>
+                                                        <th style="width: 6rem">Total</th>
+                                                        <th style="width: 8rem">Cost Code</th>
+                                                        <th style="width: 6rem">Status</th>
+                                                    </tr>
+                                                </thead>
+                                            </table>
+                                            <div class="timesheet-table-body">
+                                                <table class="timesheet-entries-table">
+                                                    <tbody>
+                                                        <template for:each={pendingTimesheetEntries} for:item="entry">
+                                                            <tr key={entry.id}>
+                                                                <td style="width: 4rem">{entry.srNo}</td>
+                                                                <td style="width: 4rem">
+                                                                    <template if:true={entry.hasApprovalData}>
+                                                                        <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                                            </svg>
+                                                                        </button>
+                                                                    </template>
+                                                                    <template if:false={entry.hasApprovalData}>
+                                                                        <span>-</span>
+                                                                    </template>
+                                                                </td>
+                                                                <td style="width: 12rem">{entry.contactName}</td>
+                                                                <td style="width: 10rem">{entry.clockInTime}</td>
+                                                                <td style="width: 10rem">{entry.clockOutTime}</td>
+                                                                <td style="width: 6rem">{entry.workHours}</td>
+                                                                <td style="width: 6rem">{entry.travelTime}</td>
+                                                                <td style="width: 6rem">{entry.totalTime}</td>
+                                                                <td style="width: 8rem">{entry.costCodeName}</td>
+                                                                <td style="width: 6rem">
+                                                                    <span class="pending-status-badge">{entry.status}</span>
+                                                                </td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template if:false={hasPendingTimesheetEntries}>
+                                        <div class="no-data-message">
+                                            <div class="no-data-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                                                    stroke="currentColor" stroke-width="1.5">
+                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                                </svg>
+                                            </div>
+                                            <p class="no-data-title">No Pending Entries</p>
+                                            <p class="no-data-description">There are no pending timesheet entries for approval.</p>
+                                        </div>
+                                    </template>
+                                </template>
                             </div>
                         </template>
                         <template if:false={hasTimesheetEntries}>
                             <div class="no-data-message">
                                 <div class="no-data-icon">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M9 11l3 3L22 4"></path>
-                                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
                                     </svg>
                                 </div>
-                                <h3 class="no-data-title">No Timesheet Entries</h3>
-                                <p class="no-data-description">There are no timesheet entries available for today.</p>
+                                <p class="no-data-title">No Timesheet Entries</p>
+                                <p class="no-data-description">No timesheet entries found for this job.</p>
                             </div>
                         </template>
                     </div>
@@ -357,7 +458,7 @@
                                                                 </div>
                                                             </div>
                                                             <input type="range" class="progress-slider"
-                                                                min={process.previousPercent} max="100" step="0.5"
+                                                                min={process.previousPercent} max="100" step="1"
                                                                 value={process.completedPercent} data-id={process.id}
                                                                 data-process-id={process.id}
                                                                 data-original-value={process.previousPercent}
@@ -420,6 +521,22 @@
                                     </button>
                                 </template>
                             </div>
+
+                            <!-- Empty State when no files uploaded -->
+                            <template if:false={hasUploadedFiles}>
+                                <div class="gallery-empty-state">
+                                    <div class="no-data-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                            <path d="M21 15l-5-5L5 21"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="no-data-title">No Files Uploaded</h3>
+                                    <p class="no-data-description">Upload photos or documents to add them to this shift log.</p>
+                                </div>
+                            </template>
 
                             <!-- File Preview Grid -->
                             <template if:true={hasUploadedFiles}>

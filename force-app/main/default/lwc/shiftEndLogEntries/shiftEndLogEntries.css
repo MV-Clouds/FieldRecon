@@ -100,6 +100,9 @@
 .step-container {
     animation: fadeIn 0.3s ease-in-out;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: scroll;
 }
 
 @keyframes fadeIn {
@@ -125,10 +128,10 @@
 
 .form-label {
     display: block;
-    font-size: 14px;
-    font-weight: 600;
-    color: #333;
     margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+    font-size: 0.875rem;
 }
 
 .form-label.required::after {
@@ -138,13 +141,20 @@
 
 .custom-select {
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #dddbda;
-    border-radius: 4px;
-    background-color: #ffffff;
-    font-size: 14px;
-    color: #080707;
+    padding: 0.5rem;
+    border: 1px solid #d8d8d8;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    background-color: white;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
     box-sizing: border-box;
+}
+
+.custom-select:focus {
+    outline: none;
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
 }
 
 .clock-status-container {
@@ -448,16 +458,80 @@
 }
 
 /* Step 2: Timesheet Table */
-.timesheet-table {
+/* Tab Navigation */
+.tab-container {
+    background: white;
+    /* border-radius: 8px; */
+    overflow: scroll;
+    /* box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em; */
+}
+
+.tab-navigation {
+    display: flex;
+    border-bottom: 1px solid #e0e0e0;
+    background: white;
+}
+
+.tab-button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 1rem;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #585858;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+    background: rgba(94, 90, 219, 0.05);
+    color: #5e5adb;
+}
+
+.tab-button.active {
+    color: #5e5adb;
+    border-bottom: 3px solid #5e5adb;
+    background: rgba(94, 90, 219, 0.05);
+}
+
+.timesheet-table-wrapper {
+    margin: 1rem;
     background: white;
     border-radius: 8px;
-    overflow: auto;
-    max-height: calc(90vh - 300px);
+    overflow: hidden;
+}
+
+.timesheet-table-body {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.timesheet-table-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.timesheet-table-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.timesheet-table-body::-webkit-scrollbar-thumb {
+    background: rgba(94, 90, 219, 0.3);
+    border-radius: 4px;
+}
+
+.timesheet-table-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(94, 90, 219, 0.5);
 }
 
 .timesheet-entries-table {
     table-layout: fixed;
     min-width: 100%;
+    width: 100%;
+    border-collapse: collapse;
 }
 
 .timesheet-entries-table th,
@@ -469,30 +543,33 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    padding: 0.75rem 0.5rem;
 }
 
 .timesheet-entries-table th {
     background-color: rgba(94, 90, 219, 1);
     color: white;
-    padding: 0.6rem;
-    height: 45px;
+    height: 48px;
     font-weight: 600 !important;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    border-bottom: 2px solid rgba(94, 90, 219, 0.8);
 }
 
 .timesheet-entries-table td {
-    height: 45px;
-    padding: 0.6rem;
+    height: 48px;
+    border-bottom: 1px solid #e8e8e8;
 }
 
 .timesheet-entries-table tbody tr:nth-child(odd) {
-    background-color: rgb(244, 244, 255);
+    background-color: rgb(248, 248, 252);
+}
+
+.timesheet-entries-table tbody tr:nth-child(even) {
+    background-color: white;
 }
 
 .timesheet-entries-table tbody tr:hover {
-    background-color: rgb(227, 227, 251) !important;
+    background-color: rgb(237, 237, 251) !important;
+    transition: background-color 0.2s ease;
 }
 
 .edit-icon-btn {
@@ -508,22 +585,42 @@
     width: 28px;
     height: 28px;
     color: rgba(94, 90, 219, 0.8);
+    margin: 0 auto;
 }
 
 .edit-icon-btn:hover {
-    background-color: rgba(94, 90, 219, 0.8);
-    color: white;
+    background: rgba(94, 90, 219, 0.1);
+    border-color: rgba(94, 90, 219, 0.3);
+}
+
+.pending-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: #fff3cd;
+    color: #856404;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
 }
 
 /* No Data Message */
 .no-data-message {
-    background: white;
-    border-radius: 8px;
+    padding: 60px 20px;
     text-align: center;
-    box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
-    height: 100%;
+    background: rgba(94, 90, 219, 0.02);
+    border-radius: 12px;
+    margin: 20px 0;
+}
+
+.gallery-empty-state {
+    padding: 80px 20px;
+    text-align: center;
+    background: rgba(94, 90, 219, 0.02);
+    border-radius: 12px;
+    margin: 20px 0;
     display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
 }
 
@@ -555,10 +652,8 @@
 
 /* Step 3: Log Details Form */
 .log-details-form {
-    background: white;
+    background: transparent;
     padding: 1rem;
-    border-radius: 8px;
-    box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
 }
 
 .form-row {
@@ -707,12 +802,15 @@
 }
 
 .process-sequence {
-    font-size: 11px;
-    color: #666;
-    background: #e9ecef;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-weight: 500;
+    font-size: 12px;
+    color: #5e5adb;
+    background: rgba(94, 90, 219, 0.1);
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
 }
 
 .location-name {

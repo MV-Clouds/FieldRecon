@@ -21,6 +21,8 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track crewMembers = [];
     @track costCodeOptions = [];
     @track timesheetEntries = [];
+    @track regularTimesheetEntries = [];
+    @track pendingTimesheetEntries = [];
     @track step3Data = {
         whatWeDone: '',
         planForTomorrow: '',
@@ -55,6 +57,9 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track cameraStream = null;
     @track capturedPhoto = null;
 
+    @track activeTab = 'approved';
+
+
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
     
     get isDesktopDevice() {
@@ -77,6 +82,14 @@ export default class ShiftEndLogEntries extends LightningElement {
         return this.timesheetEntries && this.timesheetEntries.length > 0;
     }
 
+    get hasRegularTimesheetEntries() {
+        return this.regularTimesheetEntries && this.regularTimesheetEntries.length > 0;
+    }
+
+    get hasPendingTimesheetEntries() {
+        return this.pendingTimesheetEntries && this.pendingTimesheetEntries.length > 0;
+    }
+
     get hasLocationOptions() {
         return this.locationOptions && this.locationOptions.length > 0;
     }
@@ -87,6 +100,22 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     get hasMobilizationOptions() {
         return this.mobilizationOptions && this.mobilizationOptions.length > 0;
+    }
+
+    get showApprovedTab() {
+        return this.activeTab === 'approved';
+    }
+
+    get showPendingTab() {
+        return this.activeTab === 'pending';
+    }
+
+    get approvedTabClass() {
+        return this.activeTab === 'approved' ? 'tab-button active' : 'tab-button';
+    }
+
+    get pendingTabClass() {
+        return this.activeTab === 'pending' ? 'tab-button active' : 'tab-button';
     }
 
     get clockInMinBoundary() {
@@ -123,11 +152,8 @@ export default class ShiftEndLogEntries extends LightningElement {
     renderedCallback() {
         // Apply slider styles manually in DOM for dynamic progress bars
         if (this.isStep3 && this.groupedLocationProcesses.length > 0) {
-            // Use setTimeout to ensure DOM is fully rendered
-            setTimeout(() => {
-                this.updateSliderStyles();
-                this.updateRowHighlighting();
-            }, 0);
+            this.updateSliderStyles();
+            this.updateRowHighlighting();
         }
     }
 
@@ -484,33 +510,90 @@ export default class ShiftEndLogEntries extends LightningElement {
 
         getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: jobStartDate, mobId: this.selectedMobilizationId, crewLeaderId: this.crewLeaderId })
             .then(result => {
-                if (result) {
-                    this.timesheetEntries = result.map((entry, index) => ({
-                        id: entry.id,
-                        srNo: index + 1,
-                        contactName: entry.contactName,
-                        clockInTime: this.parseLiteral(entry.clockInTime),
-                        clockOutTime: this.parseLiteral(entry.clockOutTime),
-                        workHours: entry.workHours ? entry.workHours.toFixed(2) : '0.00',
-                        travelTime: entry.travelTime ? entry.travelTime.toFixed(2) : '0.00',
-                        costCodeName: entry.costCodeName || '--',
-                        TSEId: entry.TSEId,
-                        rawClockIn: entry.clockInTime,
-                        rawClockOut: entry.clockOutTime
-                    }));
+                console.log('Timesheet Entries Result:', result);
+                if (result && result.length > 0) {
+                    const allEntries = result.map((entry) => {
+                        // Parse approval data to get new values
+                        const pendingChanges = this.parseApprovalData(entry.approvalData);
+                        const pendingChangesMap = new Map(pendingChanges.map(change => [change.fieldLabel, change.newValue]));
+                        
+                        // If status is Pending, use the new values from approval data
+                        let displayClockIn = this.parseLiteral(entry.clockInTime);
+                        let displayClockOut = this.parseLiteral(entry.clockOutTime);
+                        let displayTravelTime = entry.travelTime ? entry.travelTime.toFixed(2) : '0.00';
+                        
+                        if (entry.status === 'Pending') {
+                            // Override with pending new values if available
+                            if (pendingChangesMap.has('Clock In')) {
+                                displayClockIn = pendingChangesMap.get('Clock In');
+                            }
+                            if (pendingChangesMap.has('Clock Out')) {
+                                displayClockOut = pendingChangesMap.get('Clock Out');
+                            }
+                            if (pendingChangesMap.has('Travel Time')) {
+                                displayTravelTime = pendingChangesMap.get('Travel Time');
+                            }
+                        }
+                        
+                        const workHrs = entry.workHours ? parseFloat(entry.workHours) : 0;
+                        const travelHrs = displayTravelTime ? parseFloat(displayTravelTime) : 0;
+                        const totalHrs = workHrs + travelHrs;
+                        
+                        return {
+                            id: entry.id,
+                            contactName: entry.contactName,
+                            clockInTime: displayClockIn,
+                            clockOutTime: displayClockOut,
+                            workHours: workHrs.toFixed(2),
+                            travelTime: travelHrs.toFixed(2),
+                            totalTime: totalHrs.toFixed(2),
+                            costCodeName: entry.costCodeName || '--',
+                            TSEId: entry.TSEId,
+                            rawClockIn: entry.clockInTime,
+                            rawClockOut: entry.clockOutTime,
+                            status: entry.status,
+                            approvalData: entry.approvalData,
+                            pendingChanges: pendingChanges,
+                            hasApprovalData: entry.approvalData && entry.approvalData.trim() !== '' && entry.approvalData !== '[]'
+                        };
+                    });
 
                     // Sort timesheet entries by contact name in ascending order
-                    this.timesheetEntries.sort((a, b) => {
+                    allEntries.sort((a, b) => {
                         const nameA = a.contactName ? a.contactName.toLowerCase() : '';
                         const nameB = b.contactName ? b.contactName.toLowerCase() : '';
                         return nameA.localeCompare(nameB);
                     });
 
-                    // Update serial numbers after sorting
-                    this.timesheetEntries = this.timesheetEntries.map((entry, index) => ({
+                    // Separate regular and pending entries
+                    // Regular entries: status is null, undefined, empty, or anything other than 'Pending'
+                    const regularEntries = allEntries.filter(entry => entry.status !== 'Pending');
+                    // Pending entries: status is explicitly 'Pending'
+                    const pendingEntries = allEntries.filter(entry => entry.status === 'Pending');
+                    
+                    // Assign serial numbers starting from 1 for each section
+                    this.regularTimesheetEntries = regularEntries.map((entry, index) => ({
                         ...entry,
                         srNo: index + 1
                     }));
+                    
+                    this.pendingTimesheetEntries = pendingEntries.map((entry, index) => ({
+                        ...entry,
+                        srNo: index + 1
+                    }));
+                    
+                    // Keep all entries for reference (with mixed serial numbers)
+                    this.timesheetEntries = [...this.regularTimesheetEntries, ...this.pendingTimesheetEntries];
+                    
+                    console.log('Total entries:', this.timesheetEntries.length);
+                    console.log('Regular entries:', this.regularTimesheetEntries.length);
+                    console.log('Pending entries:', this.pendingTimesheetEntries.length);
+                } else {
+                    // No records found - reset all arrays
+                    console.log('No timesheet entries found');
+                    this.timesheetEntries = [];
+                    this.regularTimesheetEntries = [];
+                    this.pendingTimesheetEntries = [];
                 }
             })
             .catch(error => {
@@ -581,11 +664,11 @@ export default class ShiftEndLogEntries extends LightningElement {
         updateTimesheets({ params: stringifiedEntry })
             .then(result => {
                 if (result) {
-                    this.showToast('Success', 'Timesheet updated successfully', 'success');
+                    this.showToast('Success', 'Timesheet entry marked as pending for approval', 'success');
                     this.closeEditTimesheetModal();
                     this.loadTimesheetEntries();
                 } else {
-                    this.showToast('Error', 'Failed to update timesheet', 'error');
+                    this.showToast('Error', 'Failed to update timesheet entry', 'error');
                 }
             })
             .catch(error => {
@@ -600,6 +683,14 @@ export default class ShiftEndLogEntries extends LightningElement {
     closeEditTimesheetModal() {
         this.showEditTimesheetModal = false;
         this.editTimesheetData = {};
+    }
+
+    handleApprovedTab() {
+        this.activeTab = 'approved';
+    }
+
+    handlePendingTab() {
+        this.activeTab = 'pending';
     }
 
     // Step 3: Log Details
@@ -620,7 +711,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         const prevPercent = parseFloat(proc.wfrecon__Completed_Percentage__c || 0);
                         return {
                             id: proc.Id,
-                            name: proc.Name,
+                            name: proc.wfrecon__Scope_Entry_Process__r?.wfrecon__Process_Name__c || proc.Name,
                             locationId: proc.wfrecon__Location__c,
                             locationName: proc.wfrecon__Location__r?.Name || 'Unknown Location',
                             sequence: proc.wfrecon__Sequence__c,
@@ -793,6 +884,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(parseFloat(event.target.value).toFixed(1));
 
+        console.log('Slider changed - Process ID:', processId, 'Original:', originalValue, 'New:', newValue);
+
         // Track the modification
         if (newValue !== originalValue) {
             this.modifiedProcesses.set(processId, {
@@ -800,8 +893,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                 originalValue: originalValue,
                 newValue: newValue
             });
+            console.log('Modified process added to map:', processId);
         } else {
             this.modifiedProcesses.delete(processId);
+            console.log('Modified process removed from map (reset to original):', processId);
         }
 
         // Update in allLocationProcesses to persist across location changes
@@ -1139,26 +1234,30 @@ export default class ShiftEndLogEntries extends LightningElement {
                 base64Data: photo.base64Data
             }));
 
-            // Prepare location process updates with full snapshot data for viewing
-            const processUpdates = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => {
-                const process = this.findProcessById(processId);
-                return {
-                    processId: processId,
-                    processName: process?.Name || '',
-                    locationName: process?.Location__r?.Name || '',
-                    completionPercentage: modification.newValue,
-                    sequence: process?.Sequence__c || null
-                };
-            });
+            // Build approval data JSON directly in the format Apex expects: [{"id":"recordId","oldValue":73,"newValue":79}]
+            // This will set the Log Entry status to "Pending" if there are any modified processes
+            const approvalDataJson = Array.from(this.modifiedProcesses.entries()).length > 0
+                ? JSON.stringify(
+                    Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
+                        id: processId,
+                        oldValue: modification.originalValue,
+                        newValue: modification.newValue
+                    }))
+                )
+                : null;
 
-            // Create Log Entry record with files, camera photos, and location process updates in single call
+            console.log('Modified Processes:', Array.from(this.modifiedProcesses.entries()));
+            console.log('Approval Data JSON:', approvalDataJson);
+
+            // Create Log Entry record with files, camera photos, and approval data
+            // Status will be set as "Pending" in Apex if approvalDataJson is provided
             await createLogEntry({
                 jobId: this.jobId,
                 step3DataJson: JSON.stringify(step3DataToSave),
                 contentDocumentIds: fileIds,
                 cameraPhotosJson: JSON.stringify(cameraPhotosData),
                 workPerformedDate: new Date().toISOString(),
-                processUpdatesJson: JSON.stringify(processUpdates)
+                approvalDataJson: approvalDataJson
             });
 
             this.showToast('Success', 'Shift End Log created successfully', 'success');
@@ -1245,6 +1344,41 @@ export default class ShiftEndLogEntries extends LightningElement {
             return iso.slice(0, 16).replace('T', ' ');
         } catch (error) {
             return '--';
+        }
+    }
+
+    parseApprovalData(approvalDataJson) {
+        if (!approvalDataJson) return [];
+        
+        try {
+            const approvalData = JSON.parse(approvalDataJson);
+            return approvalData.map(change => {
+                let fieldLabel = change.fieldApiName;
+                if (fieldLabel === 'Clock_In_Time__c') fieldLabel = 'Clock In';
+                else if (fieldLabel === 'Clock_Out_Time__c') fieldLabel = 'Clock Out';
+                else if (fieldLabel === 'Travel_Time__c') fieldLabel = 'Travel Time';
+                
+                let oldVal = change.oldValue;
+                let newVal = change.newValue;
+                
+                // Format datetime values
+                if (fieldLabel === 'Clock In' || fieldLabel === 'Clock Out') {
+                    oldVal = this.formatDateTime(oldVal);
+                    newVal = this.formatDateTime(newVal);
+                } else if (fieldLabel === 'Travel Time') {
+                    oldVal = oldVal ? parseFloat(oldVal).toFixed(2) : '0.00';
+                    newVal = newVal ? parseFloat(newVal).toFixed(2) : '0.00';
+                }
+                
+                return {
+                    fieldLabel,
+                    oldValue: oldVal || '--',
+                    newValue: newVal || '--'
+                };
+            });
+        } catch (error) {
+            console.error('Error parsing approval data:', error);
+            return [];
         }
     }
 

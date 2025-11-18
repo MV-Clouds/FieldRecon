@@ -162,10 +162,12 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 this.filteredContactDetails = [];
             }
         })
-        .catch(error => {
+        .catch(() => {
             this.showToast('Error', 'Unable to load contact details. Please try again.', 'error');
             this.contactDetails = [];
             this.filteredContactDetails = [];
+        })
+        .finally(() => {
             this.isLoading = false;
         });
     }

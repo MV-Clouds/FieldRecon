@@ -80,6 +80,9 @@
   border: none;
 }
 
+.date-field-in-mob-form{
+  max-width: min( 80% , 22rem);
+}
 
 .save-btn, .nav-btn, .add-btn, .create-btn{
     background-color: var(--primary-theme-color, #5a5adb);
@@ -155,8 +158,9 @@
 }
 
 .bottom-footer-btn{
-    width: calc(100% + 2rem);
-    margin-left: -1rem;
+    /* width: calc(100% + 2rem);
+    margin-left: -1rem; */
+    width: 100%;
     margin-bottom: -1rem;
     background: white;
     border-top: 1px solid lightgray;
@@ -369,4 +373,20 @@
 
 .job-label{
   font-size: 15px;
+}
+
+.slds-backdrop{
+  pointer-events: none;
+}
+
+/* Responsive Design for Access Control */
+@media screen and (max-width: 768px) {
+  :host:has(.mob-popup) .main-calendar-div{
+    max-height: 10rem;
+    overflow: hidden;
+  }
+
+  .footer-btn {
+    min-width: 5rem;
+  }
 }

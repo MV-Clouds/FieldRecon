@@ -62,12 +62,18 @@
                                     
                                     <template if:true={isCurrentUserCrewLeader}>
                                         <div class="action-btns">
-                                            <div class="edit-btn btn action-btn" data-id={log.Id} onclick={handleEdit}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
-                                            </div>
-                                            <div class="delete-btn btn action-btn" data-id={log.Id} data-name={log.Name} onclick={handleDelete}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"/></svg>
-                                            </div>
+                                            <!-- Only show edit button if log can be edited (not approved) -->
+                                            <template if:true={log.canEdit}>
+                                                <div class="edit-btn btn action-btn" data-id={log.Id} onclick={handleEdit}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
+                                                </div>
+                                            </template>
+                                            <!-- Only show delete button if log can be deleted (not approved) -->
+                                            <template if:true={log.canDelete}>
+                                                <div class="delete-btn btn action-btn" data-id={log.Id} data-name={log.Name} onclick={handleDelete}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"/></svg>
+                                                </div>
+                                            </template>
                                         </div>
                                     </template>
                                 </div>
@@ -126,7 +132,7 @@
                                         <div class="section-label">Location Processes:</div>
                                         <div class="location-processes-list">
                                             <template for:each={log.locationProcesses} for:item="process">
-                                                <div key={process.processId} class="process-item" data-changed={process.changedToday}>
+                                                <div key={process.processId} class="process-item" data-changed={process.changedToday} data-has-approval={process.isPendingApproval}>
                                                     <div class="process-header">
                                                         <span class="process-location">{process.locationName}</span>
                                                         <div class="process-percentage-container">
@@ -142,6 +148,7 @@
                                                         </template>
                                                         <span class="process-name">{process.processName}</span>
                                                     </div>
+                                                    
                                                     <div class="process-progress-bar">
                                                         <div class="process-progress-fill yesterday-progress" 
                                                              data-percentage={process.yesterdayPercentage}
@@ -152,6 +159,12 @@
                                                                  data-percentage={process.completionPercentage}
                                                                  data-yesterday={process.yesterdayPercentage}
                                                                  data-color={process.todayChangeColor}>
+                                                            </div>
+                                                        </template>
+                                                        <template if:true={process.isPendingApproval}>
+                                                            <div class="process-progress-fill approval-progress" 
+                                                                 data-percentage={process.approvalNewValue}
+                                                                 data-yesterday={process.displayYesterdayPercentage}>
                                                             </div>
                                                         </template>
                                                     </div>
@@ -347,7 +360,7 @@
                                 <template if:true={hasEditLocationProcesses}>
                                     <div class="edit-location-processes-list">
                                         <template for:each={editLocationProcesses} for:item="process">
-                                            <div key={process.processId} class="edit-location-slider-container" data-changed={process.changedToday}>
+                                            <div key={process.processId} class="edit-location-slider-container" data-changed={process.changedToday} data-has-approval={process.isPendingApproval}>
                                                 <div class="slider-header">
                                                     <div class="process-info">
                                                         <span class="process-name">{process.processName}</span>
@@ -357,21 +370,51 @@
                                                     </div>
                                                     <span class="progress-percentage">{process.completionPercentage}% Complete</span>
                                                 </div>
+                                                <!-- Pending Approval Info in Edit Modal -->
+                                                <template if:true={process.isPendingApproval}>
+                                                    <div class="process-approval-info-modal">
+                                                        <div class="approval-header-with-reset">
+                                                            <div class="approval-badge-modal">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="12" height="12" fill="currentColor">
+                                                                    <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/>
+                                                                </svg>
+                                                                <span>Approval Requested</span>
+                                                            </div>
+                                                            <button 
+                                                                type="button" 
+                                                                class="reset-approval-btn" 
+                                                                data-process-id={process.processId}
+                                                                onclick={handleResetApproval}
+                                                                title="Reset to original base value">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="12" height="12" fill="currentColor">
+                                                                    <path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5z"/>
+                                                                </svg>
+                                                                Reset
+                                                            </button>
+                                                        </div>
+                                                        <div class="approval-details-modal">
+                                                            <span class="detail-label">Base: <strong>{process.yesterdayPercentage}%</strong></span>
+                                                            <span class="approval-arrow">→</span>
+                                                            <span class="detail-label highlight">Approved: <strong>{process.approvalNewValue}%</strong></span>
+                                                        </div>
+                                                    </div>
+                                                </template>
                                                 
                                                 <div class="slider-wrapper">
                                                     <div class="slider-track">
                                                         <div class="slider-section completed" lwc:dom="manual"></div>
+                                                        <div class="slider-section approval" lwc:dom="manual" style="display: none;"></div>
                                                         <div class="slider-section today" lwc:dom="manual"></div>
                                                         <div class="slider-section remaining" lwc:dom="manual"></div>
                                                     </div>
                                                     <input 
                                                         type="range" 
-                                                        min={process.yesterdayPercentage} 
+                                                        min={process.sliderMinValue} 
                                                         max="100" 
                                                         step="1"
                                                         value={process.completionPercentage}
                                                         data-process-id={process.processId}
-                                                        data-original-value={process.yesterdayPercentage}
+                                                        data-original-value={process.sliderMinValue}
                                                         class="progress-slider"
                                                         oninput={handleEditSliderInput}
                                                         onchange={handleEditSliderChange} />
@@ -381,7 +424,7 @@
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                                             <circle cx="12" cy="12" r="10" />
                                                         </svg>
-                                                        Completed: {process.completionPercentage}%
+                                                        Previous Completed: {process.yesterdayPercentage}%
                                                     </span>
                                                     <span class="label-today">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">

@@ -288,15 +288,42 @@
 .log-meta-info {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
     font-size: 0.75rem;
     color: #706e6b;
+    flex-wrap: wrap;
 }
 
 .log-meta-info-name {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Approval Status Badge */
+.approval-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.approval-status-badge.pending {
+    background-color: #fef3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.approval-status-badge.approved {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .section-label {
@@ -446,6 +473,19 @@
     animation: process-highlight-fade 1.5s ease-in-out;
 }
 
+/* Process items with pending approval */
+.process-item[data-has-approval="true"] {
+    border-left: 4px solid #ff9800;
+    background: linear-gradient(to right, rgba(255, 152, 0, 0.06) 0%, #f8f9fa 15%);
+}
+
+.process-item[data-has-approval="true"]:hover {
+    border-left-color: #ff6b00;
+    background: linear-gradient(to right, rgba(255, 152, 0, 0.1) 0%, #f8f9fa 15%);
+    box-shadow: 0 2px 10px rgba(255, 152, 0, 0.25);
+    transform: translateX(2px);
+}
+
 @keyframes process-highlight-fade {
     0% {
         background: linear-gradient(135deg, #ffeded 0%, #ffd4d4 100%);
@@ -512,6 +552,7 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 8px;
+    flex-wrap: wrap;
 }
 
 .process-seq {
@@ -528,9 +569,103 @@
 }
 
 .process-name {
-    font-size: 14px;
-    color: #333;
+    font-size: 12px;
+    color: #3e3e3c;
+    flex: 1;
+}
+
+/* Process Approval Badge in Card View */
+.process-approval-badge-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+    color: #e65100;
+    border-radius: 12px;
+    font-size: 11px;
     font-weight: 600;
+    margin-left: 8px;
+    border: 1px solid rgba(230, 81, 0, 0.3);
+    box-shadow: 0 2px 4px rgba(255, 152, 0, 0.15);
+    transition: all 0.2s ease;
+}
+
+.log-card:hover .process-approval-badge-card {
+    background: linear-gradient(135deg, #ffe0b2 0%, #ffcc80 100%);
+    border-color: rgba(230, 81, 0, 0.4);
+    box-shadow: 0 2px 6px rgba(255, 152, 0, 0.25);
+    transform: scale(1.05);
+}
+
+/* Process Approval Info - Detailed Display */
+.process-approval-info {
+    margin-top: 0.5rem;
+    padding: 0.6rem;
+    background: linear-gradient(135deg, #fff9e6 0%, #fffbf0 100%);
+    border-left: 3px solid #ffc107;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.approval-badge-card-detailed {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #856404;
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.4rem;
+}
+
+.approval-badge-card-detailed svg {
+    flex-shrink: 0;
+}
+
+.approval-title {
+    font-weight: 700;
+}
+
+.approval-details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+    color: #5f4c00;
+}
+
+.approval-detail-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.approval-detail-item strong {
+    color: #856404;
+    font-weight: 700;
+}
+
+.approval-detail-item.highlight strong {
+    color: #d97706;
+}
+
+.approval-arrow {
+    font-size: 0.9rem;
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.approval-change-badge {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.3);
 }
 
 .process-progress-bar {
@@ -541,6 +676,15 @@
     overflow: visible;
     position: relative;
     display: flex;
+    transition: height 0.2s ease;
+}
+
+.log-card:hover .process-progress-bar {
+    height: 10px;
+}
+
+.process-item:hover .process-progress-bar {
+    height: 10px;
 }
 
 .process-progress-fill {
@@ -556,6 +700,25 @@
 .today-progress {
     background-color: rgba(94, 90, 219, 1); /* Purple for today's change - will be overridden by JS */
     border-radius: 0 4px 4px 0;
+}
+
+.approval-progress {
+    background: linear-gradient(135deg, #ff9800 0%, #ff6b00 100%);
+    border-radius: 0;
+    box-shadow: inset 0 0 8px rgba(255, 152, 0, 0.3);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.process-item:hover .approval-progress {
+    background: linear-gradient(135deg, #ffb347 0%, #ff8c00 100%);
+    box-shadow: inset 0 0 12px rgba(255, 152, 0, 0.5);
+}
+
+.log-card:hover .approval-progress {
+    background: linear-gradient(135deg, #ffb347 0%, #ff8c00 100%);
+    box-shadow: inset 0 0 12px rgba(255, 152, 0, 0.5);
+    transform: scaleY(1.05);
 }
 
 .process-progress-fill[data-changed="true"] {
@@ -741,6 +904,7 @@
 .upload-right {
     flex: 0 0 auto;
     margin-left: auto;
+    margin-top: 1rem;
 }
 
 .camera-btn {
@@ -864,6 +1028,7 @@
     background-color: #f3f3f3;
     border-bottom: 1px solid #dddbda;
     overflow-x: auto;
+    pointer-events: none;
 }
 
 .edit-progress-container::-webkit-scrollbar {
@@ -919,14 +1084,111 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.75rem;
+    margin-bottom: 8px;
 }
 
 .process-info {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex: 1;
+    flex-wrap: wrap;
+}
+
+/* Process Approval Badge in Edit Modal */
+.process-approval-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.5rem;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Process Approval Info in Edit Modal */
+.process-approval-info-modal {
+    background: #f3f2ff;
+    border: 1px solid #c7c3ff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.approval-header-with-reset {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.reset-approval-btn {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.reset-approval-btn:active {
+    transform: scale(0.98);
+}
+
+.reset-approval-btn svg {
+    flex-shrink: 0;
+}
+
+.approval-badge-modal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #856404;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.approval-badge-modal svg {
+    flex-shrink: 0;
+}
+
+.approval-details-modal {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: #5f4c00;
+}
+
+.detail-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.detail-label strong {
+    color: #856404;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.detail-label.highlight strong {
+    color: #d97706;
+    font-size: 0.9rem;
 }
 
 .process-name {
@@ -959,6 +1221,7 @@
     position: relative;
     width: 100%;
     margin-bottom: 1rem;
+    padding: 8px 0;
 }
 
 .slider-track {
@@ -966,15 +1229,18 @@
     width: 100%;
     height: 8px;
     border-radius: 4px;
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     border: 1px solid #e0e0e0;
+    z-index: 1;
 }
 
 .slider-section {
     height: 100%;
     transition: width 0.2s ease;
+    position: relative;
+    z-index: 1;
 }
 
 .slider-section.completed {
@@ -991,8 +1257,8 @@
 
 .progress-slider {
     position: absolute;
-    top: 50%;
-    transform: translateY(-25%);
+    top: 8px;
+    width: 100%;
     height: 8px;
     opacity: 1;
     cursor: pointer;
@@ -1000,7 +1266,8 @@
     appearance: none;
     background: transparent;
     outline: none;
-    z-index: 10;
+    z-index: 100;
+    pointer-events: auto;
 }
 
 /* Webkit (Chrome, Safari, Edge) */
@@ -1016,6 +1283,8 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(94, 90, 219, 0.5);
     transition: all 0.2s ease;
     margin-top: -7px;
+    position: relative;
+    z-index: 100;
 }
 
 .progress-slider::-webkit-slider-thumb:hover {
@@ -1043,6 +1312,8 @@
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(94, 90, 219, 0.5);
     transition: all 0.2s ease;
+    position: relative;
+    z-index: 100;
 }
 
 .progress-slider::-moz-range-thumb:hover {
@@ -1098,8 +1369,12 @@
 }
 
 .slider-labels .label-remaining {
-    color: #666;
-    font-weight: 500;
+    color: #9e9e9e;
+}
+
+.slider-labels .label-approval {
+    color: #ff9800;
+    font-weight: 600;
 }
 
 /* Section Header for Location Progress */

@@ -643,6 +643,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     return;
                 } else {
                     this.filteredResources = JSON.parse(JSON.stringify(this.resources)).sort((a, b) => a.name.localeCompare(b.name));
+                    if(!this.filteredResources || this.filteredResources.length < 1){
+                        this.template.querySelector('.resource-calendar-container').scrollLeft = 0;
+                    }
                     return;
                 }
             }
@@ -685,6 +688,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                 }).filter(r => r !== null)
                 .sort((a, b) => a.name.localeCompare(b.name));
 
+                if(!this.filteredResources || this.filteredResources.length < 1){
+                    this.template.querySelector('.resource-calendar-container').scrollLeft = 0;
+                }
                 return;
             }
 

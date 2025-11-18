@@ -136,14 +136,16 @@ public with sharing class JobDetailsPageController {
     ********************************************************
     */
     @AuraEnabled
-    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String mobId){
+    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, Date jobStartDate, Date jobEndDate){
         try {
             List<Timesheet_Entry_Item__c> items = [
                 SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
                        Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
-                       Cost_Code__r.Name, Clock_In_Date__c, Premium__c
+                       Cost_Code__r.Name, Clock_In_Date__c, Clock_Out_Date__c, Premium__c
                 FROM Timesheet_Entry_Item__c 
-                WHERE Timesheet_Entry__r.Mobilization__c = :mobId
+                 WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId
+                  AND Clock_In_Date__c >= :jobStartDate
+                  AND Clock_Out_Date__c <= :jobEndDate
                 WITH USER_MODE
                 ORDER BY Clock_In_Time__c ASC
             ];
@@ -229,12 +231,13 @@ public with sharing class JobDetailsPageController {
     
             // 3. Fetch Entries for those timesheets for that date
             Date startDate = mobilizationRecord[0].Start_Date__c.date(); // extract only date part
+            Date endDate = mobilizationRecord[0].End_Date__c.date();     // extract only date part
             List<Timesheet_Entry__c> entries = [
                 SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__r.Contact__c
                 FROM Timesheet_Entry__c
                 WHERE Timesheet__c IN :tsList
-                AND Clock_In_Time__c >= :startDate
-                AND Clock_In_Time__c < :startDate.addDays(1)
+                AND (Clock_In_Time__c >= :startDate
+                OR Clock_In_Time__c <= :endDate.addDays(1))
                 WITH USER_MODE
             ];
             System.debug('entries: ' + entries.size());
@@ -282,8 +285,22 @@ public with sharing class JobDetailsPageController {
                 Boolean hasCompletedEntry = false;
                 Timesheet_Entry__c latestOpen;
                 Timesheet_Entry__c latestCompleted;
+                DateTime mostRecentClockIn;
+                DateTime mostRecentClockOut;
     
                 for (Timesheet_Entry__c e : userEntries) {
+                    // Track most recent clock in/out times
+                    if (e.Clock_In_Time__c != null) {
+                        if (mostRecentClockIn == null || e.Clock_In_Time__c > mostRecentClockIn) {
+                            mostRecentClockIn = e.Clock_In_Time__c;
+                        }
+                    }
+                    if (e.Clock_Out_Time__c != null) {
+                        if (mostRecentClockOut == null || e.Clock_Out_Time__c > mostRecentClockOut) {
+                            mostRecentClockOut = e.Clock_Out_Time__c;
+                        }
+                    }
+                    
                     if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
                         hasOpenEntry = true;
                         latestOpen = e;
@@ -307,6 +324,8 @@ public with sharing class JobDetailsPageController {
                         ? latestOpen.Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.Clock_In_Time__c)/1000)
                         : null;
                     wrap.isAgain = false; // Not a new shift yet, finishing current one
+                    wrap.recentClockIn = mostRecentClockIn != null ? mostRecentClockIn.addSeconds(userTz.getOffset(mostRecentClockIn)/1000) : null;
+                    wrap.recentClockOut = mostRecentClockOut != null ? mostRecentClockOut.addSeconds(userTz.getOffset(mostRecentClockOut)/1000) : null;
                     result.get('clockOut').add(wrap);
                 } else if (hasCompletedEntry) {
                     // Only completed entries → eligible for ClockIn again
@@ -314,6 +333,8 @@ public with sharing class JobDetailsPageController {
                     wrap.isTimeSheetNull = false;
                     wrap.isTimesheetEntryNull = true;
                     wrap.isAgain = true;  // ✅ Contact is clocking in AGAIN
+                    wrap.recentClockIn = mostRecentClockIn != null ? mostRecentClockIn.addSeconds(userTz.getOffset(mostRecentClockIn)/1000) : null;
+                    wrap.recentClockOut = mostRecentClockOut != null ? mostRecentClockOut.addSeconds(userTz.getOffset(mostRecentClockOut)/1000) : null;
                     result.get('clockIn').add(wrap);
                 } else {
                     // Default → treat as new ClockIn
@@ -944,5 +965,8 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public String mobMemberId;
         @AuraEnabled public Map<Id, String> costCodeDetails;
         @AuraEnabled public Boolean isAgain;
+        @AuraEnabled public String crewName;
+        @AuraEnabled public DateTime recentClockIn;
+        @AuraEnabled public DateTime recentClockOut;
     }
 }

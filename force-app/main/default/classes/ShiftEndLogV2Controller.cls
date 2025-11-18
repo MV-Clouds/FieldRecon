@@ -84,6 +84,7 @@ public with sharing class ShiftEndLogV2Controller {
             List<Log_Entry__c> shiftEndLogs = jobId != null
                 ? [SELECT Id, Name, Job__c, Work_Performed__c, Work_Performed_Date__c, 
                         Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, Notes_to_Office__c,
+                        Status__c, Approval_Data__c,
                         CreatedBy.Name, CreatedDate, LastModifiedDate
                    FROM Log_Entry__c 
                    WHERE Job__c = :jobId 
@@ -303,7 +304,7 @@ public with sharing class ShiftEndLogV2Controller {
                 }
             }
 
-            // Step 2: Update the log entry
+            // Step 2: Update the log entry (including wfrecon__Approval_Data__c if provided)
             update as user logEntry;
 
         } catch (Exception e) {
@@ -344,6 +345,38 @@ public with sharing class ShiftEndLogV2Controller {
                 'apiResponse' => null
             });
             throw new AuraHandledException('Error deleting shift end log: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static void deleteUploadedFiles(List<String> contentDocumentIds) {
+        try {
+            if (contentDocumentIds == null || contentDocumentIds.isEmpty()) {
+                return;
+            }
+
+            List<ContentDocument> docsToDelete = [
+                SELECT Id 
+                FROM ContentDocument 
+                WHERE Id IN :contentDocumentIds 
+                WITH USER_MODE
+            ];
+            
+            if (!docsToDelete.isEmpty()) {
+                delete as user docsToDelete;
+            }
+
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'deleteUploadedFiles', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error deleting uploaded files: ' + contentDocumentIds,
+                'apiResponse' => null
+            });
+            throw new AuraHandledException('Error deleting uploaded files: ' + e.getMessage());
         }
     }
 

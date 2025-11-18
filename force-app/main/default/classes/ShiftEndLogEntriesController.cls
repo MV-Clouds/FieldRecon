@@ -8,12 +8,12 @@ public with sharing class ShiftEndLogEntriesController {
             if (String.isNotBlank(crewLeaderId) && crewLeaderId != null) {
                 String todayStr = String.valueOf(Date.today());
                 
-                List<Mobilization__c> mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c FROM Mobilization__c WHERE Job__c = :jobId 
-                                                    AND Id IN (SELECT Mobilization__c FROM Mobilization_Member__c WHERE wfrecon__Crew_Leader_Id__c = :crewLeaderId)
-                                                    AND wfrecon__Start_Date_Text__c <= :todayStr
+                List<Mobilization__c> mobList = [SELECT Id, Name, Start_Date_Text__c FROM Mobilization__c WHERE Job__c = :jobId 
+                                                    AND Id IN (SELECT Mobilization__c FROM Mobilization_Member__c WHERE Crew_Leader_Id__c = :crewLeaderId)
+                                                    AND Start_Date_Text__c <= :todayStr
                                                     WITH USER_MODE];
                 for (Mobilization__c mob : mobList) {
-                    result.put(mob.Id, mob.wfrecon__Start_Date_Text__c);
+                    result.put(mob.Id, mob.Start_Date_Text__c);
                 }
             }
 
@@ -36,7 +36,7 @@ public with sharing class ShiftEndLogEntriesController {
 
             List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
                                                     FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
-                                                    AND Contact__r.Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    AND Contact__r.Can_Clock_In_Out__c = true AND Crew_Leader_Id__c = :crewLeaderId
                                                     WITH USER_MODE ORDER BY Contact__r.Name ASC];
     
             Set<Id> contactIds = new Set<Id>();
@@ -392,7 +392,7 @@ public with sharing class ShiftEndLogEntriesController {
         try {
             List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
                                                     FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
-                                                    AND Contact__r.Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    AND Contact__r.Can_Clock_In_Out__c = true AND Crew_Leader_Id__c = :crewLeaderId
                                                     WITH USER_MODE ORDER BY Contact__r.Name ASC];
     
             Set<Id> contactIds = new Set<Id>();
@@ -413,7 +413,7 @@ public with sharing class ShiftEndLogEntriesController {
 
             List<Timesheet_Entry_Item__c> items = [SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
                                                     Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
-                                                    Cost_Code__r.Name, Clock_In_Date__c, Premium__c FROM Timesheet_Entry_Item__c 
+                                                    Cost_Code__r.Name, Clock_In_Date__c, Premium__c, Status__c, Approval_Data__c FROM Timesheet_Entry_Item__c 
                                                     WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId AND Clock_In_Date__c = :startDate
                                                     AND Timesheet_Entry__r.TimeSheet__r.Contact__c IN :contactIds
                                                     WITH USER_MODE ORDER BY Timesheet_Entry__r.TimeSheet__r.Contact__r.Name ASC];
@@ -437,10 +437,12 @@ public with sharing class ShiftEndLogEntriesController {
             Map<String, Object> jsonList = (Map<String, Object>) JSON.deserializeUntyped(params);
 
             // Query records
-            Timesheet_Entry_Item__c tsItem = [SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c, Premium__c FROM Timesheet_Entry_Item__c 
+            Timesheet_Entry_Item__c tsItem = [SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c, Premium__c, Status__c, 
+                                                Approval_Data__c FROM Timesheet_Entry_Item__c 
                                                 WHERE Id = :(String)jsonList.get('Id') WITH USER_MODE LIMIT 1];
 
-            Timesheet_Entry__c tsEntry = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__c, Cost_Code__c FROM Timesheet_Entry__c 
+            Timesheet_Entry__c tsEntry = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__c, Cost_Code__c, Status__c,
+                                            Approval_Data__c FROM Timesheet_Entry__c 
                                             WHERE Id = :(String)jsonList.get('TSEId') WITH USER_MODE LIMIT 1];
 
             // Convert clock-in and clock-out strings to Datetime
@@ -448,57 +450,49 @@ public with sharing class ShiftEndLogEntriesController {
             Datetime clkOutUserTz = convertUtc((String)jsonList.get('ClockOut'));
 
             Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
-            // Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
-            // Boolean premium = Boolean.valueOf((String)jsonList.get('premium'));
             
-            Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
-
-            if (crossesMidnight) {
-                Datetime firstDayEnd = DateTime.newInstance(clkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
-                Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
-
-                // Update current entry to end day 1
-                tsEntry.Clock_In_Time__c = clkInUserTz;
-                tsEntry.Clock_Out_Time__c = firstDayEnd;
+            // Build approval data JSON for changes
+            List<Map<String, Object>> approvalDataList = new List<Map<String, Object>>();
+            
+            // Store Clock_In_Time__c change if different
+            if (tsEntry.Clock_In_Time__c != clkInUserTz) {
+                approvalDataList.add(new Map<String, Object>{
+                    'fieldApiName' => 'Clock_In_Time__c',
+                    'oldValue' => tsEntry.Clock_In_Time__c,
+                    'newValue' => clkInUserTz
+                });
+            }
+            
+            // Store Clock_Out_Time__c change if different
+            if (tsEntry.Clock_Out_Time__c != clkOutUserTz) {
+                approvalDataList.add(new Map<String, Object>{
+                    'fieldApiName' => 'Clock_Out_Time__c',
+                    'oldValue' => tsEntry.Clock_Out_Time__c,
+                    'newValue' => clkOutUserTz
+                });
+            }
+            
+            // Store Travel_Time__c change if different
+            if (tsItem.Travel_Time__c != travelTime) {
+                approvalDataList.add(new Map<String, Object>{
+                    'fieldApiName' => 'Travel_Time__c',
+                    'oldValue' => tsItem.Travel_Time__c,
+                    'newValue' => travelTime
+                });
+            }
+            
+            // Only update if there are changes
+            if (!approvalDataList.isEmpty()) {
+                String approvalDataJson = JSON.serialize(approvalDataList);
+                
+                // Store approval data and set status to Pending for both Entry and Item
+                tsEntry.Approval_Data__c = approvalDataJson;
+                tsEntry.Status__c = 'Pending';
+                tsItem.Approval_Data__c = approvalDataJson;
+                tsItem.Status__c = 'Pending';
+                
                 update tsEntry;
-
-                tsItem.Clock_In_Time__c = clkInUserTz;
-                tsItem.Clock_Out_Time__c = firstDayEnd;
-                tsItem.Travel_Time__c = travelTime;
-                // tsItem.Per_Diem__c = perDiem;
-                // tsItem.Premium__c = premium;
                 update tsItem;
-
-                // Create new entry for day 2
-                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
-                    Timesheet__c = tsEntry.Timesheet__c,
-                    Clock_In_Time__c = secondDayStart,
-                    Clock_Out_Time__c = clkOutUserTz,
-                    Cost_Code__c = tsEntry.Cost_Code__c,
-                    Do_Not_Execute__c = true
-                );
-                insert entryDay2;
-
-                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
-                    Timesheet_Entry__c = entryDay2.Id,
-                    Clock_In_Time__c = secondDayStart,
-                    Clock_Out_Time__c = clkOutUserTz,
-                    Cost_Code__c = tsEntry.Cost_Code__c,
-                    Do_Not_Execute__c = true
-                );
-                insert itemDay2;
-            } else {
-                // Normal same-day update
-                tsItem.Clock_In_Time__c = clkInUserTz;
-                tsItem.Clock_Out_Time__c = clkOutUserTz;
-                tsItem.Travel_Time__c = travelTime;
-                // tsItem.Per_Diem__c = perDiem;
-                // tsItem.Premium__c = premium;
-                update tsItem;
-
-                tsEntry.Clock_In_Time__c = clkInUserTz;
-                tsEntry.Clock_Out_Time__c = clkOutUserTz;
-                update tsEntry;
             }
 
             return true;
@@ -512,10 +506,11 @@ public with sharing class ShiftEndLogEntriesController {
     public static List<Location_Process__c> getJobLocationProcesses(Id jobId) {
         List<Location_Process__c> processes = new List<Location_Process__c>();
         try {
-            processes = [SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
-                            wfrecon__Location__c, wfrecon__Location__r.Name
-                            FROM Location_Process__c WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId WITH USER_MODE
-                            ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC];
+            processes = [SELECT Id, Name, Completed_Percentage__c, Sequence__c,
+                            Location__c, Location__r.Name,
+                            Scope_Entry_Process__r.Process_Name__c
+                            FROM Location_Process__c WHERE Location__r.Job__c = :jobId WITH USER_MODE
+                            ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getJobLocationProcesses', 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Processes for Job ID: ' + jobId, 'apiResponse' => null});
         }
@@ -563,6 +558,8 @@ public with sharing class ShiftEndLogEntriesController {
         @AuraEnabled public Boolean premium;
         @AuraEnabled public String costCodeName;
         @AuraEnabled public Date clockInDate;
+        @AuraEnabled public String status;
+        @AuraEnabled public String approvalData;
 
         public TimesheetEntryItemWrapper(Timesheet_Entry_Item__c item) {
             this.id = item.Id;
@@ -580,6 +577,8 @@ public with sharing class ShiftEndLogEntriesController {
             this.costCodeName = item.Cost_Code__r != null ? item.Cost_Code__r.Name : '-';
             this.premium = item.Premium__c;
             this.clockInDate = item.Clock_In_Date__c;
+            this.status = item.Status__c;
+            this.approvalData = item.Approval_Data__c;
         }
     }
 
@@ -601,20 +600,26 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static void createLogEntry(String jobId, String step3DataJson, List<String> contentDocumentIds, String cameraPhotosJson, String workPerformedDate, String processUpdatesJson) {
+    public static void createLogEntry(String jobId, String step3DataJson, List<String> contentDocumentIds, String cameraPhotosJson, String workPerformedDate, String approvalDataJson) {
         try {
             // Deserialize step3 data
             Map<String, Object> step3Data = (Map<String, Object>) JSON.deserializeUntyped(step3DataJson);
             
             // Create Log Entry record
-            wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c();
-            logEntry.wfrecon__Job__c = jobId;
-            logEntry.wfrecon__Log_Type__c = 'Shift End';
-            logEntry.wfrecon__Work_Performed__c = (String) step3Data.get('whatWeDone');
-            logEntry.wfrecon__Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
-            logEntry.wfrecon__Exceptions__c = (String) step3Data.get('exceptions');
-            logEntry.wfrecon__Notes_to_Office__c = (String) step3Data.get('notesToOffice');
-            logEntry.wfrecon__Work_Performed_Date__c = Date.valueOf(workPerformedDate.substring(0, 10));
+            Log_Entry__c logEntry = new Log_Entry__c();
+            logEntry.Job__c = jobId;
+            logEntry.Log_Type__c = 'Shift End';
+            logEntry.Work_Performed__c = (String) step3Data.get('whatWeDone');
+            logEntry.Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
+            logEntry.Exceptions__c = (String) step3Data.get('exceptions');
+            logEntry.Notes_to_Office__c = (String) step3Data.get('notesToOffice');
+            logEntry.Work_Performed_Date__c = Date.valueOf(workPerformedDate.substring(0, 10));
+            logEntry.Status__c = 'Pending'; // Requires approval for location process changes
+            
+            // Store approval data JSON directly from LWC (format: [{"id":"recordId","oldValue":73,"newValue":79}])
+            if (String.isNotBlank(approvalDataJson)) {
+                logEntry.Approval_Data__c = approvalDataJson;
+            }
             
             insert as user logEntry;
             
@@ -639,7 +644,6 @@ public with sharing class ShiftEndLogEntriesController {
                 
                 if (!contentVersions.isEmpty()) {
                     insert as user contentVersions;
-                    // Links are automatically created by FirstPublishLocationId
                 }
             }
             
@@ -655,49 +659,6 @@ public with sharing class ShiftEndLogEntriesController {
                     links.add(link);
                 }
                 insert as user links;
-            }
-            
-            // Update Location Process completion percentages if any
-            if (String.isNotBlank(processUpdatesJson)) {
-                List<Object> processUpdatesRaw = (List<Object>) JSON.deserializeUntyped(processUpdatesJson);
-                
-                if (!processUpdatesRaw.isEmpty()) {
-                    Set<Id> processIds = new Set<Id>();
-                    Map<Id, Decimal> processCompletionMap = new Map<Id, Decimal>();
-                    
-                    // Extract process IDs and completion percentages
-                    for (Object updateObj : processUpdatesRaw) {
-                        Map<String, Object> updateMap = (Map<String, Object>) updateObj;
-                        Id processId = (Id) updateMap.get('processId');
-                        Decimal completionPercentage = Decimal.valueOf(String.valueOf(updateMap.get('completionPercentage')));
-                        
-                        processIds.add(processId);
-                        processCompletionMap.put(processId, completionPercentage);
-                    }
-                    
-                    // Query existing processes
-                    Map<Id, Location_Process__c> processMap = new Map<Id, Location_Process__c>([
-                        SELECT Id, wfrecon__Completed_Percentage__c 
-                        FROM Location_Process__c 
-                        WHERE Id IN :processIds
-                        WITH USER_MODE
-                    ]);
-                    
-                    // Update processes
-                    List<Location_Process__c> processesToUpdate = new List<Location_Process__c>();
-                    for (Id processId : processIds) {
-                        if (processMap.containsKey(processId)) {
-                            Location_Process__c proc = processMap.get(processId);
-                            proc.wfrecon__Completed_Percentage__c = processCompletionMap.get(processId);
-                            processesToUpdate.add(proc);
-                        }
-                    }
-                    
-                    // Perform update
-                    if (!processesToUpdate.isEmpty()) {
-                        update as user processesToUpdate;
-                    }
-                }
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{

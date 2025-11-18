@@ -515,6 +515,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
 
                 // Open modal
                 this.openModal = true;
+                this.template.querySelector('.header').scrollIntoView({block: 'end'});
 
                 this.isSpinner = false;
             })
@@ -549,6 +550,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             this.groupId = result.id;
             this.Heading = 'Edit Mobilization';
             this.openModal = true;
+            this.template.querySelector('.header').scrollIntoView({block: 'end'});
             this.selectedEventId = recordId;
         })
         .catch((e)=>{

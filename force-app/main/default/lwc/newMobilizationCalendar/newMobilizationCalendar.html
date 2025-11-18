@@ -59,12 +59,16 @@
                 <div class="fields-input-div slds-grow slds-scrollable--y slds-grid slds-wrap slds-p-horizontal--medium">
                   <div class="job-label-link slds-p-horizontal--xx-small" if:true={isEdit}> <span class="slds-form-element__label job-label">Job: </span> <span data-id={jobId} class="record-nav-link" onclick={navigateToRecord}>{jobName}</span></div>
                   <lightning-input-field field-name="wfrecon__Job__c" if:false={isEdit} value={jobId}> </lightning-input-field>
-                  <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
-                  <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>
-                  <div class="slds-size_1-of-3">
+                  <div class="slds-size--1-of-1 date-field-in-mob-form">
+                    <lightning-input-field field-name="wfrecon__Start_Date__c" value={startDateTime}> </lightning-input-field>
+                  </div>
+                  <div class="slds-size--1-of-1 date-field-in-mob-form">
+                    <lightning-input-field field-name="wfrecon__End_Date__c" value={endDateTime}> </lightning-input-field>
+                  </div>
+                  <div class="slds-large-size--1-of-3 slds-medium-size--1-of-2 slds-size--1-of-2">
                       <lightning-input-field field-name="wfrecon__Include_Saturday__c" value={includeSaturday}> </lightning-input-field>
                   </div>
-                  <div class="slds-size_1-of-3">
+                  <div class="slds-large-size--1-of-3 slds-medium-size--1-of-2 slds-size--1-of-2">
                       <lightning-input-field field-name="wfrecon__Include_Sunday__c" value={includeSunday}> </lightning-input-field>
                   </div>
                   <lightning-input-field field-name="wfrecon__Mobilization_Status__c"> </lightning-input-field>
