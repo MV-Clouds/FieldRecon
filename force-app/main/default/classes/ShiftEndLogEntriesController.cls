@@ -540,18 +540,62 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static List<Location_Process__c> getJobLocationProcesses(Id jobId) {
+    public static Map<String, Object> getJobLocationProcesses(Id jobId) {
+        Map<String, Object> result = new Map<String, Object>();
         List<Location_Process__c> processes = new List<Location_Process__c>();
+        Map<String, Map<String, Object>> pendingApprovalData = new Map<String, Map<String, Object>>();
+        
         try {
             processes = [SELECT Id, Name, Completed_Percentage__c, Sequence__c,
                             Location__c, Location__r.Name,
                             Scope_Entry_Process__r.Process_Name__c
                             FROM Location_Process__c WHERE Location__r.Job__c = :jobId WITH USER_MODE
                             ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC];
+            
+            List<Log_Entry__c> pendingLogs = [
+                SELECT Id, Approval_Data__c, Work_Performed_Date__c
+                FROM Log_Entry__c
+                WHERE Job__c = :jobId
+                AND Status__c = 'Pending'
+                AND Log_Type__c = 'Shift End'
+                WITH USER_MODE
+                ORDER BY Work_Performed_Date__c DESC
+            ];
+            
+            // Parse approval data to get full approval details (oldValue, newValue)
+            for(Log_Entry__c log : pendingLogs) {
+                // Check if Approval_Data__c is not null
+                if(String.isBlank(log.Approval_Data__c)) {
+                    continue;
+                }
+                
+                try {
+                    List<Object> approvalList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
+                    for(Object obj : approvalList) {
+                        Map<String, Object> approval = (Map<String, Object>) obj;
+                        String processId = (String) approval.get('id');
+                        if(String.isNotBlank(processId)) {
+                            // Store full approval data for this process (oldValue, newValue)
+                            Map<String, Object> approvalDetails = new Map<String, Object>();
+                            approvalDetails.put('oldValue', approval.get('oldValue'));
+                            approvalDetails.put('newValue', approval.get('newValue'));
+                            pendingApprovalData.put(processId, approvalDetails);
+                        }
+                    }
+                } catch(Exception ex) {
+                    System.debug('Error parsing approval data for log ' + log.Id + ': ' + ex.getMessage());
+                }
+            }
+            
+            System.debug('Found ' + pendingApprovalData.size() + ' location processes with pending approvals');
+            
+            result.put('processes', processes);
+            result.put('pendingApprovalData', pendingApprovalData);
+            
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getJobLocationProcesses', 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Processes for Job ID: ' + jobId, 'apiResponse' => null});
         }
-        return processes;
+        return result;
     }
 
     public static Datetime convertUtc(String utcDateTimeStr) {

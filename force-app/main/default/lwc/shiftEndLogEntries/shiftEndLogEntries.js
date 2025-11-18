@@ -207,8 +207,9 @@ export default class ShiftEndLogEntries extends LightningElement {
                     slider.style.left = `${proc.previousPercent}%`;
                     slider.style.width = `${sliderWidth}%`;
 
-                    // Disable slider if 100% complete or has pending approval
-                    if (proc.completedPercent >= 100 || proc.isPendingApproval) {
+                    // Disable slider only if 100% complete
+                    // Pending approval badge is shown for visibility but doesn't block editing
+                    if (proc.completedPercent >= 100) {
                         slider.disabled = true;
                         slider.style.cursor = 'not-allowed';
                     } else {
@@ -748,9 +749,13 @@ export default class ShiftEndLogEntries extends LightningElement {
         
         getJobLocationProcesses({ jobId: this.jobId })
             .then(result => {
-                if (result && result.length > 0) {
-                    this.allLocationProcesses = result.map(proc => {
+                if (result && result.processes && result.processes.length > 0) {
+                    const pendingApprovalData = result.pendingApprovalData || {};
+                    
+                    this.allLocationProcesses = result.processes.map(proc => {
                         const prevPercent = parseFloat(proc.wfrecon__Completed_Percentage__c || 0);
+                        const approvalInfo = pendingApprovalData[proc.Id];
+                        const isPendingApproval = !!approvalInfo;
                         
                         return {
                             id: proc.Id,
@@ -761,7 +766,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                             previousPercent: parseFloat(prevPercent.toFixed(1)),
                             completedPercent: parseFloat(prevPercent.toFixed(1)),
                             todayPercent: 0,
-                            remainingPercent: parseFloat((100 - prevPercent).toFixed(1))
+                            remainingPercent: parseFloat((100 - prevPercent).toFixed(1)),
+                            isPendingApproval: isPendingApproval,
+                            approvalOldValue: approvalInfo ? approvalInfo.oldValue : null,
+                            approvalNewValue: approvalInfo ? approvalInfo.newValue : null
                         };
                     });
                     
@@ -844,9 +852,6 @@ export default class ShiftEndLogEntries extends LightningElement {
                 proc.todayPercent = parseFloat((modification.newValue - proc.previousPercent).toFixed(1));
                 proc.remainingPercent = parseFloat((100 - modification.newValue).toFixed(1));
             }
-            
-            // Mark as pending approval if exists
-            proc.isPendingApproval = proc.hasPendingApproval || false;
         });
         
         this.groupProcessesByLocation();
@@ -864,10 +869,12 @@ export default class ShiftEndLogEntries extends LightningElement {
                     processes: []
                 });
             }
-            // Add isPendingApproval flag if process has been modified
+            // Add isPendingApproval flag if process has been modified in current session OR has existing pending approval
             const processWithApproval = {
                 ...proc,
-                isPendingApproval: this.modifiedProcesses.has(proc.id)
+                isPendingApproval: this.modifiedProcesses.has(proc.id) || proc.isPendingApproval || false,
+                approvalOldValue: proc.approvalOldValue,
+                approvalNewValue: proc.approvalNewValue
             };
             locationMap.get(proc.locationId).processes.push(processWithApproval);
         });
@@ -939,15 +946,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(parseFloat(event.target.value).toFixed(1));
 
-        // Check if process has pending approval - if so, prevent editing
-        const proc = this.findProcessById(processId);
-        if (proc && proc.isPendingApproval) {
-            console.log('Cannot modify process with pending approval:', processId);
-            this.showToast('Warning', 'This process has pending approval and cannot be modified', 'warning');
-            // Reset slider to original value
-            event.target.value = originalValue;
-            return;
-        }
+        // Note: Process may have pending approval (shown with badge), but users can still edit it
+        // The badge provides visibility that there's a pending change, but doesn't block new modifications
 
         console.log('Slider changed - Process ID:', processId, 'Original:', originalValue, 'New:', newValue);
 
