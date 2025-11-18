@@ -884,6 +884,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(parseFloat(event.target.value).toFixed(1));
 
+        console.log('Slider changed - Process ID:', processId, 'Original:', originalValue, 'New:', newValue);
+
         // Track the modification
         if (newValue !== originalValue) {
             this.modifiedProcesses.set(processId, {
@@ -891,8 +893,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                 originalValue: originalValue,
                 newValue: newValue
             });
+            console.log('Modified process added to map:', processId);
         } else {
             this.modifiedProcesses.delete(processId);
+            console.log('Modified process removed from map (reset to original):', processId);
         }
 
         // Update in allLocationProcesses to persist across location changes
@@ -1231,6 +1235,7 @@ export default class ShiftEndLogEntries extends LightningElement {
             }));
 
             // Build approval data JSON directly in the format Apex expects: [{"id":"recordId","oldValue":73,"newValue":79}]
+            // This will set the Log Entry status to "Pending" if there are any modified processes
             const approvalDataJson = Array.from(this.modifiedProcesses.entries()).length > 0
                 ? JSON.stringify(
                     Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
@@ -1241,7 +1246,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                 )
                 : null;
 
+            console.log('Modified Processes:', Array.from(this.modifiedProcesses.entries()));
+            console.log('Approval Data JSON:', approvalDataJson);
+
             // Create Log Entry record with files, camera photos, and approval data
+            // Status will be set as "Pending" in Apex if approvalDataJson is provided
             await createLogEntry({
                 jobId: this.jobId,
                 step3DataJson: JSON.stringify(step3DataToSave),

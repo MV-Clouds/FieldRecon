@@ -604,7 +604,7 @@ public with sharing class ShiftEndLogEntriesController {
             // Deserialize step3 data
             Map<String, Object> step3Data = (Map<String, Object>) JSON.deserializeUntyped(step3DataJson);
             
-            // Create Log Entry record with Pending status
+            // Create Log Entry record
             wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c();
             logEntry.wfrecon__Job__c = jobId;
             logEntry.wfrecon__Log_Type__c = 'Shift End';
@@ -613,9 +613,10 @@ public with sharing class ShiftEndLogEntriesController {
             logEntry.wfrecon__Exceptions__c = (String) step3Data.get('exceptions');
             logEntry.wfrecon__Notes_to_Office__c = (String) step3Data.get('notesToOffice');
             logEntry.wfrecon__Work_Performed_Date__c = Date.valueOf(workPerformedDate.substring(0, 10));
-            logEntry.wfrecon__Status__c = 'Pending'; // Set status as Pending for approval
+            logEntry.wfrecon__Status__c = 'Pending'; // Requires approval for location process changes
             
-            // Store approval data JSON directly from LWC (no processing needed)
+            // Store approval data JSON directly from LWC (format: [{"id":"recordId","oldValue":73,"newValue":79}])
+            // Set status as "Pending" if there are location process changes that need approval
             if (String.isNotBlank(approvalDataJson)) {
                 logEntry.wfrecon__Approval_Data__c = approvalDataJson;
             }
