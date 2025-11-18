@@ -8,12 +8,12 @@ public with sharing class ShiftEndLogEntriesController {
             if (String.isNotBlank(crewLeaderId) && crewLeaderId != null) {
                 String todayStr = String.valueOf(Date.today());
                 
-                List<Mobilization__c> mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c FROM Mobilization__c WHERE Job__c = :jobId 
-                                                    AND Id IN (SELECT Mobilization__c FROM Mobilization_Member__c WHERE wfrecon__Crew_Leader_Id__c = :crewLeaderId)
-                                                    AND wfrecon__Start_Date_Text__c <= :todayStr
+                List<Mobilization__c> mobList = [SELECT Id, Name, Start_Date_Text__c FROM Mobilization__c WHERE Job__c = :jobId 
+                                                    AND Id IN (SELECT Mobilization__c FROM Mobilization_Member__c WHERE Crew_Leader_Id__c = :crewLeaderId)
+                                                    AND Start_Date_Text__c <= :todayStr
                                                     WITH USER_MODE];
                 for (Mobilization__c mob : mobList) {
-                    result.put(mob.Id, mob.wfrecon__Start_Date_Text__c);
+                    result.put(mob.Id, mob.Start_Date_Text__c);
                 }
             }
 
@@ -36,7 +36,7 @@ public with sharing class ShiftEndLogEntriesController {
 
             List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
                                                     FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
-                                                    AND Contact__r.Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    AND Contact__r.Can_Clock_In_Out__c = true AND Crew_Leader_Id__c = :crewLeaderId
                                                     WITH USER_MODE ORDER BY Contact__r.Name ASC];
     
             Set<Id> contactIds = new Set<Id>();
@@ -392,7 +392,7 @@ public with sharing class ShiftEndLogEntriesController {
         try {
             List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
                                                     FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
-                                                    AND Contact__r.Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    AND Contact__r.Can_Clock_In_Out__c = true AND Crew_Leader_Id__c = :crewLeaderId
                                                     WITH USER_MODE ORDER BY Contact__r.Name ASC];
     
             Set<Id> contactIds = new Set<Id>();
@@ -506,10 +506,11 @@ public with sharing class ShiftEndLogEntriesController {
     public static List<Location_Process__c> getJobLocationProcesses(Id jobId) {
         List<Location_Process__c> processes = new List<Location_Process__c>();
         try {
-            processes = [SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
-                            wfrecon__Location__c, wfrecon__Location__r.Name
-                            FROM Location_Process__c WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId WITH USER_MODE
-                            ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC];
+            processes = [SELECT Id, Name, Completed_Percentage__c, Sequence__c,
+                            Location__c, Location__r.Name,
+                            Scope_Entry_Process__r.Process_Name__c
+                            FROM Location_Process__c WHERE Location__r.Job__c = :jobId WITH USER_MODE
+                            ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getJobLocationProcesses', 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Processes for Job ID: ' + jobId, 'apiResponse' => null});
         }
@@ -605,20 +606,19 @@ public with sharing class ShiftEndLogEntriesController {
             Map<String, Object> step3Data = (Map<String, Object>) JSON.deserializeUntyped(step3DataJson);
             
             // Create Log Entry record
-            wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c();
-            logEntry.wfrecon__Job__c = jobId;
-            logEntry.wfrecon__Log_Type__c = 'Shift End';
-            logEntry.wfrecon__Work_Performed__c = (String) step3Data.get('whatWeDone');
-            logEntry.wfrecon__Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
-            logEntry.wfrecon__Exceptions__c = (String) step3Data.get('exceptions');
-            logEntry.wfrecon__Notes_to_Office__c = (String) step3Data.get('notesToOffice');
-            logEntry.wfrecon__Work_Performed_Date__c = Date.valueOf(workPerformedDate.substring(0, 10));
-            logEntry.wfrecon__Status__c = 'Pending'; // Requires approval for location process changes
+            Log_Entry__c logEntry = new Log_Entry__c();
+            logEntry.Job__c = jobId;
+            logEntry.Log_Type__c = 'Shift End';
+            logEntry.Work_Performed__c = (String) step3Data.get('whatWeDone');
+            logEntry.Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
+            logEntry.Exceptions__c = (String) step3Data.get('exceptions');
+            logEntry.Notes_to_Office__c = (String) step3Data.get('notesToOffice');
+            logEntry.Work_Performed_Date__c = Date.valueOf(workPerformedDate.substring(0, 10));
+            logEntry.Status__c = 'Pending'; // Requires approval for location process changes
             
             // Store approval data JSON directly from LWC (format: [{"id":"recordId","oldValue":73,"newValue":79}])
-            // Set status as "Pending" if there are location process changes that need approval
             if (String.isNotBlank(approvalDataJson)) {
-                logEntry.wfrecon__Approval_Data__c = approvalDataJson;
+                logEntry.Approval_Data__c = approvalDataJson;
             }
             
             insert as user logEntry;
@@ -644,7 +644,6 @@ public with sharing class ShiftEndLogEntriesController {
                 
                 if (!contentVersions.isEmpty()) {
                     insert as user contentVersions;
-                    // Links are automatically created by FirstPublishLocationId
                 }
             }
             
