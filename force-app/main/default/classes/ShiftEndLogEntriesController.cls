@@ -483,8 +483,11 @@ public with sharing class ShiftEndLogEntriesController {
                                             WHERE Id = :(String)jsonList.get('TSEId') WITH USER_MODE LIMIT 1];
 
             // Convert clock-in and clock-out strings to Datetime
-            Datetime clkInUserTz = convertUtc((String)jsonList.get('ClockIn'));
-            Datetime clkOutUserTz = convertUtc((String)jsonList.get('ClockOut'));
+            String newClkInUser = (String)jsonList.get('newClockIn') + ':00.000Z';
+            String newClkOutUser = (String)jsonList.get('newClockOut') + ':00.000Z';
+
+            String oldClkInUser = (String)jsonList.get('oldClockIn') + ':00.000Z';
+            String oldClkOutUser = (String)jsonList.get('oldClockOut') + ':00.000Z';
 
             Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
             
@@ -492,20 +495,20 @@ public with sharing class ShiftEndLogEntriesController {
             List<Map<String, Object>> approvalDataList = new List<Map<String, Object>>();
             
             // Store Clock_In_Time__c change if different
-            if (tsEntry.Clock_In_Time__c != clkInUserTz) {
+            if (oldClkInUser != newClkInUser) {
                 approvalDataList.add(new Map<String, Object>{
                     'fieldApiName' => 'Clock_In_Time__c',
-                    'oldValue' => tsEntry.Clock_In_Time__c,
-                    'newValue' => clkInUserTz
+                    'oldValue' => oldClkInUser,
+                    'newValue' => newClkInUser
                 });
             }
             
             // Store Clock_Out_Time__c change if different
-            if (tsEntry.Clock_Out_Time__c != clkOutUserTz) {
+            if (oldClkOutUser != newClkOutUser) {
                 approvalDataList.add(new Map<String, Object>{
                     'fieldApiName' => 'Clock_Out_Time__c',
-                    'oldValue' => tsEntry.Clock_Out_Time__c,
-                    'newValue' => clkOutUserTz
+                    'oldValue' => oldClkOutUser,
+                    'newValue' => newClkOutUser
                 });
             }
             
@@ -521,6 +524,7 @@ public with sharing class ShiftEndLogEntriesController {
             // Only update if there are changes
             if (!approvalDataList.isEmpty()) {
                 String approvalDataJson = JSON.serialize(approvalDataList);
+                System.debug('Approval Data JSON: ' + approvalDataJson);
                 
                 // Store approval data and set status to Pending for both Entry and Item
                 tsEntry.Approval_Data__c = approvalDataJson;
@@ -552,6 +556,9 @@ public with sharing class ShiftEndLogEntriesController {
                             FROM Location_Process__c WHERE Location__r.Job__c = :jobId WITH USER_MODE
                             ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC];
             
+            // Query ALL pending log entries (not just today) to get approval data
+            // This ensures visibility of pending approvals from previous days as well
+            // Note: Cannot filter on Approval_Data__c in WHERE clause (Long Text Area field)
             List<Log_Entry__c> pendingLogs = [
                 SELECT Id, Approval_Data__c, Work_Performed_Date__c
                 FROM Log_Entry__c
@@ -615,10 +622,25 @@ public with sharing class ShiftEndLogEntriesController {
             // Replace T with space for DateTime.valueOf
             utcDateTimeStr = utcDateTimeStr.replace('T',' ');
     
-            // Convert to Datetime (interpreted as GMT/UTC)
-            Datetime utcDT = Datetime.valueOf(utcDateTimeStr);
+            // Split date and time
+            List<String> parts = utcDateTimeStr.split(' ');
+            Date d = Date.valueOf(parts[0]);
 
-            return utcDT;
+            // Split time manually
+            List<String> tParts = parts[1].split(':');
+
+            Integer hh = Integer.valueOf(tParts[0]);
+            Integer mm = Integer.valueOf(tParts[1]);
+            Integer ss = Integer.valueOf(tParts[2]);
+
+            Time t = Time.newInstance(hh, mm, ss, 0);
+
+            // Create datetime WITHOUT timezone conversion
+            Datetime fixedDT = Datetime.newInstance(d, t);
+
+            System.debug('FINAL FIXED DT: ' + fixedDT);
+
+            return fixedDT;
         } catch (Exception e) {
             System.debug('Error in convertUtc: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'convertUtc', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
@@ -817,6 +839,54 @@ public with sharing class ShiftEndLogEntriesController {
                 'moreDetails' => e.getMessage()
             });
             throw new AuraHandledException('Error deleting content documents: ' + e.getMessage());
+        }
+    }
+    
+    @AuraEnabled
+    public static Boolean moveTimesheetBackToRegular(String timesheetEntryItemId) {
+        try {
+            if (String.isBlank(timesheetEntryItemId)) {
+                throw new AuraHandledException('Timesheet Entry Item ID is required');
+            }
+
+            // Query the Timesheet Entry Item
+            Timesheet_Entry_Item__c tsItem = [
+                SELECT Id, Timesheet_Entry__c, Status__c, Approval_Data__c 
+                FROM Timesheet_Entry_Item__c 
+                WHERE Id = :timesheetEntryItemId 
+                WITH USER_MODE 
+                LIMIT 1
+            ];
+
+            // Query the related Timesheet Entry
+            Timesheet_Entry__c tsEntry = [
+                SELECT Id, Status__c, Approval_Data__c 
+                FROM Timesheet_Entry__c 
+                WHERE Id = :tsItem.Timesheet_Entry__c 
+                WITH USER_MODE 
+                LIMIT 1
+            ];
+
+            // Clear approval data and status for both records
+            tsItem.Approval_Data__c = null;
+            tsItem.Status__c = null;
+            
+            tsEntry.Approval_Data__c = null;
+            tsEntry.Status__c = null;
+
+            // Update both records
+            update tsItem;
+            update tsEntry;
+
+            return true;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'moveTimesheetBackToRegular',
+                'exceptionObj' => e,
+                'moreDetails' => e.getMessage()
+            });
+            throw new AuraHandledException('Error moving timesheet back to regular: ' + e.getMessage());
         }
     }
     
