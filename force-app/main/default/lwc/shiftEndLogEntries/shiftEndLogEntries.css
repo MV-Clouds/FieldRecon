@@ -940,6 +940,11 @@
     background: linear-gradient(90deg, rgba(94, 90, 219, 0.8) 0%, rgba(94, 90, 219, 1) 100%);
 }
 
+.slider-section.pending-approval {
+    background: linear-gradient(90deg, rgba(255, 179, 71, 0.8) 0%, rgba(255, 152, 0, 1) 100%);
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.4);
+}
+
 .slider-section.remaining {
     background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
 }

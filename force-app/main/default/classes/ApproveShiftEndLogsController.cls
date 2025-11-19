@@ -30,7 +30,7 @@ public with sharing class ApproveShiftEndLogsController {
             }
             
             // Build query
-            String query = 'SELECT Id, Name, wfrecon__Exceptions__c, wfrecon__Job__c, wfrecon__Job__r.Name, ' +
+            String query = 'SELECT Id, Name, wfrecon__Exceptions__c, wfrecon__Job__c, wfrecon__Job__r.Id, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, ' +
                           'wfrecon__Mobilization__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, ' +
                           'wfrecon__Status__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed_Date__c, ' +
                           'CreatedDate, CreatedBy.Name ' +
@@ -50,9 +50,11 @@ public with sharing class ApproveShiftEndLogsController {
                 LogEntryWrapper wrapper = new LogEntryWrapper();
                 wrapper.Id = log.Id;
                 wrapper.entryNumber = log.Name;
-                wrapper.jobName = log.wfrecon__Job__c != null ? log.wfrecon__Job__r.Name : 'N/A';
+                wrapper.jobId = log.wfrecon__Job__r.Id;
+                wrapper.jobNumber = log.wfrecon__Job__c != null ? log.wfrecon__Job__r.Name : '--';
+                wrapper.jobName = log.wfrecon__Job__c != null ? log.wfrecon__Job__r.wfrecon__Job_Name__c : '--';
                 wrapper.submittedDate = log.wfrecon__Work_Performed_Date__c != null ? 
-                                       log.wfrecon__Work_Performed_Date__c.format() : 'N/A';
+                                       log.wfrecon__Work_Performed_Date__c.format() : '--';
                 wrapper.submittedBy = log.CreatedBy.Name;
                 wrapper.status = log.wfrecon__Status__c;
                 
@@ -71,7 +73,9 @@ public with sharing class ApproveShiftEndLogsController {
     public class LogEntryWrapper {
         @AuraEnabled public Id Id { get; set; }
         @AuraEnabled public String entryNumber { get; set; }
+        @AuraEnabled public Id jobId { get; set; }
         @AuraEnabled public String jobName { get; set; }
+        @AuraEnabled public String jobNumber { get; set; }
         @AuraEnabled public String submittedDate { get; set; }
         @AuraEnabled public String submittedBy { get; set; }
         @AuraEnabled public String status { get; set; }

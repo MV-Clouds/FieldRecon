@@ -187,11 +187,25 @@ public with sharing class ShiftEndLogEntriesController {
             // Add approval status information
             Date workDate = mobilizationRecord[0].Start_Date__c.date();
             Date today = Date.today();
+            Date yesterday = today.addDays(-1);
             
             String approvalMessage = '';
             
-            // If creating entry for a past date, show pending approval message
-            if (workDate < today) {
+            // If creating entry for today, check if yesterday has pending logs
+            if (workDate == today) {
+                // Check if yesterday has any pending logs
+                List<Log_Entry__c> yesterdayPendingLogs = [SELECT Id, Status__c FROM Log_Entry__c 
+                                                            WHERE Job__c = :jobId 
+                                                            AND Work_Performed_Date__c = :yesterday 
+                                                            AND Log_Type__c = 'Shift End'
+                                                            AND Status__c = 'Pending'
+                                                            WITH USER_MODE];
+                
+                if (!yesterdayPendingLogs.isEmpty()) {
+                    approvalMessage = 'Note: Yesterday\'s pending entries will be automatically approved when you submit today\'s log. Today\'s entry will be marked as pending for approval.';
+                }
+            } else if (workDate < today) {
+                // If creating entry for a past date, show pending approval message
                 approvalMessage = 'This entry will go into pending approval status.';
             }
             
@@ -469,8 +483,11 @@ public with sharing class ShiftEndLogEntriesController {
                                             WHERE Id = :(String)jsonList.get('TSEId') WITH USER_MODE LIMIT 1];
 
             // Convert clock-in and clock-out strings to Datetime
-            Datetime clkInUserTz = convertUtc((String)jsonList.get('ClockIn'));
-            Datetime clkOutUserTz = convertUtc((String)jsonList.get('ClockOut'));
+            String newClkInUser = (String)jsonList.get('newClockIn') + ':00.000Z';
+            String newClkOutUser = (String)jsonList.get('newClockOut') + ':00.000Z';
+
+            String oldClkInUser = (String)jsonList.get('oldClockIn') + ':00.000Z';
+            String oldClkOutUser = (String)jsonList.get('oldClockOut') + ':00.000Z';
 
             Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
             
@@ -478,20 +495,20 @@ public with sharing class ShiftEndLogEntriesController {
             List<Map<String, Object>> approvalDataList = new List<Map<String, Object>>();
             
             // Store Clock_In_Time__c change if different
-            if (tsEntry.Clock_In_Time__c != clkInUserTz) {
+            if (oldClkInUser != newClkInUser) {
                 approvalDataList.add(new Map<String, Object>{
                     'fieldApiName' => 'Clock_In_Time__c',
-                    'oldValue' => tsEntry.Clock_In_Time__c,
-                    'newValue' => clkInUserTz
+                    'oldValue' => oldClkInUser,
+                    'newValue' => newClkInUser
                 });
             }
             
             // Store Clock_Out_Time__c change if different
-            if (tsEntry.Clock_Out_Time__c != clkOutUserTz) {
+            if (oldClkOutUser != newClkOutUser) {
                 approvalDataList.add(new Map<String, Object>{
                     'fieldApiName' => 'Clock_Out_Time__c',
-                    'oldValue' => tsEntry.Clock_Out_Time__c,
-                    'newValue' => clkOutUserTz
+                    'oldValue' => oldClkOutUser,
+                    'newValue' => newClkOutUser
                 });
             }
             
@@ -507,6 +524,7 @@ public with sharing class ShiftEndLogEntriesController {
             // Only update if there are changes
             if (!approvalDataList.isEmpty()) {
                 String approvalDataJson = JSON.serialize(approvalDataList);
+                System.debug('Approval Data JSON: ' + approvalDataJson);
                 
                 // Store approval data and set status to Pending for both Entry and Item
                 tsEntry.Approval_Data__c = approvalDataJson;
@@ -526,18 +544,65 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static List<Location_Process__c> getJobLocationProcesses(Id jobId) {
+    public static Map<String, Object> getJobLocationProcesses(Id jobId) {
+        Map<String, Object> result = new Map<String, Object>();
         List<Location_Process__c> processes = new List<Location_Process__c>();
+        Map<String, Map<String, Object>> pendingApprovalData = new Map<String, Map<String, Object>>();
+        
         try {
             processes = [SELECT Id, Name, Completed_Percentage__c, Sequence__c,
                             Location__c, Location__r.Name,
                             Scope_Entry_Process__r.Process_Name__c
                             FROM Location_Process__c WHERE Location__r.Job__c = :jobId WITH USER_MODE
                             ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC];
+            
+            // Query ALL pending log entries (not just today) to get approval data
+            // This ensures visibility of pending approvals from previous days as well
+            // Note: Cannot filter on Approval_Data__c in WHERE clause (Long Text Area field)
+            List<Log_Entry__c> pendingLogs = [
+                SELECT Id, Approval_Data__c, Work_Performed_Date__c
+                FROM Log_Entry__c
+                WHERE Job__c = :jobId
+                AND Status__c = 'Pending'
+                AND Log_Type__c = 'Shift End'
+                WITH USER_MODE
+                ORDER BY Work_Performed_Date__c DESC
+            ];
+            
+            // Parse approval data to get full approval details (oldValue, newValue)
+            for(Log_Entry__c log : pendingLogs) {
+                // Check if Approval_Data__c is not null
+                if(String.isBlank(log.Approval_Data__c)) {
+                    continue;
+                }
+                
+                try {
+                    List<Object> approvalList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
+                    for(Object obj : approvalList) {
+                        Map<String, Object> approval = (Map<String, Object>) obj;
+                        String processId = (String) approval.get('id');
+                        if(String.isNotBlank(processId)) {
+                            // Store full approval data for this process (oldValue, newValue)
+                            Map<String, Object> approvalDetails = new Map<String, Object>();
+                            approvalDetails.put('oldValue', approval.get('oldValue'));
+                            approvalDetails.put('newValue', approval.get('newValue'));
+                            pendingApprovalData.put(processId, approvalDetails);
+                        }
+                    }
+                } catch(Exception ex) {
+                    System.debug('Error parsing approval data for log ' + log.Id + ': ' + ex.getMessage());
+                }
+            }
+            
+            System.debug('Found ' + pendingApprovalData.size() + ' location processes with pending approvals');
+            
+            result.put('processes', processes);
+            result.put('pendingApprovalData', pendingApprovalData);
+            
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getJobLocationProcesses', 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Processes for Job ID: ' + jobId, 'apiResponse' => null});
         }
-        return processes;
+        return result;
     }
 
     public static Datetime convertUtc(String utcDateTimeStr) {
@@ -557,10 +622,25 @@ public with sharing class ShiftEndLogEntriesController {
             // Replace T with space for DateTime.valueOf
             utcDateTimeStr = utcDateTimeStr.replace('T',' ');
     
-            // Convert to Datetime (interpreted as GMT/UTC)
-            Datetime utcDT = Datetime.valueOf(utcDateTimeStr);
+            // Split date and time
+            List<String> parts = utcDateTimeStr.split(' ');
+            Date d = Date.valueOf(parts[0]);
 
-            return utcDT;
+            // Split time manually
+            List<String> tParts = parts[1].split(':');
+
+            Integer hh = Integer.valueOf(tParts[0]);
+            Integer mm = Integer.valueOf(tParts[1]);
+            Integer ss = Integer.valueOf(tParts[2]);
+
+            Time t = Time.newInstance(hh, mm, ss, 0);
+
+            // Create datetime WITHOUT timezone conversion
+            Datetime fixedDT = Datetime.newInstance(d, t);
+
+            System.debug('FINAL FIXED DT: ' + fixedDT);
+
+            return fixedDT;
         } catch (Exception e) {
             System.debug('Error in convertUtc: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'convertUtc', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});

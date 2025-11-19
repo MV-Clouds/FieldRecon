@@ -461,7 +461,7 @@
                                                                             <circle cx="12" cy="12" r="10"></circle>
                                                                             <polyline points="12 6 12 12 16 14"></polyline>
                                                                         </svg>
-                                                                        Pending Approval
+                                                                        Pending Approval ({process.approvalOldValue}% → {process.approvalNewValue}%)
                                                                     </span>
                                                                 </template>
                                                             </div>
@@ -721,12 +721,12 @@
                         <div class="input-column">
                             <label class="datetime-label required">Clock In Time</label>
                             <input type="datetime-local" class="custom-datetime" data-field="editClockIn"
-                                value={editTimesheetData.clockInTime} onchange={handleEditInputChange}>
+                                value={editTimesheetData.oldclockInTime} onchange={handleEditInputChange}>
                         </div>
                         <div class="input-column">
                             <label class="datetime-label required">Clock Out Time</label>
                             <input type="datetime-local" class="custom-datetime" data-field="editClockOut"
-                                value={editTimesheetData.clockOutTime} onchange={handleEditInputChange}>
+                                value={editTimesheetData.oldclockOutTime} onchange={handleEditInputChange}>
                         </div>
                         <div class="input-column">
                             <label class="select-label">Travel Time (hours)</label>

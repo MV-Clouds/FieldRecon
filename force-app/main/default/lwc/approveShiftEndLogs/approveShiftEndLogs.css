@@ -192,3 +192,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.record-link {
+    color: rgba(94, 90, 219, 1);
+    text-decoration: none;
+}
+
+.record-link:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}

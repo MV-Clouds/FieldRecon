@@ -8,19 +8,11 @@
     <div class="wrapper">
         <div class="filter-bar">
             <div class="search-div">
-                <lightning-input type="search" variant="label-hidden" placeholder="Search by Job Name" onchange={handleSearch} value={searchTerm}></lightning-input>
+                <lightning-input type="search" variant="label-hidden" placeholder="Search by Job Name or Number" onchange={handleSearch} value={searchTerm}></lightning-input>
             </div>
 
             <div class="date-filter-dropdown">
-                <lightning-combobox
-                    name="dateFilter"
-                    label="Date Filter"
-                    value={selectedDateFilter}
-                    placeholder="Select Date Range"
-                    options={dateFilterOptions}
-                    onchange={handleDateFilterChange}
-                    variant="label-hidden">
-                </lightning-combobox>
+                <lightning-combobox name="dateFilter" label="Date Filter" value={selectedDateFilter} placeholder="Select Date Range" options={dateFilterOptions} onchange={handleDateFilterChange} variant="label-hidden"></lightning-combobox>
             </div>
         </div>
 
@@ -53,9 +45,18 @@
                                             </template>
 
                                             <template if:false={val.isActions}>
-                                                <div class="cell-content" title={val.value}>
-                                                    {val.value}
-                                                </div>
+                                                <template if:true={val.recordLink}>
+                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={log.jobId}>
+                                                        <div class="cell-content" title={val.value}>
+                                                            {val.value}
+                                                        </div>
+                                                    </a>
+                                                </template>
+                                                <template if:false={val.recordLink}>
+                                                    <div class="cell-content" title={val.value}>
+                                                        {val.value}
+                                                    </div>
+                                                </template>
                                             </template>
                                         </div>
                                     </td>

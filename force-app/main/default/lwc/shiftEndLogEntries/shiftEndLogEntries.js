@@ -190,6 +190,15 @@ export default class ShiftEndLogEntries extends LightningElement {
                             completed.style.width = `${proc.previousPercent}%`;
                             today.style.width = `${proc.todayPercent}%`;
                             remaining.style.width = `${proc.remainingPercent}%`;
+                            
+                            // Apply orange color if pending approval, purple if editing
+                            if (proc.isPendingApproval) {
+                                today.classList.remove('today');
+                                today.classList.add('pending-approval');
+                            } else {
+                                today.classList.remove('pending-approval');
+                                today.classList.add('today');
+                            }
                         }
                     }
 
@@ -198,7 +207,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                     slider.style.left = `${proc.previousPercent}%`;
                     slider.style.width = `${sliderWidth}%`;
 
-                    // Disable slider if 100% complete
+                    // Disable slider only if 100% complete
+                    // Pending approval badge is shown for visibility but doesn't block editing
                     if (proc.completedPercent >= 100) {
                         slider.disabled = true;
                         slider.style.cursor = 'not-allowed';
@@ -261,6 +271,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         this.isLoading = true;
         getMobilizationMembersWithStatus({ mobId: this.selectedMobilizationId, jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
+                console.log('getMobilizationMembersWithStatus result:', result);
+                
                 if (result) {
                     // Process approval status
                     const approvalStatusList = result.approvalStatus || [];
@@ -464,8 +476,8 @@ export default class ShiftEndLogEntries extends LightningElement {
 
         const member = this.crewMembers.find(m => m.contactId === this.selectedContactId);
         if (!member) return;
-
-        if (new Date(this.clockOutTime) <= new Date(member.clockInTime)) {
+        
+        if (new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(member.clockInTime.slice(0, 16).replace('T', ' '))) {
             this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
             return;
         }
@@ -645,8 +657,10 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.editTimesheetData = {
                 id: entry.id,
                 TSEId: entry.TSEId,
-                clockInTime: entry.rawClockIn ? entry.rawClockIn.slice(0, 16) : '',
-                clockOutTime: entry.rawClockOut ? entry.rawClockOut.slice(0, 16) : '',
+                oldclockInTime: entry.rawClockIn ? entry.rawClockIn.slice(0, 16) : '',
+                oldclockOutTime: entry.rawClockOut ? entry.rawClockOut.slice(0, 16) : '',
+                newclockInTime: entry.rawClockIn ? entry.rawClockIn.slice(0, 16) : '',
+                newclockOutTime: entry.rawClockOut ? entry.rawClockOut.slice(0, 16) : '',
                 travelTime: entry.travelTime
             };
             this.showEditTimesheetModal = true;
@@ -658,58 +672,69 @@ export default class ShiftEndLogEntries extends LightningElement {
         const value = event.target.value;
 
         if (field === 'editClockIn') {
-            this.editTimesheetData.clockInTime = value;
+            this.editTimesheetData.newclockInTime = value;
         } else if (field === 'editClockOut') {
-            this.editTimesheetData.clockOutTime = value;
+            this.editTimesheetData.newclockOutTime = value;
         } else if (field === 'editTravelTime') {
             this.editTimesheetData.travelTime = value;
         }
     }
 
     saveEditedTimesheet() {
-        if (!this.editTimesheetData.clockInTime || !this.editTimesheetData.clockOutTime) {
-            this.showToast('Error', 'Clock In and Clock Out times are required', 'error');
-            return;
+        try {
+            if (!this.editTimesheetData.newclockInTime || !this.editTimesheetData.newclockOutTime) {
+                this.showToast('Error', 'Clock In and Clock Out times are required', 'error');
+                return;
+            }
+    
+            if (new Date(this.editTimesheetData.newclockOutTime.replace(' ', 'T')) <= new Date(this.editTimesheetData.newclockInTime.replace(' ', 'T'))) {
+                this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+    
+            this.isLoading = true;
+    
+            const params = {
+                Id: this.editTimesheetData.id,
+                TSEId: this.editTimesheetData.TSEId,
+                newClockIn: this.editTimesheetData.newclockInTime.slice(0, 16),
+                newClockOut: this.editTimesheetData.newclockOutTime.slice(0, 16),
+                oldClockIn: this.editTimesheetData.oldclockInTime.slice(0, 16),
+                oldClockOut: this.editTimesheetData.oldclockOutTime.slice(0, 16),
+                TravelTime: this.editTimesheetData.travelTime || '0.00'
+            };
+            console.log('params :: ', params);
+            
+    
+            const stringifiedEntry = JSON.stringify(
+                Object.fromEntries(
+                    Object.entries(params).map(([key, value]) => [key, String(value)])
+                )
+            );
+    
+            console.log('stringifiedEntry :: ', stringifiedEntry);
+            
+    
+            updateTimesheets({ params: stringifiedEntry })
+                .then(result => {
+                    if (result) {
+                        this.showToast('Success', 'Timesheet entry marked as pending for approval', 'success');
+                        this.closeEditTimesheetModal();
+                        this.loadTimesheetEntries();
+                    } else {
+                        this.showToast('Error', 'Failed to update timesheet entry', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating timesheet:', error);
+                    this.showToast('Error', 'Something went wrong', 'error');
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            
         }
-
-        if (new Date(this.editTimesheetData.clockOutTime) <= new Date(this.editTimesheetData.clockInTime)) {
-            this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
-            return;
-        }
-
-        this.isLoading = true;
-
-        const params = {
-            Id: this.editTimesheetData.id,
-            TSEId: this.editTimesheetData.TSEId,
-            ClockIn: this.editTimesheetData.clockInTime,
-            ClockOut: this.editTimesheetData.clockOutTime,
-            TravelTime: this.editTimesheetData.travelTime || '0.00'
-        };
-
-        const stringifiedEntry = JSON.stringify(
-            Object.fromEntries(
-                Object.entries(params).map(([key, value]) => [key, String(value)])
-            )
-        );
-
-        updateTimesheets({ params: stringifiedEntry })
-            .then(result => {
-                if (result) {
-                    this.showToast('Success', 'Timesheet entry marked as pending for approval', 'success');
-                    this.closeEditTimesheetModal();
-                    this.loadTimesheetEntries();
-                } else {
-                    this.showToast('Error', 'Failed to update timesheet entry', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error updating timesheet:', error);
-                this.showToast('Error', 'Something went wrong', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
     }
 
     closeEditTimesheetModal() {
@@ -736,11 +761,17 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (!this.jobId) return;
 
         this.isLoading = true;
+        
         getJobLocationProcesses({ jobId: this.jobId })
             .then(result => {
-                if (result && result.length > 0) {
-                    this.allLocationProcesses = result.map(proc => {
+                if (result && result.processes && result.processes.length > 0) {
+                    const pendingApprovalData = result.pendingApprovalData || {};
+                    
+                    this.allLocationProcesses = result.processes.map(proc => {
                         const prevPercent = parseFloat(proc.wfrecon__Completed_Percentage__c || 0);
+                        const approvalInfo = pendingApprovalData[proc.Id];
+                        const isPendingApproval = !!approvalInfo;
+                        
                         return {
                             id: proc.Id,
                             name: proc.wfrecon__Scope_Entry_Process__r?.wfrecon__Process_Name__c || proc.Name,
@@ -750,7 +781,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                             previousPercent: parseFloat(prevPercent.toFixed(1)),
                             completedPercent: parseFloat(prevPercent.toFixed(1)),
                             todayPercent: 0,
-                            remainingPercent: parseFloat((100 - prevPercent).toFixed(1))
+                            remainingPercent: parseFloat((100 - prevPercent).toFixed(1)),
+                            isPendingApproval: isPendingApproval,
+                            approvalOldValue: approvalInfo ? approvalInfo.oldValue : null,
+                            approvalNewValue: approvalInfo ? approvalInfo.newValue : null
                         };
                     });
                     
@@ -850,10 +884,12 @@ export default class ShiftEndLogEntries extends LightningElement {
                     processes: []
                 });
             }
-            // Add isPendingApproval flag if process has been modified
+            // Add isPendingApproval flag if process has been modified in current session OR has existing pending approval
             const processWithApproval = {
                 ...proc,
-                isPendingApproval: this.modifiedProcesses.has(proc.id)
+                isPendingApproval: this.modifiedProcesses.has(proc.id) || proc.isPendingApproval || false,
+                approvalOldValue: proc.approvalOldValue,
+                approvalNewValue: proc.approvalNewValue
             };
             locationMap.get(proc.locationId).processes.push(processWithApproval);
         });
@@ -877,13 +913,17 @@ export default class ShiftEndLogEntries extends LightningElement {
                     const remainingPercent = Math.max(0, 100 - newValue);
 
                     const completed = sliderTrack.querySelector('.completed');
-                    const today = sliderTrack.querySelector('.today');
+                    const today = sliderTrack.querySelector('.today, .pending-approval');
                     const remaining = sliderTrack.querySelector('.remaining');
 
                     if (completed && today && remaining) {
                         completed.style.width = `${proc.previousPercent}%`;
                         today.style.width = `${todayPercent}%`;
                         remaining.style.width = `${remainingPercent}%`;
+                        
+                        // Ensure it's purple (editing mode) when user is dragging
+                        today.classList.remove('pending-approval');
+                        today.classList.add('today');
                     }
 
                     // Update percentage display
@@ -920,6 +960,9 @@ export default class ShiftEndLogEntries extends LightningElement {
         const processId = event.target.dataset.id;
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(parseFloat(event.target.value).toFixed(1));
+
+        // Note: Process may have pending approval (shown with badge), but users can still edit it
+        // The badge provides visibility that there's a pending change, but doesn't block new modifications
 
         console.log('Slider changed - Process ID:', processId, 'Original:', originalValue, 'New:', newValue);
 

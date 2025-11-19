@@ -13,7 +13,14 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track logColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
         { label: 'Action', fieldName: 'actions', style: 'width: 6rem' },
-        { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
+        { 
+            label: 'Job Number', 
+            fieldName: 'jobNumber', 
+            isLink: true,
+            recordIdField: 'jobId',
+            style: 'width: 12rem' 
+        },
+        { label: 'Job Name', fieldName: 'jobName',style: 'width: 15rem' },
         { label: 'Entry Number', fieldName: 'entryNumber', style: 'width: 10rem' },
         { label: 'Submitted Date', fieldName: 'submittedDate', style: 'width: 12rem' },
         { label: 'Submitted By', fieldName: 'submittedBy', style: 'width: 12rem' }
@@ -35,14 +42,29 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             return {
                 Id: log.Id,
                 key: log.Id,
-                values: [
-                    { value: index + 1, style: 'width: 6rem', isActions: false },
-                    { value: '', style: 'width: 6rem', isActions: true },
-                    { value: log.jobName || 'N/A', style: 'width: 15rem', isActions: false },
-                    { value: log.entryNumber || 'N/A', style: 'width: 10rem', isActions: false },
-                    { value: log.submittedDate || 'N/A', style: 'width: 12rem', isActions: false },
-                    { value: log.submittedBy || 'N/A', style: 'width: 12rem', isActions: false }
-                ]
+                jobId: log.jobId,
+                values: this.logColumns.map(col => {
+                    let cell = {
+                        value: '',
+                        style: col.style,
+                        isActions: false,
+                        recordLink: null
+                    };
+
+                    if (col.fieldName === 'srNo') {
+                        cell.value = index + 1;
+                    } else if (col.fieldName === 'actions') {
+                        cell.isActions = true;
+                    } else {
+                        cell.value = log[col.fieldName] || '--';
+                        
+                        if (col.isLink && col.recordIdField) {
+                            cell.recordLink = `/${log[col.recordIdField]}`;
+                        }
+                    }
+
+                    return cell;
+                })
             };
         });
     }
@@ -63,6 +85,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         this.isLoading = true;
         getUnapprovedLogEntries({ dateFilter: this.selectedDateFilter })
             .then(result => {
+                console.log('getUnapprovedLogEntries result:', result);
+                
                 this.logEntriesRaw = result;
                 this.filteredLogEntriesRaw = result;
                 this.applyFilters();
@@ -106,7 +130,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const searchLower = this.searchTerm.toLowerCase();
         this.filteredLogEntriesRaw = this.logEntriesRaw.filter(log => {
             const jobName = (log.jobName || '').toLowerCase();
-            return jobName.includes(searchLower);
+            const jobNumber = (log.jobNumber || '').toLowerCase();
+            return jobName.includes(searchLower) || jobNumber.includes(searchLower);
         });
     }
 
@@ -122,6 +147,28 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             // TODO: Implement approve functionality
             console.log('Approve log entry:', logId);
             this.showToast('Success', 'Approval functionality to be implemented', 'info');
+        }
+    }
+
+    /**
+     * Method Name: handleLinkClick
+     * @description: Method is used to handle the link click for job record navigation
+     */
+    handleLinkClick(event) {
+        try {
+            const jobId = event.currentTarget.dataset.link;
+            if (jobId) {
+                this[NavigationMixin.Navigate]({
+                    type: 'standard__recordPage',
+                    attributes: {
+                        recordId: jobId,
+                        actionName: 'view',
+                    },
+                });
+            }
+        } catch (error) {
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            console.error('Error in handleLinkClick ::', error);
         }
     }
 
