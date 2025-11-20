@@ -6,19 +6,17 @@
 public with sharing class ApproveShiftEndLogsController {
     
     /**
-     * @description: Method to get log entries based on date and status filters
+     * @description: Method to get all log entries based on date filter
      * @param dateFilter: String filter option (last7days, last15days, last30days, alltime)
-     * @param statusFilter: String filter option (All, Pending, Approved, Auto-Approved, Rejected)
      * @return: List<LogEntryWrapper> - List of log entry records
      */
     @AuraEnabled
-    public static List<LogEntryWrapper> getUnapprovedLogEntries(String dateFilter, String statusFilter) {
+    public static List<LogEntryWrapper> getUnapprovedLogEntries(String dateFilter) {
         try {
             List<LogEntryWrapper> result = new List<LogEntryWrapper>();
             
             // Calculate date range based on filter
             Date startDate;
-            Date endDate = Date.today();
             
             if (dateFilter == 'last7days') {
                 startDate = Date.today().addDays(-7);
@@ -30,19 +28,12 @@ public with sharing class ApproveShiftEndLogsController {
                 startDate = Date.newInstance(2000, 1, 1); // Set to a far past date
             }
             
-            // Build query with status filter
+            // Build query - fetch all log entries with any status
             String query = 'SELECT Id, Name, wfrecon__Exceptions__c, wfrecon__Job__c, wfrecon__Job__r.Id, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, ' +
                           'wfrecon__Mobilization__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, ' +
                           'wfrecon__Status__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed_Date__c, ' +
                           'CreatedDate, CreatedBy.Name ' +
-                          'FROM wfrecon__Log_Entry__c WHERE ';
-            
-            // Add status filter
-            if (String.isNotBlank(statusFilter) && statusFilter != 'All') {
-                query += 'wfrecon__Status__c = \'' + String.escapeSingleQuotes(statusFilter) + '\'';
-            } else {
-                query += 'wfrecon__Status__c IN (\'Pending\', \'Approved\', \'Auto-Approved\', \'Rejected\')';
-            }
+                          'FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c IN (\'Pending\', \'Approved\', \'Auto-Approved\', \'Rejected\')';
             
             if (startDate != null) {
                 query += ' AND wfrecon__Work_Performed_Date__c >= :startDate';
@@ -261,6 +252,238 @@ public with sharing class ApproveShiftEndLogsController {
             delete doc;
         } catch (Exception e) {
             throw new AuraHandledException('Error deleting content document: ' + e.getMessage());
+        }
+    }
+    
+    /**
+     * @description: Process log entry approval with all updates
+     * @param logEntryId: ID of the log entry
+     * @param approvalData: JSON string containing all approval decisions and updates
+     * @param logEntryStatus: Final status for the log entry
+     * @param logEntryUpdates: JSON string containing log entry field updates
+     */
+    @AuraEnabled
+    public static void processLogEntryApproval(Id logEntryId, String approvalData, String logEntryStatus, String logEntryUpdates) {
+        try {
+            // Parse approval data
+            Map<String, Object> approvalMap = (Map<String, Object>) JSON.deserializeUntyped(approvalData);
+            Map<String, Object> logEntryUpdatesMap = (Map<String, Object>) JSON.deserializeUntyped(logEntryUpdates);
+            
+            // Start processing in transaction
+            Savepoint sp = Database.setSavepoint();
+            
+            try {
+                // Process timesheets
+                if (approvalMap.containsKey('timesheets')) {
+                    List<Object> timesheets = (List<Object>) approvalMap.get('timesheets');
+                    processTimesheetApprovals(timesheets);
+                }
+                
+                // Process location processes
+                if (approvalMap.containsKey('locationProcesses')) {
+                    List<Object> locationProcesses = (List<Object>) approvalMap.get('locationProcesses');
+                    processLocationProcessApprovals(locationProcesses, logEntryId);
+                }
+                
+                // Delete removed attachments
+                if (approvalMap.containsKey('removedAttachments')) {
+                    List<Object> removedAttachments = (List<Object>) approvalMap.get('removedAttachments');
+                    deleteAttachments(removedAttachments);
+                }
+                
+                // Update log entry
+                updateLogEntry(logEntryId, logEntryStatus, logEntryUpdatesMap);
+                
+            } catch (Exception ex) {
+                Database.rollback(sp);
+                throw ex;
+            }
+            
+        } catch (Exception e) {
+            throw new AuraHandledException('Error processing log entry approval: ' + e.getMessage() + ' | Stack: ' + e.getStackTraceString());
+        }
+    }
+    
+    /**
+     * @description: Process timesheet approvals and rejections
+     * @param timesheets: List of timesheet approval data
+     */
+    private static void processTimesheetApprovals(List<Object> timesheets) {
+        List<Timesheet_Entry__c> timesheetsToUpdate = new List<Timesheet_Entry__c>();
+        List<Timesheet_Entry_Item__c> itemsToUpdate = new List<Timesheet_Entry_Item__c>();
+        
+        for (Object tsObj : timesheets) {
+            Map<String, Object> tsMap = (Map<String, Object>) tsObj;
+            String tsId = (String) tsMap.get('id');
+            String action = (String) tsMap.get('action');
+            Map<String, Object> fieldUpdates = (Map<String, Object>) tsMap.get('fieldUpdates');
+            
+            // Create timesheet entry record for update
+            Timesheet_Entry__c ts = new Timesheet_Entry__c(Id = tsId);
+            
+            // Apply field updates if approved
+            if (action == 'approved' && fieldUpdates != null && !fieldUpdates.isEmpty()) {
+                applyFieldUpdates(ts, fieldUpdates);
+                ts.Approval_Data__c = null; // Clear approval data after applying
+            }
+            
+            // Set status
+            ts.Status__c = action == 'approved' ? 'Approved' : (action == 'rejected' ? 'Rejected' : 'Pending');
+            timesheetsToUpdate.add(ts);
+            
+            // Process items
+            if (tsMap.containsKey('items')) {
+                List<Object> items = (List<Object>) tsMap.get('items');
+                for (Object itemObj : items) {
+                    Map<String, Object> itemMap = (Map<String, Object>) itemObj;
+                    String itemId = (String) itemMap.get('id');
+                    String itemAction = (String) itemMap.get('action');
+                    Map<String, Object> itemFieldUpdates = (Map<String, Object>) itemMap.get('fieldUpdates');
+                    
+                    Timesheet_Entry_Item__c item = new Timesheet_Entry_Item__c(Id = itemId);
+                    
+                    // Apply field updates if approved
+                    if (itemAction == 'approved' && itemFieldUpdates != null && !itemFieldUpdates.isEmpty()) {
+                        applyFieldUpdates(item, itemFieldUpdates);
+                        item.Approval_Data__c = null; // Clear approval data
+                    }
+                    
+                    // Set status
+                    item.Status__c = itemAction == 'approved' ? 'Approved' : (itemAction == 'rejected' ? 'Rejected' : 'Pending');
+                    itemsToUpdate.add(item);
+                }
+            }
+        }
+        
+        if (!timesheetsToUpdate.isEmpty()) {
+            update timesheetsToUpdate;
+        }
+        
+        if (!itemsToUpdate.isEmpty()) {
+            update itemsToUpdate;
+        }
+    }
+    
+    /**
+     * @description: Process location process approvals
+     * @param locationProcesses: List of location process approval data
+     * @param logEntryId: ID of the log entry for updating Approval_Data__c
+     */
+    private static void processLocationProcessApprovals(List<Object> locationProcesses, Id logEntryId) {
+        List<Location_Process__c> lpsToUpdate = new List<Location_Process__c>();
+        List<Map<String, Object>> approvedLocationData = new List<Map<String, Object>>();
+        
+        for (Object lpObj : locationProcesses) {
+            Map<String, Object> lpMap = (Map<String, Object>) lpObj;
+            String lpId = (String) lpMap.get('id');
+            String action = (String) lpMap.get('action');
+            Decimal newValue = lpMap.get('newValue') != null ? Decimal.valueOf(String.valueOf(lpMap.get('newValue'))) : null;
+            
+            if (action == 'approved' && newValue != null) {
+                // Update location process percentage
+                Location_Process__c lp = new Location_Process__c(
+                    Id = lpId,
+                    Completed_Percentage__c = newValue
+                );
+                lpsToUpdate.add(lp);
+            } else if (action == 'rejected') {
+                // Keep the data in approval queue for rejected items
+                Map<String, Object> rejectedData = new Map<String, Object>();
+                rejectedData.put('id', lpId);
+                rejectedData.put('oldValue', newValue); // Store the rejected value as reference
+                rejectedData.put('status', 'Rejected');
+                approvedLocationData.add(rejectedData);
+            }
+        }
+        
+        if (!lpsToUpdate.isEmpty()) {
+            update lpsToUpdate;
+        }
+        
+        // Update log entry to clear approved location process data
+        wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c(Id = logEntryId);
+        
+        // Only keep rejected location process data in Approval_Data__c
+        if (!approvedLocationData.isEmpty()) {
+            logEntry.wfrecon__Approval_Data__c = JSON.serialize(approvedLocationData);
+        } else {
+            logEntry.wfrecon__Approval_Data__c = null; // Clear if all approved
+        }
+        
+        update logEntry;
+    }
+    
+    /**
+     * @description: Delete removed attachments
+     * @param removedAttachments: List of content document IDs to delete
+     */
+    private static void deleteAttachments(List<Object> removedAttachments) {
+        if (removedAttachments == null || removedAttachments.isEmpty()) {
+            return;
+        }
+        
+        Set<Id> docIds = new Set<Id>();
+        for (Object attachmentId : removedAttachments) {
+            docIds.add((Id) attachmentId);
+        }
+        
+        List<ContentDocument> docsToDelete = [SELECT Id FROM ContentDocument WHERE Id IN :docIds];
+        if (!docsToDelete.isEmpty()) {
+            delete docsToDelete;
+        }
+    }
+    
+    /**
+     * @description: Update log entry with final status and field updates
+     * @param logEntryId: ID of the log entry
+     * @param status: Final status for the log entry
+     * @param fieldUpdates: Map of field updates
+     */
+    private static void updateLogEntry(Id logEntryId, String status, Map<String, Object> fieldUpdates) {
+        wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c(Id = logEntryId);
+        
+        // Set status
+        logEntry.wfrecon__Status__c = status;
+        
+        // Apply field updates
+        if (fieldUpdates.containsKey('workPerformed')) {
+            logEntry.wfrecon__Work_Performed__c = (String) fieldUpdates.get('workPerformed');
+        }
+        if (fieldUpdates.containsKey('planForTomorrow')) {
+            logEntry.wfrecon__Plan_for_Tomorrow__c = (String) fieldUpdates.get('planForTomorrow');
+        }
+        if (fieldUpdates.containsKey('exceptions')) {
+            logEntry.wfrecon__Exceptions__c = (String) fieldUpdates.get('exceptions');
+        }
+        if (fieldUpdates.containsKey('notesToOffice')) {
+            logEntry.wfrecon__Notes_to_Office__c = (String) fieldUpdates.get('notesToOffice');
+        }
+        
+        update logEntry;
+    }
+    
+    /**
+     * @description: Apply field updates to a record
+     * @param record: SObject record to update
+     * @param fieldUpdates: Map of field API names to new values
+     */
+    private static void applyFieldUpdates(SObject record, Map<String, Object> fieldUpdates) {
+        for (String fieldName : fieldUpdates.keySet()) {
+            Object fieldValue = fieldUpdates.get(fieldName);
+            
+            // Handle different field types
+            if (fieldValue == null) {
+                record.put(fieldName, null);
+            } else if (fieldName.contains('Time__c')) {
+                // DateTime fields
+                record.put(fieldName, DateTime.valueOf((String) fieldValue));
+            } else if (fieldValue instanceof Decimal || fieldValue instanceof Integer || fieldValue instanceof Double) {
+                // Numeric fields
+                record.put(fieldName, Decimal.valueOf(String.valueOf(fieldValue)));
+            } else {
+                // String and other fields
+                record.put(fieldName, fieldValue);
+            }
         }
     }
     

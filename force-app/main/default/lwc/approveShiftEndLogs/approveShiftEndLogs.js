@@ -3,6 +3,7 @@ import { NavigationMixin } from 'lightning/navigation';
 import getUnapprovedLogEntries from '@salesforce/apex/ApproveShiftEndLogsController.getUnapprovedLogEntries';
 import getLogEntryDetails from '@salesforce/apex/ApproveShiftEndLogsController.getLogEntryDetails';
 import deleteContentDocument from '@salesforce/apex/ApproveShiftEndLogsController.deleteContentDocument';
+import processLogEntryApproval from '@salesforce/apex/ApproveShiftEndLogsController.processLogEntryApproval';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class ApproveShiftEndLogs extends NavigationMixin(LightningElement) {
@@ -19,6 +20,13 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track activeTab = 'timesheets';
     @track editedFields = {};
     @track editedLocationProcesses = {};
+    
+    // State tracking for approvals and rejections
+    @track timesheetApprovals = {}; // { timesheetId: 'approved' | 'rejected' | 'pending' }
+    @track timesheetItemApprovals = {}; // { itemId: 'approved' | 'rejected' | 'pending' }
+    @track locationProcessApprovals = {}; // { locationProcessId: 'approved' | 'rejected' | 'pending' }
+    @track newAttachments = []; // Array of new file IDs uploaded
+    @track removedAttachments = []; // Array of removed file IDs
 
     @track logColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -240,34 +248,22 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         // Find the slider input element
         const sliderInput = this.template.querySelector(`input.progress-slider[data-id="${processId}"]`);
         if (!sliderInput) {
-            console.log('Slider input not found for processId:', processId);
             return;
         }
         
         const sliderContainer = sliderInput.closest('.slider-wrapper');
         if (!sliderContainer) {
-            console.log('Slider container not found');
             return;
         }
         
         const sliderTrack = sliderContainer.querySelector('.slider-track');
         if (!sliderTrack) {
-            console.log('Slider track not found');
             return;
         }
-        
-        // Query all sections - they should be direct children of slider-track
-        const allSections = sliderTrack.querySelectorAll('.slider-section');
+
         const completedSection = sliderTrack.querySelector('.slider-section.completed');
         const todaySection = sliderTrack.querySelector('.slider-section.today');
         const remainingSection = sliderTrack.querySelector('.slider-section.remaining');
-        
-        console.log('Sections found:', { 
-            total: allSections.length, 
-            completed: !!completedSection, 
-            today: !!todaySection, 
-            remaining: !!remainingSection 
-        });
         
         if (completedSection && todaySection && remainingSection) {
             const todayWidth = Math.max(0, currentPercent - previousPercent);
@@ -327,14 +323,10 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     loadLogEntries() {
         this.isLoading = true;
         getUnapprovedLogEntries({
-            dateFilter: this.selectedDateFilter,
-            statusFilter: this.selectedStatusFilter
+            dateFilter: this.selectedDateFilter
         })
             .then(result => {
-                console.log('getUnapprovedLogEntries result:', result);
-
                 this.logEntriesRaw = result;
-                this.filteredLogEntriesRaw = result;
                 this.applyFilters();
                 this.isLoading = false;
             })
@@ -369,25 +361,32 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleStatusFilterChange(event) {
         this.selectedStatusFilter = event.target.value;
-        this.loadLogEntries();
+        this.applyFilters();
     }
 
     /**
      * Method Name: applyFilters
-     * @description: Method is used to apply search filters
+     * @description: Method is used to apply search and status filters in JavaScript
      */
     applyFilters() {
-        if (!this.searchTerm) {
-            this.filteredLogEntriesRaw = [...this.logEntriesRaw];
-            return;
+        let filtered = [...this.logEntriesRaw];
+        
+        // Apply status filter
+        if (this.selectedStatusFilter && this.selectedStatusFilter !== 'All') {
+            filtered = filtered.filter(log => log.status === this.selectedStatusFilter);
         }
-
-        const searchLower = this.searchTerm.toLowerCase();
-        this.filteredLogEntriesRaw = this.logEntriesRaw.filter(log => {
-            const jobName = (log.jobName || '').toLowerCase();
-            const jobNumber = (log.jobNumber || '').toLowerCase();
-            return jobName.includes(searchLower) || jobNumber.includes(searchLower);
-        });
+        
+        // Apply search filter
+        if (this.searchTerm) {
+            const searchLower = this.searchTerm.toLowerCase();
+            filtered = filtered.filter(log => {
+                const jobName = (log.jobName || '').toLowerCase();
+                const jobNumber = (log.jobNumber || '').toLowerCase();
+                return jobName.includes(searchLower) || jobNumber.includes(searchLower);
+            });
+        }
+        
+        this.filteredLogEntriesRaw = filtered;
     }
 
     /**
@@ -411,7 +410,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         this.isLoading = true;
         getLogEntryDetails({ logEntryId: logId })
             .then(result => {
-                console.log('Log Entry Details:', result);
                 const processedResult = JSON.parse(JSON.stringify(result)); // Deep clone
                 
                 // Process timesheet entries to add formatted fields
@@ -419,6 +417,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                     let serialNumber = 1;
                     processedResult.timesheetEntries.forEach(ts => {
                         ts.serialNumber = serialNumber++;
+                        ts.approvalStatus = this.getTimesheetApprovalStatus(ts.id);
+                        ts.isApproved = ts.approvalStatus === 'approved';
+                        ts.isRejected = ts.approvalStatus === 'rejected';
                         
                         // Process approval fields for timesheet entry
                         if (ts.approvalFields) {
@@ -430,6 +431,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                         // Process items
                         if (ts.items) {
                             ts.items.forEach(item => {
+                                item.approvalStatus = this.getItemApprovalStatus(item.id);
+                                item.isApproved = item.approvalStatus === 'approved';
+                                item.isRejected = item.approvalStatus === 'rejected';
                                 if (item.approvalFields) {
                                     item.approvalFields = item.approvalFields.map(field => {
                                         return this.formatApprovalField(field);
@@ -447,6 +451,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                         lp.currentPercent = parseFloat(lp.newValue);
                         lp.todayPercent = parseFloat((lp.newValue - lp.oldValue).toFixed(1));
                         lp.remainingPercent = parseFloat((100 - lp.newValue).toFixed(1));
+                        lp.approvalStatus = this.getLocationProcessApprovalStatus(lp.id);
+                        lp.isApproved = lp.approvalStatus === 'approved';
+                        lp.isRejected = lp.approvalStatus === 'rejected';
                     });
                 }
                 
@@ -455,6 +462,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                     processedResult.attachments.forEach(attachment => {
                         attachment.downloadUrl = `/sfc/servlet.shepherd/document/download/${attachment.id}`;
                         attachment.name = attachment.title;
+                        attachment.isNewUpload = false; // Mark as existing file (not newly uploaded)
                         if (!attachment.isImage) {
                             attachment.icon = this.getFileIcon(attachment.fileExtension);
                         }
@@ -464,6 +472,11 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 this.logEntryDetails = processedResult;
                 this.editedFields = {};
                 this.editedLocationProcesses = {};
+                this.timesheetApprovals = {};
+                this.timesheetItemApprovals = {};
+                this.locationProcessApprovals = {};
+                this.newAttachments = [];
+                this.removedAttachments = [];
                 this.showModal = true;
                 this.isLoading = false;
             })
@@ -488,6 +501,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             const fileExtension = file.name.split('.').pop();
             const isImage = this.isImageFile(fileExtension);
             
+            // Track new attachment (will be deleted if user cancels)
+            this.newAttachments.push(file.documentId);
+            
             this.logEntryDetails.attachments.push({
                 id: file.documentId,
                 title: file.name,
@@ -495,7 +511,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 isImage: isImage,
                 downloadUrl: `/sfc/servlet.shepherd/document/download/${file.documentId}`,
                 name: file.name,
-                icon: isImage ? null : this.getFileIcon(fileExtension)
+                icon: isImage ? null : this.getFileIcon(fileExtension),
+                isNewUpload: true // Mark as newly uploaded
             });
         });
         
@@ -510,22 +527,20 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const fileId = event.currentTarget.dataset.id;
         
         if (confirm('Are you sure you want to remove this file?')) {
-            this.isLoading = true;
+            const file = this.logEntryDetails.attachments.find(f => f.id === fileId);
             
-            // Call Apex to delete the content document
-            deleteContentDocument({ contentDocumentId: fileId })
-                .then(() => {
-                    // Remove from local array
-                    this.logEntryDetails.attachments = this.logEntryDetails.attachments.filter(file => file.id !== fileId);
-                    this.showToast('Success', 'File removed successfully', 'success');
-                })
-                .catch(error => {
-                    console.error('Error removing file:', error);
-                    this.showToast('Error', 'Failed to remove file: ' + (error.body?.message || error.message), 'error');
-                })
-                .finally(() => {
-                    this.isLoading = false;
-                });
+            // Check if this is a newly uploaded file (not yet in database before modal opened)
+            if (file && file.isNewUpload) {
+                // Remove from newAttachments tracking (no longer need to delete on cancel)
+                this.newAttachments = this.newAttachments.filter(id => id !== fileId);
+            } else {
+                // Existing file - mark for deletion on approval only
+                this.removedAttachments.push(fileId);
+            }
+            
+            // Remove from display
+            this.logEntryDetails.attachments = this.logEntryDetails.attachments.filter(file => file.id !== fileId);
+            this.showToast('Success', 'File marked for removal', 'success');
         }
     }
 
@@ -595,12 +610,22 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Method is used to close the modal
      */
     closeModal() {
+        // Delete newly uploaded files if user cancels (doesn't approve)
+        if (this.newAttachments.length > 0) {
+            this.deleteNewlyUploadedFiles();
+        }
+        
         this.showModal = false;
         this.selectedLog = null;
         this.logEntryDetails = null;
         this.modalNotes = '';
         this.editedFields = {};
         this.editedLocationProcesses = {};
+        this.timesheetApprovals = {};
+        this.timesheetItemApprovals = {};
+        this.locationProcessApprovals = {};
+        this.newAttachments = [];
+        this.removedAttachments = [];
         this.activeTab = 'timesheets';
     }
 
@@ -654,8 +679,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             this.editedFields[recordId] = {};
         }
         this.editedFields[recordId][fieldName] = newValue;
-
-        console.log('Field edited:', { recordId, fieldName, newValue });
+        
+        // Reset approval status to pending when user makes changes
+        this.resetTimesheetToPending(recordId);
     }
 
     /**
@@ -750,8 +776,18 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const newValue = parseFloat(parseFloat(slider.value).toFixed(1));
 
         this.editedLocationProcesses[processId] = newValue;
-
-        console.log('Location slider changed:', { processId, newValue });
+        
+        // Update the location process newValue and currentPercent for backend processing and UI binding
+        const lp = this.logEntryDetails.locationProcesses.find(l => l.id === processId);
+        if (lp) {
+            lp.newValue = newValue;
+            lp.currentPercent = newValue; // Update currentPercent so slider value binding updates
+            lp.todayPercent = parseFloat((newValue - lp.oldValue).toFixed(1));
+            lp.remainingPercent = parseFloat((100 - newValue).toFixed(1));
+        }
+        
+        // Reset approval status to pending when user makes changes
+        this.resetLocationProcessToPending(processId);
         
         // Trigger final visual update
         this.handleSliderInput(event);
@@ -766,8 +802,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const newValue = event.target.value;
 
         this.logEntryDetails[fieldName] = newValue;
-
-        console.log('Log field changed:', { fieldName, newValue });
     }
 
     /**
@@ -776,9 +810,27 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleApproveTimesheet(event) {
         const recordId = event.target.dataset.recordid;
-        console.log('Approving timesheet:', recordId);
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Approve Timesheet - Coming Soon', 'info');
+        this.timesheetApprovals[recordId] = 'approved';
+        
+        // Also approve all items under this timesheet
+        const tsEntry = this.logEntryDetails.timesheetEntries.find(ts => ts.id === recordId);
+        if (tsEntry) {
+            tsEntry.approvalStatus = 'approved';
+            tsEntry.isApproved = true;
+            tsEntry.isRejected = false;
+            if (tsEntry.items) {
+                tsEntry.items.forEach(item => {
+                    this.timesheetItemApprovals[item.id] = 'approved';
+                    item.approvalStatus = 'approved';
+                    item.isApproved = true;
+                    item.isRejected = false;
+                });
+            }
+        }
+        
+        // Trigger reactivity
+        this.logEntryDetails = { ...this.logEntryDetails };
+        this.showToast('Success', 'Timesheet marked for approval', 'success');
     }
 
     /**
@@ -787,9 +839,27 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleRejectTimesheet(event) {
         const recordId = event.target.dataset.recordid;
-        console.log('Rejecting timesheet:', recordId);
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Reject Timesheet - Coming Soon', 'info');
+        this.timesheetApprovals[recordId] = 'rejected';
+        
+        // Also reject all items under this timesheet
+        const tsEntry = this.logEntryDetails.timesheetEntries.find(ts => ts.id === recordId);
+        if (tsEntry) {
+            tsEntry.approvalStatus = 'rejected';
+            tsEntry.isApproved = false;
+            tsEntry.isRejected = true;
+            if (tsEntry.items) {
+                tsEntry.items.forEach(item => {
+                    this.timesheetItemApprovals[item.id] = 'rejected';
+                    item.approvalStatus = 'rejected';
+                    item.isApproved = false;
+                    item.isRejected = true;
+                });
+            }
+        }
+        
+        // Trigger reactivity
+        this.logEntryDetails = { ...this.logEntryDetails };
+        this.showToast('Success', 'Timesheet marked for rejection', 'success');
     }
 
     /**
@@ -798,9 +868,23 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleApproveItem(event) {
         const recordId = event.target.dataset.recordid;
-        console.log('Approving timesheet item:', recordId);
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Approve Item - Coming Soon', 'info');
+        this.timesheetItemApprovals[recordId] = 'approved';
+        
+        // Update UI
+        this.logEntryDetails.timesheetEntries.forEach(ts => {
+            if (ts.items) {
+                const item = ts.items.find(i => i.id === recordId);
+                if (item) {
+                    item.approvalStatus = 'approved';
+                    item.isApproved = true;
+                    item.isRejected = false;
+                }
+            }
+        });
+        
+        // Trigger reactivity
+        this.logEntryDetails = { ...this.logEntryDetails };
+        this.showToast('Success', 'Item marked for approval', 'success');
     }
 
     /**
@@ -809,9 +893,23 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleRejectItem(event) {
         const recordId = event.target.dataset.recordid;
-        console.log('Rejecting timesheet item:', recordId);
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Reject Item - Coming Soon', 'info');
+        this.timesheetItemApprovals[recordId] = 'rejected';
+        
+        // Update UI
+        this.logEntryDetails.timesheetEntries.forEach(ts => {
+            if (ts.items) {
+                const item = ts.items.find(i => i.id === recordId);
+                if (item) {
+                    item.approvalStatus = 'rejected';
+                    item.isApproved = false;
+                    item.isRejected = true;
+                }
+            }
+        });
+        
+        // Trigger reactivity
+        this.logEntryDetails = { ...this.logEntryDetails };
+        this.showToast('Success', 'Item marked for rejection', 'success');
     }
 
     /**
@@ -819,9 +917,28 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Method to approve all timesheets
      */
     handleBulkApproveTimesheets() {
-        console.log('Bulk approving all timesheets');
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Bulk Approve Timesheets - Coming Soon', 'info');
+        if (this.logEntryDetails?.timesheetEntries) {
+            this.logEntryDetails.timesheetEntries.forEach(ts => {
+                this.timesheetApprovals[ts.id] = 'approved';
+                ts.approvalStatus = 'approved';
+                ts.isApproved = true;
+                ts.isRejected = false;
+                
+                // Also approve all items
+                if (ts.items) {
+                    ts.items.forEach(item => {
+                        this.timesheetItemApprovals[item.id] = 'approved';
+                        item.approvalStatus = 'approved';
+                        item.isApproved = true;
+                        item.isRejected = false;
+                    });
+                }
+            });
+            
+            // Trigger reactivity
+            this.logEntryDetails = { ...this.logEntryDetails };
+            this.showToast('Success', 'All timesheets marked for approval', 'success');
+        }
     }
 
     /**
@@ -829,9 +946,28 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Method to reject all timesheets
      */
     handleBulkRejectTimesheets() {
-        console.log('Bulk rejecting all timesheets');
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Bulk Reject Timesheets - Coming Soon', 'info');
+        if (this.logEntryDetails?.timesheetEntries) {
+            this.logEntryDetails.timesheetEntries.forEach(ts => {
+                this.timesheetApprovals[ts.id] = 'rejected';
+                ts.approvalStatus = 'rejected';
+                ts.isApproved = false;
+                ts.isRejected = true;
+                
+                // Also reject all items
+                if (ts.items) {
+                    ts.items.forEach(item => {
+                        this.timesheetItemApprovals[item.id] = 'rejected';
+                        item.approvalStatus = 'rejected';
+                        item.isApproved = false;
+                        item.isRejected = true;
+                    });
+                }
+            });
+            
+            // Trigger reactivity
+            this.logEntryDetails = { ...this.logEntryDetails };
+            this.showToast('Success', 'All timesheets marked for rejection', 'success');
+        }
     }
 
     /**
@@ -840,9 +976,19 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleApproveLocation(event) {
         const recordId = event.target.dataset.recordid;
-        console.log('Approving location process:', recordId);
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Approve Location Process - Coming Soon', 'info');
+        this.locationProcessApprovals[recordId] = 'approved';
+        
+        // Update UI
+        const lp = this.logEntryDetails.locationProcesses.find(l => l.id === recordId);
+        if (lp) {
+            lp.approvalStatus = 'approved';
+            lp.isApproved = true;
+            lp.isRejected = false;
+        }
+        
+        // Trigger reactivity
+        this.logEntryDetails = { ...this.logEntryDetails };
+        this.showToast('Success', 'Location process marked for approval', 'success');
     }
 
     /**
@@ -851,9 +997,19 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleRejectLocation(event) {
         const recordId = event.target.dataset.recordid;
-        console.log('Rejecting location process:', recordId);
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Reject Location Process - Coming Soon', 'info');
+        this.locationProcessApprovals[recordId] = 'rejected';
+        
+        // Update UI
+        const lp = this.logEntryDetails.locationProcesses.find(l => l.id === recordId);
+        if (lp) {
+            lp.approvalStatus = 'rejected';
+            lp.isApproved = false;
+            lp.isRejected = true;
+        }
+        
+        // Trigger reactivity
+        this.logEntryDetails = { ...this.logEntryDetails };
+        this.showToast('Success', 'Location process marked for rejection', 'success');
     }
 
     /**
@@ -861,9 +1017,18 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Method to approve all location processes
      */
     handleBulkApproveLocations() {
-        console.log('Bulk approving all location processes');
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Bulk Approve Locations - Coming Soon', 'info');
+        if (this.logEntryDetails?.locationProcesses) {
+            this.logEntryDetails.locationProcesses.forEach(lp => {
+                this.locationProcessApprovals[lp.id] = 'approved';
+                lp.approvalStatus = 'approved';
+                lp.isApproved = true;
+                lp.isRejected = false;
+            });
+            
+            // Trigger reactivity
+            this.logEntryDetails = { ...this.logEntryDetails };
+            this.showToast('Success', 'All location processes marked for approval', 'success');
+        }
     }
 
     /**
@@ -871,9 +1036,18 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Method to reject all location processes
      */
     handleBulkRejectLocations() {
-        console.log('Bulk rejecting all location processes');
-        // TODO: Implement Apex call
-        this.showToast('Info', 'Bulk Reject Locations - Coming Soon', 'info');
+        if (this.logEntryDetails?.locationProcesses) {
+            this.logEntryDetails.locationProcesses.forEach(lp => {
+                this.locationProcessApprovals[lp.id] = 'rejected';
+                lp.approvalStatus = 'rejected';
+                lp.isApproved = false;
+                lp.isRejected = true;
+            });
+            
+            // Trigger reactivity
+            this.logEntryDetails = { ...this.logEntryDetails };
+            this.showToast('Success', 'All location processes marked for rejection', 'success');
+        }
     }
 
     /**
@@ -881,8 +1055,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Method to add images
      */
     handleAddImages() {
-        console.log('Adding images');
-        // TODO: Implement file upload
         this.showToast('Info', 'Add Images - Coming Soon', 'info');
     }
 
@@ -892,32 +1064,221 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     handleDeleteAttachment(event) {
         const attachmentId = event.target.dataset.attachmentid;
-        console.log('Deleting attachment:', attachmentId);
-        // TODO: Implement delete
         this.showToast('Info', 'Delete Attachment - Coming Soon', 'info');
     }
 
     /**
-     * Method Name: handleApproveLogEntry
-     * @description: Method to approve entire log entry
+     * Method Name: handleSaveChanges
+     * @description: Method to save all changes with validation and processing
      */
-    handleApproveLogEntry() {
-        console.log('Approving log entry:', this.logEntryDetails.Id);
-        console.log('Edited fields:', this.editedFields);
-        console.log('Edited locations:', this.editedLocationProcesses);
-        console.log('Log entry details:', this.logEntryDetails);
-        // TODO: Implement Apex call to approve entire log entry
-        this.showToast('Info', 'Approve Log Entry - Coming Soon', 'info');
+    handleSaveChanges() {
+        // Validate that all items have been reviewed (approved or rejected)
+        const validationResult = this.validateApprovalState();
+        
+        if (!validationResult.isValid) {
+            this.showToast('Error', validationResult.message, 'error');
+            return;
+        }
+        
+        // Prepare approval data
+        const approvalData = this.prepareApprovalData();
+        
+        // Determine log entry status based on approvals/rejections
+        const logEntryStatus = this.determineLogEntryStatus(approvalData);
+        
+        if (logEntryStatus === 'Rejected' && !confirm('All items are rejected. This will mark the entire log entry as Rejected. Continue?')) {
+            return;
+        }
+        
+        // Call Apex to process the approval
+        this.isLoading = true;
+        processLogEntryApproval({
+            logEntryId: this.logEntryDetails.Id,
+            approvalData: JSON.stringify(approvalData),
+            logEntryStatus: logEntryStatus,
+            logEntryUpdates: JSON.stringify({
+                workPerformed: this.logEntryDetails.workPerformed,
+                planForTomorrow: this.logEntryDetails.planForTomorrow,
+                exceptions: this.logEntryDetails.exceptions,
+                notesToOffice: this.logEntryDetails.notesToOffice
+            })
+        })
+            .then(() => {
+                this.showToast('Success', 'Changes saved successfully', 'success');
+                // Clear newAttachments since they're now permanent (saved)
+                this.newAttachments = [];
+                this.closeModal();
+                this.loadLogEntries(); // Refresh the list
+            })
+            .catch(error => {
+                console.error('Error saving changes:', error);
+                this.showToast('Error', 'Failed to save changes: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+    
+    /**
+     * Method Name: validateApprovalState
+     * @description: Validate that all items have been reviewed before approval
+     */
+    validateApprovalState() {
+        const result = { isValid: true, message: '' };
+        const pendingItems = [];
+        
+        // Check timesheets
+        if (this.logEntryDetails?.timesheetEntries) {
+            this.logEntryDetails.timesheetEntries.forEach(ts => {
+                if (!this.timesheetApprovals[ts.id]) {
+                    pendingItems.push(`Timesheet: ${ts.memberName}`);
+                }
+            });
+        }
+        
+        // Check location processes
+        if (this.logEntryDetails?.locationProcesses) {
+            this.logEntryDetails.locationProcesses.forEach(lp => {
+                if (!this.locationProcessApprovals[lp.id]) {
+                    pendingItems.push(`Location Process: ${lp.name}`);
+                }
+            });
+        }
+        
+        if (pendingItems.length > 0) {
+            result.isValid = false;
+            result.message = 'Please approve or reject all items before saving. Pending items: ' + pendingItems.join(', ');
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Method Name: prepareApprovalData
+     * @description: Prepare all approval data for backend processing
+     */
+    prepareApprovalData() {
+        const data = {
+            timesheets: [],
+            locationProcesses: [],
+            removedAttachments: this.removedAttachments
+        };
+        
+        // Process timesheet approvals
+        if (this.logEntryDetails?.timesheetEntries) {
+            this.logEntryDetails.timesheetEntries.forEach(ts => {
+                const tsData = {
+                    id: ts.id,
+                    action: this.timesheetApprovals[ts.id] || 'pending',
+                    fieldUpdates: {},
+                    items: []
+                };
+                
+                // Collect field updates for this timesheet
+                if (this.editedFields[ts.id]) {
+                    tsData.fieldUpdates = this.editedFields[ts.id];
+                }
+                
+                // Process timesheet items
+                if (ts.items) {
+                    ts.items.forEach(item => {
+                        const itemData = {
+                            id: item.id,
+                            action: this.timesheetItemApprovals[item.id] || this.timesheetApprovals[ts.id] || 'pending',
+                            fieldUpdates: {}
+                        };
+                        
+                        // Collect field updates for this item
+                        if (this.editedFields[item.id]) {
+                            itemData.fieldUpdates = this.editedFields[item.id];
+                        }
+                        
+                        tsData.items.push(itemData);
+                    });
+                }
+                
+                data.timesheets.push(tsData);
+            });
+        }
+        
+        // Process location process approvals
+        if (this.logEntryDetails?.locationProcesses) {
+            this.logEntryDetails.locationProcesses.forEach(lp => {
+                const lpData = {
+                    id: lp.id,
+                    action: this.locationProcessApprovals[lp.id] || 'pending',
+                    newValue: this.editedLocationProcesses[lp.id] !== undefined ? 
+                              this.editedLocationProcesses[lp.id] : lp.currentPercent
+                };
+                
+                data.locationProcesses.push(lpData);
+            });
+        }
+        
+        return data;
+    }
+    
+    /**
+     * Method Name: determineLogEntryStatus
+     * @description: Determine log entry status based on approval decisions
+     */
+    determineLogEntryStatus(approvalData) {
+        let hasApproved = false;
+        let hasRejected = false;
+        let allRejected = true;
+        
+        // Check timesheets
+        approvalData.timesheets.forEach(ts => {
+            if (ts.action === 'approved') {
+                hasApproved = true;
+                allRejected = false;
+            } else if (ts.action === 'rejected') {
+                hasRejected = true;
+            }
+        });
+        
+        // Check location processes
+        approvalData.locationProcesses.forEach(lp => {
+            if (lp.action === 'approved') {
+                hasApproved = true;
+                allRejected = false;
+            } else if (lp.action === 'rejected') {
+                hasRejected = true;
+            }
+        });
+        
+        // Determine final status
+        if (allRejected && hasRejected) {
+            return 'Rejected';
+        } else if (hasApproved) {
+            return 'Approved'; // Approved if at least one item is approved
+        }
+        
+        return 'Pending';
     }
 
     /**
-     * Method Name: handleRejectLogEntry
-     * @description: Method to reject entire log entry
+     * Method Name: handleCancelChanges
+     * @description: Method to cancel and revert all changes
      */
-    handleRejectLogEntry() {
-        console.log('Rejecting log entry:', this.logEntryDetails.Id);
-        // TODO: Implement Apex call to reject entire log entry
-        this.showToast('Info', 'Reject Log Entry - Coming Soon', 'info');
+    handleCancelChanges() {
+        // Delete any newly uploaded files that haven't been saved
+        if (this.newAttachments && this.newAttachments.length > 0) {
+            const documentIds = this.newAttachments.map(att => att.documentId).filter(id => id);
+            
+            if (documentIds.length > 0) {
+                deleteFiles({ documentIds: documentIds })
+                    .then(() => {
+                        console.log('Temporary files cleaned up');
+                    })
+                    .catch(error => {
+                        console.error('Error cleaning up temporary files:', error);
+                    });
+            }
+        }
+        
+        // Close modal without saving
+        this.closeModal();
     }
 
     /**
@@ -995,5 +1356,106 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             'Premium__c': 'Premium'
         };
         return labelMap[apiName] || apiName;
+    }
+    
+    /**
+     * Method Name: resetTimesheetToPending
+     * @description: Reset timesheet and its items to pending when user makes changes
+     */
+    resetTimesheetToPending(recordId) {
+        // Find if this is a timesheet entry or item
+        this.logEntryDetails.timesheetEntries.forEach(ts => {
+            if (ts.id === recordId) {
+                // Reset timesheet
+                this.timesheetApprovals[ts.id] = 'pending';
+                ts.approvalStatus = 'pending';
+                ts.isApproved = false;
+                ts.isRejected = false;
+            }
+            
+            // Check items
+            if (ts.items) {
+                ts.items.forEach(item => {
+                    if (item.id === recordId) {
+                        // Reset item
+                        this.timesheetItemApprovals[item.id] = 'pending';
+                        item.approvalStatus = 'pending';
+                        item.isApproved = false;
+                        item.isRejected = false;
+                    }
+                });
+            }
+        });
+        
+        // Trigger reactivity
+        this.logEntryDetails = { ...this.logEntryDetails };
+    }
+    
+    /**
+     * Method Name: resetLocationProcessToPending
+     * @description: Reset location process to pending when user makes changes
+     */
+    resetLocationProcessToPending(processId) {
+        const lp = this.logEntryDetails.locationProcesses.find(l => l.id === processId);
+        if (lp) {
+            this.locationProcessApprovals[processId] = 'pending';
+            lp.approvalStatus = 'pending';
+            lp.isApproved = false;
+            lp.isRejected = false;
+            
+            // Trigger reactivity
+            this.logEntryDetails = { ...this.logEntryDetails };
+        }
+    }
+    
+    /**
+     * Method Name: getTimesheetApprovalStatus
+     * @description: Get approval status for a timesheet
+     */
+    getTimesheetApprovalStatus(timesheetId) {
+        return this.timesheetApprovals[timesheetId] || 'pending';
+    }
+    
+    /**
+     * Method Name: getItemApprovalStatus
+     * @description: Get approval status for a timesheet item
+     */
+    getItemApprovalStatus(itemId) {
+        return this.timesheetItemApprovals[itemId] || 'pending';
+    }
+    
+    /**
+     * Method Name: getLocationProcessApprovalStatus
+     * @description: Get approval status for a location process
+     */
+    getLocationProcessApprovalStatus(processId) {
+        return this.locationProcessApprovals[processId] || 'pending';
+    }
+    
+    /**
+     * Method Name: deleteNewlyUploadedFiles
+     * @description: Delete files that were uploaded during this session but not approved
+     */
+    deleteNewlyUploadedFiles() {
+        if (!this.newAttachments || this.newAttachments.length === 0) {
+            return;
+        }
+        
+        // Delete each newly uploaded file
+        const deletePromises = this.newAttachments.map(fileId => 
+            deleteContentDocument({ contentDocumentId: fileId })
+                .catch(error => {
+                    console.error('Error deleting newly uploaded file:', error);
+                    // Continue with other deletions even if one fails
+                })
+        );
+        
+        Promise.all(deletePromises)
+            .then(() => {
+                console.log('Cleaned up newly uploaded files');
+            })
+            .catch(error => {
+                console.error('Error cleaning up files:', error);
+            });
     }
 }

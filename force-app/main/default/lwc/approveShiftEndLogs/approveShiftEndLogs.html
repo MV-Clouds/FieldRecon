@@ -213,6 +213,9 @@
                                                                                 <div class="contact-name-cell">
                                                                                     <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
                                                                                     <span>{ts.memberName}</span>
+                                                                                    <span class="status-badge" data-status={ts.approvalStatus}>
+                                                                                        {ts.approvalStatus}
+                                                                                    </span>
                                                                                 </div>
                                                                             </template>
                                                                         </td>
@@ -258,18 +261,22 @@
                                                                             <template if:true={idx}></template>
                                                                             <template if:false={idx}>
                                                                                 <div class="action-buttons">
-                                                                                    <button class="approve-btn-small" 
-                                                                                        data-recordid={ts.id}
-                                                                                        onclick={handleApproveTimesheet}
-                                                                                        title="Approve">
-                                                                                        ✓
-                                                                                    </button>
-                                                                                    <button class="reject-btn-small" 
-                                                                                        data-recordid={ts.id}
-                                                                                        onclick={handleRejectTimesheet}
-                                                                                        title="Reject">
-                                                                                        ✗
-                                                                                    </button>
+                                                                                    <template if:false={ts.isApproved}>
+                                                                                        <button class="approve-btn-small" 
+                                                                                            data-recordid={ts.id}
+                                                                                            onclick={handleApproveTimesheet}
+                                                                                            title="Approve">
+                                                                                            ✓
+                                                                                        </button>
+                                                                                    </template>
+                                                                                    <template if:false={ts.isRejected}>
+                                                                                        <button class="reject-btn-small" 
+                                                                                            data-recordid={ts.id}
+                                                                                            onclick={handleRejectTimesheet}
+                                                                                            title="Reject">
+                                                                                            ✗
+                                                                                        </button>
+                                                                                    </template>
                                                                                 </div>
                                                                             </template>
                                                                         </td>
@@ -301,7 +308,7 @@
                                         
                                         <!-- Location Process Sliders -->
                                         <template for:each={logEntryDetails.locationProcesses} for:item="lp">
-                                            <div key={lp.id} class="location-slider-container">
+                                            <div key={lp.id} class="location-slider-container" data-status={lp.approvalStatus}>
                                                 <div class="slider-header">
                                                     <div class="process-info">
                                                         <span class="process-name">{lp.name}</span>
@@ -311,6 +318,9 @@
                                                                 <polyline points="12 6 12 12 16 14"></polyline>
                                                             </svg>
                                                             Pending Approval ({lp.oldValue}% → {lp.newValue}%)
+                                                        </span>
+                                                        <span class="status-badge" data-status={lp.approvalStatus}>
+                                                            {lp.approvalStatus}
                                                         </span>
                                                     </div>
                                                     <span class="progress-percentage">{lp.currentPercent}% Complete</span>
@@ -358,16 +368,20 @@
                                                 </div>
                                                 
                                                 <div class="location-actions">
-                                                    <button class="approve-btn" 
-                                                        data-recordid={lp.id}
-                                                        onclick={handleApproveLocation}>
-                                                        Approve Process
-                                                    </button>
-                                                    <button class="reject-btn" 
-                                                        data-recordid={lp.id}
-                                                        onclick={handleRejectLocation}>
-                                                        Reject Process
-                                                    </button>
+                                                    <template if:false={lp.isApproved}>
+                                                        <button class="approve-btn" 
+                                                            data-recordid={lp.id}
+                                                            onclick={handleApproveLocation}>
+                                                            Approve Process
+                                                        </button>
+                                                    </template>
+                                                    <template if:false={lp.isRejected}>
+                                                        <button class="reject-btn" 
+                                                            data-recordid={lp.id}
+                                                            onclick={handleRejectLocation}>
+                                                            Reject Process
+                                                        </button>
+                                                    </template>
                                                 </div>
                                             </div>
                                         </template>
@@ -419,7 +433,7 @@
                                             label="Upload Files" 
                                             accept={acceptedFormats} 
                                             multiple
-                                            record-id={logEntryDetails.id}
+                                            record-id={logEntryDetails.Id}
                                             onuploadfinished={handleUploadFinished}>
                                         </lightning-file-upload>
                                     </div>
@@ -478,9 +492,8 @@
                     </template>
                 </div>
                 <div class="popUpFooter">
-                    <button class="cancel-button" onclick={closeModal}>Cancel</button>
-                    <button class="reject-button" onclick={handleRejectLogEntry}>Reject Log Entry</button>
-                    <button class="approve-button" onclick={handleApproveLogEntry}>Approve Log Entry</button>
+                    <button class="cancel-button" onclick={handleCancelChanges}>Cancel</button>
+                    <button class="approve-button" onclick={handleSaveChanges}>Save</button>
                 </div>
             </div>
         </section>
