@@ -1,18 +1,45 @@
 <template>
     <template if:true={isLoading}>
-        <div class="spinner-container">
-            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
-        </div>
+        <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
     </template>
 
     <div class="wrapper">
         <div class="filter-bar">
             <div class="search-div">
-                <lightning-input type="search" variant="label-hidden" placeholder="Search by Job Name or Number" onchange={handleSearch} value={searchTerm}></lightning-input>
+                <lightning-input type="search" variant="label-hidden" placeholder="Search by Job Name or Number"
+                    onchange={handleSearch} value={searchTerm}></lightning-input>
+            </div>
+
+            <div class="status-counter-section">
+                <div class="counter-card total">
+                    <div class="counter-label">Total</div>
+                    <div class="counter-value">{totalCount}</div>
+                </div>
+                <div class="counter-card pending">
+                    <div class="counter-label">Pending</div>
+                    <div class="counter-value">{pendingCount}</div>
+                </div>
+                <div class="counter-card approved">
+                    <div class="counter-label">Approved</div>
+                    <div class="counter-value">{approvedCount}</div>
+                </div>
+                <div class="counter-card auto-approved">
+                    <div class="counter-label">Auto-Approved</div>
+                    <div class="counter-value">{autoApprovedCount}</div>
+                </div>
+                <div class="counter-card rejected">
+                    <div class="counter-label">Rejected</div>
+                    <div class="counter-value">{rejectedCount}</div>
+                </div>
             </div>
 
             <div class="date-filter-dropdown">
-                <lightning-combobox name="dateFilter" label="Date Filter" value={selectedDateFilter} placeholder="Select Date Range" options={dateFilterOptions} onchange={handleDateFilterChange} variant="label-hidden"></lightning-combobox>
+                <lightning-combobox class="slds-var-m-left_medium" name="statusFilter" label="Status Filter"
+                    value={selectedStatusFilter} placeholder="Select Status" options={statusFilterOptions}
+                    onchange={handleStatusFilterChange} variant="label-hidden"></lightning-combobox>
+                <lightning-combobox name="dateFilter" label="Date Filter" value={selectedDateFilter}
+                    placeholder="Select Date Range" options={dateFilterOptions} onchange={handleDateFilterChange}
+                    variant="label-hidden"></lightning-combobox>
             </div>
         </div>
 
@@ -36,9 +63,18 @@
                                         <div class="slds-truncate cell-wrapper" title={val.value}>
                                             <template if:true={val.isActions}>
                                                 <div class="action-button-container">
-                                                    <button class="approve-icon" title="Approve" data-logid={log.Id} data-action="approve" onclick={handleActionClick}>
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <button class="edit-icon" title="Edit/Review" data-logid={log.Id}
+                                                        data-action="edit" onclick={handleActionClick}>
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                            xmlns="http://www.w3.org/2000/svg">
+                                                            <path
+                                                                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                                                stroke="currentColor" stroke-width="2"
+                                                                stroke-linecap="round" stroke-linejoin="round" />
+                                                            <path
+                                                                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                                                stroke="currentColor" stroke-width="2"
+                                                                stroke-linecap="round" stroke-linejoin="round" />
                                                         </svg>
                                                     </button>
                                                 </div>
@@ -46,7 +82,8 @@
 
                                             <template if:false={val.isActions}>
                                                 <template if:true={val.recordLink}>
-                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={log.jobId}>
+                                                    <a class="record-link" href="javascript:void(0);"
+                                                        onclick={handleLinkClick} data-link={log.jobId}>
                                                         <div class="cell-content" title={val.value}>
                                                             {val.value}
                                                         </div>
@@ -67,7 +104,7 @@
                 </table>
             </div>
         </template>
-        
+
         <template if:false={logEntries.length}>
             <div class="no-records-message">
                 <div class="empty-state">
@@ -75,10 +112,378 @@
                         <div class="empty-state__icon">
                             <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                         </div>
-                        <div class="empty-state__message">No unapproved log entries available</div>
+                        <div class="empty-state__message">No log entries available</div>
                     </div>
                 </div>
             </div>
         </template>
     </div>
+
+    <!-- Edit/Approve/Reject Modal -->
+    <template if:true={showModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+            aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_full">
+            <div class="slds-modal__container shiftEndLogEntries-modal-container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
+                    onclick={closeModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Review Log Entry - {logEntryDetails.entryNumber}</div>
+                <!-- <div class="log-header-info">
+                    <div class="header-row">
+                        <div class="header-item">
+                            <span class="header-label">Job:</span>
+                            <span class="header-value">{logEntryDetails.jobNumber} -
+                                {logEntryDetails.jobName}</span>
+                        </div>
+                        <div class="header-item">
+                            <span class="header-label">Submitted By:</span>
+                            <span class="header-value">{logEntryDetails.submittedBy}</span>
+                        </div>
+                        <div class="header-item">
+                            <span class="header-label">Date:</span>
+                            <span class="header-value">{logEntryDetails.submittedDate}</span>
+                        </div>
+                        <div class="header-item">
+                            <span class="header-label">Status:</span>
+                            <span class="header-value">{logEntryDetails.status}</span>
+                        </div>
+                    </div>
+                </div> -->
+                <div class="slds-modal__content pop-up">
+                    <template if:true={logEntryDetails}>
+                        <!-- Custom Tab Navigation -->
+                        <div class="tab-container">
+                            <div class="tab-navigation">
+                                <button class={timesheetsTabClass} data-tab="timesheets" onclick={handleTabClick}>
+                                    Timesheet Entries
+                                </button>
+                                <button class={locationsTabClass} data-tab="locations" onclick={handleTabClick}>
+                                    Location Processes
+                                </button>
+                                <button class={detailsTabClass} data-tab="details" onclick={handleTabClick}>
+                                    Log Entry Details
+                                </button>
+                                <button class={galleryTabClass} data-tab="gallery" onclick={handleTabClick}>
+                                    Gallery
+                                </button>
+                            </div>
+
+                            <!-- Tab 1: Timesheet Entries -->
+                            <template if:true={isTimesheetsTab}>
+                                <div class="tab-content">
+                                    <template if:true={logEntryDetails.timesheetEntries.length}>
+                                        <div class="bulk-actions">
+                                            <button class="bulk-approve-btn"
+                                                onclick={handleBulkApproveTimesheets}>Approve All Timesheets</button>
+                                            <button class="bulk-reject-btn" onclick={handleBulkRejectTimesheets}>Reject
+                                                All Timesheets</button>
+                                        </div>
+                                        
+                                        <!-- Timesheet Table -->
+                                        <div class="timesheet-table-wrapper">
+                                            <table class="timesheet-entries-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 4rem; text-align: center;">Sr.</th>
+                                                        <th style="width: 14rem; text-align: left;">Contact Name</th>
+                                                        <th style="width: 10rem; text-align: left;">Field</th>
+                                                        <th style="width: 13rem; text-align: left;">Old Value</th>
+                                                        <th style="width: 13rem; text-align: left;">New Value</th>
+                                                        <th style="width: 8rem; text-align: center;">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                            </table>
+                                            <div class="timesheet-table-body">
+                                                <table class="timesheet-entries-table">
+                                                    <tbody>
+                                                        <template for:each={logEntryDetails.timesheetEntries} for:item="ts">
+                                                            <!-- Timesheet Entry level changes only (no items) -->
+                                                            <template if:true={ts.approvalFields.length}>
+                                                                <template for:each={ts.approvalFields} for:item="field" for:index="idx">
+                                                                    <tr key={field.fieldApiName}>
+                                                                        <td style="width: 4rem; text-align: center;">
+                                                                            <template if:true={idx}></template>
+                                                                            <template if:false={idx}>{ts.serialNumber}</template>
+                                                                        </td>
+                                                                        <td style="width: 14rem; text-align: left;">
+                                                                            <template if:true={idx}></template>
+                                                                            <template if:false={idx}>
+                                                                                <div class="contact-name-cell">
+                                                                                    <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
+                                                                                    <span>{ts.memberName}</span>
+                                                                                </div>
+                                                                            </template>
+                                                                        </td>
+                                                                        <td style="width: 10rem; text-align: left;" class="field-label-cell">
+                                                                            {field.fieldLabel}
+                                                                        </td>
+                                                                        <td style="width: 13rem; text-align: left;" class="old-value-cell">
+                                                                            {field.oldValueFormatted}
+                                                                        </td>
+                                                                        <td style="width: 13rem; text-align: left;" class="new-value-cell">
+                                                                            <template if:true={field.isDateTime}>
+                                                                                <input 
+                                                                                    type="datetime-local"
+                                                                                    class="custom-datetime"
+                                                                                    value={field.newValueForInput}
+                                                                                    data-recordid={field.recordId}
+                                                                                    data-fieldname={field.fieldApiName}
+                                                                                    onchange={handleFieldEdit}>
+                                                                            </template>
+                                                                            <template if:true={field.isNumber}>
+                                                                                <input 
+                                                                                    type="number"
+                                                                                    class="custom-datetime"
+                                                                                    value={field.newValue}
+                                                                                    data-recordid={field.recordId}
+                                                                                    data-fieldname={field.fieldApiName}
+                                                                                    onchange={handleFieldEdit}
+                                                                                    step="0.01">
+                                                                            </template>
+                                                                            <template if:false={field.isDateTime}>
+                                                                                <template if:false={field.isNumber}>
+                                                                                    <input 
+                                                                                        type="text"
+                                                                                        class="custom-datetime"
+                                                                                        value={field.newValue}
+                                                                                        data-recordid={field.recordId}
+                                                                                        data-fieldname={field.fieldApiName}
+                                                                                        onchange={handleFieldEdit}>
+                                                                                </template>
+                                                                            </template>
+                                                                        </td>
+                                                                        <td style="width: 8rem; text-align: center;" class="actions-cell">
+                                                                            <template if:true={idx}></template>
+                                                                            <template if:false={idx}>
+                                                                                <div class="action-buttons">
+                                                                                    <button class="approve-btn-small" 
+                                                                                        data-recordid={ts.id}
+                                                                                        onclick={handleApproveTimesheet}
+                                                                                        title="Approve">
+                                                                                        ✓
+                                                                                    </button>
+                                                                                    <button class="reject-btn-small" 
+                                                                                        data-recordid={ts.id}
+                                                                                        onclick={handleRejectTimesheet}
+                                                                                        title="Reject">
+                                                                                        ✗
+                                                                                    </button>
+                                                                                </div>
+                                                                            </template>
+                                                                        </td>
+                                                                    </tr>
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template if:false={logEntryDetails.timesheetEntries.length}>
+                                        <div class="empty-message">No timesheet entries found</div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Tab 2: Location Processes -->
+                            <template if:true={isLocationsTab}>
+                                <div class="tab-content">
+                                    <template if:true={logEntryDetails.locationProcesses.length}>
+                                        <div class="bulk-actions">
+                                            <button class="bulk-approve-btn"
+                                                onclick={handleBulkApproveLocations}>Approve All Processes</button>
+                                            <button class="bulk-reject-btn" onclick={handleBulkRejectLocations}>Reject
+                                                All Processes</button>
+                                        </div>
+                                        
+                                        <!-- Location Process Sliders -->
+                                        <template for:each={logEntryDetails.locationProcesses} for:item="lp">
+                                            <div key={lp.id} class="location-slider-container">
+                                                <div class="slider-header">
+                                                    <div class="process-info">
+                                                        <span class="process-name">{lp.name}</span>
+                                                        <span class="process-approval-badge">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <circle cx="12" cy="12" r="10"></circle>
+                                                                <polyline points="12 6 12 12 16 14"></polyline>
+                                                            </svg>
+                                                            Pending Approval ({lp.oldValue}% → {lp.newValue}%)
+                                                        </span>
+                                                    </div>
+                                                    <span class="progress-percentage">{lp.currentPercent}% Complete</span>
+                                                </div>
+                                                
+                                                <div class="slider-wrapper">
+                                                    <div class="slider-track">
+                                                        <div class="slider-section completed" data-processid={lp.id} lwc:dom="manual"></div>
+                                                        <div class="slider-section today" data-processid={lp.id} lwc:dom="manual"></div>
+                                                        <div class="slider-section remaining" data-processid={lp.id} lwc:dom="manual"></div>
+                                                    </div>
+                                                    <input 
+                                                        type="range" 
+                                                        class="progress-slider"
+                                                        min={lp.oldValue}
+                                                        max="100"
+                                                        value={lp.currentPercent}
+                                                        step="1"
+                                                        data-id={lp.id}
+                                                        data-process-id={lp.id}
+                                                        data-original-value={lp.oldValue}
+                                                        oninput={handleSliderInput}
+                                                        onchange={handleSliderChange}>
+                                                </div>
+                                                
+                                                <div class="slider-labels">
+                                                    <span class="label-completed">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="12" r="10" />
+                                                        </svg>
+                                                        Completed: {lp.oldValue}%
+                                                    </span>
+                                                    <span class="label-today">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="12" r="10" />
+                                                        </svg>
+                                                        Today: {lp.todayPercent}%
+                                                    </span>
+                                                    <span class="label-remaining">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="12" r="10" />
+                                                        </svg>
+                                                        Remaining: {lp.remainingPercent}%
+                                                    </span>
+                                                </div>
+                                                
+                                                <div class="location-actions">
+                                                    <button class="approve-btn" 
+                                                        data-recordid={lp.id}
+                                                        onclick={handleApproveLocation}>
+                                                        Approve Process
+                                                    </button>
+                                                    <button class="reject-btn" 
+                                                        data-recordid={lp.id}
+                                                        onclick={handleRejectLocation}>
+                                                        Reject Process
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <template if:false={logEntryDetails.locationProcesses.length}>
+                                        <div class="empty-message">No location process changes found</div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Tab 3: Log Entry Details -->
+                            <template if:true={isDetailsTab}>
+                                <div class="tab-content">
+                                    <div class="log-details-form">
+                                        <div class="form-field">
+                                            <label class="field-label">Work Performed</label>
+                                            <lightning-textarea variant="label-hidden"
+                                                value={logEntryDetails.workPerformed} data-field="workPerformed"
+                                                onchange={handleLogFieldChange} rows="4"></lightning-textarea>
+                                        </div>
+                                        <div class="form-field">
+                                            <label class="field-label">Plan for Tomorrow</label>
+                                            <lightning-textarea variant="label-hidden"
+                                                value={logEntryDetails.planForTomorrow} data-field="planForTomorrow"
+                                                onchange={handleLogFieldChange} rows="4"></lightning-textarea>
+                                        </div>
+                                        <div class="form-field">
+                                            <label class="field-label">Exceptions</label>
+                                            <lightning-textarea variant="label-hidden"
+                                                value={logEntryDetails.exceptions} data-field="exceptions"
+                                                onchange={handleLogFieldChange} rows="4"></lightning-textarea>
+                                        </div>
+                                        <div class="form-field">
+                                            <label class="field-label">Notes to Office</label>
+                                            <lightning-textarea variant="label-hidden"
+                                                value={logEntryDetails.notesToOffice} data-field="notesToOffice"
+                                                onchange={handleLogFieldChange} rows="4"></lightning-textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Tab 4: Gallery -->
+                            <template if:true={isGalleryTab}>
+                                <div class="tab-content gallery-section">
+                                    <!-- File Upload Section -->
+                                    <div class="upload-actions">
+                                        <lightning-file-upload 
+                                            label="Upload Files" 
+                                            accept={acceptedFormats} 
+                                            multiple
+                                            record-id={logEntryDetails.id}
+                                            onuploadfinished={handleUploadFinished}>
+                                        </lightning-file-upload>
+                                    </div>
+
+                                    <!-- Empty State when no files -->
+                                    <template if:false={hasAttachments}>
+                                        <div class="gallery-empty-state">
+                                            <div class="no-data-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                                </svg>
+                                            </div>
+                                            <h3 class="no-data-title">No Files Uploaded</h3>
+                                            <p class="no-data-description">Upload photos or documents to add them to this shift log entry.</p>
+                                        </div>
+                                    </template>
+
+                                    <!-- File Preview Grid -->
+                                    <template if:true={hasAttachments}>
+                                        <div class="file-preview-grid">
+                                            <template for:each={logEntryDetails.attachments} for:item="file">
+                                                <div key={file.id} class="file-preview-item">
+                                                    <!-- Image Preview -->
+                                                    <template if:true={file.isImage}>
+                                                        <img src={file.downloadUrl} alt={file.title} class="file-preview-thumbnail">
+                                                    </template>
+
+                                                    <!-- Document/File Icon Preview -->
+                                                    <template if:false={file.isImage}>
+                                                        <div class="file-icon-container">
+                                                            <lightning-icon icon-name={file.icon} size="large"></lightning-icon>
+                                                        </div>
+                                                    </template>
+
+                                                    <!-- Remove Button -->
+                                                    <button class="remove-file-btn" data-id={file.id} onclick={handleRemoveFile}
+                                                        title="Remove file">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                        </svg>
+                                                    </button>
+
+                                                    <div class="file-preview-name">{file.title}</div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+                <div class="popUpFooter">
+                    <button class="cancel-button" onclick={closeModal}>Cancel</button>
+                    <button class="reject-button" onclick={handleRejectLogEntry}>Reject Log Entry</button>
+                    <button class="approve-button" onclick={handleApproveLogEntry}>Approve Log Entry</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop" role="presentation"></div>
+    </template>
 </template>
