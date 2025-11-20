@@ -1,0 +1,53 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container slds-is-fixed">
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="main-card">
+        <!-- Header Section -->
+        <div class="header-section">
+            <h2 class="header-title">Shift End Log Approver Assignment</h2>
+            <p class="header-subtitle">Select users who can approve shift end logs</p>
+        </div>
+
+        <!-- Dual Listbox Container -->
+        <div class="dual-listbox-wrapper">
+            <lightning-dual-listbox
+                name="approvers"
+                label="Manage Approvers"
+                source-label="Available Users"
+                selected-label="Selected Approvers"
+                options={availableOptions}
+                value={selectedValues}
+                onchange={handleSelectionChange}
+                class="custom-dual-listbox">
+            </lightning-dual-listbox>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons-container">
+            <button 
+                class="action-button cancel-button"
+                onclick={handleCancel}
+                disabled={isButtonsDisabled}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Cancel
+            </button>
+            <button 
+                class="action-button save-button"
+                onclick={handleSave}
+                disabled={isButtonsDisabled}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Save Changes
+            </button>
+        </div>
+    </div>
+</template>

@@ -5,6 +5,7 @@ import getMobilizationMembersWithStatus from '@salesforce/apex/ShiftEndLogEntrie
 import createTimesheetRecords from '@salesforce/apex/ShiftEndLogEntriesController.createTimesheetRecords';
 import getTimeSheetEntryItems from '@salesforce/apex/ShiftEndLogEntriesController.getTimeSheetEntryItems';
 import updateTimesheets from '@salesforce/apex/ShiftEndLogEntriesController.updateTimesheets';
+import moveTimesheetBackToRegular from '@salesforce/apex/ShiftEndLogEntriesController.moveTimesheetBackToRegular';
 import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
@@ -51,6 +52,10 @@ export default class ShiftEndLogEntries extends LightningElement {
     // Edit Timesheet Modal
     @track showEditTimesheetModal = false;
     @track editTimesheetData = {};
+
+    // Move Back Modal
+    @track showMoveBackModal = false;
+    @track selectedMoveBackEntryId = null;
 
     // Camera Modal
     @track showCameraModal = false;
@@ -238,18 +243,31 @@ export default class ShiftEndLogEntries extends LightningElement {
         getMobilizationList({ jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 if (result) {
-                    this.mobilizationOptions = Object.keys(result).map(key => ({
-                        label: result[key],
-                        value: key
-                    }));
+                    // Parse and format the mobilization options
+                    this.mobilizationOptions = Object.keys(result).map(key => {
+                        const parts = result[key].split('||');
+                        const dateStr = parts[0]; // YYYY-MM-DD
+                        const jobName = parts[1];
+                        const status = parts[2];
+                        
+                        // Format date as "MMM DD, YYYY"
+                        const formattedDate = this.formatDateToDisplay(dateStr);
+                        
+                        return {
+                            label: `${jobName} (Date - ${formattedDate}, Status - ${status})`,
+                            value: key,
+                            dateStr: dateStr // Keep original date for sorting
+                        };
+                    });
 
-                    // Auto-select today's date mobilization if available
-                    const today = new Date().toISOString().split('T')[0];
-                    const todayMob = this.mobilizationOptions.find(mob =>
-                        mob.label.includes(today)
-                    );
-                    if (todayMob) {
-                        this.selectedMobilizationId = todayMob.value;
+                    // Sort by date descending (most recent first)
+                    this.mobilizationOptions.sort((a, b) => {
+                        return new Date(b.dateStr) - new Date(a.dateStr);
+                    });
+
+                    // Auto-select the most recent (first) mobilization
+                    if (this.mobilizationOptions.length > 0) {
+                        this.selectedMobilizationId = this.mobilizationOptions[0].value;
                         this.loadCrewMembersAndApprovalStatus();
                     }
                 }
@@ -258,6 +276,22 @@ export default class ShiftEndLogEntries extends LightningElement {
                 console.error('Error loading mobilizations:', error);
                 this.showToast('Error', 'Failed to load mobilizations', 'error');
             })
+    }
+
+    /**
+     * Format date string from YYYY-MM-DD to MMM DD, YYYY
+     */
+    formatDateToDisplay(dateStr) {
+        if (!dateStr) return '';
+        
+        const date = new Date(dateStr + 'T00:00:00');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        const month = months[date.getMonth()];
+        const day = date.getDate();
+        const year = date.getFullYear();
+        
+        return `${month} ${day}, ${year}`;
     }
 
     handleMobilizationChange(event) {
@@ -311,8 +345,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                             isTimesheetNull: member.isTimesheetNull,
                             isTimesheetEntryNull: member.isTimesheetEntryNull,
                             mobMemberId: member.mobMemberId,
-                            recentClockIn: member.recentClockIn ? this.formatDateTime(member.recentClockIn) : null,
-                            recentClockOut: member.recentClockOut ? this.formatDateTime(member.recentClockOut) : null,
+                            recentClockIn: member.recentClockIn ? this.formatToAMPM(member.recentClockIn) : null,
+                            recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null,
                             hasRecentTimes: !!(member.recentClockIn || member.recentClockOut)
                         });
                     });
@@ -325,7 +359,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                             canClockOut: this.approvalStatus.canEditTimesheet,
                             statusText: 'Clocked In',
                             statusClass: 'status-clocked-in',
-                            hoursWorked: this.calculateHours(member.clockInTime),
+                            // hoursWorked: this.calculateHours(member.clockInTime),
                             clockInTime: member.clockInTime,
                             jobStartTime: member.jobStartTime,
                             jobEndTime: member.jobEndTime,
@@ -334,8 +368,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                             isTimesheetEntryNull: member.isTimesheetEntryNull,
                             timesheetEntryId: member.timesheetEntryId,
                             mobMemberId: member.mobMemberId,
-                            recentClockIn: member.clockInTime ? this.formatDateTime(member.clockInTime) : null,
-                            recentClockOut: member.recentClockOut ? this.formatDateTime(member.recentClockOut) : null,
+                            recentClockIn: member.clockInTime ? this.formatToAMPM(member.clockInTime) : null,
+                            recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null,
                             hasRecentTimes: !!(member.clockInTime || member.recentClockOut)
                         });
                     });
@@ -374,14 +408,14 @@ export default class ShiftEndLogEntries extends LightningElement {
             });
     }
 
-    calculateHours(clockInTime) {
-        if (!clockInTime) return null;
-        const now = new Date();
-        const clockIn = new Date(clockInTime);
-        const diffMs = now - clockIn;
-        const diffHrs = diffMs / (1000 * 60 * 60);
-        return diffHrs > 0 ? diffHrs.toFixed(2) : '0.00';
-    }
+    // calculateHours(clockInTime) {
+    //     if (!clockInTime) return null;
+    //     const now = new Date();
+    //     const clockIn = new Date(clockInTime);
+    //     const diffMs = now - clockIn;
+    //     const diffHrs = diffMs / (1000 * 60 * 60);
+    //     return diffHrs > 0 ? diffHrs.toFixed(2) : '0.00';
+    // }
 
     handleClockInClick(event) {
         const contactId = event.currentTarget.dataset.id;
@@ -401,7 +435,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (member) {
             this.selectedContactId = contactId;
             this.clockOutTime = member.jobEndTime ? member.jobEndTime.slice(0, 16) : new Date().toISOString().slice(0, 16);
-            this.previousClockInTime = member.clockInTime ? member.clockInTime.slice(0, 16).replace('T', ' ') : null;
+            this.previousClockInTime = member.clockInTime ? this.formatToAMPM(member.clockInTime) : null;
             this.showClockOutModal = true;
         }
     }
@@ -560,13 +594,13 @@ export default class ShiftEndLogEntries extends LightningElement {
                         const pendingChanges = this.parseApprovalData(entry.approvalData);
                         const pendingChangesMap = new Map(pendingChanges.map(change => [change.fieldLabel, change.newValue]));
                         
-                        // If status is Pending, use the new values from approval data
-                        let displayClockIn = this.parseLiteral(entry.clockInTime);
-                        let displayClockOut = this.parseLiteral(entry.clockOutTime);
+                        // Use raw ISO strings for formatting (to avoid timezone issues)
+                        let displayClockIn = entry.clockInTime; // Keep ISO format
+                        let displayClockOut = entry.clockOutTime; // Keep ISO format
                         let displayTravelTime = entry.travelTime ? entry.travelTime.toFixed(2) : '0.00';
                         
                         if (entry.status === 'Pending') {
-                            // Override with pending new values if available
+                            // Override with pending new values if available (these are already in ISO format)
                             if (pendingChangesMap.has('Clock In')) {
                                 displayClockIn = pendingChangesMap.get('Clock In');
                             }
@@ -585,8 +619,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                         return {
                             id: entry.id,
                             contactName: entry.contactName,
-                            clockInTime: displayClockIn,
-                            clockOutTime: displayClockOut,
+                            clockInTime: this.formatToAMPM(displayClockIn),
+                            clockOutTime: this.formatToAMPM(displayClockOut),
                             workHours: workHrs.toFixed(2),
                             travelTime: travelHrs.toFixed(2),
                             totalTime: totalHrs.toFixed(2),
@@ -621,17 +655,75 @@ export default class ShiftEndLogEntries extends LightningElement {
                         srNo: index + 1
                     }));
                     
-                    this.pendingTimesheetEntries = pendingEntries.map((entry, index) => ({
-                        ...entry,
-                        srNo: index + 1
-                    }));
+                    // For pending entries, extract old/new values from approval data
+                    this.pendingTimesheetEntries = pendingEntries.map((entry, index) => {
+                        const changes = this.parseApprovalData(entry.approvalData);
+                        
+                        // Create maps for quick lookup
+                        const changesMap = new Map(changes.map(c => [c.fieldLabel, c]));
+                        
+                        // Extract old/new values
+                        const clockInChange = changesMap.get('Clock In');
+                        const clockOutChange = changesMap.get('Clock Out');
+                        const travelTimeChange = changesMap.get('Travel Time');
+                        
+                        // Get old and new values (keep ISO format for accurate comparison and formatting)
+                        const oldClockInVal = clockInChange ? clockInChange.oldValue : entry.rawClockIn;
+                        const oldClockOutVal = clockOutChange ? clockOutChange.oldValue : entry.rawClockOut;
+                        const oldTravelTimeVal = travelTimeChange ? travelTimeChange.oldValue : (entry.travelTime || '0.00');
+                        
+                        const newClockInVal = clockInChange ? clockInChange.newValue : entry.rawClockIn;
+                        const newClockOutVal = clockOutChange ? clockOutChange.newValue : entry.rawClockOut;
+                        const newTravelTimeVal = travelTimeChange ? travelTimeChange.newValue : (entry.travelTime || '0.00');
+                        
+                        // Calculate old total hours using old values
+                        const oldWorkHours = this.calculateWorkHours(oldClockInVal, oldClockOutVal);
+                        const oldTravelHours = parseFloat(oldTravelTimeVal || 0);
+                        const oldTotalHours = (oldWorkHours + oldTravelHours).toFixed(2);
+                        
+                        // Calculate new total hours using new values
+                        const newWorkHours = this.calculateWorkHours(newClockInVal, newClockOutVal);
+                        const newTravelHours = parseFloat(newTravelTimeVal || 0);
+                        const newTotalHours = (newWorkHours + newTravelHours).toFixed(2);
+                        
+                        // Check if values actually changed (compare ISO strings for clock times)
+                        const isClockInChanged = oldClockInVal !== newClockInVal;
+                        const isClockOutChanged = oldClockOutVal !== newClockOutVal;
+                        const isTravelTimeChanged = parseFloat(oldTravelTimeVal) !== parseFloat(newTravelTimeVal);
+                        const isTotalHoursChanged = parseFloat(oldTotalHours) !== parseFloat(newTotalHours);
+                        
+                        return {
+                            ...entry,
+                            srNo: index + 1,
+                            // Raw values for editing (ISO format)
+                            rawNewClockIn: newClockInVal,
+                            rawNewClockOut: newClockOutVal,
+                            rawOldClockIn: oldClockInVal,
+                            rawOldClockOut: oldClockOutVal,
+                            // Old values (from current database state or approval data oldValue) - formatted
+                            oldClockIn: this.formatToAMPM(oldClockInVal),
+                            oldClockOut: this.formatToAMPM(oldClockOutVal),
+                            oldTravelTime: oldTravelTimeVal,
+                            oldTotalHours: oldTotalHours,
+                            // New values (from approval data newValue) - formatted
+                            newClockIn: this.formatToAMPM(newClockInVal),
+                            newClockOut: this.formatToAMPM(newClockOutVal),
+                            newTravelTime: newTravelTimeVal,
+                            newTotalHours: newTotalHours,
+                            // Highlight classes - only for NEW columns where value actually changed
+                            hasClockInChange: isClockInChanged ? 'value-changed' : '',
+                            hasClockOutChange: isClockOutChanged ? 'value-changed' : '',
+                            hasTravelTimeChange: isTravelTimeChanged ? 'value-changed' : '',
+                            hasTotalHoursChange: isTotalHoursChanged ? 'value-changed' : ''
+                        };
+                    });
                     
                     // Keep all entries for reference (with mixed serial numbers)
                     this.timesheetEntries = [...this.regularTimesheetEntries, ...this.pendingTimesheetEntries];
                     
                     console.log('Total entries:', this.timesheetEntries.length);
-                    console.log('Regular entries:', this.regularTimesheetEntries.length);
-                    console.log('Pending entries:', this.pendingTimesheetEntries.length);
+                    console.log('Regular entries:', this.regularTimesheetEntries);
+                    console.log('Pending entries:', this.pendingTimesheetEntries);
                 } else {
                     // No records found - reset all arrays
                     console.log('No timesheet entries found');
@@ -654,14 +746,31 @@ export default class ShiftEndLogEntries extends LightningElement {
         const entry = this.timesheetEntries.find(e => e.id === entryId);
 
         if (entry) {
+            console.log('Edit Entry:', entry);
+            console.log('Entry Status:', entry.status);
+            console.log('Raw Clock In:', entry.rawClockIn);
+            console.log('Raw NEW Clock In:', entry.rawNewClockIn);
+            console.log('Raw Clock Out:', entry.rawClockOut);
+            console.log('Raw NEW Clock Out:', entry.rawNewClockOut);
+            
+            // For pending entries, use rawNewClockIn/Out if available, otherwise use rawClockIn/Out
+            const isPending = entry.status === 'Pending';
+            const currentClockIn = (isPending && entry.rawNewClockIn) ? entry.rawNewClockIn : entry.rawClockIn;
+            const currentClockOut = (isPending && entry.rawNewClockOut) ? entry.rawNewClockOut : entry.rawClockOut;
+            const currentTravelTime = (isPending && entry.newTravelTime) ? entry.newTravelTime : entry.travelTime;
+            
+            console.log('Using Clock In:', currentClockIn);
+            console.log('Using Clock Out:', currentClockOut);
+            console.log('Using Travel Time:', currentTravelTime);
+            
             this.editTimesheetData = {
                 id: entry.id,
                 TSEId: entry.TSEId,
                 oldclockInTime: entry.rawClockIn ? entry.rawClockIn.slice(0, 16) : '',
                 oldclockOutTime: entry.rawClockOut ? entry.rawClockOut.slice(0, 16) : '',
-                newclockInTime: entry.rawClockIn ? entry.rawClockIn.slice(0, 16) : '',
-                newclockOutTime: entry.rawClockOut ? entry.rawClockOut.slice(0, 16) : '',
-                travelTime: entry.travelTime
+                newclockInTime: currentClockIn ? currentClockIn.slice(0, 16) : '',
+                newclockOutTime: currentClockOut ? currentClockOut.slice(0, 16) : '',
+                travelTime: currentTravelTime
             };
             this.showEditTimesheetModal = true;
         }
@@ -742,6 +851,54 @@ export default class ShiftEndLogEntries extends LightningElement {
         this.editTimesheetData = {};
     }
 
+    handleMoveBackToRegular(event) {
+        const entryId = event.currentTarget.dataset.id;
+        const entry = this.pendingTimesheetEntries.find(e => e.id === entryId);
+        
+        if (!entry) {
+            this.showToast('Error', 'Entry not found', 'error');
+            return;
+        }
+
+        // Store the entry ID and show modal
+        this.selectedMoveBackEntryId = entryId;
+        this.showMoveBackModal = true;
+    }
+
+    closeMoveBackModal() {
+        this.showMoveBackModal = false;
+        this.selectedMoveBackEntryId = null;
+    }
+
+    confirmMoveBackToRegular() {
+        if (!this.selectedMoveBackEntryId) {
+            this.showToast('Error', 'Entry not found', 'error');
+            return;
+        }
+
+        this.isLoading = true;
+        this.showMoveBackModal = false;
+        
+        moveTimesheetBackToRegular({ timesheetEntryItemId: this.selectedMoveBackEntryId })
+            .then(result => {
+                if (result) {
+                    this.showToast('Success', 'Entry moved back to regular successfully. The Regular tab has been updated.', 'success');
+                    this.selectedMoveBackEntryId = null;
+                    // Reload timesheet entries to reflect changes in both tabs
+                    this.loadTimesheetEntries();
+                } else {
+                    this.showToast('Error', 'Failed to move entry back to regular', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error moving entry back to regular:', error);
+                this.showToast('Error', error.body?.message || 'Something went wrong', 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
     handleApprovedTab() {
         this.activeTab = 'approved';
     }
@@ -764,6 +921,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         
         getJobLocationProcesses({ jobId: this.jobId })
             .then(result => {
+                console.log('Location Processes Result:', result);
                 if (result && result.processes && result.processes.length > 0) {
                     const pendingApprovalData = result.pendingApprovalData || {};
                     
@@ -884,10 +1042,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                     processes: []
                 });
             }
-            // Add isPendingApproval flag if process has been modified in current session OR has existing pending approval
+            // Only show "Pending Approval" badge if there's EXISTING pending approval from previous log entries
+            // Do NOT show badge for modifications in the current session
             const processWithApproval = {
                 ...proc,
-                isPendingApproval: this.modifiedProcesses.has(proc.id) || proc.isPendingApproval || false,
+                isPendingApproval: proc.isPendingApproval || false,
                 approvalOldValue: proc.approvalOldValue,
                 approvalNewValue: proc.approvalNewValue
             };
@@ -1421,14 +1580,65 @@ export default class ShiftEndLogEntries extends LightningElement {
         return true;
     }
 
-    formatDateTime(dateValue) {
-        if (!dateValue) return '--';
-        
+    formatToAMPM(iso) {
         try {
-            const iso = new Date(dateValue).toISOString();
-            return iso.slice(0, 16).replace('T', ' ');
+            if (!iso) return '--';
+            
+            // Extract date and time parts from ISO string
+            // Format: "2025-11-19T13:02:00.000Z" or "2025-11-19T13:02"
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+            
+            const datePart = parts[0]; // "2025-11-19"
+            const timePart = parts[1].substring(0, 5); // "13:02"
+            
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            // Extract hours and minutes
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+            
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 19, 2025, 01:02 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
-            return '--';
+            console.error('Error in formatToAMPM:', error);
+            return iso;
+        }
+    }
+
+    calculateWorkHours(clockInStr, clockOutStr) {
+        try {
+            if (!clockInStr || !clockOutStr) return 0;
+            
+            // Parse datetime strings (format: "YYYY-MM-DD HH:MM")
+            const clockIn = new Date(clockInStr.replace(' ', 'T'));
+            const clockOut = new Date(clockOutStr.replace(' ', 'T'));
+            
+            if (isNaN(clockIn.getTime()) || isNaN(clockOut.getTime())) return 0;
+            
+            // Calculate difference in hours
+            const diffMs = clockOut - clockIn;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            
+            return diffHours > 0 ? diffHours : 0;
+        } catch (error) {
+            console.error('Error calculating work hours:', error);
+            return 0;
         }
     }
 
@@ -1446,10 +1656,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                 let oldVal = change.oldValue;
                 let newVal = change.newValue;
                 
-                // Format datetime values
+                // Process values based on field type
                 if (fieldLabel === 'Clock In' || fieldLabel === 'Clock Out') {
-                    oldVal = this.formatDateTime(oldVal);
-                    newVal = this.formatDateTime(newVal);
+                    // Keep ISO format for internal processing, formatting happens at display time
+                    oldVal = oldVal || '';
+                    newVal = newVal || '';
                 } else if (fieldLabel === 'Travel Time') {
                     oldVal = oldVal ? parseFloat(oldVal).toFixed(2) : '0.00';
                     newVal = newVal ? parseFloat(newVal).toFixed(2) : '0.00';

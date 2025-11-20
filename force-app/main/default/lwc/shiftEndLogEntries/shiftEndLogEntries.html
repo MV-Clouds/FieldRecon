@@ -40,8 +40,8 @@
                         <!-- Mobilization Selector -->
                         <template if:true={hasMobilizationOptions}>
                             <div class="mobilization-selector">
-                                <label class="form-label required">Select Date</label>
-                                <lightning-combobox name="mobilization" label="" placeholder="-- Select Date --"
+                                <label class="form-label required">Select Scheduled Job</label>
+                                <lightning-combobox name="mobilization" label="" placeholder="-- Select Scheduled Job --"
                                     options={mobilizationOptions} value={selectedMobilizationId}
                                     onchange={handleMobilizationChange}>
                                 </lightning-combobox>
@@ -72,7 +72,7 @@
                                                     <div class="member-name">{member.contactName}</div>
                                                     <div class="member-status-row">
                                                         <span class={member.statusClass}>{member.statusText}</span>
-                                                        <template if:true={member.hoursWorked}>
+                                                        <!-- <template if:true={member.hoursWorked}>
                                                             <span class="hours-worked">
                                                                 <svg xmlns="http://www.w3.org/2000/svg" width="12"
                                                                     height="12" viewBox="0 0 24 24" fill="none"
@@ -82,7 +82,7 @@
                                                                 </svg>
                                                                 {member.hoursWorked} hrs today
                                                             </span>
-                                                        </template>
+                                                        </template> -->
                                                     </div>
                                                 </div>
 
@@ -205,50 +205,50 @@
                                 <template if:true={showApprovedTab}>
                                     <template if:true={hasRegularTimesheetEntries}>
                                         <div class="timesheet-table-wrapper">
-                                            <table class="timesheet-entries-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width: 4rem">Sr.</th>
-                                                        <th style="width: 4rem">Edit</th>
-                                                        <th style="width: 12rem">Name</th>
-                                                        <th style="width: 10rem">Clock In</th>
-                                                        <th style="width: 10rem">Clock Out</th>
-                                                        <th style="width: 6rem">Work Hours</th>
-                                                        <th style="width: 6rem">Travel</th>
-                                                        <th style="width: 6rem">Total</th>
-                                                        <th style="width: 8rem">Cost Code</th>
-                                                    </tr>
-                                                </thead>
-                                            </table>
                                             <div class="timesheet-table-body">
                                                 <table class="timesheet-entries-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 4rem">Sr.</th>
+                                                            <th style="width: 4rem">Edit</th>
+                                                            <th style="width: 12rem">Name</th>
+                                                            <th style="width: 12rem">Clock In</th>
+                                                            <th style="width: 12rem">Clock Out</th>
+                                                            <th style="width: 6rem">Work Hours</th>
+                                                            <th style="width: 6rem">Travel</th>
+                                                            <th style="width: 6rem">Total</th>
+                                                            <th style="width: 8rem">Cost Code</th>
+                                                        </tr>
+                                                    </thead>
                                                     <tbody>
                                                         <template for:each={regularTimesheetEntries} for:item="entry">
                                                             <tr key={entry.id}>
                                                                 <td style="width: 4rem">{entry.srNo}</td>
                                                                 <td style="width: 4rem">
-                                                                    <template if:true={entry.canEdit}>
-                                                                        <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                                            </svg>
-                                                                        </button>
-                                                                    </template>
-                                                                    <template if:false={entry.canEdit}>
-                                                                        <button class="edit-icon-btn disabled" disabled>
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                                                                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                                            </svg>
-                                                                        </button>
-                                                                    </template>
+                                                                    <div class="edit-icon-center">
+                                                                        <template if:true={entry.canEdit}>
+                                                                            <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                                                </svg>
+                                                                            </button>
+                                                                        </template>
+                                                                        <template if:false={entry.canEdit}>
+                                                                            <button class="edit-icon-btn disabled" disabled>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                                                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                                                                </svg>
+                                                                            </button>
+                                                                        </template>
+                                                                    </div>
                                                                 </td>
                                                                 <td style="width: 12rem">{entry.contactName}</td>
-                                                                <td style="width: 10rem">{entry.clockInTime}</td>
-                                                                <td style="width: 10rem">{entry.clockOutTime}</td>
+                                                                <td style="width: 12rem">{entry.clockInTime}</td>
+                                                                <td style="width: 12rem">{entry.clockOutTime}</td>
                                                                 <td style="width: 6rem">{entry.workHours}</td>
                                                                 <td style="width: 6rem">{entry.travelTime}</td>
                                                                 <td style="width: 6rem">{entry.totalTime}</td>
@@ -275,52 +275,53 @@
                                 <template if:true={showPendingTab}>
                                     <template if:true={hasPendingTimesheetEntries}>
                                         <div class="timesheet-table-wrapper">
-                                            <table class="timesheet-entries-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width: 4rem">Sr.</th>
-                                                        <th style="width: 4rem">Edit</th>
-                                                        <th style="width: 12rem">Name</th>
-                                                        <th style="width: 10rem">Clock In</th>
-                                                        <th style="width: 10rem">Clock Out</th>
-                                                        <th style="width: 6rem">Work Hours</th>
-                                                        <th style="width: 6rem">Travel</th>
-                                                        <th style="width: 6rem">Total</th>
-                                                        <th style="width: 8rem">Cost Code</th>
-                                                        <th style="width: 6rem">Status</th>
-                                                    </tr>
-                                                </thead>
-                                            </table>
                                             <div class="timesheet-table-body">
-                                                <table class="timesheet-entries-table">
+                                                <table class="timesheet-entries-table pending-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 3rem">Sr.</th>
+                                                            <th style="width: 8rem">Actions</th>
+                                                            <th style="width: 10rem">Name</th>
+                                                            <th style="width: 12rem">Old Clock In</th>
+                                                            <th style="width: 12rem">New Clock In</th>
+                                                            <th style="width: 12rem">Old Clock Out</th>
+                                                            <th style="width: 12rem">New Clock Out</th>
+                                                            <th style="width: 6rem">Old Travel</th>
+                                                            <th style="width: 6rem">New Travel</th>
+                                                            <th style="width: 10rem">Old Total Hours</th>
+                                                            <th style="width: 10rem">New Total Hours</th>
+                                                        </tr>
+                                                    </thead>
                                                     <tbody>
                                                         <template for:each={pendingTimesheetEntries} for:item="entry">
                                                             <tr key={entry.id}>
-                                                                <td style="width: 4rem">{entry.srNo}</td>
-                                                                <td style="width: 4rem">
-                                                                    <template if:true={entry.hasApprovalData}>
-                                                                        <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                <td style="width: 3rem">{entry.srNo}</td>
+                                                                <td style="width: 8rem">
+                                                                    <div class="action-buttons">
+                                                                        <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry} title="Edit">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
                                                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                                                             </svg>
                                                                         </button>
-                                                                    </template>
-                                                                    <template if:false={entry.hasApprovalData}>
-                                                                        <span>-</span>
-                                                                    </template>
+                                                                        <button class="move-back-btn" data-id={entry.id} onclick={handleMoveBackToRegular} title="Move to Regular">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                                <polyline points="15 18 9 12 15 6"></polyline>
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
                                                                 </td>
-                                                                <td style="width: 12rem">{entry.contactName}</td>
-                                                                <td style="width: 10rem">{entry.clockInTime}</td>
-                                                                <td style="width: 10rem">{entry.clockOutTime}</td>
-                                                                <td style="width: 6rem">{entry.workHours}</td>
-                                                                <td style="width: 6rem">{entry.travelTime}</td>
-                                                                <td style="width: 6rem">{entry.totalTime}</td>
-                                                                <td style="width: 8rem">{entry.costCodeName}</td>
-                                                                <td style="width: 6rem">
-                                                                    <span class="pending-status-badge">{entry.status}</span>
-                                                                </td>
+                                                                <td style="width: 10rem">{entry.contactName}</td>
+                                                                <td style="width: 12rem">{entry.oldClockIn}</td>
+                                                                <td style="width: 12rem" class={entry.hasClockInChange}>{entry.newClockIn}</td>
+                                                                <td style="width: 12rem">{entry.oldClockOut}</td>
+                                                                <td style="width: 12rem" class={entry.hasClockOutChange}>{entry.newClockOut}</td>
+                                                                <td style="width: 6rem">{entry.oldTravelTime}</td>
+                                                                <td style="width: 6rem" class={entry.hasTravelTimeChange}>{entry.newTravelTime}</td>
+                                                                <td style="width: 10rem">{entry.oldTotalHours}</td>
+                                                                <td style="width: 10rem" class={entry.hasTotalHoursChange}>{entry.newTotalHours}</td>
                                                             </tr>
                                                         </template>
                                                     </tbody>
@@ -737,6 +738,31 @@
                 </div>
                 <div class="popUpFooter">
                     <button class="clock-in-button" onclick={saveEditedTimesheet}>Save</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
+    <!-- Move Back Confirmation Modal -->
+    <template if:true={showMoveBackModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    onclick={closeMoveBackModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">Move Back to Regular</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="confirmation-message">
+                        <p class="confirmation-text">Are you sure you want to move this entry back to regular?</p>
+                        <p class="confirmation-subtext">This will clear all pending changes and move the entry back to the Regular tab.</p>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="cancel-button" onclick={closeMoveBackModal}>Cancel</button>
+                    <button class="confirm-button" onclick={confirmMoveBackToRegular}>Confirm</button>
                 </div>
             </div>
         </section>

@@ -1190,4 +1190,93 @@ public with sharing class ManagementTabController {
         @AuraEnabled public Datetime conflictingEnd;
         @AuraEnabled public String conflictingCrewName;
     }
+
+    @AuraEnabled
+    public static Map<String, Object> getLogEntryApprovers() {
+        Map<String, Object> response = new Map<String, Object>{
+            'status' => 'SUCCESS',
+            'message' => '',
+            'approversJSON' => '',
+            'allActiveUsers' => new List<Map<String, String>>()
+        };
+
+        try {
+            // Query the metadata
+            List<Log_Entry_Approver__mdt> approverMetadata = [
+                SELECT Id, Label, Approvers_JSON__c 
+                FROM Log_Entry_Approver__mdt 
+                WHERE DeveloperName = 'Approvers_JSON' 
+                LIMIT 1
+            ];
+
+            if (!approverMetadata.isEmpty() && approverMetadata[0].Approvers_JSON__c != null) {
+                response.put('approversJSON', approverMetadata[0].Approvers_JSON__c);
+            }
+
+            // Get all active users
+            List<User> activeUsers = [
+                SELECT Id, Name 
+                FROM User 
+                WHERE IsActive = true 
+                WITH USER_MODE
+                ORDER BY Name ASC
+            ];
+
+            List<Map<String, String>> userList = new List<Map<String, String>>();
+            for (User u : activeUsers) {
+                Map<String, String> userMap = new Map<String, String>();
+                userMap.put('label', u.Name);
+                userMap.put('value', u.Id);
+                userList.add(userMap);
+            }
+
+            response.put('allActiveUsers', userList);
+        } catch (Exception e) {
+            response.put('status', 'ERROR');
+            response.put('message', 'Error fetching approvers: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'getLogEntryApprovers', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching log entry approvers: ' + e.getMessage(), 
+                'apiResponse' => null
+            });
+        }
+
+        return response;
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> saveLogEntryApprovers(String approversJSON) {
+        Map<String, Object> response = new Map<String, Object>{
+            'status' => 'ERROR',
+            'message' => 'Unable to save approvers.'
+        };
+
+        try {
+            // Note: Custom Metadata cannot be updated via Apex in a running org
+            // This would need to be done via Metadata API or manually
+            // For now, we'll return a message indicating this limitation
+            
+            response.put('status', 'INFO');
+            response.put('message', 'Custom Metadata records must be updated via Metadata API or Setup. JSON: ' + approversJSON);
+            response.put('approversJSON', approversJSON);
+            
+        } catch (Exception e) {
+            response.put('message', 'Error saving approvers: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'saveLogEntryApprovers', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error saving log entry approvers: ' + e.getMessage(), 
+                'apiResponse' => null
+            });
+        }
+
+        return response;
+    }
 }

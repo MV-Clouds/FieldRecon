@@ -298,6 +298,20 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.log-meta-info-name .status-text {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #5e5adb;
+    text-transform: capitalize;
+}
+
+.log-meta-info-name .separator {
+    color: #c9c7c5;
+    font-weight: 400;
+    margin: 0 0.1rem;
 }
 
 /* Approval Status Badge */
@@ -1578,7 +1592,7 @@
         height: auto;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         flex-direction: column;
         gap: 0.5rem;
         overflow: visible;
@@ -1596,6 +1610,7 @@
         flex-direction: column;
         gap: 0.5rem;
         align-items: stretch;
+        background-color: white;
     }
 
     .search-bar {
@@ -1660,6 +1675,19 @@
         flex-wrap: wrap;
     }
 
+    .log-meta-info-name {
+        font-size: 0.7rem;
+        gap: 0.25rem;
+    }
+
+    .log-meta-info-name .status-text {
+        font-size: 0.7rem;
+    }
+
+    .log-meta-info-name .separator {
+        margin: 0;
+    }
+
     .pagination-container {
         gap: 0.15rem;
         flex-wrap: wrap;
@@ -1702,6 +1730,14 @@
 
     .card-placeholder {
         height: 4rem;
+    }
+
+    .log-meta-info-name {
+        font-size: 0.72rem;
+    }
+
+    .log-meta-info-name .status-text {
+        font-size: 0.72rem;
     }
 }
 
