@@ -243,18 +243,31 @@ export default class ShiftEndLogEntries extends LightningElement {
         getMobilizationList({ jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 if (result) {
-                    this.mobilizationOptions = Object.keys(result).map(key => ({
-                        label: result[key],
-                        value: key
-                    }));
+                    // Parse and format the mobilization options
+                    this.mobilizationOptions = Object.keys(result).map(key => {
+                        const parts = result[key].split('||');
+                        const dateStr = parts[0]; // YYYY-MM-DD
+                        const jobName = parts[1];
+                        const status = parts[2];
+                        
+                        // Format date as "MMM DD, YYYY"
+                        const formattedDate = this.formatDateToDisplay(dateStr);
+                        
+                        return {
+                            label: `${jobName} (Date - ${formattedDate}, Status - ${status})`,
+                            value: key,
+                            dateStr: dateStr // Keep original date for sorting
+                        };
+                    });
 
-                    // Auto-select today's date mobilization if available
-                    const today = new Date().toISOString().split('T')[0];
-                    const todayMob = this.mobilizationOptions.find(mob =>
-                        mob.label.includes(today)
-                    );
-                    if (todayMob) {
-                        this.selectedMobilizationId = todayMob.value;
+                    // Sort by date descending (most recent first)
+                    this.mobilizationOptions.sort((a, b) => {
+                        return new Date(b.dateStr) - new Date(a.dateStr);
+                    });
+
+                    // Auto-select the most recent (first) mobilization
+                    if (this.mobilizationOptions.length > 0) {
+                        this.selectedMobilizationId = this.mobilizationOptions[0].value;
                         this.loadCrewMembersAndApprovalStatus();
                     }
                 }
@@ -263,6 +276,22 @@ export default class ShiftEndLogEntries extends LightningElement {
                 console.error('Error loading mobilizations:', error);
                 this.showToast('Error', 'Failed to load mobilizations', 'error');
             })
+    }
+
+    /**
+     * Format date string from YYYY-MM-DD to MMM DD, YYYY
+     */
+    formatDateToDisplay(dateStr) {
+        if (!dateStr) return '';
+        
+        const date = new Date(dateStr + 'T00:00:00');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        const month = months[date.getMonth()];
+        const day = date.getDate();
+        const year = date.getFullYear();
+        
+        return `${month} ${day}, ${year}`;
     }
 
     handleMobilizationChange(event) {
@@ -1013,10 +1042,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                     processes: []
                 });
             }
-            // Add isPendingApproval flag if process has been modified in current session OR has existing pending approval
+            // Only show "Pending Approval" badge if there's EXISTING pending approval from previous log entries
+            // Do NOT show badge for modifications in the current session
             const processWithApproval = {
                 ...proc,
-                isPendingApproval: this.modifiedProcesses.has(proc.id) || proc.isPendingApproval || false,
+                isPendingApproval: proc.isPendingApproval || false,
                 approvalOldValue: proc.approvalOldValue,
                 approvalNewValue: proc.approvalNewValue
             };

@@ -302,6 +302,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         formattedDate: this.formatDate(log.wfrecon__Work_Performed_Date__c),
                         hasExceptions: log.wfrecon__Exceptions__c && log.wfrecon__Exceptions__c.trim() !== '',
                         createdByName: log.CreatedBy?.Name || 'Unknown User',
+                        status: status || 'Pending',
                         statusVariant: this.getStatusVariant(log.wfrecon__Log_Type__c),
                         // Approval-related properties
                         approvalData: approvalData,

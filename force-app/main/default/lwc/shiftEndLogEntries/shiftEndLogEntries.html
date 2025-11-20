@@ -40,8 +40,8 @@
                         <!-- Mobilization Selector -->
                         <template if:true={hasMobilizationOptions}>
                             <div class="mobilization-selector">
-                                <label class="form-label required">Select Date</label>
-                                <lightning-combobox name="mobilization" label="" placeholder="-- Select Date --"
+                                <label class="form-label required">Select Scheduled Job</label>
+                                <lightning-combobox name="mobilization" label="" placeholder="-- Select Scheduled Job --"
                                     options={mobilizationOptions} value={selectedMobilizationId}
                                     onchange={handleMobilizationChange}>
                                 </lightning-combobox>
