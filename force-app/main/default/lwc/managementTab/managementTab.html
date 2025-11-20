@@ -1,0 +1,76 @@
+<template>
+    <!-- Spinner -->
+    <template if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading" size="large"></lightning-spinner>
+    </template>
+
+    <!-- Access Denied -->
+    <template if:false={hasAccess}>
+        <div class="wrapper">
+            <div class="no-prop">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="Access Denied" />
+                        </div>
+                        <div class="empty-state__message">Access Denied</div>
+                        <div class="empty-state__subtitle">{accessErrorMessage}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Main Content -->
+    <template if:true={hasAccess}>
+        <div class="wrapper">
+            <div class="main-tab-container">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <template for:each={tabs} for:item="tab">
+                    <button key={tab.value} class={tab.className} data-tab={tab.value} onclick={handleTabChange}>
+                        {tab.label}
+                    </button>
+                </template>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <template for:each={tabs} for:item="tab">
+                    <template if:true={tab.isActive}>
+                        <div key={tab.value} class="tab-panel">
+                            <template if:true={tab.isCrew}>
+                                <!-- Crew Tab Content -->
+                                <c-crew-management></c-crew-management>
+                            </template>
+
+                            <template if:true={tab.isCostCode}>
+                                <!-- Cost Code Tab Content -->
+                                <c-cost-code-management></c-cost-code-management>
+                            </template>
+
+                            <template if:true={tab.isProcessLibrary}>
+                                <!-- Process Library Tab Content -->
+                                <c-process-library-management></c-process-library-management>
+                            </template>
+
+                            <template if:true={tab.isEmployee}>
+                                <!-- Employee Tab Content -->
+                                <c-contact-management></c-contact-management>
+                            </template>
+
+                            <template if:true={tab.isMobStatusColorConfig}>
+                                <c-mob-status-color-config></c-mob-status-color-config>
+                            </template>
+
+                            <template if:true={tab.isShiftEndLogApprover}>
+                                <c-shift-end-log-approver-assignment></c-shift-end-log-approver-assignment>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </div>
+    </div>
+    </template>
+</template>
