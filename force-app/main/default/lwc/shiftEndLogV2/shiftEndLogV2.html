@@ -49,7 +49,7 @@
             <div class="logs-grid">
                 <template for:each={displayedLogs} for:item="log">
                     <div key={log.Id} class="card-placeholder">
-                        <div class="log-card" data-id={log.Id}>
+                        <div class={log.cardClass} data-id={log.Id} data-expanded={log.isExpanded}>
                             <div class="log-card-header">
 
                                 <div class="log-card-sub-header">
@@ -85,6 +85,24 @@
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="14" height="14"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z"/></svg>
                                         <span>{log.createdByName}</span>
                                     </div>
+                                </div>
+
+                                <!-- View More / View Less Button -->
+                                <div class="view-more-container">
+                                    <button class="view-more-btn" data-id={log.Id} onclick={handleToggleCard}>
+                                        <template if:false={log.isExpanded}>
+                                            <span>View More</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="12" height="12">
+                                                <path d="M201.4 374.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 306.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/>
+                                            </svg>
+                                        </template>
+                                        <template if:true={log.isExpanded}>
+                                            <span>View Less</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="12" height="12">
+                                                <path d="M201.4 137.4c12.5-12.5 32.8-12.5 45.3 0l160 160c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L224 205.3 86.6 342.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l160-160z"/>
+                                            </svg>
+                                        </template>
+                                    </button>
                                 </div>
                             </div>
 

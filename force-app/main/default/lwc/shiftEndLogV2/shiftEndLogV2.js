@@ -17,6 +17,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track showEditModal = false;
     @track editLogId = null;
     @track showEntryPopup = false;
+    @track expandedCardId = null; // Track which card is expanded
     
     // Edit Modal Multi-Step Properties
     @track editCurrentStep = 'step1';
@@ -411,6 +412,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         this.filteredLogs = logs;
         this.currentPage = 1; // Reset to first page when filtering
+        this.expandedCardId = null; // Reset expanded card when filtering
         this.updateDisplayedLogs();
     }
 
@@ -418,7 +420,14 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     updateDisplayedLogs() {
         const startIndex = (this.currentPage - 1) * this.pageSize;
         const endIndex = startIndex + this.pageSize;
-        this.displayedLogs = this.filteredLogs.slice(startIndex, endIndex);
+        this.displayedLogs = this.filteredLogs.slice(startIndex, endIndex).map(log => {
+            const isExpanded = log.Id === this.expandedCardId;
+            return {
+                ...log,
+                isExpanded: isExpanded,
+                cardClass: isExpanded ? 'log-card expanded' : 'log-card'
+            };
+        });
         this.updateProgressBars(); // Update progress bars after changing displayed logs
     }
 
@@ -426,6 +435,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handlePrevious() {
         if (this.currentPage > 1) {
             this.currentPage--;
+            this.expandedCardId = null; // Reset expanded card on page change
             this.updateDisplayedLogs();
         }
     }
@@ -433,6 +443,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleNext() {
         if (this.currentPage < this.totalPages) {
             this.currentPage++;
+            this.expandedCardId = null; // Reset expanded card on page change
             this.updateDisplayedLogs();
         }
     }
@@ -440,6 +451,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handlePageChange(event) {
         const pageNumber = parseInt(event.currentTarget.dataset.page, 10);
         this.currentPage = pageNumber;
+        this.expandedCardId = null; // Reset expanded card on page change
         this.updateDisplayedLogs();
     }
 
@@ -455,6 +467,22 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         if (event && event.detail && event.detail.isRecordCreated) {
             this.loadShiftEndLogsWithCrewInfo();
         }
+    }
+
+    // Handle View More / View Less toggle
+    handleToggleCard(event) {
+        const logId = event.currentTarget.dataset.id;
+        
+        // If clicking on already expanded card, collapse it
+        if (this.expandedCardId === logId) {
+            this.expandedCardId = null;
+        } else {
+            // Expand the clicked card and collapse any other
+            this.expandedCardId = logId;
+        }
+        
+        // Update displayed logs to reflect the change
+        this.updateDisplayedLogs();
     }
 
     // Handle edit button click
