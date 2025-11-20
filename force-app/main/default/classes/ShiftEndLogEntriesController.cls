@@ -202,7 +202,7 @@ public with sharing class ShiftEndLogEntriesController {
                                                             WITH USER_MODE];
                 
                 if (!yesterdayPendingLogs.isEmpty()) {
-                    approvalMessage = 'Note: Yesterday\'s pending entries will be automatically approved when you submit today\'s log. Today\'s entry will be marked as pending for approval.';
+                    approvalMessage = 'Note: Yesterday\'s pending entries will be automatically approved when you submit today\'s log. Today\'s edited entry will be marked as pending for approval.';
                 }
             } else if (workDate < today) {
                 // If creating entry for a past date, show pending approval message

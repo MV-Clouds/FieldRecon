@@ -4,37 +4,10 @@
 }
 
 .shiftEndLogEntries-modal-container {
+    /* position: relative; */
     display: flex;
     flex-direction: column;
-    max-height: 90vh;
-    height: 90vh;
-    overflow: hidden;
-    position: relative;
-}
-
-/* Desktop - Ensure proper constraints */
-@media (min-width: 769px) {
-    .slds-modal__container.shiftEndLogEntries-modal-container {
-        width: 90%;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-}
-
-/* Tablet and Mobile - Full screen modal */
-@media (max-width: 768px) {
-    .slds-modal_full .slds-modal__container.shiftEndLogEntries-modal-container {
-        max-height: 100vh !important;
-        height: 100vh !important;
-        width: 100vw !important;
-        max-width: 100vw !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
-    }
-    
-    .slds-modal_full {
-        padding: 0 !important;
-    }
+    /* min-height: 90vh; */
 }
 
 .pop-heading {
@@ -49,21 +22,6 @@
     background: rgba(94, 90, 219, 1);
     border-radius: 1.25rem 1.25rem 0 0;
     flex-shrink: 0;
-}
-
-@media (max-width: 768px) {
-    .pop-heading {
-        font-size: 18px;
-        height: 45px;
-        border-radius: 0;
-    }
-}
-
-@media (max-width: 480px) {
-    .pop-heading {
-        font-size: 16px;
-        height: 40px;
-    }
 }
 
 /* Progress Indicator */
@@ -130,22 +88,13 @@
 .wizard-content {
     flex: 1;
     overflow-y: auto;
-    overflow-x: hidden;
     padding: 1rem;
     background-image: url('/resource/wfrecon__FieldReconBG');
     background-repeat: no-repeat;
     background-size: cover;
     min-height: 0;
     position: relative;
-    -webkit-overflow-scrolling: touch;
-}
-
-@media (max-width: 768px) {
-    .wizard-content {
-        padding: 0.5rem;
-        flex: 1 1 auto;
-        min-height: 0;
-    }
+    /* padding-bottom: 0; */
 }
 
 .step-container {
@@ -153,17 +102,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-}
-
-@media (max-width: 768px) {
-    .step-container {
-        height: auto;
-        min-height: 100%;
-        overflow-y: visible;
-    }
+    overflow: scroll;
 }
 
 @keyframes fadeIn {

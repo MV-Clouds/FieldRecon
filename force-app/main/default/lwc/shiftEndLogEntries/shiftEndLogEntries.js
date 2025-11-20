@@ -892,6 +892,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         
         getJobLocationProcesses({ jobId: this.jobId })
             .then(result => {
+                console.log('Location Processes Result:', result);
                 if (result && result.processes && result.processes.length > 0) {
                     const pendingApprovalData = result.pendingApprovalData || {};
                     

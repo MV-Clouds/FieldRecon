@@ -1578,7 +1578,7 @@
         height: auto;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         flex-direction: column;
         gap: 0.5rem;
         overflow: visible;
@@ -1596,6 +1596,7 @@
         flex-direction: column;
         gap: 0.5rem;
         align-items: stretch;
+        background-color: white;
     }
 
     .search-bar {
