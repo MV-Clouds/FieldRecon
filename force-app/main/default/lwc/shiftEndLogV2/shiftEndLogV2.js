@@ -27,6 +27,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track editOriginalCompletionPercentages = new Map(); // Store original percentages separately
     @track editLocationOptions = [];
     @track editSelectedLocationId = '';
+    @track editActiveAccordionSections = []; // Track active accordion sections for edit modal
+    @track editGroupedLocationProcesses = []; // Grouped processes by location for edit modal
 
     // Confirmation Modal Properties
     @track showConfirmationModal = false;
@@ -185,6 +187,80 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     connectedCallback() {
         this.isLoading = true;
         this.loadShiftEndLogsWithCrewInfo();
+    }
+    
+    renderedCallback() {
+        // Open first accordion in view mode by default for each expanded card
+        if (this.expandedCardId) {
+            const firstAccordionContent = this.template.querySelector(
+                `.location-accordion-content[data-log-id="${this.expandedCardId}"]`
+            );
+            const firstAccordionHeader = this.template.querySelector(
+                `.location-accordion-header[data-log-id="${this.expandedCardId}"]`
+            );
+            
+            if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
+                firstAccordionContent.classList.add('open');
+                if (firstAccordionHeader) {
+                    firstAccordionHeader.classList.add('active');
+                }
+            }
+        }
+        
+        // Open first accordion in edit mode by default for Step 2
+        if (this.showEditModal && this.editCurrentStep === 'step2') {
+            const firstEditContent = this.template.querySelector('.edit-location-accordion-content');
+            const firstEditHeader = this.template.querySelector('.edit-location-accordion-header');
+            
+            if (firstEditContent && !firstEditContent.classList.contains('open')) {
+                firstEditContent.classList.add('open');
+                if (firstEditHeader) {
+                    firstEditHeader.classList.add('active');
+                }
+                // Update sliders after opening
+                setTimeout(() => this.updateEditSliderVisuals(), 100);
+            }
+        }
+    }
+
+    // Helper to group location processes for accordion view
+    groupLocationProcessesForView(locationProcesses, approvalData, isApprovedStatus) {
+        const locationMap = new Map();
+        
+        locationProcesses.forEach(proc => {
+            let approvalDataForProcess = null;
+            let isPendingApproval = false;
+            
+            // Parse approval data - only show as pending if status is 'Pending' (not approved/auto-approved)
+            if (approvalData && Array.isArray(approvalData) && !isApprovedStatus) {
+                approvalDataForProcess = approvalData.find(item => item.id === proc.processId);
+                isPendingApproval = !!approvalDataForProcess;
+            }
+            
+            const approvalOldValue = approvalDataForProcess?.oldValue || 0;
+            const approvalNewValue = approvalDataForProcess?.newValue || 0;
+            const yesterdayPercent = proc.yesterdayPercentage || 0;
+            
+            const processWithApproval = {
+                ...proc,
+                isPendingApproval: isPendingApproval,
+                approvalOldValue: approvalOldValue,
+                approvalNewValue: approvalNewValue,
+                displayYesterdayPercentage: yesterdayPercent,
+                displayApprovalPercentage: isPendingApproval ? (approvalNewValue - yesterdayPercent) : 0
+            };
+            
+            if (!locationMap.has(proc.locationName)) {
+                locationMap.set(proc.locationName, {
+                    locationName: proc.locationName,
+                    sectionName: proc.locationName.replace(/\s+/g, '_'),
+                    processes: []
+                });
+            }
+            locationMap.get(proc.locationName).processes.push(processWithApproval);
+        });
+        
+        return Array.from(locationMap.values());
     }
 
     // Helper to update progress bars after DOM is ready
@@ -363,7 +439,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                                 displayApprovalPercentage: isPendingApproval ? (approvalNewValue - yesterdayPercent) : 0
                             };
                         }),
-                        hasLocationProcesses: locationProcesses.length > 0
+                        hasLocationProcesses: locationProcesses.length > 0,
+                        // Group location processes by location name for accordion view
+                        groupedLocationProcesses: this.groupLocationProcessesForView(locationProcesses, approvalData, isApprovedStatus)
                     };
                 });
                 
@@ -393,12 +471,21 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     filterLogs() {
         let logs = [...this.shiftEndLogs];
 
-        // Apply search filter (Name and Person only)
+        // Apply search filter (Person name and Work Performed Date in YYYY-MM-DD format)
         if (this.searchTerm) {
-            logs = logs.filter(log => 
-                (log.Name && log.Name.toLowerCase().includes(this.searchTerm)) ||
-                (log.createdByName && log.createdByName.toLowerCase().includes(this.searchTerm))
-            );
+            logs = logs.filter(log => {
+                // Search by person name
+                const matchesPerson = log.createdByName && log.createdByName.toLowerCase().includes(this.searchTerm);
+                
+                // Search by work performed date in YYYY-MM-DD format
+                let matchesDate = false;
+                if (log.wfrecon__Work_Performed_Date__c) {
+                    const workPerformedDate = new Date(log.wfrecon__Work_Performed_Date__c).toISOString().split('T')[0];
+                    matchesDate = workPerformedDate.includes(this.searchTerm);
+                }
+                
+                return matchesPerson || matchesDate;
+            });
         }
 
         // Apply date filter
@@ -483,6 +570,41 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         
         // Update displayed logs to reflect the change
         this.updateDisplayedLogs();
+    }
+    
+    // Handle accordion toggle in view mode
+    handleViewAccordionToggle(event) {
+        event.stopPropagation();
+        const sectionName = event.currentTarget.dataset.section;
+        const logId = event.currentTarget.dataset.logId;
+        const headerElement = event.currentTarget;
+        const contentElement = this.template.querySelector(
+            `.location-accordion-content[data-section="${sectionName}"][data-log-id="${logId}"]`
+        );
+        
+        if (contentElement) {
+            const isOpen = contentElement.classList.contains('open');
+            
+            // Close all accordions for this log first
+            const allContents = this.template.querySelectorAll(
+                `.location-accordion-content[data-log-id="${logId}"]`
+            );
+            const allHeaders = this.template.querySelectorAll(
+                `.location-accordion-header[data-log-id="${logId}"]`
+            );
+            
+            allContents.forEach(content => content.classList.remove('open'));
+            allHeaders.forEach(header => header.classList.remove('active'));
+            
+            // If it wasn't open, open it
+            if (!isOpen) {
+                contentElement.classList.add('open');
+                headerElement.classList.add('active');
+            }
+            
+            // Update progress bars after DOM settles
+            setTimeout(() => this.updateProgressBars(), 50);
+        }
     }
 
     // Handle edit button click
@@ -714,12 +836,69 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
         });
         this.editLocationOptions = Array.from(locationMap.values());
+        
+        // Group processes by location for accordion view
+        this.groupEditLocationProcesses();
     }
 
     setEditDefaultLocation() {
         if (this.editLocationOptions.length > 0) {
             this.editSelectedLocationId = this.editLocationOptions[0].value;
-            this.filterEditProcessesByLocation();
+            // Set first accordion as active by default
+            if (this.editGroupedLocationProcesses.length > 0) {
+                this.editActiveAccordionSections = [this.editGroupedLocationProcesses[0].sectionName];
+            }
+        }
+    }
+    
+    groupEditLocationProcesses() {
+        const locationMap = new Map();
+        
+        this.editAllLocationProcesses.forEach(proc => {
+            if (!locationMap.has(proc.locationName)) {
+                locationMap.set(proc.locationName, {
+                    locationName: proc.locationName,
+                    sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name
+                    processes: []
+                });
+            }
+            locationMap.get(proc.locationName).processes.push(proc);
+        });
+        
+        this.editGroupedLocationProcesses = Array.from(locationMap.values());
+        
+        // Set first accordion as active by default
+        if (this.editGroupedLocationProcesses.length > 0) {
+            this.editActiveAccordionSections = [this.editGroupedLocationProcesses[0].sectionName];
+        }
+    }
+    
+    handleEditViewAccordionToggle(event) {
+        event.stopPropagation();
+        const sectionName = event.currentTarget.dataset.section;
+        const headerElement = event.currentTarget;
+        const contentElement = this.template.querySelector(
+            `.edit-location-accordion-content[data-section="${sectionName}"]`
+        );
+        
+        if (contentElement) {
+            const isOpen = contentElement.classList.contains('open');
+            
+            // Close all accordions first (only one open at a time)
+            const allContents = this.template.querySelectorAll('.edit-location-accordion-content');
+            const allHeaders = this.template.querySelectorAll('.edit-location-accordion-header');
+            
+            allContents.forEach(content => content.classList.remove('open'));
+            allHeaders.forEach(header => header.classList.remove('active'));
+            
+            // If it wasn't open, open it
+            if (!isOpen) {
+                contentElement.classList.add('open');
+                headerElement.classList.add('active');
+            }
+            
+            // Update slider visuals after DOM settles
+            setTimeout(() => this.updateEditSliderVisuals(), 100);
         }
     }
 
@@ -1216,7 +1395,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     get isEditStep3() { return this.editCurrentStep === 'step3'; }
 
     get hasEditLocationOptions() {
-        return this.editLocationOptions && this.editLocationOptions.length > 0;
+        return this.editGroupedLocationProcesses && this.editGroupedLocationProcesses.length > 0;
     }
 
     get hasEditLocationProcesses() {

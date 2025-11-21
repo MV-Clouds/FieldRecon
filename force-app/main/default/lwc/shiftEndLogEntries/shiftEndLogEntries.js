@@ -37,6 +37,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track uploadedFiles = [];
     @track locationOptions = [];
     @track selectedLocationId;
+    @track activeAccordionSections = []; // Track active accordion sections
 
     // Clock In/Out Modal
     @track showClockInModal = false;
@@ -105,7 +106,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     get hasLocationOptions() {
-        return this.locationOptions && this.locationOptions.length > 0;
+        return this.groupedLocationProcesses && this.groupedLocationProcesses.length > 0;
     }
 
     get hasLocationProcesses() {
@@ -173,6 +174,17 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.isStep3 && this.groupedLocationProcesses.length > 0) {
             this.updateSliderStyles();
             this.updateRowHighlighting();
+            
+            // Open first accordion by default
+            const firstAccordionContent = this.template.querySelector('.location-accordion-content');
+            const firstAccordionHeader = this.template.querySelector('.location-accordion-header');
+            
+            if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
+                firstAccordionContent.classList.add('open');
+                if (firstAccordionHeader) {
+                    firstAccordionHeader.classList.add('active');
+                }
+            }
         }
     }
 
@@ -1031,14 +1043,15 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     groupProcessesByLocation() {
-        // Group processes by location for display
+        // Group processes by location for display with accordion support
         const locationMap = new Map();
 
-        this.locationProcesses.forEach(proc => {
+        this.allLocationProcesses.forEach(proc => {
             if (!locationMap.has(proc.locationId)) {
                 locationMap.set(proc.locationId, {
                     locationId: proc.locationId,
                     locationName: proc.locationName,
+                    sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name for accordion
                     processes: []
                 });
             }
@@ -1054,6 +1067,40 @@ export default class ShiftEndLogEntries extends LightningElement {
         });
 
         this.groupedLocationProcesses = Array.from(locationMap.values());
+        
+        // Set first accordion as active by default
+        if (this.groupedLocationProcesses.length > 0) {
+            this.activeAccordionSections = [this.groupedLocationProcesses[0].sectionName];
+        }
+    }
+    
+    handleAccordionToggle(event) {
+        event.stopPropagation();
+        const sectionName = event.currentTarget.dataset.section;
+        const headerElement = event.currentTarget;
+        const contentElement = this.template.querySelector(
+            `.location-accordion-content[data-section="${sectionName}"]`
+        );
+        
+        if (contentElement) {
+            const isOpen = contentElement.classList.contains('open');
+            
+            // Close all accordions first (only one open at a time)
+            const allContents = this.template.querySelectorAll('.location-accordion-content');
+            const allHeaders = this.template.querySelectorAll('.location-accordion-header');
+            
+            allContents.forEach(content => content.classList.remove('open'));
+            allHeaders.forEach(header => header.classList.remove('active'));
+            
+            // If it wasn't open, open it
+            if (!isOpen) {
+                contentElement.classList.add('open');
+                headerElement.classList.add('active');
+            }
+            
+            // Update slider visuals after DOM settles
+            setTimeout(() => this.updateSliderStyles(), 100);
+        }
     }
 
     handleSliderInput(event) {
@@ -1490,7 +1537,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
             // Get the selected mobilization date
             const selectedMobOption = this.mobilizationOptions.find(opt => opt.value === this.selectedMobilizationId);
-            const workPerformedDate = selectedMobOption ? selectedMobOption.label : new Date().toISOString().substring(0, 10);
+            const workPerformedDate = selectedMobOption ? selectedMobOption.dateStr : new Date().toISOString().substring(0, 10);
 
             // Create Log Entry record with files, camera photos, mobilization ID, and approval data
             // Status will be determined in Apex based on yesterday's approval and today's pending logs

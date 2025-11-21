@@ -50,7 +50,7 @@
 
 .search-bar {
     flex: 1 1 auto;
-    max-width: 300px;
+    max-width: 325px;
 }
 
 .right-controls {
@@ -1789,5 +1789,155 @@
 
     .card-placeholder {
         height: 7rem;
+    }
+}
+
+/* =============================================
+   ACCORDION STYLES (View Mode)
+   ============================================= */
+
+.location-processes-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.location-accordion-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.location-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    background: linear-gradient(135deg, #5e5adb 0%, #7c78ed 100%);
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.location-accordion-header:hover {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.location-accordion-header.active {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.location-accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.accordion-icon {
+    transition: transform 0.3s ease;
+    fill: white;
+}
+
+.location-accordion-header.active .accordion-icon {
+    transform: rotate(180deg);
+}
+
+.location-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: #f9fafb;
+}
+
+.location-accordion-content.open {
+    max-height: 2000px;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+/* =============================================
+   ACCORDION STYLES (Edit Mode)
+   ============================================= */
+
+.edit-location-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.edit-location-accordion-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.edit-location-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #5e5adb 0%, #7c78ed 100%);
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.edit-location-accordion-header:hover {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.edit-location-accordion-header.active {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.edit-location-accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.edit-accordion-icon {
+    transition: transform 0.3s ease;
+    fill: white;
+}
+
+.edit-location-accordion-header.active .edit-accordion-icon {
+    transform: rotate(180deg);
+}
+
+.edit-location-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: #ffffff;
+}
+
+.edit-location-accordion-content.open {
+    max-height: 3000px;
+    padding: 1.25rem;
+    overflow-y: auto;
+}
+
+/* Mobile responsiveness for accordions */
+@media screen and (max-width: 768px) {
+    .location-accordion-header,
+    .edit-location-accordion-header {
+        padding: 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .location-accordion-content.open,
+    .edit-location-accordion-content.open {
+        padding: 0.75rem;
     }
 }
