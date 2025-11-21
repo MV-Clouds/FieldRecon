@@ -324,14 +324,18 @@ public with sharing class ApproveShiftEndLogsController {
             // Apply field updates if approved
             if (action == 'approved' && fieldUpdates != null && !fieldUpdates.isEmpty()) {
                 applyFieldUpdates(ts, fieldUpdates);
-                ts.Approval_Data__c = null; // Clear approval data after applying
+            }
+            
+            // Clear approval data for both approved and rejected
+            if (action == 'approved' || action == 'rejected') {
+                ts.Approval_Data__c = null;
             }
             
             // Set status
             ts.Status__c = action == 'approved' ? 'Approved' : (action == 'rejected' ? 'Rejected' : 'Pending');
-            timesheetsToUpdate.add(ts);
             
-            // Process items
+            // Process items and collect parent timesheet field updates
+            Map<String, Object> parentFieldUpdates = new Map<String, Object>();
             if (tsMap.containsKey('items')) {
                 List<Object> items = (List<Object>) tsMap.get('items');
                 for (Object itemObj : items) {
@@ -345,7 +349,23 @@ public with sharing class ApproveShiftEndLogsController {
                     // Apply field updates if approved
                     if (itemAction == 'approved' && itemFieldUpdates != null && !itemFieldUpdates.isEmpty()) {
                         applyFieldUpdates(item, itemFieldUpdates);
-                        item.Approval_Data__c = null; // Clear approval data
+                        
+                        // Collect Clock In/Out/Travel Time updates to apply to parent Timesheet_Entry__c
+                        // These fields must be synced between parent and child records
+                        if (itemFieldUpdates.containsKey('Clock_In_Time__c')) {
+                            parentFieldUpdates.put('Clock_In_Time__c', itemFieldUpdates.get('Clock_In_Time__c'));
+                        }
+                        if (itemFieldUpdates.containsKey('Clock_Out_Time__c')) {
+                            parentFieldUpdates.put('Clock_Out_Time__c', itemFieldUpdates.get('Clock_Out_Time__c'));
+                        }
+                        if (itemFieldUpdates.containsKey('Travel_Time__c')) {
+                            parentFieldUpdates.put('Travel_Time__c', itemFieldUpdates.get('Travel_Time__c'));
+                        }
+                    }
+                    
+                    // Clear approval data for both approved and rejected
+                    if (itemAction == 'approved' || itemAction == 'rejected') {
+                        item.Approval_Data__c = null;
                     }
                     
                     // Set status
@@ -353,6 +373,13 @@ public with sharing class ApproveShiftEndLogsController {
                     itemsToUpdate.add(item);
                 }
             }
+            
+            // Apply parent field updates collected from items (Clock In/Out/Travel Time must be synced)
+            if (action == 'approved' && !parentFieldUpdates.isEmpty()) {
+                applyFieldUpdates(ts, parentFieldUpdates);
+            }
+            
+            timesheetsToUpdate.add(ts);
         }
         
         if (!timesheetsToUpdate.isEmpty()) {

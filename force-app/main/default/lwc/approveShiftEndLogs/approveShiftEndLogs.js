@@ -594,8 +594,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         
         // Format old value for display
         if (formattedField.isDateTime) {
-            formattedField.oldValueFormatted = this.parseLiteral(field.oldValue);
-            formattedField.newValueFormatted = this.parseLiteral(field.newValue);
+            formattedField.oldValueFormatted = this.formatToAMPM(field.oldValue);
+            formattedField.newValueFormatted = this.formatToAMPM(field.newValue);
             formattedField.newValueForInput = this.formatDateTimeForInput(field.newValue);
         } else {
             formattedField.oldValueFormatted = field.oldValue || '--';
@@ -640,9 +640,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
 
         // Validate and convert datetime-local format
         if ((fieldName === 'Clock_In_Time__c' || fieldName === 'Clock_Out_Time__c') && newValue) {
-            // Basic validation: Check if datetime is valid
-            const dateObj = new Date(newValue);
-            if (isNaN(dateObj.getTime())) {
+            // Basic validation: Check if datetime is valid format YYYY-MM-DDTHH:mm
+            const dateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+            if (!dateTimePattern.test(newValue)) {
                 this.showToast('Error', 'Invalid date/time format', 'error');
                 return;
             }
@@ -652,9 +652,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 const entry = this.logEntryDetails?.timesheetEntries?.find(e => e.id === recordId);
                 if (entry) {
                     const clockInField = entry.approvalFields?.find(f => f.fieldApiName === 'Clock_In_Time__c');
-                    const clockInTime = clockInField ? new Date(clockInField.newValue) : null;
+                    const clockInValue = clockInField ? clockInField.newValue.slice(0, 16) : null;
                     
-                    if (clockInTime && dateObj <= clockInTime) {
+                    if (clockInValue && newValue <= clockInValue) {
                         this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
                         event.target.value = this.formatDateTimeForInput(clockInField.newValue); // Reset to original
                         return;
@@ -662,8 +662,10 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 }
             }
 
-            // Convert to ISO string
-            newValue = dateObj.toISOString();
+            // Convert to format expected by Apex DateTime.valueOf(): YYYY-MM-DD HH:mm:ss
+            // Input format: YYYY-MM-DDTHH:mm
+            // Output format: YYYY-MM-DD HH:mm:ss
+            newValue = newValue.replace('T', ' ') + ':00';
         }
 
         // Validate travel time is non-negative
@@ -1322,25 +1324,64 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     parseLiteral(iso) {
         if (!iso) return '--';
-        const dt = new Date(iso);
-        const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-        return dt.toLocaleString('en-US', options);
+        return iso.slice(0, 16).replace('T', ' ');
+    }
+    
+    /**
+     * Method Name: formatToAMPM
+     * @description: Format ISO datetime to readable AM/PM format without timezone conversion
+     */
+    formatToAMPM(iso) {
+        try {
+            if (!iso) return '--';
+            
+            // Extract date and time parts from ISO string
+            // Format: "2025-11-19T13:02:00.000Z" or "2025-11-19T13:02"
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+            
+            const datePart = parts[0]; // "2025-11-19"
+            const timePart = parts[1].substring(0, 5); // "13:02"
+            
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            // Extract hours and minutes
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+            
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 19, 2025, 01:02 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToAMPM:', error);
+            return iso;
+        }
     }
 
     /**
      * Method Name: formatDateTimeForInput
-     * @description: Format ISO datetime for datetime-local input
+     * @description: Format ISO datetime for datetime-local input without timezone conversion
      */
     formatDateTimeForInput(iso) {
         if (!iso) return '';
         // datetime-local expects format: YYYY-MM-DDTHH:mm
-        const dt = new Date(iso);
-        const year = dt.getFullYear();
-        const month = String(dt.getMonth() + 1).padStart(2, '0');
-        const day = String(dt.getDate()).padStart(2, '0');
-        const hours = String(dt.getHours()).padStart(2, '0');
-        const minutes = String(dt.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
+        // Extract the first 16 characters from ISO string (YYYY-MM-DDTHH:mm)
+        // This avoids timezone conversion that occurs with new Date()
+        return iso.slice(0, 16);
     }
 
     /**
