@@ -1,9 +1,27 @@
 <template>
+    <!-- Single Loading Spinner for all loading states -->
     <template if:true={isLoading}>
         <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
     </template>
 
-    <div class="wrapper">
+    <!-- Access Denied Message -->
+    <template if:false={hasAccess}>
+        <div class="wrapper">
+            <div class="empty-state">
+                <div class="empty-state__content">
+                    <div class="empty-state__icon">
+                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                    </div>
+                    <h3 class="empty-state__message" style="color: #d93025; font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">Access Denied</h3>
+                    <p style="color: #5f6368; margin-top: 0.75rem; font-size: 1rem; max-width: 400px; line-height: 1.5;">You do not have permission to view this page. Please contact your System Administrator for access.</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Main Content (only shown if user has access) -->
+    <template if:true={hasAccess}>
+        <div class="wrapper">
         <div class="filter-bar">
             <div class="search-div">
                 <lightning-input type="search" variant="label-hidden" placeholder="Search by Job Name or Number"
@@ -43,7 +61,8 @@
             </div>
         </div>
 
-        <template if:true={logEntries.length}>
+        <!-- Table Content (only if records exist) -->
+        <template if:true={showTable}>
             <div class="table-content">
                 <table class="slds-table">
                     <thead>
@@ -62,22 +81,32 @@
                                     <td key={val} style={val.style}>
                                         <div class="slds-truncate cell-wrapper" title={val.value}>
                                             <template if:true={val.isActions}>
-                                                <div class="action-button-container">
-                                                    <button class="edit-icon" title="Edit/Review" data-logid={log.Id}
-                                                        data-action="edit" onclick={handleActionClick}>
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                            xmlns="http://www.w3.org/2000/svg">
-                                                            <path
-                                                                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                                                                stroke="currentColor" stroke-width="2"
-                                                                stroke-linecap="round" stroke-linejoin="round" />
-                                                            <path
-                                                                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                                                                stroke="currentColor" stroke-width="2"
-                                                                stroke-linecap="round" stroke-linejoin="round" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
+                                                <!-- Show Edit Icon only for Pending entries -->
+                                                <template if:true={log.isPending}>
+                                                    <div class="action-button-container">
+                                                        <button class="edit-icon" title="Edit/Review" data-logid={log.Id}
+                                                            data-action="edit" onclick={handleActionClick}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                xmlns="http://www.w3.org/2000/svg">
+                                                                <path
+                                                                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                                                    stroke="currentColor" stroke-width="2"
+                                                                    stroke-linecap="round" stroke-linejoin="round" />
+                                                                <path
+                                                                    d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                                                    stroke="currentColor" stroke-width="2"
+                                                                    stroke-linecap="round" stroke-linejoin="round" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                
+                                                <!-- Show Status Badge for non-Pending entries -->
+                                                <template if:false={log.isPending}>
+                                                    <span class="status-badge" data-status={log.status}>
+                                                        {log.status}
+                                                    </span>
+                                                </template>
                                             </template>
 
                                             <template if:false={val.isActions}>
@@ -105,19 +134,24 @@
             </div>
         </template>
 
-        <template if:false={logEntries.length}>
+        <!-- No Data Message -->
+        <template if:true={showNoData}>
             <div class="no-records-message">
                 <div class="empty-state">
                     <div class="empty-state__content">
                         <div class="empty-state__icon">
                             <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                         </div>
-                        <div class="empty-state__message">No log entries available</div>
+                        <div class="empty-state__message">No Log Entries Found</div>
+                        <p style="color: #666; margin-top: 0.5rem; text-align: center;">
+                            There are no log entries matching your current filters. Try adjusting the date range or status filter.
+                        </p>
                     </div>
                 </div>
             </div>
         </template>
-    </div>
+        </div>
+    </template>
 
     <!-- Edit/Approve/Reject Modal -->
     <template if:true={showModal}>
@@ -130,28 +164,28 @@
                         size="small"></lightning-icon>
                 </button>
                 <div class="pop-heading">Review Log Entry - {logEntryDetails.entryNumber}</div>
-                <!-- <div class="log-header-info">
-                    <div class="header-row">
-                        <div class="header-item">
-                            <span class="header-label">Job:</span>
-                            <span class="header-value">{logEntryDetails.jobNumber} -
-                                {logEntryDetails.jobName}</span>
-                        </div>
-                        <div class="header-item">
-                            <span class="header-label">Submitted By:</span>
-                            <span class="header-value">{logEntryDetails.submittedBy}</span>
-                        </div>
-                        <div class="header-item">
-                            <span class="header-label">Date:</span>
-                            <span class="header-value">{logEntryDetails.submittedDate}</span>
-                        </div>
-                        <div class="header-item">
-                            <span class="header-label">Status:</span>
-                            <span class="header-value">{logEntryDetails.status}</span>
+                <div class="slds-modal__content pop-up">
+                    <div class="log-header-info">
+                        <div class="header-row">
+                            <div class="header-item">
+                                <span class="header-label">Job:</span>
+                                <span class="header-value">{logEntryDetails.jobNumber} -
+                                    {logEntryDetails.jobName}</span>
+                            </div>
+                            <div class="header-item">
+                                <span class="header-label">Submitted By:</span>
+                                <span class="header-value">{logEntryDetails.submittedBy}</span>
+                            </div>
+                            <div class="header-item">
+                                <span class="header-label">Date:</span>
+                                <span class="header-value">{logEntryDetails.submittedDate}</span>
+                            </div>
+                            <div class="header-item">
+                                <span class="header-label">Status:</span>
+                                <span class="header-value">{logEntryDetails.status}</span>
+                            </div>
                         </div>
                     </div>
-                </div> -->
-                <div class="slds-modal__content pop-up">
                     <template if:true={logEntryDetails}>
                         <!-- Custom Tab Navigation -->
                         <div class="tab-container">
@@ -397,13 +431,13 @@
                                 <div class="tab-content">
                                     <div class="log-details-form">
                                         <div class="form-field">
-                                            <label class="field-label">Work Performed</label>
+                                            <label class="field-label">Work Performed <span style="color: red;">*</span></label>
                                             <lightning-textarea variant="label-hidden"
                                                 value={logEntryDetails.workPerformed} data-field="workPerformed"
                                                 onchange={handleLogFieldChange} rows="4"></lightning-textarea>
                                         </div>
                                         <div class="form-field">
-                                            <label class="field-label">Plan for Tomorrow</label>
+                                            <label class="field-label">Plan for Tomorrow <span style="color: red;">*</span></label>
                                             <lightning-textarea variant="label-hidden"
                                                 value={logEntryDetails.planForTomorrow} data-field="planForTomorrow"
                                                 onchange={handleLogFieldChange} rows="4"></lightning-textarea>
@@ -493,10 +527,39 @@
                 </div>
                 <div class="popUpFooter">
                     <button class="cancel-button" onclick={handleCancelChanges}>Cancel</button>
-                    <button class="approve-button" onclick={handleSaveChanges}>Save</button>
+                    
+                    <!-- Show Save button when there are items to review -->
+                    <template if:true={hasItemsToReview}>
+                        <button class="approve-button" onclick={handleSaveChanges}>Save</button>
+                    </template>
+                    
+                    <!-- Show Save & Approve and Save & Reject when no items to review -->
+                    <template if:false={hasItemsToReview}>
+                        <button class="reject-button" onclick={handleSaveAndReject}>Save & Reject</button>
+                        <button class="approve-button" onclick={handleSaveAndApprove}>Save & Approve</button>
+                    </template>
                 </div>
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open sub-backdrop" role="presentation"></div>
+    </template>
+
+    <!-- Confirmation Modal (shown above main modal with higher z-index) -->
+    <template if:true={showConfirmModal}>
+        <section class="slds-modal slds-fade-in-open" role="dialog" aria-modal="true" style="z-index: 10000;">
+            <div class="slds-modal__container">
+                <header class="confirm-modal-header">
+                    <h2 class="confirm-modal-title">{confirmModalTitle}</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p>{confirmModalMessage}</p>
+                </div>
+                <footer class="popUpFooter">
+                    <button class="confirm-no-button" onclick={handleConfirmNo}>No</button>
+                    <button class="confirm-yes-button" onclick={handleConfirmYes}>Yes</button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" style="z-index: 9999;"></div>
     </template>
 </template>

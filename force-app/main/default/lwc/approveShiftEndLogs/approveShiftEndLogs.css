@@ -766,7 +766,8 @@
 /* Custom Tab Navigation */
 .tab-container {
     overflow: hidden;
-    height: 100%;
+    height: 90%;
+    margin-top: 3rem;
 }
 
 .tab-navigation {
@@ -1432,4 +1433,60 @@ tr:has(.status-badge[data-status="approved"]) {
 
 tr:has(.status-badge[data-status="rejected"]) {
     background-color: rgba(220, 53, 69, 0.03);
+}
+
+/* Confirmation Modal Custom Styles */
+.confirm-modal-header {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-radius: 0.5rem 0.5rem 0 0;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirm-modal-title {
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.confirm-modal-footer {
+    padding: 1rem;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.confirm-no-button,
+.confirm-yes-button {
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.25rem;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.confirm-no-button {
+    background-color: #f3f3f3;
+    color: #080707;
+    border: 1px solid #dddbda;
+}
+
+.confirm-no-button:hover {
+    background-color: #e5e5e5;
+}
+
+.confirm-yes-button {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+}
+
+.confirm-yes-button:hover {
+    background-color: rgba(74, 70, 199, 1);
 }
