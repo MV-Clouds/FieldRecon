@@ -446,7 +446,8 @@ public with sharing class ShiftEndLogEntriesController {
 
             Date startDate = Date.valueOf(jobStartDate);
 
-            List<Timesheet_Entry_Item__c> items = [SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
+            List<Timesheet_Entry_Item__c> items = [SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__c, 
+                                                    Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
                                                     Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
                                                     Cost_Code__r.Name, Clock_In_Date__c, Premium__c, Status__c, Approval_Data__c FROM Timesheet_Entry_Item__c 
                                                     WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId AND Clock_In_Date__c = :startDate
@@ -568,6 +569,7 @@ public with sharing class ShiftEndLogEntriesController {
             ];
             
             // Parse approval data to get full approval details (oldValue, newValue)
+            // Now supports both old structure (array) and new structure (object with locationProcessChanges)
             for(Log_Entry__c log : pendingLogs) {
                 // Check if Approval_Data__c is not null
                 if(String.isBlank(log.Approval_Data__c)) {
@@ -575,7 +577,21 @@ public with sharing class ShiftEndLogEntriesController {
                 }
                 
                 try {
-                    List<Object> approvalList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
+                    Object approvalDataObj = JSON.deserializeUntyped(log.Approval_Data__c);
+                    List<Object> approvalList = new List<Object>();
+                    
+                    if(approvalDataObj instanceof Map<String, Object>) {
+                        // New structure: { locationProcessChanges: [], timesheetEntryChanges: {} }
+                        Map<String, Object> approvalData = (Map<String, Object>) approvalDataObj;
+                        Object locationProcessChanges = approvalData.get('locationProcessChanges');
+                        if(locationProcessChanges != null && locationProcessChanges instanceof List<Object>) {
+                            approvalList = (List<Object>) locationProcessChanges;
+                        }
+                    } else if(approvalDataObj instanceof List<Object>) {
+                        // Old structure: [{ id, oldValue, newValue }]
+                        approvalList = (List<Object>) approvalDataObj;
+                    }
+                    
                     for(Object obj : approvalList) {
                         Map<String, Object> approval = (Map<String, Object>) obj;
                         String processId = (String) approval.get('id');
@@ -649,6 +665,7 @@ public with sharing class ShiftEndLogEntriesController {
     public class TimesheetEntryItemWrapper {
         @AuraEnabled public Id id;
         @AuraEnabled public Id TSEId;
+        @AuraEnabled public Id contactId;
         @AuraEnabled public String contactName;
         @AuraEnabled public Datetime clockInTime;
         @AuraEnabled public Datetime clockOutTime;
@@ -665,6 +682,7 @@ public with sharing class ShiftEndLogEntriesController {
         public TimesheetEntryItemWrapper(Timesheet_Entry_Item__c item) {
             this.id = item.Id;
             this.TSEId = item.Timesheet_Entry__c;
+            this.contactId = item.Timesheet_Entry__r.TimeSheet__r.Contact__c;
             this.contactName = item.Timesheet_Entry__r.TimeSheet__r.Contact__r.Name;
             
             // Convert to user timezone

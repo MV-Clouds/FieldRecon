@@ -224,16 +224,17 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }
 
     // Helper to group location processes for accordion view
-    groupLocationProcessesForView(locationProcesses, approvalData, isApprovedStatus) {
+    groupLocationProcessesForView(locationProcesses, locationProcessChanges, isApprovedStatus) {
         const locationMap = new Map();
         
         locationProcesses.forEach(proc => {
             let approvalDataForProcess = null;
             let isPendingApproval = false;
             
-            // Parse approval data - only show as pending if status is 'Pending' (not approved/auto-approved)
-            if (approvalData && Array.isArray(approvalData) && !isApprovedStatus) {
-                approvalDataForProcess = approvalData.find(item => item.id === proc.processId);
+            // Parse approval data - locationProcessChanges is now an array from the new structure
+            // Only show as pending if status is 'Pending' (not approved/auto-approved)
+            if (locationProcessChanges && locationProcessChanges.length > 0 && !isApprovedStatus) {
+                approvalDataForProcess = locationProcessChanges.find(item => item.id === proc.processId);
                 isPendingApproval = !!approvalDataForProcess;
             }
             
@@ -348,13 +349,29 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         };
                     });
                     
-                    // Parse approval data if present
+                    // Parse approval data if present - now using new structure
                     let approvalData = null;
+                    let locationProcessChanges = [];
                     let hasPendingApproval = false;
                     if (log.wfrecon__Approval_Data__c) {
                         try {
-                            approvalData = JSON.parse(log.wfrecon__Approval_Data__c);
-                            hasPendingApproval = approvalData && Object.keys(approvalData).length > 0;
+                            const parsedData = JSON.parse(log.wfrecon__Approval_Data__c);
+                            
+                            // Check if it's the new structure or old structure
+                            if (parsedData.locationProcessChanges) {
+                                // New structure
+                                approvalData = parsedData;
+                                locationProcessChanges = parsedData.locationProcessChanges || [];
+                                hasPendingApproval = locationProcessChanges.length > 0 || Object.keys(parsedData.timesheetEntryChanges || {}).length > 0;
+                            } else if (Array.isArray(parsedData)) {
+                                // Old structure - convert to new structure for backwards compatibility
+                                locationProcessChanges = parsedData;
+                                approvalData = {
+                                    locationProcessChanges: parsedData,
+                                    timesheetEntryChanges: {}
+                                };
+                                hasPendingApproval = parsedData.length > 0;
+                            }
                         } catch (e) {
                             console.error('Error parsing approval data:', e);
                         }
@@ -418,10 +435,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             let approvalDataForProcess = null;
                             let isPendingApproval = false;
                             
-                            // Parse approval data - it's stored as JSON array [{ id, oldValue, newValue }]
+                            // Parse approval data - now using locationProcessChanges array from new structure
                             // Only show as pending if status is 'Pending' (not approved/auto-approved)
-                            if (approvalData && Array.isArray(approvalData) && !isApprovedStatus) {
-                                approvalDataForProcess = approvalData.find(item => item.id === proc.processId);
+                            if (locationProcessChanges && locationProcessChanges.length > 0 && !isApprovedStatus) {
+                                approvalDataForProcess = locationProcessChanges.find(item => item.id === proc.processId);
                                 isPendingApproval = !!approvalDataForProcess;
                             }
                             
@@ -441,7 +458,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         }),
                         hasLocationProcesses: locationProcesses.length > 0,
                         // Group location processes by location name for accordion view
-                        groupedLocationProcesses: this.groupLocationProcessesForView(locationProcesses, approvalData, isApprovedStatus)
+                        groupedLocationProcesses: this.groupLocationProcessesForView(locationProcesses, locationProcessChanges, isApprovedStatus)
                     };
                 });
                 
@@ -749,11 +766,20 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // Clear the original percentages map at the start
             this.editOriginalCompletionPercentages.clear();
             
-            // Check if there's approval data - parse the JSON array format
+            // Check if there's approval data - handle both new and old structure
             let approvalDataArray = [];
             if (logToEdit.wfrecon__Approval_Data__c) {
                 try {
-                    approvalDataArray = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
+                    const parsedData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
+                    
+                    // Check if it's the new structure or old structure
+                    if (parsedData.locationProcessChanges) {
+                        // New structure
+                        approvalDataArray = parsedData.locationProcessChanges;
+                    } else if (Array.isArray(parsedData)) {
+                        // Old structure
+                        approvalDataArray = parsedData;
+                    }
                 } catch (e) {
                     console.error('Error parsing approval data in edit modal:', e);
                 }
@@ -1254,39 +1280,58 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         // Get existing approval data from the current log entry
         const currentLog = this.shiftEndLogs.find(log => log.Id === this.editLogId);
-        let existingApprovalData = [];
+        let existingApprovalData = {
+            locationProcessChanges: [],
+            timesheetEntryChanges: {}
+        };
         
         if (currentLog && currentLog.wfrecon__Approval_Data__c) {
             try {
-                existingApprovalData = JSON.parse(currentLog.wfrecon__Approval_Data__c);
-                if (!Array.isArray(existingApprovalData)) {
-                    existingApprovalData = [];
+                const parsedData = JSON.parse(currentLog.wfrecon__Approval_Data__c);
+                
+                // Check if it's the new structure or old structure
+                if (parsedData.locationProcessChanges) {
+                    // New structure
+                    existingApprovalData = parsedData;
+                } else if (Array.isArray(parsedData)) {
+                    // Old structure - convert to new structure
+                    existingApprovalData = {
+                        locationProcessChanges: parsedData,
+                        timesheetEntryChanges: {}
+                    };
                 }
             } catch (e) {
                 console.error('Error parsing existing approval data:', e);
-                existingApprovalData = [];
+                existingApprovalData = {
+                    locationProcessChanges: [],
+                    timesheetEntryChanges: {}
+                };
             }
         }
 
-        // Create a map starting with existing approval data
+        // Create a map starting with existing location process changes
         const approvalDataMap = new Map();
-        existingApprovalData.forEach(item => {
+        existingApprovalData.locationProcessChanges.forEach(item => {
             approvalDataMap.set(item.id, item);
         });
 
         // Add or update with new modifications
         Array.from(this.editModifiedProcesses.entries()).forEach(([processId, modification]) => {
+            // Find the process to get its name
+            const process = this.editAllLocationProcesses.find(p => p.processId === processId);
+            
             approvalDataMap.set(processId, {
                 id: processId,
                 oldValue: modification.originalValue,
-                newValue: modification.newValue
+                newValue: modification.newValue,
+                name: process ? process.processName : 'Unknown'
             });
         });
 
         // Only remove processes that were in the current edit session and were reset back
         // Don't touch processes that were already in approval but not modified in this session
         this.editAllLocationProcesses.forEach(proc => {
-            const wasInExistingApproval = existingApprovalData.some(item => item.id === proc.processId);
+            const wasInExistingApproval = existingApprovalData.locationProcessChanges.some(item => item.id === proc.processId);
             const wasModifiedNow = this.editModifiedProcesses.has(proc.processId);
             
             // Only remove if it was modified in THIS session and then reset back
@@ -1304,8 +1349,11 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // If IN existing approval and NOT modified now, keep it (already in map)
         });
 
-        // Convert map back to array
-        const mergedApprovalData = Array.from(approvalDataMap.values());
+        // Build the merged approval data structure
+        const mergedApprovalData = {
+            locationProcessChanges: Array.from(approvalDataMap.values()),
+            timesheetEntryChanges: existingApprovalData.timesheetEntryChanges || {}
+        };
 
         const formData = {
             Id: this.editLogId,
@@ -1316,8 +1364,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice,
         };
 
-        // Only set approval data if there are any updates (existing or new)
-        if(mergedApprovalData.length > 0) {
+        // Only set approval data if there are any updates (location process changes or timesheet changes)
+        if(mergedApprovalData.locationProcessChanges.length > 0 || Object.keys(mergedApprovalData.timesheetEntryChanges).length > 0) {
             formData.wfrecon__Approval_Data__c = JSON.stringify(mergedApprovalData);
         }
 

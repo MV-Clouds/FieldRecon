@@ -630,6 +630,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         
                         return {
                             id: entry.id,
+                            contactId: entry.contactId,
                             contactName: entry.contactName,
                             clockInTime: this.formatToAMPM(displayClockIn),
                             clockOutTime: this.formatToAMPM(displayClockOut),
@@ -1520,19 +1521,60 @@ export default class ShiftEndLogEntries extends LightningElement {
                 base64Data: photo.base64Data
             }));
 
-            // Build approval data JSON directly in the format Apex expects: [{"id":"recordId","oldValue":73,"newValue":79}]
-            // This will set the Log Entry status to "Pending" if there are any modified processes
-            const approvalDataJson = Array.from(this.modifiedProcesses.entries()).length > 0
-                ? JSON.stringify(
-                    Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
-                        id: processId,
-                        oldValue: modification.originalValue,
-                        newValue: modification.newValue
-                    }))
-                )
-                : null;
+            // Build new approval data structure with locationProcessChanges and timesheetEntryChanges
+            let approvalDataJson = null;
+            
+            // Build locationProcessChanges array
+            const locationProcessChanges = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => {
+                // Find the process to get its name
+                const process = this.allLocationProcesses.find(p => p.processId === processId);
+                return {
+                    id: processId,
+                    oldValue: modification.originalValue,
+                    newValue: modification.newValue,
+                    name: process ? process.processName : 'Unknown'
+                };
+            });
+            
+            // Build timesheetEntryChanges object from pending timesheet entries
+            const timesheetEntryChanges = {};
+            
+            this.pendingTimesheetEntries.forEach(entry => {
+                if (entry.approvalData && entry.approvalData.trim() !== '' && entry.approvalData !== '[]') {
+                    try {
+                        const approvalDataArray = JSON.parse(entry.approvalData);
+                        
+                        // Convert approval data array to changes array
+                        const changes = approvalDataArray.map(change => ({
+                            fieldApiName: change.fieldApiName,
+                            oldValue: change.oldValue || null,
+                            newValue: change.newValue
+                        }));
+                        
+                        // Store using TSEId as key (Timesheet Entry ID)
+                        timesheetEntryChanges[entry.TSEId] = {
+                            changes: changes,
+                            contactId: entry.contactId || null,
+                            contactName: entry.contactName
+                        };
+                    } catch (e) {
+                        console.error('Error parsing approval data for entry:', entry.id, e);
+                    }
+                }
+            });
+            
+            // Build the new structure only if there are changes
+            if (locationProcessChanges.length > 0 || Object.keys(timesheetEntryChanges).length > 0) {
+                const approvalDataStructure = {
+                    locationProcessChanges: locationProcessChanges,
+                    timesheetEntryChanges: timesheetEntryChanges
+                };
+                
+                approvalDataJson = JSON.stringify(approvalDataStructure);
+            }
 
             console.log('Modified Processes:', Array.from(this.modifiedProcesses.entries()));
+            console.log('Timesheet Entry Changes:', timesheetEntryChanges);
             console.log('Approval Data JSON:', approvalDataJson);
 
             // Get the selected mobilization date
