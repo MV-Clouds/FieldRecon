@@ -1017,6 +1017,22 @@
     gap: 0.5rem;
 }
 
+.contact-name-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 8rem;
+    display: inline-block;
+}
+
+.text-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 100%;
+}
+
 .contact-name-cell lightning-icon {
     flex-shrink: 0;
 }
@@ -1121,6 +1137,11 @@
     font-size: 15px;
     font-weight: 600;
     color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 20rem;
+    display: inline-block;
 }
 
 .process-approval-badge {

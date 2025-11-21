@@ -260,17 +260,17 @@ public with sharing class ApproveShiftEndLogsController {
             // Process timesheets
             if (approvalMap.containsKey('timesheets')) {
                 List<Object> timesheets = (List<Object>) approvalMap.get('timesheets');
-                processTimesheetApprovals(timesheets);
+                processTimesheetApprovals(timesheets, logEntryStatus);
             }
             
-            // Process location processes
-            if (approvalMap.containsKey('locationProcesses')) {
+            // Process location processes (skip on rejection as no status field exists on Location_Process__c)
+            if (approvalMap.containsKey('locationProcesses') && logEntryStatus != 'Rejected') {
                 List<Object> locationProcesses = (List<Object>) approvalMap.get('locationProcesses');
                 processLocationProcessApprovals(locationProcesses);
             }
             
-            // Delete removed attachments
-            if (approvalMap.containsKey('removedAttachments')) {
+            // Delete removed attachments (skip on rejection to preserve original data)
+            if (approvalMap.containsKey('removedAttachments') && logEntryStatus != 'Rejected') {
                 List<Object> removedAttachments = (List<Object>) approvalMap.get('removedAttachments');
                 deleteAttachments(removedAttachments);
             }
@@ -286,16 +286,21 @@ public with sharing class ApproveShiftEndLogsController {
     /**
      * @description: Process timesheet approvals and rejections
      * This method handles:
-     * 1. Updates Clock_In_Time__c and Clock_Out_Time__c in BOTH Timesheet_Entry__c (parent) and Timesheet_Entry_Item__c (child)
-     * 2. Updates Travel_Time__c ONLY in Timesheet_Entry_Item__c (field doesn't exist on parent)
-     * 3. Updates Status__c in BOTH Timesheet_Entry__c and Timesheet_Entry_Item__c (Approved/Rejected/Pending)
-     * 4. NO clearing of Approval_Data__c
-     * 5. Each timesheet entry has exactly ONE child timesheet entry item
+     * 1. On Rejection: ONLY updates Status__c in BOTH Timesheet_Entry__c (parent) and Timesheet_Entry_Item__c (child)
+     * 2. On Approval: Updates Clock_In_Time__c and Clock_Out_Time__c in BOTH Timesheet_Entry__c (parent) and Timesheet_Entry_Item__c (child)
+     * 3. On Approval: Updates Travel_Time__c ONLY in Timesheet_Entry_Item__c (field doesn't exist on parent)
+     * 4. Updates Status__c in BOTH Timesheet_Entry__c and Timesheet_Entry_Item__c (Approved/Rejected/Pending)
+     * 5. NO clearing of Approval_Data__c
+     * 6. Each timesheet entry has exactly ONE child timesheet entry item
      * @param timesheets: List of timesheet approval data with IDs and field updates
+     * @param logEntryStatus: Final status for the log entry (Approved/Rejected/Pending)
      */
-    private static void processTimesheetApprovals(List<Object> timesheets) {
+    private static void processTimesheetApprovals(List<Object> timesheets, String logEntryStatus) {
         List<Timesheet_Entry__c> timesheetsToUpdate = new List<Timesheet_Entry__c>();
         List<Timesheet_Entry_Item__c> itemsToUpdate = new List<Timesheet_Entry_Item__c>();
+        
+        // Check if this is a rejection - on rejection, only update status, no field updates
+        Boolean isRejection = (logEntryStatus == 'Rejected');
         
         // Collect all timesheet IDs to fetch their child items in one query
         Set<Id> timesheetIds = new Set<Id>();
@@ -314,13 +319,19 @@ public with sharing class ApproveShiftEndLogsController {
         for (Object tsObj : timesheets) {
             Map<String, Object> tsData = (Map<String, Object>) tsObj;
             Id timesheetId = (Id) tsData.get('id');
+            String timesheetStatus = (String) tsData.get('status'); // Individual timesheet status
             Map<String, Object> fieldUpdates = (Map<String, Object>) tsData.get('fieldUpdates');
+            
+            // Determine if this individual timesheet is rejected
+            Boolean isTimesheetRejected = (timesheetStatus == 'rejected' || timesheetStatus == 'Rejected');
             
             // Update timesheet entry (parent)
             Timesheet_Entry__c ts = new Timesheet_Entry__c(Id = timesheetId);
+            // Use individual timesheet status if available, otherwise fallback to log entry status
+            ts.Status__c = String.isNotBlank(timesheetStatus) ? capitalizeStatus(timesheetStatus) : logEntryStatus;
             
-            // Apply field updates to parent (Clock_In_Time__c and Clock_Out_Time__c only)
-            if (fieldUpdates != null && !fieldUpdates.isEmpty()) {
+            // Apply field updates to parent ONLY if this specific timesheet is NOT rejected
+            if (!isTimesheetRejected && fieldUpdates != null && !fieldUpdates.isEmpty()) {
                 if (fieldUpdates.containsKey('Clock_In_Time__c')) {
                     String clockInStr = (String) fieldUpdates.get('Clock_In_Time__c');
                     ts.Clock_In_Time__c = convertUtc(clockInStr);
@@ -338,9 +349,11 @@ public with sharing class ApproveShiftEndLogsController {
                 Timesheet_Entry_Item__c item = new Timesheet_Entry_Item__c(
                     Id = timesheetItemMap.get(timesheetId).Id
                 );
+                // Use individual timesheet status if available, otherwise fallback to log entry status
+                item.Status__c = String.isNotBlank(timesheetStatus) ? capitalizeStatus(timesheetStatus) : logEntryStatus;
                 
-                // Apply field updates to child (Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c)
-                if (fieldUpdates != null && !fieldUpdates.isEmpty()) {
+                // Apply field updates to child ONLY if this specific timesheet is NOT rejected
+                if (!isTimesheetRejected && fieldUpdates != null && !fieldUpdates.isEmpty()) {
                     if (fieldUpdates.containsKey('Clock_In_Time__c')) {
                         String clockInStr = (String) fieldUpdates.get('Clock_In_Time__c');
                         item.Clock_In_Time__c = convertUtc(clockInStr);
@@ -416,8 +429,23 @@ public with sharing class ApproveShiftEndLogsController {
     }
     
     /**
+     * @description: Helper method to capitalize status string (e.g., 'approved' -> 'Approved')
+     * @param status: Status string in any case
+     * @return: Capitalized status string
+     */
+    private static String capitalizeStatus(String status) {
+        if (String.isBlank(status)) {
+            return status;
+        }
+        return status.substring(0, 1).toUpperCase() + status.substring(1).toLowerCase();
+    }
+    
+    /**
      * @description: Process location process approvals using IDs and new values directly
+     * Updates Completed_Percentage__c field with new values based on individual approval status
+     * Only updates if individual status is 'approved', skips if 'rejected' or 'pending'
      * NO clearing of Approval_Data__c on log entry
+     * Note: This method is not called on rejection (checked before calling)
      * @param locationProcesses: List of location process approval data with IDs and new values
      */
     private static void processLocationProcessApprovals(List<Object> locationProcesses) {
@@ -429,14 +457,15 @@ public with sharing class ApproveShiftEndLogsController {
             String status = (String) lpData.get('status');
             Integer newValue = lpData.get('newValue') != null ? (Integer) lpData.get('newValue') : null;
             
-            // Update location process with new value (user can edit the new value)
-            Location_Process__c lp = new Location_Process__c(Id = locationProcessId);
+            // Only update if this specific location process is approved
+            Boolean isApproved = (status == 'approved' || status == 'Approved');
             
-            if (newValue != null) {
+            if (isApproved && newValue != null) {
+                // Update location process with new value (user can edit the new value)
+                Location_Process__c lp = new Location_Process__c(Id = locationProcessId);
                 lp.Completed_Percentage__c = newValue;
+                lpsToUpdate.add(lp);
             }
-
-            lpsToUpdate.add(lp);
         }
         
         if (!lpsToUpdate.isEmpty()) {
@@ -466,17 +495,17 @@ public with sharing class ApproveShiftEndLogsController {
     
     /**
      * @description: Update log entry with final status and field updates
+     * On Rejection: ONLY updates Status__c field
+     * On Approval: Updates Status__c and other fields (workPerformed, planForTomorrow, exceptions, notesToOffice)
      * @param logEntryId: ID of the log entry
-     * @param status: Final status for the log entry
+     * @param status: Final status for the log entry (Approved/Rejected/Pending)
      * @param fieldUpdates: Map of field updates
      */
     private static void updateLogEntry(Id logEntryId, String status, Map<String, Object> fieldUpdates) {
         wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c(Id = logEntryId);
-        
-        // Set status
+
         logEntry.wfrecon__Status__c = status;
         
-        // Apply field updates
         if (fieldUpdates.containsKey('workPerformed')) {
             logEntry.wfrecon__Work_Performed__c = (String) fieldUpdates.get('workPerformed');
         }

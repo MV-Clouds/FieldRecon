@@ -246,7 +246,7 @@
                                                                             <template if:false={idx}>
                                                                                 <div class="contact-name-cell">
                                                                                     <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
-                                                                                    <span>{ts.memberName}</span>
+                                                                                    <span class="contact-name-truncate" title={ts.memberName}>{ts.memberName}</span>
                                                                                     <span class="status-badge" data-status={ts.approvalStatus}>
                                                                                         {ts.approvalStatus}
                                                                                     </span>
@@ -254,10 +254,10 @@
                                                                             </template>
                                                                         </td>
                                                                         <td style="width: 10rem; text-align: left;" class="field-label-cell">
-                                                                            {field.fieldLabel}
+                                                                            <span class="text-truncate" title={field.fieldLabel}>{field.fieldLabel}</span>
                                                                         </td>
                                                                         <td style="width: 13rem; text-align: left;" class="old-value-cell">
-                                                                            {field.oldValueFormatted}
+                                                                            <span class="text-truncate" title={field.oldValueFormatted}>{field.oldValueFormatted}</span>
                                                                         </td>
                                                                         <td style="width: 13rem; text-align: left;" class="new-value-cell">
                                                                             <template if:true={field.isDateTime}>
@@ -345,7 +345,7 @@
                                             <div key={lp.id} class="location-slider-container" data-status={lp.approvalStatus}>
                                                 <div class="slider-header">
                                                     <div class="process-info">
-                                                        <span class="process-name">{lp.name}</span>
+                                                        <span class="process-name" title={lp.name}>{lp.name}</span>
                                                         <span class="process-approval-badge">
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                                 <circle cx="12" cy="12" r="10"></circle>
@@ -515,7 +515,7 @@
                                                         </svg>
                                                     </button>
 
-                                                    <div class="file-preview-name">{file.title}</div>
+                                                    <div class="file-preview-name" title={file.title}>{file.title}</div>
                                                 </div>
                                             </template>
                                         </div>

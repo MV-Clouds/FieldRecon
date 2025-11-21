@@ -1175,10 +1175,16 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Process the save changes after confirmation
      */
     processSaveChanges(approvalData, logEntryStatus) {
-        // Call Apex to process the approval
+        // Store log entry ID before closing modal
+        const logEntryId = this.logEntryDetails.Id;
+        
+        // Close modal immediately to prevent multiple clicks
+        this.showModal = false;
         this.isLoading = true;
+        
+        // Call Apex to process the approval
         processLogEntryApproval({
-            logEntryId: this.logEntryDetails.Id,
+            logEntryId: logEntryId,
             approvalData: JSON.stringify(approvalData),
             logEntryStatus: logEntryStatus,
             logEntryUpdates: JSON.stringify({
@@ -1192,7 +1198,18 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 this.showToast('Success', 'Changes saved successfully', 'success');
                 // Clear newAttachments since they're now permanent (saved)
                 this.newAttachments = [];
-                this.closeModal();
+                // Clear modal data
+                this.selectedLog = null;
+                this.logEntryDetails = null;
+                this.modalNotes = '';
+                this.editedFields = {};
+                this.editedLocationProcesses = {};
+                this.timesheetApprovals = {};
+                this.timesheetItemApprovals = {};
+                this.locationProcessApprovals = {};
+                this.removedAttachments = [];
+                this.activeTab = 'timesheets';
+                
                 this.loadLogEntries(); // Refresh the list
             })
             .catch(error => {
@@ -1402,21 +1419,42 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         // Prepare approval data (empty items but with log entry updates)
         const approvalData = this.prepareApprovalData();
         
-        // Call Apex to process with Approved status
+        // Store log entry ID before closing modal
+        const logEntryId = this.logEntryDetails.Id;
+        const workPerformed = this.logEntryDetails.workPerformed;
+        const planForTomorrow = this.logEntryDetails.planForTomorrow;
+        const exceptions = this.logEntryDetails.exceptions;
+        
+        // Close modal immediately to prevent multiple clicks
+        this.showModal = false;
         this.isLoading = true;
+        
+        // Call Apex to process with Approved status
         processLogEntryApproval({
-            logEntryId: this.logEntryDetails.Id,
+            logEntryId: logEntryId,
             approvalData: JSON.stringify(approvalData),
             logEntryStatus: 'Approved',
             logEntryUpdates: JSON.stringify({
-                workPerformed: this.logEntryDetails.workPerformed,
-                planForTomorrow: this.logEntryDetails.planForTomorrow,
-                exceptions: this.logEntryDetails.exceptions,
+                workPerformed: workPerformed,
+                planForTomorrow: planForTomorrow,
+                exceptions: exceptions,
             })
         })
         .then(() => {
             this.showToast('Success', 'Log entry approved successfully', 'success');
-            this.closeModal();
+            // Clear modal data
+            this.selectedLog = null;
+            this.logEntryDetails = null;
+            this.modalNotes = '';
+            this.editedFields = {};
+            this.editedLocationProcesses = {};
+            this.timesheetApprovals = {};
+            this.timesheetItemApprovals = {};
+            this.locationProcessApprovals = {};
+            this.newAttachments = [];
+            this.removedAttachments = [];
+            this.activeTab = 'timesheets';
+            
             this.loadLogEntries();
         })
         .catch(error => {
@@ -1455,21 +1493,42 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         // Prepare approval data (empty items but with log entry updates)
         const approvalData = this.prepareApprovalData();
         
-        // Call Apex to process with Rejected status
+        // Store log entry ID and fields before closing modal
+        const logEntryId = this.logEntryDetails.Id;
+        const workPerformed = this.logEntryDetails.workPerformed;
+        const planForTomorrow = this.logEntryDetails.planForTomorrow;
+        const exceptions = this.logEntryDetails.exceptions;
+        
+        // Close modal immediately to prevent multiple clicks
+        this.showModal = false;
         this.isLoading = true;
+        
+        // Call Apex to process with Rejected status
         processLogEntryApproval({
-            logEntryId: this.logEntryDetails.Id,
+            logEntryId: logEntryId,
             approvalData: JSON.stringify(approvalData),
             logEntryStatus: 'Rejected',
             logEntryUpdates: JSON.stringify({
-                workPerformed: this.logEntryDetails.workPerformed,
-                planForTomorrow: this.logEntryDetails.planForTomorrow,
-                exceptions: this.logEntryDetails.exceptions,
+                workPerformed: workPerformed,
+                planForTomorrow: planForTomorrow,
+                exceptions: exceptions,
             })
         })
         .then(() => {
             this.showToast('Success', 'Log entry rejected successfully', 'success');
-            this.closeModal();
+            // Clear modal data
+            this.selectedLog = null;
+            this.logEntryDetails = null;
+            this.modalNotes = '';
+            this.editedFields = {};
+            this.editedLocationProcesses = {};
+            this.timesheetApprovals = {};
+            this.timesheetItemApprovals = {};
+            this.locationProcessApprovals = {};
+            this.newAttachments = [];
+            this.removedAttachments = [];
+            this.activeTab = 'timesheets';
+            
             this.loadLogEntries();
         })
         .catch(error => {
