@@ -792,8 +792,10 @@ public with sharing class ShiftEndLogEntriesController {
                 insert as user links;
             }
             
+            // query job
+            Job__c jobRec = [SELECT Id, Name, Job_Name__c FROM Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
             // Send notifications to approvers
-            String notificationContent = 'A new Shift End Log has been created for Job ' + jobId + '. Tap to review.';
+            String notificationContent = 'A new Shift End Log has been created for Job ' + jobRec.Job_Name__c + '. Tap to review.';
             sendCustomNotification(logEntry.Id, notificationContent);
             
         } catch (Exception e) {
@@ -989,7 +991,14 @@ public with sharing class ShiftEndLogEntriesController {
                             if (String.isNotBlank(fieldApi) && newValueObj != null) {
                                 // Handle DateTime fields
                                 if (fieldApi == 'Clock_In_Time__c' || fieldApi == 'Clock_Out_Time__c') {
-                                    ts.put(fieldApi, DateTime.valueOf(String.valueOf(newValueObj)));
+                                    // Convert ISO format (2025-11-21T09:05:00.000Z) to Apex DateTime
+                                    String dateTimeStr = String.valueOf(newValueObj);
+                                    // Remove 'Z' and milliseconds, replace 'T' with space
+                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
+                                    if (dateTimeStr.contains('.')) {
+                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                                    }
+                                    ts.put(fieldApi, DateTime.valueOf(dateTimeStr));
                                 }
                             }
                         }
@@ -1027,7 +1036,19 @@ public with sharing class ShiftEndLogEntriesController {
                             Object newValueObj = mapVal.get('newValue');
 
                             if (String.isNotBlank(fieldApi) && newValueObj != null) {
-                                item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
+                                // Handle DateTime fields (Clock_In_Time__c, Clock_Out_Time__c)
+                                if (fieldApi == 'Clock_In_Time__c' || fieldApi == 'Clock_Out_Time__c') {
+                                    String dateTimeStr = String.valueOf(newValueObj);
+                                    // Remove 'Z' and milliseconds, replace 'T' with space
+                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
+                                    if (dateTimeStr.contains('.')) {
+                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                                    }
+                                    item.put(fieldApi, DateTime.valueOf(dateTimeStr));
+                                } else {
+                                    // Handle numeric fields (Travel_Time__c, etc.)
+                                    item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
+                                }
                             }
                         }
                     }
@@ -1108,10 +1129,10 @@ public with sharing class ShiftEndLogEntriesController {
                 Map<String, Object> pageRef = new Map<String, Object>{
                     'type' => 'standard__navItemPage',
                     'attributes' => new Map<String, Object>{
-                        'apiName' => 'Manage_WhatsApp_Flows' // Tab API Name
+                        'apiName' => 'wfrecon__Shift_Log_Approval' // Tab API Name
                     }
                 };
-                String title = 'New Shift End Log Created';
+                String title = 'New Shift End Log Entry Created';
 
                 Messaging.CustomNotification customNotificationObj = new Messaging.CustomNotification();
                 customNotificationObj.setBody(content);

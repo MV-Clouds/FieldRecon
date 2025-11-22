@@ -217,9 +217,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 if (firstEditHeader) {
                     firstEditHeader.classList.add('active');
                 }
-                // Update sliders after opening
-                setTimeout(() => this.updateEditSliderVisuals(), 100);
             }
+            // Always update sliders when on step 2 (regardless of accordion state)
+            setTimeout(() => this.updateEditSliderVisuals(), 100);
         }
     }
 
@@ -660,6 +660,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Reset to step 1
         this.editCurrentStep = 'step1';
         this.showEditModal = true;
+        
+        // Update slider visuals after modal renders (increased timeout for modal animation)
+        setTimeout(() => this.updateEditSliderVisuals(), 300);
     }
 
     // Handle close modal
@@ -742,8 +745,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
             
             this.editCurrentStep = 'step2';
-            // Update slider visuals after DOM renders
-            setTimeout(() => this.updateEditSliderVisuals(), 100);
+            // Update slider visuals after DOM renders (increased timeout for render)
+            setTimeout(() => this.updateEditSliderVisuals(), 300);
         } else if (this.editCurrentStep === 'step2') {
             this.editCurrentStep = 'step3';
         }
@@ -969,7 +972,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     // Update slider visuals manually in DOM
     updateEditSliderVisuals() {
-        this.editLocationProcesses.forEach(processData => {
+        // Iterate over ALL processes in editAllLocationProcesses (not just filtered ones)
+        this.editAllLocationProcesses.forEach(processData => {
             const sliderElement = this.template.querySelector(`input[data-process-id="${processData.processId}"]`);
             if (sliderElement) {
                 // Set the slider value to reflect current completion percentage
@@ -987,25 +991,27 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         if (completed && today && approval && remaining) {
                             const yesterday = processData.yesterdayPercentage || 0;
                             const current = processData.completionPercentage || 0;
-                            const approvalValue = processData.approvalNewValue || 0;
-                            const isInApproval = processData.isPendingApproval;
                             
                             // Always hide approval section (no orange)
                             approval.style.width = '0%';
                             approval.style.display = 'none';
                             
-                            // Green = yesterday/base completed
+                            // Green = yesterday/base completed (previous completed)
                             completed.style.width = `${yesterday}%`;
+                            completed.style.display = yesterday > 0 ? 'block' : 'none';
+                            completed.style.background = '#28a745'; // Green
                             
                             // Purple = today's changes (from yesterday to current)
-                            // If in approval: shows approval changes + any modifications after
                             const todayChange = Math.max(0, current - yesterday);
                             today.style.width = `${todayChange}%`;
                             today.style.display = todayChange > 0 ? 'block' : 'none';
-                            today.style.background = 'linear-gradient(90deg, rgba(94, 90, 219, 0.9) 0%, rgba(94, 90, 219, 1) 100%)';
+                            today.style.background = 'rgba(94, 90, 219, 1)'; // Purple
                             
                             // Gray = remaining
-                            remaining.style.width = `${Math.max(0, 100 - current)}%`;
+                            const remainingPercent = Math.max(0, 100 - current);
+                            remaining.style.width = `${remainingPercent}%`;
+                            remaining.style.display = remainingPercent > 0 ? 'block' : 'none';
+                            remaining.style.background = '#e0e0e0'; // Gray
                         }
                     }
                 }
@@ -1032,8 +1038,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const newValue = parseInt(event.target.value, 10);
         const sliderElement = event.target;
         
-        // Find process data
-        const processData = this.editLocationProcesses.find(p => p.processId === processId);
+        // Find process data from ALL processes (not just filtered)
+        const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
         if (!processData) return;
 
         // Update visual progress in real-time
@@ -1041,7 +1047,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         if (sliderContainer) {
             const sliderTrack = sliderContainer.querySelector('.slider-track');
             if (sliderTrack) {
-                const proc = this.editLocationProcesses.find(p => p.processId === processId);
+                const proc = this.editAllLocationProcesses.find(p => p.processId === processId);
                 if (proc) {
                     const yesterday = proc.yesterdayPercentage || 0;
                     const approvalValue = proc.approvalNewValue || 0;
@@ -1059,15 +1065,20 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         
                         // Green = yesterday/base completed
                         completed.style.width = `${yesterday}%`;
+                        completed.style.display = yesterday > 0 ? 'block' : 'none';
+                        completed.style.background = '#28a745';
                         
                         // Purple = today's changes (from yesterday to current)
                         const todayProgress = Math.max(0, newValue - yesterday);
                         today.style.width = `${todayProgress}%`;
                         today.style.display = todayProgress > 0 ? 'block' : 'none';
-                        today.style.background = 'linear-gradient(90deg, rgba(94, 90, 219, 0.9) 0%, rgba(94, 90, 219, 1) 100%)';
+                        today.style.background = 'rgba(94, 90, 219, 1)';
                         
                         // Gray = remaining
-                        remaining.style.width = `${Math.max(0, 100 - newValue)}%`;
+                        const remainingProgress = Math.max(0, 100 - newValue);
+                        remaining.style.width = `${remainingProgress}%`;
+                        remaining.style.display = remainingProgress > 0 ? 'block' : 'none';
+                        remaining.style.background = '#e0e0e0';
                     }
 
                     // Update labels
