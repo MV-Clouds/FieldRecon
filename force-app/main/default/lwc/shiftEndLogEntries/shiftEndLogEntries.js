@@ -37,6 +37,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track uploadedFiles = [];
     @track locationOptions = [];
     @track selectedLocationId;
+    @track activeAccordionSections = []; // Track active accordion sections
 
     // Clock In/Out Modal
     @track showClockInModal = false;
@@ -105,7 +106,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     get hasLocationOptions() {
-        return this.locationOptions && this.locationOptions.length > 0;
+        return this.groupedLocationProcesses && this.groupedLocationProcesses.length > 0;
     }
 
     get hasLocationProcesses() {
@@ -173,6 +174,17 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.isStep3 && this.groupedLocationProcesses.length > 0) {
             this.updateSliderStyles();
             this.updateRowHighlighting();
+            
+            // Open first accordion by default
+            const firstAccordionContent = this.template.querySelector('.location-accordion-content');
+            const firstAccordionHeader = this.template.querySelector('.location-accordion-header');
+            
+            if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
+                firstAccordionContent.classList.add('open');
+                if (firstAccordionHeader) {
+                    firstAccordionHeader.classList.add('active');
+                }
+            }
         }
     }
 
@@ -516,8 +528,9 @@ export default class ShiftEndLogEntries extends LightningElement {
             return;
         }
 
+        const jobStartReference = member.jobStartTime;
         const jobEndReference = member.jobEndTime;
-        if (!this.validateClockOutDate(this.clockOutTime, jobEndReference)) {
+        if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
             return;
         }
 
@@ -618,6 +631,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         
                         return {
                             id: entry.id,
+                            contactId: entry.contactId,
                             contactName: entry.contactName,
                             clockInTime: this.formatToAMPM(displayClockIn),
                             clockOutTime: this.formatToAMPM(displayClockOut),
@@ -787,6 +801,9 @@ export default class ShiftEndLogEntries extends LightningElement {
         } else if (field === 'editTravelTime') {
             this.editTimesheetData.travelTime = value;
         }
+
+        console.log('this.editTimesheetData ::', this.editTimesheetData);
+        
     }
 
     saveEditedTimesheet() {
@@ -798,6 +815,16 @@ export default class ShiftEndLogEntries extends LightningElement {
     
             if (new Date(this.editTimesheetData.newclockOutTime.replace(' ', 'T')) <= new Date(this.editTimesheetData.newclockInTime.replace(' ', 'T'))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+
+            // Validate clock in date is on job start date
+            if (!this.validateClockInDate(this.editTimesheetData.newclockInTime, this.currentJobStartDateTime)) {
+                return;
+            }
+
+            // Validate clock out date is within job date range
+            if (!this.validateClockOutDate(this.editTimesheetData.newclockOutTime, this.currentJobStartDateTime, this.currentJobEndDateTime)) {
                 return;
             }
     
@@ -1031,14 +1058,15 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     groupProcessesByLocation() {
-        // Group processes by location for display
+        // Group processes by location for display with accordion support
         const locationMap = new Map();
 
-        this.locationProcesses.forEach(proc => {
+        this.allLocationProcesses.forEach(proc => {
             if (!locationMap.has(proc.locationId)) {
                 locationMap.set(proc.locationId, {
                     locationId: proc.locationId,
                     locationName: proc.locationName,
+                    sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name for accordion
                     processes: []
                 });
             }
@@ -1054,6 +1082,40 @@ export default class ShiftEndLogEntries extends LightningElement {
         });
 
         this.groupedLocationProcesses = Array.from(locationMap.values());
+        
+        // Set first accordion as active by default
+        if (this.groupedLocationProcesses.length > 0) {
+            this.activeAccordionSections = [this.groupedLocationProcesses[0].sectionName];
+        }
+    }
+    
+    handleAccordionToggle(event) {
+        event.stopPropagation();
+        const sectionName = event.currentTarget.dataset.section;
+        const headerElement = event.currentTarget;
+        const contentElement = this.template.querySelector(
+            `.location-accordion-content[data-section="${sectionName}"]`
+        );
+        
+        if (contentElement) {
+            const isOpen = contentElement.classList.contains('open');
+            
+            // Close all accordions first (only one open at a time)
+            const allContents = this.template.querySelectorAll('.location-accordion-content');
+            const allHeaders = this.template.querySelectorAll('.location-accordion-header');
+            
+            allContents.forEach(content => content.classList.remove('open'));
+            allHeaders.forEach(header => header.classList.remove('active'));
+            
+            // If it wasn't open, open it
+            if (!isOpen) {
+                contentElement.classList.add('open');
+                headerElement.classList.add('active');
+            }
+            
+            // Update slider visuals after DOM settles
+            setTimeout(() => this.updateSliderStyles(), 100);
+        }
     }
 
     handleSliderInput(event) {
@@ -1473,24 +1535,65 @@ export default class ShiftEndLogEntries extends LightningElement {
                 base64Data: photo.base64Data
             }));
 
-            // Build approval data JSON directly in the format Apex expects: [{"id":"recordId","oldValue":73,"newValue":79}]
-            // This will set the Log Entry status to "Pending" if there are any modified processes
-            const approvalDataJson = Array.from(this.modifiedProcesses.entries()).length > 0
-                ? JSON.stringify(
-                    Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => ({
-                        id: processId,
-                        oldValue: modification.originalValue,
-                        newValue: modification.newValue
-                    }))
-                )
-                : null;
+            // Build new approval data structure with locationProcessChanges and timesheetEntryChanges
+            let approvalDataJson = null;
+            
+            // Build locationProcessChanges array
+            const locationProcessChanges = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => {
+                // Find the process to get its name
+                const process = this.allLocationProcesses.find(p => p.processId === processId);
+                return {
+                    id: processId,
+                    oldValue: modification.originalValue,
+                    newValue: modification.newValue,
+                    name: process ? process.processName : 'Unknown'
+                };
+            });
+            
+            // Build timesheetEntryChanges object from pending timesheet entries
+            const timesheetEntryChanges = {};
+            
+            this.pendingTimesheetEntries.forEach(entry => {
+                if (entry.approvalData && entry.approvalData.trim() !== '' && entry.approvalData !== '[]') {
+                    try {
+                        const approvalDataArray = JSON.parse(entry.approvalData);
+                        
+                        // Convert approval data array to changes array
+                        const changes = approvalDataArray.map(change => ({
+                            fieldApiName: change.fieldApiName,
+                            oldValue: change.oldValue || null,
+                            newValue: change.newValue
+                        }));
+                        
+                        // Store using TSEId as key (Timesheet Entry ID)
+                        timesheetEntryChanges[entry.TSEId] = {
+                            changes: changes,
+                            contactId: entry.contactId || null,
+                            contactName: entry.contactName
+                        };
+                    } catch (e) {
+                        console.error('Error parsing approval data for entry:', entry.id, e);
+                    }
+                }
+            });
+            
+            // Build the new structure only if there are changes
+            if (locationProcessChanges.length > 0 || Object.keys(timesheetEntryChanges).length > 0) {
+                const approvalDataStructure = {
+                    locationProcessChanges: locationProcessChanges,
+                    timesheetEntryChanges: timesheetEntryChanges
+                };
+                
+                approvalDataJson = JSON.stringify(approvalDataStructure);
+            }
 
             console.log('Modified Processes:', Array.from(this.modifiedProcesses.entries()));
+            console.log('Timesheet Entry Changes:', timesheetEntryChanges);
             console.log('Approval Data JSON:', approvalDataJson);
 
             // Get the selected mobilization date
             const selectedMobOption = this.mobilizationOptions.find(opt => opt.value === this.selectedMobilizationId);
-            const workPerformedDate = selectedMobOption ? selectedMobOption.label : new Date().toISOString().substring(0, 10);
+            const workPerformedDate = selectedMobOption ? selectedMobOption.dateStr : new Date().toISOString().substring(0, 10);
 
             // Create Log Entry record with files, camera photos, mobilization ID, and approval data
             // Status will be determined in Apex based on yesterday's approval and today's pending logs
@@ -1567,13 +1670,15 @@ export default class ShiftEndLogEntries extends LightningElement {
         return true;
     }
 
-    validateClockOutDate(clockOutValue, jobEndValue) {
+    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
         const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
+        
         if (clockOutDate && jobEndDate) {
             const nextDay = this.addDaysToDateKey(jobEndDate, 1);
-            if (clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
-                this.showToast('Error', 'Clock Out time must be on the job end date or the following day', 'error');
+            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
+                this.showToast('Error', 'Clock Out time must be on the job start date, job end date, or the following day', 'error');
                 return false;
             }
         }

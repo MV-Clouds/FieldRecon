@@ -62,6 +62,10 @@
                             <template if:true={tab.isMobStatusColorConfig}>
                                 <c-mob-status-color-config></c-mob-status-color-config>
                             </template>
+
+                            <template if:true={tab.isShiftEndLogApprover}>
+                                <c-shift-end-log-approver-assignment></c-shift-end-log-approver-assignment>
+                            </template>
                         </div>
                     </template>
                 </template>

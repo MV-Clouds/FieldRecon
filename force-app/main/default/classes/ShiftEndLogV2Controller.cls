@@ -96,20 +96,43 @@ public with sharing class ShiftEndLogV2Controller {
             for(Log_Entry__c log : shiftEndLogs) logIds.add(log.Id);
 
             // Parse approval data from each log to identify pending processes
+            // Now supports both old structure (array) and new structure (object with locationProcessChanges)
             Map<Id, Set<Id>> logPendingProcessesMap = new Map<Id, Set<Id>>();
             for(Log_Entry__c log : shiftEndLogs) {
                 if(String.isNotBlank(log.wfrecon__Approval_Data__c)) {
                     try {
-                        List<Object> approvalList = (List<Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                        Object approvalDataObj = JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
                         Set<Id> pendingProcessIds = new Set<Id>();
-                        for(Object item : approvalList) {
-                            Map<String, Object> approvalItem = (Map<String, Object>) item;
-                            String processId = (String) approvalItem.get('id');
-                            if(String.isNotBlank(processId)) {
-                                pendingProcessIds.add(processId);
+                        
+                        if(approvalDataObj instanceof Map<String, Object>) {
+                            // New structure: { locationProcessChanges: [], timesheetEntryChanges: {} }
+                            Map<String, Object> approvalData = (Map<String, Object>) approvalDataObj;
+                            List<Object> locationProcessChanges = (List<Object>) approvalData.get('locationProcessChanges');
+                            
+                            if(locationProcessChanges != null) {
+                                for(Object item : locationProcessChanges) {
+                                    Map<String, Object> approvalItem = (Map<String, Object>) item;
+                                    String processId = (String) approvalItem.get('id');
+                                    if(String.isNotBlank(processId)) {
+                                        pendingProcessIds.add(processId);
+                                    }
+                                }
+                            }
+                        } else if(approvalDataObj instanceof List<Object>) {
+                            // Old structure: [{ id, oldValue, newValue }]
+                            List<Object> approvalList = (List<Object>) approvalDataObj;
+                            for(Object item : approvalList) {
+                                Map<String, Object> approvalItem = (Map<String, Object>) item;
+                                String processId = (String) approvalItem.get('id');
+                                if(String.isNotBlank(processId)) {
+                                    pendingProcessIds.add(processId);
+                                }
                             }
                         }
-                        logPendingProcessesMap.put(log.Id, pendingProcessIds);
+                        
+                        if(!pendingProcessIds.isEmpty()) {
+                            logPendingProcessesMap.put(log.Id, pendingProcessIds);
+                        }
                     } catch (Exception e) {
                         System.debug('Error parsing approval data: ' + e.getMessage());
                     }

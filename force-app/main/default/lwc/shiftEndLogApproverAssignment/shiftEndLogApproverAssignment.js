@@ -25,6 +25,7 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
      */
     connectedCallback() {
         this.fetchApprovers();
+        this.overrideSLDS();
     }
 
     /**
@@ -127,8 +128,8 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
 
         saveLogEntryApprovers({ approversJSON })
             .then(result => {
-                if (result.status === 'SUCCESS' || result.status === 'INFO') {
-                    this.showToast('Success', 'Approvers updated successfully', 'success');
+                if (result.status === 'SUCCESS') {
+                    this.showToast('Success', result.message || 'Approvers updated successfully. The changes will be deployed shortly.', 'success');
                     this.originalSelectedValues = [...this.selectedValues];
                     this.hasUnsavedChanges = false;
                 } else {
@@ -163,5 +164,24 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
             variant: variant,
         });
         this.dispatchEvent(evt);
+    }
+
+    overrideSLDS(){
+        let style = document.createElement('style');
+        style.innerText = `
+                .main-card .slds-dueling-list__options [aria-selected='true'] {
+                    background-color: #5e5adb !important;
+                }
+
+                .main-card .slds-button__icon {
+                    fill: #5e5adb !important;
+                }
+
+                .main-card .slds-listbox_vertical .slds-listbox__option[aria-selected='false']:hover,
+                .main-card .slds-listbox_vertical .slds-listbox__option:not([aria-selected='true']):hover {
+                    background-color: #e3e3fb !important;
+                }
+        `;
+        this.template.host.appendChild(style);
     }
 }

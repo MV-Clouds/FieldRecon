@@ -117,6 +117,11 @@ export default class MobCard extends NavigationMixin(LightningElement) {
         id && this.navigateToRecord(id);
     }
 
+    handleCardViewToggle(){
+        let eventCard = this.template.querySelector('.event-card');
+        eventCard && this.template.querySelector('.event-card')?.classList?.toggle('expanded-card-view');
+    }
+
     navigateToRecord(recordId) {
         try {
             this[NavigationMixin.Navigate]({

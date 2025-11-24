@@ -1256,12 +1256,40 @@ public with sharing class ManagementTabController {
         };
 
         try {
-            // Note: Custom Metadata cannot be updated via Apex in a running org
-            // This would need to be done via Metadata API or manually
-            // For now, we'll return a message indicating this limitation
-            
-            response.put('status', 'INFO');
-            response.put('message', 'Custom Metadata records must be updated via Metadata API or Setup. JSON: ' + approversJSON);
+            String metadataType = 'wfrecon__Log_Entry_Approver__mdt';
+            String developerName = 'Approvers_JSON';
+            String masterLabel = 'Approvers JSON';
+
+            // Query existing metadata record to get the developer name if it exists
+            String query = 'SELECT MasterLabel, DeveloperName FROM ' + String.escapeSingleQuotes(metadataType) + ' WHERE DeveloperName = :developerName LIMIT 1';
+            List<SObject> metaList = Database.query(query, AccessLevel.USER_MODE);
+
+            // If record exists, use its details
+            if (!metaList.isEmpty()) {
+                wfrecon__Log_Entry_Approver__mdt config = (wfrecon__Log_Entry_Approver__mdt) metaList[0];
+                developerName = config.DeveloperName;
+                masterLabel = config.MasterLabel;
+            }
+
+            // Create metadata deployment
+            Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
+            mdata.fullName = metadataType + '.wfrecon__' + developerName;
+            mdata.label = masterLabel;
+
+            // Add the approvers JSON field
+            Metadata.CustomMetadataValue approversValue = new Metadata.CustomMetadataValue();
+            approversValue.field = 'wfrecon__Approvers_JSON__c';
+            approversValue.value = approversJSON;
+            mdata.values.add(approversValue);
+
+            // Deploy the metadata
+            Metadata.DeployContainer container = new Metadata.DeployContainer();
+            container.addMetadata(mdata);
+
+            Metadata.Operations.enqueueDeployment(container, null);
+
+            response.put('status', 'SUCCESS');
+            response.put('message', 'Approvers saved successfully. The changes will be deployed shortly.');
             response.put('approversJSON', approversJSON);
             
         } catch (Exception e) {

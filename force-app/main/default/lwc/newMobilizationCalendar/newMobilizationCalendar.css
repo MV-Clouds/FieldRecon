@@ -11,6 +11,7 @@
 
 .fullcalendarjs{
     margin-inline: 1rem;
+    user-select: none;
 }
 
 .main-calendar-div{
@@ -383,10 +384,16 @@
   }
 
   .footer-btn {
+    font-size: 11px;
     min-width: 5rem;
   }
 
   .date-field-in-mob-form{
-    max-width: min( 100% , 24rem);
+    max-width: min( 90% , 24rem);
+  }
+
+  .status-filter-picklist {
+    height: unset;
+    border-radius: 0.3rem;
   }
 }

@@ -182,8 +182,8 @@ public with sharing class HomeTabController {
                     for(Date d = fromD; d <= to; d = d.addDays(1)) {
                         if(!weekMap.containsKey(d)) weekMap.put(d, new List<WrapperMember>());
                         WrapperMember wrap = new WrapperMember();
-                        wrap.jobStartTime = m.Mobilization__r.Start_Date__c;
-                        wrap.jobEndTime   = m.Mobilization__r.End_Date__c;
+                        wrap.jobStartTime = m.Mobilization__r.Start_Date__c.addSeconds(userTz.getOffset(m.Mobilization__r.Start_Date__c)/1000);
+                        wrap.jobEndTime   = m.Mobilization__r.End_Date__c.addSeconds(userTz.getOffset(m.Mobilization__r.End_Date__c)/1000);
                         wrap.contactId    = m.Contact__c;
                         wrap.contactName  = m.Contact__r.Name;
                         wrap.mobMemberId  = m.Id;

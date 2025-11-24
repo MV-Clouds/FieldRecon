@@ -416,38 +416,20 @@
                                         <h3 class="section-title">Location Process Progress</h3>
                                     </div>
 
-                                    <!-- Location Selector -->
-                                    <div class="location-selector">
-                                        <label class="form-label">Select Location</label>
-                                        <lightning-combobox name="location" variant="label-hidden" placeholder="-- Select Location --"
-                                            options={locationOptions} value={selectedLocationId}
-                                            onchange={handleLocationChange}>
-                                        </lightning-combobox>
-                                    </div>
-
-                                    <!-- No Location Processes Message -->
-                                    <template if:false={hasLocationProcesses}>
-                                        <div class="no-data-message">
-                                            <div class="no-data-icon">
-                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M9 12L11 14L15 10" stroke="#0176D3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#0176D3" stroke-width="2"/>
-                                                </svg>
-                                            </div>
-                                            <h3 class="no-data-title">No Location Processes</h3>
-                                            <p class="no-data-description">There are no location processes for the
-                                                selected location.</p>
-                                        </div>
-                                    </template>
-
-                                    <!-- Group by Location -->
-                                    <template if:true={hasLocationProcesses}>
-                                        <template for:each={groupedLocationProcesses} for:item="locationGroup">
-                                            <div key={locationGroup.locationId} class="location-group">
-                                                <h4 class="location-group-title">{locationGroup.locationName}</h4>
-
-                                                <!-- Process Sliders -->
-                                                <template for:each={locationGroup.processes} for:item="process">
+                                    <!-- Location Accordion -->
+                                    <template if:true={groupedLocationProcesses}>
+                                        <div class="location-accordion">
+                                            <template for:each={groupedLocationProcesses} for:item="locationGroup">
+                                                <div key={locationGroup.locationId} class="location-accordion-item">
+                                                    <div class="location-accordion-header" data-section={locationGroup.sectionName} onclick={handleAccordionToggle}>
+                                                        <span class="location-accordion-title">{locationGroup.locationName}</span>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="12" height="12" class="accordion-icon">
+                                                            <path d="M201.4 374.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 306.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="location-accordion-content" data-section={locationGroup.sectionName}>
+                                                        <!-- Process Sliders -->
+                                                        <template for:each={locationGroup.processes} for:item="process">
                                                     <div key={process.id} class="location-slider-container">
                                                         <div class="slider-header">
                                                             <div class="process-info">
@@ -512,9 +494,11 @@
                                                             </span>
                                                         </div>
                                                     </div>
-                                                </template>
-                                            </div>
-                                        </template>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
                                     </template>
                                 </div>
                             </template>
@@ -722,12 +706,12 @@
                         <div class="input-column">
                             <label class="datetime-label required">Clock In Time</label>
                             <input type="datetime-local" class="custom-datetime" data-field="editClockIn"
-                                value={editTimesheetData.oldclockInTime} onchange={handleEditInputChange}>
+                                value={editTimesheetData.newclockInTime} onchange={handleEditInputChange}>
                         </div>
                         <div class="input-column">
                             <label class="datetime-label required">Clock Out Time</label>
                             <input type="datetime-local" class="custom-datetime" data-field="editClockOut"
-                                value={editTimesheetData.oldclockOutTime} onchange={handleEditInputChange}>
+                                value={editTimesheetData.newclockOutTime} onchange={handleEditInputChange}>
                         </div>
                         <div class="input-column">
                             <label class="select-label">Travel Time (hours)</label>

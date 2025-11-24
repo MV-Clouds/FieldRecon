@@ -445,6 +445,42 @@ export default class WholeCrewClockInOut extends LightningElement {
     }
 
     /** 
+    * Method Name: validateClockInDate
+    * @description: Validates that clock in date matches job start date
+    */
+    validateClockInDate(clockInValue, jobStartValue) {
+        const clockInDate = this.extractDateKey(clockInValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
+
+        if (clockInDate && jobStartDate && clockInDate !== jobStartDate) {
+            this.showToast('Error', 'Clock In time must be on the job start date', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    /** 
+    * Method Name: validateClockOutDate
+    * @description: Validates that clock out date is within job start date, end date, or end date + 1
+    */
+    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
+        const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
+        const jobEndDate = this.extractDateKey(jobEndValue);
+
+        if (clockOutDate && jobEndDate) {
+            const nextDay = this.addDaysToDateKey(jobEndDate, 1);
+            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
+                this.showToast('Error', 'Clock Out time must be on the job start date, job end date, or the following day', 'error');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** 
     * Method Name: handleMobilizationChange
     * @description: Handles mobilization selection change event
     */
@@ -581,6 +617,23 @@ export default class WholeCrewClockInOut extends LightningElement {
             // Validation
             if (!this.bulkClockOutTime) {
                 this.showToast('Error', 'Please select clock out time', 'error');
+                return;
+            }
+
+            // Validate clock out time is after clock in time for all selected members
+            for (const member of selectedMembers) {
+                if (member.clockInTime && new Date(this.bulkClockOutTime) <= new Date(member.clockInTime.slice(0, 16))) {
+                    this.showToast('Error', `Clock Out time must be after Clock In time for ${member.contactName}`, 'error');
+                    this.isLoading = false;
+                    return;
+                }
+            }
+
+            // Validate clock out time is within job date range
+            const jobStartDate = this.extractDateKey(this.currentJobStartDateTime);
+            const jobEndDate = this.extractDateKey(this.currentJobEndDateTime);
+            if (!this.validateClockOutDate(this.bulkClockOutTime, jobStartDate, jobEndDate)) {
+                this.isLoading = false;
                 return;
             }
 

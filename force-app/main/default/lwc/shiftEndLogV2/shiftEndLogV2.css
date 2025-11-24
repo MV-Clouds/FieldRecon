@@ -50,7 +50,7 @@
 
 .search-bar {
     flex: 1 1 auto;
-    max-width: 300px;
+    max-width: 325px;
 }
 
 .right-controls {
@@ -137,32 +137,31 @@
     width: 100%;
     background: white;
     overflow: hidden;
-    height: 4rem;
-    max-height: 4rem;
+    height: 7rem;
+    max-height: 7rem;
     transition: all 0.3s ease-in-out;
-    cursor: pointer;
     position: relative;
     z-index: 1;
     display: flex;
     flex-direction: column;
 }
 
-.log-card:hover {
+.log-card.expanded {
     height: auto;
-    max-height: 300px;
+    max-height: 400px;
     box-shadow: 0 3px 6px #5a5adb60;
     z-index: 10;
 }
 
-.log-card:hover .work-content,
-.log-card:hover .exception-content,
-.log-card:hover .plan-content {
+.log-card.expanded .work-content,
+.log-card.expanded .exception-content,
+.log-card.expanded .plan-content {
     -webkit-line-clamp: unset;
     line-clamp: unset;
     display: block;
 }
 
-.log-card:hover .log-card-name {
+.log-card.expanded .log-card-name {
     white-space: break-spaces;
 }
 
@@ -174,9 +173,11 @@
 .log-card-body {
     padding: 0 0.5rem 0.5rem 0.5rem;
     flex: 1;
+    display: none;
 }
 
-.log-card:hover .log-card-body {
+.log-card.expanded .log-card-body {
+    display: block;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
@@ -224,7 +225,7 @@
     width: 100%;
 }
 
-.log-card:hover .log-card-header {
+.log-card.expanded .log-card-header {
     border-bottom-color: #f4f6f9;
 }
 
@@ -282,6 +283,44 @@
 
 .action-btns .action-btn:hover {
     scale: 1.1;
+}
+
+.view-more-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding-top: 0.5rem;
+}
+
+.view-more-btn {
+    background: rgba(94, 90, 219, 0.1);
+    color: var(--primary-theme-color);
+    border: 1px solid rgba(94, 90, 219, 0.3);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.view-more-btn:hover {
+    background: rgba(94, 90, 219, 0.2);
+    border-color: var(--primary-theme-color);
+    transform: translateY(-1px);
+}
+
+.view-more-btn:active {
+    transform: translateY(0);
+}
+
+.view-more-btn svg {
+    fill: var(--primary-theme-color);
+    transition: transform 0.2s ease;
 }
 
 .log-meta-info {
@@ -604,7 +643,7 @@
     transition: all 0.2s ease;
 }
 
-.log-card:hover .process-approval-badge-card {
+.log-card.expanded .process-approval-badge-card {
     background: linear-gradient(135deg, #ffe0b2 0%, #ffcc80 100%);
     border-color: rgba(230, 81, 0, 0.4);
     box-shadow: 0 2px 6px rgba(255, 152, 0, 0.25);
@@ -692,7 +731,7 @@
     transition: height 0.2s ease;
 }
 
-.log-card:hover .process-progress-bar {
+.log-card.expanded .process-progress-bar {
     height: 10px;
 }
 
@@ -728,7 +767,7 @@
     box-shadow: inset 0 0 12px rgba(255, 152, 0, 0.5);
 }
 
-.log-card:hover .approval-progress {
+.log-card.expanded .approval-progress {
     background: linear-gradient(135deg, #ffb347 0%, #ff8c00 100%);
     box-shadow: inset 0 0 12px rgba(255, 152, 0, 0.5);
     transform: scaleY(1.05);
@@ -1650,13 +1689,13 @@
     }
 
     /* Remove hover effects on mobile */
-    .log-card:hover {
+    /* .log-card:hover {
         height: auto;
         max-height: none;
         overflow: visible;
         box-shadow: none;
         z-index: 1;
-    }
+    } */
 
     .log-card-header {
         position: relative;
@@ -1729,7 +1768,7 @@
     }
 
     .card-placeholder {
-        height: 4rem;
+        height: 7rem;
     }
 
     .log-meta-info-name {
@@ -1749,6 +1788,156 @@
     }
 
     .card-placeholder {
-        height: 4rem;
+        height: 7rem;
+    }
+}
+
+/* =============================================
+   ACCORDION STYLES (View Mode)
+   ============================================= */
+
+.location-processes-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.location-accordion-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.location-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    background: linear-gradient(135deg, #5e5adb 0%, #7c78ed 100%);
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.location-accordion-header:hover {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.location-accordion-header.active {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.location-accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.accordion-icon {
+    transition: transform 0.3s ease;
+    fill: white;
+}
+
+.location-accordion-header.active .accordion-icon {
+    transform: rotate(180deg);
+}
+
+.location-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: #f9fafb;
+}
+
+.location-accordion-content.open {
+    max-height: 2000px;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+/* =============================================
+   ACCORDION STYLES (Edit Mode)
+   ============================================= */
+
+.edit-location-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.edit-location-accordion-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.edit-location-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #5e5adb 0%, #7c78ed 100%);
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.edit-location-accordion-header:hover {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.edit-location-accordion-header.active {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+}
+
+.edit-location-accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.edit-accordion-icon {
+    transition: transform 0.3s ease;
+    fill: white;
+}
+
+.edit-location-accordion-header.active .edit-accordion-icon {
+    transform: rotate(180deg);
+}
+
+.edit-location-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: #ffffff;
+}
+
+.edit-location-accordion-content.open {
+    max-height: 3000px;
+    padding: 1.25rem;
+    overflow-y: auto;
+}
+
+/* Mobile responsiveness for accordions */
+@media screen and (max-width: 768px) {
+    .location-accordion-header,
+    .edit-location-accordion-header {
+        padding: 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .location-accordion-content.open,
+    .edit-location-accordion-content.open {
+        padding: 0.75rem;
     }
 }

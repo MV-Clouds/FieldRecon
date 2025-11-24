@@ -43,6 +43,9 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
     filterStatus = [];
     filterjobs;
 
+    _oldEvent = {};
+    revertFunc = new function() {};
+
     displayJobs = {
         primaryField: 'wfrecon__Job_Name__c',
     }
@@ -73,6 +76,8 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
     confirmationBtnLabel2 = null;
 
     isOverlapJob = false;
+    isDropOrExpand = false;
+
     tzOffset = 0;
 
     // Permissions Flags
@@ -192,7 +197,9 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                     this.events = result.map(ev => ({
                         ...ev,
                         start: new Date(ev.start).toLocaleDateString('en-CA'),
-                        end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null
+                        end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null,
+                        startDateAndTime: ev.start,
+                        endDateAndTime: ev.end,
                     }));
                 } else {
                     this.events = [];
@@ -267,6 +274,12 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             }.bind(this),
             eventDrop: this.getConfirmation.bind(this),
             eventResize: this.getConfirmation.bind(this),
+            eventDragStart: function(event) {
+                this._oldEvent = $.extend(true, {}, event);
+            }.bind(this),
+            eventResizeStart: function(event) {
+                this._oldEvent = $.extend(true, {}, event);
+            }.bind(this),
             businessHours: true,
             draggable: true,
             eventResizableFromStart: true,
@@ -316,11 +329,70 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
         this.isSpinner = false;
     }
 
-    getConfirmation(event){
-        this.showConfirmationPopup = true;
-        this.confirmationTitle = 'Confirm'
-        this.confirmationMessage = 'Are you sure want to change Mobilization?'
-        this.event = event;
+    getConfirmation(event, delta, revertFunc) {
+        try{
+
+            this.showToast('Info', 'This feature will be added shortly...', 'info');
+            revertFunc();
+            return;
+
+            if(!event.start || !this._oldEvent.start || !event.startDateAndTime || !this._oldEvent.startDateAndTime){
+                this.showToast('Something Went Wrong!', 'Please refresh the tab and try again.', 'error');
+                return;
+            }
+
+            const toDate = (val) => {
+                if (!val) return null;
+                if (val instanceof Date) return val;
+                const d = new Date(val);
+                return isNaN(d.getTime()) ? null : d;
+            };
+    
+            const mergeDateAndTime = (dateOnly, timeOnly) => {
+                return new Date(
+                    dateOnly.getFullYear(),
+                    dateOnly.getMonth(),
+                    dateOnly.getDate(),
+                    timeOnly.getHours(),
+                    timeOnly.getMinutes(),
+                    timeOnly.getSeconds()
+                );
+            };
+    
+            const eventStartDate = toDate(event.start);
+            const eventOldStartDate = toDate(this._oldEvent.start);
+            const eventStartTime = toDate(event.startDateAndTime);
+            const eventOldStartTime = toDate(this._oldEvent.startDateAndTime);
+    
+            const mergedStart = mergeDateAndTime(eventStartDate, eventStartTime);
+            const mergedOldStart = mergeDateAndTime(eventOldStartDate, eventOldStartTime);
+    
+            const startLocal = this.removeOrgTimeZone(mergedStart);
+            const oldStartLocal = this.removeOrgTimeZone(mergedOldStart);
+            
+            let nowLocal = new Date();
+
+            if(startLocal.getTime() != oldStartLocal.getTime()){
+                if(oldStartLocal.getTime() < nowLocal.getTime()){
+                    this.showToast('Error', 'Can not change the start date/time for in-progress mobilization group.', 'error');
+                    revertFunc(); 
+                    return;
+                }if(startLocal.getTime() < nowLocal.getTime()){
+                    this.showToast('Error', 'Start date/time can not be set in the past.', 'error');
+                    revertFunc(); 
+                    return;
+                }
+            }
+    
+            this.showConfirmationPopup = true;
+            this.confirmationTitle = 'Confirm'
+            this.confirmationMessage = 'Are you sure want to change Mobilization?'
+            this.event = event;
+            this.revertFunc = revertFunc;
+            this.isDropOrExpand = true;
+        } catch (e) {
+            console.error('Error in function NewMobilizationCalendar.getConfirmation:::', e?.message);
+        }
     }
 
     handleClose(){
@@ -332,6 +404,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
     handleEventDrop() {
         this.showConfirmationPopup = false;
         let event = this.event;
+
         const newStart = new Date(event.start);
         const newEnd = new Date(event.end);
 
@@ -365,10 +438,15 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                 } else {
                     this.showToast('Error', 'Something went wrong!', 'error');
                 }
+                this.event = null;
+                this.revertFunc = new function() {};
             })
             .catch(error => {
                 console.error(error);
                 this.showToast('Error', 'Error saving record: ' + error.body?.message, 'error');
+                this.revertFunc();
+                this.event = null;
+                this.revertFunc = new function() {};
             })
             .finally(() => {
                 this.isSpinner = false;
@@ -410,7 +488,9 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                 this.events = result.map(ev => ({
                     ...ev,
                     start: new Date(ev.start).toLocaleDateString('en-CA'),
-                    end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null
+                    end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null,
+                    startDateAndTime: ev.start,
+                    endDateAndTime: ev.end,
                 }));
             } else {
                 this.events = [];
@@ -577,10 +657,6 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             const startLocal = this.removeOrgTimeZone(details.wfrecon__Start_Date__c);
             const nowLocal = new Date();
 
-            console.log('startLocal : ', startLocal);
-            console.log('oldStartDate : ', this.removeOrgTimeZone(this.startDateTime));
-            console.log('Now is :: ', nowLocal);
-            
             let oldStartLocal = this.removeOrgTimeZone(this.startDateTime);
             
             if(this.isEdit && (startLocal.getTime() != oldStartLocal.getTime())){
@@ -865,6 +941,8 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                     this.resourceIdToRemove = null;
                     this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
+                } else if (this.isDropOrExpand){
+                    this.handleEventDrop();
                 }
             } else if(name == 'secondOption'){
                 if(this.isOverlapJob){
@@ -876,10 +954,17 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                     this.mobIdToRemove = null;
                     this.typeOfResourceToRemove = null;
                 }
+            } else {
+                if(this.isDropOrExpand){
+                    this.revertFunc();
+                    this.event = null;
+                    this.revertFunc = new function() {};
+                }
             }
 
             this.showConfirmationPopup = false;
             this.isOverlapJob = false;
+            this.isDropOrExpand = false;
             this.jobAssignmentInfo.overlappingDates = null;
 
             // Reset Confirm Popup Details

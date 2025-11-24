@@ -446,7 +446,8 @@ public with sharing class ShiftEndLogEntriesController {
 
             Date startDate = Date.valueOf(jobStartDate);
 
-            List<Timesheet_Entry_Item__c> items = [SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
+            List<Timesheet_Entry_Item__c> items = [SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__c, 
+                                                    Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
                                                     Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
                                                     Cost_Code__r.Name, Clock_In_Date__c, Premium__c, Status__c, Approval_Data__c FROM Timesheet_Entry_Item__c 
                                                     WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId AND Clock_In_Date__c = :startDate
@@ -568,6 +569,7 @@ public with sharing class ShiftEndLogEntriesController {
             ];
             
             // Parse approval data to get full approval details (oldValue, newValue)
+            // Now supports both old structure (array) and new structure (object with locationProcessChanges)
             for(Log_Entry__c log : pendingLogs) {
                 // Check if Approval_Data__c is not null
                 if(String.isBlank(log.Approval_Data__c)) {
@@ -575,7 +577,21 @@ public with sharing class ShiftEndLogEntriesController {
                 }
                 
                 try {
-                    List<Object> approvalList = (List<Object>) JSON.deserializeUntyped(log.Approval_Data__c);
+                    Object approvalDataObj = JSON.deserializeUntyped(log.Approval_Data__c);
+                    List<Object> approvalList = new List<Object>();
+                    
+                    if(approvalDataObj instanceof Map<String, Object>) {
+                        // New structure: { locationProcessChanges: [], timesheetEntryChanges: {} }
+                        Map<String, Object> approvalData = (Map<String, Object>) approvalDataObj;
+                        Object locationProcessChanges = approvalData.get('locationProcessChanges');
+                        if(locationProcessChanges != null && locationProcessChanges instanceof List<Object>) {
+                            approvalList = (List<Object>) locationProcessChanges;
+                        }
+                    } else if(approvalDataObj instanceof List<Object>) {
+                        // Old structure: [{ id, oldValue, newValue }]
+                        approvalList = (List<Object>) approvalDataObj;
+                    }
+                    
                     for(Object obj : approvalList) {
                         Map<String, Object> approval = (Map<String, Object>) obj;
                         String processId = (String) approval.get('id');
@@ -649,6 +665,7 @@ public with sharing class ShiftEndLogEntriesController {
     public class TimesheetEntryItemWrapper {
         @AuraEnabled public Id id;
         @AuraEnabled public Id TSEId;
+        @AuraEnabled public Id contactId;
         @AuraEnabled public String contactName;
         @AuraEnabled public Datetime clockInTime;
         @AuraEnabled public Datetime clockOutTime;
@@ -665,6 +682,7 @@ public with sharing class ShiftEndLogEntriesController {
         public TimesheetEntryItemWrapper(Timesheet_Entry_Item__c item) {
             this.id = item.Id;
             this.TSEId = item.Timesheet_Entry__c;
+            this.contactId = item.Timesheet_Entry__r.TimeSheet__r.Contact__c;
             this.contactName = item.Timesheet_Entry__r.TimeSheet__r.Contact__r.Name;
             
             // Convert to user timezone
@@ -773,6 +791,13 @@ public with sharing class ShiftEndLogEntriesController {
                 }
                 insert as user links;
             }
+            
+            // query job
+            Job__c jobRec = [SELECT Id, Name, Job_Name__c FROM Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
+            // Send notifications to approvers
+            String notificationContent = 'A new Shift End Log has been created for Job ' + jobRec.Job_Name__c + '. Tap to review.';
+            sendCustomNotification(logEntry.Id, notificationContent);
+            
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => 'ShiftEndLogEntriesController',
@@ -842,12 +867,7 @@ public with sharing class ShiftEndLogEntriesController {
 
             return true;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ShiftEndLogEntriesController',
-                'methodName' => 'moveTimesheetBackToRegular',
-                'exceptionObj' => e,
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'moveTimesheetBackToRegular','exceptionObj' => e,'moreDetails' => e.getMessage()});
             throw new AuraHandledException('Error moving timesheet back to regular: ' + e.getMessage());
         }
     }
@@ -971,7 +991,14 @@ public with sharing class ShiftEndLogEntriesController {
                             if (String.isNotBlank(fieldApi) && newValueObj != null) {
                                 // Handle DateTime fields
                                 if (fieldApi == 'Clock_In_Time__c' || fieldApi == 'Clock_Out_Time__c') {
-                                    ts.put(fieldApi, DateTime.valueOf(String.valueOf(newValueObj)));
+                                    // Convert ISO format (2025-11-21T09:05:00.000Z) to Apex DateTime
+                                    String dateTimeStr = String.valueOf(newValueObj);
+                                    // Remove 'Z' and milliseconds, replace 'T' with space
+                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
+                                    if (dateTimeStr.contains('.')) {
+                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                                    }
+                                    ts.put(fieldApi, DateTime.valueOf(dateTimeStr));
                                 }
                             }
                         }
@@ -1009,7 +1036,19 @@ public with sharing class ShiftEndLogEntriesController {
                             Object newValueObj = mapVal.get('newValue');
 
                             if (String.isNotBlank(fieldApi) && newValueObj != null) {
-                                item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
+                                // Handle DateTime fields (Clock_In_Time__c, Clock_Out_Time__c)
+                                if (fieldApi == 'Clock_In_Time__c' || fieldApi == 'Clock_Out_Time__c') {
+                                    String dateTimeStr = String.valueOf(newValueObj);
+                                    // Remove 'Z' and milliseconds, replace 'T' with space
+                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
+                                    if (dateTimeStr.contains('.')) {
+                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                                    }
+                                    item.put(fieldApi, DateTime.valueOf(dateTimeStr));
+                                } else {
+                                    // Handle numeric fields (Travel_Time__c, etc.)
+                                    item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
+                                }
                             }
                         }
                     }
@@ -1025,12 +1064,92 @@ public with sharing class ShiftEndLogEntriesController {
                         tsItems.size() + ' timesheet items for Job: ' + jobId);
         }
         catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ShiftEndLogEntriesController',
-                'methodName' => 'autoApproveAllPendingEntries',
-                'exceptionObj' => e,
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'autoApproveAllPendingEntries','exceptionObj' => e,'moreDetails' => e.getMessage()});
+        }
+    }
+    
+    /**
+     * Generic method to send custom notifications to users from custom metadata
+     * @param recordId - The record ID to link the notification to
+     * @param content - The notification message content
+     */
+    private static void sendCustomNotification(Id recordId, String content) {
+        try {
+            // Query the metadata to get approver user IDs
+            List<Log_Entry_Approver__mdt> approverMetadata = [
+                SELECT Id, Label, Approvers_JSON__c 
+                FROM Log_Entry_Approver__mdt 
+                WHERE DeveloperName = 'Approvers_JSON' 
+                LIMIT 1
+            ];
+            
+            Set<String> addressee = new Set<String>();
+            
+            // Parse approvers JSON from metadata
+            if (!approverMetadata.isEmpty() && String.isNotBlank(approverMetadata[0].Approvers_JSON__c)) {
+                try {
+                    Map<String, Object> approversMap = (Map<String, Object>) JSON.deserializeUntyped(approverMetadata[0].Approvers_JSON__c);
+                    
+                    // Extract user IDs from the JSON (values in the map)
+                    for (String userName : approversMap.keySet()) {
+                        Object userIdObj = approversMap.get(userName);
+                        if (userIdObj != null) {
+                            String userId = String.valueOf(userIdObj);
+                            if (String.isNotBlank(userId)) {
+                                addressee.add(userId);
+                            }
+                        }
+                    }
+                } catch (Exception jsonEx) {
+                    System.debug('Error parsing approvers JSON: ' + jsonEx.getMessage());
+                }
+            }
+            
+            // If no approvers found in metadata
+            if (addressee.isEmpty()) {
+                System.debug('No approvers found in metadata');
+                return;
+            }
+            
+            // Query for Custom Notification Type
+            List<CustomNotificationType> cnType = [
+                SELECT Id 
+                FROM CustomNotificationType 
+                WHERE DeveloperName = 'Field_Recon_Notification' 
+                LIMIT 1
+            ];
+            
+            if (cnType.isEmpty()) {
+                System.debug('No Custom Notification Type found with DeveloperName: Field_Recon_Notification');
+                return;
+            }
+            
+            // Send notification if we have addressees
+            if (!addressee.isEmpty()) {
+                Map<String, Object> pageRef = new Map<String, Object>{
+                    'type' => 'standard__navItemPage',
+                    'attributes' => new Map<String, Object>{
+                        'apiName' => 'wfrecon__Shift_Log_Approval' // Tab API Name
+                    }
+                };
+                String title = 'New Shift End Log Entry Created';
+
+                Messaging.CustomNotification customNotificationObj = new Messaging.CustomNotification();
+                customNotificationObj.setBody(content);
+                customNotificationObj.setTitle(title);
+                customNotificationObj.setNotificationTypeId(cnType[0].Id);
+                customNotificationObj.setTargetPageRef(JSON.serialize(pageRef));
+                customNotificationObj.send(addressee);
+                
+                System.debug('Custom notification sent to ' + addressee.size() + ' users for record: ' + recordId);
+            } else {
+                System.debug('No addressees found to send notification');
+            }
+            
+        } catch (Exception e) {
+            // Log the exception but don't fail the main transaction
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'sendCustomNotification','exceptionObj' => e,'moreDetails' => 'Error sending custom notification for record: ' + recordId + ' - ' + e.getMessage()});
+            System.debug('Error sending custom notification: ' + e.getMessage());
         }
     }
 }

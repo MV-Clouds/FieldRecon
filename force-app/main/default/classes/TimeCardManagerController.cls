@@ -309,10 +309,14 @@ public with sharing class TimeCardManagerController {
                         : item.Timesheet_Entry__r.TimeSheet__r.Job__r.Job_Name__c;
                     tw.jobNumber = item.Timesheet_Entry__r.TimeSheet__r.Job__r.Name;
                     tw.costCode = item.Cost_Code__r != null ? item.Cost_Code__r.Name : null;
-                    tw.workHours = item.Total_Time__c != null ? item.Total_Time__c : 0;
-                    tw.travelTime = item.Travel_Time__c != null ? item.Travel_Time__c : 0;
+
+                    Decimal workHrs = item.Total_Time__c != null ? item.Total_Time__c : 0;
+                    Decimal travelHrs = item.Travel_Time__c != null ? item.Travel_Time__c : 0;
+
+                    tw.workHours = workHrs;
+                    tw.travelTime = travelHrs;
+                    tw.totalTime = workHrs + travelHrs;
                     tw.perDiem = item.Per_Diem__c != null ? Integer.valueOf(item.Per_Diem__c) : 0;
-                    tw.totalTime = item.Total_Time__c != null ? item.Total_Time__c : 0;
                     tw.premium = item.Premium__c != null ? item.Premium__c : false;
                     contactMap.get(cId).timesheetEntries.add(tw);
                 }

@@ -12,7 +12,8 @@ export default class ManagementTab extends LightningElement {
         { label: 'Cost Code', value: 'costcode' },
         { label: 'Process Library', value: 'processlibrary' },
         { label: 'Mobilization Status Color ', value: 'isMobStatusColorConfig' },
-        { label: 'Employee', value: 'employee' }
+        { label: 'Employee', value: 'employee' },
+        { label: 'Shift End Log Approver', value: 'shiftEndLogApprover' },
     ];
 
     connectedCallback() {
@@ -56,6 +57,7 @@ export default class ManagementTab extends LightningElement {
             isProcessLibrary: tab.value === 'processlibrary',
             isEmployee: tab.value === 'employee',
             isMobStatusColorConfig: tab.value === 'isMobStatusColorConfig',
+            isShiftEndLogApprover: tab.value === 'shiftEndLogApprover'
         }));
     }
 

@@ -15,11 +15,11 @@
     width: 100%;
     background: color(from var(--card-bg-color, #ffffff) srgb r g b / 0.1);
     overflow: hidden;
-    max-height: 4.4rem;
+    max-height: 6rem;
     transition: all 0.3s ease-in-out;
 }
 
-.event-card:hover{
+.event-card.expanded-card-view{
     height: fit-content;
     max-height: 50rem;
     overflow: auto;
@@ -27,7 +27,7 @@
     box-shadow: 0 3px 6px #5a5adb60;
 }
 
-.event-card:hover .job-card-name{
+.event-card.expanded-card-view .job-card-name, .event-card.expanded-card-view .job-card-description{
     white-space: break-spaces;
 }
 
@@ -47,7 +47,7 @@
     min-width: 0;
 }
 
-.job-card-name {
+.job-card-name,.job-card-description{
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -94,9 +94,10 @@
     align-items: center;
     gap: 0.3rem;
     min-height: 0.6rem;
+    margin-bottom: 2rem;
 }
 
-.event-card:hover .crew-color-dots{
+.event-card.expanded-card-view .crew-color-dots{
     display: none;
 }
 
@@ -200,13 +201,40 @@
     line-height: 12px;
 }
 
+.card-view-change-btns{
+    font-size: 10px;
+    line-height: 0.8rem;
+    font-weight: 600;
+    color: var(--primary-theme-color, #5a5adb);
+    position: sticky;
+    bottom: 0;
+    background-color: var(--primary-theme-color-shade-20, #5a5adb20);
+    border-radius: 0.2rem;
+    padding: 0.1rem 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    border: 0.4px solid transparent;
+}
+
+.card-view-change-btns:hover{
+    border: 0.4px solid #5a5adb;
+}
+
+.card-view-state-label{
+    display: none;
+}
+
+.event-card:not(.expanded-card-view) .view-more-state-label, .event-card.expanded-card-view .view-less-state-label{
+    display: unset;
+}
 
 /* Navigation Link */
 
 .record-nav-link{
     cursor: pointer;
     transition: all 0.2s ease-in-out;
-    width: fit-content;
+    max-width: fit-content;
 }
 
 .record-nav-link:hover{
