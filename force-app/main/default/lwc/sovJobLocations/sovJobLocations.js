@@ -10,7 +10,7 @@ import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInli
 import getPicklistValuesForField from '@salesforce/apex/SovJobLocationsController.getPicklistValuesForField';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 import { getPicklistValues } from "lightning/uiObjectInfoApi";
-import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/Location__c.Unit_of_Measure__c';
+import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/wfrecon__Location__c.wfrecon__Unit_of_Measure__c';
 
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
@@ -463,9 +463,8 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
      */
     get activeProcessTableColumns() {
         const baseColumns = [
-            { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, isSortable: true },
+            { label: 'Process Name', fieldName: 'wfrecon__Process_Name__c', type: 'text', isSortable: true },
             { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', isSortable: true },
-            { label: 'Process Name', fieldName: 'wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c', type: 'text', isSortable: true },
             { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', isSortable: true }
         ];
 
@@ -565,7 +564,7 @@ export default class SovJobLocations extends NavigationMixin(LightningElement) {
             // Determine which object to query based on field name
             let objectApiName = 'wfrecon__Location__c';
             
-            // If field is from process table columns, use Location_Process__c
+            // If field is from process table columns, use wfrecon__Location_Process__c
             const isProcessField = this.processTableColumns.some(col => col.fieldName === fieldName);
             if (isProcessField) {
                 objectApiName = 'wfrecon__Location_Process__c';

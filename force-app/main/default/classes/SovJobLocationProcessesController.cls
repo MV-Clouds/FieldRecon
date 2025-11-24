@@ -18,28 +18,29 @@ public with sharing class SovJobLocationProcessesController {
     *********************************************************
     @description     : Method is used to get all Location Processes for a Job
     @param           : Id jobId - Job Id
-    @return          : List<Location_Process__c> - List of Location Processes
+    @return          : List<wfrecon__Location_Process__c> - List of Location Processes
     @author          : Rachit Shah
     ********************************************************
     */
     @AuraEnabled
-    public static List<Location_Process__c> getJobLocationProcesses(Id jobId) {
-        List<Location_Process__c> processes = new List<Location_Process__c>();
+    public static List<wfrecon__Location_Process__c> getJobLocationProcesses(Id jobId) {
+        List<wfrecon__Location_Process__c> processes = new List<wfrecon__Location_Process__c>();
         try {
             processes = [
                 SELECT Id, Name, 
-                       Contract_Price__c, 
-                       Completed_Percentage__c, 
-                       Current_Completed_Value__c, 
-                       Process_Status__c, 
-                       Sequence__c,
-                       Location__c,
-                       Location__r.Name,
-                       Location__r.Job__c
-                FROM Location_Process__c
-                WHERE Location__r.Job__c = :jobId
+                       wfrecon__Contract_Price__c, 
+                       wfrecon__Completed_Percentage__c, 
+                       wfrecon__Current_Completed_Value__c, 
+                       wfrecon__Process_Status__c, 
+                       wfrecon__Sequence__c,
+                       wfrecon__Location__c,
+                       wfrecon__Location__r.Name,
+                       wfrecon__Location__r.wfrecon__Job__c,
+                       wfrecon__Process_Name__c
+                FROM wfrecon__Location_Process__c
+                WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId
                 WITH USER_MODE
-                ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC
+                ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
             ];
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
@@ -79,20 +80,20 @@ public with sharing class SovJobLocationProcessesController {
             }
             
             // Query existing processes
-            Map<Id, Location_Process__c> processMap = new Map<Id, Location_Process__c>([
-                SELECT Id, Completed_Percentage__c 
-                FROM Location_Process__c 
+            Map<Id, wfrecon__Location_Process__c> processMap = new Map<Id, wfrecon__Location_Process__c>([
+                SELECT Id, wfrecon__Completed_Percentage__c 
+                FROM wfrecon__Location_Process__c 
                 WHERE Id IN :processIds 
                 WITH USER_MODE
             ]);
             
             // Prepare processes for update
-            List<Location_Process__c> processesToUpdate = new List<Location_Process__c>();
+            List<wfrecon__Location_Process__c> processesToUpdate = new List<wfrecon__Location_Process__c>();
             
             for (ProcessUpdateWrapper updateInstance : processUpdates) {
                 if (processMap.containsKey(updateInstance.processId)) {
-                    Location_Process__c processToUpdate = processMap.get(updateInstance.processId);
-                    processToUpdate.Completed_Percentage__c = updateInstance.completionPercentage;
+                    wfrecon__Location_Process__c processToUpdate = processMap.get(updateInstance.processId);
+                    processToUpdate.wfrecon__Completed_Percentage__c = updateInstance.completionPercentage;
                     processesToUpdate.add(processToUpdate);
                 } else {
                     result.errorCount++;
