@@ -226,6 +226,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                         cell.value = index + 1;
                     } else if (col.fieldName === 'actions') {
                         cell.isActions = true;
+                    } else if (col.fieldName === 'submittedDate') {
+                        cell.value = this.formatDateToDisplay(log[col.fieldName]);
                     } else {
                         cell.value = log[col.fieldName] || '--';
 
@@ -693,6 +695,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const recordId = event.target.dataset.recordid;
         const fieldName = event.target.dataset.fieldname;
         let newValue = event.target.value;
+        const inputValue = event.target.value; // Store original input value
 
         // Validate and convert datetime-local format
         if ((fieldName === 'Clock_In_Time__c' || fieldName === 'Clock_Out_Time__c') && newValue) {
@@ -742,6 +745,42 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         // Track the edit with key format: {recordId}.{fieldName}
         const editKey = `${recordId}.${fieldName}`;
         this.editedFields[editKey] = newValue;
+        
+        // Update the field value in the data structure to prevent revert on re-render
+        this.logEntryDetails.timesheetEntries.forEach(ts => {
+            if (ts.approvalFields) {
+                ts.approvalFields.forEach(field => {
+                    if (field.recordId === recordId && field.fieldApiName === fieldName) {
+                        field.newValue = newValue;
+                        field.newValueForInput = inputValue;
+                        if (field.isDateTime) {
+                            field.newValueFormatted = this.formatToAMPM(newValue);
+                        } else {
+                            field.newValueFormatted = newValue;
+                        }
+                    }
+                });
+            }
+            
+            // Also check items
+            if (ts.items) {
+                ts.items.forEach(item => {
+                    if (item.approvalFields) {
+                        item.approvalFields.forEach(field => {
+                            if (field.recordId === recordId && field.fieldApiName === fieldName) {
+                                field.newValue = newValue;
+                                field.newValueForInput = inputValue;
+                                if (field.isDateTime) {
+                                    field.newValueFormatted = this.formatToAMPM(newValue);
+                                } else {
+                                    field.newValueFormatted = newValue;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        });
         
         // Reset approval status to pending when user makes changes
         this.resetTimesheetToPending(recordId);
@@ -1663,6 +1702,44 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const hasLocationProcesses = this.logEntryDetails?.locationProcesses && 
                                     this.logEntryDetails.locationProcesses.length > 0;
         return hasTimesheets || hasLocationProcesses;
+    }
+
+    /**
+     * Method Name: formatDateToDisplay
+     * @description: Format date string to MMM DD, YYYY format (e.g., Nov 21, 2025)
+     * @param dateStr: Date string in various formats
+     * @return: Formatted date string
+     */
+    formatDateToDisplay(dateStr) {
+        if (!dateStr || dateStr === '--') return dateStr;
+        
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        try {
+            // Handle various input formats
+            let date;
+            if (dateStr.includes('/')) {
+                // Handle MM/DD/YYYY format
+                const parts = dateStr.split('/');
+                date = new Date(parts[2], parts[0] - 1, parts[1]);
+            } else if (dateStr.includes('-')) {
+                // Handle YYYY-MM-DD format
+                date = new Date(dateStr + 'T00:00:00');
+            } else {
+                date = new Date(dateStr);
+            }
+            
+            if (isNaN(date.getTime())) return dateStr;
+            
+            const month = monthNames[date.getMonth()];
+            const day = date.getDate();
+            const year = date.getFullYear();
+            
+            return `${month} ${day}, ${year}`;
+        } catch (error) {
+            return dateStr;
+        }
     }
 
     /**

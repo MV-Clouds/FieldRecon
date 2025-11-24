@@ -12,7 +12,7 @@
                     <div class="empty-state__icon">
                         <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                     </div>
-                    <h3 class="empty-state__message" style="color: #d93025; font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">Access Denied</h3>
+                    <h3 class="empty-state__message" style="font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">Access Denied</h3>
                     <p style="color: #5f6368; margin-top: 0.75rem; font-size: 1rem; max-width: 400px; line-height: 1.5;">You do not have permission to view this page. Please contact your System Administrator for access.</p>
                 </div>
             </div>
@@ -221,11 +221,10 @@
                                                 <thead>
                                                     <tr>
                                                         <th style="width: 4rem; text-align: center;">Sr.</th>
-                                                        <th style="width: 14rem; text-align: left;">Contact Name</th>
+                                                        <th style="width: 14rem; text-align: center;">Contact Name & Actions</th>
                                                         <th style="width: 10rem; text-align: left;">Field</th>
                                                         <th style="width: 13rem; text-align: left;">Old Value</th>
                                                         <th style="width: 13rem; text-align: left;">New Value</th>
-                                                        <th style="width: 8rem; text-align: center;">Actions</th>
                                                     </tr>
                                                 </thead>
                                             </table>
@@ -233,26 +232,47 @@
                                                 <table class="timesheet-entries-table">
                                                     <tbody>
                                                         <template for:each={logEntryDetails.timesheetEntries} for:item="ts">
-                                                            <!-- Timesheet Entry level changes only (no items) -->
+                                                            <!-- Field Rows with rowspan for contact column -->
                                                             <template if:true={ts.approvalFields.length}>
                                                                 <template for:each={ts.approvalFields} for:item="field" for:index="idx">
-                                                                    <tr key={field.fieldApiName}>
-                                                                        <td style="width: 4rem; text-align: center;">
-                                                                            <template if:true={idx}></template>
-                                                                            <template if:false={idx}>{ts.serialNumber}</template>
-                                                                        </td>
-                                                                        <td style="width: 14rem; text-align: left;">
-                                                                            <template if:true={idx}></template>
-                                                                            <template if:false={idx}>
-                                                                                <div class="contact-name-cell">
-                                                                                    <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
-                                                                                    <span class="contact-name-truncate" title={ts.memberName}>{ts.memberName}</span>
+                                                                    <tr key={field.fieldApiName} class="field-data-row">
+                                                                        <!-- Serial Number & Contact Name Columns (only in first row) -->
+                                                                        <template if:false={idx}>
+                                                                            <!-- Serial Number Column -->
+                                                                            <td rowspan={ts.approvalFields.length} style="width: 4rem; text-align: center; vertical-align: middle;" class="serial-column">
+                                                                                <div class="serial-number">{ts.serialNumber}</div>
+                                                                            </td>
+                                                                            <!-- Contact Name & Actions Column -->
+                                                                            <td rowspan={ts.approvalFields.length} style="width: 14rem; text-align: center; vertical-align: middle;" class="contact-column">
+                                                                                <div class="contact-info-wrapper">
+                                                                                    <div class="contact-info">
+                                                                                        <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
+                                                                                        <span class="contact-name-truncate" title={ts.memberName}>{ts.memberName}</span>
+                                                                                    </div>
                                                                                     <span class="status-badge" data-status={ts.approvalStatus}>
                                                                                         {ts.approvalStatus}
                                                                                     </span>
+                                                                                    <div class="action-buttons">
+                                                                                        <template if:false={ts.isApproved}>
+                                                                                            <button class="approve-btn-small" 
+                                                                                                data-recordid={ts.id}
+                                                                                                onclick={handleApproveTimesheet}
+                                                                                                title="Approve">
+                                                                                                ✓
+                                                                                            </button>
+                                                                                        </template>
+                                                                                        <template if:false={ts.isRejected}>
+                                                                                            <button class="reject-btn-small" 
+                                                                                                data-recordid={ts.id}
+                                                                                                onclick={handleRejectTimesheet}
+                                                                                                title="Reject">
+                                                                                                ✗
+                                                                                            </button>
+                                                                                        </template>
+                                                                                    </div>
                                                                                 </div>
-                                                                            </template>
-                                                                        </td>
+                                                                            </td>
+                                                                        </template>
                                                                         <td style="width: 10rem; text-align: left;" class="field-label-cell">
                                                                             <span class="text-truncate" title={field.fieldLabel}>{field.fieldLabel}</span>
                                                                         </td>
@@ -289,29 +309,6 @@
                                                                                         data-fieldname={field.fieldApiName}
                                                                                         onchange={handleFieldEdit}>
                                                                                 </template>
-                                                                            </template>
-                                                                        </td>
-                                                                        <td style="width: 8rem; text-align: center;" class="actions-cell">
-                                                                            <template if:true={idx}></template>
-                                                                            <template if:false={idx}>
-                                                                                <div class="action-buttons">
-                                                                                    <template if:false={ts.isApproved}>
-                                                                                        <button class="approve-btn-small" 
-                                                                                            data-recordid={ts.id}
-                                                                                            onclick={handleApproveTimesheet}
-                                                                                            title="Approve">
-                                                                                            ✓
-                                                                                        </button>
-                                                                                    </template>
-                                                                                    <template if:false={ts.isRejected}>
-                                                                                        <button class="reject-btn-small" 
-                                                                                            data-recordid={ts.id}
-                                                                                            onclick={handleRejectTimesheet}
-                                                                                            title="Reject">
-                                                                                            ✗
-                                                                                        </button>
-                                                                                    </template>
-                                                                                </div>
                                                                             </template>
                                                                         </td>
                                                                     </tr>

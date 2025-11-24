@@ -376,7 +376,7 @@
 }
 
 .approve-button {
-    background-color: #00bcd4;
+    background-color: #5e5adb;
     color: white;
     padding: 0.5rem 1.5rem;
     border-radius: 0.25rem;
@@ -388,7 +388,7 @@
 }
 
 .approve-button:hover {
-    background-color: #009688;
+    background-color: #4a47b0;
 }
 
 .cancel-button {
@@ -496,12 +496,12 @@
 }
 
 .bulk-approve-btn {
-    background-color: #00bcd4;
+    background-color: #5e5adb;
     color: white;
 }
 
 .bulk-approve-btn:hover {
-    background-color: #009688;
+    background-color: #4a47b0;
 }
 
 .bulk-reject-btn {
@@ -680,13 +680,13 @@
 
 .approve-btn,
 .approve-btn-small {
-    background-color: #00bcd4;
+    background-color: #5e5adb;
     color: white;
 }
 
 .approve-btn:hover,
 .approve-btn-small:hover {
-    background-color: #009688;
+    background-color: #5e5adb;
 }
 
 .reject-btn,
@@ -1011,18 +1011,69 @@
     transition: background-color 0.2s ease;
 }
 
-.contact-name-cell {
+/* Serial Number Column with rowspan */
+.serial-column {
+    background: linear-gradient(135deg, rgba(94, 90, 219, 0.12) 0%, rgba(94, 90, 219, 0.06) 100%) !important;
+    border-right: 2px solid rgba(94, 90, 219, 0.3) !important;
+    padding: 1rem 0.5rem !important;
+}
+
+.serial-column .serial-number {
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(94, 90, 219, 1);
+    /* background: white; */
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
+    margin: 0 auto;
+}
+
+/* Contact Column with rowspan */
+.contact-column {
+    background: linear-gradient(135deg, rgba(94, 90, 219, 0.08) 0%, rgba(94, 90, 219, 0.04) 100%) !important;
+    border-right: 2px solid rgba(94, 90, 219, 0.2) !important;
+    padding: 1rem 0.5rem !important;
+}
+
+.contact-info-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    height: 100%;
+}
+
+.contact-info {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    justify-content: center;
+}
+
+.contact-info lightning-icon {
+    flex-shrink: 0;
 }
 
 .contact-name-truncate {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 8rem;
+    max-width: 10rem;
     display: inline-block;
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+/* Field Data Rows */
+.field-data-row {
+    /* No special styling needed, inherits from parent */
 }
 
 .text-truncate {
