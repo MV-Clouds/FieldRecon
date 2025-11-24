@@ -1,0 +1,30 @@
+<template>
+    <div class="main-controls slds-grid">
+        <div class="slds-grid slds-wrap slds-gutters_xx-small">
+            <lightning-button class="only-icon-button slds-col slds-m-bottom_xx-small" label="" variant="brand" icon-name={recordIcon} data-action="recording" onclick={controlRecording} disabled={controlBtnDisabled.recording}></lightning-button>
+            <lightning-button class="only-icon-button slds-col slds-m-bottom_xx-small" label="" variant="neutral" icon-name="utility:pause" data-action="paused" onclick={controlRecording} disabled={controlBtnDisabled.paused}></lightning-button>
+            <lightning-button class="only-icon-button slds-col slds-m-bottom_xx-small" label="" variant="destructive" icon-name="utility:stop" data-action="inactive" onclick={controlRecording} disabled={controlBtnDisabled.inactive}></lightning-button>
+            <div if:false={_hideUpload} class="slds-col slds-m-bottom_xx-small">
+                <label for="fileUploader">
+                    <lightning-button class="slds-col" label="Upload Audio File" variant="outline-brand" icon-name="utility:upload" onclick={clickFileInput} disabled={controlBtnDisabled.disabled}></lightning-button>
+                </label>
+                <input style="display:none" type="file" class="slds-col" id="fileUploader" data-name="fileUploader" accept="audio/*" onchange={handleFileUpload} disabled={controlBtnDisabled.disabled}></lightning-file-upload>
+            </div>
+        </div>
+        <div class="slds-grow"></div>
+        <!-- Show Only when _hideClip is true -->
+        <lightning-button lwc:if={_hideClip} class="only-icon-button slds-m-left_x-small" label="" variant="brand-outline" icon-name="utility:refresh" onclick={refreshRecording} disabled={controlBtnDisabled.disabled}></lightning-button>
+    </div>
+
+    <p lwc:if={infoMessage} class="slds-m-vertical_x-small slds-text-title_caps">{infoMessage} </p>
+    
+    <div class="slds-grid slds-grid_vertical-align-center">
+        <!-- <p data-id={clip.id} class="slds-m-right_x-small">{clip.name}:</p> -->
+        <div lwc:if={showClip} class="slds-grid slds-wrap  slds-m-bottom_x-small">
+            <audio class="output-audio" controls src={clip.url}></audio>
+            <lightning-button class="only-icon-button slds-m-left_x-small" label="" variant="brand-outline" icon-name="utility:refresh" onclick={refreshRecording} disabled={controlBtnDisabled.disabled}></lightning-button>
+            <lightning-button if:false={_hideSave} class="only-icon-button slds-m-left_x-small" label="" variant="brand" icon-name="utility:save" onclick={saveClip} disabled={controlBtnDisabled.disabled}></lightning-button>
+        </div>
+        <canvas if:false={_hideVisualizer} data-display={showVisualize} class="visualizer  slds-m-bottom_x-small"></canvas>
+    </div>
+</template>

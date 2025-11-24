@@ -1,0 +1,10 @@
+<template>
+    <c-cmp_audio-recorder onsave={handleSaveRecoding}></c-cmp_audio-recorder>
+
+    <template for:each={clips} for:item="clip" for:index="index">
+        <div key={clip.id} class="slds-m-bottom_x-small slds-grid slds-gutter_x-small">
+            <audio class="output-audio" controls src={clip.VersionDataUrl}></audio>
+            <lightning-button class="only-icon-button slds-p-left_small" label="" variant="destructive" icon-name="utility:delete" data-index={index} data-id={clip.Id} onclick={handleDeleteClip}></lightning-button>
+        </div>
+    </template>
+</template>
