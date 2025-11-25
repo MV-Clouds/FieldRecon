@@ -8,15 +8,30 @@
     <div class="main-card">
         <!-- Header Section -->
         <div class="filter-search-container">
-            <div class="search-bar">
-                <lightning-input
-                    type="search"
-                    variant="label-hidden"
-                    placeholder="Search by Process Name..."
-                    value={searchTerm}
-                    onchange={handleSearch}
-                    class="search-bar-input">
-                </lightning-input>
+            <div class="left-controls">
+                <div class="search-bar">
+                    <lightning-input
+                        type="search"
+                        variant="label-hidden"
+                        placeholder="Search by Process Name..."
+                        value={searchTerm}
+                        onchange={handleSearch}
+                        class="search-bar-input">
+                    </lightning-input>
+                </div>
+    
+                <div class="process-type-filter-picklist">
+                    <div class="process-type-picklist-label">
+                        Process Type
+                        <lightning-icon icon-name='utility:check' alternative-text='check' size='xx-small' variant="success" title='check' lwc:if={filterProcessTypes.length}></lightning-icon>
+                        <lightning-icon icon-name='utility:down' alternative-text='down' size='xx-small' title='down' lwc:else></lightning-icon>
+                    </div>
+                    <div class="process-type-options-selection-div slds-is-absolute">
+                        <template for:each={processTypeFilterOptions} for:item="opt">
+                            <div class="process-type-options" key={opt.value} data-value={opt.value} data-selected={opt.isSelected} onclick={handleProcessTypeFilter}>{opt.label}</div>
+                        </template>
+                    </div>
+                </div>
             </div>
 
             <div class="right-controls">
