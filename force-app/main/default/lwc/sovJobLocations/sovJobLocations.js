@@ -10,7 +10,7 @@ import saveInlineEdits from '@salesforce/apex/SovJobLocationsController.saveInli
 import getPicklistValuesForField from '@salesforce/apex/SovJobLocationsController.getPicklistValuesForField';
 import batchUpdateProcessCompletion from '@salesforce/apex/SovJobLocationProcessesController.batchUpdateProcessCompletion';
 import { getPicklistValues } from "lightning/uiObjectInfoApi";
-import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/wfrecon__Location__c.wfrecon__Unit_of_Measure__c';
+import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/Location__c.Unit_of_Measure__c';
 
 
 export default class SovJobLocations extends NavigationMixin(LightningElement) {
