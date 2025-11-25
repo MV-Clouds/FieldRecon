@@ -153,6 +153,83 @@ public with sharing class CollectShiftRecordingsController {
     }
 
 
+    @AuraEnabled
+    public static Map<String, Object> collectShiftLogInfo(String paramString){
+        Map<String, Object> result = new Map<String, Object>();
+        try {
+
+            InputParams params = (InputParams) JSON.deserialize(paramString, InputParams.class);
+            System.debug('params : ' + params);
+
+            // Collect Mobilization Id for the given crew leader
+            Map<String, String> mobRes = getCrewLeaderMobilization(params);
+            if(mobRes.containsKey('error')) return mobRes;
+
+            // merge mobilizationId and crewLeaderId
+            result.putAll(mobRes);
+    
+            List<ContentVersion> clipList = [SELECT Id, ContentSize FROM ContentVersion WHERE FirstPublishLocationId =: mobRes.get('mobilizationId') ORDER BY CreatedDate Desc];
+
+            Integer totalClipSize = 0;
+            Set<Id> clipIds = new Set<Id>();
+            for(ContentVersion clip : clipList){
+                totalClipSize += clip.ContentSize;
+                clipIds.add(clip.Id);
+            }
+            result.put('totalClipSize', totalClipSize);
+
+            // if totalClipSize is less than 5 MB, then call AI to summarize the clips
+            if(totalClipSize <= 5 * 1024 * 1024){
+                String ai_response = ProcessShiftLogsByAI(clipIds);
+                if(ai_response.startsWith('error')){
+                    result.put('error', ai_response);
+                    return result;
+                }
+                result.put('ai_response', ai_response);
+                return result;
+            }
+            else{
+                // process recorded shift log in future method to increase the limit
+                ProcessShiftLogsByAI_Async(JSON.serialize(clipIds));
+                result.put('is_async', true);
+                return result;
+            }
+        } catch (Exception e) {
+            // Log the exception but don't fail the main transaction
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'collectShiftLogInfo','exceptionObj' => e});
+            System.debug('Error sending custom notification: ' + e.getMessage());
+            result.put('error', 'Something Went Wrong While Collecting Shift Log Info!');
+        }
+        
+        return result;
+    }
+
+    public static string ProcessShiftLogsByAI(Set<Id> clipIds){
+        try {
+
+            List<ContentVersion> clipList = [SELECT Id, VersionData FROM ContentVersion WHERE Id IN : clipIds ORDER BY CreatedDate];
+
+            String audioData = '';
+            for(ContentVersion clip : clipList) {
+                // System.debug(clip.Title + ' ' + EncodingUtil.base64Encode(clip.VersionData));
+                audioData += EncodingUtil.base64Encode(clip.VersionData);
+            }
+            return AICalloutController.getTranscript(audioData);
+            
+        } catch (Exception e) {
+            System.debug('Error in ProcessShiftLogsByAI: ' + e.getMessage());
+            return 'error in ProcessShiftLogsByAI: ' + e.getMessage();
+        }
+    }
+
+
+    @future
+    public static void ProcessShiftLogsByAI_Async(String clipIdsString){
+        Set<Id> clipIds =  (Set<Id>) JSON.deserializeUntyped(clipIdsString);
+        String ai_response = ProcessShiftLogsByAI(clipIds);
+    }
+
+
     public class InputParams{
         @AuraEnabled public String jobId;
         @AuraEnabled public String crewLeaderId;

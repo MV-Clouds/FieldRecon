@@ -48,7 +48,7 @@ export default class CollectShiftRecordings extends LightningElement {
                 }) ?? [];
                 this.crewLeaderId = result.crewLeaderId;
                 this.mobilizationId = result.mobilizationId;
-                this.clipsTotalSize = this.clips.reduce((acc, clip) => acc + clip.ContentSize, 0);
+                this.clipsTotalSize = this.clips.reduce((acc, clip) => acc + Number(clip.ContentSize), 0);
                 console.log('clipsTotalSize : ', this.clipsTotalSize);
                 
             })
@@ -91,8 +91,8 @@ export default class CollectShiftRecordings extends LightningElement {
             }
 
             let newClip = result.newClip[0];
-            this.clips.unshift({...newClip, size_mb: this.calculateSize(ele.ContentSize)?.MB});
-            this.clipsTotalSize = this.clips.reduce((acc, clip) => acc + clip.ContentSize, 0);
+            this.clips.unshift({...newClip, size_mb: this.calculateSize(newClip.ContentSize)?.MB});
+            this.clipsTotalSize = this.clips.reduce((acc, clip) => acc + Number(clip.ContentSize), 0);
             console.log('clipsTotalSize : ', this.clipsTotalSize);
             this.showToast('', 'Clip Saved successfully', 'success');
             this.refreshRecording();

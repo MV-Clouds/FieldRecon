@@ -5,10 +5,11 @@ import getMobilizationMembersWithStatus from '@salesforce/apex/ShiftEndLogEntrie
 import createTimesheetRecords from '@salesforce/apex/ShiftEndLogEntriesController.createTimesheetRecords';
 import getTimeSheetEntryItems from '@salesforce/apex/ShiftEndLogEntriesController.getTimeSheetEntryItems';
 import updateTimesheets from '@salesforce/apex/ShiftEndLogEntriesController.updateTimesheets';
-import moveTimesheetBackToRegular from '@salesforce/apex/ShiftEndLogEntriesController.moveTimesheetBackToRegular';
+// import moveTimesheetBackToRegular from '@salesforce/apex/ShiftEndLogEntriesController.moveTimesheetBackToRegular';
 import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
+import fetchShiftLogInfo from '@salesforce/apex/CollectShiftRecordingsController.collectShiftLogInfo';
 
 export default class ShiftEndLogEntries extends LightningElement {
     @api jobId = '';
@@ -1486,6 +1487,11 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.loadTimesheetEntries();
         } else if (this.currentStep === 'step2') {
             this.currentStep = 'step3';
+
+            console.log('entering to step 3');
+            
+            // collect shift log info from recorded clips
+            this.collectShiftLogInfo();
         } else if (this.currentStep === 'step3') {
             // Check for unsaved progress bar changes
             if (this.hasModifications) {
@@ -1785,5 +1791,36 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
+
+    collectShiftLogInfo(){
+        this.isLoading = true;
+
+        let params = {
+            jobId: this.jobId,
+            crewLeaderId: this.crewLeaderId,
+            mobilizationId: this.selectedMobilizationId
+        }
+
+        fetchShiftLogInfo({paramString : JSON.stringify(params)})
+        .then(result => {
+            console.log('resutl : ', result);
+            if(result.error){
+                this.showToast('Error', result.error, 'error');
+                return;
+            }
+            else if(result.ai_response){
+                try {
+                    this.step3Data = JSON.parse(result.ai_response);
+                } catch (error) {}
+            }
+        })
+        .catch(error => {
+            console.log('error : ', error);
+        })
+        .finally(() => {
+            this.isLoading = false;
+        })
+
     }
 }
