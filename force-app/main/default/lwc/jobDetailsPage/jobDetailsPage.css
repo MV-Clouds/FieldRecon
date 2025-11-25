@@ -56,11 +56,6 @@
     text-overflow: ellipsis;
 }
 
-.slds-table th:first-child,
-.slds-table td:first-child {
-    width: 80px;
-}
-
 .table-content .slds-table th {
     background-color: rgba(94, 90, 219, 1);
     color: white;
@@ -751,9 +746,10 @@
 }
 
 .icon-button.child-records-btn:hover {
-    background-color: rgba(94, 90, 219, 0.8);
-    border-color: rgba(94, 90, 219, 0.8);
+    background-color: rgba(94, 90, 219, 0.6);
     color: white;
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .icon-button.child-records-btn:hover svg path {
@@ -1023,29 +1019,38 @@ lightning-combobox {
 .nested-table-container {
     padding: 1rem;
     background-color: rgb(244, 244, 255);
+    border-top: 1px solid #e5e5e5;
 }
 
 .nested-table-wrapper {
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    border-left: 4px solid rgba(94, 90, 219, 1);
+    background-color: #ffffff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .nested-table-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.5rem;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e5e5;
 }
 
 .nested-table-title {
-    margin: 0;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
-    color: #181818;
+    color: rgba(94, 90, 219, 1);
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.nested-table-title-row{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .action-buttons {
@@ -1059,6 +1064,8 @@ lightning-combobox {
     border-collapse: collapse;
     background-color: white;
     table-layout: auto;
+    border-radius: 4px;
+    overflow: hidden;
 }
 
 .nested-table thead {
@@ -1073,22 +1080,15 @@ lightning-combobox {
 
 .nested-table th,
 .nested-table .header-cell {
-    background-color: rgba(94, 90, 219, 0.9) !important;
-    color: white !important;
-    padding: 0.75rem 0.6rem;
+    font-size: 12px;
     font-weight: 600;
-    text-align: center;
-    font-size: 14px;
-    border: none;
-    height: auto;
+    color: white;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e5e5;
+    background-color: rgba(94, 90, 219, 0.8) !important;
 }
 
 .nested-table .checkbox-column {
-    width: 6rem;
-    text-align: center;
-}
-
-.nested-table .actions-column {
     width: 6rem;
     text-align: center;
 }
@@ -1127,14 +1127,12 @@ lightning-combobox {
 }
 
 .no-process-data {
-    padding: 2rem;
     text-align: center;
 }
 
 .no-process-data .empty-state {
     display: flex;
     justify-content: center;
-    padding: 2rem;
 }
 
 .no-process-data .empty-state__content {
@@ -1143,8 +1141,6 @@ lightning-combobox {
 }
 
 .no-process-data .empty-state__icon {
-    width: 150px;
-    height: 150px;
     margin: 0 auto;
 }
 
@@ -1242,7 +1238,7 @@ lightning-combobox {
 }
 
 .child-records-btn[data-expanded="true"] {
-    background-color: rgba(94, 90, 219, 1) !important;
+    background-color: rgb(125 121 227) !important
 }
 
 .child-records-btn[data-expanded="true"] svg path,
@@ -1260,6 +1256,227 @@ lightning-combobox {
 }
 
 .child-records-btn[data-expanded="false"]:hover {
-    background-color: rgba(94, 90, 219, 0.1);
+    border-color: rgba(94, 90, 219, 0.6);
+    color: rgba(94, 90, 219, 0.6);
 }
 /* End of Nested Table Styles */
+
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+    max-width: 150px; /* Reduced max-width for nested table cells if needed */
+    padding: 0.75rem 0.6rem !important; /* Ensure padding is consistent for click target */
+}
+
+.editable-cell:hover {
+    background-color: rgba(94, 90, 219, 0.05) !important;
+}
+
+.editing-cell {
+    /* Prevents issues during editing */
+    padding: 0 !important;
+}
+
+.editable-content {
+    position: relative;
+    cursor: pointer;
+    padding: 2px 4px;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%; /* Important for fill height of the td */
+}
+
+.inline-edit-input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 2px solid rgba(94, 90, 219, 1);
+    border-radius: 4px;
+    font-size: 14px; /* Default font size */
+    background-color: white;
+    outline: none;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    animation: focusInput 0.1s ease;
+    position: relative;
+    z-index: 10;
+}
+
+.inline-edit-input:focus {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.2);
+    white-space: normal;
+    overflow: visible;
+    transform: scale(1.02);
+    background-color: #ffffff;
+}
+
+.inline-edit-input[type="number"] {
+    max-width: 80px; /* Specific max-width for number input */
+}
+
+.inline-edit-input.date-input {
+    max-width: 140px; /* Specific max-width for datetime-local input */
+    font-size: 12px;
+}
+
+/* Modified cell highlighting */
+.modified-process-cell {
+    background-color: #FFF3CD !important;
+    position: relative;
+}
+
+.modified-process-cell::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: #F0AD4E;
+    z-index: 1;
+}
+
+/* Edit Indicator */
+.edit-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    color: rgba(94, 90, 219, 0.7);
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 3px;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 15;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.editable-cell:hover .edit-indicator {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.modified-process-cell .edit-indicator {
+    opacity: 1 !important;
+    color: #F0AD4E !important;
+    background-color: rgba(255, 255, 255, 1) !important;
+}
+
+.editing-cell .edit-indicator {
+    display: none !important;
+}
+
+/* New: Checkbox and Delete Button Styles in Nested Table */
+.nested-table .checkbox-column {
+    width: 40px;
+    min-width: 40px;
+    text-align: center;
+}
+
+.nested-table-header .action-buttons {
+    display: flex;
+    gap: 0.75rem; /* Increased gap for visual separation */
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-button.delete-btn {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.action-button.delete-btn:hover:not(:disabled) {
+    background-color: #c82333;
+    border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.action-button.delete-btn:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.action-button.save-button {
+    background-color: rgba(94, 90, 219, 1);
+    border-color: rgba(94, 90, 219, 1);
+    color: white;
+    font-weight: 600;
+}
+
+.action-button.save-button:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    border-color: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.action-button.save-button:disabled {
+    background-color: #6c757d;
+    color: #ffffff;
+    border-color: #6c757d;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.selected-count-badge {
+    color: white;
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 1px 4px;
+}
+
+/* Reset individual action button visibility in nested table to clean state */
+.nested-table .action-icons {
+    display: flex;
+    gap: 0; /* No gap as only one icon button is needed */
+    justify-content: center;
+}
+
+/* Hide the old edit/delete buttons from the row action icons */
+.nested-table-row .action-icons .edit-icon-btn,
+.nested-table-row .action-icons .delete-icon-btn {
+    display: none !important;
+}
+
+/* Ensure the main action button container still looks correct */
+.action-button-container {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Additional styling for datetime input in nested table to look better */
+.nested-table .inline-edit-input.date-input {
+    padding: 2px 4px;
+    font-size: 11px;
+}
+
+@media (max-width: 768px) {
+    .nested-table-header .action-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .nested-table-header .action-buttons .action-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

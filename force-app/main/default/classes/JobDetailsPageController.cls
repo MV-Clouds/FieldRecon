@@ -7,7 +7,10 @@
 *--------------------------------------------------------------------------------
 * Modification History:
 * Date Modified - Developer Name - Description
-* 
+* * 2025-11-25 - Gemini - Added saveTimesheetEntryInlineEdits for bulk updates, 
+* deleteTimesheetEntriesBulk for mass deletion, and 
+* updated getTimeSheetEntryItems to expose Timesheet 
+* Entry ID (TSEId) for reference.
 **/
 public with sharing class JobDetailsPageController {
     
@@ -138,10 +141,17 @@ public with sharing class JobDetailsPageController {
     @AuraEnabled
     public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, Date jobStartDate, Date jobEndDate){
         try {
+            // Updated query to include Timesheet Entry details needed for wrapper
             List<wfrecon__Timesheet_Entry_Item__c> items = [
-                SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, 
-                       wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
-                       wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, wfrecon__Clock_Out_Date__c, wfrecon__Premium__c
+                SELECT Id, wfrecon__Timesheet_Entry__c, 
+                       wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, 
+                       wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, 
+                       wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
+                       wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, 
+                       wfrecon__Clock_Out_Date__c, wfrecon__Premium__c,
+                       wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c, // Added TS Id
+                       wfrecon__Cost_Code__c, // Added Cost Code Id
+                       wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c // Added Mob Id
                 FROM wfrecon__Timesheet_Entry_Item__c 
                  WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
                   AND wfrecon__Clock_In_Date__c >= :jobStartDate
@@ -750,100 +760,203 @@ public with sharing class JobDetailsPageController {
 
     /*
     *********************************************************
-    @description     : Method is used to update timesheet records
-    @param           : params - {String} - Parameters to create timesheet records
-    @return          : Boolean - Success or failure of the operation
+    @description     : Method is used to save inline edits for multiple Timesheet Entry Items.
+                       Updates Timesheet Entry if Clock In/Out times change.
+    @param           : String updatedTimesheetEntriesJson - JSON string of updated timesheet entry items (TSELI)
+    @return          : String - Success or error message
     ********************************************************
     */
     @AuraEnabled
-    public static Boolean updateTimesheets(String params){
+    public static String saveTimesheetEntryInlineEdits(String updatedTimesheetEntriesJson) {
         try {
-            System.debug(params);
-            Map<String, Object> jsonList = (Map<String, Object>) JSON.deserializeUntyped(params);
-            System.debug(jsonList);
-
-            // Query records
-            wfrecon__Timesheet_Entry_Item__c tsItem = [
-                SELECT Id, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Premium__c 
-                FROM wfrecon__Timesheet_Entry_Item__c 
-                WHERE Id = :(String)jsonList.get('Id')
-                WITH USER_MODE
-                LIMIT 1
-            ];
-
-            wfrecon__Timesheet_Entry__c tsEntry = [
-                SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__c, wfrecon__Cost_Code__c 
-                FROM wfrecon__Timesheet_Entry__c 
-                WHERE Id = :(String)jsonList.get('TSEId')
-                WITH USER_MODE
-                LIMIT 1
-            ];
-
-            // Convert clock-in and clock-out strings to Datetime
-            Datetime clkInUserTz = convertUtc((String)jsonList.get('ClockIn'));
-            Datetime clkOutUserTz = convertUtc((String)jsonList.get('ClockOut'));
-
-            Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
-            Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
-            Boolean premium = Boolean.valueOf((String)jsonList.get('premium'));
-            
-            Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
-
-            if (crossesMidnight) {
-                Datetime firstDayEnd = DateTime.newInstance(clkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
-                Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
-
-                // Update current entry to end day 1
-                tsEntry.wfrecon__Clock_In_Time__c = clkInUserTz;
-                tsEntry.wfrecon__Clock_Out_Time__c = firstDayEnd;
-                update tsEntry;
-
-                tsItem.wfrecon__Clock_In_Time__c = clkInUserTz;
-                tsItem.wfrecon__Clock_Out_Time__c = firstDayEnd;
-                tsItem.wfrecon__Travel_Time__c = travelTime;
-                tsItem.wfrecon__Per_Diem__c = perDiem;
-                tsItem.wfrecon__Premium__c = premium;
-                update tsItem;
-
-                // Create new entry for day 2
-                wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
-                    wfrecon__Timesheet__c = tsEntry.wfrecon__Timesheet__c,
-                    wfrecon__Clock_In_Time__c = secondDayStart,
-                    wfrecon__Clock_Out_Time__c = clkOutUserTz,
-                    wfrecon__Cost_Code__c = tsEntry.wfrecon__Cost_Code__c,
-                    wfrecon__Do_Not_Execute__c = true
-                );
-                insert entryDay2;
-
-                wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
-                    wfrecon__Timesheet_Entry__c = entryDay2.Id,
-                    wfrecon__Clock_In_Time__c = secondDayStart,
-                    wfrecon__Clock_Out_Time__c = clkOutUserTz,
-                    wfrecon__Cost_Code__c = tsEntry.wfrecon__Cost_Code__c,
-                    wfrecon__Do_Not_Execute__c = true
-                );
-                insert itemDay2;
-            } else {
-                // Normal same-day update
-                tsItem.wfrecon__Clock_In_Time__c = clkInUserTz;
-                tsItem.wfrecon__Clock_Out_Time__c = clkOutUserTz;
-                tsItem.wfrecon__Travel_Time__c = travelTime;
-                tsItem.wfrecon__Per_Diem__c = perDiem;
-                tsItem.wfrecon__Premium__c = premium;
-                update tsItem;
-
-                tsEntry.wfrecon__Clock_In_Time__c = clkInUserTz;
-                tsEntry.wfrecon__Clock_Out_Time__c = clkOutUserTz;
-                update tsEntry;
+            if (String.isBlank(updatedTimesheetEntriesJson)) {
+                return 'Error: No timesheet entry item data provided for update.';
             }
 
-            return true;
+            // Deserialize JSON string into a list of Timesheet Entry Item records
+            // We use SObject list to handle dynamic fields from JSON, then cast/map
+            List<wfrecon__Timesheet_Entry_Item__c> updatedItems = new List<wfrecon__Timesheet_Entry_Item__c>();
+            List<Object> rawUpdates = (List<Object>) JSON.deserializeUntyped(updatedTimesheetEntriesJson);
+            
+            Set<Id> tsEntryItemIds = new Set<Id>();
+            Map<Id, Map<String, Object>> itemChangesMap = new Map<Id, Map<String, Object>>();
+            
+            for (Object obj : rawUpdates) {
+                Map<String, Object> mapObj = (Map<String, Object>) obj;
+                Id itemId = (Id) mapObj.get('Id');
+                tsEntryItemIds.add(itemId);
+                itemChangesMap.put(itemId, mapObj);
+            }
+            
+            // Fetch current records and their parent Timesheet Entries
+            List<wfrecon__Timesheet_Entry_Item__c> currentItems = [
+                SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c,
+                       wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Premium__c
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE Id IN :tsEntryItemIds
+                WITH USER_MODE
+            ];
+            
+            Set<Id> tsEntryIds = new Set<Id>();
+            for(wfrecon__Timesheet_Entry_Item__c item : currentItems) {
+                tsEntryIds.add(item.wfrecon__Timesheet_Entry__c);
+            }
+
+            Map<Id, wfrecon__Timesheet_Entry__c> tsEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(
+                [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c FROM wfrecon__Timesheet_Entry__c WHERE Id IN :tsEntryIds WITH USER_MODE]
+            );
+
+            List<wfrecon__Timesheet_Entry__c> entriesToUpdate = new List<wfrecon__Timesheet_Entry__c>();
+            
+            for (wfrecon__Timesheet_Entry_Item__c currentItem : currentItems) {
+                Map<String, Object> changes = itemChangesMap.get(currentItem.Id);
+                wfrecon__Timesheet_Entry__c parentEntry = tsEntryMap.get(currentItem.wfrecon__Timesheet_Entry__c);
+                Boolean parentNeedsUpdate = false;
+
+                // 1. Apply changes to Timesheet Entry Item
+                wfrecon__Timesheet_Entry_Item__c updatedItem = new wfrecon__Timesheet_Entry_Item__c(Id = currentItem.Id);
+                
+                // Clock In Time
+                if(changes.containsKey('clockInTime')) {
+                    Datetime clkInUserTz = convertUtc((String)changes.get('clockInTime'));
+                    updatedItem.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    parentEntry.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    parentNeedsUpdate = true;
+                }
+                
+                // Clock Out Time
+                if(changes.containsKey('clockOutTime')) {
+                    Datetime clkOutUserTz = convertUtc((String)changes.get('clockOutTime'));
+                    updatedItem.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                    parentEntry.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                    parentNeedsUpdate = true;
+                }
+                
+                // Travel Time
+                if(changes.containsKey('travelTime')) {
+                    updatedItem.wfrecon__Travel_Time__c = Decimal.valueOf((String)changes.get('travelTime'));
+                }
+                
+                // Per Diem
+                if(changes.containsKey('perDiem')) {
+                    updatedItem.wfrecon__Per_Diem__c = Integer.valueOf((String)changes.get('perDiem'));
+                }
+                
+                // Premium
+                if(changes.containsKey('premium')) {
+                    updatedItem.wfrecon__Premium__c = Boolean.valueOf((String)changes.get('premium'));
+                }
+                
+                updatedItems.add(updatedItem);
+
+                // 2. Queue parent update if times changed
+                if (parentNeedsUpdate) {
+                    entriesToUpdate.add(parentEntry);
+                }
+            }
+            
+            // Perform bulk DML updates
+            if (!updatedItems.isEmpty()) {
+                Database.update(updatedItems, AccessLevel.USER_MODE);
+            }
+            
+            if (!entriesToUpdate.isEmpty()) {
+                // Ensure only one update per parent entry
+                Database.update(entriesToUpdate, AccessLevel.USER_MODE);
+            }
+
+            return 'Success: ' + updatedItems.size() + ' timesheet entry item(s) updated successfully';
+
         } catch (Exception e) {
-            System.debug('Exception in updateTimesheets: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'updateTimesheets', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return false;
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'JobDetailsPageController',
+                'methodName' => 'saveTimesheetEntryInlineEdits',
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while saving timesheet entry item inline edits.'
+            });
+            return 'Error: ' + e.getMessage();
         }
     }
+
+   /*
+    *********************************************************
+    @description     : Method is used to delete multiple Timesheet Entry Items and their parent Timesheet Entries
+    @param           : List<Id> tselIds - List of Timesheet Entry Item Ids (TSELI) to delete
+    @return          : String - Success or error message
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String deleteTimesheetEntriesBulk(List<Id> tselIds) {
+        try {
+            if (tselIds == null || tselIds.isEmpty()) {
+                return 'Error: No timesheet entry items selected for deletion';
+            }
+            
+            // 1. Fetch Timesheet Entry Items and their parent IDs
+            List<wfrecon__Timesheet_Entry_Item__c> itemsToDelete = [
+                SELECT Id, wfrecon__Timesheet_Entry__c
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE Id IN :tselIds
+                WITH USER_MODE
+            ];
+            
+            Set<Id> tsEntryIdsToConsider = new Set<Id>();
+            for(wfrecon__Timesheet_Entry_Item__c item : itemsToDelete) {
+                tsEntryIdsToConsider.add(item.wfrecon__Timesheet_Entry__c);
+            }
+            
+            // 2. Determine which parent entries currently have EXACTLY ONE child item (TSELI)
+            // If the parent only has 1 item, and we are deleting that item, we delete the parent.
+            Set<Id> tsEntryIdsToFullyDelete = new Set<Id>();
+            
+            // Correct logic: Use Aggregate Query to find parents with COUNT(Id) = 1
+            List<AggregateResult> parentItemCounts = [
+                SELECT wfrecon__Timesheet_Entry__c parentId, COUNT(Id) itemTotal
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE wfrecon__Timesheet_Entry__c IN :tsEntryIdsToConsider
+                WITH USER_MODE
+                GROUP BY wfrecon__Timesheet_Entry__c
+                HAVING COUNT(Id) = 1
+            ];
+
+            for (AggregateResult ar : parentItemCounts) {
+                Id parentId = (Id) ar.get('parentId');
+                tsEntryIdsToFullyDelete.add(parentId);
+            }
+            
+            // 3. Fetch Timesheet Entries to delete
+            List<wfrecon__Timesheet_Entry__c> entriesToDelete = [
+                SELECT Id
+                FROM wfrecon__Timesheet_Entry__c
+                WHERE Id IN :tsEntryIdsToFullyDelete
+                WITH USER_MODE
+            ];
+            
+            // 4. Perform Deletion
+            // Delete child items first
+            delete itemsToDelete;
+            
+            // Delete parent entries that were found to have only one item before deletion
+            if (!entriesToDelete.isEmpty()) {
+                delete entriesToDelete;
+            }
+
+            return 'Success: ' + itemsToDelete.size() + ' timesheet entry item(s) and ' + entriesToDelete.size() + ' parent timesheet entry(s) deleted successfully';
+
+        } catch (DmlException e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'JobDetailsPageController',
+                'methodName' => 'deleteTimesheetEntriesBulk',
+                'exceptionObj' => e,
+                'moreDetails' => 'DML Error during bulk deletion.'
+            });
+            return 'Error: Deletion failed. Error: ' + e.getDmlMessage(0);
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'deleteTimesheetEntriesBulk', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
 
     /*
     *********************************************************
@@ -855,12 +968,18 @@ public with sharing class JobDetailsPageController {
     @AuraEnabled
     public static Boolean deleteTimesheetEntry(String TSELId) {
         try {
-            wfrecon__Timesheet_Entry_Item__c tsItem = [SELECT Id, wfrecon__Timesheet_Entry__c FROM wfrecon__Timesheet_Entry_Item__c WHERE Id = :TSELId];
+            wfrecon__Timesheet_Entry_Item__c tsItem = [SELECT Id, wfrecon__Timesheet_Entry__c FROM wfrecon__Timesheet_Entry_Item__c WHERE Id = :TSELId WITH USER_MODE];
 
-            wfrecon__Timesheet_Entry__c tsEntry = [SELECT Id FROM wfrecon__Timesheet_Entry__c WHERE Id = :tsItem.wfrecon__Timesheet_Entry__c];
+            wfrecon__Timesheet_Entry__c tsEntry = [SELECT Id, (SELECT Id FROM wfrecon__Timesheet_Entry_Items__r) FROM wfrecon__Timesheet_Entry__c WHERE Id = :tsItem.wfrecon__Timesheet_Entry__c WITH USER_MODE];
 
-            delete tsItem;
-            delete tsEntry;
+            // Only delete the parent entry if this is the last child item
+            if (tsEntry.wfrecon__Timesheet_Entry_Items__r.size() == 1) {
+                delete tsItem;
+                delete tsEntry;
+            } else {
+                // If there are other items, just delete this item
+                delete tsItem;
+            }
 
             return true;
         } catch (Exception e) {
@@ -920,8 +1039,8 @@ public with sharing class JobDetailsPageController {
     }
 
     public class TimesheetEntryItemWrapper {
-        @AuraEnabled public Id id;
-        @AuraEnabled public Id TSEId;
+        @AuraEnabled public Id id; // Timesheet Entry Item ID (TSELI)
+        @AuraEnabled public Id TSEId; // Timesheet Entry ID (TSE)
         @AuraEnabled public String contactName;
         @AuraEnabled public Datetime clockInTime;
         @AuraEnabled public Datetime clockOutTime;
@@ -932,10 +1051,12 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public Boolean premium;
         @AuraEnabled public String costCodeName;
         @AuraEnabled public Date clockInDate;
+        @AuraEnabled public Id mobId; // Added for easy lookup/refresh
+        @AuraEnabled public Id timesheetId; // Added for easy lookup/refresh
 
         public TimesheetEntryItemWrapper(wfrecon__Timesheet_Entry_Item__c item) {
             this.id = item.Id;
-            this.TSEId = item.wfrecon__Timesheet_Entry__c;
+            this.TSEId = item.wfrecon__Timesheet_Entry__c; // Expose parent ID
             this.contactName = item.wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name;
             
             // Convert to user timezone
@@ -949,6 +1070,8 @@ public with sharing class JobDetailsPageController {
             this.costCodeName = item.wfrecon__Cost_Code__r != null ? item.wfrecon__Cost_Code__r.Name : '-';
             this.premium = item.wfrecon__Premium__c;
             this.clockInDate = item.wfrecon__Clock_In_Date__c;
+            this.mobId = item.wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c;
+            this.timesheetId = item.wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c;
         }
     }
 

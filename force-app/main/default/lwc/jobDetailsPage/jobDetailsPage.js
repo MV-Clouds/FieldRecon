@@ -7,9 +7,10 @@ import getMobilizationMembersWithStatus from '@salesforce/apex/JobDetailsPageCon
 import createTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createTimesheetRecords';
 import getContactsAndCostcode from '@salesforce/apex/JobDetailsPageController.getContactsAndCostcode';
 import createManualTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createManualTimesheetRecords';
-import updateTimesheets from '@salesforce/apex/JobDetailsPageController.updateTimesheets';
 import deleteTimesheetEntry from '@salesforce/apex/JobDetailsPageController.deleteTimesheetEntry';
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
+import deleteTimesheetEntriesBulk from '@salesforce/apex/JobDetailsPageController.deleteTimesheetEntriesBulk';
+import saveTimesheetEntryInlineEdits from '@salesforce/apex/JobDetailsPageController.saveTimesheetEntryInlineEdits';
 
 export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track jobDetailsRaw;
@@ -57,7 +58,18 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track currentJobEndDateTime;
     @track expandedJobs = new Set(); // Track which jobs have expanded timesheet rows
     @track timesheetDataMap = new Map(); // Map of mobId to timesheet details
-
+    
+    // New properties for inline editing and bulk delete
+    @track modifiedTimesheetEntries = new Map(); // Map<id, {mobId: mobId, modifications: {key: value, ...}}>
+    @track hasTimesheetModifications = false;
+    @track isSavingTimesheetEntries = false;
+    @track editingTimesheetCells = new Set(); // Set of "id-fieldName" strings
+    @track selectedTimesheets = new Map(); // Map<mobId, Set<TSELId>>
+    @track deleteConfirmationAction = '';
+    @track deleteConfirmationTitle = '';
+    @track deleteConfirmationMessage = '';
+    @track deleteTargetMobId = '';
+    
     @track jobColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
         { label: 'Actions', fieldName: 'actions', style: 'width: 6rem' },
@@ -77,19 +89,20 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Description', fieldName: 'jobDescription', style: 'width: 15rem' }
     ];
 
+    // Timesheet columns adapted for inline editing/display
     @track timesheetColumns = [
-        { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
-        { label: 'Actions', fieldName: 'actions', style: 'width: 6rem' },
-        { label: 'Full Name', fieldName: 'contactName', style: 'width: 12rem' },
-        { label: 'Clock In Time', fieldName: 'clockInTime', style: 'width: 12rem' },
-        { label: 'Clock Out Time', fieldName: 'clockOutTime', style: 'width: 12rem' },
-        { label: 'Work Hours', fieldName: 'workHours', style: 'width: 6rem' },
-        { label: 'Travel Time', fieldName: 'travelTime', style: 'width: 6rem' },
-        { label: 'Total Time', fieldName: 'totalTime', style: 'width: 6rem' },
-        { label: 'Per Diem', fieldName: 'perDiem', style: 'width: 6rem' },
-        { label: 'Premium', fieldName: 'premium', style: 'width: 6rem' },
-        { label: 'Cost Code', fieldName: 'costCodeName', style: 'width: 8rem' }
+        { label: 'Full Name', fieldName: 'contactName', type: 'text', editable: false, style: 'width: 6rem' },
+        { label: 'Clock In Time', fieldName: 'clockInTime', type: 'datetime', editable: true, style: 'width: 6rem' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime', type: 'datetime', editable: true, style: 'width: 6rem' },
+        { label: 'Work Hours', fieldName: 'workHours', type: 'number', editable: false, style: 'width: 6rem' },
+        { label: 'Travel Time', fieldName: 'travelTime', type: 'number', editable: true, min: 0.00, step: 0.01, style: 'width: 6rem' },
+        { label: 'Total Time', fieldName: 'totalTime', type: 'number', editable: false, style: 'width: 6rem' },
+        { label: 'Per Diem', fieldName: 'perDiem', type: 'number', editable: true, min: 0, step: 1, max: 1, style: 'width: 6rem' },
+        { label: 'Premium', fieldName: 'premium', type: 'boolean', editable: true, style: 'width: 6rem' },
+        { label: 'Cost Code', fieldName: 'costCodeName', type: 'text', editable: false, style: 'width: 6rem' }
     ];
+
+    // --- Utility Getters ---
 
     get formattedSelectedDate() {
         try {
@@ -102,6 +115,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
         } catch (error) {
             console.error('Error in formattedSelectedDate ::', error);
+            return '';
         }
     }
 
@@ -109,8 +123,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return this.selectedDate.toISOString().split('T')[0];
     }
 
-    /** 
-    * Method Name: jobDetails 
+    /** * Method Name: jobDetails 
     * @description: This method processes raw job details and formats them for display in the UI.
     */
     get jobDetails() {
@@ -120,11 +133,22 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
 
             return this.filteredJobDetailsRaw.map((job, index) => {
+                const mobId = job.mobId;
+                const timesheetData = this.getTimesheetDataForJobDisplay(mobId);
+                const selectedCount = this.selectedTimesheets.get(mobId)?.size || 0;
+                const totalTimesheets = timesheetData.length;
+                
                 return {
-                    key: job.mobId,
+                    key: mobId,
                     jobId: job.jobId,
-                    isExpanded: this.expandedJobs.has(job.mobId),
-                    timesheetData: this.timesheetDataMap.get(job.mobId) || [],
+                    mobId: mobId,
+                    isExpanded: this.expandedJobs.has(mobId),
+                    timesheetData: timesheetData,
+                    selectedCount: selectedCount,
+                    isSaveDisabled: !this.hasTimesheetModificationsForJob(mobId) || this.isSavingTimesheetEntries,
+                    isDeleteDisabled: selectedCount === 0 || this.isSavingTimesheetEntries,
+                    saveButtonLabel: this.getTimesheetSaveButtonLabel(mobId),
+                    isAllSelected: totalTimesheets > 0 && selectedCount === totalTimesheets,
                     values: this.jobColumns.map(col => {
                         let cell = { 
                             key: col.fieldName, 
@@ -141,7 +165,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         } else {
                             cell.value = job[col.fieldName] || '';
                             if (col.isLink && col.recordIdField) {
-                                cell.recordLink = `/${job[col.recordIdField]}`;
+                                cell.recordLink = `/${job.jobId}`; // Use jobId for link navigation
                             }
                         }
 
@@ -163,9 +187,213 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             });
         } catch (error) {
             console.error('Error in jobDetails ::', error);
+            return [];
         }
     }
     
+    /** * Method Name: getTimesheetDataForJobDisplay 
+    * @description: Processes the raw timesheet data for display in the nested table with inline edit state.
+    */
+    getTimesheetDataForJobDisplay(mobId) {
+        const rawTimesheets = this.timesheetDataMap.get(mobId) || [];
+        const selectedIds = this.selectedTimesheets.get(mobId) || new Set();
+        
+        return rawTimesheets.map((ts, index) => {
+            const displayEntry = {
+                ...ts,
+                srNo: index + 1,
+                isSelected: selectedIds.has(ts.id),
+                displayFields: this.timesheetColumns.map(col => {
+                    const fieldName = col.fieldName;
+                    const cellKey = `${ts.id}-${fieldName}`;
+                    
+                    let value = ts[fieldName];
+                    let isModified = false;
+
+                    // Check for modification in the Map
+                    const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
+                    if (modification && modification.hasOwnProperty(fieldName)) {
+                        value = modification[fieldName];
+                        isModified = true;
+                    }
+                    
+                    const isEditing = this.editingTimesheetCells.has(cellKey);
+                    
+                    let cellClass = 'center-trancate-text';
+                    if (col.editable) cellClass += ' editable-cell';
+                    if (isModified) cellClass += ' modified-process-cell';
+                    if (isEditing) cellClass += ' editing-cell';
+                    
+                    let displayValue = String(value || '');
+
+                    // Formatting for display and editing inputs
+                    const isDatetime = col.type === 'datetime';
+                    const isNumber = col.type === 'number';
+                    const isBoolean = col.type === 'boolean';
+                    const isText = col.type === 'text';
+                    const isCurrency = col.type === 'currency';
+
+                    if (isDatetime) {
+                        displayValue = value ? this.formatToAMPM(value) : '--';
+                    } else if (isBoolean) {
+                        displayValue = value ? 'Yes' : 'No';
+                        value = !!value; // Ensure boolean value
+                    } else if (isNumber || isCurrency) {
+                        // Display value formatted to 2 decimals, original stored in rawValue
+                        displayValue = value !== null && value !== undefined ? Number(value).toFixed(2) : '0.00';
+                        value = value !== null && value !== undefined ? Number(value) : null;
+                    } else if (isText) {
+                        displayValue = value || '--';
+                    }
+
+                    // For editing inputs, datetime needs ISO format (YYYY-MM-DDThh:mm)
+                    const datetimeValue = isDatetime && value ? this.formatToDatetimeLocal(value) : null;
+                    
+                    // Boundaries for datetime fields
+                    let minBoundary = null;
+                    let maxBoundary = null;
+                    if (isDatetime) {
+                        minBoundary = this.getDatetimeMinBoundary(ts, fieldName);
+                        maxBoundary = this.getDatetimeMaxBoundary(ts, fieldName);
+                    }
+                    
+                    // Fields are editable only if the user has permission (assumed true if this component loads)
+                    const isEditable = col.editable;
+
+                    return {
+                        key: fieldName,
+                        displayValue: displayValue,
+                        rawValue: value,
+                        datetimeValue: datetimeValue,
+                        isEditing: isEditing,
+                        isEditable: isEditable,
+                        isModified: isModified,
+                        cellClass: cellClass,
+                        contentClass: 'editable-content',
+                        isDatetime: isDatetime,
+                        isNumber: isNumber,
+                        isBoolean: isBoolean,
+                        isText: isText,
+                        isCurrency: isCurrency,
+                        step: col.step,
+                        min: col.min,
+                        max: col.max,
+                        minBoundary: minBoundary,
+                        maxBoundary: maxBoundary,
+                    };
+                })
+            };
+            
+            return displayEntry;
+        });
+    }
+
+    /** * Method Name: getDatetimeMinBoundary 
+    * @description: Calculates the minimum boundary for Clock In/Out date time pickers for inline editing.
+    */
+    getDatetimeMinBoundary(ts, fieldName) {
+        const jobRecord = this.getCurrentJobRecord();
+        const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
+        
+        // Clock In min boundary is job start date
+        if (fieldName === 'clockInTime') {
+            const dateKey = this.extractDateKey(jobStartReference);
+            return dateKey ? `${dateKey}T00:00` : null;
+        } 
+        // Clock Out min boundary is Clock In time
+        else if (fieldName === 'clockOutTime') {
+            const clockIn = ts.clockInTime;
+            const modifiedClockIn = this.modifiedTimesheetEntries.get(ts.id)?.modifications.clockInTime;
+            const referenceTime = modifiedClockIn || clockIn;
+            
+            // Cannot clock out before clock in time
+            return referenceTime ? this.formatToDatetimeLocal(referenceTime) : null;
+        }
+        return null;
+    }
+
+    /** * Method Name: getDatetimeMaxBoundary 
+    * @description: Calculates the maximum boundary for Clock In/Out date time pickers for inline editing.
+    */
+    getDatetimeMaxBoundary(ts, fieldName) {
+        const jobRecord = this.getCurrentJobRecord();
+        const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
+        
+        // Clock In max boundary is job end date
+        if (fieldName === 'clockInTime') {
+            const dateKey = this.extractDateKey(jobEndReference);
+            return dateKey ? `${dateKey}T23:59` : null;
+        } 
+        // Clock Out max boundary is day after job end date
+        else if (fieldName === 'clockOutTime') {
+            const dateKey = this.extractDateKey(jobEndReference);
+            if (!dateKey) return null;
+            
+            const nextDay = this.addDaysToDateKey(dateKey, 1);
+            return nextDay ? `${nextDay}T23:59` : null;
+        }
+        return null;
+    }
+
+    /** * Method Name: formatToDatetimeLocal
+    * @description: Formats ISO datetime string to YYYY-MM-DDThh:mm format for input type="datetime-local"
+    */
+    formatToDatetimeLocal(iso) {
+        if (!iso) return '';
+        try {
+            const date = new Date(iso);
+            if (isNaN(date.getTime())) return '';
+
+            // Ensure the local time offset is corrected before formatting (client-side adjustment)
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        } catch (error) {
+            console.error('Error in formatToDatetimeLocal:', error);
+            return iso;
+        }
+    }
+
+    /** * Method Name: getTimesheetSaveButtonLabel
+    * @description: Gets the dynamic label for the timesheet save button.
+    */
+    getTimesheetSaveButtonLabel(mobId) {
+        const modifications = this.modifiedTimesheetEntriesForJob(mobId);
+        if (this.isSavingTimesheetEntries) {
+            return 'Saving...';
+        }
+        if (modifications.size > 0) {
+            return `Save Changes (${modifications.size})`;
+        }
+        return 'Save Changes';
+    }
+
+    /**
+     * Method Name: modifiedTimesheetEntriesForJob
+     * @description: Filters modified entries for a specific job/mobilization.
+     */
+    modifiedTimesheetEntriesForJob(mobId) {
+        const entries = new Map();
+        this.modifiedTimesheetEntries.forEach((value, key) => {
+            if (value.mobId === mobId) {
+                entries.set(key, value);
+            }
+        });
+        return entries;
+    }
+
+    /**
+     * Method Name: hasTimesheetModificationsForJob
+     * @description: Checks if a specific job/mobilization has any timesheet modifications.
+     */
+    hasTimesheetModificationsForJob(mobId) {
+        return this.modifiedTimesheetEntriesForJob(mobId).size > 0;
+    }
+
     get clockInTabClass() {
         return this.activeTab === 'clockin' ? 'active' : '';
     }
@@ -198,62 +426,14 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return this.viewMode === 'custom' ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn';
     }
 
-    /** 
-    * Method Name: timesheetDetails 
-    * @description: This method processes raw timesheet details and formats them for display in the UI.
-    */
-    get timesheetDetails() {
-        try {
-            if (!this.timesheetDetailsRaw) {
-                return [];
-            }
-
-            return this.timesheetDetailsRaw.map((ts, index) => {
-                return {
-                    id: ts.id,
-                    values: this.timesheetColumns.map(col => {
-                        let cell = { value: '--', isActions: false, style: col.style };
-
-                        if (col.fieldName === 'srNo') {
-                            cell.value = index + 1;
-                        } else if (col.fieldName === 'actions') {
-                            cell.isActions = true; 
-                        } else if (col.fieldName.includes('.')) {
-                            let parts = col.fieldName.split('.');
-                            let value = ts;
-                            parts.forEach(p => value = value ? value[p] : null);
-                            cell.value = value || '';
-                        } else {
-                            cell.value = ts[col.fieldName] || '';
-                        }
-
-                        // Format dates nicely
-                        if (col.fieldName === 'clockInTime' || col.fieldName === 'clockOutTime') {
-                            cell.value = this.formatToAMPM(cell.value);
-                        }
-
-                        // Handle Per Diem - display 0 if not present
-                        if (col.fieldName === 'perDiem') {
-                            cell.value = ts.perDiem !== null && ts.perDiem !== undefined ? ts.perDiem : 0;
-                        }
-
-                        // Handle Premium - display Yes/No instead of true/false
-                        if (col.fieldName === 'premium') {
-                            cell.value = ts.premium === true ? 'Yes' : 'No';
-                        }
-
-                        return cell;
-                    })
-                };
-            });
-        } catch (error) {
-            console.error('Error in timesheetDetails ::', error);
-            return [];
-        }
+    // New delete confirmation properties
+    get isTimesheetBulkDelete() {
+        return this.deleteConfirmationAction === 'bulkDeleteTimesheets';
     }
+    
+    // --- Lifecycle and Initialization ---
 
-    /** 
-    * Method Name: connectedCallback 
+    /** * Method Name: connectedCallback 
     * @description: This method is called when the component is connected to the DOM.
     */
     connectedCallback() {
@@ -314,8 +494,110 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: getJobRelatedMoblizationDetails 
+    // --- Data Fetching and Formatting ---
+
+    /** * Method Name: formatToAMPM
+    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
+    */
+    formatToAMPM(iso) {
+        if (!iso) return '';
+        try {
+            const date = new Date(iso);
+            if (isNaN(date.getTime())) return iso;
+            
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[date.getMonth()];
+            
+            let hours = date.getHours();
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            return `${monthName} ${String(date.getDate()).padStart(2, '0')}, ${date.getFullYear()}, ${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToAMPM:', error);
+            return iso;
+        }
+    }
+
+    extractDateKey(value) {
+        if (!value) {
+            return null;
+        }
+
+        if (value instanceof Date) {
+            return value.toISOString().slice(0, 10);
+        }
+
+        const str = value.toString().trim();
+        if (!str) {
+            return null;
+        }
+
+        // Handle ISO string format 'YYYY-MM-DDTHH:mm:ss.sssZ' or 'YYYY-MM-DD HH:mm:ss'
+        if (str.length >= 10) {
+            return str.slice(0, 10);
+        }
+
+        return null;
+    }
+
+    addDaysToDateKey(dateKey, days) {
+        if (!dateKey || typeof dateKey !== 'string') {
+            return null;
+        }
+
+        const [year, month, day] = dateKey.split('-').map(Number);
+        if ([year, month, day].some(num => Number.isNaN(num))) {
+            return null;
+        }
+
+        const utcDate = new Date(Date.UTC(year, month - 1, day));
+        utcDate.setUTCDate(utcDate.getUTCDate() + days);
+        
+        return utcDate.toISOString().slice(0, 10);
+    }
+
+    validateClockInDate (clockInValue, jobStartValue) {
+        const clockInDate = this.extractDateKey(clockInValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
+        
+        if (clockInDate && jobStartDate && clockInDate < jobStartDate) {
+            this.showToast('Error', 'Clock In time cannot be before the job start date.', 'error');
+            return false;
+        }
+        
+        return true;
+    }
+
+    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
+        const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobEndDate = this.extractDateKey(jobEndValue);
+
+        if (clockOutDate && jobEndDate) {
+            const nextDay = this.addDaysToDateKey(jobEndDate, 1);
+            if (clockOutDate > nextDay) {
+                this.showToast('Error', 'Clock Out time cannot be after the day following the job end date.', 'error');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    getCurrentJobRecord() {
+        if (!this.jobId || !this.jobDetailsRaw || !Array.isArray(this.jobDetailsRaw)) {
+            return null;
+        }
+
+        return this.jobDetailsRaw.find(job => job.jobId === this.jobId || job.mobId === this.mobId);
+    }
+
+    /** * Method Name: getJobRelatedMoblizationDetails 
     * @description: Method is used to get the job related mobilization details
     */
     getJobRelatedMoblizationDetails() {
@@ -327,9 +609,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if(data != null) {
                         this.jobDetailsRaw = data;
                         this.filteredJobDetailsRaw = data;
-                        console.log('getJobRelatedMoblizationDetails jobDetailsRaw => ', this.jobDetailsRaw);
                         
-                        // Pre-load timesheet data for all jobs (like sovJobLocations pre-loads process data)
+                        // Pre-load timesheet data for all jobs
                         this.preloadTimesheetData();
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -354,8 +635,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      */
     async preloadTimesheetData() {
         try {
-            // Clear existing timesheet data
+            // Clear existing timesheet data and preserve expanded state
+            const expandedIds = new Set(this.expandedJobs);
             this.timesheetDataMap = new Map();
+            this.expandedJobs = new Set();
             
             if (!this.jobDetailsRaw || this.jobDetailsRaw.length === 0) {
                 return;
@@ -368,8 +651,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
             await Promise.all(loadPromises);
             
-            // Trigger reactivity
-            this.timesheetDataMap = new Map(this.timesheetDataMap);
+            // Restore expanded state and trigger display update
+            this.expandedJobs = expandedIds;
+            this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
             
         } catch (error) {
             console.error('Error in preloadTimesheetData:', error);
@@ -384,6 +668,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             const mobId = job.mobId;
             const jobId = job.jobId;
+            // Use the job's date range, not the filter range
             const jobStartDate = this.extractDateKey(job.startDate);
             const jobEndDate = this.extractDateKey(job.endDate);
             
@@ -395,17 +680,14 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             if (data && data.length > 0) {
                 const formattedData = data.map((item, index) => ({
+                    // Keep original TSEL fields for reference/editing
+                    ...item,
                     srNo: index + 1,
-                    id: item.id,
-                    contactName: item.contactName || 'N/A',
-                    clockInTime: this.formatToAMPM(item.clockInTime),
-                    clockOutTime: this.formatToAMPM(item.clockOutTime),
-                    workHours: item.workHours?.toFixed(2) || '0.00',
-                    travelTime: item.travelTime?.toFixed(2) || '0.00',
-                    totalTime: item.totalTime?.toFixed(2) || '0.00',
-                    perDiem: item.perDiem?.toFixed(2) || '0.00',
-                    premium: item.premium === true ? 'Yes' : 'No',
-                    costCodeName: item.costCodeName || 'N/A'
+                    // Ensure values are numerical for calculation consistency
+                    workHours: item.workHours !== null ? Number(item.workHours) : 0.00,
+                    travelTime: item.travelTime !== null ? Number(item.travelTime) : 0.00,
+                    perDiem: item.perDiem !== null ? Number(item.perDiem) : 0,
+                    totalTime: item.totalTime !== null ? Number(item.totalTime) + (item.travelTime !== null ? Number(item.travelTime) : 0) : 0.00
                 }));
                 this.timesheetDataMap.set(mobId, formattedData);
             } else {
@@ -419,173 +701,97 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: formatToAMPM
-    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
+    /** * Method Name: getClockInDetails 
+    * @description: Method is used to get the clock in details
     */
-    formatToAMPM(iso) {
+    getClockInDetails() {
         try {
-            if (!iso) return '';
+            this.showClockInOutModal = true;
+            this.isLoading = true;
             
-            // Extract date and time parts from ISO string
-            // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
-            const parts = iso.split('T');
-            if (parts.length < 2) return iso;
-            
-            const datePart = parts[0]; // "2025-10-05"
-            const timePart = parts[1].substring(0, 5); // "14:30"
-            
-            // Parse date components
-            const [year, month, day] = datePart.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const monthName = monthNames[parseInt(month, 10) - 1];
-            
-            // Extract hours and minutes
-            const [hoursStr, minutesStr] = timePart.split(':');
-            let hours = parseInt(hoursStr, 10);
-            const minutes = minutesStr;
-            
-            // Determine AM/PM
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            
-            // Convert to 12-hour format
-            hours = hours % 12;
-            hours = hours ? hours : 12; // hour '0' should be '12'
-            
-            // Pad hours with leading zero if needed
-            const paddedHours = String(hours).padStart(2, '0');
-            
-            // Format: "Nov 12, 2025, 03:45 PM"
-            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
+            getMobilizationMembersWithStatus({ mobId: this.mobId})
+                .then(result => {
+                    if(result != null) {
+                        
+                        this.clockInList = result.clockIn;
+    
+                        this.clockInOptions = this.clockInList.map(person => ({
+                            label: person.contactName,
+                            value: person.contactId
+                        }));
+    
+                        if (this.clockInList.length > 0) {
+                            this.defaultStartTime = result.clockIn[0].jobStartTime.slice(0, 16);
+                        } else {
+                            this.defaultStartTime = new Date().toISOString().slice(0, 16);
+                        }
+                        this.clockInTime = this.defaultStartTime;
+    
+                        if(result.costCodeDetails.length > 0) {
+                            const costCodeMap = result.costCodeDetails[0].costCodeDetails; // this is an object
+                            this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
+                                label: costCodeMap[key], // the name
+                                value: key               // the id
+                            }));
+                        }
+                    } else {
+                        this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                    }
+                })
+                .catch(error => {
+                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                    console.error('Error fetching data getMobilizationMembersWithStatus apex :: ', error);
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
         } catch (error) {
-            console.error('Error in formatToAMPM:', error);
-            return iso;
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            console.error('Error in getClockInDetails ::', error);
+            this.isLoading = false;
         }
     }
 
-    extractDateKey(value) {
-        if (!value) {
-            return null;
+    /**
+     * Method Name: toggleTimesheetView
+     * @description: Toggle the timesheet inner table view (data is pre-loaded) and applies inline edit state.
+     */
+    toggleTimesheetView(mobId) {
+        if (this.expandedJobs.has(mobId)) {
+            this.expandedJobs.delete(mobId);
+        } else {
+            this.expandedJobs.add(mobId);
+            // Ensure timesheet data is loaded/refreshed
+            this.loadTimesheetData(mobId);
         }
-
-        if (value instanceof Date) {
-            return value.toISOString().slice(0, 10);
-        }
-
-        const str = value.toString().trim();
-        if (!str) {
-            return null;
-        }
-
-        if (str.length >= 10) {
-            return str.slice(0, 10);
-        }
-
-        return null;
+        // Trigger re-render
+        this.expandedJobs = new Set(this.expandedJobs);
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force jobDetails getter to re-run
     }
 
-    addDaysToDateKey(dateKey, days) {
-        if (!dateKey || typeof dateKey !== 'string') {
-            return null;
-        }
-
-        const [year, month, day] = dateKey.split('-').map(Number);
-        if ([year, month, day].some(num => Number.isNaN(num))) {
-            return null;
-        }
-
-        const utcDate = new Date(Date.UTC(year, month - 1, day));
-        utcDate.setUTCDate(utcDate.getUTCDate() + days);
-        return utcDate.toISOString().slice(0, 10);
-    }
-
-    validateClockInDate (clockInValue, jobStartValue, jobEndValue) {
-        const clockInDate = this.extractDateKey(clockInValue);
-        const jobStartDate = this.extractDateKey(jobStartValue);
-        const jobEndDate = this.extractDateKey(jobEndValue);
-
-        if (clockInDate && jobStartDate && clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
-            this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
-            return false;
-        }
-
-        return true;
-    }
-
-    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
-        const clockOutDate = this.extractDateKey(clockOutValue);
-        const jobStartDate = this.extractDateKey(jobStartValue);
-        const jobEndDate = this.extractDateKey(jobEndValue);
-
-        if (clockOutDate && jobEndDate) {
-            const nextDay = this.addDaysToDateKey(jobEndDate, 1);
-            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
-                this.showToast('Error', 'Clock Out time must be on the job start date, job end date or the following day', 'error');
-                return false;
+    /**
+     * Method Name: loadTimesheetData
+     * @description: Refresh timesheet data for a specific job (used after CRUD operations)
+     */
+    async loadTimesheetData(mobId) {
+        try {
+            this.isLoading = true;
+            
+            // Find the job object from jobDetailsRaw
+            const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
+            if (job) {
+                await this.loadTimesheetDataForJob(job);
+                this.timesheetDataMap = new Map(this.timesheetDataMap);
             }
+        } catch (error) {
+            console.error('Error in loadTimesheetData:', error);
+        } finally {
+            this.isLoading = false;
+            this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Final refresh
         }
-
-        return true;
     }
 
-    get clockInMinBoundary() {
-        const jobRecord = this.getCurrentJobRecord();
-        const reference = this.currentJobStartDateTime
-            || jobRecord?.startDate
-            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobStartTime : null)
-            || this.defaultStartTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
-    }
-
-    get clockInMaxBoundary() {
-        const jobRecord = this.getCurrentJobRecord();
-        const reference = this.currentJobEndDateTime
-            || jobRecord?.endDate
-            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobEndTime : null)
-            || this.defaultEndTime
-            || this.defaultStartTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T23:59` : null;
-    }
-
-    get clockOutMinBoundary() {
-        const jobRecord = this.getCurrentJobRecord();
-        const reference = this.currentJobStartDateTime
-            || jobRecord?.startDate
-            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobStartTime : null)
-            || this.defaultStartTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
-    }
-
-    get clockOutMaxBoundary() {
-        const jobRecord = this.getCurrentJobRecord();
-        const reference = this.currentJobEndDateTime
-            || jobRecord?.endDate
-            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobEndTime : null)
-            || this.defaultEndTime
-            || this.defaultStartTime;
-        const dateKey = this.extractDateKey(reference);
-        if (!dateKey) {
-            return null;
-        }
-        const nextDay = this.addDaysToDateKey(dateKey, 1);
-        const boundaryKey = nextDay || dateKey;
-        return `${boundaryKey}T23:59`;
-    }
-
-    getCurrentJobRecord() {
-        if (!this.jobId || !this.jobDetailsRaw || !Array.isArray(this.jobDetailsRaw)) {
-            return null;
-        }
-
-        return this.jobDetailsRaw.find(job => job.jobId === this.jobId || job.Id === this.jobId);
-    }
-
-    /** 
-    * Method Name: handleSearch 
+    /** * Method Name: handleSearch 
     * @description: Method is used to handle the search
     */
     handleSearch(event) {
@@ -615,8 +821,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleLinkClick 
+    /** * Method Name: handleLinkClick 
     * @description: Method is used to handle the link click
     */
     handleLinkClick(event) {
@@ -637,8 +842,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handlePreviousDate 
+    /** * Method Name: handlePreviousDate 
     * @description: Method is used to handle the previous date
     */
     handlePreviousDate() {
@@ -659,8 +863,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleNextDate 
+    /** * Method Name: handleNextDate 
     * @description: Method is used to handle the next date
     */
     handleNextDate() {
@@ -681,8 +884,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: switchToDayView 
+    /** * Method Name: switchToDayView 
     * @description: Method is used to switch to day view
     */
     switchToDayView() {
@@ -698,8 +900,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: switchToWeekView 
+    /** * Method Name: switchToWeekView 
     * @description: Method is used to switch to week view
     */
     switchToWeekView() {
@@ -716,8 +917,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: calculateWeekRange 
+    /** * Method Name: calculateWeekRange 
     * @description: Method is used to calculate the week range
     */
     calculateWeekRange() {
@@ -734,8 +934,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: switchToCustomView 
+    /** * Method Name: switchToCustomView 
     * @description: Method is used to switch to custom view
     */
     switchToCustomView() {
@@ -769,8 +968,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleCustomDateChange 
+    /** * Method Name: handleCustomDateChange 
     * @description: handle custom date filter change and call method to filter data
     */
     handleCustomDateChange(event) {
@@ -787,19 +985,17 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this._dateChangeTimeout = setTimeout(() => {
                 this.getJobRelatedMoblizationDetails();
             }, 1000);
-            // this.getJobRelatedMoblizationDetails();
         }
     }
 
-    /** 
-    * Method Name: handleActionClick 
+    /** * Method Name: handleActionClick 
     * @description: Method is used to handle the row action click
     */
     handleActionClick(event) {
         try {
             const jobId = event.currentTarget.dataset.job;
-            this.jobId = jobId;
             const mobId = event.currentTarget.dataset.mobid;
+            this.jobId = jobId;
             this.mobId = mobId;
 
             const jobRecord = this.getCurrentJobRecord();
@@ -821,96 +1017,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /**
-     * Method Name: toggleTimesheetView
-     * @description: Toggle the timesheet inner table view (data is pre-loaded)
-     */
-    toggleTimesheetView(mobId) {
-        if (this.expandedJobs.has(mobId)) {
-            this.expandedJobs.delete(mobId);
-        } else {
-            this.expandedJobs.add(mobId);
-        }
-        // Trigger re-render
-        this.expandedJobs = new Set(this.expandedJobs);
-    }
-
-    /**
-     * Method Name: loadTimesheetData
-     * @description: Refresh timesheet data for a specific job (used after CRUD operations)
-     */
-    async loadTimesheetData(mobId) {
-        try {
-            this.isLoading = true;
-            
-            // Find the job object from jobDetailsRaw
-            const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
-            if (job) {
-                await this.loadTimesheetDataForJob(job);
-                this.timesheetDataMap = new Map(this.timesheetDataMap);
-            }
-        } catch (error) {
-            console.error('Error in loadTimesheetData:', error);
-        } finally {
-            this.isLoading = false;
-        }
-    }
-
-    /** 
-    * Method Name: getClockInDetails 
-    * @description: Method is used to get the clock in details
-    */
-    getClockInDetails() {
-        try {
-            this.showClockInOutModal = true;
-            this.isLoading = true;
-            
-            getMobilizationMembersWithStatus({ mobId: this.mobId})
-                .then(result => {
-                    if(result != null) {
-                        console.log('getMobilizationMembersWithStatus result :: ', result);
-                        
-                        this.clockInList = result.clockIn;
-    
-                        this.clockInOptions = this.clockInList.map(person => ({
-                            label: person.contactName,
-                            value: person.contactId
-                        }));
-    
-                        if (this.clockInList.length > 0) {
-                            this.defaultStartTime = result.clockIn[0].jobStartTime.slice(0, 16);
-                        } else {
-                            this.defaultStartTime = new Date().toISOString();
-                        }
-                        this.clockInTime = this.defaultStartTime;
-    
-                        if(result.costCodeDetails.length > 0) {
-                            const costCodeMap = result.costCodeDetails[0].costCodeDetails; // this is an object
-                            this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
-                                label: costCodeMap[key], // the name
-                                value: key               // the id
-                            }));
-                        }
-                    } else {
-                        this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
-                    }
-                })
-                .catch(error => {
-                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
-                    console.error('Error fetching data getMobilizationMembersWithStatus apex :: ', error);
-                })
-                .finally(() => {
-                    this.isLoading = false;
-                });
-        } catch (error) {
-            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
-            console.error('Error in getClockInDetails ::', error);
-            this.isLoading = false;
-        }
-    }
-
-    /** 
-    * Method Name: handleClockInTab 
+    /** * Method Name: handleClockInTab 
     * @description: Method is used to handle the clock in tab
     */
     handleClockInTab(){
@@ -924,8 +1031,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.getClockInDetails();
     }
 
-    /** 
-    * Method Name: handleClockIn 
+    /** * Method Name: handleClockIn 
     * @description: Method is used to handle the clock in action
     */
     handleClockIn() {
@@ -967,11 +1073,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 timesheetEntryId: selectedRecordDetails ? selectedRecordDetails?.timesheetEntryId : null,
                 mobMemberId: selectedRecordDetails ? selectedRecordDetails?.mobMemberId : null,
             };
-            console.log('createTimesheetRecords params :: ', params);
             
             createTimesheetRecords({ params: JSON.stringify(params)})
                 .then(result => {
-                    console.log('createTimesheetRecords result :: ', result);
                     if(result == true) {
                         this.selectedContactId = null;
                         this.selectedCostCodeId = null;
@@ -998,8 +1102,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
     
-    /** 
-    * Method Name: handleClockOutTab 
+    /** * Method Name: handleClockOutTab 
     * @description: Method is used to handle the clock out tab
     */
     handleClockOutTab(){
@@ -1013,8 +1116,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.getClockOutDetails();
     }
 
-    /** 
-    * Method Name: getClockOutDetails 
+    /** * Method Name: getClockOutDetails 
     * @description: Method is used to get the clock out details
     */
     getClockOutDetails() {
@@ -1024,8 +1126,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             getMobilizationMembersWithStatus({ mobId: this.mobId})
                 .then(result => {
-                    console.log('getMobilizationMembersWithStatus result :: ', result);
-
+                    
                     this.clockOutList = result.clockOut;
                     
                     // Clock Out list and options
@@ -1042,7 +1143,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if (this.clockOutList.length > 0) {
                         this.defaultEndTime = result.clockOut[0].jobEndTime.slice(0, 16);
                     } else {
-                        this.defaultEndTime = new Date().toISOString();
+                        this.defaultEndTime = new Date().toISOString().slice(0, 16);
                     }
                     this.clockOutTime = this.defaultEndTime;
                 })
@@ -1060,8 +1161,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleClockOut 
+    /** * Method Name: handleClockOut 
     * @description: Method is used to handle the clock out action
     */
     handleClockOut() {
@@ -1108,11 +1208,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 timesheetEntryId: selectedRecordDetails ? selectedRecordDetails?.timesheetEntryId : null,
                 mobMemberId: selectedRecordDetails ? selectedRecordDetails?.mobMemberId : null,
             };
-            console.log('createTimesheetRecords params :: ', params);
             
             createTimesheetRecords({ params: JSON.stringify(params)})
                 .then(result => {
-                    console.log('createTimesheetRecords result :: ', result);
                     if(result == true) {
                         this.selectedContactId = null;
                         this.previousClockInTime = null;
@@ -1126,7 +1224,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 })
                 .catch(error => {
                     console.error('Error creating timesheet records createTimesheetRecords apex :: ', error);
-                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                    this.showToast('Error', 'Something went wrong. Please contact system admin' , 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
@@ -1138,8 +1236,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleInputChange 
+    /** * Method Name: handleInputChange 
     * @description: Method is used to handle input field changes
     */
     handleInputChange(event) {
@@ -1155,7 +1252,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.clockOutTime = this.defaultEndTime;
         
                 if(dataField == 'clockIn') {
-                    // Suppose your fetched list is stored in this.wrapperList
                     const selectedContact = this.clockInList.find(
                         item => item.contactId === this.selectedContactId
                     );
@@ -1168,7 +1264,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 }
         
                 if(dataField == 'clockOut') {
-                    // Suppose your fetched list is stored in this.wrapperList
                     const selectedContact = this.clockOutList.find(
                         item => item.contactId === this.selectedContactId
                     );
@@ -1193,8 +1288,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: closeClockInOutModal 
+    /** * Method Name: closeClockInOutModal 
     * @description: Method is used to close the clock in/out modal
     */
     closeClockInOutModal() {
@@ -1210,8 +1304,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.isSelectedContactClockedIn = false;
     }
 
-    /** 
-    * Method Name: getJobRelatedTimesheetDetails 
+    /** * Method Name: getJobRelatedTimesheetDetails 
     * @description: Method is used to get the job related timesheet details
     */
     getJobRelatedTimesheetDetails() {
@@ -1235,12 +1328,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                             return {
                                 ...item,
                                 id: item?.id,
-                                travelTime: item?.travelTime != null ? parseFloat(item.travelTime).toFixed(2) : 0.00,
+                                travelTime: item?.travelTime != null ? parseFloat(item.travelTime) : 0.00,
                                 perDiem: item?.perDiem != null ? item.perDiem : 0,
-                                totalTime: item?.totalTime != null ? parseFloat(item.totalTime).toFixed(2) : 0.00
+                                totalTime: item?.totalTime != null ? parseFloat(item.totalTime) + (item.travelTime != null ? parseFloat(item.travelTime) : 0) : 0.00
                             };
                         });
-                        console.log('getTimeSheetEntryItems timesheetDetailsRaw :: ', this.timesheetDetailsRaw);
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     }
@@ -1259,13 +1351,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleAddTimesheet 
+    /** * Method Name: handleAddTimesheet 
     * @description: Method is used to handle the add timesheet action
     */
     handleAddTimesheet(event) {
         try {
-            // Get jobId and mobId from the button's dataset
             const jobId = event.currentTarget.dataset.job;
             const mobId = event.currentTarget.dataset.mobid;
             
@@ -1284,7 +1374,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             getContactsAndCostcode({})
                 .then((data) => {
                     if(data != null) {
-                        console.log('getContactsAndCostcode data :: ', data);
                         this.allContacts = data.contacts.map(contact => ({
                             label: contact.Name,
                             value: contact.Id
@@ -1311,8 +1400,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: closeManualTimesheetModal 
+    /** * Method Name: closeManualTimesheetModal 
     * @description: Method is used to close the manual timesheet modal
     */
     closeManualTimesheetModal() {
@@ -1321,13 +1409,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.selectedCostCodeId = null;
         this.clockInTime = null;
         this.clockOutTime = null;
+        this.enteredManualTravelTime = 0.00;
+        this.enteredManualPerDiem = 0;
         this.allContacts = [];
         this.costCodeOptions = [];
     }
 
     /**
      * Method Name: handleTimesheetEdit
-     * @description: Handle edit button click from timesheet row
+     * @description: Handle edit button click from timesheet row (Deprecated in favor of inline editing, but kept for old flows if needed)
      */
     handleTimesheetEdit(event) {
         const timesheetId = event.currentTarget.dataset.id;
@@ -1350,25 +1440,27 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleTimesheetDelete
-     * @description: Handle delete button click from timesheet row
+     * @description: Handle delete button click from timesheet row (Deprecated in favor of inline delete from new table)
      */
     handleTimesheetDelete(event) {
+        // This method is now effectively used for SINGLE DELETE via the edit button's context menu.
         const timesheetId = event.currentTarget.dataset.id;
         const mobId = event.currentTarget.dataset.mobid;
         this.selectedTimesheetEntryLineId = timesheetId;
         this.mobId = mobId; // Store mobId for refreshing data after delete
+        this.deleteConfirmationAction = 'singleDeleteTimesheet';
+        this.deleteConfirmationTitle = 'Delete Timesheet Entry';
+        this.deleteConfirmationMessage = 'Are you sure you want to delete this timesheet entry?';
         this.showDeleteConfirmModal = true;
     }
 
-    /** 
-    * Method Name: createManualTimesheet 
+    /** * Method Name: createManualTimesheet 
     * @description: Method is used to create the manual timesheet record
     */
     createManualTimesheet() {
         try {
             if(!this.selectedManualPersonId || !this.selectedCostCodeId || !this.clockInTime || !this.clockOutTime) {
                 this.showToast('Error', 'Please fill value in all the required fields!', 'error');
-                console.error('No contact/cost code/clock in time/clock out time selected');
                 return;
             }
 
@@ -1381,7 +1473,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
-            if (!this.validateClockInDate(this.clockInTime, jobStartReference, jobEndReference)) {
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
                 return;
             }
 
@@ -1403,30 +1495,23 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 costCodeId : this.selectedCostCodeId,
                 clockInTime : this.clockInTime,
                 clockOutTime : this.clockOutTime,
-                jobStartDate : jobRecord.startDate.split('T')[0],
-                jobEndDate : jobRecord.endDate.split('T')[0],
+                jobStartDate : this.extractDateKey(jobStartReference),
+                jobEndDate : this.extractDateKey(jobEndReference),
                 travelTime : this.enteredManualTravelTime ? String(this.enteredManualTravelTime) : '0.00',
                 perDiem : this.enteredManualPerDiem ? String(this.enteredManualPerDiem) : '0'
             }
-
-            console.log('createManualTimesheetRecords params :: ', params);
     
             createManualTimesheetRecords({params : JSON.stringify(params)})
                 .then((result) => {
-                    console.log('createManualTimesheetRecords result :: ' , result);
                     if(result == true) {
+                        this.closeManualTimesheetModal();
+                        this.showToast('Success', 'Timesheet created successfully', 'success');
+                        
                         // Refresh the specific job's timesheet data
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
                         }
                         this.getJobRelatedMoblizationDetails();
-                        this.showToast('Success', 'Timesheet created successfully', 'success');
-                        this.selectedManualPersonId = null;
-                        this.selectedCostCodeId = null;
-                        this.clockInTime = null;
-                        this.clockOutTime = null;
-                        this.enteredManualTravelTime = null;
-                        this.enteredManualPerDiem = null;
                     } else {
                         this.showToast('Error', 'Failed to create timesheet record. Please try again.', 'error');
                     }
@@ -1445,97 +1530,43 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleEditTimesheetClick 
+    /** * Method Name: handleEditTimesheetClick 
     * @description: Method is used to handle the edit timesheet action
+    * NOTE: This is for the single "Edit" button that remains in the row actions (for compatibility/modal editing). 
+    * Inline editing is handled by handleTimesheetCellClick.
     */
     handleEditTimesheetClick(event) {
         try {
             this.selectedTimesheetEntryLineId = event.currentTarget.dataset.id;
+            const mobId = event.currentTarget.dataset.mobid;
+            this.mobId = mobId;
             
-            // Find the record in timesheetDetailsRaw
-            const record = this.timesheetDetailsRaw.find(item => item.id === this.selectedTimesheetEntryLineId);
+            // Find the record in the timesheetDataMap
+            const timesheets = this.timesheetDataMap.get(mobId);
+            const record = timesheets.find(item => item.id === this.selectedTimesheetEntryLineId);
             
             if(record) {
-                // Create a copy for editing
+                // Create a copy for editing, ensuring DateTimes are in YYYY-MM-DDThh:mm format for input
                 this.editableTimesheetEntry = {
                     Id: record.id,
                     TSEId: record.TSEId,
                     FullName: record.contactName,
-                    ClockIn: record.clockInTime.slice(0, 16),
-                    ClockOut: record.clockOutTime.slice(0, 16),
+                    ClockIn: this.formatToDatetimeLocal(record.clockInTime), // Format for input
+                    ClockOut: this.formatToDatetimeLocal(record.clockOutTime), // Format for input
                     TravelTime: record.travelTime || 0.00,
-                    PerDiem: record.perDiem || 0.00,
-                    premium: record?.premium || false
+                    PerDiem: record.perDiem || 0,
+                    premium: record.premium || false
                 };
                 
                 this.editTimesheetEntry = true;
             }
         } catch (error) {
             console.error('Error in handleEditTimesheetClick:', error);
+            this.showToast('Error', 'Failed to open edit modal.', 'error');
         }
     }
 
-    /** 
-    * Method Name: handleDeleteTimesheetClick 
-    * @description: Method is used to handle the delete timesheet action
-    */
-    handleDeleteTimesheetClick(event) {
-        try {
-            this.showDeleteConfirmModal = true;
-            this.selectedTimesheetEntryLineId = event.currentTarget.dataset.id;
-        } catch (error) {
-            console.error('Error in handleDeleteTimesheetClick:', error);
-        }
-    }
-
-    /** 
-    * Method Name: closeDeleteConfirmModal 
-    * @description: Method is used to close the delete confirm modal
-    */
-    closeDeleteConfirmModal() {
-        this.showDeleteConfirmModal = false;
-        this.selectedTimesheetEntryLineId = null;
-    }
-
-    /** 
-    * Method Name: handleDeleteConfirmTSEL 
-    * @description: Method is used to handle the delete confirm action
-    */
-    handleDeleteConfirmTSEL() {
-        try {
-            this.isLoading = true;
-            deleteTimesheetEntry({TSELId : this.selectedTimesheetEntryLineId})
-                .then((result) => {
-                    if(result == true) {
-                        this.selectedTimesheetEntryLineId = null;
-                        this.showDeleteConfirmModal = false;
-                        // Refresh the specific job's timesheet data
-                        if (this.mobId) {
-                            this.loadTimesheetData(this.mobId);
-                        }
-                        this.getJobRelatedMoblizationDetails();
-                        this.showToast('Success', 'Timesheet deleted successfully', 'success');
-                    } else {
-                        this.showToast('Error', 'Failed to delete timesheet record. Please try again.', 'error');
-                    }
-                })
-                .catch((error) => {
-                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
-                    console.error('Error in deleteTimesheetEntry :: ', error);
-                    this.isLoading = false;
-                })
-                .finally(() => {
-                    this.isLoading = false;
-                });
-        } catch (error) {
-            console.error('Error in handleDeleteTimesheetClick:', error);
-            this.isLoading = false;
-        }
-    }
-
-    /** 
-    * Method Name: handleEditTSELFieldChange 
+    /** * Method Name: handleEditTSELFieldChange 
     * @description: Method is used to handle the field change in edit timesheet modal
     */
     handleEditTSELFieldChange(event) {
@@ -1559,13 +1590,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: handleSaveTSEL 
-    * @description: Method is used to save the edited timesheet entry
+    /** * Method Name: handleSaveTSEL 
+    * @description: Method is used to save the edited timesheet entry (from modal).
+    * This method packages the single entry into a list and calls the bulk-safe 
+    * saveTimesheetEntryInlineEdits Apex method.
     */
     handleSaveTSEL() {
         try {
             const entry = this.editableTimesheetEntry;
+            
+            // --- Validation ---
             
             // Check ClockIn
             if (!entry.ClockIn || entry.ClockIn.toString().trim() === '') {
@@ -1579,19 +1613,17 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            // Normalize PerDiem
-            if (entry.PerDiem === null || entry.PerDiem === undefined || entry.PerDiem.toString().trim() === '') {
-                entry.PerDiem = 0;
-            } else {
-                let perDiemNum = Number(entry.PerDiem);
-                if (perDiemNum !== 0 && perDiemNum !== 1) {
-                    this.showToast('Error', 'Per Diem must be 0 or 1', 'error');
-                    return false;
-                }
-                entry.PerDiem = perDiemNum; // store as number
+            // Normalize PerDiem and validate value (0 or 1)
+            let perDiemNum = entry.PerDiem === null || entry.PerDiem === undefined ? 0 : Number(entry.PerDiem);
+            
+            if (perDiemNum !== 0 && perDiemNum !== 1) {
+                this.showToast('Error', 'Per Diem must be 0 or 1', 'error');
+                return;
             }
+            entry.PerDiem = perDiemNum; 
 
-            if(new Date(entry.ClockOut.replace(' ', 'T')) <= new Date(entry.ClockIn.replace(' ', 'T'))) {
+            // Check Clock In/Out time order
+            if(new Date(entry.ClockOut) <= new Date(entry.ClockIn)) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
                 return;
             }
@@ -1600,7 +1632,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
-            if (!this.validateClockInDate(entry.ClockIn, jobStartReference, jobEndReference)) {
+            // Check date boundaries
+            if (!this.validateClockInDate(entry.ClockIn, jobStartReference)) {
                 return;
             }
 
@@ -1609,24 +1642,24 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
 
             this.isLoading = true;
-            // Deep clone and convert all values to string
-            let stringifiedEntry = JSON.stringify(
-                Object.fromEntries(
-                    Object.entries(this.editableTimesheetEntry).map(([key, value]) => {
-                        // If null or undefined, make it empty string
-                        if (value === null || value === undefined) {
-                            value = '';
-                        }
-                        return [key, String(value)];
-                    })
-                )
-            );
+            
+            // Prepare payload for the bulk Apex method
+            const payload = [{
+                Id: entry.Id, // Timesheet Entry Item ID (TSELI)
+                TSEId: entry.TSEId, // Parent Timesheet Entry ID (TSE)
+                clockInTime: String(entry.ClockIn),
+                clockOutTime: String(entry.ClockOut),
+                travelTime: String(entry.TravelTime || 0.00),
+                perDiem: String(entry.PerDiem),
+                premium: String(entry.premium || false)
+            }];
 
-            console.log('UpupdateTimesheetsdated params:', stringifiedEntry);
+            const updatedTimesheetsJson = JSON.stringify(payload);
 
-            updateTimesheets({ params: stringifiedEntry })
+            // Call the bulk-safe inline edit method
+            saveTimesheetEntryInlineEdits({ updatedTimesheetEntriesJson: updatedTimesheetsJson })
                 .then((result) => {
-                    if(result == true) {
+                    if (result.startsWith('Success')) {
                         this.selectedTimesheetEntryLineId = null;
                         // Refresh the specific job's timesheet data
                         if (this.mobId) {
@@ -1636,25 +1669,24 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         this.showToast('Success', 'Timesheet entry updated successfully', 'success');
                         this.closeEditTimesheetModal();
                     } else {
-                        this.showToast('Error', 'Failed to update timesheet entry. Please try again.', 'error');
+                        this.showToast('Error', 'Failed to update timesheet entry: ' + result, 'error');
                     }
                 })
                 .catch(error => {
-                    console.error('Error saving timesheet entry saveTravelTimeOnTimesheets apex :: ', error);
+                    console.error('Error saving timesheet entry via modal:', error);
                     this.showToast('Error', 'Something went wrong. Please contact system admin' , 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
-            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
-            console.error('Error in handleSaveTSEL:', error);
+            this.showToast('Error', 'An unexpected error occurred during save.', 'error');
+            console.error('Error in handleSaveTSEL (outer catch):', error);
             this.isLoading = false;
         }
     }
 
-    /** 
-    * Method Name: closeEditTimesheetModal 
+    /** * Method Name: closeEditTimesheetModal 
     * @description: Method is used to close the edit timesheet modal
     */
     closeEditTimesheetModal() {
@@ -1662,8 +1694,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.editableTimesheetEntry = {};
     }
 
-    /** 
-    * Method Name: closeTimesheetModal 
+    /** * Method Name: closeTimesheetModal 
     * @description: Method is used to close the timesheet modal
     */
     closeTimesheetModal() {
@@ -1672,10 +1703,14 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.mobId = null;
         this.editTimesheetEntry = false;
         this.timesheetDetailsRaw = [];
+        this.modifiedTimesheetEntries.clear();
+        this.hasTimesheetModifications = false;
+        this.editingTimesheetCells.clear();
+        this.selectedTimesheets.clear();
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Final refresh to clean up UI state
     }
 
-    /** 
-    * Method Name: showToast 
+    /** * Method Name: showToast 
     * @description: Method is used to show toast message
     */
     showToast(title, message, variant) {
@@ -1685,5 +1720,454 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             variant
         });
         this.dispatchEvent(event);
+    }
+    
+    // --- Inline Editing and Bulk Delete Logic ---
+
+    /**
+     * Method Name: handleTimesheetCellClick
+     * @description: Handles the click on an individual cell to enable inline editing.
+     */
+    handleTimesheetCellClick(event) {
+        const id = event.currentTarget.dataset.id;
+        const field = event.currentTarget.dataset.field;
+        const type = event.currentTarget.dataset.type;
+        const mobId = event.currentTarget.dataset.mobid;
+        
+        // Prevent editing non-editable columns
+        const column = this.timesheetColumns.find(col => col.fieldName === field);
+        if (!column || !column.editable) return;
+
+        const cellKey = `${id}-${field}`;
+
+        // Don't open editor if already editing this cell
+        if (this.editingTimesheetCells.has(cellKey)) return;
+
+        // Set the cell to editing mode
+        this.editingTimesheetCells.add(cellKey);
+        
+        // Trigger re-render
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force jobDetails getter to re-run
+        
+        // Auto-focus the input after DOM update
+        setTimeout(() => {
+            const inputSelector = `[data-id="${id}"][data-field="${field}"]`;
+            let inputElement = this.template.querySelector(inputSelector);
+            
+            if (inputElement && inputElement.tagName.toLowerCase() === 'td') {
+                inputElement = inputElement.querySelector('input, select');
+            }
+            
+            if (inputElement) {
+                inputElement.focus();
+                if (inputElement.type === 'number' || inputElement.type === 'text') {
+                    inputElement.select();
+                }
+            }
+        }, 100);
+    }
+
+    /**
+     * Method Name: handleTimesheetCellInputChange
+     * @description: Updates the modifiedTimesheetEntries Map on input change.
+     */
+    handleTimesheetCellInputChange(event) {
+        const id = event.currentTarget.dataset.id;
+        const field = event.currentTarget.dataset.field;
+        const type = event.currentTarget.dataset.type;
+        const mobId = event.currentTarget.dataset.mobid;
+        
+        let newValue;
+        if (type === 'boolean') {
+            newValue = event.target.checked;
+        } else {
+            newValue = event.target.value;
+        }
+
+        // --- Type Conversion ---
+        if (type === 'number') {
+            newValue = newValue === '' || newValue === null || newValue === undefined ? null : parseFloat(newValue);
+            if (isNaN(newValue)) newValue = null;
+        }
+        // For datetime, newValue is the YYYY-MM-DDThh:mm string
+        // For boolean, it's true/false
+
+        // --- Get Original Value ---
+        const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
+        const originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
+
+        // --- Track Modifications ---
+        if (!this.modifiedTimesheetEntries.has(id)) {
+            this.modifiedTimesheetEntries.set(id, { mobId: mobId, modifications: {} });
+        }
+        
+        const entry = this.modifiedTimesheetEntries.get(id);
+        const modifications = entry.modifications;
+        
+        // Comparison logic: handles null/empty string/undefined and number/boolean comparison
+        const areValuesEqual = (val1, val2) => {
+            if (val1 === val2) return true;
+            if ((val1 === null || val1 === undefined || val1 === '') && (val2 === null || val2 === undefined || val2 === '')) return true;
+            if (type === 'number' && val1 !== null && val2 !== null && !isNaN(val1) && !isNaN(val2)) return parseFloat(val1) === parseFloat(val2);
+            if (type === 'boolean') return !!val1 === !!val2;
+            return false;
+        };
+
+        if (!areValuesEqual(newValue, originalValue)) {
+            modifications[field] = newValue;
+        } else {
+            delete modifications[field];
+            if (Object.keys(modifications).length === 0) {
+                this.modifiedTimesheetEntries.delete(id);
+            }
+        }
+        
+        // Update flags
+        this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
+        
+        // Trigger re-render to update highlighting and button states
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
+    }
+
+    /**
+     * Method Name: handleTimesheetCellInputBlur
+     * @description: Removes cell from editing mode on blur.
+     */
+    handleTimesheetCellInputBlur(event) {
+        const id = event.currentTarget.dataset.id;
+        const field = event.currentTarget.dataset.field;
+        const cellKey = `${id}-${field}`;
+
+        this.editingTimesheetCells.delete(cellKey);
+
+        // Trigger re-render
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
+    }
+
+    /**
+     * Method Name: validateTimesheetChanges
+     * @description: Validates timesheet modifications before saving.
+     */
+    validateTimesheetChanges(mobId) {
+        const errors = [];
+        const modifications = this.modifiedTimesheetEntriesForJob(mobId);
+        const jobRecord = this.getCurrentJobRecord();
+        const jobStartReference = jobRecord?.startDate;
+        const jobEndReference = jobRecord?.endDate;
+
+        modifications.forEach((entry, id) => {
+            const originalEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
+            const fullName = originalEntry?.contactName || id;
+            
+            const changes = entry.modifications;
+            
+            // Get current values (modified or original) for cross-field validation
+            const currentClockIn = changes.clockInTime || originalEntry.clockInTime;
+            const currentClockOut = changes.clockOutTime || originalEntry.clockOutTime;
+            
+            for (const [field, value] of Object.entries(changes)) {
+                const column = this.timesheetColumns.find(col => col.fieldName === field);
+                if (!column || !column.editable) continue;
+
+                // --- 1. Required/Empty Check (Clock In/Out) ---
+                if ((field === 'clockInTime' || field === 'clockOutTime') && (!value || value.toString().trim() === '')) {
+                    errors.push(`${fullName}: ${column.label} cannot be empty.`);
+                }
+                
+                // --- 2. Date Boundaries Check ---
+                if (field === 'clockInTime' && value) {
+                    if (!this.validateClockInDate(value, jobStartReference)) {
+                        errors.push(`${fullName}: Clock In time violates job date boundaries.`);
+                    }
+                }
+                if (field === 'clockOutTime' && value) {
+                    if (!this.validateClockOutDate(value, jobStartReference, jobEndReference)) {
+                        errors.push(`${fullName}: Clock Out time violates job date boundaries.`);
+                    }
+                }
+
+                // --- 3. Number/Decimal Constraints Check (TravelTime, PerDiem) ---
+                if (column.type === 'number') {
+                    const numValue = Number(value);
+                    const isPerDiem = field === 'perDiem';
+
+                    if (value === null || isNaN(numValue) || numValue < column.min) {
+                        errors.push(`${fullName}: ${column.label} must be a valid number, minimum ${column.min}.`);
+                    } else if (isPerDiem && (numValue !== 0 && numValue !== 1)) {
+                        errors.push(`${fullName}: ${column.label} must be 0 or 1.`);
+                    } else {
+                        // Check decimal places for non-integer types (TravelTime)
+                        if (column.step && column.step.toString().includes('0.01')) {
+                            const decimalPart = numValue.toString().split('.')[1];
+                            if (decimalPart && decimalPart.length > 2) {
+                                errors.push(`${fullName}: ${column.label} cannot have more than 2 decimal places.`);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // --- 4. Cross-Field Clock In/Out Time Order Check ---
+            if (currentClockIn && currentClockOut && new Date(currentClockOut) <= new Date(currentClockIn)) {
+                 errors.push(`${fullName}: Clock Out Time must be greater than Clock In Time.`);
+            }
+        });
+        
+        return errors;
+    }
+
+    /**
+     * Method Name: handleSaveTimesheetChanges
+     * @description: Saves all modified timesheet entries for a specific job/mobilization.
+     */
+    handleSaveTimesheetChanges(event) {
+        const mobId = event.currentTarget.dataset.mobid;
+        
+        if (this.isSavingTimesheetEntries || !this.hasTimesheetModificationsForJob(mobId)) {
+            return;
+        }
+
+        const validationErrors = this.validateTimesheetChanges(mobId);
+        if (validationErrors.length > 0) {
+            this.showToast('Validation Error', validationErrors.join('\n'), 'error');
+            return;
+        }
+
+        this.isSavingTimesheetEntries = true;
+
+        const updatedTimesheets = [];
+        this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
+            const originalTSE = this.timesheetDataMap.get(mobId).find(ts => ts.id === id);
+            
+            const tsUpdate = { 
+                Id: id, // TSELI Id
+                TSEId: originalTSE.TSEId // Parent TSE Id for Apex reference
+            };
+            
+            // Map modifications to the payload
+            Object.keys(entry.modifications).forEach(field => {
+                tsUpdate[field] = entry.modifications[field];
+            });
+            
+            updatedTimesheets.push(tsUpdate);
+        });
+
+        // Clear all modifications for this job immediately before the call
+        // This prevents UI state errors if navigation occurs
+        this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
+            this.modifiedTimesheetEntries.delete(id);
+        });
+
+        // Stringify and convert all values to string for Apex consumption
+        const updatedTimesheetsJson = JSON.stringify(updatedTimesheets.map(
+            ts => Object.fromEntries(
+                Object.entries(ts).map(([key, value]) => [key, String(value)])
+            )
+        ));
+
+        saveTimesheetEntryInlineEdits({ updatedTimesheetEntriesJson: updatedTimesheetsJson })
+            .then(result => {
+                if (result.startsWith('Success')) {
+                    this.showToast('Success', 'Timesheet changes saved successfully', 'success');
+                    // Re-load data for this job to refresh calculated fields and UI
+                    this.loadTimesheetData(mobId);
+                    this.getJobRelatedMoblizationDetails();
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving timesheet changes:', error);
+                this.showToast('Error', 'Failed to save timesheet changes', 'error');
+            })
+            .finally(() => {
+                this.isSavingTimesheetEntries = false;
+                this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
+                this.editingTimesheetCells.clear();
+                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Final refresh for UI state
+            });
+    }
+
+    /**
+     * Method Name: handleTimesheetSelection
+     * @description: Tracks selection of individual timesheet entries for bulk delete.
+     */
+    handleTimesheetSelection(event) {
+        const id = event.currentTarget.dataset.id;
+        const mobId = event.currentTarget.dataset.mobid;
+        const isChecked = event.target.checked;
+        
+        if (!this.selectedTimesheets.has(mobId)) {
+            this.selectedTimesheets.set(mobId, new Set());
+        }
+
+        const selectedSet = this.selectedTimesheets.get(mobId);
+
+        if (isChecked) {
+            selectedSet.add(id);
+        } else {
+            selectedSet.delete(id);
+        }
+
+        this.selectedTimesheets = new Map(this.selectedTimesheets);
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force re-render
+    }
+
+    /**
+     * Method Name: handleSelectAllTimesheets
+     * @description: Selects or deselects all timesheet entries for a specific job.
+     */
+    handleSelectAllTimesheets(event) {
+        const mobId = event.currentTarget.dataset.mobid;
+        const isChecked = event.target.checked;
+        const timesheets = this.timesheetDataMap.get(mobId) || [];
+        const allIds = timesheets.map(ts => ts.id);
+
+        if (!this.selectedTimesheets.has(mobId)) {
+            this.selectedTimesheets.set(mobId, new Set());
+        }
+
+        const selectedSet = this.selectedTimesheets.get(mobId);
+
+        if (isChecked) {
+            allIds.forEach(id => selectedSet.add(id));
+        } else {
+            selectedSet.clear();
+        }
+
+        this.selectedTimesheets = new Map(this.selectedTimesheets);
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force re-render
+    }
+    
+    /**
+     * Method Name: handleMassDeleteTimesheets
+     * @description: Initiates the bulk delete process.
+     */
+    handleMassDeleteTimesheets(event) {
+        const mobId = event.currentTarget.dataset.mobid;
+        const selectedIds = this.selectedTimesheets.get(mobId);
+
+        if (!selectedIds || selectedIds.size === 0) {
+            this.showToast('Warning', 'Please select at least one timesheet entry to delete.', 'warning');
+            return;
+        }
+
+        this.deleteConfirmationAction = 'bulkDeleteTimesheets';
+        this.deleteConfirmationTitle = 'Delete Selected Timesheet Entries';
+        this.deleteConfirmationMessage = `Are you sure you want to permanently delete ${selectedIds.size} timesheet entries? This action cannot be undone.`;
+        this.deleteTargetMobId = mobId;
+        this.showDeleteConfirmModal = true;
+    }
+
+    /**
+     * Method Name: handleDeleteConfirmTSEL
+     * @description: Overrides the single delete method to handle bulk delete based on state.
+     */
+    handleDeleteConfirmTSEL() {
+        if (this.deleteConfirmationAction === 'bulkDeleteTimesheets') {
+            this.proceedWithTimesheetBulkDeletion();
+        } 
+        // Note: The single delete modal is now typically bypassed if using the new UI.
+        // If the modal is triggered by the old flow, it defaults to single deletion.
+        else if (this.deleteConfirmationAction === 'singleDeleteTimesheet') {
+            this.proceedWithTimesheetSingleDeletion(this.selectedTimesheetEntryLineId, this.mobId);
+        } else {
+            this.closeDeleteConfirmModal();
+        }
+    }
+
+    /**
+     * Method Name: proceedWithTimesheetSingleDeletion
+     * @description: Handles the actual deletion of a single timesheet entry.
+     */
+    proceedWithTimesheetSingleDeletion(tselId, mobId) {
+        try {
+            this.isLoading = true;
+            this.showDeleteConfirmModal = false; // Close modal
+            
+            deleteTimesheetEntry({ TSELId: tselId })
+                .then((result) => {
+                    if (result == true) {
+                        this.showToast('Success', 'Timesheet deleted successfully', 'success');
+                        this.selectedTimesheetEntryLineId = null;
+                        this.resetDeleteConfirmationState();
+                        
+                        // Refresh the specific job's timesheet data
+                        if (mobId) {
+                            this.loadTimesheetData(mobId);
+                        }
+                        this.getJobRelatedMoblizationDetails();
+                    } else {
+                        this.showToast('Error', 'Failed to delete timesheet record. Please try again.', 'error');
+                    }
+                })
+                .catch((error) => {
+                    this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+                    console.error('Error in deleteTimesheetEntry :: ', error);
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in proceedWithTimesheetSingleDeletion:', error);
+            this.isLoading = false;
+        }
+    }
+
+    /**
+     * Method Name: proceedWithTimesheetBulkDeletion
+     * @description: Handles the actual deletion of selected timesheet entries.
+     */
+    proceedWithTimesheetBulkDeletion() {
+        const mobId = this.deleteTargetMobId;
+        const tselIdsToDelete = Array.from(this.selectedTimesheets.get(mobId) || []);
+
+        this.isLoading = true;
+        this.showDeleteConfirmModal = false; // Close modal
+        
+        deleteTimesheetEntriesBulk({ tselIds: tselIdsToDelete })
+            .then(result => {
+                if (result.startsWith('Success')) {
+                    this.showToast('Success', `${tselIdsToDelete.length} timesheet entries deleted successfully`, 'success');
+                    
+                    // Clear selection and modifications for this job
+                    this.selectedTimesheets.delete(mobId);
+                    this.resetDeleteConfirmationState();
+
+                    // Refresh data
+                    this.loadTimesheetData(mobId);
+                    this.getJobRelatedMoblizationDetails();
+                } else {
+                    this.showToast('Error', result, 'error');
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to delete selected timesheet entries.', 'error');
+                console.error('Error in deleteTimesheetEntriesBulk:', error);
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+    
+    /**
+     * Method Name: closeDeleteConfirmModal 
+     * @description: Method is used to close the delete confirm modal
+     */
+    closeDeleteConfirmModal() {
+        this.showDeleteConfirmModal = false;
+        this.selectedTimesheetEntryLineId = null;
+        this.resetDeleteConfirmationState();
+    }
+
+    /**
+     * Method Name: resetDeleteConfirmationState
+     * @description: Resets the state variables used for delete confirmation.
+     */
+    resetDeleteConfirmationState() {
+        this.deleteConfirmationAction = '';
+        this.deleteConfirmationTitle = '';
+        this.deleteConfirmationMessage = '';
+        this.deleteTargetMobId = '';
     }
 }
