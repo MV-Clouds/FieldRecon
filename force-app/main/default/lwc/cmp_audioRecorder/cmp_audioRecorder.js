@@ -60,6 +60,10 @@ export default class Cmp_audioRecorder extends LightningElement {
         return this.recordState == 'paused' ? 'utility:play' : 'utility:record';
     }
 
+    get isPaused(){
+        return this.recordState == 'paused';
+    }
+
     get showVisualize(){
         return this.recordState == 'recording' || this.recordState == 'paused'; 
     }
@@ -242,6 +246,7 @@ export default class Cmp_audioRecorder extends LightningElement {
         this.resetRecording();
     }
 
+    @api
     refreshRecording() {
         this.resetRecording();
         this.dispatchEvent(new CustomEvent('refresh'));
@@ -329,5 +334,5 @@ export default class Cmp_audioRecorder extends LightningElement {
         `;
         this.template.host.classList.add('slds-override');
         this.template.host.appendChild(style);
-    }
+    }    
 }

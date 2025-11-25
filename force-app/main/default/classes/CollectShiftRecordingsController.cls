@@ -17,7 +17,7 @@ public with sharing class CollectShiftRecordingsController {
             // merge mobilizationId and crewLeaderId
             result.putAll(mobRes);
     
-            List<ContentVersion> clipList = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension FROM ContentVersion WHERE FirstPublishLocationId =: mobRes.get('mobilizationId') ORDER BY CreatedDate Desc];
+            List<ContentVersion> clipList = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize FROM ContentVersion WHERE FirstPublishLocationId =: mobRes.get('mobilizationId') ORDER BY CreatedDate Desc];
     
             result.put('clips', clipList);
         } catch (Exception e) {
@@ -37,24 +37,30 @@ public with sharing class CollectShiftRecordingsController {
 
             InputParams params = (InputParams) JSON.deserialize(paramString, InputParams.class);
 
-             // Collect Mobilization Id for the given crew leader
-            Map<String, String> mobRes = getCrewLeaderMobilization(params);
-            if(mobRes.containsKey('error')) return mobRes;
+            if(String.isBlank(params.mobilizationId)) {
+                // Collect Mobilization Id for the given crew leader
+               Map<String, String> mobRes = getCrewLeaderMobilization(params);
+               if(mobRes.containsKey('error')) return mobRes;
 
-            // merge mobilizationId and crewLeaderId
-            result.putAll(mobRes);
+               params.mobilizationId = mobRes.get('mobilizationId');
+
+               // merge mobilizationId and crewLeaderId
+               result.putAll(mobRes);
+            }
+
+
 
             Id userId = UserInfo.getUserId();
             Contact userContact = [SELECT Id, Name  FROM Contact  WHERE wfrecon__User__c = :userId WITH USER_MODE LIMIT 1];
             
             ContentVersion clip = new ContentVersion();
-            clip.FirstPublishLocationId = mobRes.get('mobilizationId');
+            clip.FirstPublishLocationId = params.mobilizationId;
             clip.VersionData = EncodingUtil.base64Decode(params?.clipData?.substringAfter('base64,'));
             clip.Title = userContact.Name + ' - ' + DateTime.now().format('yyyy-MM-dd HH:mm:ss');
             clip.PathOnClient = clip.Title+'.'+params?.clipExtension.substringAfter('/');
             insert clip;
 
-            result.put('newClip', [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension FROM ContentVersion WHERE Id =: clip.Id LIMIT 1]);
+            result.put('newClip', [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize FROM ContentVersion WHERE Id =: clip.Id LIMIT 1]);
 
             result.put('success', 'Success');
         } catch (Exception e) {
@@ -68,13 +74,13 @@ public with sharing class CollectShiftRecordingsController {
         Map<String, String> result = new Map<String, String>();
 
         // return if job id is not present
-        if(!String.isNotBlank(params?.jobId)) {
+        if(String.isBlank(params?.jobId)) {
             result.put('error', 'Job id not available');
             return result;
         }
 
         // If crew leader id is not present, try to re-collect it...
-        if(!String.isNotBlank(params?.crewLeaderId)) {
+        if(String.isBlank(params?.crewLeaderId)) {
             Map<String, String> crewLeaderResult = getCrewLeaderId();
             // Still not present, return error
             if(crewLeaderResult.containsKey('error')) {
@@ -129,7 +135,7 @@ public with sharing class CollectShiftRecordingsController {
         Map<String, String> result = new Map<String, String>();
         try {
 
-            if(!String.isNotBlank(cvId)){
+            if(String.isBlank(cvId)){
                 result.put('error', 'Clip id not available');
                 return result;
             }
@@ -150,6 +156,7 @@ public with sharing class CollectShiftRecordingsController {
     public class InputParams{
         @AuraEnabled public String jobId;
         @AuraEnabled public String crewLeaderId;
+        @AuraEnabled public String mobilizationId;
         @AuraEnabled public String clipData;
         @AuraEnabled public String clipExtension;
     }
