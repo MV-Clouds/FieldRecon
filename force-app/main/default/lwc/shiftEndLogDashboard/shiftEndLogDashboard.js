@@ -18,25 +18,26 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     selectedDateFilter = 'last30days';
     searchTerm = '';
     selectedStatus = '';
+    allLogEntries = []; // Store all logs for filtering
     
     // Date filter options
     get dateFilterOptions() {
         return [
-            { label: 'Last 7 Days', value: 'last7days', selected: this.selectedDateFilter === 'last7days' },
-            { label: 'Last 15 Days', value: 'last15days', selected: this.selectedDateFilter === 'last15days' },
-            { label: 'Last 30 Days', value: 'last30days', selected: this.selectedDateFilter === 'last30days' },
-            { label: 'All Time', value: 'alltime', selected: this.selectedDateFilter === 'alltime' }
+            { label: 'Last 7 Days', value: 'last7days' },
+            { label: 'Last 15 Days', value: 'last15days' },
+            { label: 'Last 30 Days', value: 'last30days' },
+            { label: 'All Time', value: 'alltime' }
         ];
     }
     
     // Status filter options
     get statusFilterOptions() {
         return [
-            { label: 'All', value: '', selected: this.selectedStatus === '' },
-            { label: 'Pending', value: 'Pending', selected: this.selectedStatus === 'Pending' },
-            { label: 'Approved', value: 'Approved', selected: this.selectedStatus === 'Approved' },
-            { label: 'Auto-Approved', value: 'Auto-Approved', selected: this.selectedStatus === 'Auto-Approved' },
-            { label: 'Rejected', value: 'Rejected', selected: this.selectedStatus === 'Rejected' }
+            { label: 'All', value: '' },
+            { label: 'Pending', value: 'Pending' },
+            { label: 'Approved', value: 'Approved' },
+            { label: 'Auto-Approved', value: 'Auto-Approved' },
+            { label: 'Rejected', value: 'Rejected' }
         ];
     }
     
@@ -80,10 +81,10 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     // Fetch dashboard data
     fetchDashboardData() {
         this.isLoading = true;
-        getShiftEndLogDashboardData({ dateFilter: this.selectedDateFilter })
+        getShiftEndLogDashboardData()
             .then(result => {
-                this.dashboardData = result;
-                this.logEntries = result.logEntries || [];
+                this.allLogEntries = result.logEntries || [];
+                this.logEntries = [...this.allLogEntries];
                 this.applyFilters();
                 this.isLoading = false;
             })
@@ -96,7 +97,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     // Handle date filter change
     handleDateFilterChange(event) {
         this.selectedDateFilter = event.detail.value;
-        this.fetchDashboardData();
+        this.applyFilters();
     }
     
     // Handle status filter change
@@ -107,13 +108,35 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     
     // Handle search
     handleSearch(event) {
-        this.searchTerm = event.target.value.toLowerCase();
+        this.searchTerm = event.target.value ? event.target.value.trim().toLowerCase() : '';
         this.applyFilters();
     }
     
     // Apply filters
     applyFilters() {
-        let filtered = [...this.logEntries];
+        let filtered = [...this.allLogEntries];
+        
+        // Apply date filter
+        if (this.selectedDateFilter !== 'alltime') {
+            const today = new Date();
+            let daysToSubtract = 30; // default
+            
+            if (this.selectedDateFilter === 'last7days') {
+                daysToSubtract = 7;
+            } else if (this.selectedDateFilter === 'last15days') {
+                daysToSubtract = 15;
+            } else if (this.selectedDateFilter === 'last30days') {
+                daysToSubtract = 30;
+            }
+            
+            const filterDate = new Date(today.getTime() - (daysToSubtract * 24 * 60 * 60 * 1000));
+            
+            filtered = filtered.filter(log => {
+                // Parse the createdDate string (format: "MMM dd, yyyy HH:mm")
+                const logDate = this.parseCreatedDate(log.createdDate);
+                return logDate >= filterDate;
+            });
+        }
         
         // Apply status filter
         if (this.selectedStatus) {
@@ -134,11 +157,45 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             });
         }
         
-        // Add status class to each log
-        this.filteredLogEntries = filtered.map(log => ({
+        // Add status class and serial number to each log
+        this.filteredLogEntries = filtered.map((log, index) => ({
             ...log,
+            serialNumber: index + 1,
             statusClass: this.getStatusClass(log.status)
         }));
+        
+        // Update KPIs based on filtered data
+        this.updateKPIs(this.filteredLogEntries);
+    }
+    
+    // Parse created date string to Date object
+    parseCreatedDate(dateString) {
+        // Format: "MMM dd, yyyy HH:mm" (e.g., "Nov 25, 2025 14:30")
+        try {
+            const parts = dateString.split(' ');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = monthNames.indexOf(parts[0]);
+            const day = parseInt(parts[1].replace(',', ''));
+            const year = parseInt(parts[2]);
+            const timeParts = parts[3].split(':');
+            const hours = parseInt(timeParts[0]);
+            const minutes = parseInt(timeParts[1]);
+            
+            return new Date(year, month, day, hours, minutes);
+        } catch (e) {
+            return new Date();
+        }
+    }
+    
+    // Update KPIs based on filtered entries
+    updateKPIs(entries) {
+        this.dashboardData = {
+            totalLogs: entries.length,
+            pendingLogs: entries.filter(log => log.status === 'Pending').length,
+            approvedLogs: entries.filter(log => log.status === 'Approved').length,
+            autoApprovedLogs: entries.filter(log => log.status === 'Auto-Approved').length,
+            rejectedLogs: entries.filter(log => log.status === 'Rejected').length
+        };
     }
     
     // Navigate to job record
@@ -190,15 +247,21 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
                 
                 if (approvalData.locationProcessChanges && approvalData.locationProcessChanges.length > 0) {
                     this.locationProcesses = approvalData.locationProcessChanges.map(lp => {
-                        const oldValue = lp.oldValue || 0;
-                        const newValue = lp.newValue || 0;
+                        const oldValue = parseFloat(lp.oldValue || 0);
+                        const newValue = parseFloat(lp.newValue || 0);
+                        const todayProgress = Math.max(0, newValue - oldValue);
+                        const remainingProgress = Math.max(0, 100 - newValue);
+                        
                         return {
                             id: lp.id,
                             name: lp.name,
-                            oldValue: oldValue,
-                            newValue: newValue,
-                            oldProgressStyle: `width: ${oldValue}%`,
-                            newProgressStyle: `width: ${newValue}%`
+                            oldValue: oldValue.toFixed(1),
+                            newValue: newValue.toFixed(1),
+                            todayProgress: todayProgress.toFixed(1),
+                            remainingProgress: remainingProgress.toFixed(1),
+                            completedStyle: `width: ${oldValue}%`,
+                            todayStyle: `width: ${todayProgress}%`,
+                            remainingStyle: `width: ${remainingProgress}%`
                         };
                     });
                     this.showLocationProcessSlider = true;

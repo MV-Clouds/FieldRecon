@@ -11,36 +11,18 @@ public with sharing class ShiftEndLogDashboardController {
      * @return: DashboardData - Dashboard data with KPIs and log entries
      */
     @AuraEnabled
-    public static DashboardData getShiftEndLogDashboardData(String dateFilter) {
+    public static DashboardData getShiftEndLogDashboardData() {
         try {
             DashboardData dashboardData = new DashboardData();
             
-            // Calculate date range based on filter
-            Date startDate;
-            
-            if (dateFilter == 'last7days') {
-                startDate = Date.today().addDays(-7);
-            } else if (dateFilter == 'last15days') {
-                startDate = Date.today().addDays(-15);
-            } else if (dateFilter == 'last30days') {
-                startDate = Date.today().addDays(-30);
-            } else if (dateFilter == 'alltime') {
-                startDate = Date.newInstance(2000, 1, 1);
-            }
-            
-            // Build query
+            // Fetch all logs - filtering will be done in JS
             String query = 'SELECT Id, Name, wfrecon__Exceptions__c, wfrecon__Job__c, wfrecon__Job__r.Id, ' +
                           'wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, wfrecon__Mobilization__c, ' +
                           'wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, wfrecon__Work_Performed__c, ' +
                           'wfrecon__Status__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed_Date__c, ' +
                           'wfrecon__Approval_Data__c, CreatedDate, CreatedBy.Name, CreatedBy.Id ' +
-                          'FROM wfrecon__Log_Entry__c ';
-            
-            if (startDate != null) {
-                query += 'WHERE CreatedDate >= :startDate ';
-            }
-            
-            query += 'ORDER BY CreatedDate DESC';
+                          'FROM wfrecon__Log_Entry__c ' +
+                          'ORDER BY CreatedDate DESC';
             
             List<wfrecon__Log_Entry__c> logEntries = Database.query(query);
             

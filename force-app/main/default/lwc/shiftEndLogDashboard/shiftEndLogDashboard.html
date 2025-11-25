@@ -5,38 +5,37 @@
             <div class="filter-row">
                 <!-- Date Filter -->
                 <div class="filter-item">
-                    <label class="filter-label">Date Range</label>
-                    <select class="custom-select" onchange={handleDateFilterChange}>
-                        <template for:each={dateFilterOptions} for:item="option">
-                            <option key={option.value} value={option.value} selected={option.selected}>{option.label}</option>
-                        </template>
-                    </select>
+                    <lightning-combobox
+                        name="dateFilter"
+                        label="Date Range"
+                        value={selectedDateFilter}
+                        placeholder="Select Date Range"
+                        options={dateFilterOptions}
+                        onchange={handleDateFilterChange}>
+                    </lightning-combobox>
                 </div>
 
                 <!-- Status Filter -->
                 <div class="filter-item">
-                    <label class="filter-label">Status</label>
-                    <select class="custom-select" onchange={handleStatusFilterChange}>
-                        <template for:each={statusFilterOptions} for:item="option">
-                            <option key={option.value} value={option.value} selected={option.selected}>{option.label}</option>
-                        </template>
-                    </select>
+                    <lightning-combobox
+                        name="statusFilter"
+                        label="Status"
+                        value={selectedStatus}
+                        placeholder="All"
+                        options={statusFilterOptions}
+                        onchange={handleStatusFilterChange}>
+                    </lightning-combobox>
                 </div>
 
                 <!-- Search -->
                 <div class="filter-item search-item">
-                    <label class="filter-label">Search</label>
-                    <div class="search-wrapper">
-                        <svg class="search-icon" viewBox="0 0 24 24">
-                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                        </svg>
-                        <input 
-                            type="text" 
-                            class="search-input" 
-                            placeholder="Search logs..." 
-                            onkeyup={handleSearch}
-                        />
-                    </div>
+                    <lightning-input 
+                        type="search" 
+                        label="Search" 
+                        placeholder="Search by Log Number, Job Name, Job Number, or Creator" 
+                        onchange={handleSearch} 
+                        value={searchTerm}>
+                    </lightning-input>
                 </div>
             </div>
         </div>
@@ -117,6 +116,8 @@
                 <table class="custom-table">
                     <thead>
                         <tr>
+                            <th class="th-serial">#</th>
+                            <th class="th-actions">Actions</th>
                             <th class="th-log-number">Log Number</th>
                             <th class="th-job">Job</th>
                             <th class="th-text">Work Performed</th>
@@ -126,12 +127,39 @@
                             <th class="th-created">Created Date</th>
                             <th class="th-created-by">Created By</th>
                             <th class="th-status">Status</th>
-                            <th class="th-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <template for:each={filteredLogEntries} for:item="log">
+                        <template for:each={filteredLogEntries} for:item="log" for:index="index">
                             <tr key={log.id} class="table-row">
+                                <td class="td-serial">{log.serialNumber}</td>
+                                <td class="td-actions">
+                                    <div class="action-buttons">
+                                        <!-- Files Button -->
+                                        <button 
+                                            class="action-btn btn-files" 
+                                            data-log-id={log.id}
+                                            onclick={handleShowFiles}
+                                            title="View Files"
+                                        >
+                                            <svg class="btn-icon" viewBox="0 0 24 24">
+                                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                                            </svg>
+                                        </button>
+                                        
+                                        <!-- Location Process Button -->
+                                        <button 
+                                            class="action-btn btn-location" 
+                                            data-log-id={log.id}
+                                            onclick={handleShowLocationProcesses}
+                                            title="View Location Processes"
+                                        >
+                                            <svg class="btn-icon" viewBox="0 0 24 24">
+                                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
                                 <td class="td-log-number">{log.name}</td>
                                 <td class="td-job">
                                     <template if:true={log.jobId}>
@@ -167,33 +195,6 @@
                                 <td class="td-created-by">{log.createdBy}</td>
                                 <td class="td-status">
                                     <span class={log.statusClass}>{log.status}</span>
-                                </td>
-                                <td class="td-actions">
-                                    <div class="action-buttons">
-                                        <!-- Files Button -->
-                                        <button 
-                                            class="action-btn btn-files" 
-                                            data-log-id={log.id}
-                                            onclick={handleShowFiles}
-                                            title="View Files"
-                                        >
-                                            <svg class="btn-icon" viewBox="0 0 24 24">
-                                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
-                                            </svg>
-                                        </button>
-                                        
-                                        <!-- Location Process Button -->
-                                        <button 
-                                            class="action-btn btn-location" 
-                                            data-log-id={log.id}
-                                            onclick={handleShowLocationProcesses}
-                                            title="View Location Processes"
-                                        >
-                                            <svg class="btn-icon" viewBox="0 0 24 24">
-                                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                                            </svg>
-                                        </button>
-                                    </div>
                                 </td>
                             </tr>
                         </template>
@@ -287,13 +288,14 @@
                     <div class="slider-header">
                         <h2 class="slider-title">Location Processes</h2>
                         <button class="slider-close-btn" onclick={handleCloseLocationProcessSlider}>
-                            <svg class="close-icon" viewBox="0 0 24 24">
+                            <svg class="slider-close-icon" viewBox="0 0 24 24">
                                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                             </svg>
                         </button>
                     </div>
                     <div class="slider-body">
                         <template if:true={hasLocationProcesses}>
+                            <!-- Location Process Items -->
                             <template for:each={locationProcesses} for:item="lp">
                                 <div key={lp.id} class="location-process-item">
                                     <div class="lp-header">
@@ -307,17 +309,32 @@
                                         </div>
                                     </div>
                                     <div class="progress-container">
-                                        <div class="progress-bar-wrapper">
-                                            <div class="progress-bar progress-old" style={lp.oldProgressStyle}>
-                                                <div class="progress-fill-old"></div>
-                                            </div>
-                                            <div class="progress-bar progress-new" style={lp.newProgressStyle}>
-                                                <div class="progress-fill-new"></div>
+                                        <div class="slider-wrapper-display">
+                                            <div class="slider-track-display">
+                                                <div class="slider-section completed" style={lp.completedStyle}></div>
+                                                <div class="slider-section today" style={lp.todayStyle}></div>
+                                                <div class="slider-section remaining" style={lp.remainingStyle}></div>
                                             </div>
                                         </div>
-                                        <div class="progress-labels">
-                                            <span class="label-completed">Completed</span>
-                                            <span class="label-new">New Progress</span>
+                                        <div class="slider-labels-display">
+                                            <span class="label-completed">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                </svg>
+                                                Completed: {lp.oldValue}%
+                                            </span>
+                                            <span class="label-today">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                </svg>
+                                                Today: {lp.todayProgress}%
+                                            </span>
+                                            <span class="label-remaining">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                </svg>
+                                                Remaining: {lp.remainingProgress}%
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
