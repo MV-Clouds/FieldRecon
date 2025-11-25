@@ -12,9 +12,9 @@ public with sharing class ShiftEndLogV2Controller {
             // -----------------------------
             Id userId = UserInfo.getUserId();
             Contact userContact = [
-                SELECT Id, User__c 
+                SELECT Id, wfrecon__User__c 
                 FROM Contact 
-                WHERE User__c = :userId
+                WHERE wfrecon__User__c = :userId
                 WITH USER_MODE
                 LIMIT 1
             ];
@@ -23,15 +23,15 @@ public with sharing class ShiftEndLogV2Controller {
 
             if(userContact != null) {
                 // Get Mobilizations related to the job
-                List<Mobilization__c> mobilizations = jobId != null 
-                    ? [SELECT Id FROM Mobilization__c WHERE Job__c = :jobId WITH USER_MODE] 
-                    : new List<Mobilization__c>();
+                List<wfrecon__Mobilization__c> mobilizations = jobId != null 
+                    ? [SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Job__c = :jobId WITH USER_MODE] 
+                    : new List<wfrecon__Mobilization__c>();
 
                     System.debug('Found Mobilizations: ' + mobilizations);
 
                 if(!mobilizations.isEmpty()) {
                     Set<Id> mobilizationIds = new Set<Id>();
-                    for(Mobilization__c mob : mobilizations){
+                    for(wfrecon__Mobilization__c mob : mobilizations){
                         mobilizationIds.add(mob.Id);
                     }
 
@@ -39,14 +39,14 @@ public with sharing class ShiftEndLogV2Controller {
 
                     // Get Crew IDs from Mobilization Members
                     Set<Id> crewIdsFromMobilizations = new Set<Id>();
-                    for(Mobilization_Member__c mm : [
-                        SELECT Crew__c 
-                        FROM Mobilization_Member__c 
-                        WHERE Mobilization__c IN :mobilizationIds
-                        AND Crew__c != null
+                    for(wfrecon__Mobilization_Member__c mm : [
+                        SELECT wfrecon__Crew__c 
+                        FROM wfrecon__Mobilization_Member__c 
+                        WHERE wfrecon__Mobilization__c IN :mobilizationIds
+                        AND wfrecon__Crew__c != null
                         WITH USER_MODE
                     ]) {
-                        crewIdsFromMobilizations.add(mm.Crew__c);
+                        crewIdsFromMobilizations.add(mm.wfrecon__Crew__c);
                     }
 
                     System.debug('Found Crew IDs from Mobilizations: ' + crewIdsFromMobilizations);
@@ -55,20 +55,20 @@ public with sharing class ShiftEndLogV2Controller {
                     if(!crewIdsFromMobilizations.isEmpty()) {
 
                         // Query Crew Member records where user is marked as leader
-                        List<Crew_Member__c> leaderCrewMembers = [
-                            SELECT Id, Crew__c, Contact__c
-                            FROM Crew_Member__c
-                            WHERE Crew__c IN :crewIdsFromMobilizations
-                            AND Contact__c = :userContact.Id
-                            AND Member_Type__c = 'Leader'
+                        List<wfrecon__Crew_Member__c> leaderCrewMembers = [
+                            SELECT Id, wfrecon__Crew__c, wfrecon__Contact__c
+                            FROM wfrecon__Crew_Member__c
+                            WHERE wfrecon__Crew__c IN :crewIdsFromMobilizations
+                            AND wfrecon__Contact__c = :userContact.Id
+                            AND wfrecon__Member_Type__c = 'Leader'
                             WITH USER_MODE
                         ];
 
                         if (!leaderCrewMembers.isEmpty()) {
                             resultWrapper.crewInfo.crewLeaderId = String.valueOf(userContact.Id);
 
-                            for (Crew_Member__c member : leaderCrewMembers) {
-                                resultWrapper.crewInfo.crewIds.add(String.valueOf(member.Crew__c));
+                            for (wfrecon__Crew_Member__c member : leaderCrewMembers) {
+                                resultWrapper.crewInfo.crewIds.add(String.valueOf(member.wfrecon__Crew__c));
                             }
 
                             System.debug('Set Crew Leader ID: ' + resultWrapper.crewInfo.crewLeaderId);
@@ -81,24 +81,24 @@ public with sharing class ShiftEndLogV2Controller {
             // -----------------------------
             // Step 2: Get Shift End Logs with Images
             // -----------------------------
-            List<Log_Entry__c> shiftEndLogs = jobId != null
-                ? [SELECT Id, Name, Job__c, Work_Performed__c, Work_Performed_Date__c, 
-                        Log_Type__c, Exceptions__c, Plan_for_Tomorrow__c, Notes_to_Office__c,
-                        Status__c, Approval_Data__c,
+            List<wfrecon__Log_Entry__c> shiftEndLogs = jobId != null
+                ? [SELECT Id, Name, wfrecon__Job__c, wfrecon__Work_Performed__c, wfrecon__Work_Performed_Date__c, 
+                        wfrecon__Log_Type__c, wfrecon__Exceptions__c, wfrecon__Plan_for_Tomorrow__c, wfrecon__Notes_to_Office__c,
+                        wfrecon__Status__c, wfrecon__Approval_Data__c,
                         CreatedBy.Name, CreatedDate, LastModifiedDate
-                   FROM Log_Entry__c 
-                   WHERE Job__c = :jobId 
-                   AND Log_Type__c = 'Shift End'
+                   FROM wfrecon__Log_Entry__c 
+                   WHERE wfrecon__Job__c = :jobId 
+                   AND wfrecon__Log_Type__c = 'Shift End'
                    ORDER BY CreatedDate DESC]
-                : new List<Log_Entry__c>();
+                : new List<wfrecon__Log_Entry__c>();
 
             Set<Id> logIds = new Set<Id>();
-            for(Log_Entry__c log : shiftEndLogs) logIds.add(log.Id);
+            for(wfrecon__Log_Entry__c log : shiftEndLogs) logIds.add(log.Id);
 
             // Parse approval data from each log to identify pending processes
             // Now supports both old structure (array) and new structure (object with locationProcessChanges)
             Map<Id, Set<Id>> logPendingProcessesMap = new Map<Id, Set<Id>>();
-            for(Log_Entry__c log : shiftEndLogs) {
+            for(wfrecon__Log_Entry__c log : shiftEndLogs) {
                 if(String.isNotBlank(log.wfrecon__Approval_Data__c)) {
                     try {
                         Object approvalDataObj = JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
@@ -143,16 +143,16 @@ public with sharing class ShiftEndLogV2Controller {
             Map<Id, List<FieldChangeInfo>> logFieldChangesMap = new Map<Id, List<FieldChangeInfo>>();
             if(!logIds.isEmpty()) {
                 Date today = Date.today();
-                List<Log_Entry__History> historyRecords = [
+                List<wfrecon__Log_Entry__History> historyRecords = [
                     SELECT ParentId, Field, OldValue, NewValue, CreatedDate, CreatedBy.Name
-                    FROM Log_Entry__History
+                    FROM wfrecon__Log_Entry__History
                     WHERE ParentId IN :logIds
                     AND CreatedDate = TODAY
                     WITH USER_MODE
                     ORDER BY CreatedDate DESC
                 ];
 
-                for(Log_Entry__History hist : historyRecords) {
+                for(wfrecon__Log_Entry__History hist : historyRecords) {
                     if(!logFieldChangesMap.containsKey(hist.ParentId)) {
                         logFieldChangesMap.put(hist.ParentId, new List<FieldChangeInfo>());
                     }
@@ -172,10 +172,10 @@ public with sharing class ShiftEndLogV2Controller {
             // Get current location processes for the job
             Map<Id, List<LocationProcessSnapshot>> jobLocationProcessesMap = new Map<Id, List<LocationProcessSnapshot>>();
             if(jobId != null) {
-                List<Location_Process__c> locationProcesses = [
+                List<wfrecon__Location_Process__c> locationProcesses = [
                     SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
                            wfrecon__Location__c, wfrecon__Location__r.Name
-                    FROM Location_Process__c 
+                    FROM wfrecon__Location_Process__c 
                     WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId 
                     WITH USER_MODE
                     ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
@@ -183,7 +183,7 @@ public with sharing class ShiftEndLogV2Controller {
 
                 // Get location process IDs for history tracking
                 Set<Id> locationProcessIds = new Set<Id>();
-                for(Location_Process__c lp : locationProcesses) {
+                for(wfrecon__Location_Process__c lp : locationProcesses) {
                     locationProcessIds.add(lp.Id);
                 }
 
@@ -193,7 +193,7 @@ public with sharing class ShiftEndLogV2Controller {
                 Set<Id> approvedProcessIds = new Set<Id>();
                 
                 // Collect all approved process IDs from all logs
-                for(Log_Entry__c log : shiftEndLogs) {
+                for(wfrecon__Log_Entry__c log : shiftEndLogs) {
                     if(log.wfrecon__Status__c == 'Approved' || log.wfrecon__Status__c == 'Auto-Approved') {
                         if(logPendingProcessesMap.containsKey(log.Id)) {
                             approvedProcessIds.addAll(logPendingProcessesMap.get(log.Id));
@@ -221,7 +221,7 @@ public with sharing class ShiftEndLogV2Controller {
                 }
 
                 List<LocationProcessSnapshot> processSnapshots = new List<LocationProcessSnapshot>();
-                for(Location_Process__c lp : locationProcesses) {
+                for(wfrecon__Location_Process__c lp : locationProcesses) {
                     LocationProcessSnapshot snapshot = new LocationProcessSnapshot();
                     snapshot.processId = lp.Id;
                     snapshot.processName = lp.Name;
@@ -320,7 +320,7 @@ public with sharing class ShiftEndLogV2Controller {
                 }
             }
 
-            for(Log_Entry__c log : shiftEndLogs) {
+            for(wfrecon__Log_Entry__c log : shiftEndLogs) {
                 ShiftEndLogWrapper wrapper = new ShiftEndLogWrapper();
                 wrapper.logEntry = log;
                 wrapper.images = logImagesMap.containsKey(log.Id) ? logImagesMap.get(log.Id) : new List<ContentVersion>();
@@ -354,7 +354,7 @@ public with sharing class ShiftEndLogV2Controller {
     }
 
     @AuraEnabled
-    public static void updateShiftEndLogWithImages(Log_Entry__c logEntry, List<String> contentDocumentIdsToDelete) {
+    public static void updateShiftEndLogWithImages(wfrecon__Log_Entry__c logEntry, List<String> contentDocumentIdsToDelete) {
         try {
             if(logEntry == null) {
                 throw new AuraHandledException('Invalid log entry');
@@ -398,7 +398,7 @@ public with sharing class ShiftEndLogV2Controller {
                 throw new AuraHandledException('Invalid log entry ID');
             }
 
-            Log_Entry__c logToDelete = new Log_Entry__c(Id = logId);
+            wfrecon__Log_Entry__c logToDelete = new wfrecon__Log_Entry__c(Id = logId);
 
             delete as user logToDelete;
             
@@ -474,7 +474,7 @@ public with sharing class ShiftEndLogV2Controller {
     }
 
     public class ShiftEndLogWrapper {
-        @AuraEnabled public Log_Entry__c logEntry { get; set; }
+        @AuraEnabled public wfrecon__Log_Entry__c logEntry { get; set; }
         @AuraEnabled public List<ContentVersion> images { get; set; }
         @AuraEnabled public List<LocationProcessSnapshot> locationProcesses { get; set; }
         @AuraEnabled public List<FieldChangeInfo> fieldChanges { get; set; }
