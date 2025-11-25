@@ -83,7 +83,13 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
         this.isLoading = true;
         getShiftEndLogDashboardData()
             .then(result => {
-                this.allLogEntries = result.logEntries || [];
+                // Format dates on initial load - prefer ISO timestamp if provided by Apex
+                const entriesWithFormattedDates = (result.logEntries || []).map(log => ({
+                    ...log,
+                    createdDateRaw: log.createdDateISO || log.createdDate, // raw ISO string for filtering
+                    createdDate: log.createdDateISO ? this.formatToAMPM(log.createdDateISO) : (log.createdDate ? this.formatToAMPM(log.createdDate) : '--')
+                }));
+                this.allLogEntries = entriesWithFormattedDates;
                 this.logEntries = [...this.allLogEntries];
                 this.applyFilters();
                 this.isLoading = false;
@@ -132,9 +138,12 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             const filterDate = new Date(today.getTime() - (daysToSubtract * 24 * 60 * 60 * 1000));
             
             filtered = filtered.filter(log => {
-                // Parse the createdDate string (format: "MMM dd, yyyy HH:mm")
-                const logDate = this.parseCreatedDate(log.createdDate);
-                return logDate >= filterDate;
+                // Use raw ISO date for comparison
+                if (log.createdDateRaw) {
+                    const logDate = new Date(log.createdDateRaw);
+                    return logDate >= filterDate;
+                }
+                return true;
             });
         }
         
@@ -157,7 +166,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             });
         }
         
-        // Add status class and serial number to each log
+        // Add status class and serial number to each log (dates already formatted in fetchDashboardData)
         this.filteredLogEntries = filtered.map((log, index) => ({
             ...log,
             serialNumber: index + 1,
@@ -184,6 +193,55 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             return new Date(year, month, day, hours, minutes);
         } catch (e) {
             return new Date();
+        }
+    }
+
+    /**
+     * Method Name: formatToAMPM
+     * @description: Formats ISO datetime string to 12-hour AM/PM format in user's local timezone
+     * Automatically converts from UTC (Salesforce storage) to browser's local timezone
+     * @param iso: ISO datetime string from Salesforce (in UTC)
+     * @return: Formatted string like "Nov 26, 2025, 11:51 AM" in user's local timezone
+     */
+    formatToAMPM(iso) {
+        try {
+            if (!iso) return '--';
+            
+            // Create Date object from ISO string - this automatically converts UTC to local timezone
+            const date = new Date(iso);
+            
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.error('formatToAMPM: Invalid date string:', iso);
+                return '--';
+            }
+            
+            // Get date components in user's local timezone
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[date.getMonth()];
+            const day = date.getDate();
+            const year = date.getFullYear();
+            
+            // Get time components in user's local timezone
+            let hours = date.getHours();
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+            
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            // Format: "Nov 26, 2025, 11:51 AM" (in user's local timezone)
+            return `${monthName} ${day}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToAMPM:', error, 'Input:', iso);
+            return '--';
         }
     }
     

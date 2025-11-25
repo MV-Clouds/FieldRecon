@@ -47,7 +47,9 @@ public with sharing class ShiftEndLogDashboardController {
                 wrapper.planForTomorrow = log.wfrecon__Plan_for_Tomorrow__c != null ? log.wfrecon__Plan_for_Tomorrow__c : '--';
                 wrapper.exceptions = log.wfrecon__Exceptions__c != null ? log.wfrecon__Exceptions__c : '--';
                 wrapper.notesToOffice = log.wfrecon__Notes_to_Office__c != null ? log.wfrecon__Notes_to_Office__c : '--';
-                wrapper.createdDate = log.CreatedDate.format('MMM dd, yyyy HH:mm');
+                // Keep legacy string but add ISO GMT timestamp for frontend parsing
+                wrapper.createdDate = String.valueOf(log.CreatedDate);
+                wrapper.createdDateISO = log.CreatedDate.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss') + '.000Z';
                 wrapper.createdBy = log.CreatedBy.Name;
                 wrapper.createdById = log.CreatedBy.Id;
                 wrapper.status = log.wfrecon__Status__c != null ? log.wfrecon__Status__c : 'Pending';
@@ -191,6 +193,7 @@ public with sharing class ShiftEndLogDashboardController {
         @AuraEnabled public String exceptions { get; set; }
         @AuraEnabled public String notesToOffice { get; set; }
         @AuraEnabled public String createdDate { get; set; }
+        @AuraEnabled public String createdDateISO { get; set; }
         @AuraEnabled public String createdBy { get; set; }
         @AuraEnabled public Id createdById { get; set; }
         @AuraEnabled public String status { get; set; }
