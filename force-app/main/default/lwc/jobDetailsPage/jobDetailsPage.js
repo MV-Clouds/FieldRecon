@@ -55,6 +55,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track timesheetDetailsRaw = [];
     @track currentJobStartDateTime;
     @track currentJobEndDateTime;
+    @track expandedJobs = new Set(); // Track which jobs have expanded timesheet rows
+    @track timesheetDataMap = new Map(); // Map of mobId to timesheet details
 
     @track jobColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -121,6 +123,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return {
                     key: job.mobId,
                     jobId: job.jobId,
+                    isExpanded: this.expandedJobs.has(job.mobId),
+                    timesheetData: this.timesheetDataMap.get(job.mobId) || [],
                     values: this.jobColumns.map(col => {
                         let cell = { 
                             key: col.fieldName, 
@@ -324,6 +328,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         this.jobDetailsRaw = data;
                         this.filteredJobDetailsRaw = data;
                         console.log('getJobRelatedMoblizationDetails jobDetailsRaw => ', this.jobDetailsRaw);
+                        
+                        // Pre-load timesheet data for all jobs (like sovJobLocations pre-loads process data)
+                        this.preloadTimesheetData();
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     }
@@ -338,6 +345,77 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in getJobRelatedMoblizationDetails ::', error);
             this.isLoading = false;
+        }
+    }
+
+    /**
+     * Method Name: preloadTimesheetData
+     * @description: Pre-loads timesheet data for all jobs (like sovJobLocations pre-loads process data)
+     */
+    async preloadTimesheetData() {
+        try {
+            // Clear existing timesheet data
+            this.timesheetDataMap = new Map();
+            
+            if (!this.jobDetailsRaw || this.jobDetailsRaw.length === 0) {
+                return;
+            }
+
+            // Load timesheet data for all jobs
+            const loadPromises = this.jobDetailsRaw.map(job => {
+                return this.loadTimesheetDataForJob(job);
+            });
+
+            await Promise.all(loadPromises);
+            
+            // Trigger reactivity
+            this.timesheetDataMap = new Map(this.timesheetDataMap);
+            
+        } catch (error) {
+            console.error('Error in preloadTimesheetData:', error);
+        }
+    }
+
+    /**
+     * Method Name: loadTimesheetDataForJob
+     * @description: Loads timesheet data for a specific job
+     */
+    async loadTimesheetDataForJob(job) {
+        try {
+            const mobId = job.mobId;
+            const jobId = job.jobId;
+            const jobStartDate = this.extractDateKey(job.startDate);
+            const jobEndDate = this.extractDateKey(job.endDate);
+            
+            const data = await getTimeSheetEntryItems({ 
+                jobId: jobId, 
+                jobStartDate: jobStartDate, 
+                jobEndDate: jobEndDate 
+            });
+            
+            if (data && data.length > 0) {
+                const formattedData = data.map((item, index) => ({
+                    srNo: index + 1,
+                    id: item.id,
+                    contactName: item.contactName || 'N/A',
+                    clockInTime: this.formatToAMPM(item.clockInTime),
+                    clockOutTime: this.formatToAMPM(item.clockOutTime),
+                    workHours: item.workHours?.toFixed(2) || '0.00',
+                    travelTime: item.travelTime?.toFixed(2) || '0.00',
+                    totalTime: item.totalTime?.toFixed(2) || '0.00',
+                    perDiem: item.perDiem?.toFixed(2) || '0.00',
+                    premium: item.premium === true ? 'Yes' : 'No',
+                    costCodeName: item.costCodeName || 'N/A'
+                }));
+                this.timesheetDataMap.set(mobId, formattedData);
+            } else {
+                // Set empty array for jobs with no timesheet entries
+                this.timesheetDataMap.set(mobId, []);
+            }
+        } catch (error) {
+            console.error('Error loading timesheet data for job:', job, error);
+            // Set empty array on error
+            this.timesheetDataMap.set(job.mobId, []);
         }
     }
 
@@ -735,11 +813,46 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             if (actionType === 'clock') {
                 this.getClockInDetails();
             } else if (actionType === 'list') {
-                this.getJobRelatedTimesheetDetails();
+                this.toggleTimesheetView(mobId);
             }
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in handleActionClick ::', error);
+        }
+    }
+
+    /**
+     * Method Name: toggleTimesheetView
+     * @description: Toggle the timesheet inner table view (data is pre-loaded)
+     */
+    toggleTimesheetView(mobId) {
+        if (this.expandedJobs.has(mobId)) {
+            this.expandedJobs.delete(mobId);
+        } else {
+            this.expandedJobs.add(mobId);
+        }
+        // Trigger re-render
+        this.expandedJobs = new Set(this.expandedJobs);
+    }
+
+    /**
+     * Method Name: loadTimesheetData
+     * @description: Refresh timesheet data for a specific job (used after CRUD operations)
+     */
+    async loadTimesheetData(mobId) {
+        try {
+            this.isLoading = true;
+            
+            // Find the job object from jobDetailsRaw
+            const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
+            if (job) {
+                await this.loadTimesheetDataForJob(job);
+                this.timesheetDataMap = new Map(this.timesheetDataMap);
+            }
+        } catch (error) {
+            console.error('Error in loadTimesheetData:', error);
+        } finally {
+            this.isLoading = false;
         }
     }
 
@@ -1150,8 +1263,21 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     * Method Name: handleAddTimesheet 
     * @description: Method is used to handle the add timesheet action
     */
-    handleAddTimesheet() {
+    handleAddTimesheet(event) {
         try {
+            // Get jobId and mobId from the button's dataset
+            const jobId = event.currentTarget.dataset.job;
+            const mobId = event.currentTarget.dataset.mobid;
+            
+            if (jobId) this.jobId = jobId;
+            if (mobId) this.mobId = mobId;
+            
+            const jobRecord = this.getCurrentJobRecord();
+            if (jobRecord) {
+                this.currentJobStartDateTime = jobRecord.startDate;
+                this.currentJobEndDateTime = jobRecord.endDate;
+            }
+            
             this.manualTimesheetEntry = true;
             this.isLoading = true;
     
@@ -1197,6 +1323,41 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.clockOutTime = null;
         this.allContacts = [];
         this.costCodeOptions = [];
+    }
+
+    /**
+     * Method Name: handleTimesheetEdit
+     * @description: Handle edit button click from timesheet row
+     */
+    handleTimesheetEdit(event) {
+        const timesheetId = event.currentTarget.dataset.id;
+        const mobId = event.currentTarget.dataset.mobid;
+        
+        // Store mobId for later use
+        this.mobId = mobId;
+        
+        // Find the timesheet entry from the map
+        const timesheets = this.timesheetDataMap.get(mobId);
+        if (timesheets) {
+            const timesheet = timesheets.find(ts => ts.id === timesheetId);
+            if (timesheet) {
+                this.selectedTimesheetEntryLineId = timesheetId;
+                this.editableTimesheetEntry = { ...timesheet };
+                this.editTimesheetEntry = true;
+            }
+        }
+    }
+
+    /**
+     * Method Name: handleTimesheetDelete
+     * @description: Handle delete button click from timesheet row
+     */
+    handleTimesheetDelete(event) {
+        const timesheetId = event.currentTarget.dataset.id;
+        const mobId = event.currentTarget.dataset.mobid;
+        this.selectedTimesheetEntryLineId = timesheetId;
+        this.mobId = mobId; // Store mobId for refreshing data after delete
+        this.showDeleteConfirmModal = true;
     }
 
     /** 
@@ -1254,7 +1415,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 .then((result) => {
                     console.log('createManualTimesheetRecords result :: ' , result);
                     if(result == true) {
-                        this.getJobRelatedTimesheetDetails();
+                        // Refresh the specific job's timesheet data
+                        if (this.mobId) {
+                            this.loadTimesheetData(this.mobId);
+                        }
                         this.getJobRelatedMoblizationDetails();
                         this.showToast('Success', 'Timesheet created successfully', 'success');
                         this.selectedManualPersonId = null;
@@ -1346,7 +1510,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if(result == true) {
                         this.selectedTimesheetEntryLineId = null;
                         this.showDeleteConfirmModal = false;
-                        this.getJobRelatedTimesheetDetails();
+                        // Refresh the specific job's timesheet data
+                        if (this.mobId) {
+                            this.loadTimesheetData(this.mobId);
+                        }
                         this.getJobRelatedMoblizationDetails();
                         this.showToast('Success', 'Timesheet deleted successfully', 'success');
                     } else {
@@ -1461,7 +1628,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 .then((result) => {
                     if(result == true) {
                         this.selectedTimesheetEntryLineId = null;
-                        this.getJobRelatedTimesheetDetails();
+                        // Refresh the specific job's timesheet data
+                        if (this.mobId) {
+                            this.loadTimesheetData(this.mobId);
+                        }
                         this.getJobRelatedMoblizationDetails();
                         this.showToast('Success', 'Timesheet entry updated successfully', 'success');
                         this.closeEditTimesheetModal();
