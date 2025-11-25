@@ -2,6 +2,9 @@
     --primary-color: #5e5af9;
 }
 
+audio::-webkit-media-controls-panel {
+    background: #fff;
+}
 
 .control-btn {
     height: 2rem;

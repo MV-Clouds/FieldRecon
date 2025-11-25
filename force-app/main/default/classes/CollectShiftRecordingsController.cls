@@ -170,8 +170,13 @@ public with sharing class CollectShiftRecordingsController {
     
             List<ContentVersion> clipList = [SELECT Id, ContentSize FROM ContentVersion WHERE FirstPublishLocationId =: mobRes.get('mobilizationId') ORDER BY CreatedDate Desc];
 
+            if(clipList.isEmpty()){
+                result.put('no_recording', 'No recordings found');
+                return result;
+            }
+
             Integer totalClipSize = 0;
-            Set<Id> clipIds = new Set<Id>();
+            List<String> clipIds = new List<String>();
             for(ContentVersion clip : clipList){
                 totalClipSize += clip.ContentSize;
                 clipIds.add(clip.Id);
@@ -179,7 +184,7 @@ public with sharing class CollectShiftRecordingsController {
             result.put('totalClipSize', totalClipSize);
 
             // if totalClipSize is less than 5 MB, then call AI to summarize the clips
-            if(totalClipSize <= 5 * 1024 * 1024){
+            if(totalClipSize <= 0.40 * 1024 * 1024){
                 String ai_response = ProcessShiftLogsByAI(clipIds);
                 if(ai_response.startsWith('error')){
                     result.put('error', ai_response);
@@ -204,7 +209,7 @@ public with sharing class CollectShiftRecordingsController {
         return result;
     }
 
-    public static string ProcessShiftLogsByAI(Set<Id> clipIds){
+    public static string ProcessShiftLogsByAI(List<String> clipIds){
         try {
 
             List<ContentVersion> clipList = [SELECT Id, VersionData FROM ContentVersion WHERE Id IN : clipIds ORDER BY CreatedDate];
@@ -223,10 +228,32 @@ public with sharing class CollectShiftRecordingsController {
     }
 
 
-    @future
+    @future(callout=true)
     public static void ProcessShiftLogsByAI_Async(String clipIdsString){
-        Set<Id> clipIds =  (Set<Id>) JSON.deserializeUntyped(clipIdsString);
-        String ai_response = ProcessShiftLogsByAI(clipIds);
+        List<Object> clipIds =  (List<Object>) JSON.deserializeUntyped(clipIdsString);
+        List<String> actualClipIds = new List<String>();
+        for (Object clipId : clipIds) {
+            actualClipIds.add((String) clipId);
+        }
+        String ai_response = ProcessShiftLogsByAI(actualClipIds);
+
+        if(ai_response.startsWith('error')){
+            System.debug('Error in ProcessShiftLogsByAI_Async: ' + ai_response);
+        }
+        else{
+            System.debug('AI Response: ' + ai_response);
+
+            AI_Response__e  aiResponse = new AI_Response__e();
+            aiResponse.ai_Response__c = ai_response;
+
+            Database.SaveResult sr = EventBus.publish(aiResponse);
+            if (sr.isSuccess()) {
+                System.debug('Successfully published the event.');
+            } else {
+                System.debug('Failed to publish the event.');
+                System.debug('Errors: ' + sr.getErrors());
+            }
+        }
     }
 
 

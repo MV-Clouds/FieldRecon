@@ -6,15 +6,16 @@
 
     <div class="header-info slds-m-bottom_medium">
         <h1 class="title slds-grid slds-grid_vertical-align-center">
-            <svg viewBox="0 0 24 24" class="slds-m-right_x-small"><path d="M14.5 5H6C4.89543 5 4 5.89543 4 7V17C4 18.1046 4.89543 19 6 19H18C19.1046 19 20 18.1046 20 17V14.5H22V17C22 19.2091 20.2091 21 18 21H6C3.79086 21 2 19.2091 2 17V7C2 4.79086 3.79086 3 6 3H14.5V5ZM14 11H11V17H9V11H6V9H14V11ZM20.6572 1.34277C22.1049 2.79049 23 4.79086 23 7C23 9.20914 22.1049 11.2095 20.6572 12.6572L19.2422 11.2422C20.328 10.1564 21 8.65685 21 7C21 5.34315 20.328 3.8436 19.2422 2.75781L20.6572 1.34277ZM17.8281 4.17188C18.552 4.89573 19 5.89543 19 7C19 8.10457 18.552 9.10427 17.8281 9.82812L16.4141 8.41406C16.776 8.05213 17 7.55228 17 7C17 6.44772 16.776 5.94787 16.4141 5.58594L17.8281 4.17188Z"></path></svg>
+            <svg viewBox="0 0 24 24" class="slds-m-right_x-small"><path d="M16.9337 8.96494C16.426 5.03562 13.0675 2 9 2 4.58172 2 1 5.58172 1 10 1 11.8924 1.65707 13.6313 2.7555 15.0011 3.56351 16.0087 4.00033 17.1252 4.00025 18.3061L4 22H13L13.001 19H15C16.1046 19 17 18.1046 17 17V14.071L18.9593 13.2317C19.3025 13.0847 19.3324 12.7367 19.1842 12.5037L16.9337 8.96494ZM3 10C3 6.68629 5.68629 4 9 4 12.0243 4 14.5665 6.25141 14.9501 9.22118L15.0072 9.66262 16.5497 12.0881 15 12.7519V17H11.0017L11.0007 20H6.00013L6.00025 18.3063C6.00036 16.6672 5.40965 15.114 4.31578 13.7499 3.46818 12.6929 3 11.3849 3 10ZM21.1535 18.1024 19.4893 16.9929C20.4436 15.5642 21 13.8471 21 12.0001 21 10.153 20.4436 8.4359 19.4893 7.00722L21.1535 5.89771C22.32 7.64386 23 9.74254 23 12.0001 23 14.2576 22.32 16.3562 21.1535 18.1024Z"></path></svg>
+            <!-- <svg viewBox="0 0 24 24" class="slds-m-right_x-small"><path d="M14.5 5H6C4.89543 5 4 5.89543 4 7V17C4 18.1046 4.89543 19 6 19H18C19.1046 19 20 18.1046 20 17V14.5H22V17C22 19.2091 20.2091 21 18 21H6C3.79086 21 2 19.2091 2 17V7C2 4.79086 3.79086 3 6 3H14.5V5ZM14 11H11V17H9V11H6V9H14V11ZM20.6572 1.34277C22.1049 2.79049 23 4.79086 23 7C23 9.20914 22.1049 11.2095 20.6572 12.6572L19.2422 11.2422C20.328 10.1564 21 8.65685 21 7C21 5.34315 20.328 3.8436 19.2422 2.75781L20.6572 1.34277ZM17.8281 4.17188C18.552 4.89573 19 5.89543 19 7C19 8.10457 18.552 9.10427 17.8281 9.82812L16.4141 8.41406C16.776 8.05213 17 7.55228 17 7C17 6.44772 16.776 5.94787 16.4141 5.58594L17.8281 4.17188Z"></path></svg> -->
             Shift Log Activity Recorder
         </h1>
-        <p class="sub-info">Record shift activity anytime during the day. Work Performed, Plan for Tomorrow, Exceptions, or Notes to Office.</p>
+        <p class="sub-info">Record shift activity anytime during the day using your voice command. </br>Work Performed, Plan for Tomorrow, Exceptions, or Notes to Office.</p>
         <!-- <p class="sub-info">You can record shift activity multiple times in a day upto 10MB of total recording size.</p> -->
     </div>
 
     <div lwc:if={limitExceeded} class="slds-text-color_error slds-m-vertical_xx-small">Your Today's Shift Logs Recoding Limit Exceeded. You can't capture more shift log via recoding!</div>
-    <c-cmp_audio-recorder class="recording-section" onsave={handleSaveRecoding} disabled={limitExceeded}></c-cmp_audio-recorder>
+    <c-cmp_audio-recorder class="recording-section slds-m-vertical_large" onsave={handleSaveRecoding} disabled={limitExceeded}></c-cmp_audio-recorder>
 
     <div class="clip-list-section">
         <h2 class="log-list-title slds-m-top_small slds-m-bottom_x-small slds-grid slds-grid_vertical-align-center">

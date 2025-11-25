@@ -10,6 +10,7 @@ import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesControll
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
 import fetchShiftLogInfo from '@salesforce/apex/CollectShiftRecordingsController.collectShiftLogInfo';
+import { subscribe, unsubscribe, onError, setDebugFlag, isEmpEnabled } from 'lightning/empApi';
 
 export default class ShiftEndLogEntries extends LightningElement {
     @api jobId = '';
@@ -31,6 +32,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         exceptions: '',
         notesToOffice: ''
     };
+    @track subscription = {};
     @track locationProcesses = [];
     @track allLocationProcesses = [];
     @track groupedLocationProcesses = [];
@@ -1487,11 +1489,6 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.loadTimesheetEntries();
         } else if (this.currentStep === 'step2') {
             this.currentStep = 'step3';
-
-            console.log('entering to step 3');
-            
-            // collect shift log info from recorded clips
-            this.collectShiftLogInfo();
         } else if (this.currentStep === 'step3') {
             // Check for unsaved progress bar changes
             if (this.hasModifications) {
@@ -1793,6 +1790,13 @@ export default class ShiftEndLogEntries extends LightningElement {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
 
+    isRecordingSummarized = false;
+    noLogRecordings = false;
+
+    get generateSummaryBtnLabel(){
+        return this.isRecordingSummarized && !this.noLogRecordings ? 'Re-Generate' : 'Generate'
+    }
+
     collectShiftLogInfo(){
         this.isLoading = true;
 
@@ -1804,23 +1808,63 @@ export default class ShiftEndLogEntries extends LightningElement {
 
         fetchShiftLogInfo({paramString : JSON.stringify(params)})
         .then(result => {
-            console.log('resutl : ', result);
+            console.log('result : ', result);
             if(result.error){
                 this.showToast('Error', result.error, 'error');
+                this.isLoading = false;
                 return;
             }
+            else if(result.no_recording){
+                this.noLogRecordings = true;
+                this.isLoading = false;
+            }
             else if(result.ai_response){
+                // Collect AI Response and match fill to input fields
                 try {
                     this.step3Data = JSON.parse(result.ai_response);
+                    
                 } catch (error) {}
+                this.isLoading = false;
+                this.isRecordingSummarized = true;
+            }
+            else if(result.is_async){
+                // When Total Clips Size exceed the 10MB, Recoding Process Method will move to asynchronous apex and
+                // AI response will be collected using platform event
+                // Subscribe to event
+                this.subscribeEvent();
+                this.showToast('Success', 'Shift Log Info is being processed. Please wait for a few seconds.', 'success');
             }
         })
         .catch(error => {
             console.log('error : ', error);
-        })
-        .finally(() => {
             this.isLoading = false;
         })
 
+    }
+
+    subscribeEvent(){
+        subscribe('/event/AI_Response__e', -1, (response)=>{
+            console.log('Async Response: ',response);
+
+            try {
+                this.step3Data = JSON.parse(response.data.payload.ai_Response__c);
+            } catch (error) {
+                this.showToast('Error', '')
+            }
+
+            this.isRecordingSummarized = true;
+            this.isLoading = false;
+
+            // Unsubscribe event once response received
+            unsubscribe(this.subscription,()=>{
+                console.log('Unsubscribed');
+            });
+        }).then((result)=>{
+            this.subscription = result;
+        })
+        .catch(error => {
+            this.showToast('Error', 'Error to process shift log recordings', 'error')
+            this.isLoading = false;
+        })
     }
 }
