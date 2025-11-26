@@ -271,16 +271,13 @@
                                                                                         min={field.min}>
                                                                                 </template>
                                                                                 <template if:true={field.isBoolean}>
-                                                                                    <div style="display:flex; justify-content:center; align-items:center; height:100%; min-height:30px;">
-                                                                                        <input type="checkbox"
-                                                                                            checked={field.rawValue}
-                                                                                            data-id={ts.id}
-                                                                                            data-field={field.key}
-                                                                                            data-type={field.type}
-                                                                                            data-mobid={job.mobId}
-                                                                                            onchange={handleTimesheetCellInputChange}
-                                                                                            onblur={handleTimesheetCellInputBlur}>
-                                                                                    </div>
+                                                                                    <input type="checkbox"
+                                                                                        checked={field.rawValue} 
+                                                                                        data-id={ts.id}
+                                                                                        data-field={field.key}
+                                                                                        data-type={field.type}
+                                                                                        data-mobid={job.mobId}
+                                                                                        onchange={handleTimesheetCellInputChange}>
                                                                                 </template>
                                                                             </template>
                                                                             
