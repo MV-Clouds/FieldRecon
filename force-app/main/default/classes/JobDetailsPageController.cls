@@ -7,7 +7,7 @@
 *--------------------------------------------------------------------------------
 * Modification History:
 * Date Modified - Developer Name - Description
-* 
+*
 **/
 public with sharing class JobDetailsPageController {
     
@@ -45,26 +45,26 @@ public with sharing class JobDetailsPageController {
             }
 
             // 1. Fetch mobilizations
-            List<Mobilization__c> mobs = [
-                SELECT Id, Job__c, Job__r.Id, Start_Date__c, End_Date__c, Mobilization_Status__c, 
-                    Job__r.Name, Job__r.Job_Name__c, Job__r.Address__c, Job__r.Description__c, Job__r.Status__c
-                FROM Mobilization__c
-                WHERE Start_Date__c >= :startOfDay 
-                AND Start_Date__c <= :endOfDay 
+            List<wfrecon__Mobilization__c> mobs = [
+                SELECT Id, wfrecon__Job__c, wfrecon__Job__r.Id, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c, 
+                    wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Address__c, wfrecon__Job__r.wfrecon__Description__c, wfrecon__Job__r.wfrecon__Status__c
+                FROM wfrecon__Mobilization__c
+                WHERE wfrecon__Start_Date__c >= :startOfDay 
+                AND wfrecon__Start_Date__c <= :endOfDay 
                 WITH USER_MODE
-                ORDER BY Start_Date__c ASC
+                ORDER BY wfrecon__Start_Date__c ASC
             ];
 
             if (mobs.isEmpty()) return new List<MobilizationWrapper>();
 
             // 1. Build a Map of JobId → List of mobilization start dates
             Map<Id, Set<Date>> jobDateMap = new Map<Id, Set<Date>>();
-            for(Mobilization__c m : mobs) {
-                if(m.Job__c != null && m.Start_Date__c != null) {
-                    if(!jobDateMap.containsKey(m.Job__c)) {
-                        jobDateMap.put(m.Job__c, new Set<Date>());
+            for(wfrecon__Mobilization__c m : mobs) {
+                if(m.wfrecon__Job__c != null && m.wfrecon__Start_Date__c != null) {
+                    if(!jobDateMap.containsKey(m.wfrecon__Job__c)) {
+                        jobDateMap.put(m.wfrecon__Job__c, new Set<Date>());
                     }
-                    jobDateMap.get(m.Job__c).add(m.Start_Date__c.date());
+                    jobDateMap.get(m.wfrecon__Job__c).add(m.wfrecon__Start_Date__c.date());
                 }
             }
 
@@ -72,15 +72,15 @@ public with sharing class JobDetailsPageController {
             Map<String, Decimal> mobManHoursMap = new Map<String, Decimal>();
             Map<String, Decimal> mobTotalHoursWithTravelMap = new Map<String, Decimal>();
             for (AggregateResult ar : [
-                SELECT Timesheet_Entry__r.TimeSheet__r.Job__c jobId,
-                    Clock_In_Date__c workDate,
-                    SUM(Total_Time__c) totalHours,
-                    SUM(Travel_Time__c) travelTime
-                FROM Timesheet_Entry_Item__c
-                WHERE Timesheet_Entry__r.TimeSheet__r.Job__c IN :jobDateMap.keySet()
-                AND Clock_In_Date__c != null
+                SELECT wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c jobId,
+                    wfrecon__Clock_In_Date__c workDate,
+                    SUM(wfrecon__Total_Time__c) totalHours,
+                    SUM(wfrecon__Travel_Time__c) travelTime
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c IN :jobDateMap.keySet()
+                AND wfrecon__Clock_In_Date__c != null
                 WITH USER_MODE
-                GROUP BY Timesheet_Entry__r.TimeSheet__r.Job__c, Clock_In_Date__c
+                GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c, wfrecon__Clock_In_Date__c
             ]) {
                 Id jobId = (Id)ar.get('jobId');
                 Date workDate = (Date)ar.get('workDate');
@@ -98,22 +98,22 @@ public with sharing class JobDetailsPageController {
 
             // 3. Build wrappers
             List<MobilizationWrapper> result = new List<MobilizationWrapper>();
-            for (Mobilization__c m : mobs) {
+            for (wfrecon__Mobilization__c m : mobs) {
                 MobilizationWrapper w = new MobilizationWrapper();
                 w.mobId = m.Id;
-                w.jobId = m.Job__c;
-                w.jobNumber = m.Job__r.Name;
-                w.jobName = m.Job__r.Job_Name__c != null ? m.Job__r.Job_Name__c : '--';
-                w.jobAddress = m.Job__r.Address__c != null ? m.Job__r.Address__c : '--';
-                w.jobDescription = m.Job__r.Description__c != null ? m.Job__r.Description__c : '--';
-                w.startDate = m.Start_Date__c.addSeconds(userTz.getOffset(m.Start_Date__c)/1000);
-                w.endDate = m.End_Date__c.addSeconds(userTz.getOffset(m.End_Date__c)/1000);
-                // w.startDate = m.Start_Date__c;
-                // w.endDate = m.End_Date__c;
-                // w.status = m.Job__r.Status__c != null ? m.Job__r.Status__c : '--';
+                w.jobId = m.wfrecon__Job__c;
+                w.jobNumber = m.wfrecon__Job__r.Name;
+                w.jobName = m.wfrecon__Job__r.wfrecon__Job_Name__c != null ? m.wfrecon__Job__r.wfrecon__Job_Name__c : '--';
+                w.jobAddress = m.wfrecon__Job__r.wfrecon__Address__c != null ? m.wfrecon__Job__r.wfrecon__Address__c : '--';
+                w.jobDescription = m.wfrecon__Job__r.wfrecon__Description__c != null ? m.wfrecon__Job__r.wfrecon__Description__c : '--';
+                w.startDate = m.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Start_Date__c)/1000);
+                w.endDate = m.wfrecon__End_Date__c.addSeconds(userTz.getOffset(m.wfrecon__End_Date__c)/1000);
+                // w.startDate = m.wfrecon__Start_Date__c;
+                // w.endDate = m.wfrecon__End_Date__c;
+                // w.status = m.wfrecon__Job__r.wfrecon__Status__c != null ? m.wfrecon__Job__r.wfrecon__Status__c : '--';
 
                 // Lookup hours
-                String key = m.Job__c + '_' + String.valueOf(m.Start_Date__c.date());
+                String key = m.wfrecon__Job__c + '_' + String.valueOf(m.wfrecon__Start_Date__c.date());
                 w.totalManHours = mobManHoursMap.containsKey(key) ? mobManHoursMap.get(key) : 0.00;
                 w.totalHoursWithTravel = mobTotalHoursWithTravelMap.containsKey(key) ? mobTotalHoursWithTravelMap.get(key) : 0.00;
 
@@ -138,20 +138,27 @@ public with sharing class JobDetailsPageController {
     @AuraEnabled
     public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, Date jobStartDate, Date jobEndDate){
         try {
-            List<Timesheet_Entry_Item__c> items = [
-                SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
-                       Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
-                       Cost_Code__r.Name, Clock_In_Date__c, Clock_Out_Date__c, Premium__c
-                FROM Timesheet_Entry_Item__c 
-                 WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId
-                  AND Clock_In_Date__c >= :jobStartDate
-                  AND Clock_Out_Date__c <= :jobEndDate
+            // Updated query to include Timesheet Entry details needed for wrapper
+            List<wfrecon__Timesheet_Entry_Item__c> items = [
+                SELECT Id, wfrecon__Timesheet_Entry__c, 
+                       wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, 
+                       wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, 
+                       wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
+                       wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, 
+                       wfrecon__Clock_Out_Date__c, wfrecon__Premium__c,
+                       wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c, // Added TS Id
+                       wfrecon__Cost_Code__c, // Added Cost Code Id
+                       wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c // Added Mob Id
+                FROM wfrecon__Timesheet_Entry_Item__c 
+                 WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
+                  AND wfrecon__Clock_In_Date__c >= :jobStartDate
+                  AND wfrecon__Clock_Out_Date__c <= :jobEndDate
                 WITH USER_MODE
-                ORDER BY Clock_In_Time__c ASC
+                ORDER BY wfrecon__Clock_In_Time__c ASC
             ];
 
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
-            for(Timesheet_Entry_Item__c item : items) {
+            for(wfrecon__Timesheet_Entry_Item__c item : items) {
                 result.add(new TimesheetEntryItemWrapper(item));
             }
 
@@ -178,9 +185,9 @@ public with sharing class JobDetailsPageController {
             result.put('clockOut', new List<WrapperMember>());
             result.put('costCodeDetails', new List<WrapperMember>());
     
-            List<Mobilization__c> mobilizationRecord = [
-                SELECT Id, Job__c, Start_Date__c, End_Date__c
-                FROM Mobilization__c
+            List<wfrecon__Mobilization__c> mobilizationRecord = [
+                SELECT Id, wfrecon__Job__c, wfrecon__Start_Date__c, wfrecon__End_Date__c
+                FROM wfrecon__Mobilization__c
                 WHERE Id = :mobId 
                 WITH USER_MODE
                 LIMIT 1
@@ -188,22 +195,22 @@ public with sharing class JobDetailsPageController {
             System.debug('mobilizationRecord.size() ::' + mobilizationRecord.size());
     
             // 1. Fetch Members
-            List<Mobilization_Member__c> members = [
-                SELECT Id, Contact__c, Contact__r.Name, Contact__r.RecordType.DeveloperName, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
-                FROM Mobilization_Member__c
-                WHERE Mobilization__c = :mobId
-                AND Contact__c != null
-                AND (Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon'))
-                AND Contact__r.Can_Clock_In_Out__c = true
+            List<wfrecon__Mobilization_Member__c> members = [
+                SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.RecordType.DeveloperName, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
+                FROM wfrecon__Mobilization_Member__c
+                WHERE wfrecon__Mobilization__c = :mobId
+                AND wfrecon__Contact__c != null
+                AND (wfrecon__Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon'))
+                AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true
                 WITH USER_MODE
             ];
             System.debug('members.size() ::' + members.size());
     
             Set<Id> contactIds = new Set<Id>();
             Id jobId;
-            for (Mobilization_Member__c m : members) {
-                contactIds.add(m.Contact__c);
-                jobId = m.Mobilization__r.Job__c; 
+            for (wfrecon__Mobilization_Member__c m : members) {
+                contactIds.add(m.wfrecon__Contact__c);
+                jobId = m.wfrecon__Mobilization__r.wfrecon__Job__c; 
             }
             System.debug('contactIds: ' + contactIds);
             System.debug('jobId: ' + jobId);
@@ -213,56 +220,56 @@ public with sharing class JobDetailsPageController {
             }
     
             // 2. Fetch Timesheets for those contacts for that job and date
-            List<Timesheet__c> tsList = [
-                SELECT Id, Contact__c, Timesheet_Start_Date__c, Timesheet_End_Date__c
-                FROM Timesheet__c
-                WHERE Contact__c IN :contactIds
-                AND Job__c = :jobId
-                AND Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].Start_Date__c)
-                AND Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].End_Date__c)
+            List<wfrecon__Timesheet__c> tsList = [
+                SELECT Id, wfrecon__Contact__c, wfrecon__Timesheet_Start_Date__c, wfrecon__Timesheet_End_Date__c
+                FROM wfrecon__Timesheet__c
+                WHERE wfrecon__Contact__c IN :contactIds
+                AND wfrecon__Job__c = :jobId
+                AND wfrecon__Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].wfrecon__Start_Date__c)
+                AND wfrecon__Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].wfrecon__End_Date__c)
                 WITH USER_MODE
             ];
             System.debug('tsList: ' + tsList.size());
-            Map<Id, Timesheet__c> contactTimesheetMap = new Map<Id, Timesheet__c>();
-            for (Timesheet__c ts : tsList) {
+            Map<Id, wfrecon__Timesheet__c> contactTimesheetMap = new Map<Id, wfrecon__Timesheet__c>();
+            for (wfrecon__Timesheet__c ts : tsList) {
                 System.debug('ts.Ids: ' + ts.Id);
-                contactTimesheetMap.put(ts.Contact__c, ts);
+                contactTimesheetMap.put(ts.wfrecon__Contact__c, ts);
             }
     
             // 3. Fetch Entries for those timesheets for that date
-            Date startDate = mobilizationRecord[0].Start_Date__c.date(); // extract only date part
-            Date endDate = mobilizationRecord[0].End_Date__c.date();     // extract only date part
-            List<Timesheet_Entry__c> entries = [
-                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__r.Contact__c
-                FROM Timesheet_Entry__c
-                WHERE Timesheet__c IN :tsList
-                AND (Clock_In_Time__c >= :startDate
-                OR Clock_In_Time__c <= :endDate.addDays(1))
+            Date startDate = mobilizationRecord[0].wfrecon__Start_Date__c.date(); // extract only date part
+            Date endDate = mobilizationRecord[0].wfrecon__End_Date__c.date();     // extract only date part
+            List<wfrecon__Timesheet_Entry__c> entries = [
+                SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Contact__c
+                FROM wfrecon__Timesheet_Entry__c
+                WHERE wfrecon__Timesheet__c IN :tsList
+                AND (wfrecon__Clock_In_Time__c >= :startDate
+                OR wfrecon__Clock_In_Time__c <= :endDate.addDays(1))
                 WITH USER_MODE
             ];
             System.debug('entries: ' + entries.size());
             
             // Group entries by Contact
-            Map<Id, List<Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<Timesheet_Entry__c>>();
-            for (Timesheet_Entry__c e : entries) {
-                if (!contactEntriesMap.containsKey(e.Timesheet__r.Contact__c)) {
-                    contactEntriesMap.put(e.Timesheet__r.Contact__c, new List<Timesheet_Entry__c>());
+            Map<Id, List<wfrecon__Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<wfrecon__Timesheet_Entry__c>>();
+            for (wfrecon__Timesheet_Entry__c e : entries) {
+                if (!contactEntriesMap.containsKey(e.wfrecon__Timesheet__r.wfrecon__Contact__c)) {
+                    contactEntriesMap.put(e.wfrecon__Timesheet__r.wfrecon__Contact__c, new List<wfrecon__Timesheet_Entry__c>());
                 }
-                contactEntriesMap.get(e.Timesheet__r.Contact__c).add(e);
+                contactEntriesMap.get(e.wfrecon__Timesheet__r.wfrecon__Contact__c).add(e);
             }
             System.debug('contactEntriesMap: ' + contactEntriesMap);
     
             // 4. Build wrapper list
-            for (Mobilization_Member__c m : members) {
+            for (wfrecon__Mobilization_Member__c m : members) {
                 WrapperMember wrap = new WrapperMember();
-                wrap.jobStartTime = mobilizationRecord[0].Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].Start_Date__c)/1000);
-                wrap.jobEndTime = mobilizationRecord[0].End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].End_Date__c)/1000);
-                wrap.contactId = m.Contact__c;
-                wrap.contactName = m.Contact__r.Name;
+                wrap.jobStartTime = mobilizationRecord[0].wfrecon__Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].wfrecon__Start_Date__c)/1000);
+                wrap.jobEndTime = mobilizationRecord[0].wfrecon__End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].wfrecon__End_Date__c)/1000);
+                wrap.contactId = m.wfrecon__Contact__c;
+                wrap.contactName = m.wfrecon__Contact__r.Name;
                 wrap.mobMemberId = m.Id;
     
-                Timesheet__c ts = contactTimesheetMap.get(m.Contact__c);
-                List<Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.Contact__c);
+                wfrecon__Timesheet__c ts = contactTimesheetMap.get(m.wfrecon__Contact__c);
+                List<wfrecon__Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.wfrecon__Contact__c);
     
                 if (ts == null) {
                     wrap.isTimesheetNull = true;
@@ -283,31 +290,31 @@ public with sharing class JobDetailsPageController {
     
                 Boolean hasOpenEntry = false;
                 Boolean hasCompletedEntry = false;
-                Timesheet_Entry__c latestOpen;
-                Timesheet_Entry__c latestCompleted;
+                wfrecon__Timesheet_Entry__c latestOpen;
+                wfrecon__Timesheet_Entry__c latestCompleted;
                 DateTime mostRecentClockIn;
                 DateTime mostRecentClockOut;
     
-                for (Timesheet_Entry__c e : userEntries) {
+                for (wfrecon__Timesheet_Entry__c e : userEntries) {
                     // Track most recent clock in/out times
-                    if (e.Clock_In_Time__c != null) {
-                        if (mostRecentClockIn == null || e.Clock_In_Time__c > mostRecentClockIn) {
-                            mostRecentClockIn = e.Clock_In_Time__c;
+                    if (e.wfrecon__Clock_In_Time__c != null) {
+                        if (mostRecentClockIn == null || e.wfrecon__Clock_In_Time__c > mostRecentClockIn) {
+                            mostRecentClockIn = e.wfrecon__Clock_In_Time__c;
                         }
                     }
-                    if (e.Clock_Out_Time__c != null) {
-                        if (mostRecentClockOut == null || e.Clock_Out_Time__c > mostRecentClockOut) {
-                            mostRecentClockOut = e.Clock_Out_Time__c;
+                    if (e.wfrecon__Clock_Out_Time__c != null) {
+                        if (mostRecentClockOut == null || e.wfrecon__Clock_Out_Time__c > mostRecentClockOut) {
+                            mostRecentClockOut = e.wfrecon__Clock_Out_Time__c;
                         }
                     }
                     
-                    if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
+                    if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) {
                         hasOpenEntry = true;
                         latestOpen = e;
-                    } else if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c != null) {
+                    } else if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) {
                         hasCompletedEntry = true;
                         latestCompleted = e;
-                    } else if (e.Clock_In_Time__c == null && e.Clock_Out_Time__c != null) {
+                    } else if (e.wfrecon__Clock_In_Time__c == null && e.wfrecon__Clock_Out_Time__c != null) {
                         // Edge case → treat as open
                         hasOpenEntry = true;
                         latestOpen = e;
@@ -320,8 +327,8 @@ public with sharing class JobDetailsPageController {
                     wrap.isTimeSheetNull = false;
                     wrap.isTimeSheetEntryNull = false;
                     wrap.timesheetEntryId = latestOpen.Id;
-                    wrap.clockInTime = (latestOpen.Clock_In_Time__c != null)
-                        ? latestOpen.Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.Clock_In_Time__c)/1000)
+                    wrap.clockInTime = (latestOpen.wfrecon__Clock_In_Time__c != null)
+                        ? latestOpen.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.wfrecon__Clock_In_Time__c)/1000)
                         : null;
                     wrap.isAgain = false; // Not a new shift yet, finishing current one
                     wrap.recentClockIn = mostRecentClockIn != null ? mostRecentClockIn.addSeconds(userTz.getOffset(mostRecentClockIn)/1000) : null;
@@ -348,8 +355,8 @@ public with sharing class JobDetailsPageController {
             }
             // 5. Build cost code details
             Map<Id, String> costCodeDetails = new Map<Id, String>();
-            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c WITH USER_MODE];
-            for (Cost_Code__c c : costCodeRecs) {
+            List<wfrecon__Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM wfrecon__Cost_Code__c WITH USER_MODE];
+            for (wfrecon__Cost_Code__c c : costCodeRecs) {
                 costCodeDetails.put(c.Id, c.Name);
             }
             WrapperMember costCodeDetailsWrap = new WrapperMember();
@@ -378,15 +385,15 @@ public with sharing class JobDetailsPageController {
             String jobId = (String)paramsMap.get('jobId');
             String mobId = (String)paramsMap.get('mobId');
             String mobGroupId;
-            List<Mobilization__c> mobRec = [
-                SELECT Id, Name, Mobilization_Group__r.Start_Date__c, Mobilization_Group__r.End_Date__c 
-                FROM Mobilization__c 
+            List<wfrecon__Mobilization__c> mobRec = [
+                SELECT Id, Name, wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization_Group__r.wfrecon__End_Date__c 
+                FROM wfrecon__Mobilization__c 
                 WHERE Id = :mobId
                 WITH USER_MODE
             ];
-            mobGroupId = mobRec[0].Mobilization_Group__r.Id;
+            mobGroupId = mobRec[0].wfrecon__Mobilization_Group__r.Id;
             
-            List<Mobilization_Member__c> mobMemberRecs = [SELECT Id, Contact__c, Mobilization__r.Mobilization_Group__r.Start_Date__c, Mobilization__r.Mobilization_Group__r.End_Date__c FROM Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
+            List<wfrecon__Mobilization_Member__c> mobMemberRecs = [SELECT Id, wfrecon__Contact__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c FROM wfrecon__Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
 
             if((String) paramsMap.get('actionType') == 'clockIn') {
                 
@@ -396,31 +403,31 @@ public with sharing class JobDetailsPageController {
 
                 // If first clockin for moblization group for contact > Create Timesheet and Timesheet Entry
                 if(paramsMap.get('isTimeSheetNull') == true) {
-                    Timesheet__c timesheetRec = new Timesheet__c();
-                    timesheetRec.Contact__c = mobMemberRecs[0].Contact__c;
-                    timesheetRec.Job__c = jobId;
-                    timesheetRec.Timesheet_Start_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.Start_Date__c.date();
-                    timesheetRec.Timesheet_End_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.End_Date__c.date();
-                    timesheetRec.Mobilization_Group__c = mobGroupId;
-                    timesheetRec.Do_Not_Execute__c = true;
+                    wfrecon__Timesheet__c timesheetRec = new wfrecon__Timesheet__c();
+                    timesheetRec.wfrecon__Contact__c = mobMemberRecs[0].wfrecon__Contact__c;
+                    timesheetRec.wfrecon__Job__c = jobId;
+                    timesheetRec.wfrecon__Timesheet_Start_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c.date();
+                    timesheetRec.wfrecon__Timesheet_End_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c.date();
+                    timesheetRec.wfrecon__Mobilization_Group__c = mobGroupId;
+                    timesheetRec.wfrecon__Do_Not_Execute__c = true;
                     insert timesheetRec;
     
-                    Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                    timesheetEntryRec.Timesheet__c = timesheetRec.Id;
-                    timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-                    timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
-                    timesheetEntryRec.Mobilization__c = mobId;
-                    timesheetEntryRec.Do_Not_Execute__c = true;
+                    wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
+                    timesheetEntryRec.wfrecon__Timesheet__c = timesheetRec.Id;
+                    timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
+                    timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                    timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
                     insert timesheetEntryRec;
                 } else {
-                    List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
+                    List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
                     
-                    Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                    timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
-                    timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-                    timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
-                    timesheetEntryRec.Mobilization__c = mobId;
-                    timesheetEntryRec.Do_Not_Execute__c = true;
+                    wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
+                    timesheetEntryRec.wfrecon__Timesheet__c = timesheetRecs[0].Id;
+                    timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
+                    timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                    timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
                     insert timesheetEntryRec;
                 }
             }
@@ -440,7 +447,7 @@ public with sharing class JobDetailsPageController {
 
                 if(paramsMap.get('isTimeSheetEntryNull') == true) {
                     if(paramsMap.get('isTimeSheetNull') == false) {
-                        List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
+                        List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
 
                         if (!timesheetRecs.isEmpty()) {
                             Id tsId = timesheetRecs[0].Id;
@@ -451,115 +458,115 @@ public with sharing class JobDetailsPageController {
                                 Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
                                 // 1️⃣ Entry for Day 1 (till 11:59 PM)
-                                Timesheet_Entry__c entryDay1 = new Timesheet_Entry__c(
-                                    Timesheet__c = tsId,
-                                    Clock_In_Time__c = clkInUserTz,
-                                    Clock_Out_Time__c = firstDayEnd,
-                                    Mobilization__c = mobId,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry__c entryDay1 = new wfrecon__Timesheet_Entry__c(
+                                    wfrecon__Timesheet__c = tsId,
+                                    wfrecon__Clock_In_Time__c = clkInUserTz,
+                                    wfrecon__Clock_Out_Time__c = firstDayEnd,
+                                    wfrecon__Mobilization__c = mobId,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
                                 insert entryDay1;
 
-                                Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
-                                    Timesheet_Entry__c = entryDay1.Id,
-                                    Clock_In_Time__c = entryDay1.Clock_In_Time__c,
-                                    Clock_Out_Time__c = entryDay1.Clock_Out_Time__c,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
+                                    wfrecon__Timesheet_Entry__c = entryDay1.Id,
+                                    wfrecon__Clock_In_Time__c = entryDay1.wfrecon__Clock_In_Time__c,
+                                    wfrecon__Clock_Out_Time__c = entryDay1.wfrecon__Clock_Out_Time__c,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
                                 insert itemDay1;
 
                                 // 2️⃣ Entry for Day 2 (from 12:00 AM)
-                                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
-                                    Timesheet__c = tsId,
-                                    Clock_In_Time__c = secondDayStart,
-                                    Clock_Out_Time__c = clkOutUserTz,
-                                    Mobilization__c = mobId,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
+                                    wfrecon__Timesheet__c = tsId,
+                                    wfrecon__Clock_In_Time__c = secondDayStart,
+                                    wfrecon__Clock_Out_Time__c = clkOutUserTz,
+                                    wfrecon__Mobilization__c = mobId,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
                                 insert entryDay2;
 
-                                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
-                                    Timesheet_Entry__c = entryDay2.Id,
-                                    Clock_In_Time__c = entryDay2.Clock_In_Time__c,
-                                    Clock_Out_Time__c = entryDay2.Clock_Out_Time__c,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
+                                    wfrecon__Timesheet_Entry__c = entryDay2.Id,
+                                    wfrecon__Clock_In_Time__c = entryDay2.wfrecon__Clock_In_Time__c,
+                                    wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
                                 insert itemDay2;
 
                             } else {
-                                Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                                timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
-                                timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-                                timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
-                                timesheetEntryRec.Mobilization__c = mobId;
-                                timesheetEntryRec.Do_Not_Execute__c = true;
+                                wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
+                                timesheetEntryRec.wfrecon__Timesheet__c = timesheetRecs[0].Id;
+                                timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                                timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                                timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                                timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
                                 insert timesheetEntryRec;
         
-                                Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
-                                timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRec.Id;
-                                timesheetEntryItemRec.Clock_In_Time__c = timesheetEntryRec.Clock_In_Time__c;
-                                timesheetEntryItemRec.Clock_Out_Time__c = timesheetEntryRec.Clock_Out_Time__c;
-                                timesheetEntryItemRec.Cost_Code__c = timesheetEntryRec.Cost_Code__c;
-                                timesheetEntryItemRec.Do_Not_Execute__c = true;
+                                wfrecon__Timesheet_Entry_Item__c timesheetEntryItemRec = new wfrecon__Timesheet_Entry_Item__c();
+                                timesheetEntryItemRec.wfrecon__Timesheet_Entry__c = timesheetEntryRec.Id;
+                                timesheetEntryItemRec.wfrecon__Clock_In_Time__c = timesheetEntryRec.wfrecon__Clock_In_Time__c;
+                                timesheetEntryItemRec.wfrecon__Clock_Out_Time__c = timesheetEntryRec.wfrecon__Clock_Out_Time__c;
+                                timesheetEntryItemRec.wfrecon__Cost_Code__c = timesheetEntryRec.wfrecon__Cost_Code__c;
+                                timesheetEntryItemRec.wfrecon__Do_Not_Execute__c = true;
                                 insert timesheetEntryItemRec;
                             }
                         }
                     }
                 } else {
-                    List<Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Cost_Code__c, Timesheet__c FROM Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
+                    List<wfrecon__Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__c, wfrecon__Timesheet__c FROM wfrecon__Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
                     if (!timesheetEntryRecs.isEmpty()) {
-                        Timesheet_Entry__c existing = timesheetEntryRecs[0];
-                        Boolean crossesMidnightExisting = (existing.Clock_In_Time__c.date() != clkOutUserTz.date());
+                        wfrecon__Timesheet_Entry__c existing = timesheetEntryRecs[0];
+                        Boolean crossesMidnightExisting = (existing.wfrecon__Clock_In_Time__c.date() != clkOutUserTz.date());
 
                         if (crossesMidnightExisting) {
-                            Datetime firstDayEnd = DateTime.newInstance(existing.Clock_In_Time__c.date(), Time.newInstance(23, 59, 59, 999));
+                            Datetime firstDayEnd = DateTime.newInstance(existing.wfrecon__Clock_In_Time__c.date(), Time.newInstance(23, 59, 59, 999));
                             Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
                             // Update existing entry to end at 11:59 PM
-                            existing.Clock_Out_Time__c = firstDayEnd;
+                            existing.wfrecon__Clock_Out_Time__c = firstDayEnd;
                             update existing;
 
                             // Create Timesheet Entry Item for day 1
-                            Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
-                                Timesheet_Entry__c = existing.Id,
-                                Clock_In_Time__c = existing.Clock_In_Time__c,
-                                Clock_Out_Time__c = existing.Clock_Out_Time__c,
-                                Cost_Code__c = existing.Cost_Code__c,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
+                                wfrecon__Timesheet_Entry__c = existing.Id,
+                                wfrecon__Clock_In_Time__c = existing.wfrecon__Clock_In_Time__c,
+                                wfrecon__Clock_Out_Time__c = existing.wfrecon__Clock_Out_Time__c,
+                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
+                                wfrecon__Do_Not_Execute__c = true
                             );
                             insert itemDay1;
 
                             // Create new entry for next day
-                            Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
-                                Timesheet__c = existing.Timesheet__c,
-                                Clock_In_Time__c = secondDayStart,
-                                Clock_Out_Time__c = clkOutUserTz,
-                                Cost_Code__c = existing.Cost_Code__c,
-                                Mobilization__c = mobId,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
+                                wfrecon__Timesheet__c = existing.wfrecon__Timesheet__c,
+                                wfrecon__Clock_In_Time__c = secondDayStart,
+                                wfrecon__Clock_Out_Time__c = clkOutUserTz,
+                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
+                                wfrecon__Mobilization__c = mobId,
+                                wfrecon__Do_Not_Execute__c = true
                             );
                             insert entryDay2;
 
                             // Create Timesheet Entry Item for day 2
-                            Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
-                                Timesheet_Entry__c = entryDay2.Id,
-                                Clock_In_Time__c = entryDay2.Clock_In_Time__c,
-                                Clock_Out_Time__c = entryDay2.Clock_Out_Time__c,
-                                Cost_Code__c = entryDay2.Cost_Code__c,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
+                                wfrecon__Timesheet_Entry__c = entryDay2.Id,
+                                wfrecon__Clock_In_Time__c = entryDay2.wfrecon__Clock_In_Time__c,
+                                wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
+                                wfrecon__Cost_Code__c = entryDay2.wfrecon__Cost_Code__c,
+                                wfrecon__Do_Not_Execute__c = true
                             );
                             insert itemDay2;
                         } else {
                             // Normal same-day update
-                            existing.Clock_Out_Time__c = clkOutUserTz;
+                            existing.wfrecon__Clock_Out_Time__c = clkOutUserTz;
                             update existing;
 
-                            Timesheet_Entry_Item__c item = new Timesheet_Entry_Item__c(
-                                Timesheet_Entry__c = existing.Id,
-                                Clock_In_Time__c = existing.Clock_In_Time__c,
-                                Clock_Out_Time__c = existing.Clock_Out_Time__c,
-                                Cost_Code__c = existing.Cost_Code__c,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry_Item__c item = new wfrecon__Timesheet_Entry_Item__c(
+                                wfrecon__Timesheet_Entry__c = existing.Id,
+                                wfrecon__Clock_In_Time__c = existing.wfrecon__Clock_In_Time__c,
+                                wfrecon__Clock_Out_Time__c = existing.wfrecon__Clock_Out_Time__c,
+                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
+                                wfrecon__Do_Not_Execute__c = true
                             );
                             insert item;
                         }
@@ -595,7 +602,7 @@ public with sharing class JobDetailsPageController {
             Map<String, Object> result = new Map<String, Object>();
             result.put('contacts', allContactsRecs);
 
-            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c WITH USER_MODE ORDER BY Name ASC];
+            List<wfrecon__Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM wfrecon__Cost_Code__c WITH USER_MODE ORDER BY Name ASC];
             result.put('costCodes', costCodeRecs);
 
             return result;
@@ -635,35 +642,35 @@ public with sharing class JobDetailsPageController {
             Double travelTime = Double.valueOf((String)paramsMap.get('travelTime'));
             Integer perDiem = Integer.valueOf((String)paramsMap.get('perDiem'));
             String mobGroupId;
-            List<Mobilization__c> mobRec = [
-                SELECT Id, Name, Mobilization_Group__r.Start_Date__c, Mobilization_Group__r.End_Date__c 
-                FROM Mobilization__c 
+            List<wfrecon__Mobilization__c> mobRec = [
+                SELECT Id, Name, wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization_Group__r.wfrecon__End_Date__c 
+                FROM wfrecon__Mobilization__c 
                 WHERE Id = :mobId
                 WITH USER_MODE
             ];
-            mobGroupId = mobRec[0].Mobilization_Group__r.Id;
+            mobGroupId = mobRec[0].wfrecon__Mobilization_Group__r.Id;
 
-            List<Timesheet__c> tsList = [
-                SELECT Id, Contact__c, Timesheet_Start_Date__c, Timesheet_End_Date__c
-                FROM Timesheet__c
-                WHERE Contact__c = :contactId
-                AND Job__c = :jobId
-                AND Timesheet_Start_Date__c <= :jobStartDate
-                AND Timesheet_End_Date__c >= :jobEndDate
+            List<wfrecon__Timesheet__c> tsList = [
+                SELECT Id, wfrecon__Contact__c, wfrecon__Timesheet_Start_Date__c, wfrecon__Timesheet_End_Date__c
+                FROM wfrecon__Timesheet__c
+                WHERE wfrecon__Contact__c = :contactId
+                AND wfrecon__Job__c = :jobId
+                AND wfrecon__Timesheet_Start_Date__c <= :jobStartDate
+                AND wfrecon__Timesheet_End_Date__c >= :jobEndDate
                 WITH USER_MODE
             ];
             
-            Timesheet__c tsRec = new Timesheet__c();
+            wfrecon__Timesheet__c tsRec = new wfrecon__Timesheet__c();
 
             if(tsList.size() == 0) {
 
-                Timesheet__c timesheetRec = new Timesheet__c();
-                timesheetRec.Contact__c = contactId;
-                timesheetRec.Job__c = jobId;
-                timesheetRec.Timesheet_Start_Date__c = mobRec[0].Mobilization_Group__r.Start_Date__c.date();
-                timesheetRec.Timesheet_End_Date__c = mobRec[0].Mobilization_Group__r.End_Date__c.date();
-                timesheetRec.Do_Not_Execute__c = true;
-                timesheetRec.Mobilization_Group__c = mobGroupId;
+                wfrecon__Timesheet__c timesheetRec = new wfrecon__Timesheet__c();
+                timesheetRec.wfrecon__Contact__c = contactId;
+                timesheetRec.wfrecon__Job__c = jobId;
+                timesheetRec.wfrecon__Timesheet_Start_Date__c = mobRec[0].wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c.date();
+                timesheetRec.wfrecon__Timesheet_End_Date__c = mobRec[0].wfrecon__Mobilization_Group__r.wfrecon__End_Date__c.date();
+                timesheetRec.wfrecon__Do_Not_Execute__c = true;
+                timesheetRec.wfrecon__Mobilization_Group__c = mobGroupId;
                 insert timesheetRec;
 
                 tsRec = timesheetRec;
@@ -678,65 +685,65 @@ public with sharing class JobDetailsPageController {
                 Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
                 // Entry for day 1
-                Timesheet_Entry__c entryDay1 = new Timesheet_Entry__c(
-                    Timesheet__c = tsRec.Id,
-                    Clock_In_Time__c = clkInUserTz,
-                    Clock_Out_Time__c = firstDayEnd,
-                    Cost_Code__c = costCodeId,
-                    Mobilization__c = mobId,
-                    Do_Not_Execute__c = true
+                wfrecon__Timesheet_Entry__c entryDay1 = new wfrecon__Timesheet_Entry__c(
+                    wfrecon__Timesheet__c = tsRec.Id,
+                    wfrecon__Clock_In_Time__c = clkInUserTz,
+                    wfrecon__Clock_Out_Time__c = firstDayEnd,
+                    wfrecon__Cost_Code__c = costCodeId,
+                    wfrecon__Mobilization__c = mobId,
+                    wfrecon__Do_Not_Execute__c = true
                 );
                 insert entryDay1;
 
-                Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
-                    Timesheet_Entry__c = entryDay1.Id,
-                    Clock_In_Time__c = clkInUserTz,
-                    Clock_Out_Time__c = firstDayEnd,
-                    Cost_Code__c = costCodeId,
-                    Travel_Time__c = travelTime,
-                    Per_Diem__c = perDiem,
-                    Do_Not_Execute__c = true
+                wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
+                    wfrecon__Timesheet_Entry__c = entryDay1.Id,
+                    wfrecon__Clock_In_Time__c = clkInUserTz,
+                    wfrecon__Clock_Out_Time__c = firstDayEnd,
+                    wfrecon__Cost_Code__c = costCodeId,
+                    wfrecon__Travel_Time__c = travelTime,
+                    wfrecon__Per_Diem__c = perDiem,
+                    wfrecon__Do_Not_Execute__c = true
                 );
                 insert itemDay1;
 
                 // Entry for day 2
-                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
-                    Timesheet__c = tsRec.Id,
-                    Clock_In_Time__c = secondDayStart,
-                    Clock_Out_Time__c = clkOutUserTz,
-                    Cost_Code__c = costCodeId,
-                    Mobilization__c = mobId,
-                    Do_Not_Execute__c = true
+                wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
+                    wfrecon__Timesheet__c = tsRec.Id,
+                    wfrecon__Clock_In_Time__c = secondDayStart,
+                    wfrecon__Clock_Out_Time__c = clkOutUserTz,
+                    wfrecon__Cost_Code__c = costCodeId,
+                    wfrecon__Mobilization__c = mobId,
+                    wfrecon__Do_Not_Execute__c = true
                 );
                 insert entryDay2;
 
-                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
-                    Timesheet_Entry__c = entryDay2.Id,
-                    Clock_In_Time__c = secondDayStart,
-                    Clock_Out_Time__c = clkOutUserTz,
-                    Cost_Code__c = costCodeId,
-                    Do_Not_Execute__c = true
+                wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
+                    wfrecon__Timesheet_Entry__c = entryDay2.Id,
+                    wfrecon__Clock_In_Time__c = secondDayStart,
+                    wfrecon__Clock_Out_Time__c = clkOutUserTz,
+                    wfrecon__Cost_Code__c = costCodeId,
+                    wfrecon__Do_Not_Execute__c = true
                 );
                 insert itemDay2;
             } else {
                 // Normal same-day record
-                Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                timesheetEntryRec.Timesheet__c = tsRec.Id;
-                timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-                timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
-                timesheetEntryRec.Cost_Code__c = costCodeId;
-                timesheetEntryRec.Do_Not_Execute__c = true;
-                timesheetEntryRec.Mobilization__c = mobId;
+                wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
+                timesheetEntryRec.wfrecon__Timesheet__c = tsRec.Id;
+                timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                timesheetEntryRec.wfrecon__Cost_Code__c = costCodeId;
+                timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+                timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                 insert as user timesheetEntryRec;
 
-                Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
-                timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRec.Id;
-                timesheetEntryItemRec.Clock_In_Time__c = clkInUserTz;
-                timesheetEntryItemRec.Clock_Out_Time__c = clkOutUserTz;
-                timesheetEntryItemRec.Cost_Code__c = costCodeId;
-                timesheetEntryItemRec.Travel_Time__c = travelTime;
-                timesheetEntryItemRec.Per_Diem__c = perDiem;
-                timesheetEntryItemRec.Do_Not_Execute__c = true;
+                wfrecon__Timesheet_Entry_Item__c timesheetEntryItemRec = new wfrecon__Timesheet_Entry_Item__c();
+                timesheetEntryItemRec.wfrecon__Timesheet_Entry__c = timesheetEntryRec.Id;
+                timesheetEntryItemRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                timesheetEntryItemRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                timesheetEntryItemRec.wfrecon__Cost_Code__c = costCodeId;
+                timesheetEntryItemRec.wfrecon__Travel_Time__c = travelTime;
+                timesheetEntryItemRec.wfrecon__Per_Diem__c = perDiem;
+                timesheetEntryItemRec.wfrecon__Do_Not_Execute__c = true;
                 insert as user timesheetEntryItemRec;
             }
 
@@ -750,100 +757,203 @@ public with sharing class JobDetailsPageController {
 
     /*
     *********************************************************
-    @description     : Method is used to update timesheet records
-    @param           : params - {String} - Parameters to create timesheet records
-    @return          : Boolean - Success or failure of the operation
+    @description     : Method is used to save inline edits for multiple Timesheet Entry Items.
+                       Updates Timesheet Entry if Clock In/Out times change.
+    @param           : String updatedTimesheetEntriesJson - JSON string of updated timesheet entry items (TSELI)
+    @return          : String - Success or error message
     ********************************************************
     */
     @AuraEnabled
-    public static Boolean updateTimesheets(String params){
+    public static String saveTimesheetEntryInlineEdits(String updatedTimesheetEntriesJson) {
         try {
-            System.debug(params);
-            Map<String, Object> jsonList = (Map<String, Object>) JSON.deserializeUntyped(params);
-            System.debug(jsonList);
-
-            // Query records
-            Timesheet_Entry_Item__c tsItem = [
-                SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c, Premium__c 
-                FROM Timesheet_Entry_Item__c 
-                WHERE Id = :(String)jsonList.get('Id')
-                WITH USER_MODE
-                LIMIT 1
-            ];
-
-            Timesheet_Entry__c tsEntry = [
-                SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__c, Cost_Code__c 
-                FROM Timesheet_Entry__c 
-                WHERE Id = :(String)jsonList.get('TSEId')
-                WITH USER_MODE
-                LIMIT 1
-            ];
-
-            // Convert clock-in and clock-out strings to Datetime
-            Datetime clkInUserTz = convertUtc((String)jsonList.get('ClockIn'));
-            Datetime clkOutUserTz = convertUtc((String)jsonList.get('ClockOut'));
-
-            Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
-            Integer perDiem = Integer.valueOf((String)jsonList.get('PerDiem'));
-            Boolean premium = Boolean.valueOf((String)jsonList.get('premium'));
-            
-            Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
-
-            if (crossesMidnight) {
-                Datetime firstDayEnd = DateTime.newInstance(clkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
-                Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
-
-                // Update current entry to end day 1
-                tsEntry.Clock_In_Time__c = clkInUserTz;
-                tsEntry.Clock_Out_Time__c = firstDayEnd;
-                update tsEntry;
-
-                tsItem.Clock_In_Time__c = clkInUserTz;
-                tsItem.Clock_Out_Time__c = firstDayEnd;
-                tsItem.Travel_Time__c = travelTime;
-                tsItem.Per_Diem__c = perDiem;
-                tsItem.Premium__c = premium;
-                update tsItem;
-
-                // Create new entry for day 2
-                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
-                    Timesheet__c = tsEntry.Timesheet__c,
-                    Clock_In_Time__c = secondDayStart,
-                    Clock_Out_Time__c = clkOutUserTz,
-                    Cost_Code__c = tsEntry.Cost_Code__c,
-                    Do_Not_Execute__c = true
-                );
-                insert entryDay2;
-
-                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
-                    Timesheet_Entry__c = entryDay2.Id,
-                    Clock_In_Time__c = secondDayStart,
-                    Clock_Out_Time__c = clkOutUserTz,
-                    Cost_Code__c = tsEntry.Cost_Code__c,
-                    Do_Not_Execute__c = true
-                );
-                insert itemDay2;
-            } else {
-                // Normal same-day update
-                tsItem.Clock_In_Time__c = clkInUserTz;
-                tsItem.Clock_Out_Time__c = clkOutUserTz;
-                tsItem.Travel_Time__c = travelTime;
-                tsItem.Per_Diem__c = perDiem;
-                tsItem.Premium__c = premium;
-                update tsItem;
-
-                tsEntry.Clock_In_Time__c = clkInUserTz;
-                tsEntry.Clock_Out_Time__c = clkOutUserTz;
-                update tsEntry;
+            if (String.isBlank(updatedTimesheetEntriesJson)) {
+                return 'Error: No timesheet entry item data provided for update.';
             }
 
-            return true;
+            // Deserialize JSON string into a list of Timesheet Entry Item records
+            // We use SObject list to handle dynamic fields from JSON, then cast/map
+            List<wfrecon__Timesheet_Entry_Item__c> updatedItems = new List<wfrecon__Timesheet_Entry_Item__c>();
+            List<Object> rawUpdates = (List<Object>) JSON.deserializeUntyped(updatedTimesheetEntriesJson);
+            
+            Set<Id> tsEntryItemIds = new Set<Id>();
+            Map<Id, Map<String, Object>> itemChangesMap = new Map<Id, Map<String, Object>>();
+            
+            for (Object obj : rawUpdates) {
+                Map<String, Object> mapObj = (Map<String, Object>) obj;
+                Id itemId = (Id) mapObj.get('Id');
+                tsEntryItemIds.add(itemId);
+                itemChangesMap.put(itemId, mapObj);
+            }
+            
+            // Fetch current records and their parent Timesheet Entries
+            List<wfrecon__Timesheet_Entry_Item__c> currentItems = [
+                SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c,
+                       wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Premium__c
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE Id IN :tsEntryItemIds
+                WITH USER_MODE
+            ];
+            
+            Set<Id> tsEntryIds = new Set<Id>();
+            for(wfrecon__Timesheet_Entry_Item__c item : currentItems) {
+                tsEntryIds.add(item.wfrecon__Timesheet_Entry__c);
+            }
+
+            Map<Id, wfrecon__Timesheet_Entry__c> tsEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(
+                [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c FROM wfrecon__Timesheet_Entry__c WHERE Id IN :tsEntryIds WITH USER_MODE]
+            );
+
+            List<wfrecon__Timesheet_Entry__c> entriesToUpdate = new List<wfrecon__Timesheet_Entry__c>();
+            
+            for (wfrecon__Timesheet_Entry_Item__c currentItem : currentItems) {
+                Map<String, Object> changes = itemChangesMap.get(currentItem.Id);
+                wfrecon__Timesheet_Entry__c parentEntry = tsEntryMap.get(currentItem.wfrecon__Timesheet_Entry__c);
+                Boolean parentNeedsUpdate = false;
+
+                // 1. Apply changes to Timesheet Entry Item
+                wfrecon__Timesheet_Entry_Item__c updatedItem = new wfrecon__Timesheet_Entry_Item__c(Id = currentItem.Id);
+                
+                // Clock In Time
+                if(changes.containsKey('clockInTime')) {
+                    Datetime clkInUserTz = convertUtc((String)changes.get('clockInTime'));
+                    updatedItem.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    parentEntry.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    parentNeedsUpdate = true;
+                }
+                
+                // Clock Out Time
+                if(changes.containsKey('clockOutTime')) {
+                    Datetime clkOutUserTz = convertUtc((String)changes.get('clockOutTime'));
+                    updatedItem.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                    parentEntry.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                    parentNeedsUpdate = true;
+                }
+                
+                // Travel Time
+                if(changes.containsKey('travelTime')) {
+                    updatedItem.wfrecon__Travel_Time__c = Decimal.valueOf((String)changes.get('travelTime'));
+                }
+                
+                // Per Diem
+                if(changes.containsKey('perDiem')) {
+                    updatedItem.wfrecon__Per_Diem__c = Integer.valueOf((String)changes.get('perDiem'));
+                }
+                
+                // Premium
+                if(changes.containsKey('premium')) {
+                    updatedItem.wfrecon__Premium__c = Boolean.valueOf((String)changes.get('premium'));
+                }
+                
+                updatedItems.add(updatedItem);
+
+                // 2. Queue parent update if times changed
+                if (parentNeedsUpdate) {
+                    entriesToUpdate.add(parentEntry);
+                }
+            }
+            
+            // Perform bulk DML updates
+            if (!updatedItems.isEmpty()) {
+                Database.update(updatedItems, AccessLevel.USER_MODE);
+            }
+            
+            if (!entriesToUpdate.isEmpty()) {
+                // Ensure only one update per parent entry
+                Database.update(entriesToUpdate, AccessLevel.USER_MODE);
+            }
+
+            return 'Success: ' + updatedItems.size() + ' timesheet entry item(s) updated successfully';
+
         } catch (Exception e) {
-            System.debug('Exception in updateTimesheets: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'updateTimesheets', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return false;
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'JobDetailsPageController',
+                'methodName' => 'saveTimesheetEntryInlineEdits',
+                'exceptionObj' => e,
+                'moreDetails' => 'Error occurred while saving timesheet entry item inline edits.'
+            });
+            return 'Error: ' + e.getMessage();
         }
     }
+
+   /*
+    *********************************************************
+    @description     : Method is used to delete multiple Timesheet Entry Items and their parent Timesheet Entries
+    @param           : List<Id> tselIds - List of Timesheet Entry Item Ids (TSELI) to delete
+    @return          : String - Success or error message
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String deleteTimesheetEntriesBulk(List<Id> tselIds) {
+        try {
+            if (tselIds == null || tselIds.isEmpty()) {
+                return 'Error: No timesheet entry items selected for deletion';
+            }
+            
+            // 1. Fetch Timesheet Entry Items and their parent IDs
+            List<wfrecon__Timesheet_Entry_Item__c> itemsToDelete = [
+                SELECT Id, wfrecon__Timesheet_Entry__c
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE Id IN :tselIds
+                WITH USER_MODE
+            ];
+            
+            Set<Id> tsEntryIdsToConsider = new Set<Id>();
+            for(wfrecon__Timesheet_Entry_Item__c item : itemsToDelete) {
+                tsEntryIdsToConsider.add(item.wfrecon__Timesheet_Entry__c);
+            }
+            
+            // 2. Determine which parent entries currently have EXACTLY ONE child item (TSELI)
+            // If the parent only has 1 item, and we are deleting that item, we delete the parent.
+            Set<Id> tsEntryIdsToFullyDelete = new Set<Id>();
+            
+            // Correct logic: Use Aggregate Query to find parents with COUNT(Id) = 1
+            List<AggregateResult> parentItemCounts = [
+                SELECT wfrecon__Timesheet_Entry__c parentId, COUNT(Id) itemTotal
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE wfrecon__Timesheet_Entry__c IN :tsEntryIdsToConsider
+                WITH USER_MODE
+                GROUP BY wfrecon__Timesheet_Entry__c
+                HAVING COUNT(Id) = 1
+            ];
+
+            for (AggregateResult ar : parentItemCounts) {
+                Id parentId = (Id) ar.get('parentId');
+                tsEntryIdsToFullyDelete.add(parentId);
+            }
+            
+            // 3. Fetch Timesheet Entries to delete
+            List<wfrecon__Timesheet_Entry__c> entriesToDelete = [
+                SELECT Id
+                FROM wfrecon__Timesheet_Entry__c
+                WHERE Id IN :tsEntryIdsToFullyDelete
+                WITH USER_MODE
+            ];
+            
+            // 4. Perform Deletion
+            // Delete child items first
+            delete itemsToDelete;
+            
+            // Delete parent entries that were found to have only one item before deletion
+            if (!entriesToDelete.isEmpty()) {
+                delete entriesToDelete;
+            }
+
+            return 'Success: ' + itemsToDelete.size() + ' timesheet entry item(s) and ' + entriesToDelete.size() + ' parent timesheet entry(s) deleted successfully';
+
+        } catch (DmlException e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'JobDetailsPageController',
+                'methodName' => 'deleteTimesheetEntriesBulk',
+                'exceptionObj' => e,
+                'moreDetails' => 'DML Error during bulk deletion.'
+            });
+            return 'Error: Deletion failed. Error: ' + e.getDmlMessage(0);
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'deleteTimesheetEntriesBulk', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
+            return 'Error: ' + e.getMessage();
+        }
+    }
+
 
     /*
     *********************************************************
@@ -855,12 +965,18 @@ public with sharing class JobDetailsPageController {
     @AuraEnabled
     public static Boolean deleteTimesheetEntry(String TSELId) {
         try {
-            Timesheet_Entry_Item__c tsItem = [SELECT Id, Timesheet_Entry__c FROM Timesheet_Entry_Item__c WHERE Id = :TSELId];
+            wfrecon__Timesheet_Entry_Item__c tsItem = [SELECT Id, wfrecon__Timesheet_Entry__c FROM wfrecon__Timesheet_Entry_Item__c WHERE Id = :TSELId WITH USER_MODE];
 
-            Timesheet_Entry__c tsEntry = [SELECT Id FROM Timesheet_Entry__c WHERE Id = :tsItem.Timesheet_Entry__c];
+            wfrecon__Timesheet_Entry__c tsEntry = [SELECT Id, (SELECT Id FROM wfrecon__Timesheet_Entry_Items__r) FROM wfrecon__Timesheet_Entry__c WHERE Id = :tsItem.wfrecon__Timesheet_Entry__c WITH USER_MODE];
 
-            delete tsItem;
-            delete tsEntry;
+            // Only delete the parent entry if this is the last child item
+            if (tsEntry.wfrecon__Timesheet_Entry_Items__r.size() == 1) {
+                delete tsItem;
+                delete tsEntry;
+            } else {
+                // If there are other items, just delete this item
+                delete tsItem;
+            }
 
             return true;
         } catch (Exception e) {
@@ -920,8 +1036,8 @@ public with sharing class JobDetailsPageController {
     }
 
     public class TimesheetEntryItemWrapper {
-        @AuraEnabled public Id id;
-        @AuraEnabled public Id TSEId;
+        @AuraEnabled public Id id; // Timesheet Entry Item ID (TSELI)
+        @AuraEnabled public Id TSEId; // Timesheet Entry ID (TSE)
         @AuraEnabled public String contactName;
         @AuraEnabled public Datetime clockInTime;
         @AuraEnabled public Datetime clockOutTime;
@@ -932,23 +1048,27 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public Boolean premium;
         @AuraEnabled public String costCodeName;
         @AuraEnabled public Date clockInDate;
+        @AuraEnabled public Id mobId; // Added for easy lookup/refresh
+        @AuraEnabled public Id timesheetId; // Added for easy lookup/refresh
 
-        public TimesheetEntryItemWrapper(Timesheet_Entry_Item__c item) {
+        public TimesheetEntryItemWrapper(wfrecon__Timesheet_Entry_Item__c item) {
             this.id = item.Id;
-            this.TSEId = item.Timesheet_Entry__c;
-            this.contactName = item.Timesheet_Entry__r.TimeSheet__r.Contact__r.Name;
+            this.TSEId = item.wfrecon__Timesheet_Entry__c; // Expose parent ID
+            this.contactName = item.wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name;
             
             // Convert to user timezone
-            this.clockInTime  = item.Clock_In_Time__c  != null ? item.Clock_In_Time__c.addSeconds(userTz.getOffset(item.Clock_In_Time__c)/1000)  : null;
-            this.clockOutTime = item.Clock_Out_Time__c != null ? item.Clock_Out_Time__c.addSeconds(userTz.getOffset(item.Clock_Out_Time__c)/1000) : null;
+            this.clockInTime  = item.wfrecon__Clock_In_Time__c  != null ? item.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(item.wfrecon__Clock_In_Time__c)/1000)  : null;
+            this.clockOutTime = item.wfrecon__Clock_Out_Time__c != null ? item.wfrecon__Clock_Out_Time__c.addSeconds(userTz.getOffset(item.wfrecon__Clock_Out_Time__c)/1000) : null;
 
-            this.travelTime = item.Travel_Time__c != null ? item.Travel_Time__c : 0.00;
-            this.perDiem = item.Per_Diem__c != null ? item.Per_Diem__c : 0;
-            this.workHours = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
+            this.travelTime = item.wfrecon__Travel_Time__c != null ? item.wfrecon__Travel_Time__c : 0.00;
+            this.perDiem = item.wfrecon__Per_Diem__c != null ? item.wfrecon__Per_Diem__c : 0;
+            this.workHours = item.wfrecon__Total_Time__c != null ? item.wfrecon__Total_Time__c : 0.00;
             this.totalTime = this.workHours + this.travelTime;
-            this.costCodeName = item.Cost_Code__r != null ? item.Cost_Code__r.Name : '-';
-            this.premium = item.Premium__c;
-            this.clockInDate = item.Clock_In_Date__c;
+            this.costCodeName = item.wfrecon__Cost_Code__r != null ? item.wfrecon__Cost_Code__r.Name : '-';
+            this.premium = item.wfrecon__Premium__c;
+            this.clockInDate = item.wfrecon__Clock_In_Date__c;
+            this.mobId = item.wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c;
+            this.timesheetId = item.wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c;
         }
     }
 

@@ -79,28 +79,34 @@
                     </thead>
                     <tbody>
                         <template for:each={jobDetails} for:item="job" for:index="index">
-                            <tr key={job.Id}>
+                            <tr key={job.mobId} class="job-row">
                                 <template for:each={job.values} for:item="val">
-                                    <td key={val} style={val.style}>
+                                    <td key={val.key} style={val.style}>
                                         <div class="slds-truncate cell-wrapper" title={val.value}>
                                             <template if:true={val.isActions}>
-                                                <!-- Two action buttons in one column -->
                                                 <div class="action-button-container">
-                                                    <button class="clock-icon" title="Clock In/Out" data-job={job.jobId} data-mobid={job.key} data-action="clock" onclick={handleActionClick}>
+                                                    <button class="clock-icon" title="Clock In/Out" data-job={job.jobId} data-mobid={job.mobId} data-action="clock" onclick={handleActionClick}>
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
                                                             <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" fill="none"/>
                                                         </svg>
                                                     </button>
                                                     
-                                                    <button class="timesheet-icon" title="Timesheet" data-job={job.jobId} data-mobid={job.key} data-action="list" onclick={handleActionClick}>
+                                                    <button 
+                                                        class="timesheet-icon icon-button child-records-btn" 
+                                                        title="View Timesheets" 
+                                                        data-job={job.jobId} 
+                                                        data-mobid={job.mobId} 
+                                                        data-action="list" 
+                                                        data-expanded={job.isExpanded}
+                                                        onclick={handleActionClick}>
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <line x1="8" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
-                                                            <line x1="8" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2"/>
-                                                            <line x1="8" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2"/>
-                                                            <circle cx="4" cy="6" r="1" fill="currentColor"/>
-                                                            <circle cx="4" cy="12" r="1" fill="currentColor"/>
-                                                            <circle cx="4" cy="18" r="1" fill="currentColor"/>
+                                                            <template if:true={job.isExpanded}>
+                                                                <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </template>
+                                                            <template if:false={job.isExpanded}>
+                                                                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </template>
                                                         </svg>
                                                     </button>
                                                 </div>
@@ -124,6 +130,217 @@
                                     </td>
                                 </template>
                             </tr>
+
+                            <template if:true={job.isExpanded}>
+                                <tr key={job.mobId} class="nested-row">
+                                    <td colspan="10" style="padding: 0; background-color: transparent;">
+                                        <div class="nested-table-container">
+                                            <div class="nested-table-wrapper">
+                                                <div class="nested-table-header">
+                                                    <div class="nested-table-title-row">
+                                                        <h4 class="nested-table-title">Timesheet Details</h4>
+                                                        <div class="action-buttons">
+                                                            <button 
+                                                                class="action-button add-btn" 
+                                                                onclick={handleAddTimesheet} 
+                                                                data-job={job.jobId} 
+                                                                data-mobid={job.mobId}
+                                                                disabled={isSavingTimesheetEntries}>
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </svg>
+                                                                Add Timesheet
+                                                            </button>
+    
+                                                            <button 
+                                                                class="action-button delete-btn" 
+                                                                onclick={handleMassDeleteTimesheets} 
+                                                                data-mobid={job.mobId}
+                                                                disabled={job.isDeleteDisabled}>
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </svg>
+                                                                Delete Selected
+                                                                <template if:true={job.selectedCount}>
+                                                                    <span class="selected-count-badge">({job.selectedCount})</span>
+                                                                </template>
+                                                            </button>
+
+                                                            <button 
+                                                                class="action-button discard-btn" 
+                                                                onclick={handleDiscardTimesheetChanges} 
+                                                                data-mobid={job.mobId}
+                                                                disabled={job.isSaveDisabled}
+                                                                title={job.discardButtonTitle}>
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </svg>
+                                                                Discard Changes
+                                                            </button>
+
+                                                            <button 
+                                                                class="action-button save-button" 
+                                                                onclick={handleSaveTimesheetChanges} 
+                                                                data-mobid={job.mobId}
+                                                                disabled={job.isSaveDisabled}>
+                                                                <template if:true={isSavingTimesheetEntries}>
+                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                                                        <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    </svg>
+                                                                </template>
+                                                                <template if:false={isSavingTimesheetEntries}>
+                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                        <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                        <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    </svg>
+                                                                </template>
+                                                                {job.saveButtonLabel}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <template if:true={job.timesheetData.length}>
+                                                    <table class="nested-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th scope="col" class="header-cell checkbox-column">
+                                                                    <input type="checkbox" 
+                                                                        checked={job.isAllSelected}
+                                                                        onchange={handleSelectAllTimesheets}
+                                                                        data-mobid={job.mobId}>
+                                                                </th>
+                                                                <template for:each={timesheetColumns} for:item="col">
+                                                                    <th key={col.fieldName} scope="col" class="header-cell" style={col.style}>
+                                                                        <div class="center-trancate-head" title={col.label}>{col.label}</div>
+                                                                    </th>
+                                                                </template>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <template for:each={job.timesheetData} for:item="ts">
+                                                                <tr key={ts.id} class="nested-table-row">
+                                                                    <td>
+                                                                        <input type="checkbox" 
+                                                                            checked={ts.isSelected}
+                                                                            onchange={handleTimesheetSelection}
+                                                                            data-id={ts.id} 
+                                                                            data-mobid={job.mobId}>
+                                                                    </td>
+                                                                    <template for:each={ts.displayFields} for:item="field">
+                                                                        <td key={field.key} 
+                                                                            class={field.cellClass} 
+                                                                            data-id={ts.id} 
+                                                                            data-field={field.key} 
+                                                                            data-type={field.type} 
+                                                                            data-mobid={job.mobId}
+                                                                            onclick={handleTimesheetCellClick}>
+                                                                            
+                                                                            <template if:true={field.isEditing}>
+                                                                                <template if:true={field.isDatetime}>
+                                                                                    <input type="datetime-local" 
+                                                                                        class="inline-edit-input date-input"
+                                                                                        value={field.datetimeValue} 
+                                                                                        data-id={ts.id} 
+                                                                                        data-field={field.key} 
+                                                                                        data-type={field.type} 
+                                                                                        data-mobid={job.mobId}
+                                                                                        onchange={handleTimesheetCellInputChange}
+                                                                                        onblur={handleTimesheetCellInputBlur}
+                                                                                        min={field.minBoundary}
+                                                                                        max={field.maxBoundary}>
+                                                                                </template>
+                                                                                <template if:true={field.isNumber}>
+                                                                                    <input type="number" 
+                                                                                        class="inline-edit-input"
+                                                                                        value={field.rawValue}
+                                                                                        data-id={ts.id} 
+                                                                                        data-field={field.key} 
+                                                                                        data-type={field.type}
+                                                                                        data-mobid={job.mobId}
+                                                                                        onchange={handleTimesheetCellInputChange}
+                                                                                        onblur={handleTimesheetCellInputBlur}
+                                                                                        step={field.step}
+                                                                                        min={field.min}>
+                                                                                </template>
+                                                                                <template if:true={field.isBoolean}>
+                                                                                    <input type="checkbox"
+                                                                                        checked={field.rawValue} 
+                                                                                        data-id={ts.id}
+                                                                                        data-field={field.key}
+                                                                                        data-type={field.type}
+                                                                                        data-mobid={job.mobId}
+                                                                                        onchange={handleTimesheetCellInputChange}>
+                                                                                </template>
+                                                                            </template>
+                                                                            
+                                                                            <template if:false={field.isEditing}>
+                                                                                <div class={field.contentClass}>
+                                                                                    <template if:true={field.isDatetime}>
+                                                                                        <span class="text-truncate">{field.displayValue}</span>
+                                                                                    </template>
+                                                                                    <template if:true={field.isCurrency}>
+                                                                                        <lightning-formatted-number 
+                                                                                            value={field.rawValue}
+                                                                                            format-style="currency"
+                                                                                            currency-code="USD"
+                                                                                            maximum-fraction-digits="2"
+                                                                                            minimum-fraction-digits="2">
+                                                                                        </lightning-formatted-number>
+                                                                                    </template>
+                                                                                    <template if:true={field.isNumber}>
+                                                                                        <lightning-formatted-number 
+                                                                                            value={field.rawValue}
+                                                                                            maximum-fraction-digits="2"
+                                                                                            minimum-fraction-digits="2">
+                                                                                        </lightning-formatted-number>
+                                                                                    </template>
+                                                                                    <template if:true={field.isBoolean}>
+                                                                                        {field.displayValue}
+                                                                                    </template>
+                                                                                    <template if:true={field.isText}>
+                                                                                        <span class="text-truncate">{field.displayValue}</span>
+                                                                                    </template>
+
+                                                                                    <template if:true={field.isEditable}>
+                                                                                        <svg class="edit-indicator" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                            <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                        </svg>
+                                                                                    </template>
+                                                                                </div>
+                                                                            </template>
+                                                                        </td>
+                                                                    </template>
+                                                                </tr>
+                                                            </template>
+                                                        </tbody>
+                                                    </table>
+                                                </template>
+                                                <template if:false={job.timesheetData.length}>
+                                                    <div class="no-process-data">
+                                                        <div class="empty-state">
+                                                            <div class="empty-state__content">
+                                                                <div class="empty-state__icon">
+                                                                    <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                                                </div>
+                                                                <div class="empty-state__message">No Timesheet Entries Found</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
                         </template>
                     </tbody>
                 </table>
@@ -304,105 +521,6 @@
             <div class="slds-backdrop slds-backdrop_open"></div>
         </template>
 
-        <template if:true={showTimesheetModal}>
-            <div class="slds-backdrop slds-backdrop_open main-backdrop"></div>
-            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open main-modal">
-                <div class="slds-modal__container timesheet-popup">
-                    <!-- Close Button -->
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeTimesheetModal}>
-                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
-                    </button>
-
-                    <!-- Heading -->
-                    <div class="pop-heading">
-                        Timesheet Information
-                    </div>
-
-                    <!-- Body -->
-                    <div class="slds-modal__content pop-up" id="modal-content-id">
-                        <div class="popUpBody">
-                            <div class="btnContainer">
-                                <button class="addTimesheetBtn" onclick={handleAddTimesheet}>
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
-                                    </svg>
-                                    Add Timesheet
-                                </button>
-                            </div>
-                            <div>
-                                <template if:true={timesheetDetailsRaw.length}>
-                                    <div class="table-content timesheet-table">
-                                        <table class="slds-table">
-                                            <thead>
-                                                <tr>
-                                                    <template for:each={timesheetColumns} for:item="col">
-                                                        <th key={col.fieldName} scope="col" style={col.style}>
-                                                            <div class="slds-truncate" title={col.label}>{col.label}</div>
-                                                        </th>
-                                                    </template>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template for:each={timesheetDetails} for:item="timesheet" for:index="index">
-                                                    <tr key={timesheet.id}>
-                                                        <template for:each={timesheet.values} for:item="val">
-                                                            <td key={val} style={val.style}>
-                                                                <div class="slds-truncate cell-wrapper" title={val.value}>
-                                                                    <template if:true={val.isActions}>
-                                                                        <div class="action-button-container">
-                                                                            <button class="edit-icon-btn" title="Edit Timesheet" data-id={timesheet.id} onclick={handleEditTimesheetClick}>
-                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                </svg>
-                                                                            </button>
-                                                                            <button class="delete-icon-btn" title="Delete Timesheet" data-id={timesheet.id} onclick={handleDeleteTimesheetClick}>
-                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" lwc-6an4lceoh93="">
-                                                                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
-                                                                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
-                                                                                    <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
-                                                                                    <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" lwc-6an4lceoh93=""></path>
-                                                                                </svg>
-                                                                            </button>
-                                                                        </div>
-                                                                    </template>                                                                    
-                                                                    <template if:false={val.isActions}>
-                                                                        <div class="cell-content" title={val.value}>
-                                                                            {val.value}
-                                                                        </div>
-                                                                    </template>
-                                                                </div>
-                                                            </td>
-                                                        </template>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </template>
-                                <template if:false={timesheetDetailsRaw.length}>
-                                    <div class="empty-state-container">
-                                        <div class="empty-state-content">
-                                            <div class="empty-state-title">No Timesheet Entries</div>
-                                            <div class="empty-state-message">No completed timesheet entries found for this job.</div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    <!-- Footer -->
-                    <template if:true={isTravelTimeEdited}>
-                        <div class="popUpFooter">
-                            <button class="clock-in-button" onclick={saveTravelTimeInTimesheet}>Save</button>
-                        </div>
-                    </template>
-                </div>
-            </section>
-        </template>
-
         <template if:true={manualTimesheetEntry}>
             <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
             <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
@@ -501,129 +619,29 @@
                 </div>
             </section>
         </template>
-
-        <template if:true={editTimesheetEntry}>
-            <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
-            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
-                <div class="slds-modal__container">
-                    <!-- Close Button -->
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeEditTimesheetModal}>
-                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
-                    </button>
-
-                    <!-- Heading -->
-                    <div class="pop-heading">
-                        Edit Timesheet Entry
-                    </div>
-
-                    <!-- Body -->
-                    <div class="slds-modal__content pop-up" id="modal-content-id-4">
-                        <div class="popUpBody">
-                            <div>
-                                <div class="form-container">
-                                    <!-- Full Name (Read Only) -->
-                                    <div class="form-group">
-                                        <div class="input-column">
-                                            <label class="select-label">Full Name</label>
-                                            <div class="datetime-wrapper">
-                                                {editableTimesheetEntry.FullName}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Clock In -->
-                                    <div class="form-group">
-                                        <div class="input-column">
-                                            <div class="datetime-container">
-                                                <label class="datetime-label required">Clock In Time</label>
-                                                <div class="datetime-wrapper">
-                                                    <input type="datetime-local" data-field="ClockIn" class="custom-datetime" value={editableTimesheetEntry.ClockIn} onchange={handleEditTSELFieldChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Clock Out -->
-                                    <div class="form-group">
-                                        <div class="input-column">
-                                            <div class="datetime-container">
-                                                <label class="datetime-label required">Clock Out Time</label>
-                                                <div class="datetime-wrapper">
-                                                    <input type="datetime-local" data-field="ClockOut" class="custom-datetime" value={editableTimesheetEntry.ClockOut} onchange={handleEditTSELFieldChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Travel Time -->
-                                    <div class="form-group">
-                                        <div class="input-column">
-                                            <label class="select-label">Travel Time</label>
-                                            <div class="select-wrapper">
-                                                <input type="number" step="0.01" min="0.01" data-field="TravelTime" class="custom-select width-100" value={editableTimesheetEntry.TravelTime} onchange={handleEditTSELFieldChange} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Per Diem -->
-                                    <div class="form-group">
-                                        <div class="input-column">
-                                            <label class="select-label">Per Diem</label>
-                                            <div class="select-wrapper">    
-                                                <input type="number" step="1" data-field="PerDiem" class="custom-select width-100" value={editableTimesheetEntry.PerDiem} onchange={handleEditTSELFieldChange} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Premium -->
-                                    <div class="form-group">
-                                        <div class="premium-col">
-                                            <label class="premium-label">Premium</label>
-                                            <div class="premium-div">    
-                                                <input type="checkbox" data-field="premium" checked={editableTimesheetEntry.premium} onchange={handleEditTSELFieldChange} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="popUpFooter">
-                        <button class="clock-in-button" onclick={handleSaveTSEL}>Save</button>
-                    </div>
-                </div>
-            </section>
-        </template>
-
+        
         <template if:true={showDeleteConfirmModal}>
             <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
             <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open sub-modal">
                 <div class="slds-modal__container">
-                    <!-- Close Button -->
                     <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeDeleteConfirmModal}>
                         <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
                     </button>
 
-                    <!-- Heading -->
                     <div class="pop-heading">
-                        Delete Timesheet Entry
+                        {deleteConfirmationTitle}
                     </div>
 
-                    <!-- Body -->
                     <div class="slds-modal__content pop-up" id="modal-content-id-5">
                         <div class="popUpBody">
                             <div>
-                                Are you sure you want to delete this timesheet entry?
+                                {deleteConfirmationMessage}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Footer -->
                     <div class="popUpFooter">
-                        <button class="clock-in-button" onclick={handleDeleteConfirmTSEL}>Confirm Delete</button>
+                        <button class="clock-in-button delete-btn" onclick={handleDeleteConfirmTSEL}>Confirm Delete</button>
                     </div>
                 </div>
             </section>
