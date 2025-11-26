@@ -716,12 +716,12 @@
 }
 
 .slider-header {
-    padding: 20px 24px;
+    padding: 1rem;
     border-bottom: 1px solid #e5e5e5;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(135deg, rgba(94, 90, 219, 1) 0%, rgba(124, 120, 237, 1) 100%);
+    background: rgba(94, 90, 219, 1);
     flex-shrink: 0;
 }
 

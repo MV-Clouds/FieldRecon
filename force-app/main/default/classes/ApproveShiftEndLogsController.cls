@@ -45,13 +45,14 @@ public with sharing class ApproveShiftEndLogsController {
     }
 
     /**
-     * @description: Method to get all log entries based on date filter
+     * @description: Method to get all pending log entries based on date filter with total count
      * @param dateFilter: String filter option (last7days, last15days, last30days, alltime)
-     * @return: List<LogEntryWrapper> - List of log entry records
+     * @return: LogEntryResponse - Response containing pending log entries and total count of all log entries
      */
     @AuraEnabled
-    public static List<LogEntryWrapper> getUnapprovedLogEntries(String dateFilter) {
+    public static LogEntryResponse getUnapprovedLogEntries(String dateFilter) {
         try {
+            LogEntryResponse response = new LogEntryResponse();
             List<LogEntryWrapper> result = new List<LogEntryWrapper>();
             
             // Calculate date range based on filter
@@ -67,12 +68,19 @@ public with sharing class ApproveShiftEndLogsController {
                 startDate = Date.newInstance(2000, 1, 1); // Set to a far past date
             }
             
-            // Build query - fetch all log entries with any status
+            // Build query for TOTAL count (all statuses)
+            String totalCountQuery = 'SELECT COUNT() FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c != null';
+            if (startDate != null) {
+                totalCountQuery += ' AND wfrecon__Work_Performed_Date__c >= :startDate';
+            }
+            response.totalCount = Database.countQuery(totalCountQuery);
+            
+            // Build query - fetch only PENDING log entries
             String query = 'SELECT Id, Name, wfrecon__Exceptions__c, wfrecon__Job__c, wfrecon__Job__r.Id, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, ' +
                           'wfrecon__Mobilization__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, ' +
                           'wfrecon__Status__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed_Date__c, ' +
                           'CreatedDate, CreatedBy.Name ' +
-                          'FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c IN (\'Pending\', \'Approved\', \'Auto-Approved\', \'Rejected\')';
+                          'FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c = \'Pending\'';
             
             if (startDate != null) {
                 query += ' AND wfrecon__Work_Performed_Date__c >= :startDate';
@@ -98,10 +106,14 @@ public with sharing class ApproveShiftEndLogsController {
                 result.add(wrapper);
             }
             
-            return result;
+            response.entries = result;
+            return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'getUnapprovedLogEntries', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
-            return new List<LogEntryWrapper>();
+            LogEntryResponse errorResponse = new LogEntryResponse();
+            errorResponse.entries = new List<LogEntryWrapper>();
+            errorResponse.totalCount = 0;
+            return errorResponse;
         }
     }
     
@@ -522,6 +534,14 @@ public with sharing class ApproveShiftEndLogsController {
         }
         
         update logEntry;
+    }
+    
+    /**
+     * @description: Wrapper class for Log Entry Response with total count
+     */
+    public class LogEntryResponse {
+        @AuraEnabled public List<LogEntryWrapper> entries { get; set; }
+        @AuraEnabled public Integer totalCount { get; set; }
     }
     
     /**
