@@ -271,14 +271,16 @@
                                                                                         min={field.min}>
                                                                                 </template>
                                                                                 <template if:true={field.isBoolean}>
-                                                                                    <input type="checkbox"
-                                                                                        checked={field.rawValue}
-                                                                                        data-id={ts.id}
-                                                                                        data-field={field.key}
-                                                                                        data-type={field.type}
-                                                                                        data-mobid={job.mobId}
-                                                                                        onchange={handleTimesheetCellInputChange}
-                                                                                        onblur={handleTimesheetCellInputBlur}>
+                                                                                    <div style="display:flex; justify-content:center; align-items:center; height:100%; min-height:30px;">
+                                                                                        <input type="checkbox"
+                                                                                            checked={field.rawValue}
+                                                                                            data-id={ts.id}
+                                                                                            data-field={field.key}
+                                                                                            data-type={field.type}
+                                                                                            data-mobid={job.mobId}
+                                                                                            onchange={handleTimesheetCellInputChange}
+                                                                                            onblur={handleTimesheetCellInputBlur}>
+                                                                                    </div>
                                                                                 </template>
                                                                             </template>
                                                                             
@@ -299,13 +301,15 @@
                                                                                             value={field.rawValue}
                                                                                             format-style="currency"
                                                                                             currency-code="USD"
-                                                                                            maximum-fraction-digits="2">
+                                                                                            maximum-fraction-digits="2"
+                                                                                            minimum-fraction-digits="2">
                                                                                         </lightning-formatted-number>
                                                                                     </template>
                                                                                     <template if:true={field.isNumber}>
                                                                                         <lightning-formatted-number 
                                                                                             value={field.rawValue}
-                                                                                            maximum-fraction-digits="2">
+                                                                                            maximum-fraction-digits="2"
+                                                                                            minimum-fraction-digits="2">
                                                                                         </lightning-formatted-number>
                                                                                     </template>
                                                                                     <template if:true={field.isBoolean}>
@@ -338,7 +342,6 @@
                                                                     <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                                                                 </div>
                                                                 <div class="empty-state__message">No Timesheet Entries Found</div>
-                                                                <div class="empty-state__subtitle">No completed timesheet entries found for this job.</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -561,7 +564,7 @@
                                             <div class="datetime-container">
                                                 <label class="datetime-label required">Clock In DateTime</label>
                                                 <div class="datetime-wrapper">
-                                                    <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime"  value={clockInTime} onchange={handleInputChange} min={manualClockInMinBoundary} max={manualClockInMaxBoundary} />
+                                                    <input type="datetime-local" class="custom-datetime" data-field="clockInDateTime"  value={clockInTime} onchange={handleInputChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
                                                 </div>
                                             </div>
                                         </div>
@@ -572,7 +575,7 @@
                                             <div class="datetime-container">
                                                 <label class="datetime-label required">Clock Out DateTime</label>
                                                 <div class="datetime-wrapper">
-                                                    <input type="datetime-local" class="custom-datetime" data-field="clockOutDateTime" value={clockOutTime} onchange={handleInputChange} min={manualClockOutMinBoundary} max={manualClockOutMaxBoundary} />
+                                                    <input type="datetime-local" class="custom-datetime" data-field="clockOutDateTime" value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
                                                 </div>
                                             </div>
                                         </div>

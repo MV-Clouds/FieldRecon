@@ -97,7 +97,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Work Hours', fieldName: 'workHours', type: 'number', editable: false, style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', type: 'number', editable: true, min: 0.00, step: 0.01, style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', type: 'number', editable: false, style: 'width: 6rem' },
-        { label: 'Per Diem', fieldName: 'perDiem', type: 'number', editable: true, min: 0, step: 1, max: 1, style: 'width: 6rem' },
+        { label: 'Per Diem', fieldName: 'perDiem', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Premium', fieldName: 'premium', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Cost Code', fieldName: 'costCodeName', type: 'text', editable: false, style: 'width: 6rem' }
     ];
@@ -231,8 +231,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     const fieldName = col.fieldName;
                     const cellKey = `${ts.id}-${fieldName}`;
                     
-                    let value = ts[fieldName];
+                    let originalValue = ts[fieldName];
+                    let value = originalValue; // Start with original value
                     let isModified = false;
+
+                    // Ensure original value is standardized for comparison
+                    if (col.type === 'number' || col.type === 'currency') {
+                        originalValue = originalValue !== null && originalValue !== undefined ? Number(originalValue) : null;
+                    } else if (col.type === 'boolean') {
+                        originalValue = !!originalValue;
+                    }
 
                     // Check for modification in the Map
                     const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
@@ -263,9 +271,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         displayValue = value ? 'Yes' : 'No';
                         value = !!value; // Ensure boolean value
                     } else if (isNumber || isCurrency) {
-                        // Display value formatted to 2 decimals, original stored in rawValue
+                        // Display value formatted to 2 decimals for raw display only (lightning-formatted-number handles this)
+                        // Original value stored in rawValue
                         displayValue = value !== null && value !== undefined ? Number(value).toFixed(2) : '0.00';
-                        value = value !== null && value !== undefined ? Number(value) : null;
+                        value = value !== null && value !== undefined ? Number(value) : null; // Raw value is numerical/null
                     } else if (isText) {
                         displayValue = value || '--';
                     }
@@ -287,7 +296,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     return {
                         key: fieldName,
                         displayValue: displayValue,
-                        rawValue: value,
+                        rawValue: value, // Send numerical/boolean/string value to lightning components/inputs
                         datetimeValue: datetimeValue,
                         isEditing: isEditing,
                         isEditable: isEditable,
@@ -458,46 +467,51 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return this.deleteConfirmationAction === 'bulkDeleteTimesheets';
     }
 
-    /**
-     * Method Name: manualClockInMinBoundary
-     * @description: Gets the minimum boundary for Clock In in the Manual Timesheet Entry Modal (Job Start Date).
-     */
-    get manualClockInMinBoundary() {
+    get clockInMinBoundary() {
         const jobRecord = this.getCurrentJobRecord();
-        const jobStart = jobRecord?.startDate || this.currentJobStartDateTime;
-        if (!jobStart) return null;
-        const dateKey = this.extractDateKey(jobStart);
+        const reference = this.currentJobStartDateTime
+            || jobRecord?.startDate
+            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobStartTime : null)
+            || this.defaultStartTime;
+        const dateKey = this.extractDateKey(reference);
         return dateKey ? `${dateKey}T00:00` : null;
     }
-    /**
-     * Method Name: manualClockInMaxBoundary
-     * @description: Gets the maximum boundary for Clock In in the Manual Timesheet Entry Modal (Current Date/Time).
-     */
-    get manualClockInMaxBoundary() {
-        return new Date().toISOString().slice(0, 16);
+
+    get clockInMaxBoundary() {
+        const jobRecord = this.getCurrentJobRecord();
+        const reference = this.currentJobEndDateTime
+            || jobRecord?.endDate
+            || (this.clockInList && this.clockInList.length > 0 ? this.clockInList[0].jobEndTime : null)
+            || this.defaultEndTime
+            || this.defaultStartTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T23:59` : null;
     }
-    
-    /**
-     * Method Name: manualClockOutMinBoundary
-     * @description: Gets the minimum boundary for Clock Out in the Manual Timesheet Entry Modal (Current Clock In Time).
-     */
-    get manualClockOutMinBoundary() {
-        if (this.clockInTime) {
-            return this.clockInTime;
+
+    get clockOutMinBoundary() {
+        const jobRecord = this.getCurrentJobRecord();
+        const reference = this.currentJobStartDateTime
+            || jobRecord?.startDate
+            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobStartTime : null)
+            || this.defaultStartTime;
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+
+    get clockOutMaxBoundary() {
+        const jobRecord = this.getCurrentJobRecord();
+        const reference = this.currentJobEndDateTime
+            || jobRecord?.endDate
+            || (this.clockOutList && this.clockOutList.length > 0 ? this.clockOutList[0].jobEndTime : null)
+            || this.defaultEndTime
+            || this.defaultStartTime;
+        const dateKey = this.extractDateKey(reference);
+        if (!dateKey) {
+            return null;
         }
-        const jobRecord = this.getCurrentJobRecord();
-        const jobStart = jobRecord?.startDate || this.currentJobStartDateTime;
-        if (!jobStart) return null;
-        const dateKey = this.extractDateKey(jobStart);
-        return dateKey ? `${dateKey}T00:00` : null;
-    }
-    
-    /**
-     * Method Name: manualClockOutMaxBoundary
-     * @description: Gets the maximum boundary for Clock Out in the Manual Timesheet Entry Modal (Current Date/Time).
-     */
-    get manualClockOutMaxBoundary() {
-        return new Date().toISOString().slice(0, 16);
+        const nextDay = this.addDaysToDateKey(dateKey, 1);
+        const boundaryKey = nextDay || dateKey;
+        return `${boundaryKey}T23:59`;
     }
     
     // --- Lifecycle and Initialization ---
@@ -634,23 +648,25 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     validateClockInDate (clockInValue, jobStartValue) {
         const clockInDate = this.extractDateKey(clockInValue);
         const jobStartDate = this.extractDateKey(jobStartValue);
-        
-        if (clockInDate && jobStartDate && clockInDate < jobStartDate) {
-            this.showToast('Error', 'Clock In time cannot be before the job start date.', 'error');
+        const jobEndDate = this.extractDateKey(jobEndValue);
+
+        if (clockInDate && jobStartDate && clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
+            this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
             return false;
         }
-        
+
         return true;
     }
 
     validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
         const clockOutDate = this.extractDateKey(clockOutValue);
+        const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
 
         if (clockOutDate && jobEndDate) {
             const nextDay = this.addDaysToDateKey(jobEndDate, 1);
-            if (clockOutDate > nextDay) {
-                this.showToast('Error', 'Clock Out time cannot be after the day following the job end date.', 'error');
+            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
+                this.showToast('Error', 'Clock Out time must be on the job start date, job end date or the following day', 'error');
                 return false;
             }
         }
@@ -1546,6 +1562,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
+            // USE CORRECTED VALIDATION
             if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
                 return;
             }
@@ -1568,6 +1585,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 costCodeId : this.selectedCostCodeId,
                 clockInTime : this.clockInTime,
                 clockOutTime : this.clockOutTime,
+                // Ensure correct date keys are passed
                 jobStartDate : this.extractDateKey(jobStartReference),
                 jobEndDate : this.extractDateKey(jobEndReference),
                 travelTime : this.enteredManualTravelTime ? String(this.enteredManualTravelTime) : '0.00',
@@ -1867,7 +1885,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
         // --- Get Original Value ---
         const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
-        const originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
+        let originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
+
+        // Standardize originalValue for comparison:
+        if (type === 'number') {
+            originalValue = originalValue !== null && originalValue !== undefined ? parseFloat(originalValue) : null;
+        } else if (type === 'boolean') {
+            originalValue = !!originalValue;
+        }
+
 
         // --- Track Modifications ---
         if (!this.modifiedTimesheetEntries.has(id)) {
@@ -1878,15 +1904,26 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const modifications = entry.modifications;
         
         // Comparison logic: handles null/empty string/undefined and number/boolean comparison
-        const areValuesEqual = (val1, val2) => {
+        const areValuesEqual = (val1, val2, valueType) => {
             if (val1 === val2) return true;
-            if ((val1 === null || val1 === undefined || val1 === '') && (val2 === null || val2 === undefined || val2 === '')) return true;
-            if (type === 'number' && val1 !== null && val2 !== null && !isNaN(val1) && !isNaN(val2)) return parseFloat(val1) === parseFloat(val2);
-            if (type === 'boolean') return !!val1 === !!val2;
+            
+            // Treat null, undefined, and empty string as equal for certain types
+            if (valueType === 'number' || valueType === 'datetime') {
+                const normalized1 = (val1 === null || val1 === undefined || val1 === '') ? null : val1;
+                const normalized2 = (val2 === null || val2 === undefined || val2 === '') ? null : val2;
+                if (normalized1 === normalized2) return true;
+            }
+
+            if (valueType === 'number' && val1 !== null && val2 !== null && !isNaN(val1) && !isNaN(val2)) {
+                 // Compare floats up to 2 decimal places for robustness
+                return Math.abs(parseFloat(val1) - parseFloat(val2)) < 0.005;
+            }
+            if (valueType === 'boolean') return !!val1 === !!val2;
+
             return false;
         };
 
-        if (!areValuesEqual(newValue, originalValue)) {
+        if (!areValuesEqual(newValue, originalValue, type)) {
             modifications[field] = newValue;
         } else {
             delete modifications[field];
