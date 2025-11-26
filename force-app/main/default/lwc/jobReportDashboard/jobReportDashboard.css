@@ -365,7 +365,20 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 500;
+    font-weight: 600;
+}
+
+.clickable-job-name {
+    cursor: pointer;
+    color: rgba(94, 90, 219, 1);
+    transition: all 0.2s ease;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.clickable-job-name:hover {
+    text-decoration: underline;
+    background-color: #f3f2f2;
 }
 
 /* No Data State */
@@ -373,18 +386,12 @@
     text-align: center;
     padding: 2rem;
     color: #666;
-    font-style: italic;
+    font-style: normal;
 }
 
 .no-data-message p {
     margin: 0;
     font-size: 1rem;
-}
-
-.no-data-subtitle {
-    font-size: 0.875rem;
-    margin-top: 0.5rem;
-    color: #888;
 }
 
 /* Scrollbar Styling */
@@ -519,6 +526,77 @@
 }
 
 
+.filters-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    color: #706e6b;
+}
+
+.search-input {
+    padding: 8px 12px 8px 36px;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 300px;
+    background: white;
+    transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #0070d2;
+    box-shadow: 0 0 3px #0070d2;
+}
+
+.status-filter {
+    padding: 8px 12px;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    color: #181818;
+    min-width: 180px;
+    cursor: pointer;
+}
+
+.status-filter:focus {
+    outline: none;
+    border-color: #0070d2;
+    box-shadow: 0 0 3px #0070d2;
+}
+
+.clear-filters-btn {
+    border: none;
+    font-size: 14px;
+    color: #676563;
+    cursor: pointer;
+    background-color: transparent;
+}
+
+.clear-filters-btn:hover {
+    color: #101010;
+    text-decoration: underline;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
       .metrics-cards-container {
@@ -597,6 +675,19 @@
     .chart-dropdown {
         transform: scale(0.9);
         transform-origin: right top;
+    }
+
+    .filters-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-input {
+        width: 100%;
+    }
+    
+    .status-filter {
+        width: 100%;
     }
 }
 

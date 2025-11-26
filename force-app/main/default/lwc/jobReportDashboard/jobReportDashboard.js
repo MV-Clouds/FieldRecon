@@ -3,12 +3,15 @@ import getAllJobsWithScopeData from '@salesforce/apex/JobMetricsController.getAl
 import getJobMetrics from '@salesforce/apex/JobMetricsController.getJobMetrics';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
-
-// Import D3.js from static resource
 import { loadScript } from 'lightning/platformResourceLoader';
 import D3 from '@salesforce/resourceUrl/d3';
+import { NavigationMixin } from 'lightning/navigation';
+import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import JOB_OBJECT from '@salesforce/schema/wfrecon__Job__c';
+import STATUS_FIELD from '@salesforce/schema/wfrecon__Job__c.wfrecon__Status__c';
 
-export default class JobReportDashboard extends LightningElement {
+
+export default class JobReportDashboard extends NavigationMixin(LightningElement) {
     @track isLoading = true;
     @track financeData = [];
     @track showChart = false;
@@ -50,6 +53,15 @@ export default class JobReportDashboard extends LightningElement {
         ]
     };
 
+    @track statusOptions = []; // To store picklist values
+    jobObjectInfo;
+    jobPicklistResponse;
+
+    @track searchTerm = '';
+    @track selectedStatus = '';
+    @track allFinanceData = []; // Store original unfiltered data
+    @track jobStatusMap = new Map(); // Store job statuses for filtering
+
     // Store wired responses for refresh
     wiredMetricsResponse;
     wiredJobDataResponse;
@@ -68,6 +80,28 @@ export default class JobReportDashboard extends LightningElement {
             this.showToast('Error', 'Something went wrong!', 'error');
         }
     }
+
+    @wire(getObjectInfo, { objectApiName: JOB_OBJECT })
+    objectInfo;
+
+    @wire(getPicklistValues, {
+        recordTypeId: '$objectInfo.data.defaultRecordTypeId',
+        fieldApiName: STATUS_FIELD
+    })
+    wiredStatusValues({ data, error }) {
+        if (data) {
+            this.statusOptions = [
+                { label: 'All Statuses', value: '' },
+                ...data.values.map(item => ({
+                    label: item.label,
+                    value: item.value
+                }))
+            ];
+        } else if (error) {
+            this.showToast('Error', 'Failed to load status options', 'error');
+        }
+    }
+
 
     @wire(getJobMetrics)
     wiredMetrics(result) {
@@ -118,8 +152,8 @@ export default class JobReportDashboard extends LightningElement {
     }
 
     processFinanceData(data) {
-        this.financeData = data.map(job => {
-            // Calculate values based on your formulas
+        // Store original data for filtering
+        this.allFinanceData = data.map(job => {
             const totalContract = (job.baseContract || 0) + (job.changeOrder || 0);
             const completedValue = job.totalCompletedValue || 0;
             const completionPercentage = totalContract > 0 ? (completedValue / totalContract) : 0;
@@ -137,12 +171,24 @@ export default class JobReportDashboard extends LightningElement {
             };
         });
 
-        this.calculateTotals();
+        // Apply initial filtering
+        this.applyFilters();
         this.isLoading = false;
+    }
 
-        // Render chart if chart view is active
-        if (this.showChart && this.d3Initialized) {
-            this.renderChart();
+    navigateToJobRecord(event) {
+        const jobId = event.currentTarget.dataset.id;
+        console.log(jobId);
+
+        if (jobId) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: jobId,
+                    objectApiName: 'wfrecon__Job__c',
+                    actionName: 'view'
+                }
+            });
         }
     }
 
@@ -200,214 +246,57 @@ export default class JobReportDashboard extends LightningElement {
         }
     }
 
-    // renderChart() {
-    //     if (!window.d3 || !this.isFinanceDataAvailable) return;
 
-    //     const container = this.template.querySelector('.chart-container');
-    //     if (!container) return;
+    handleSearchInput(event) {
+        this.searchTerm = event.target.value;
+        this.applyFilters();
+    }
 
-    //     // Clear previous chart
-    //     container.innerHTML = '';
+    handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            this.applyFilters();
+        }
+    }
 
-    //     const margin = { top: 60, right: 20, bottom: 120, left: 80 };
-    //     const containerWidth = container.clientWidth;
-    //     const containerHeight = 500;
+    handleStatusChange(event) {
+        this.selectedStatus = event.target.value;
+        this.applyFilters();
+    }
 
-    //     const width = containerWidth - margin.left - margin.right;
-    //     const height = containerHeight - margin.top - margin.bottom;
+    applyFilters() {
+        let filteredData = [...this.allFinanceData];
 
-    //     const svg = window.d3.select(container)
-    //         .append('svg')
-    //         .attr('width', '100%')
-    //         .attr('height', containerHeight)
-    //         .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
-    //         .attr('preserveAspectRatio', 'xMidYMid meet')
-    //         .append('g')
-    //         .attr('transform', `translate(${margin.left},${margin.top})`);
+        // Apply search filter
+        if (this.searchTerm) {
+            const searchLower = this.searchTerm.toLowerCase();
+            filteredData = filteredData.filter(job =>
+                job.jobName?.toLowerCase().includes(searchLower)
+            );
+        }
 
-    //     // Prepare data for chart 
-    //     const chartData = [...this.financeData]
-    //         .sort((a, b) => (b[this.chartConfig.valueType] || 0) - (a[this.chartConfig.valueType] || 0));
+        // Apply status filter - now using job.status directly
+        if (this.selectedStatus) {
+            filteredData = filteredData.filter(job =>
+                job.status === this.selectedStatus
+            );
+        }
 
-    //     // Get the current value type for display
-    //     const currentValueType = this.chartConfig.valueType;
-    //     const currentValueLabel = this.chartConfig.valueTypes.find(type => type.value === currentValueType)?.label || currentValueType;
+        this.financeData = filteredData;
+        this.calculateTotals();
 
-    //     // Calculate Y-axis domain with proper tick values
-    //     const maxValue = window.d3.max(chartData, d => d[currentValueType] || 0);
-    //     const minValue = window.d3.min(chartData, d => d[currentValueType] || 0);
+        // Re-render chart if in chart view
+        if (this.showChart && this.d3Initialized && this.isFinanceDataAvailable) {
+            setTimeout(() => {
+                this.renderChart();
+            }, 0);
+        }
+    }
 
-    //     // Create values for Y-axis
-    //     const yDomain = [0, maxValue * 1.1];
-    //     const yTickValues = this.generateNiceTickValues(yDomain[1]);
-
-    //     const y = window.d3.scaleLinear()
-    //         .domain(yDomain)
-    //         .range([height, 0])
-    //         .nice();
-
-    //     const x = window.d3.scaleBand()
-    //         .domain(chartData.map(d => d.jobName))
-    //         .range([0, width])
-    //         .padding(0.4);
-
-    //     // Light color palette
-    //     const lightColors = [
-    //         '#8ECAE6', '#219EBC', '#126782', // Light blues
-    //         '#FFB4A2', '#E5989B', '#B5838D', // Light pinks
-    //         '#A7C957', '#606C38', '#283618', // Light greens
-    //         '#E9C46A', '#F4A261', '#E76F51'  // Light oranges
-    //     ];
-
-    //     const color = window.d3.scaleOrdinal()
-    //         .domain(chartData.map((d, i) => i))
-    //         .range(lightColors);
-
-    //     // Add X axis with consistent styling
-    //     const xAxis = svg.append('g')
-    //         .attr('transform', `translate(0,${height})`)
-    //         .call(window.d3.axisBottom(x));
-
-    //     // Style X axis labels and line
-    //     xAxis.selectAll('text')
-    //         .attr('transform', 'rotate(-45)')
-    //         .style('text-anchor', 'end')
-    //         .style('font-size', '11px')
-    //         .style('fill', '#666');
-
-    //     // Style X axis line to be visible
-    //     xAxis.select('.domain')
-    //         .attr('stroke', '#666')
-    //         .attr('stroke-width', 1);
-
-    //     // Add X axis label
-    //     svg.append('text')
-    //         .attr('x', width / 2)
-    //         .attr('y', height + margin.bottom - 40)
-    //         .style('text-anchor', 'middle')
-    //         .style('font-size', '12px')
-    //         .style('fill', '#666')
-    //         .text('Job Name');
-
-    //     // Add Y axis with consistent styling
-    //     const yAxis = svg.append('g')
-    //         .call(window.d3.axisLeft(y).tickValues(yTickValues).tickFormat(d => this.formatCurrency(d)));
-
-    //     // Style Y axis line to match X axis
-    //     yAxis.select('.domain')
-    //         .attr('stroke', '#666')
-    //         .attr('stroke-width', 1);
-
-    //     yAxis.selectAll('text')
-    //         .style('font-size', '11px')
-    //         .style('fill', '#666');
-
-    //     // Add Y axis label
-    //     svg.append('text')
-    //         .attr('transform', 'rotate(-90)')
-    //         .attr('y', 0 - margin.left + 15)
-    //         .attr('x', 0 - (height / 2))
-    //         .attr('dy', '1em')
-    //         .style('text-anchor', 'middle')
-    //         .style('font-size', '12px')
-    //         .style('fill', '#666')
-    //         .text(`${currentValueLabel}`);
-
-    //     // Add chart title 
-    //     svg.append('text')
-    //         .attr('x', width / 2)
-    //         .attr('y', 0 - margin.top / 2)
-    //         .attr('text-anchor', 'middle')
-    //         .style('font-size', '16px')
-    //         .style('font-weight', '600')
-    //         .style('fill', '#5e5adb')
-    //         .text(`Job Financial Overview`);
-
-    //     // Add dropdown in the top
-    //     const dropdownGroup = svg.append('g')
-    //         .attr('class', 'chart-dropdown')
-    //         .attr('transform', `translate(${width - 160}, -45)`);
-
-    //     // Create foreignObject for the select element
-    //     const foreignObject = dropdownGroup.append('foreignObject')
-    //         .attr('x', 35)
-    //         .attr('y', -4)
-    //         .attr('width', 150)
-    //         .attr('height', 26);
-
-    //     const selectElement = foreignObject.append('xhtml:select')
-    //         .style('width', '100%')
-    //         .style('height', '24px')
-    //         .style('border', '1px solid #ddd')
-    //         .style('border-radius', '4px')
-    //         .style('padding', '2px 8px')
-    //         .style('font-size', '12px')
-    //         .style('background', 'white')
-    //         .style('color', '#333')
-    //         .on('change', (event) => {
-    //             this.chartConfig.valueType = event.target.value;
-    //             this.renderChart();
-    //         });
-
-    //     selectElement.selectAll('option')
-    //         .data(this.chartConfig.valueTypes)
-    //         .enter()
-    //         .append('xhtml:option')
-    //         .attr('value', d => d.value)
-    //         .property('selected', d => d.value === this.chartConfig.valueType)
-    //         .text(d => d.label);
-
-    //     // Create tooltip
-    //     const tooltip = window.d3.select(container)
-    //         .append('div')
-    //         .attr('class', 'chart-tooltip')
-    //         .style('position', 'absolute')
-    //         .style('background', 'white')
-    //         .style('padding', '12px')
-    //         .style('border', '1px solid #e0e0e0')
-    //         .style('border-radius', '6px')
-    //         .style('pointer-events', 'none')
-    //         .style('opacity', 0)
-    //         .style('font-size', '12px')
-    //         .style('box-shadow', '0 2px 8px rgba(0,0,0,0.15)')
-    //         .style('z-index', '1000')
-    //         .style('max-width', '300px');
-
-    //     // Add bars with light colors
-    //     svg.selectAll('.bar')
-    //         .data(chartData)
-    //         .enter()
-    //         .append('rect')
-    //         .attr('class', 'bar')
-    //         .attr('x', d => x(d.jobName))
-    //         .attr('y', d => y(d[currentValueType] || 0))
-    //         .attr('width', x.bandwidth())
-    //         .style('cursor', 'pointer')
-    //         .style('pointer-events', 'all')
-    //         .attr('height', d => height - y(d[currentValueType] || 0))
-    //         .attr('fill', (d, i) => color(i))
-    //         .attr('rx', 3) // Rounded corners
-    //         .attr('ry', 3)
-    //         .on('mouseover', function (event, d) {
-    //             const value = d[currentValueType] || 0;
-    //             tooltip
-    //                 .style('opacity', 1)
-    //                 .html(`<div style="font-weight:bold;">$${window.d3.format(',')(value)}</div>`);
-    //         })
-
-    //         .on('mousemove', function (event) {
-    //             tooltip
-    //                 .style('left', (event.offsetX + 20) + 'px')
-    //                 .style('top', (event.offsetY - 40) + 'px');
-    //         })
-
-    //         .on('mouseout', function () {
-    //             window.d3.select(this)
-    //                 .attr('stroke', 'none')
-    //                 .attr('stroke-width', 0);
-    //             tooltip.style('opacity', 0);
-    //         });
-    // }
+    clearFilters() {
+        this.searchTerm = '';
+        this.selectedStatus = '';
+        this.applyFilters();
+    }
 
     renderChart() {
         if (!window.d3 || !this.isFinanceDataAvailable) return;

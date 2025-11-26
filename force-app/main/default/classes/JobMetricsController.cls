@@ -2,7 +2,7 @@
 // * Class Name: JobMetricsController
 // * Test Class: 
 // * @description: Controller for Job data Report
-// * Created Date: 25 November 2025
+// * Created Date: 26 November 2025
 // * Created By: Kajal Tiwari
 // *--------------------------------------------------------------------------------
 // * Modification History:
@@ -25,7 +25,7 @@ public with sharing class JobMetricsController {
         try {
             // Get all jobs with financial data
             List<wfrecon__Job__c> jobs = [
-                SELECT Id, Name, wfrecon__Job_Name__c,
+                SELECT Id, Name, wfrecon__Job_Name__c, wfrecon__Status__c,
                        wfrecon__Total_Contract_Price__c, 
                        wfrecon__Total_Contract_Value__c,
                        wfrecon__Total_Change_Order_Value__c
@@ -104,6 +104,7 @@ public with sharing class JobMetricsController {
                 JobData data = new JobData();
                 data.jobId = job.Id;
                 data.jobName = job.wfrecon__Job_Name__c;
+                data.status = job.wfrecon__Status__c;
                 data.baseContract = job.wfrecon__Total_Contract_Value__c != null ? job.wfrecon__Total_Contract_Value__c : 0;
                 data.changeOrder = job.wfrecon__Total_Change_Order_Value__c != null ? job.wfrecon__Total_Change_Order_Value__c : 0;
                 data.totalCompletedValue = jobCompletedValueMap.get(job.Id) != null ? jobCompletedValueMap.get(job.Id) : 0;
@@ -134,7 +135,7 @@ public with sharing class JobMetricsController {
             }
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getAllJobsWithScopeData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            // ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getAllJobsWithScopeData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
         }
         
         return jobDataList;
@@ -195,7 +196,7 @@ public with sharing class JobMetricsController {
                 }
             }
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getJobMetrics', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            // ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getJobMetrics', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
         }
         
         return metrics;
@@ -205,6 +206,7 @@ public with sharing class JobMetricsController {
     public class JobData {
         @AuraEnabled public String jobId { get; set; }
         @AuraEnabled public String jobName { get; set; }
+         @AuraEnabled public String status { get; set; }
         @AuraEnabled public Decimal baseContract { get; set; }
         @AuraEnabled public Decimal changeOrder { get; set; }
         @AuraEnabled public Decimal totalCompletedValue { get; set; }
