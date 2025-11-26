@@ -136,7 +136,7 @@ public with sharing class JobMetricsController {
             }
             
         } catch (Exception e) {
-            // ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getAllJobsWithScopeData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getAllJobsWithScopeData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
         }
         
         return jobDataList;
@@ -197,7 +197,7 @@ public with sharing class JobMetricsController {
                 }
             }
         } catch (Exception e) {
-            // ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getJobMetrics', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getJobMetrics', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
         }
         
         return metrics;
