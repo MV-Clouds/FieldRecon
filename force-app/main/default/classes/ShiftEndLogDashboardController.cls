@@ -20,7 +20,8 @@ public with sharing class ShiftEndLogDashboardController {
                           'wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, wfrecon__Mobilization__c, ' +
                           'wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, wfrecon__Work_Performed__c, ' +
                           'wfrecon__Status__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed_Date__c, ' +
-                          'wfrecon__Approval_Data__c, CreatedDate, CreatedBy.Name, CreatedBy.Id ' +
+                          'wfrecon__Approval_Data__c, wfrecon__Approved_Date__c, wfrecon__Approved_By__c, ' +
+                          'wfrecon__Approved_By__r.Name, CreatedDate, CreatedBy.Name, CreatedBy.Id ' +
                           'FROM wfrecon__Log_Entry__c ' +
                           'ORDER BY CreatedDate DESC';
             
@@ -52,6 +53,22 @@ public with sharing class ShiftEndLogDashboardController {
                 wrapper.createdDateISO = log.CreatedDate.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss') + '.000Z';
                 wrapper.createdBy = log.CreatedBy.Name;
                 wrapper.createdById = log.CreatedBy.Id;
+                // Approved Date handling
+                if (log.wfrecon__Approved_Date__c != null) {
+                    wrapper.approvedDate = String.valueOf(log.wfrecon__Approved_Date__c);
+                    wrapper.approvedDateISO = log.wfrecon__Approved_Date__c.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss') + '.000Z';
+                } else {
+                    wrapper.approvedDate = null;
+                    wrapper.approvedDateISO = null;
+                }
+                // Approved By handling
+                if (log.wfrecon__Approved_By__c != null && log.wfrecon__Approved_By__r != null) {
+                    wrapper.approvedBy = log.wfrecon__Approved_By__r.Name;
+                    wrapper.approvedById = log.wfrecon__Approved_By__c;
+                } else {
+                    wrapper.approvedBy = null;
+                    wrapper.approvedById = null;
+                }
                 wrapper.status = log.wfrecon__Status__c != null ? log.wfrecon__Status__c : 'Pending';
                 wrapper.approvalData = log.wfrecon__Approval_Data__c;
                 
@@ -196,6 +213,10 @@ public with sharing class ShiftEndLogDashboardController {
         @AuraEnabled public String createdDateISO { get; set; }
         @AuraEnabled public String createdBy { get; set; }
         @AuraEnabled public Id createdById { get; set; }
+        @AuraEnabled public String approvedDate { get; set; }
+        @AuraEnabled public String approvedDateISO { get; set; }
+        @AuraEnabled public String approvedBy { get; set; }
+        @AuraEnabled public Id approvedById { get; set; }
         @AuraEnabled public String status { get; set; }
         @AuraEnabled public String approvalData { get; set; }
     }

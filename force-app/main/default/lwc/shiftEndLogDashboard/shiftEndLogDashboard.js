@@ -11,7 +11,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     @track selectedLog = null;
     @track locationProcesses = [];
     @track files = [];
-    
+
     isLoading = false;
     showFileViewer = false;
     showLocationProcessSlider = false;
@@ -19,7 +19,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     searchTerm = '';
     selectedStatus = '';
     allLogEntries = []; // Store all logs for filtering
-    
+
     // Date filter options
     get dateFilterOptions() {
         return [
@@ -29,7 +29,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             { label: 'All Time', value: 'alltime' }
         ];
     }
-    
+
     // Status filter options
     get statusFilterOptions() {
         return [
@@ -40,44 +40,44 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             { label: 'Rejected', value: 'Rejected' }
         ];
     }
-    
+
     // KPIs
     get totalLogs() {
         return this.dashboardData.totalLogs || 0;
     }
-    
+
     get pendingLogs() {
         return this.dashboardData.pendingLogs || 0;
     }
-    
+
     get approvedLogs() {
         return this.dashboardData.approvedLogs || 0;
     }
-    
+
     get rejectedLogs() {
         return this.dashboardData.rejectedLogs || 0;
     }
-    
+
     get autoApprovedLogs() {
         return this.dashboardData.autoApprovedLogs || 0;
     }
-    
+
     get hasLogs() {
         return this.filteredLogEntries && this.filteredLogEntries.length > 0;
     }
-    
+
     get hasFiles() {
         return this.files && this.files.length > 0;
     }
-    
+
     get hasLocationProcesses() {
         return this.locationProcesses && this.locationProcesses.length > 0;
     }
-    
+
     connectedCallback() {
         this.fetchDashboardData();
     }
-    
+
     // Fetch dashboard data
     fetchDashboardData() {
         this.isLoading = true;
@@ -87,7 +87,8 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
                 const entriesWithFormattedDates = (result.logEntries || []).map(log => ({
                     ...log,
                     createdDateRaw: log.createdDateISO || log.createdDate, // raw ISO string for filtering
-                    createdDate: log.createdDateISO ? this.formatToAMPM(log.createdDateISO) : (log.createdDate ? this.formatToAMPM(log.createdDate) : '--')
+                    createdDate: log.createdDateISO ? this.formatToAMPM(log.createdDateISO) : (log.createdDate ? this.formatToAMPM(log.createdDate) : '--'),
+                    approvedDate: log.approvedDateISO ? this.formatToAMPM(log.approvedDateISO) : (log.approvedDate ? this.formatToAMPM(log.approvedDate) : null)
                 }));
                 this.allLogEntries = entriesWithFormattedDates;
                 this.logEntries = [...this.allLogEntries];
@@ -99,34 +100,34 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
                 this.isLoading = false;
             });
     }
-    
+
     // Handle date filter change
     handleDateFilterChange(event) {
         this.selectedDateFilter = event.detail.value;
         this.applyFilters();
     }
-    
+
     // Handle status filter change
     handleStatusFilterChange(event) {
         this.selectedStatus = event.detail.value;
         this.applyFilters();
     }
-    
+
     // Handle search
     handleSearch(event) {
         this.searchTerm = event.target.value ? event.target.value.trim().toLowerCase() : '';
         this.applyFilters();
     }
-    
+
     // Apply filters
     applyFilters() {
         let filtered = [...this.allLogEntries];
-        
+
         // Apply date filter
         if (this.selectedDateFilter !== 'alltime') {
             const today = new Date();
             let daysToSubtract = 30; // default
-            
+
             if (this.selectedDateFilter === 'last7days') {
                 daysToSubtract = 7;
             } else if (this.selectedDateFilter === 'last15days') {
@@ -134,9 +135,9 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             } else if (this.selectedDateFilter === 'last30days') {
                 daysToSubtract = 30;
             }
-            
+
             const filterDate = new Date(today.getTime() - (daysToSubtract * 24 * 60 * 60 * 1000));
-            
+
             filtered = filtered.filter(log => {
                 // Use raw ISO date for comparison
                 if (log.createdDateRaw) {
@@ -146,12 +147,12 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
                 return true;
             });
         }
-        
+
         // Apply status filter
         if (this.selectedStatus) {
             filtered = filtered.filter(log => log.status === this.selectedStatus);
         }
-        
+
         // Apply search filter
         if (this.searchTerm) {
             filtered = filtered.filter(log => {
@@ -165,18 +166,18 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
                 );
             });
         }
-        
+
         // Add status class and serial number to each log (dates already formatted in fetchDashboardData)
         this.filteredLogEntries = filtered.map((log, index) => ({
             ...log,
             serialNumber: index + 1,
             statusClass: this.getStatusClass(log.status)
         }));
-        
+
         // Update KPIs based on filtered data
         this.updateKPIs(this.filteredLogEntries);
     }
-    
+
     // Parse created date string to Date object
     parseCreatedDate(dateString) {
         // Format: "MMM dd, yyyy HH:mm" (e.g., "Nov 25, 2025 14:30")
@@ -189,7 +190,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             const timeParts = parts[3].split(':');
             const hours = parseInt(timeParts[0]);
             const minutes = parseInt(timeParts[1]);
-            
+
             return new Date(year, month, day, hours, minutes);
         } catch (e) {
             return new Date();
@@ -206,37 +207,37 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     formatToAMPM(iso) {
         try {
             if (!iso) return '--';
-            
+
             // Create Date object from ISO string - this automatically converts UTC to local timezone
             const date = new Date(iso);
-            
+
             // Check if date is valid
             if (isNaN(date.getTime())) {
                 console.error('formatToAMPM: Invalid date string:', iso);
                 return '--';
             }
-            
+
             // Get date components in user's local timezone
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const monthName = monthNames[date.getMonth()];
             const day = date.getDate();
             const year = date.getFullYear();
-            
+
             // Get time components in user's local timezone
             let hours = date.getHours();
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            
+
             // Determine AM/PM
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            
+
             // Convert to 12-hour format
             hours = hours % 12;
             hours = hours ? hours : 12; // hour '0' should be '12'
-            
+
             // Pad hours with leading zero if needed
             const paddedHours = String(hours).padStart(2, '0');
-            
+
             // Format: "Nov 26, 2025, 11:51 AM" (in user's local timezone)
             return `${monthName} ${day}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
@@ -244,7 +245,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             return '--';
         }
     }
-    
+
     // Update KPIs based on filtered entries
     updateKPIs(entries) {
         this.dashboardData = {
@@ -255,7 +256,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             rejectedLogs: entries.filter(log => log.status === 'Rejected').length
         };
     }
-    
+
     // Navigate to job record
     handleJobClick(event) {
         event.preventDefault();
@@ -270,12 +271,12 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             });
         }
     }
-    
+
     // Show files modal
     handleShowFiles(event) {
         const logId = event.currentTarget.dataset.logId;
         this.isLoading = true;
-        
+
         getLogEntryFiles({ logEntryId: logId })
             .then(result => {
                 this.files = result || [];
@@ -287,29 +288,29 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
                 this.isLoading = false;
             });
     }
-    
+
     // Close file viewer
     handleCloseFileViewer() {
         this.showFileViewer = false;
         this.files = [];
     }
-    
+
     // Show location processes slider
     handleShowLocationProcesses(event) {
         const logId = event.currentTarget.dataset.logId;
         const log = this.logEntries.find(l => l.id === logId);
-        
+
         if (log && log.approvalData) {
             try {
                 const approvalData = JSON.parse(log.approvalData);
-                
+
                 if (approvalData.locationProcessChanges && approvalData.locationProcessChanges.length > 0) {
                     this.locationProcesses = approvalData.locationProcessChanges.map(lp => {
                         const oldValue = parseFloat(lp.oldValue || 0);
                         const newValue = parseFloat(lp.newValue || 0);
                         const todayProgress = Math.max(0, newValue - oldValue);
                         const remainingProgress = Math.max(0, 100 - newValue);
-                        
+
                         return {
                             id: lp.id,
                             name: lp.name,
@@ -333,28 +334,28 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             this.showToast('Info', 'No approval data available for this log', 'info');
         }
     }
-    
+
     // Close location process slider
     handleCloseLocationProcessSlider() {
         this.showLocationProcessSlider = false;
         this.locationProcesses = [];
     }
-    
+
     // Download file
     handleDownloadFile(event) {
         const fileUrl = event.currentTarget.dataset.url;
         window.open(fileUrl, '_blank');
     }
-    
+
     // Stop propagation for modal
     handleStopPropagation(event) {
         event.stopPropagation();
     }
-    
+
     // Get status badge class
     getStatusClass(status) {
         const baseClass = 'status-badge';
-        switch(status) {
+        switch (status) {
             case 'Approved':
             case 'Auto-Approved':
                 return `${baseClass} status-approved`;
@@ -366,7 +367,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
                 return baseClass;
         }
     }
-    
+
     // Get error message from error object
     getErrorMessage(error) {
         if (error && error.body && error.body.message) {
@@ -374,7 +375,7 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
         }
         return 'An unknown error occurred';
     }
-    
+
     // Show toast notification
     showToast(title, message, variant) {
         const event = new ShowToastEvent({
