@@ -354,13 +354,28 @@ public with sharing class ShiftEndLogV2Controller {
     }
 
     @AuraEnabled
-    public static void updateShiftEndLogWithImages(wfrecon__Log_Entry__c logEntry, List<String> contentDocumentIdsToDelete) {
+    public static void updateShiftEndLogWithImages(wfrecon__Log_Entry__c logEntry, List<String> contentDocumentIdsToDelete, List<String> contentDocumentIdsToUnlink, String cameraPhotosJson) {
         try {
             if(logEntry == null) {
                 throw new AuraHandledException('Invalid log entry');
             }
 
-            // Step 1: Delete removed images if any
+            // Step 1: Unlink Chatter images (don't delete, just remove the link)
+            if (contentDocumentIdsToUnlink != null && !contentDocumentIdsToUnlink.isEmpty()) {
+                List<ContentDocumentLink> linksToDelete = [
+                    SELECT Id 
+                    FROM ContentDocumentLink 
+                    WHERE ContentDocumentId IN :contentDocumentIdsToUnlink
+                    AND LinkedEntityId = :logEntry.Id
+                    WITH USER_MODE
+                ];
+                
+                if (!linksToDelete.isEmpty()) {
+                    delete as user linksToDelete;
+                }
+            }
+
+            // Step 2: Delete newly uploaded files if any
             if (contentDocumentIdsToDelete != null && !contentDocumentIdsToDelete.isEmpty()) {
                 List<ContentDocument> docsToDelete = [
                     SELECT Id 
@@ -374,8 +389,31 @@ public with sharing class ShiftEndLogV2Controller {
                 }
             }
 
-            // Step 2: Update the log entry (including wfrecon__Approval_Data__c if provided)
+            // Step 3: Update the log entry (including wfrecon__Approval_Data__c if provided)
             update as user logEntry;
+
+            // Step 4: Process camera photos if any
+            if (String.isNotBlank(cameraPhotosJson)) {
+                List<Object> cameraPhotos = (List<Object>) JSON.deserializeUntyped(cameraPhotosJson);
+                List<ContentVersion> contentVersions = new List<ContentVersion>();
+                
+                for (Object photoObj : cameraPhotos) {
+                    Map<String, Object> photo = (Map<String, Object>) photoObj;
+                    String fileName = (String) photo.get('fileName');
+                    String base64Data = (String) photo.get('base64Data');
+                    
+                    ContentVersion cv = new ContentVersion();
+                    cv.Title = fileName;
+                    cv.PathOnClient = fileName;
+                    cv.VersionData = EncodingUtil.base64Decode(base64Data);
+                    cv.FirstPublishLocationId = logEntry.Id; // This automatically creates the link
+                    contentVersions.add(cv);
+                }
+                
+                if (!contentVersions.isEmpty()) {
+                    insert as user contentVersions;
+                }
+            }
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{

@@ -3,6 +3,7 @@ import getShiftEndLogsWithCrewInfo from '@salesforce/apex/ShiftEndLogV2Controlle
 import updateShiftEndLogWithImages from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLogWithImages';
 import deleteShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.deleteShiftEndLog';
 import deleteUploadedFiles from '@salesforce/apex/ShiftEndLogV2Controller.deleteUploadedFiles';
+import getChatterFeedItems from '@salesforce/apex/ShiftEndLogEntriesController.getChatterFeedItems';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -57,12 +58,22 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Image handling
     @track existingImages = [];
     @track newUploadedFiles = [];
-    @track imagesToDelete = [];
+    @track imagesToDelete = []; // For newly uploaded files to delete
+    @track imagesToUnlink = []; // For Chatter images to unlink (not delete)
 
     // Camera Modal
     @track showCameraModal = false;
     @track cameraStream = null;
     @track capturedPhoto = null;
+
+    // Chatter Modal
+    @track showChatterModal = false;
+    @track showUploadOptions = false;
+    @track chatterFeedItems = [];
+    @track isLoadingChatter = false;
+    @track isLoadingMoreChatter = false;
+    @track chatterDaysOffset = 0;
+    @track hasMoreChatterItems = true;
 
     // Crew information for current user
     @track crewLeaderId = null;
@@ -646,12 +657,14 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 versionId: img.Id,
                 name: img.Title + '.' + img.FileExtension,
                 url: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`,
-                isExisting: true
+                isExisting: true,
+                isChatter: false // Will be determined if needed, default to false for existing images
             })) : [];
             
-            // Reset new uploads and delete tracking
+            // Reset new uploads and delete/unlink tracking
             this.newUploadedFiles = [];
             this.imagesToDelete = [];
+            this.imagesToUnlink = [];
 
             // Load location processes for step 2
             this.loadEditLocationProcesses(logToEdit);
@@ -667,12 +680,12 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     // Handle close modal
     handleCloseModal() {
-        // Delete newly uploaded files before closing (exclude camera photos as they're not yet uploaded)
+        // Delete newly uploaded files before closing (exclude camera photos and Chatter images)
         if (this.newUploadedFiles && this.newUploadedFiles.length > 0) {
             try {
-                // Only delete files that have real ContentDocument IDs (not temporary camera photo IDs)
+                // Only delete files that have real ContentDocument IDs (not temporary camera photo IDs or Chatter images)
                 const contentDocumentIds = this.newUploadedFiles
-                    .filter(file => !file.isCamera && !file.id.startsWith('temp_'))
+                    .filter(file => !file.isCamera && !file.isChatter && !file.id.startsWith('temp_'))
                     .map(file => file.id);
                 
                 if (contentDocumentIds.length > 0) {
@@ -708,6 +721,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.existingImages = [];
         this.newUploadedFiles = [];
         this.imagesToDelete = [];
+        this.imagesToUnlink = [];
         this.editLocationProcesses = [];
         this.editAllLocationProcesses = [];
         this.editModifiedProcesses = new Map();
@@ -1388,10 +1402,22 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         this.isLoading = true;
 
-        // Combined update: delete removed images and update log entry
+        // Prepare camera photos for upload
+        const cameraPhotos = this.newUploadedFiles
+            .filter(file => file.isCamera === true && file.base64Data)
+            .map(file => ({
+                fileName: file.name,
+                base64Data: file.base64Data
+            }));
+
+        const cameraPhotosJson = cameraPhotos.length > 0 ? JSON.stringify(cameraPhotos) : null;
+
+        // Combined update: delete removed images, unlink Chatter images, update log entry, and upload camera photos
         updateShiftEndLogWithImages({ 
             logEntry: formData, 
-            contentDocumentIdsToDelete: this.imagesToDelete
+            contentDocumentIdsToDelete: this.imagesToDelete,
+            contentDocumentIdsToUnlink: this.imagesToUnlink,
+            cameraPhotosJson: cameraPhotosJson
         })
         .then(() => {
             this.showToast('Success', 'Shift End Log updated successfully', 'success');
@@ -1425,15 +1451,24 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleRemoveImage(event) {
         const imageId = event.currentTarget.dataset.id;
         const isExisting = event.currentTarget.dataset.existing === 'true';
-        const isCamera = event.currentTarget.dataset.camera === 'true';
+        const isChatter = event.currentTarget.dataset.chatter === 'true';
 
         if (isExisting) {
-            // Mark existing image for deletion
-            this.imagesToDelete.push(imageId);
+            // For existing images, always unlink (don't delete from Salesforce)
+            this.imagesToUnlink.push(imageId);
             this.existingImages = this.existingImages.filter(img => img.id !== imageId);
-        } else {
-            // Remove from newly uploaded files (including camera photos)
+        } else if (isChatter) {
+            // For Chatter images that were just added, simply remove from the list (no need to unlink as not yet saved)
             this.newUploadedFiles = this.newUploadedFiles.filter(img => img.id !== imageId);
+        } else {
+            // For newly uploaded files (camera photos or file uploads), mark for deletion
+            this.newUploadedFiles = this.newUploadedFiles.filter(img => {
+                if (img.id === imageId && !img.isCamera && !img.isChatter) {
+                    // Only delete if it's a regular upload (not camera, not chatter)
+                    this.imagesToDelete.push(imageId);
+                }
+                return img.id !== imageId;
+            });
         }
 
         this.showToast('Success', 'Image removed', 'success');
@@ -1446,6 +1481,21 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     get hasImages() {
         return this.allImages.length > 0;
+    }
+
+    get hasChatterFeedItems() {
+        return this.chatterFeedItems && this.chatterFeedItems.length > 0;
+    }
+
+    get hasNoSelectedAttachments() {
+        if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) return true;
+        
+        for (let feedItem of this.chatterFeedItems) {
+            for (let attachment of feedItem.attachments) {
+                if (attachment.selected) return false;
+            }
+        }
+        return true;
     }
 
     // Edit Modal Step Getters
@@ -1463,6 +1513,180 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     get hasModifiedProcesses() {
         return this.editModifiedProcesses.size > 0;
+    }
+
+    // Upload Options Handlers
+    handleUploadOptionsClick(event) {
+        event.stopPropagation();
+        this.showUploadOptions = !this.showUploadOptions;
+        
+        // Close dropdown when clicking outside
+        if (this.showUploadOptions) {
+            document.addEventListener('click', this.handleClickOutside.bind(this));
+        }
+    }
+
+    handleClickOutside() {
+        this.showUploadOptions = false;
+    }
+
+    handleFileUploadClick(event){
+        event.stopPropagation();
+    }
+
+    handleUploadNewFiles() {
+        this.showUploadOptions = false;
+        // Trigger the file upload component
+        setTimeout(() => {
+            const fileUpload = this.template.querySelector('lightning-file-upload');
+            if (fileUpload) {
+                const inputElement = fileUpload.shadowRoot.querySelector('input[type="file"]');
+                if (inputElement) {
+                    inputElement.click();
+                }
+            }
+        }, 100);
+    }
+
+    handleChooseFromChatter() {
+        this.showUploadOptions = false;
+        this.showChatterModal = true;
+        this.chatterDaysOffset = 0;
+        this.hasMoreChatterItems = true;
+        this.loadChatterFeedItems();
+    }
+
+    // Chatter Functions
+    async loadChatterFeedItems() {
+        this.isLoadingChatter = true;
+        
+        try {
+            const result = await getChatterFeedItems({
+                jobId: this.recordId,
+                daysOffset: this.chatterDaysOffset
+            });
+            
+            console.log('Chatter Result:', result);
+            
+            if (result && result.feedItems) {
+                const newFeedItems = result.feedItems.map(feedItem => ({
+                    ...feedItem,
+                    formattedDate: this.formatChatterDate(feedItem.createdDate),
+                    attachments: feedItem.attachments.map(att => ({
+                        ...att,
+                        selected: false
+                    }))
+                }));
+                
+                // Append to existing items (for Load More)
+                if (this.chatterDaysOffset === 0) {
+                    this.chatterFeedItems = newFeedItems;
+                } else {
+                    this.chatterFeedItems = [...this.chatterFeedItems, ...newFeedItems];
+                }
+                
+                this.hasMoreChatterItems = result.hasMore || false;
+            } else {
+                if (this.chatterDaysOffset === 0) {
+                    this.chatterFeedItems = [];
+                }
+                this.hasMoreChatterItems = false;
+            }
+            
+        } catch (error) {
+            console.error('Error loading Chatter feed items:', error);
+            this.showToast('Error', 'Failed to load Chatter posts', 'error');
+            this.chatterFeedItems = [];
+            this.hasMoreChatterItems = false;
+        } finally {
+            this.isLoadingChatter = false;
+        }
+    }
+
+    handleLoadMoreChatter() {
+        this.chatterDaysOffset += 3;
+        this.isLoadingMoreChatter = true;
+        this.loadChatterFeedItems().then(() => {
+            this.isLoadingMoreChatter = false;
+        });
+    }
+
+    handleAttachmentSelection(event) {
+        const attachmentId = event.currentTarget.dataset.id;
+        const cardElement = event.currentTarget;
+        
+        // Toggle selection
+        this.chatterFeedItems = this.chatterFeedItems.map(feedItem => ({
+            ...feedItem,
+            attachments: feedItem.attachments.map(att => ({
+                ...att,
+                selected: att.id === attachmentId ? !att.selected : att.selected
+            }))
+        }));
+        
+        // Toggle visual selection class
+        cardElement.classList.toggle('selected');
+    }
+
+    handleAddSelectedAttachments() {
+        const selectedAttachments = [];
+        
+        // Collect all selected attachments
+        this.chatterFeedItems.forEach(feedItem => {
+            feedItem.attachments.forEach(att => {
+                if (att.selected) {
+                    selectedAttachments.push(att);
+                }
+            });
+        });
+        
+        if (selectedAttachments.length === 0) {
+            this.showToast('Warning', 'Please select at least one attachment', 'warning');
+            return;
+        }
+        
+        // Add selected attachments to uploaded files
+        selectedAttachments.forEach(attachment => {
+            this.newUploadedFiles.push({
+                id: attachment.contentDocumentId,
+                name: attachment.title,
+                url: attachment.thumbnailUrl,
+                isImage: attachment.isImage,
+                isExisting: false,
+                isCamera: false,
+                isChatter: true
+            });
+        });
+        
+        this.showToast('Success', `${selectedAttachments.length} file(s) added from Chatter`, 'success');
+        this.closeChatterModal();
+    }
+
+    closeChatterModal() {
+        this.showChatterModal = false;
+        this.chatterFeedItems = [];
+        this.chatterDaysOffset = 0;
+        this.hasMoreChatterItems = true;
+    }
+
+    formatChatterDate(dateTimeString) {
+        const date = new Date(dateTimeString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        
+        return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+        });
     }
 
     // Camera Functions

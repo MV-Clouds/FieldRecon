@@ -830,6 +830,175 @@ public with sharing class ShiftEndLogEntriesController {
     }
     
     @AuraEnabled
+    public static Map<String, Object> getChatterFeedItems(String jobId, Integer daysOffset) {
+        Map<String, Object> result = new Map<String, Object>();
+        List<FeedItemWrapper> feedItemWrappers = new List<FeedItemWrapper>();
+        
+        try {
+            // Calculate date range: last 3 days from the offset
+            Integer startDay = daysOffset;
+            Integer endDay = daysOffset + 3;
+            
+            DateTime startDateTime = DateTime.now().addDays(-endDay);
+            DateTime endDateTime = DateTime.now().addDays(-startDay);
+            
+            // Query FeedItems with attachments for the job
+            List<FeedItem> feedItems = [
+                SELECT Id, Body, ParentId, CreatedDate, LastModifiedDate,
+                    (SELECT Id, RecordId, Type FROM FeedAttachments)
+                FROM FeedItem 
+                WHERE ParentId = :jobId
+                    AND CreatedDate >= :startDateTime
+                    AND CreatedDate < :endDateTime
+                    AND Id IN (SELECT FeedEntityId FROM FeedAttachment)
+                WITH USER_MODE
+                ORDER BY CreatedDate DESC
+            ];
+            
+            // Get all ContentDocument IDs from feed attachments
+            Set<Id> contentVersionIds = new Set<Id>();
+            Set<Id> contentDocumentIds = new Set<Id>();
+            
+            for (FeedItem item : feedItems) {
+                for (FeedAttachment attachment : item.FeedAttachments) {
+                    if (attachment.RecordId != null) {
+                        String recordIdStr = String.valueOf(attachment.RecordId);
+                        // NOTE: ContentVersion usually starts with '068' and ContentDocument with '069'
+                        if (recordIdStr.startsWith('068')) {
+                            // ContentVersion
+                            System.debug('Adding to contentVersionIds: ' + recordIdStr);
+                            contentVersionIds.add((Id)attachment.RecordId);
+                        } else if (recordIdStr.startsWith('069')) {
+                            // ContentDocument
+                            System.debug('Adding to contentDocumentIds: ' + recordIdStr);
+                            contentDocumentIds.add((Id)attachment.RecordId);
+                        } else {
+                            System.debug('FeedAttachment.RecordId has unexpected prefix: ' + recordIdStr);
+                        }
+                    }
+                }
+            }
+
+            System.debug('ContentVersion IDs: ' + contentVersionIds);
+            System.debug('ContentDocument IDs: ' + contentDocumentIds);
+            
+            // Query ContentVersion to get ContentDocument IDs and file details
+            Map<Id, ContentVersion> contentVersionMap = new Map<Id, ContentVersion>();
+            if (!contentVersionIds.isEmpty()) {
+                for (ContentVersion cv : [
+                    SELECT Id, ContentDocumentId, Title, FileExtension, FileType
+                    FROM ContentVersion 
+                    WHERE Id IN :contentVersionIds
+                    WITH USER_MODE
+                ]) {
+                    contentVersionMap.put(cv.Id, cv);
+                    contentDocumentIds.add(cv.ContentDocumentId);
+                }
+            }
+            
+            // Query ContentDocument for additional details
+            Map<Id, ContentDocument> contentDocumentMap = new Map<Id, ContentDocument>();
+            if (!contentDocumentIds.isEmpty()) {
+                for (ContentDocument cd : [
+                    SELECT Id, Title, FileExtension, FileType, LatestPublishedVersionId
+                    FROM ContentDocument 
+                    WHERE Id IN :contentDocumentIds
+                    WITH USER_MODE
+                ]) {
+                    contentDocumentMap.put(cd.Id, cd);
+                }
+            }
+
+            System.debug('ContentVersion Map: ' + contentVersionMap);
+            System.debug('ContentDocument Map: ' + contentDocumentMap);
+            
+            // Build feed item wrappers
+            for (FeedItem item : feedItems) {
+                FeedItemWrapper wrapper = new FeedItemWrapper();
+                wrapper.id = item.Id;
+                wrapper.body = item.Body;
+                wrapper.createdDate = item.CreatedDate;
+                wrapper.attachments = new List<AttachmentWrapper>();
+                
+                for (FeedAttachment attachment : item.FeedAttachments) {
+                    AttachmentWrapper attWrapper = new AttachmentWrapper();
+                    
+                    String recordIdStr = String.valueOf(attachment.RecordId);
+                    ContentDocument contentDoc = null;
+                    
+                    System.debug('Processing attachment RecordId: ' + recordIdStr);
+                    
+                    // Handle ContentDocument (IDs start with 069)
+                    if (recordIdStr.startsWith('069') && contentDocumentMap.containsKey(attachment.RecordId)) {
+                        contentDoc = contentDocumentMap.get(attachment.RecordId);
+                        attWrapper.id = contentDoc.LatestPublishedVersionId;
+                        attWrapper.contentDocumentId = contentDoc.Id;
+                        attWrapper.title = contentDoc.Title + (String.isNotBlank(contentDoc.FileExtension) ? '.' + contentDoc.FileExtension : '');
+                        
+                        // Determine if it's an image
+                        Set<String> imageExtensions = new Set<String>{'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'};
+                        attWrapper.isImage = String.isNotBlank(contentDoc.FileExtension) && imageExtensions.contains(contentDoc.FileExtension.toLowerCase());
+                        
+                        // Generate thumbnail URL for images
+                        if (attWrapper.isImage && contentDoc.LatestPublishedVersionId != null) {
+                            attWrapper.thumbnailUrl = '/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=' + contentDoc.LatestPublishedVersionId;
+                        }
+                        
+                        System.debug('Added ContentDocument attachment: ' + attWrapper.title);
+                    }
+                    // Handle ContentVersion (IDs start with 068)
+                    else if (recordIdStr.startsWith('068') && contentVersionMap.containsKey(attachment.RecordId)) {
+                        ContentVersion cv = contentVersionMap.get(attachment.RecordId);
+                        contentDoc = contentDocumentMap.get(cv.ContentDocumentId);
+                        attWrapper.id = cv.Id;
+                        attWrapper.contentDocumentId = cv.ContentDocumentId;
+                        attWrapper.title = cv.Title + (String.isNotBlank(cv.FileExtension) ? '.' + cv.FileExtension : '');
+                        
+                        // Determine if it's an image
+                        Set<String> imageExtensions = new Set<String>{'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'};
+                        attWrapper.isImage = String.isNotBlank(cv.FileExtension) && imageExtensions.contains(cv.FileExtension.toLowerCase());
+                        
+                        // Generate thumbnail URL for images
+                        if (attWrapper.isImage) {
+                            attWrapper.thumbnailUrl = '/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=' + cv.Id;
+                        }
+                        
+                        System.debug('Added ContentVersion attachment: ' + attWrapper.title);
+                    }
+                    
+                    if (attWrapper.contentDocumentId != null) {
+                        wrapper.attachments.add(attWrapper);
+                        System.debug('Attachment added to wrapper');
+                    } else {
+                        System.debug('Skipping attachment - no contentDocumentId');
+                    }
+                }
+                
+                // Only add feed items that have attachments
+                if (!wrapper.attachments.isEmpty()) {
+                    feedItemWrappers.add(wrapper);
+                }
+            }
+            
+            result.put('feedItems', feedItemWrappers);
+            result.put('hasMore', !feedItems.isEmpty()); // Simple check: if we got results, there might be more
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'getChatterFeedItems',
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching Chatter feed items for Job ID: ' + jobId
+            });
+        }
+        System.debug('Feed Items Retrieved: ' + feedItemWrappers.size());
+        System.debug('Feed Items: ' + feedItemWrappers);
+
+        System.debug('Result: ' + result);
+        return result;
+    }
+    
+    @AuraEnabled
     public static Boolean moveTimesheetBackToRegular(String timesheetEntryItemId) {
         try {
             if (String.isBlank(timesheetEntryItemId)) {
@@ -1151,5 +1320,21 @@ public with sharing class ShiftEndLogEntriesController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'sendCustomNotification','exceptionObj' => e,'moreDetails' => 'Error sending custom notification for record: ' + recordId + ' - ' + e.getMessage()});
             System.debug('Error sending custom notification: ' + e.getMessage());
         }
+    }
+    
+    // Wrapper classes for Chatter feed items
+    public class FeedItemWrapper {
+        @AuraEnabled public String id;
+        @AuraEnabled public String body;
+        @AuraEnabled public DateTime createdDate;
+        @AuraEnabled public List<AttachmentWrapper> attachments;
+    }
+    
+    public class AttachmentWrapper {
+        @AuraEnabled public String id;
+        @AuraEnabled public String contentDocumentId;
+        @AuraEnabled public String title;
+        @AuraEnabled public Boolean isImage;
+        @AuraEnabled public String thumbnailUrl;
     }
 }

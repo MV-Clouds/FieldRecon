@@ -9,6 +9,7 @@ import moveTimesheetBackToRegular from '@salesforce/apex/ShiftEndLogEntriesContr
 import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
+import getChatterFeedItems from '@salesforce/apex/ShiftEndLogEntriesController.getChatterFeedItems';
 
 export default class ShiftEndLogEntries extends LightningElement {
     @api jobId = '';
@@ -62,6 +63,15 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track showCameraModal = false;
     @track cameraStream = null;
     @track capturedPhoto = null;
+
+    // Chatter Modal
+    @track showChatterModal = false;
+    @track showUploadOptions = false;
+    @track chatterFeedItems = [];
+    @track isLoadingChatter = false;
+    @track isLoadingMoreChatter = false;
+    @track chatterDaysOffset = 0;
+    @track hasMoreChatterItems = true;
 
     @track activeTab = 'approved';
 
@@ -161,6 +171,21 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     get showApprovalMessage() {
         return this.approvalStatus.approvalMessage && this.approvalStatus.approvalMessage.trim() !== '';
+    }
+
+    get hasChatterFeedItems() {
+        return this.chatterFeedItems && this.chatterFeedItems.length > 0;
+    }
+
+    get hasNoSelectedAttachments() {
+        if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) return true;
+        
+        for (let feedItem of this.chatterFeedItems) {
+            for (let attachment of feedItem.attachments) {
+                if (attachment.selected) return false;
+            }
+        }
+        return true;
     }
 
 
@@ -1318,9 +1343,9 @@ export default class ShiftEndLogEntries extends LightningElement {
         const fileToRemove = this.uploadedFiles.find(file => file.id === fileId);
         
         try {
-            // Only delete from Salesforce if it's not a camera photo
-            // Camera photos are not yet saved to Salesforce
-            if (!fileToRemove?.isCamera) {
+            // Only delete from Salesforce if it's not a camera photo or chatter file
+            // Camera photos and chatter files are not yet saved to Salesforce
+            if (!fileToRemove?.isCamera && !fileToRemove?.isChatter) {
                 await deleteContentDocuments({ contentDocumentIds: [fileId] });
             }
             
@@ -1334,6 +1359,214 @@ export default class ShiftEndLogEntries extends LightningElement {
         } finally {
             this.isLoading = false;
         }
+    }
+
+    // Upload Options Handlers
+    handleUploadOptionsClick(event) {
+        event.stopPropagation();
+        this.showUploadOptions = !this.showUploadOptions;
+        
+        // Close dropdown when clicking outside
+        if (this.showUploadOptions) {
+            setTimeout(() => {
+                document.addEventListener('click', this.handleClickOutside.bind(this), { once: true });
+            }, 100);
+        }
+    }
+
+    handleFileUploadClick(event){
+        event.stopPropagation();
+    }
+
+    handleClickOutside() {
+        this.showUploadOptions = false;
+    }
+
+    handleUploadNewFiles() {
+        this.showUploadOptions = false;
+        // Trigger the file upload component after a short delay
+        setTimeout(() => {
+            const fileUploaderHost = this.template.querySelector('[data-id="fileUploader"]');
+                console.log(fileUploaderHost);
+            
+                if (fileUploaderHost) {
+                    const shadowRoot = fileUploaderHost.shadowRoot;
+
+                    if (shadowRoot) {
+                        // 3. Query the actual <input type="file"> element within the shadow DOM
+                        // (Assuming the internal class name or selector used by Salesforce is 'input.file-selector')
+                        const fileInput = shadowRoot.querySelector('input[type="file"]');
+
+                        if (fileInput) {
+                            console.log("Hypothetically accessing and clicking the internal input.");
+                            // 4. Programmatically execute the click() method
+                            fileInput.click();
+                        } else {
+                            console.error("Internal input element not found within the shadowRoot.");
+                        }
+                    } else {
+                        console.error('Could not access shadowRoot of file uploader');
+                    }
+                } else {
+                    console.error('Could not find upload trigger');
+                }
+        }, 100);
+    }
+
+    handleChooseFromChatter() {
+        this.showUploadOptions = false;
+        this.showChatterModal = true;
+        this.chatterDaysOffset = 0;
+        this.hasMoreChatterItems = true;
+        this.loadChatterFeedItems();
+    }
+
+    // Chatter Functions
+    async loadChatterFeedItems() {
+        this.isLoadingChatter = true;
+        
+        try {
+            const result = await getChatterFeedItems({
+                jobId: this.jobId,
+                daysOffset: this.chatterDaysOffset
+            });
+
+            console.log('Chatter feed items loaded:', result);
+            console.log('Result type:', typeof result);
+            console.log('Feed items:', result?.feedItems);
+            console.log('Feed items length:', result?.feedItems?.length);
+            
+            if (result && result.feedItems && Array.isArray(result.feedItems) && result.feedItems.length > 0) {
+                const formattedItems = result.feedItems.map(item => ({
+                    id: item.id,
+                    body: item.body || '',
+                    formattedDate: this.formatChatterDate(item.createdDate),
+                    attachments: item.attachments.map(att => ({
+                        id: att.id,
+                        title: att.title,
+                        contentDocumentId: att.contentDocumentId,
+                        isImage: att.isImage || false,
+                        thumbnailUrl: att.thumbnailUrl || '',
+                        selected: false
+                    }))
+                }));
+                
+                console.log('Formatted items:', formattedItems);
+                console.log('Formatted items length:', formattedItems.length);
+                
+                if (this.chatterDaysOffset === 0) {
+                    this.chatterFeedItems = formattedItems;
+                } else {
+                    this.chatterFeedItems = [...this.chatterFeedItems, ...formattedItems];
+                }
+                
+                console.log('chatterFeedItems set to:', this.chatterFeedItems);
+                
+                // Check if there are more items
+                this.hasMoreChatterItems = result.hasMore;
+            } else {
+                console.log('No valid feed items found');
+                if (this.chatterDaysOffset === 0) {
+                    this.chatterFeedItems = [];
+                }
+                this.hasMoreChatterItems = false;
+            }
+        } catch (error) {
+            console.error('Error loading chatter feed items:', error);
+            console.error('Error details:', error.body?.message || error.message);
+            this.showToast('Error', 'Failed to load chatter posts: ' + (error.body?.message || error.message), 'error');
+            this.chatterFeedItems = [];
+            this.hasMoreChatterItems = false;
+        } finally {
+            this.isLoadingChatter = false;
+        }
+    }
+
+    handleLoadMoreChatter() {
+        this.chatterDaysOffset += 3;
+        this.isLoadingMoreChatter = true;
+        this.loadChatterFeedItems().then(() => {
+            this.isLoadingMoreChatter = false;
+        });
+    }
+
+    handleAttachmentSelection(event) {
+        const attachmentId = event.currentTarget.dataset.id;
+        const cardElement = event.currentTarget;
+        
+        // Toggle selection
+        this.chatterFeedItems = this.chatterFeedItems.map(feedItem => ({
+            ...feedItem,
+            attachments: feedItem.attachments.map(att => ({
+                ...att,
+                selected: att.id === attachmentId ? !att.selected : att.selected
+            }))
+        }));
+        
+        // Toggle visual selection class
+        cardElement.classList.toggle('selected');
+    }
+
+    handleAddSelectedAttachments() {
+        const selectedAttachments = [];
+        
+        // Collect all selected attachments
+        this.chatterFeedItems.forEach(feedItem => {
+            feedItem.attachments.forEach(attachment => {
+                if (attachment.selected) {
+                    selectedAttachments.push(attachment);
+                }
+            });
+        });
+        
+        if (selectedAttachments.length === 0) {
+            this.showToast('Warning', 'Please select at least one attachment', 'warning');
+            return;
+        }
+        
+        // Add selected attachments to uploaded files
+        selectedAttachments.forEach(attachment => {
+            const fileType = attachment.isImage ? 'image' : 'document';
+            this.uploadedFiles.push({
+                id: attachment.contentDocumentId,
+                name: attachment.title,
+                url: attachment.isImage ? attachment.thumbnailUrl : `/sfc/servlet.shepherd/document/download/${attachment.contentDocumentId}`,
+                fileType: fileType,
+                isImage: attachment.isImage,
+                isChatter: true, // Mark as from Chatter
+                icon: this.getFileIcon(attachment.title)
+            });
+        });
+        
+        this.showToast('Success', `${selectedAttachments.length} file(s) added from Chatter`, 'success');
+        this.closeChatterModal();
+    }
+
+    closeChatterModal() {
+        this.showChatterModal = false;
+        this.chatterFeedItems = [];
+        this.chatterDaysOffset = 0;
+        this.hasMoreChatterItems = true;
+    }
+
+    formatChatterDate(dateTimeString) {
+        const date = new Date(dateTimeString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        
+        return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+        });
     }
 
     // Camera Functions
@@ -1522,12 +1755,13 @@ export default class ShiftEndLogEntries extends LightningElement {
                 notesToOffice: this.step3Data.notesToOffice?.trim()
             };
 
-            // Separate camera photos and regular uploaded files
+            // Separate camera photos, chatter files, and regular uploaded files
             const cameraPhotos = this.uploadedFiles.filter(file => file.isCamera);
-            const regularFiles = this.uploadedFiles.filter(file => !file.isCamera);
+            const chatterFiles = this.uploadedFiles.filter(file => file.isChatter);
+            const regularFiles = this.uploadedFiles.filter(file => !file.isCamera && !file.isChatter);
 
-            // Get ContentDocument IDs from regular uploaded files
-            const fileIds = regularFiles.map(file => file.id);
+            // Get ContentDocument IDs from regular uploaded files and chatter files
+            const fileIds = [...regularFiles.map(file => file.id), ...chatterFiles.map(file => file.id)];
 
             // Prepare camera photos data
             const cameraPhotosData = cameraPhotos.map(photo => ({
@@ -1621,8 +1855,8 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     async handleDialogueClose() {
         // Delete only regular uploaded files if user cancels without saving
-        // Camera photos are not saved yet, so no need to delete them
-        const regularFiles = this.uploadedFiles.filter(file => !file.isCamera);
+        // Camera photos and chatter files are not saved yet, so no need to delete them
+        const regularFiles = this.uploadedFiles.filter(file => !file.isCamera && !file.isChatter);
         const fileIds = regularFiles.map(file => file.id);
         
         if (fileIds.length > 0) {
