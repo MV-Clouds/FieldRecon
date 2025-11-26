@@ -45,13 +45,14 @@ public with sharing class ApproveShiftEndLogsController {
     }
 
     /**
-     * @description: Method to get all log entries based on date filter
+     * @description: Method to get all pending log entries based on date filter with total count
      * @param dateFilter: String filter option (last7days, last15days, last30days, alltime)
-     * @return: List<LogEntryWrapper> - List of log entry records
+     * @return: LogEntryResponse - Response containing pending log entries and total count of all log entries
      */
     @AuraEnabled
-    public static List<LogEntryWrapper> getUnapprovedLogEntries(String dateFilter) {
+    public static LogEntryResponse getUnapprovedLogEntries(String dateFilter) {
         try {
+            LogEntryResponse response = new LogEntryResponse();
             List<LogEntryWrapper> result = new List<LogEntryWrapper>();
             
             // Calculate date range based on filter
@@ -67,12 +68,19 @@ public with sharing class ApproveShiftEndLogsController {
                 startDate = Date.newInstance(2000, 1, 1); // Set to a far past date
             }
             
-            // Build query - fetch all log entries with any status
+            // Build query for TOTAL count (all statuses)
+            String totalCountQuery = 'SELECT COUNT() FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c != null';
+            if (startDate != null) {
+                totalCountQuery += ' AND wfrecon__Work_Performed_Date__c >= :startDate';
+            }
+            response.totalCount = Database.countQuery(totalCountQuery);
+            
+            // Build query - fetch only PENDING log entries
             String query = 'SELECT Id, Name, wfrecon__Exceptions__c, wfrecon__Job__c, wfrecon__Job__r.Id, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, ' +
                           'wfrecon__Mobilization__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, ' +
                           'wfrecon__Status__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed_Date__c, ' +
                           'CreatedDate, CreatedBy.Name ' +
-                          'FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c IN (\'Pending\', \'Approved\', \'Auto-Approved\', \'Rejected\')';
+                          'FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c = \'Pending\'';
             
             if (startDate != null) {
                 query += ' AND wfrecon__Work_Performed_Date__c >= :startDate';
@@ -98,10 +106,14 @@ public with sharing class ApproveShiftEndLogsController {
                 result.add(wrapper);
             }
             
-            return result;
+            response.entries = result;
+            return response;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'getUnapprovedLogEntries', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
-            return new List<LogEntryWrapper>();
+            LogEntryResponse errorResponse = new LogEntryResponse();
+            errorResponse.entries = new List<LogEntryWrapper>();
+            errorResponse.totalCount = 0;
+            return errorResponse;
         }
     }
     
@@ -296,8 +308,8 @@ public with sharing class ApproveShiftEndLogsController {
      * @param logEntryStatus: Final status for the log entry (Approved/Rejected/Pending)
      */
     private static void processTimesheetApprovals(List<Object> timesheets, String logEntryStatus) {
-        List<Timesheet_Entry__c> timesheetsToUpdate = new List<Timesheet_Entry__c>();
-        List<Timesheet_Entry_Item__c> itemsToUpdate = new List<Timesheet_Entry_Item__c>();
+        List<wfrecon__Timesheet_Entry__c> timesheetsToUpdate = new List<wfrecon__Timesheet_Entry__c>();
+        List<wfrecon__Timesheet_Entry_Item__c> itemsToUpdate = new List<wfrecon__Timesheet_Entry_Item__c>();
         
         // Check if this is a rejection - on rejection, only update status, no field updates
         Boolean isRejection = (logEntryStatus == 'Rejected');
@@ -310,8 +322,8 @@ public with sharing class ApproveShiftEndLogsController {
         }
         
         // Fetch all timesheet entry items (each timesheet entry has exactly one child)
-        Map<Id, Timesheet_Entry_Item__c> timesheetItemMap = new Map<Id, Timesheet_Entry_Item__c>();
-        for (Timesheet_Entry_Item__c item : [SELECT Id, wfrecon__Timesheet_Entry__c FROM Timesheet_Entry_Item__c WHERE wfrecon__Timesheet_Entry__c IN :timesheetIds WITH USER_MODE]) {
+        Map<Id, wfrecon__Timesheet_Entry_Item__c> timesheetItemMap = new Map<Id, wfrecon__Timesheet_Entry_Item__c>();
+        for (wfrecon__Timesheet_Entry_Item__c item : [SELECT Id, wfrecon__Timesheet_Entry__c FROM wfrecon__Timesheet_Entry_Item__c WHERE wfrecon__Timesheet_Entry__c IN :timesheetIds WITH USER_MODE]) {
             timesheetItemMap.put(item.wfrecon__Timesheet_Entry__c, item);
         }
         
@@ -326,19 +338,19 @@ public with sharing class ApproveShiftEndLogsController {
             Boolean isTimesheetRejected = (timesheetStatus == 'rejected' || timesheetStatus == 'Rejected');
             
             // Update timesheet entry (parent)
-            Timesheet_Entry__c ts = new Timesheet_Entry__c(Id = timesheetId);
+            wfrecon__Timesheet_Entry__c ts = new wfrecon__Timesheet_Entry__c(Id = timesheetId);
             // Use individual timesheet status if available, otherwise fallback to log entry status
-            ts.Status__c = String.isNotBlank(timesheetStatus) ? capitalizeStatus(timesheetStatus) : logEntryStatus;
+            ts.wfrecon__Status__c = String.isNotBlank(timesheetStatus) ? capitalizeStatus(timesheetStatus) : logEntryStatus;
             
             // Apply field updates to parent ONLY if this specific timesheet is NOT rejected
             if (!isTimesheetRejected && fieldUpdates != null && !fieldUpdates.isEmpty()) {
                 if (fieldUpdates.containsKey('Clock_In_Time__c')) {
                     String clockInStr = (String) fieldUpdates.get('Clock_In_Time__c');
-                    ts.Clock_In_Time__c = convertUtc(clockInStr);
+                    ts.wfrecon__Clock_In_Time__c = convertUtc(clockInStr);
                 }
                 if (fieldUpdates.containsKey('Clock_Out_Time__c')) {
                     String clockOutStr = (String) fieldUpdates.get('Clock_Out_Time__c');
-                    ts.Clock_Out_Time__c = convertUtc(clockOutStr);
+                    ts.wfrecon__Clock_Out_Time__c = convertUtc(clockOutStr);
                 }
             }
             
@@ -346,24 +358,24 @@ public with sharing class ApproveShiftEndLogsController {
             
             // Update timesheet entry item (child) - each parent has exactly ONE child
             if (timesheetItemMap.containsKey(timesheetId)) {
-                Timesheet_Entry_Item__c item = new Timesheet_Entry_Item__c(
+                wfrecon__Timesheet_Entry_Item__c item = new wfrecon__Timesheet_Entry_Item__c(
                     Id = timesheetItemMap.get(timesheetId).Id
                 );
                 // Use individual timesheet status if available, otherwise fallback to log entry status
-                item.Status__c = String.isNotBlank(timesheetStatus) ? capitalizeStatus(timesheetStatus) : logEntryStatus;
+                item.wfrecon__Status__c = String.isNotBlank(timesheetStatus) ? capitalizeStatus(timesheetStatus) : logEntryStatus;
                 
                 // Apply field updates to child ONLY if this specific timesheet is NOT rejected
                 if (!isTimesheetRejected && fieldUpdates != null && !fieldUpdates.isEmpty()) {
                     if (fieldUpdates.containsKey('Clock_In_Time__c')) {
                         String clockInStr = (String) fieldUpdates.get('Clock_In_Time__c');
-                        item.Clock_In_Time__c = convertUtc(clockInStr);
+                        item.wfrecon__Clock_In_Time__c = convertUtc(clockInStr);
                     }
                     if (fieldUpdates.containsKey('Clock_Out_Time__c')) {
                         String clockOutStr = (String) fieldUpdates.get('Clock_Out_Time__c');
-                        item.Clock_Out_Time__c = convertUtc(clockOutStr);
+                        item.wfrecon__Clock_Out_Time__c = convertUtc(clockOutStr);
                     }
                     if (fieldUpdates.containsKey('Travel_Time__c')) {
-                        item.Travel_Time__c = (Decimal) fieldUpdates.get('Travel_Time__c');
+                        item.wfrecon__Travel_Time__c = (Decimal) fieldUpdates.get('Travel_Time__c');
                     }
                 }
                 
@@ -449,7 +461,7 @@ public with sharing class ApproveShiftEndLogsController {
      * @param locationProcesses: List of location process approval data with IDs and new values
      */
     private static void processLocationProcessApprovals(List<Object> locationProcesses) {
-        List<Location_Process__c> lpsToUpdate = new List<Location_Process__c>();
+        List<wfrecon__Location_Process__c> lpsToUpdate = new List<wfrecon__Location_Process__c>();
         
         for (Object lpObj : locationProcesses) {
             Map<String, Object> lpData = (Map<String, Object>) lpObj;
@@ -462,8 +474,8 @@ public with sharing class ApproveShiftEndLogsController {
             
             if (isApproved && newValue != null) {
                 // Update location process with new value (user can edit the new value)
-                Location_Process__c lp = new Location_Process__c(Id = locationProcessId);
-                lp.Completed_Percentage__c = newValue;
+                wfrecon__Location_Process__c lp = new wfrecon__Location_Process__c(Id = locationProcessId);
+                lp.wfrecon__Completed_Percentage__c = newValue;
                 lpsToUpdate.add(lp);
             }
         }
@@ -505,6 +517,8 @@ public with sharing class ApproveShiftEndLogsController {
         wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c(Id = logEntryId);
 
         logEntry.wfrecon__Status__c = status;
+        logEntry.wfrecon__Approved_Date__c = Datetime.now();
+        logEntry.wfrecon__Approved_By__c = UserInfo.getUserId();
         
         if (fieldUpdates.containsKey('workPerformed')) {
             logEntry.wfrecon__Work_Performed__c = (String) fieldUpdates.get('workPerformed');
@@ -520,6 +534,14 @@ public with sharing class ApproveShiftEndLogsController {
         }
         
         update logEntry;
+    }
+    
+    /**
+     * @description: Wrapper class for Log Entry Response with total count
+     */
+    public class LogEntryResponse {
+        @AuraEnabled public List<LogEntryWrapper> entries { get; set; }
+        @AuraEnabled public Integer totalCount { get; set; }
     }
     
     /**
