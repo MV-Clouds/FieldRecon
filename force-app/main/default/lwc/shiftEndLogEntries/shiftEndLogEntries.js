@@ -1797,6 +1797,13 @@ export default class ShiftEndLogEntries extends LightningElement {
         return this.isRecordingSummarized && !this.noLogRecordings ? 'Re-Generate' : 'Generate'
     }
 
+    infoMessages = {
+        ai_error : 'Something went wrong while generating the summary. Please try again.',
+        ai_success : 'Summary is ready. Review it and make edits if needed.',
+        is_async : 'Shift Log Info is being processed. Please wait for a few seconds.',
+        no_recording: 'No recordings found. Please add recordings and try again.'
+    }
+
     collectShiftLogInfo(){
         this.isLoading = true;
 
@@ -1809,34 +1816,37 @@ export default class ShiftEndLogEntries extends LightningElement {
         fetchShiftLogInfo({paramString : JSON.stringify(params)})
         .then(result => {
             console.log('result : ', result);
+            this.isLoading = false;
             if(result.error){
                 this.showToast('Error', result.error, 'error');
-                this.isLoading = false;
                 return;
+            }
+            if(result.ai_Response_Error__c){
+                this.showToast('Error', this.infoMessages.ai_error, 'error');
             }
             else if(result.no_recording){
                 this.noLogRecordings = true;
-                this.isLoading = false;
+                this.showToast('Error', this.infoMessages.no_recording, 'error');
             }
             else if(result.ai_response){
                 // Collect AI Response and match fill to input fields
                 try {
                     this.step3Data = JSON.parse(result.ai_response);
-                    
                 } catch (error) {}
-                this.isLoading = false;
                 this.isRecordingSummarized = true;
+                this.showToast('Success', this.infoMessages.ai_success, 'success');
             }
             else if(result.is_async){
+                this.isLoading = true;
                 // When Total Clips Size exceed the 10MB, Recoding Process Method will move to asynchronous apex and
                 // AI response will be collected using platform event
                 // Subscribe to event
                 this.subscribeEvent();
-                this.showToast('Success', 'Shift Log Info is being processed. Please wait for a few seconds.', 'success');
+                this.showToast('Success', this.infoMessages.is_async, 'success');
             }
         })
         .catch(error => {
-            console.log('error : ', error);
+            console.log('error : ', error?.body?.message ?? error?.message);
             this.isLoading = false;
         })
 
@@ -1846,10 +1856,16 @@ export default class ShiftEndLogEntries extends LightningElement {
         subscribe('/event/AI_Response__e', -1, (response)=>{
             console.log('Async Response: ',response);
 
-            try {
-                this.step3Data = JSON.parse(response.data.payload.ai_Response__c);
-            } catch (error) {
-                this.showToast('Error', '')
+            let ai_result = response.data.payload;
+
+            if(ai_result.ai_Response_Error__c?.trim()){
+                this.showToast('Error', this.infoMessages.ai_error, 'error');
+            }
+            if(ai_result.ai_Response__c?.trim()){
+                try {
+                    this.step3Data = JSON.parse(response.data.payload.ai_Response__c) ?? {};
+                    this.showToast('Success', this.infoMessages.ai_success, 'success');
+                } catch (error) {}
             }
 
             this.isRecordingSummarized = true;

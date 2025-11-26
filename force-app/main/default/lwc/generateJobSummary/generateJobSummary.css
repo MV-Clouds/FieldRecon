@@ -1,0 +1,63 @@
+.main-container{
+    margin: 25px 15px;
+}
+
+.input-container {
+    width: 75%;
+}
+
+/* Header Row with language dropdown right-aligned */
+.header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.header-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.lang-dropdown {
+    min-width: 180px;
+}
+
+/* Button centered */
+.button-container {
+    display: flex;
+    justify-content: left;
+    align-items: end;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+/* Spinner center alignment */
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+/* Divider style */
+.divider {
+    margin: 20px 0;
+}
+
+/* Result styling */
+.result-text {
+    font-size: 1rem;
+}
+
+/* Responsive: Language dropdown goes under header title for small screens */
+@media(max-width: 600px) {
+    .header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .input-container {
+        width: 100%;
+    }
+}

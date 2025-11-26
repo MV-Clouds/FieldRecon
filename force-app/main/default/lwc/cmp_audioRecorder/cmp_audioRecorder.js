@@ -311,6 +311,8 @@ export default class Cmp_audioRecorder extends LightningElement {
             if(this._microphoneIssue) return;
             this.value = event.target.files[0];
             this.prepareClip(this.value);
+            event.target.files = null;
+            event.target.value = null;
             this.dispatchEvent(new CustomEvent('completed', { detail: { blob : this.value, clip : this.clip} }));
         } catch (error) {
             console.log('error in handleFileUpload : ', error.stack);

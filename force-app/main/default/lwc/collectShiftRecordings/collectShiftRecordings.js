@@ -98,12 +98,11 @@ export default class CollectShiftRecordings extends LightningElement {
             this.refreshRecording();
         })
         .catch(error => {
-            console.log('error : ', error.stack);
+            console.log('error : ', error);
         })
         .finally(() => {
             this.isLoading = false;
         })
-        
     }
 
     handleSaveRecoding(event){

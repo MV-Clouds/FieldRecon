@@ -161,14 +161,19 @@ public with sharing class CollectShiftRecordingsController {
             InputParams params = (InputParams) JSON.deserialize(paramString, InputParams.class);
             System.debug('params : ' + params);
 
-            // Collect Mobilization Id for the given crew leader
-            Map<String, String> mobRes = getCrewLeaderMobilization(params);
-            if(mobRes.containsKey('error')) return mobRes;
-
-            // merge mobilizationId and crewLeaderId
-            result.putAll(mobRes);
+            if(String.isEmpty(params.mobilizationId)){
+                // Collect Mobilization Id for the given crew leader
+                Map<String, String> mobRes = getCrewLeaderMobilization(params);
+                if(mobRes.containsKey('error')) return mobRes;
     
-            List<ContentVersion> clipList = [SELECT Id, ContentSize FROM ContentVersion WHERE FirstPublishLocationId =: mobRes.get('mobilizationId') ORDER BY CreatedDate Desc];
+                // merge mobilizationId and crewLeaderId
+                result.putAll(mobRes);
+
+                // collected mobilization Id
+                params.mobilizationId = mobRes.get('mobilizationId');
+            }
+    
+            List<ContentVersion> clipList = [SELECT Id, ContentSize FROM ContentVersion WHERE FirstPublishLocationId =: params.mobilizationId ORDER BY CreatedDate Desc];
 
             if(clipList.isEmpty()){
                 result.put('no_recording', 'No recordings found');
@@ -185,13 +190,7 @@ public with sharing class CollectShiftRecordingsController {
 
             // if totalClipSize is less than 5 MB, then call AI to summarize the clips
             if(totalClipSize <= 0.40 * 1024 * 1024){
-                String ai_response = ProcessShiftLogsByAI(clipIds);
-                if(ai_response.startsWith('error')){
-                    result.put('error', ai_response);
-                    return result;
-                }
-                result.put('ai_response', ai_response);
-                return result;
+                return ProcessShiftLogsByAI(clipIds);
             }
             else{
                 // process recorded shift log in future method to increase the limit
@@ -209,7 +208,7 @@ public with sharing class CollectShiftRecordingsController {
         return result;
     }
 
-    public static string ProcessShiftLogsByAI(List<String> clipIds){
+    public static Map<String, Object> ProcessShiftLogsByAI(List<String> clipIds){
         try {
 
             List<ContentVersion> clipList = [SELECT Id, VersionData FROM ContentVersion WHERE Id IN : clipIds ORDER BY CreatedDate];
@@ -219,11 +218,12 @@ public with sharing class CollectShiftRecordingsController {
                 // System.debug(clip.Title + ' ' + EncodingUtil.base64Encode(clip.VersionData));
                 audioData += EncodingUtil.base64Encode(clip.VersionData);
             }
-            return AICalloutController.getTranscript(audioData);
+            
+            return AICalloutController.generateRecordingSummary(audioData);
             
         } catch (Exception e) {
             System.debug('Error in ProcessShiftLogsByAI: ' + e.getMessage());
-            return 'error in ProcessShiftLogsByAI: ' + e.getMessage();
+            return new Map<String, Object>{ 'error' => 'error in ProcessShiftLogsByAI: ' + e.getMessage()};
         }
     }
 
@@ -235,24 +235,24 @@ public with sharing class CollectShiftRecordingsController {
         for (Object clipId : clipIds) {
             actualClipIds.add((String) clipId);
         }
-        String ai_response = ProcessShiftLogsByAI(actualClipIds);
 
-        if(ai_response.startsWith('error')){
-            System.debug('Error in ProcessShiftLogsByAI_Async: ' + ai_response);
-        }
-        else{
-            System.debug('AI Response: ' + ai_response);
+        // Call AI to summarize the clips
+        Map<String, Object> ai_result = ProcessShiftLogsByAI(actualClipIds);
 
-            AI_Response__e  aiResponse = new AI_Response__e();
-            aiResponse.ai_Response__c = ai_response;
+        System.debug('AI Response: ' + ai_result);
 
-            Database.SaveResult sr = EventBus.publish(aiResponse);
-            if (sr.isSuccess()) {
-                System.debug('Successfully published the event.');
-            } else {
-                System.debug('Failed to publish the event.');
-                System.debug('Errors: ' + sr.getErrors());
-            }
+        // Collect and assign values to event fields
+        AI_Response__e  aiResponse = new AI_Response__e();
+        aiResponse.ai_Response__c = (String) ai_result.get('ai_Response__c');
+        aiResponse.ai_Response_Error__c = (String) ai_result.get('ai_Response_Error__c');
+
+        // Publish the event
+        Database.SaveResult sr = EventBus.publish(aiResponse);
+        if (sr.isSuccess()) {
+            System.debug('Successfully published the event.');
+        } else {
+            System.debug('Failed to publish the event.');
+            System.debug('Errors: ' + sr.getErrors());
         }
     }
 
