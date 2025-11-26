@@ -25,7 +25,7 @@ public with sharing class JobMetricsController {
         try {
             // Get all jobs with financial data
             List<wfrecon__Job__c> jobs = [
-                SELECT Id, Name, wfrecon__Job_Name__c, wfrecon__Status__c,
+                SELECT Id, Name, wfrecon__Job_Name__c, wfrecon__Status__c, wfrecon__Job_Number__c,
                        wfrecon__Total_Contract_Price__c, 
                        wfrecon__Total_Contract_Value__c,
                        wfrecon__Total_Change_Order_Value__c
@@ -104,6 +104,7 @@ public with sharing class JobMetricsController {
                 JobData data = new JobData();
                 data.jobId = job.Id;
                 data.jobName = job.wfrecon__Job_Name__c;
+                data.jobNumber = job.wfrecon__Job_Number__c;
                 data.status = job.wfrecon__Status__c;
                 data.baseContract = job.wfrecon__Total_Contract_Value__c != null ? job.wfrecon__Total_Contract_Value__c : 0;
                 data.changeOrder = job.wfrecon__Total_Change_Order_Value__c != null ? job.wfrecon__Total_Change_Order_Value__c : 0;
@@ -206,6 +207,7 @@ public with sharing class JobMetricsController {
     public class JobData {
         @AuraEnabled public String jobId { get; set; }
         @AuraEnabled public String jobName { get; set; }
+        @AuraEnabled public String jobNumber { get; set; }
          @AuraEnabled public String status { get; set; }
         @AuraEnabled public Decimal baseContract { get; set; }
         @AuraEnabled public Decimal changeOrder { get; set; }

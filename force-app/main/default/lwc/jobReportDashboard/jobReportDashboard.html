@@ -193,8 +193,8 @@
 
                 </div>
                 <div class="filter-group">
-                    <lightning-combobox name="statusFilter" variant="label-hidden" value={selectedStatus} placeholder="All Statuses"
-                        options={statusOptions} onchange={handleStatusChange}>
+                    <lightning-combobox name="statusFilter" variant="label-hidden" value={selectedStatus}
+                        placeholder="All Statuses" options={statusOptions} onchange={handleStatusChange}>
                     </lightning-combobox>
 
                 </div>
@@ -209,7 +209,21 @@
             <div class="data-table-container">
                 <template if:true={showChart}>
                     <!-- Chart Container -->
-                    <div class="chart-container" lwc:dom="manual"></div>
+                    <template if:true={isFinanceDataAvailable}>
+                        <div class="chart-container" lwc:dom="manual"></div>
+                    </template>
+                    <template if:false={isFinanceDataAvailable}>
+                        <div class="no-records-message">
+                            <div class="empty-state">
+                                <div class="empty-state__content">
+                                    <div class="empty-state__icon">
+                                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                    </div>
+                                    <div class="empty-state__message">No data available to show</div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </template>
 
                 <template if:false={showChart}>
@@ -217,6 +231,8 @@
                         <table class="custom-data-table">
                             <thead class="table-header">
                                 <tr>
+                                    <th class="header-cell">Sr No.</th>
+                                    <th class="header-cell">Job Number</th>
                                     <th class="header-cell">Job Name</th>
                                     <th class="header-cell">Total Contract</th>
                                     <th class="header-cell">Base Contract</th>
@@ -233,24 +249,34 @@
                                 <template for:each={financeData} for:item="job">
                                     <tr key={job.Id} class="data-row">
                                         <td class="data-cell center-trancate-text">
+                                            <span data-id={job.jobId}>
+                                                {job.srNo}
+                                            </span>
+                                        </td>
+                                        <td class="data-cell center-trancate-text">
                                             <span class="job-name-text clickable-job-name" data-id={job.jobId}
                                                 onclick={navigateToJobRecord}>
+                                                {job.jobNumber}
+                                            </span>
+                                        </td>
+                                        <td class="data-cell center-trancate-text">
+                                            <span data-id={job.jobId}>
                                                 {job.jobName}
                                             </span>
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.totalContract}
-                                                format-style="currency" currency-code="USD" maximum-fraction-digits="0">
+                                                format-style="currency" currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.baseContract} format-style="currency"
-                                                currency-code="USD" maximum-fraction-digits="0">
+                                                currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.changeOrder} format-style="currency"
-                                                currency-code="USD" maximum-fraction-digits="0">
+                                                currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                         <td class="data-cell center-trancate-text">
@@ -260,27 +286,27 @@
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.remainingValue}
-                                                format-style="currency" currency-code="USD" maximum-fraction-digits="0">
+                                                format-style="currency" currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.billedAmount} format-style="currency"
-                                                currency-code="USD" maximum-fraction-digits="0">
+                                                currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.paidAmount} format-style="currency"
-                                                currency-code="USD" maximum-fraction-digits="0">
+                                                currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.balanceAmount}
-                                                format-style="currency" currency-code="USD" maximum-fraction-digits="0">
+                                                format-style="currency" currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                         <td class="data-cell center-trancate-text">
                                             <lightning-formatted-number value={job.retainageHeld}
-                                                format-style="currency" currency-code="USD" maximum-fraction-digits="0">
+                                                format-style="currency" currency-code="USD" maximum-fraction-digits="2">
                                             </lightning-formatted-number>
                                         </td>
                                     </tr>
@@ -289,20 +315,22 @@
                             <!-- Footer with Totals -->
                             <tfoot>
                                 <tr class="totals-row">
+                                    <td class="data-cell totals-label"></td>
+                                    <td class="data-cell totals-label"></td>
                                     <td class="data-cell totals-label">Total</td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalContract} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalBaseContract} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalChangeOrder} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                     <td class="data-cell totals-label">
@@ -312,27 +340,27 @@
                                     </td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalRemaining} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalBilled} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalPaid} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalBalance} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                     <td class="data-cell totals-label">
                                         <lightning-formatted-number value={totalRetainage} format-style="currency"
-                                            currency-code="USD" maximum-fraction-digits="0">
+                                            currency-code="USD" maximum-fraction-digits="2">
                                         </lightning-formatted-number>
                                     </td>
                                 </tr>
@@ -341,8 +369,15 @@
                     </template>
 
                     <template if:false={isFinanceDataAvailable}>
-                        <div class="no-data-message">
-                            <p>No finance data available</p>
+                        <div class="no-records-message">
+                            <div class="empty-state">
+                                <div class="empty-state__content">
+                                    <div class="empty-state__icon">
+                                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                    </div>
+                                    <div class="empty-state__message">No data available to show</div>
+                                </div>
+                            </div>
                         </div>
                     </template>
                 </template>
