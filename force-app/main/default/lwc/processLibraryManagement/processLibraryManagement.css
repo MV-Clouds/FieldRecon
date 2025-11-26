@@ -538,6 +538,72 @@
     font-size: 14px;
 }
 
+.left-controls{
+    display: flex;
+    gap: 1rem;
+}
+
+.process-type-filter-picklist {
+    height: 2rem;
+    overflow: hidden;
+    position: relative;
+    width: 10rem; /* Adjusted width for 'Process Type' label */
+    min-width: 6rem;
+    z-index: 15;
+    cursor: pointer;
+    border: 1px solid gray;
+    border-radius: 0.5rem;
+    background-color: white;
+}
+
+.process-type-filter-picklist:hover{
+  overflow: unset;
+}
+
+.process-type-options-selection-div {
+    background-color: white;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: max-content;
+    max-width: 50vw;
+    border-radius: 0.5rem;
+    gap: 1px;
+    margin-top: 1px; /* Slight adjustment to detach visually from label */
+    min-width: 10rem;
+}
+
+.process-type-filter-picklist:hover .process-type-options-selection-div{
+  box-shadow: 0px 0px 5px 0 #5a5adb;
+}
+
+.process-type-picklist-label {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: 0.6rem;
+}
+
+.process-type-options{
+  width: 100%;
+  padding: 0.3rem 0.6rem;
+  white-space: nowrap; /* Prevents wrapping in dropdown */
+  transition: background-color 0.1s ease-in-out;
+}
+
+.process-type-options:hover{
+    background-color: #f3f3f3;
+}
+
+.process-type-options[data-selected="true"]{
+  background-color: var(--primary-theme-color-shade-20, #5a5adb20);
+  color: var(--primary-theme-color, #5a5adb);
+  font-weight: 600;
+}
+
 /* Responsive adjustments */
 @media only screen and (max-width: 900px) {
     .filter-search-container {

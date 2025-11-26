@@ -119,11 +119,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
+    /**
+     * Method Name: formattedSelectedDate
+     * @description: Gets the formatted date string for the header based on view mode.
+     */
     get apexFormattedDate() {
         return this.selectedDate.toISOString().split('T')[0];
     }
 
-    /** * Method Name: jobDetails 
+    /** 
+    * Method Name: jobDetails 
     * @description: This method processes raw job details and formats them for display in the UI.
     */
     get jobDetails() {
@@ -136,6 +141,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 const mobId = job.mobId;
                 const timesheetData = this.getTimesheetDataForJobDisplay(mobId);
                 const selectedCount = this.selectedTimesheets.get(mobId)?.size || 0;
+
+                const modifications = this.modifiedTimesheetEntriesForJob(mobId);
+                const modificationCount = modifications.size;
                 const totalTimesheets = timesheetData.length;
                 
                 return {
@@ -148,6 +156,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     isSaveDisabled: !this.hasTimesheetModificationsForJob(mobId) || this.isSavingTimesheetEntries,
                     isDeleteDisabled: selectedCount === 0 || this.isSavingTimesheetEntries,
                     saveButtonLabel: this.getTimesheetSaveButtonLabel(mobId),
+                    discardButtonTitle: this.getTimesheetDiscardButtonTitle(mobId),
                     isAllSelected: totalTimesheets > 0 && selectedCount === totalTimesheets,
                     values: this.jobColumns.map(col => {
                         let cell = { 
@@ -190,8 +199,23 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             return [];
         }
     }
+    	
+    /**
+     * Method Name: getTimesheetDiscardButtonTitle
+     * @description: Gets the dynamic tooltip for the Discard Changes button.
+     */
+    getTimesheetDiscardButtonTitle(mobId) {
+        const modifications = this.modifiedTimesheetEntriesForJob(mobId);
+        const count = modifications.size;
+        if (count === 0) {
+            return 'No timesheet changes to discard';
+        }
+        return `Discard ${count} unsaved change${count === 1 ? '' : 's'}`;
     
-    /** * Method Name: getTimesheetDataForJobDisplay 
+    }
+    
+    /** 
+    * Method Name: getTimesheetDataForJobDisplay 
     * @description: Processes the raw timesheet data for display in the nested table with inline edit state.
     */
     getTimesheetDataForJobDisplay(mobId) {
@@ -288,7 +312,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         });
     }
 
-    /** * Method Name: getDatetimeMinBoundary 
+    /** 
+    * Method Name: getDatetimeMinBoundary 
     * @description: Calculates the minimum boundary for Clock In/Out date time pickers for inline editing.
     */
     getDatetimeMinBoundary(ts, fieldName) {
@@ -312,7 +337,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return null;
     }
 
-    /** * Method Name: getDatetimeMaxBoundary 
+    /** 
+    * Method Name: getDatetimeMaxBoundary 
     * @description: Calculates the maximum boundary for Clock In/Out date time pickers for inline editing.
     */
     getDatetimeMaxBoundary(ts, fieldName) {
@@ -335,7 +361,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return null;
     }
 
-    /** * Method Name: formatToDatetimeLocal
+    /** 
+    * Method Name: formatToDatetimeLocal
     * @description: Formats ISO datetime string to YYYY-MM-DDThh:mm format for input type="datetime-local"
     */
     formatToDatetimeLocal(iso) {
@@ -429,6 +456,48 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     // New delete confirmation properties
     get isTimesheetBulkDelete() {
         return this.deleteConfirmationAction === 'bulkDeleteTimesheets';
+    }
+
+    /**
+     * Method Name: manualClockInMinBoundary
+     * @description: Gets the minimum boundary for Clock In in the Manual Timesheet Entry Modal (Job Start Date).
+     */
+    get manualClockInMinBoundary() {
+        const jobRecord = this.getCurrentJobRecord();
+        const jobStart = jobRecord?.startDate || this.currentJobStartDateTime;
+        if (!jobStart) return null;
+        const dateKey = this.extractDateKey(jobStart);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+    /**
+     * Method Name: manualClockInMaxBoundary
+     * @description: Gets the maximum boundary for Clock In in the Manual Timesheet Entry Modal (Current Date/Time).
+     */
+    get manualClockInMaxBoundary() {
+        return new Date().toISOString().slice(0, 16);
+    }
+    
+    /**
+     * Method Name: manualClockOutMinBoundary
+     * @description: Gets the minimum boundary for Clock Out in the Manual Timesheet Entry Modal (Current Clock In Time).
+     */
+    get manualClockOutMinBoundary() {
+        if (this.clockInTime) {
+            return this.clockInTime;
+        }
+        const jobRecord = this.getCurrentJobRecord();
+        const jobStart = jobRecord?.startDate || this.currentJobStartDateTime;
+        if (!jobStart) return null;
+        const dateKey = this.extractDateKey(jobStart);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+    
+    /**
+     * Method Name: manualClockOutMaxBoundary
+     * @description: Gets the maximum boundary for Clock Out in the Manual Timesheet Entry Modal (Current Date/Time).
+     */
+    get manualClockOutMaxBoundary() {
+        return new Date().toISOString().slice(0, 16);
     }
     
     // --- Lifecycle and Initialization ---
@@ -1383,6 +1452,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                             label: costCode.Name,
                             value: costCode.Id
                         }));
+
+                        // Set current time as default for manual entry
+                        this.clockInTime = new Date().toISOString().slice(0, 16);
+                        this.clockOutTime = new Date().toISOString().slice(0, 16);
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     }
@@ -1986,6 +2059,43 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.editingTimesheetCells.clear();
                 this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Final refresh for UI state
             });
+    }
+
+    /**
+     * Method Name: handleDiscardTimesheetChanges
+     * @description: Discards all pending inline edits for the current job/mobilization.
+     */
+    handleDiscardTimesheetChanges(event) {
+        const mobId = event.currentTarget.dataset.mobid;
+        
+        if (!this.hasTimesheetModificationsForJob(mobId)) {
+            return;
+        }
+        
+        // Clear modifications associated with this mobId
+        const modifiedIds = Array.from(this.modifiedTimesheetEntries.keys());
+        
+        modifiedIds.forEach(id => {
+            if (this.modifiedTimesheetEntries.get(id)?.mobId === mobId) {
+                this.modifiedTimesheetEntries.delete(id);
+                // Also clear any associated editing state
+                Array.from(this.editingTimesheetCells).forEach(cellKey => {
+                    if (cellKey.startsWith(id)) {
+                        this.editingTimesheetCells.delete(cellKey);
+                    }
+                });
+            }
+        });
+        
+        // FIX: Re-instantiate the Map to force reactivity
+        this.modifiedTimesheetEntries = new Map(this.modifiedTimesheetEntries);
+        // Update global flag
+        this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
+        
+        // Force re-render to revert values and remove highlighting
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
+        
+        this.showToast('Success', 'Timesheet changes have been discarded', 'success');
     }
 
     /**

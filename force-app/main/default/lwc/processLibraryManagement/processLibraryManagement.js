@@ -2,8 +2,8 @@ import { LightningElement, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import { getPicklistValues } from 'lightning/uiObjectInfoApi';
-import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/Process__c.Unit_of_Measure__c';
-import PROCESS_TYPE_FIELD from '@salesforce/schema/Process__c.Process_Type__c';
+import UNIT_OF_MEASURE_FIELD from '@salesforce/schema/wfrecon__Process__c.wfrecon__Unit_of_Measure__c';
+import PROCESS_TYPE_FIELD from '@salesforce/schema/wfrecon__Process__c.wfrecon__Process_Type__c';
 import getProcessLibraries from '@salesforce/apex/ManagementTabController.getProcessLibraries';
 import deleteProcess from '@salesforce/apex/ManagementTabController.deleteProcess';
 import upsertProcess from '@salesforce/apex/ManagementTabController.upsertProcess';
@@ -28,6 +28,10 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
     // Picklist options
     @track unitOfMeasureOptions = [];
     @track processTypeOptions = [];
+
+    // Process Type filter options
+    @track processTypeFilterOptions = [];
+    @track filterProcessTypes = [];
     
     // Confirmation modal properties
     @track showConfirmationModal = false;
@@ -61,6 +65,16 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                 label: item.label,
                 value: item.value
             }));
+
+            // Map for filter picklist (all selected by default)
+            this.processTypeFilterOptions = data.values.map(item => ({
+                label: item.label,
+                value: item.value,
+                isSelected: true
+            }));
+            this.filterProcessTypes = this.processTypeFilterOptions.map(opt => opt.value);
+            // Re-apply filters after populating initial process types
+            this.applyFilters();
         } else if (error) {
             console.error('Error fetching Process Type picklist:', error);
         }
@@ -334,13 +348,13 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
 
     /**
      * Method Name: applyFilters
-     * @description: Apply search filters and sorting
+     * @description: Apply search filters, process type filter, and sorting
      */
     applyFilters() {
         try {
             let filtered = [...this.processes];
             
-            // Apply search filter - only search by Process Name field
+            // 1. Apply search filter - only search by Process Name field
             if (this.searchTerm) {
                 const searchLower = this.searchTerm.toLowerCase();
                 filtered = filtered.filter(processRecord => {
@@ -349,6 +363,15 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
                     return String(processNameValue).toLowerCase().includes(searchLower);
                 });
             }
+
+            // 2. Apply Process Type filter
+            if (this.filterProcessTypes && this.filterProcessTypes.length > 0) {
+                filtered = filtered.filter(processRecord => {
+                    const processTypeValue = this.getFieldValue(processRecord, 'wfrecon__Process_Type__c');
+                    return this.filterProcessTypes.includes(processTypeValue);
+                });
+            }
+
             
             this.filteredProcesses = filtered;
             this.sortData();
@@ -773,6 +796,37 @@ export default class ProcessLibraryManagement extends NavigationMixin(LightningE
         if (selectedPage && selectedPage !== this.currentPage) {
             this.currentPage = selectedPage;
             this.updateShownData();
+        }
+    }
+
+    /**
+     * Method Name: handleProcessTypeFilter
+     * @description: Handle the change in process type filter
+     */
+    handleProcessTypeFilter(event) {
+        try {
+            const value = event.currentTarget.dataset.value;
+            // Find the option to update
+            const optionToUpdate = this.processTypeFilterOptions.find(opt => opt.value === value);
+
+            if (optionToUpdate) {
+                // Toggle selection
+                optionToUpdate.isSelected = !optionToUpdate.isSelected;
+                
+                // Update the array of selected values
+                this.filterProcessTypes = this.processTypeFilterOptions
+                    .filter(opt => opt.isSelected)
+                    .map(opt => opt.value);
+                
+                // Re-assign the entire array to trigger reactivity
+                this.processTypeFilterOptions = [...this.processTypeFilterOptions];
+
+                // Apply the new filter
+                this.currentPage = 1; // Reset to first page
+                this.applyFilters();
+            }
+        } catch (e) {
+            console.error('Error in handleProcessTypeFilter:::', e?.message);
         }
     }
 

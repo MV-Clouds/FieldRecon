@@ -76,7 +76,7 @@
     background-color: transparent !important;
 }
 
-.table-content table tbody tr:hover td {
+.table-content table tbody tr.job-row:hover td {
     background-color: rgb(244,244,255) !important;
     border: none;
 }
@@ -748,7 +748,6 @@
 .icon-button.child-records-btn:hover {
     background-color: rgba(94, 90, 219, 0.6);
     color: white;
-    transform: scale(1.05);
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
@@ -1123,7 +1122,20 @@ lightning-combobox {
 }
 
 .nested-table-row:hover td {
-    background-color: rgba(94, 90, 219, 0.05) !important;
+    background-color: rgba(94, 90, 219, 0) !important;
+}
+
+.nested-table tbody tr:nth-child(odd) {
+    background-color: rgb(244,244,255);
+}
+
+.nested-table tbody tr.nested-row {
+    background-color: transparent !important;
+}
+
+.nested-table tbody tr.nested-row:hover td {
+    background-color: rgb(244,244,255) !important;
+    border: none;
 }
 
 .no-process-data {
@@ -1434,6 +1446,34 @@ lightning-combobox {
     border-color: #6c757d;
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.action-button.discard-btn {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.action-button.discard-btn:hover:not(:disabled) {
+    background-color: #5a6268;
+    border-color: #545b62;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+}
+
+.action-button.discard-btn:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Reset individual action button visibility in nested table to clean state */
+.nested-table .actions-column {
+    /* Keep actions column, but remove edit/delete buttons from there for inline editing */
+    width: 50px;
+    min-width: 50px;
 }
 
 .selected-count-badge {
