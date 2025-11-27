@@ -443,14 +443,12 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     groupWeeklyJobData(apexData) {
         try {
-            // Generate week range: today → next Monday (7 days total)
             let today = new Date();
 
             // normalize apexData keys
             const normalizedApexData = {};
             for (let key in apexData) {
-                const date = new Date(key);
-                normalizedApexData[date.toDateString()] = apexData[key].map(job => {
+                normalizedApexData[key] = apexData[key].map(job => {
                     const description = job.jobDescription || '--';
                     const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
                     
@@ -489,7 +487,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 let currentDate = new Date(today);
                 currentDate.setDate(today.getDate() + i);
 
-                let dateKey = currentDate.toDateString();
+                let dateKey = currentDate.toISOString().slice(0, 10);
                 let jobsForDay = normalizedApexData[dateKey] || []; 
 
                 weekSections.push({

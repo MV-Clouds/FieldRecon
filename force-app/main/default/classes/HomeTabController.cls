@@ -7,8 +7,7 @@
 *--------------------------------------------------------------------------------
 * Modification History:
 * Date Modified - Developer Name - Description
-* 
-**/
+* **/
 public with sharing class HomeTabController {
     
     public static TimeZone userTz = UserInfo.getTimeZone();
@@ -34,7 +33,7 @@ public with sharing class HomeTabController {
                 currentUserContactList = [
                     SELECT Id, Name 
                     FROM Contact 
-                    WHERE wfrecon__User__c = :userId // ADDED wfrecon__
+                    WHERE wfrecon__User__c = :userId
                     AND RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
                     WITH USER_MODE
                     LIMIT 1
@@ -56,10 +55,9 @@ public with sharing class HomeTabController {
             Date weekEnd;
 
             if (mode == 'week') {
-                // For 'week' mode, define a 7-day window starting from today
                 Date today = Date.today();
                 weekStart = today;
-                weekEnd   = today.addDays(6); // 7-day window (Today to Today + 6)
+                weekEnd   = today.addDays(6);
                 startDateTime = DateTime.newInstance(weekStart, Time.newInstance(0,0,0,0));
                 endDateTime   = DateTime.newInstance(weekEnd, Time.newInstance(23,59,59,999));
             } else {
@@ -69,16 +67,16 @@ public with sharing class HomeTabController {
             }
 
             // Fetch mobilization members in range
-            List<wfrecon__Mobilization_Member__c> mobMembers = [ // ADDED wfrecon__
+            List<wfrecon__Mobilization_Member__c> mobMembers = [ 
                 SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Mobilization__c,
                        wfrecon__Mobilization__r.wfrecon__Job__c, wfrecon__Mobilization__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__End_Date__c,
                        wfrecon__Mobilization__r.wfrecon__Job__r.Name, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c,
-                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c, // ADDED wfrecon__ for Street, City
-                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c // ADDED wfrecon__ for Zip_Code
-                FROM wfrecon__Mobilization_Member__c // ADDED wfrecon__
+                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c, 
+                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c 
+                FROM wfrecon__Mobilization_Member__c 
                 WHERE wfrecon__Contact__c = :currentUserContact.Id
                   AND wfrecon__Mobilization__r.wfrecon__Start_Date__c <= :endDateTime
-                  AND wfrecon__Mobilization__r.wfrecon__End_Date__c >= :startDateTime // ADDED wfrecon__ for End_Date__c
+                  AND wfrecon__Mobilization__r.wfrecon__End_Date__c >= :startDateTime 
                 WITH USER_MODE
             ];
 
@@ -86,79 +84,79 @@ public with sharing class HomeTabController {
 
             if(mode == 'today') {
                 // DAY MODE → include clock in/out info
-                WrapperMember wrap; // ADDED wfrecon__
-                Map<Id, wfrecon__Timesheet__c> jobTimesheetMap = new Map<Id, wfrecon__Timesheet__c>(); // ADDED wfrecon__
+                WrapperMember wrap; 
+                Map<Id, wfrecon__Timesheet__c> jobTimesheetMap = new Map<Id, wfrecon__Timesheet__c>(); 
                 List<Id> jobIds = new List<Id>();
-                for(wfrecon__Mobilization_Member__c m : mobMembers) jobIds.add(m.wfrecon__Mobilization__r.wfrecon__Job__c); // ADDED wfrecon__
+                for(wfrecon__Mobilization_Member__c m : mobMembers) jobIds.add(m.wfrecon__Mobilization__r.wfrecon__Job__c); 
 
-                List<wfrecon__Timesheet__c> tsList = [ // ADDED wfrecon__
+                List<wfrecon__Timesheet__c> tsList = [ 
                     SELECT Id, wfrecon__Contact__c, wfrecon__Job__c
-                    FROM wfrecon__Timesheet__c // ADDED wfrecon__
+                    FROM wfrecon__Timesheet__c 
                     WHERE wfrecon__Contact__c = :currentUserContact.Id
                       AND wfrecon__Job__c IN :jobIds
-                      AND wfrecon__Timesheet_Start_Date__c <= :filterDate // ADDED wfrecon__
-                      AND wfrecon__Timesheet_End_Date__c >= :filterDate // ADDED wfrecon__
+                      AND wfrecon__Timesheet_Start_Date__c <= :filterDate 
+                      AND wfrecon__Timesheet_End_Date__c >= :filterDate 
                     WITH USER_MODE
                 ];
 
-                for(wfrecon__Timesheet__c ts : tsList) jobTimesheetMap.put(ts.wfrecon__Job__c, ts); // ADDED wfrecon__
+                for(wfrecon__Timesheet__c ts : tsList) jobTimesheetMap.put(ts.wfrecon__Job__c, ts); 
 
-                List<wfrecon__Timesheet_Entry__c> entries = [ // ADDED wfrecon__
-                    SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Job__c // ADDED wfrecon__ for Clock_Out_Time__c and Job__c
-                    FROM wfrecon__Timesheet_Entry__c // ADDED wfrecon__
+                List<wfrecon__Timesheet_Entry__c> entries = [ 
+                    SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Job__c 
+                    FROM wfrecon__Timesheet_Entry__c 
                     WHERE wfrecon__Timesheet__c IN :tsList
                       AND wfrecon__Clock_In_Time__c >= :startDateTime
                       AND wfrecon__Clock_In_Time__c <= :endDateTime
                     WITH USER_MODE
                 ];
 
-                Map<Id,wfrecon__Timesheet_Entry__c> openEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(); // ADDED wfrecon__
+                Map<Id,wfrecon__Timesheet_Entry__c> openEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(); 
                 Map<Id, Integer> completedCountMap = new Map<Id, Integer>();
-                for(wfrecon__Timesheet_Entry__c e : entries) { // ADDED wfrecon__
-                    if(e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) { // ADDED wfrecon__
-                        openEntryMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, e); // ADDED wfrecon__
-                    } else if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) { // ADDED wfrecon__
+                for(wfrecon__Timesheet_Entry__c e : entries) { 
+                    if(e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) { 
+                        openEntryMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, e); 
+                    } else if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) { 
                         // Count completed entries
-                        completedCountMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, // ADDED wfrecon__
-                            completedCountMap.containsKey(e.wfrecon__Timesheet__r.wfrecon__Job__c) // ADDED wfrecon__
-                                ? completedCountMap.get(e.wfrecon__Timesheet__r.wfrecon__Job__c) // ADDED wfrecon__
+                        completedCountMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, 
+                            completedCountMap.containsKey(e.wfrecon__Timesheet__r.wfrecon__Job__c) 
+                                ? completedCountMap.get(e.wfrecon__Timesheet__r.wfrecon__Job__c) 
                                 : 1
                         );
                     }
                 }
 
-                List<WrapperMember> dayJobs = new List<WrapperMember>(); // ADDED wfrecon__
-                for(wfrecon__Mobilization_Member__c m : mobMembers) { // ADDED wfrecon__
-                    wrap = new WrapperMember(); // ADDED wfrecon__
-                    wrap.jobStartTime = m.wfrecon__Mobilization__r.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__Start_Date__c)/1000); // ADDED wfrecon__
-                    wrap.jobEndTime   = m.wfrecon__Mobilization__r.wfrecon__End_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__End_Date__c)/1000); // ADDED wfrecon__
-                    wrap.contactId    = m.wfrecon__Contact__c; // ADDED wfrecon__
-                    wrap.contactName  = m.wfrecon__Contact__r.Name; // ADDED wfrecon__
+                List<WrapperMember> dayJobs = new List<WrapperMember>(); 
+                for(wfrecon__Mobilization_Member__c m : mobMembers) { 
+                    wrap = new WrapperMember(); 
+                    wrap.jobStartTime = m.wfrecon__Mobilization__r.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__Start_Date__c)/1000); 
+                    wrap.jobEndTime   = m.wfrecon__Mobilization__r.wfrecon__End_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__End_Date__c)/1000); 
+                    wrap.contactId    = m.wfrecon__Contact__c; 
+                    wrap.contactName  = m.wfrecon__Contact__r.Name; 
                     wrap.mobMemberId  = m.Id;
-                    wrap.mobId          = m.wfrecon__Mobilization__c; // ADDED wfrecon__
-                    wrap.jobId          = m.wfrecon__Mobilization__r.wfrecon__Job__c; // ADDED wfrecon__
-                    wrap.jobName = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c : '--'; // ADDED wfrecon__
-                    wrap.jobNumber = m.wfrecon__Mobilization__r.wfrecon__Job__r.Name; // ADDED wfrecon__
-                    wrap.jobDescription = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c; // ADDED wfrecon__
-                    wrap.jobAddress     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c : '--'; // ADDED wfrecon__
-                    wrap.jobStreet     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c : '--'; // ADDED wfrecon__
-                    wrap.jobCity     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c : '--'; // ADDED wfrecon__
-                    wrap.jobState     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c : '--'; // ADDED wfrecon__
-                    wrap.jobPostalCode     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c : '--'; // ADDED wfrecon__
-                    wrap.jobCountry     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c : '--'; // ADDED wfrecon__
+                    wrap.mobId          = m.wfrecon__Mobilization__c; 
+                    wrap.jobId          = m.wfrecon__Mobilization__r.wfrecon__Job__c; 
+                    wrap.jobName = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c : '--'; 
+                    wrap.jobNumber = m.wfrecon__Mobilization__r.wfrecon__Job__r.Name; 
+                    wrap.jobDescription = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c; 
+                    wrap.jobAddress     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c : '--'; 
+                    wrap.jobStreet     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c : '--'; 
+                    wrap.jobCity     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c : '--'; 
+                    wrap.jobState     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c : '--'; 
+                    wrap.jobPostalCode     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c : '--'; 
+                    wrap.jobCountry     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c : '--'; 
 
-                    wfrecon__Timesheet__c ts = jobTimesheetMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c); // ADDED wfrecon__
-                    wfrecon__Timesheet_Entry__c openEntry = openEntryMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c); // ADDED wfrecon__
+                    wfrecon__Timesheet__c ts = jobTimesheetMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c); 
+                    wfrecon__Timesheet_Entry__c openEntry = openEntryMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c); 
 
                     wrap.timesheetId      = ts != null ? ts.Id : null;
                     wrap.isTimeSheetNull  = ts == null;
                     wrap.timesheetEntryId = openEntry != null ? openEntry.Id : null;
                     wrap.isTimeSheetEntryNull = openEntry == null;
                     wrap.isClockedIn      = openEntry != null;
-                    wrap.clockInTime      = openEntry != null ? openEntry.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(openEntry.wfrecon__Clock_In_Time__c)/1000) : null; // ADDED wfrecon__
+                    wrap.clockInTime      = openEntry != null ? openEntry.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(openEntry.wfrecon__Clock_In_Time__c)/1000) : null; 
 
-                    Integer completedCount = completedCountMap.containsKey(m.wfrecon__Mobilization__r.wfrecon__Job__c) // ADDED wfrecon__
-                        ? completedCountMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c) // ADDED wfrecon__
+                    Integer completedCount = completedCountMap.containsKey(m.wfrecon__Mobilization__r.wfrecon__Job__c) 
+                        ? completedCountMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c) 
                         : 0;
                     wrap.isAgain = (completedCount > 0);
 
@@ -172,12 +170,11 @@ public with sharing class HomeTabController {
                 Date weekStartD = Date.today(); // Start date of the 7-day window
                 Date weekEndD = weekStartD.addDays(6); // End date of the 7-day window
                 
-                // Use String keys formatted to match LWC's toDateString() for correct alignment
-                Map<String, List<WrapperMember>> weekMap = new Map<String, List<WrapperMember>>(); // ADDED wfrecon__
+                Map<String, List<WrapperMember>> weekMap = new Map<String, List<WrapperMember>>(); 
 
-                for(wfrecon__Mobilization_Member__c m : mobMembers) { // ADDED wfrecon__
-                    Date start = m.wfrecon__Mobilization__r.wfrecon__Start_Date__c.date(); // ADDED wfrecon__
-                    Date endD   = m.wfrecon__Mobilization__r.wfrecon__End_Date__c.date(); // ADDED wfrecon__
+                for(wfrecon__Mobilization_Member__c m : mobMembers) { 
+                    Date start = m.wfrecon__Mobilization__r.wfrecon__Start_Date__c.date(); 
+                    Date endD   = m.wfrecon__Mobilization__r.wfrecon__End_Date__c.date(); 
 
                     // limit job's display within the 7-day window (Today to Today + 6)
                     Date fromD = (start > weekStartD) ? start : weekStartD;
@@ -185,31 +182,28 @@ public with sharing class HomeTabController {
 
                     for(Date d = fromD; d <= to; d = d.addDays(1)) {
                         
-                        // Create a date key that matches the client's Date.toDateString() output: 
-                        // E.g., 'Thu Nov 27 2025'
-                        DateTime dtForDay = DateTime.newInstance(d, Time.newInstance(0,0,0,0));
-                        // Using formatGMT ensures a consistent output regardless of the server's timezone
-                        String key = dtForDay.formatGMT('EEE MMM dd yyyy'); 
+                        // FIX: Use simple 'YYYY-MM-DD' key for guaranteed match with LWC
+                        String key = String.valueOf(d); 
                         
-                        if(!weekMap.containsKey(key)) weekMap.put(key, new List<WrapperMember>()); // ADDED wfrecon__
+                        if(!weekMap.containsKey(key)) weekMap.put(key, new List<WrapperMember>()); 
                         
-                        WrapperMember wrap = new WrapperMember(); // ADDED wfrecon__
-                        wrap.jobStartTime = m.wfrecon__Mobilization__r.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__Start_Date__c)/1000); // ADDED wfrecon__
-                        wrap.jobEndTime   = m.wfrecon__Mobilization__r.wfrecon__End_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__End_Date__c)/1000); // ADDED wfrecon__
-                        wrap.contactId    = m.wfrecon__Contact__c; // ADDED wfrecon__
-                        wrap.contactName  = m.wfrecon__Contact__r.Name; // ADDED wfrecon__
+                        WrapperMember wrap = new WrapperMember(); 
+                        wrap.jobStartTime = m.wfrecon__Mobilization__r.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__Start_Date__c)/1000); 
+                        wrap.jobEndTime   = m.wfrecon__Mobilization__r.wfrecon__End_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Mobilization__r.wfrecon__End_Date__c)/1000); 
+                        wrap.contactId    = m.wfrecon__Contact__c; 
+                        wrap.contactName  = m.wfrecon__Contact__r.Name; 
                         wrap.mobMemberId  = m.Id;
-                        wrap.mobId          = m.wfrecon__Mobilization__c; // ADDED wfrecon__
-                        wrap.jobId          = m.wfrecon__Mobilization__r.wfrecon__Job__c; // ADDED wfrecon__
-                        wrap.jobName = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c : '--'; // ADDED wfrecon__
-                        wrap.jobNumber = m.wfrecon__Mobilization__r.wfrecon__Job__r.Name; // ADDED wfrecon__
-                        wrap.jobDescription = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c; // ADDED wfrecon__
-                        wrap.jobAddress     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c : '--'; // ADDED wfrecon__
-                        wrap.jobStreet     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c : '--'; // ADDED wfrecon__
-                        wrap.jobCity     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c : '--'; // ADDED wfrecon__
-                        wrap.jobState     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c : '--'; // ADDED wfrecon__
-                        wrap.jobPostalCode     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c : '--'; // ADDED wfrecon__
-                        wrap.jobCountry     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c : '--'; // ADDED wfrecon__
+                        wrap.mobId          = m.wfrecon__Mobilization__c; 
+                        wrap.jobId          = m.wfrecon__Mobilization__r.wfrecon__Job__c; 
+                        wrap.jobName = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c : '--'; 
+                        wrap.jobNumber = m.wfrecon__Mobilization__r.wfrecon__Job__r.Name; 
+                        wrap.jobDescription = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c; 
+                        wrap.jobAddress     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c : '--'; 
+                        wrap.jobStreet     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c : '--'; 
+                        wrap.jobCity     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c : '--'; 
+                        wrap.jobState     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__State__c : '--'; 
+                        wrap.jobPostalCode     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Zip_Code__c : '--'; 
+                        wrap.jobCountry     = m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c != null ? m.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Country__c : '--'; 
                         weekMap.get(key).add(wrap);
                     }
                 }
@@ -219,10 +213,10 @@ public with sharing class HomeTabController {
 
             // Add cost codes
             Map<Id, String> costCodeDetails = new Map<Id, String>();
-            for(wfrecon__Cost_Code__c c : [SELECT Id, Name FROM wfrecon__Cost_Code__c WITH USER_MODE]) costCodeDetails.put(c.Id, c.Name); // ADDED wfrecon__
-            WrapperMember costWrap = new WrapperMember(); // ADDED wfrecon__
+            for(wfrecon__Cost_Code__c c : [SELECT Id, Name FROM wfrecon__Cost_Code__c WITH USER_MODE]) costCodeDetails.put(c.Id, c.Name); 
+            WrapperMember costWrap = new WrapperMember(); 
             costWrap.costCodeDetails = costCodeDetails;
-            result.put('costCodeDetails', new List<WrapperMember>{ costWrap }); // ADDED wfrecon__
+            result.put('costCodeDetails', new List<WrapperMember>{ costWrap }); 
 
             return result;
 
