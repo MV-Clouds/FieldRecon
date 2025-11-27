@@ -216,6 +216,7 @@
     flex-shrink: 0;
     border-bottom: 1px solid transparent;
     flex-direction: column;
+    border-radius: 16px;
 }
 
 .log-card-sub-header{
@@ -823,7 +824,7 @@
 }
 
 .edit-modal {
-    width: 65% !important;
+    /* width: 65% !important; */
     max-width: unset !important;
 }
 
@@ -847,6 +848,7 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-theme-color) #f4f6f9;
+    padding: 0rem 1rem;
 }
 
 .edit-modal-body::-webkit-scrollbar {
@@ -952,22 +954,57 @@
     transform: scale(1.1);
 }
 
-.upload-options {
+/* Upload Actions for Gallery */
+.upload-actions {
     display: flex;
-    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.upload-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    width: 100%;
     align-items: center;
-    margin-bottom: 15px;
-    gap: 10px;
 }
 
-.upload-left {
+.upload-button-wrapper {
     flex: 0 0 auto;
 }
 
-.upload-right {
-    flex: 0 0 auto;
-    margin-left: auto;
+.gallery-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
     margin-top: 1rem;
+}
+
+.gallery-btn svg {
+    flex-shrink: 0;
+}
+
+/* Responsive for Upload Buttons */
+@media (max-width: 768px) {
+    .upload-buttons-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .upload-button-wrapper,
+    .gallery-btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-btn {
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+    }
 }
 
 .camera-btn {
@@ -997,10 +1034,6 @@
 }
 
 /* Camera Modal Styles */
-.camera-modal-container {
-    width: 90%;
-    max-width: 600px;
-}
 
 .camera-modal-content {
     position: relative;
@@ -1761,10 +1794,6 @@
     .photo-grid {
         grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     }
-
-    .camera-modal-container {
-        width: 95%;
-    }
 }
 
 /* 2. Tablets (768px to 1023px) */
@@ -2064,10 +2093,6 @@
 }
 
 /* Chatter Modal */
-.chatter-modal-container {
-    width: 90%;
-    max-width: 800px;
-}
 
 .chatter-modal-content {
     max-height: 60vh;
@@ -2140,6 +2165,18 @@
     background: #f5f5ff;
 }
 
+.attachment-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.attachment-card.disabled:hover {
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
 .attachment-selected-badge {
     position: absolute;
     top: 8px;
@@ -2153,6 +2190,23 @@
     justify-content: center;
     z-index: 1;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.attachment-uploaded-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 0.25rem 0.5rem;
+    background: #4caf50;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .attachment-thumbnail {
@@ -2212,9 +2266,6 @@
 
 /* Mobile responsiveness for Chatter */
 @media screen and (max-width: 768px) {
-    .chatter-modal-container {
-        width: 95vw;
-    }
 
     .feed-item-attachments {
         grid-template-columns: 1fr;

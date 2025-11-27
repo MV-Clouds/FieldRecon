@@ -446,14 +446,16 @@ public with sharing class ShiftEndLogEntriesController {
 
             Date startDate = Date.valueOf(jobStartDate);
 
+            // Query timesheet entry items (no longer need Approval_Data__c from records)
             List<wfrecon__Timesheet_Entry_Item__c> items = [SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__c, 
                                                     wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__r.Name, 
                                                     wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
-                                                    wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, wfrecon__Premium__c, wfrecon__Status__c, wfrecon__Approval_Data__c FROM wfrecon__Timesheet_Entry_Item__c 
+                                                    wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, wfrecon__Premium__c, wfrecon__Status__c FROM wfrecon__Timesheet_Entry_Item__c 
                                                     WHERE wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Job__c = :jobId AND wfrecon__Clock_In_Date__c = :startDate
                                                     AND wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__c IN :contactIds
                                                     WITH USER_MODE ORDER BY wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__r.Name ASC];
 
+            // No need to query log entries - all edits are handled in JavaScript
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
             for(wfrecon__Timesheet_Entry_Item__c item : items) {
                 result.add(new TimesheetEntryItemWrapper(item));
@@ -467,80 +469,8 @@ public with sharing class ShiftEndLogEntriesController {
         }
     }
 
-    @AuraEnabled
-    public static Boolean updateTimesheets(String params){
-        try {
-            Map<String, Object> jsonList = (Map<String, Object>) JSON.deserializeUntyped(params);
-
-            // Query records
-            wfrecon__Timesheet_Entry_Item__c tsItem = [SELECT Id, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Premium__c, wfrecon__Status__c, 
-                                                wfrecon__Approval_Data__c FROM wfrecon__Timesheet_Entry_Item__c 
-                                                WHERE Id = :(String)jsonList.get('Id') WITH USER_MODE LIMIT 1];
-
-            wfrecon__Timesheet_Entry__c tsEntry = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__c, wfrecon__Cost_Code__c, wfrecon__Status__c,
-                                            wfrecon__Approval_Data__c FROM wfrecon__Timesheet_Entry__c 
-                                            WHERE Id = :(String)jsonList.get('TSEId') WITH USER_MODE LIMIT 1];
-
-            // Convert clock-in and clock-out strings to Datetime
-            String newClkInUser = (String)jsonList.get('newClockIn') + ':00.000Z';
-            String newClkOutUser = (String)jsonList.get('newClockOut') + ':00.000Z';
-
-            String oldClkInUser = (String)jsonList.get('oldClockIn') + ':00.000Z';
-            String oldClkOutUser = (String)jsonList.get('oldClockOut') + ':00.000Z';
-
-            Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
-            
-            // Build approval data JSON for changes
-            List<Map<String, Object>> approvalDataList = new List<Map<String, Object>>();
-            
-            // Store Clock_In_Time__c change if different
-            if (oldClkInUser != newClkInUser) {
-                approvalDataList.add(new Map<String, Object>{
-                    'fieldApiName' => 'wfrecon__Clock_In_Time__c',
-                    'oldValue' => oldClkInUser,
-                    'newValue' => newClkInUser
-                });
-            }
-            
-            // Store Clock_Out_Time__c change if different
-            if (oldClkOutUser != newClkOutUser) {
-                approvalDataList.add(new Map<String, Object>{
-                    'fieldApiName' => 'wfrecon__Clock_Out_Time__c',
-                    'oldValue' => oldClkOutUser,
-                    'newValue' => newClkOutUser
-                });
-            }
-            
-            // Store Travel_Time__c change if different
-            if (tsItem.wfrecon__Travel_Time__c != travelTime) {
-                approvalDataList.add(new Map<String, Object>{
-                    'fieldApiName' => 'wfrecon__Travel_Time__c',
-                    'oldValue' => tsItem.wfrecon__Travel_Time__c,
-                    'newValue' => travelTime
-                });
-            }
-            
-            // Only update if there are changes
-            if (!approvalDataList.isEmpty()) {
-                String approvalDataJson = JSON.serialize(approvalDataList);
-                System.debug('Approval Data JSON: ' + approvalDataJson);
-                
-                // Store approval data and set status to Pending for both Entry and Item
-                tsEntry.wfrecon__Approval_Data__c = approvalDataJson;
-                tsEntry.wfrecon__Status__c = 'Pending';
-                tsItem.wfrecon__Approval_Data__c = approvalDataJson;
-                tsItem.wfrecon__Status__c = 'Pending';
-                
-                update tsEntry;
-                update tsItem;
-            }
-
-            return true;
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'updateTimesheets', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return false;
-        }
-    }
+    // Removed - No longer needed as all editing is handled in JavaScript
+    // Timesheet edits are managed locally until log entry creation
 
     @AuraEnabled
     public static Map<String, Object> getJobLocationProcesses(Id jobId) {
@@ -697,7 +627,6 @@ public with sharing class ShiftEndLogEntriesController {
             this.premium = item.wfrecon__Premium__c;
             this.clockInDate = item.wfrecon__Clock_In_Date__c;
             this.status = item.wfrecon__Status__c;
-            this.approvalData = item.wfrecon__Approval_Data__c;
         }
     }
 
@@ -738,7 +667,7 @@ public with sharing class ShiftEndLogEntriesController {
             // Create Log Entry record
             wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c();
             logEntry.wfrecon__Job__c = jobId;
-            logEntry.wfrecon__Mobilization__c = mobilizationId; // Save the Mobilization lookup
+            logEntry.wfrecon__Mobilization__c = mobilizationId;
             logEntry.wfrecon__Log_Type__c = 'Shift End';
             logEntry.wfrecon__Work_Performed__c = (String) step3Data.get('whatWeDone');
             logEntry.wfrecon__Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
@@ -747,14 +676,14 @@ public with sharing class ShiftEndLogEntriesController {
             logEntry.wfrecon__Work_Performed_Date__c = workDate;
             logEntry.wfrecon__Status__c = logStatus;
             
-            // Store approval data JSON directly from LWC (format: [{"id":"recordId","oldValue":73,"newValue":79}])
+            // Store approval data from JavaScript (already includes pending timesheet changes)
             if (String.isNotBlank(approvalDataJson)) {
                 logEntry.wfrecon__Approval_Data__c = approvalDataJson;
             }
             
             insert logEntry;
             
-            // Process camera photos if any
+            // Process camera photos if any and update approval data with camera metadata
             // Note: FirstPublishLocationId automatically creates ContentDocumentLink, so no manual linking needed
             if (String.isNotBlank(cameraPhotosJson)) {
                 List<Object> cameraPhotos = (List<Object>) JSON.deserializeUntyped(cameraPhotosJson);
@@ -775,6 +704,42 @@ public with sharing class ShiftEndLogEntriesController {
                 
                 if (!contentVersions.isEmpty()) {
                     insert as user contentVersions;
+                    
+                    // Get the ContentDocument IDs for the camera photos we just inserted
+                    Set<Id> versionIds = new Set<Id>();
+                    for (ContentVersion cv : contentVersions) {
+                        versionIds.add(cv.Id);
+                    }
+                    
+                    List<ContentVersion> insertedVersions = [
+                        SELECT Id, ContentDocumentId, Title
+                        FROM ContentVersion
+                        WHERE Id IN :versionIds
+                        WITH USER_MODE
+                    ];
+                    
+                    // Update approval data to include camera photo metadata
+                    if (String.isNotBlank(logEntry.wfrecon__Approval_Data__c)) {
+                        Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(logEntry.wfrecon__Approval_Data__c);
+                        List<Object> mediaMetadata = (List<Object>) approvalData.get('mediaMetadata');
+                        
+                        if (mediaMetadata == null) {
+                            mediaMetadata = new List<Object>();
+                        }
+                        
+                        // Add camera photos to metadata
+                        for (ContentVersion cv : insertedVersions) {
+                            Map<String, Object> metadata = new Map<String, Object>();
+                            metadata.put('contentDocumentId', cv.ContentDocumentId);
+                            metadata.put('source', 'camera');
+                            metadata.put('name', cv.Title);
+                            mediaMetadata.add(metadata);
+                        }
+                        
+                        approvalData.put('mediaMetadata', mediaMetadata);
+                        logEntry.wfrecon__Approval_Data__c = JSON.serialize(approvalData);
+                        update as user logEntry;
+                    }
                 }
             }
             
@@ -998,48 +963,7 @@ public with sharing class ShiftEndLogEntriesController {
         return result;
     }
     
-    @AuraEnabled
-    public static Boolean moveTimesheetBackToRegular(String timesheetEntryItemId) {
-        try {
-            if (String.isBlank(timesheetEntryItemId)) {
-                throw new AuraHandledException('Timesheet Entry Item ID is required');
-            }
-
-            // Query the Timesheet Entry Item
-            wfrecon__Timesheet_Entry_Item__c tsItem = [
-                SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Status__c, wfrecon__Approval_Data__c 
-                FROM wfrecon__Timesheet_Entry_Item__c 
-                WHERE Id = :timesheetEntryItemId 
-                WITH USER_MODE 
-                LIMIT 1
-            ];
-
-            // Query the related Timesheet Entry
-            wfrecon__Timesheet_Entry__c tsEntry = [
-                SELECT Id, wfrecon__Status__c, wfrecon__Approval_Data__c 
-                FROM wfrecon__Timesheet_Entry__c 
-                WHERE Id = :tsItem.wfrecon__Timesheet_Entry__c 
-                WITH USER_MODE 
-                LIMIT 1
-            ];
-
-            // Clear approval data and status for both records
-            tsItem.wfrecon__Approval_Data__c = null;
-            tsItem.wfrecon__Status__c = null;
-            
-            tsEntry.wfrecon__Approval_Data__c = null;
-            tsEntry.wfrecon__Status__c = null;
-
-            // Update both records
-            update tsItem;
-            update tsEntry;
-
-            return true;
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'moveTimesheetBackToRegular','exceptionObj' => e,'moreDetails' => e.getMessage()});
-            throw new AuraHandledException('Error moving timesheet back to regular: ' + e.getMessage());
-        }
-    }
+    // Removed - No longer needed as all pending state is handled in JavaScript localPendingEdits Map
     
     // Helper method: Auto-approve ALL pending entries for a job
     private static void autoApproveAllPendingEntries(String jobId) {
@@ -1063,24 +987,35 @@ public with sharing class ShiftEndLogEntriesController {
             }
 
             Set<Id> locationProcessIds = new Set<Id>();
-            Set<Id> mobilizationIds = new Set<Id>();
+            Set<Id> timesheetEntryIds = new Set<Id>();
 
-            // Collect Location Process Ids and Mobilization Ids from approval data
+            // Parse approval data from logs to collect IDs and changes
             for (wfrecon__Log_Entry__c log : pendingLogs) {
-                mobilizationIds.add(log.wfrecon__Mobilization__c);
-                
                 if (String.isNotBlank(log.wfrecon__Approval_Data__c)) {
-                    Object parsed = JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
-                    if (parsed instanceof List<Object>) {
-                        for (Object o : (List<Object>) parsed) {
-                            if (o instanceof Map<String, Object>) {
-                                Map<String, Object> mapVal = (Map<String, Object>) o;
-                                String recId = (String) mapVal.get('id');
-                                if (String.isNotBlank(recId)) {
-                                    locationProcessIds.add(recId);
+                    try {
+                        Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                        
+                        // Collect location process IDs
+                        if (approvalData.containsKey('locationProcessChanges')) {
+                            List<Object> locationChanges = (List<Object>) approvalData.get('locationProcessChanges');
+                            for (Object change : locationChanges) {
+                                Map<String, Object> changeMap = (Map<String, Object>) change;
+                                String processId = (String) changeMap.get('id');
+                                if (String.isNotBlank(processId)) {
+                                    locationProcessIds.add(processId);
                                 }
                             }
                         }
+                        
+                        // Collect timesheet entry IDs
+                        if (approvalData.containsKey('timesheetEntryChanges')) {
+                            Map<String, Object> timesheetChanges = (Map<String, Object>) approvalData.get('timesheetEntryChanges');
+                            for (String tseId : timesheetChanges.keySet()) {
+                                timesheetEntryIds.add(tseId);
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.debug('Error parsing approval data for log: ' + log.Id + ', Error: ' + e.getMessage());
                     }
                 }
                 
@@ -1105,18 +1040,24 @@ public with sharing class ShiftEndLogEntriesController {
                 // Apply changes from approval data to location processes
                 for (wfrecon__Log_Entry__c log : pendingLogs) {
                     if (String.isNotBlank(log.wfrecon__Approval_Data__c)) {
-                        Object parsed = JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
-                        if (parsed instanceof List<Object>) {
-                            for (Object o : (List<Object>) parsed) {
-                                Map<String, Object> mapVal = (Map<String, Object>) o;
-                                String recId = (String) mapVal.get('id');
-                                Object newValueObj = mapVal.get('newValue');
+                        try {
+                            Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                            
+                            if (approvalData.containsKey('locationProcessChanges')) {
+                                List<Object> locationChanges = (List<Object>) approvalData.get('locationProcessChanges');
+                                for (Object change : locationChanges) {
+                                    Map<String, Object> changeMap = (Map<String, Object>) change;
+                                    String processId = (String) changeMap.get('id');
+                                    Object newValueObj = changeMap.get('newValue');
 
-                                if (lpMap.containsKey(recId) && newValueObj != null) {
-                                    lpMap.get(recId).wfrecon__Completed_Percentage__c =
-                                        Decimal.valueOf(String.valueOf(newValueObj));
+                                    if (lpMap.containsKey(processId) && newValueObj != null) {
+                                        lpMap.get(processId).wfrecon__Completed_Percentage__c =
+                                            Decimal.valueOf(String.valueOf(newValueObj));
+                                    }
                                 }
                             }
+                        } catch (Exception e) {
+                            System.debug('Error applying location process changes for log: ' + log.Id + ', Error: ' + e.getMessage());
                         }
                     }
                 }
@@ -1130,107 +1071,135 @@ public with sharing class ShiftEndLogEntriesController {
             update pendingLogs;
 
             // ---------------------------
-            // 3. Get ALL Pending Timesheet Entries for these mobilizations
+            // 3. Get ALL Timesheet Entries and Items that need updates from approval data
             // ---------------------------
-            List<wfrecon__Timesheet_Entry__c> tsEntries = [
-                SELECT Id, wfrecon__Status__c, wfrecon__Approval_Data__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c
-                FROM wfrecon__Timesheet_Entry__c
-                WHERE wfrecon__Mobilization__c IN :mobilizationIds
-                AND wfrecon__Status__c = 'Pending'
-                WITH USER_MODE
-            ];
+            if (!timesheetEntryIds.isEmpty()) {
+                // Query all timesheet entries (not just Pending) that are referenced in approval data
+                List<wfrecon__Timesheet_Entry__c> tsEntries = [
+                    SELECT Id, wfrecon__Status__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c
+                    FROM wfrecon__Timesheet_Entry__c
+                    WHERE Id IN :timesheetEntryIds
+                    WITH USER_MODE
+                ];
 
-            Set<Id> tsEntryIds = new Set<Id>();
+                Set<Id> tsEntryIdsToUpdate = new Set<Id>();
+                for (wfrecon__Timesheet_Entry__c ts : tsEntries) {
+                    tsEntryIdsToUpdate.add(ts.Id);
+                }
 
-            // Apply changes from approval data to timesheet entries
-            for (wfrecon__Timesheet_Entry__c ts : tsEntries) {
-                ts.wfrecon__Status__c = 'Auto-Approved';
-                ts.wfrecon__Approved_Date__c = approvedDate;
-                tsEntryIds.add(ts.Id);
+                // Query all items for these entries (not just Pending)
+                List<wfrecon__Timesheet_Entry_Item__c> tsItems = [
+                    SELECT Id, wfrecon__Status__c, wfrecon__Timesheet_Entry__c, wfrecon__Clock_In_Time__c, 
+                           wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c
+                    FROM wfrecon__Timesheet_Entry_Item__c
+                    WHERE wfrecon__Timesheet_Entry__c IN :tsEntryIdsToUpdate
+                    WITH USER_MODE
+                ];
 
-                if (String.isNotBlank(ts.wfrecon__Approval_Data__c)) {
-                    Object parsed = JSON.deserializeUntyped(ts.wfrecon__Approval_Data__c);
+                // Build maps for quick lookup
+                Map<Id, wfrecon__Timesheet_Entry__c> tsEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(tsEntries);
+                Map<Id, List<wfrecon__Timesheet_Entry_Item__c>> tsItemsMap = new Map<Id, List<wfrecon__Timesheet_Entry_Item__c>>();
+                for (wfrecon__Timesheet_Entry_Item__c item : tsItems) {
+                    if (!tsItemsMap.containsKey(item.wfrecon__Timesheet_Entry__c)) {
+                        tsItemsMap.put(item.wfrecon__Timesheet_Entry__c, new List<wfrecon__Timesheet_Entry_Item__c>());
+                    }
+                    tsItemsMap.get(item.wfrecon__Timesheet_Entry__c).add(item);
+                }
 
-                    if (parsed instanceof List<Object>) {
-                        for (Object o : (List<Object>) parsed) {
-                            Map<String, Object> mapVal = (Map<String, Object>) o;
-                            String fieldApi = (String) mapVal.get('fieldApiName');
-                            Object newValueObj = mapVal.get('newValue');
-
-                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
-                                // Handle DateTime fields
-                                if (fieldApi == 'wfrecon__Clock_In_Time__c' || fieldApi == 'wfrecon__Clock_Out_Time__c') {
-                                    // Convert ISO format (2025-11-21T09:05:00.000Z) to Apex DateTime
-                                    String dateTimeStr = String.valueOf(newValueObj);
-                                    // Remove 'Z' and milliseconds, replace 'T' with space
-                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
-                                    if (dateTimeStr.contains('.')) {
-                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                // Apply changes from Log Entry approval data to timesheet records
+                for (wfrecon__Log_Entry__c log : pendingLogs) {
+                    if (String.isNotBlank(log.wfrecon__Approval_Data__c)) {
+                        try {
+                            Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                            
+                            if (approvalData.containsKey('timesheetEntryChanges')) {
+                                Map<String, Object> timesheetChanges = (Map<String, Object>) approvalData.get('timesheetEntryChanges');
+                                
+                                for (String tseId : timesheetChanges.keySet()) {
+                                    Map<String, Object> entryData = (Map<String, Object>) timesheetChanges.get(tseId);
+                                    List<Object> changes = (List<Object>) entryData.get('changes');
+                                    
+                                    wfrecon__Timesheet_Entry__c tsEntry = tsEntryMap.get(tseId);
+                                    List<wfrecon__Timesheet_Entry_Item__c> relatedItems = tsItemsMap.get(tseId);
+                                    
+                                    if (tsEntry != null && changes != null) {
+                                        for (Object change : changes) {
+                                            Map<String, Object> changeMap = (Map<String, Object>) change;
+                                            String fieldApi = (String) changeMap.get('fieldApiName');
+                                            Object newValueObj = changeMap.get('newValue');
+                                            
+                                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
+                                                // Handle DateTime fields for Timesheet Entry and Items
+                                                if (fieldApi == 'wfrecon__Clock_In_Time__c' || fieldApi == 'wfrecon__Clock_Out_Time__c') {
+                                                    String dateTimeStr = String.valueOf(newValueObj);
+                                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
+                                                    if (dateTimeStr.contains('.')) {
+                                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                                                    }
+                                                    DateTime newDateTime = DateTime.valueOf(dateTimeStr);
+                                                    tsEntry.put(fieldApi, newDateTime);
+                                                    
+                                                    // Update all items for this entry
+                                                    if (relatedItems != null) {
+                                                        for (wfrecon__Timesheet_Entry_Item__c item : relatedItems) {
+                                                            item.put(fieldApi, newDateTime);
+                                                        }
+                                                    }
+                                                }
+                                                // Handle Travel Time - applies only to items
+                                                else if (fieldApi == 'wfrecon__Travel_Time__c' && relatedItems != null) {
+                                                    Decimal newTravelTime = Decimal.valueOf(String.valueOf(newValueObj));
+                                                    for (wfrecon__Timesheet_Entry_Item__c item : relatedItems) {
+                                                        item.wfrecon__Travel_Time__c = newTravelTime;
+                                                    }
+                                                }
+                                                // Handle Per Diem - applies only to items
+                                                else if (fieldApi == 'wfrecon__Per_Diem__c' && relatedItems != null) {
+                                                    Decimal newPerDiem = Decimal.valueOf(String.valueOf(newValueObj));
+                                                    for (wfrecon__Timesheet_Entry_Item__c item : relatedItems) {
+                                                        item.wfrecon__Per_Diem__c = newPerDiem;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
-                                    ts.put(fieldApi, DateTime.valueOf(dateTimeStr));
                                 }
                             }
+                        } catch (Exception e) {
+                            System.debug('Error applying timesheet changes for log: ' + log.Id + ', Error: ' + e.getMessage());
                         }
                     }
                 }
-            }
 
-            if (!tsEntries.isEmpty()) {
-                update tsEntries;
-            }
-
-            // ---------------------------
-            // 4. Get ALL Pending Timesheet Entry Items
-            // ---------------------------
-            List<wfrecon__Timesheet_Entry_Item__c> tsItems = [
-                SELECT Id, wfrecon__Status__c, wfrecon__Approval_Data__c
-                FROM wfrecon__Timesheet_Entry_Item__c
-                WHERE wfrecon__Timesheet_Entry__c IN :tsEntryIds
-                AND wfrecon__Status__c = 'Pending'
-                WITH USER_MODE
-            ];
-
-            // Apply changes from approval data to timesheet entry items
-            for (wfrecon__Timesheet_Entry_Item__c item : tsItems) {
-                item.wfrecon__Status__c = 'Auto-Approved';
-                item.wfrecon__Approved_Date__c = approvedDate;
-
-                if (String.isNotBlank(item.wfrecon__Approval_Data__c)) {
-                    Object parsed = JSON.deserializeUntyped(item.wfrecon__Approval_Data__c);
-
-                    if (parsed instanceof List<Object>) {
-                        for (Object o : (List<Object>) parsed) {
-                            Map<String, Object> mapVal = (Map<String, Object>) o;
-                            String fieldApi = (String) mapVal.get('fieldApiName');
-                            Object newValueObj = mapVal.get('newValue');
-
-                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
-                                // Handle DateTime fields (wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c)
-                                if (fieldApi == 'wfrecon__Clock_In_Time__c' || fieldApi == 'wfrecon__Clock_Out_Time__c') {
-                                    String dateTimeStr = String.valueOf(newValueObj);
-                                    // Remove 'Z' and milliseconds, replace 'T' with space
-                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
-                                    if (dateTimeStr.contains('.')) {
-                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
-                                    }
-                                    item.put(fieldApi, DateTime.valueOf(dateTimeStr));
-                                } else {
-                                    // Handle numeric fields (wfrecon__Travel_Time__c, etc.)
-                                    item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
-                                }
-                            }
-                        }
+                // Update status and approved date only for Pending records
+                for (wfrecon__Timesheet_Entry__c ts : tsEntries) {
+                    if (ts.wfrecon__Status__c == 'Pending') {
+                        ts.wfrecon__Status__c = 'Auto-Approved';
+                        ts.wfrecon__Approved_Date__c = approvedDate;
                     }
                 }
-            }
+                
+                for (wfrecon__Timesheet_Entry_Item__c item : tsItems) {
+                    if (item.wfrecon__Status__c == 'Pending') {
+                        item.wfrecon__Status__c = 'Auto-Approved';
+                        item.wfrecon__Approved_Date__c = approvedDate;
+                    }
+                }
 
-            if (!tsItems.isEmpty()) {
-                update tsItems;
+                if (!tsEntries.isEmpty()) {
+                    update tsEntries;
+                }
+                
+                if (!tsItems.isEmpty()) {
+                    update tsItems;
+                }
+                
+                System.debug('Auto-approved ' + pendingLogs.size() + ' log entries, ' + 
+                            tsEntries.size() + ' timesheet entries, and ' + 
+                            tsItems.size() + ' timesheet items for Job: ' + jobId);
+            } else {
+                System.debug('Auto-approved ' + pendingLogs.size() + ' log entries for Job: ' + jobId);
             }
-            
-            System.debug('Auto-approved ' + pendingLogs.size() + ' log entries, ' + 
-                        tsEntries.size() + ' timesheet entries, and ' + 
-                        tsItems.size() + ' timesheet items for Job: ' + jobId);
         }
         catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'autoApproveAllPendingEntries','exceptionObj' => e,'moreDetails' => e.getMessage()});

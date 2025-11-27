@@ -139,37 +139,9 @@ public with sharing class ShiftEndLogV2Controller {
                 }
             }
 
-            // Get field history for today's changes
-            Map<Id, List<FieldChangeInfo>> logFieldChangesMap = new Map<Id, List<FieldChangeInfo>>();
-            if(!logIds.isEmpty()) {
-                Date today = Date.today();
-                List<wfrecon__Log_Entry__History> historyRecords = [
-                    SELECT ParentId, Field, OldValue, NewValue, CreatedDate, CreatedBy.Name
-                    FROM wfrecon__Log_Entry__History
-                    WHERE ParentId IN :logIds
-                    AND CreatedDate = TODAY
-                    WITH USER_MODE
-                    ORDER BY CreatedDate DESC
-                ];
+            // Field changes are now tracked in approval data, no need for history tracking
 
-                for(wfrecon__Log_Entry__History hist : historyRecords) {
-                    if(!logFieldChangesMap.containsKey(hist.ParentId)) {
-                        logFieldChangesMap.put(hist.ParentId, new List<FieldChangeInfo>());
-                    }
-                    
-                    FieldChangeInfo changeInfo = new FieldChangeInfo();
-                    changeInfo.fieldName = hist.Field;
-                    // Convert null to empty string, otherwise convert to string
-                    changeInfo.oldValue = hist.OldValue != null ? String.valueOf(hist.OldValue) : '(blank)';
-                    changeInfo.newValue = hist.NewValue != null ? String.valueOf(hist.NewValue) : '(blank)';
-                    changeInfo.changedBy = hist.CreatedBy?.Name;
-                    changeInfo.changedDate = hist.CreatedDate;
-                    
-                    logFieldChangesMap.get(hist.ParentId).add(changeInfo);
-                }
-            }
-
-            // Get current location processes for the job
+            // Get current location processes for the job - changes are tracked in approval data
             Map<Id, List<LocationProcessSnapshot>> jobLocationProcessesMap = new Map<Id, List<LocationProcessSnapshot>>();
             if(jobId != null) {
                 List<wfrecon__Location_Process__c> locationProcesses = [
@@ -180,45 +152,6 @@ public with sharing class ShiftEndLogV2Controller {
                     WITH USER_MODE
                     ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
                 ];
-
-                // Get location process IDs for history tracking
-                Set<Id> locationProcessIds = new Set<Id>();
-                for(wfrecon__Location_Process__c lp : locationProcesses) {
-                    locationProcessIds.add(lp.Id);
-                }
-
-                // Get completion percentage changes for today
-                // Exclude processes that are approved/auto-approved (they count as completed, not "changed today")
-                Map<Id, wfrecon__Location_Process__History> processChangesMap = new Map<Id, wfrecon__Location_Process__History>();
-                Set<Id> approvedProcessIds = new Set<Id>();
-                
-                // Collect all approved process IDs from all logs
-                for(wfrecon__Log_Entry__c log : shiftEndLogs) {
-                    if(log.wfrecon__Status__c == 'Approved' || log.wfrecon__Status__c == 'Auto-Approved') {
-                        if(logPendingProcessesMap.containsKey(log.Id)) {
-                            approvedProcessIds.addAll(logPendingProcessesMap.get(log.Id));
-                        }
-                    }
-                }
-                
-                if(!locationProcessIds.isEmpty()) {
-                    List<wfrecon__Location_Process__History> processHistoryRecords = [
-                        SELECT ParentId, Field, OldValue, NewValue, CreatedDate, CreatedBy.Name
-                        FROM wfrecon__Location_Process__History
-                        WHERE ParentId IN :locationProcessIds
-                        AND Field = 'wfrecon__Completed_Percentage__c'
-                        AND CreatedDate = TODAY
-                        WITH USER_MODE
-                        ORDER BY CreatedDate DESC
-                    ];
-
-                    for(wfrecon__Location_Process__History hist : processHistoryRecords) {
-                        // Only mark as "changed today" if not approved
-                        if(!processChangesMap.containsKey(hist.ParentId) && !approvedProcessIds.contains(hist.ParentId)) {
-                            processChangesMap.put(hist.ParentId, hist);
-                        }
-                    }
-                }
 
                 List<LocationProcessSnapshot> processSnapshots = new List<LocationProcessSnapshot>();
                 for(wfrecon__Location_Process__c lp : locationProcesses) {
@@ -233,49 +166,16 @@ public with sharing class ShiftEndLogV2Controller {
                         ? Integer.valueOf(lp.wfrecon__Sequence__c) 
                         : null;
                     
-                    // Check if this process is approved (counts as completed)
-                    Boolean isApproved = approvedProcessIds.contains(lp.Id);
-                    
-                    // Add change tracking information
-                    if(processChangesMap.containsKey(lp.Id)) {
-                        wfrecon__Location_Process__History histRecord = processChangesMap.get(lp.Id);
-                        snapshot.changedToday = true;
-                        snapshot.oldPercentage = histRecord.OldValue != null ? Decimal.valueOf(String.valueOf(histRecord.OldValue)) : 0;
-                        snapshot.newPercentage = histRecord.NewValue != null ? Decimal.valueOf(String.valueOf(histRecord.NewValue)) : 0;
-                        snapshot.changedBy = histRecord.CreatedBy?.Name;
-                        
-                        // Calculate progress bar segments
-                        // yesterdayPercentage = total completed till yesterday (before today's change)
-                        snapshot.yesterdayPercentage = snapshot.oldPercentage;
-                        // todayChangePercentage = how much was added/changed today
-                        snapshot.todayChangePercentage = snapshot.newPercentage - snapshot.oldPercentage;
-                        
-                        // Set colors: Green for completed, Purple for today's change
-                        snapshot.progressBarColor = '#28a745'; // Green for completed progress
-                        snapshot.todayChangeColor = 'rgba(94, 90, 219, 1)'; // Purple for today's change
-                    } else if(isApproved) {
-                        // Approved processes show as completed (all green), no "changed today" badge
-                        snapshot.changedToday = false;
-                        snapshot.oldPercentage = null;
-                        snapshot.newPercentage = null;
-                        snapshot.changedBy = null;
-                        snapshot.yesterdayPercentage = snapshot.completionPercentage;
-                        snapshot.todayChangePercentage = 0;
-                        snapshot.progressBarColor = '#28a745'; // All green for approved/completed
-                        snapshot.todayChangeColor = null;
-                    } else {
-                        snapshot.changedToday = false;
-                        snapshot.oldPercentage = null;
-                        snapshot.newPercentage = null;
-                        snapshot.changedBy = null;
-                        
-                        // No change today - all progress is from before
-                        // yesterdayPercentage = all completed work (no change today)
-                        snapshot.yesterdayPercentage = snapshot.completionPercentage;
-                        snapshot.todayChangePercentage = 0;
-                        snapshot.progressBarColor = '#28a745'; // Green for all completed progress
-                        snapshot.todayChangeColor = null;
-                    }
+                    // Changes are tracked in approval data, not history
+                    // JavaScript will parse approval data for each log
+                    snapshot.changedToday = false;
+                    snapshot.oldPercentage = null;
+                    snapshot.newPercentage = null;
+                    snapshot.changedBy = null;
+                    snapshot.yesterdayPercentage = snapshot.completionPercentage;
+                    snapshot.todayChangePercentage = 0;
+                    snapshot.progressBarColor = '#28a745';
+                    snapshot.todayChangeColor = null;
                     
                     processSnapshots.add(snapshot);
                 }
@@ -330,10 +230,8 @@ public with sharing class ShiftEndLogV2Controller {
                     ? jobLocationProcessesMap.get(log.wfrecon__Job__c) 
                     : new List<LocationProcessSnapshot>();
                 
-                // Get field changes for today
-                wrapper.fieldChanges = logFieldChangesMap.containsKey(log.Id) 
-                    ? logFieldChangesMap.get(log.Id) 
-                    : new List<FieldChangeInfo>();
+                // Field changes and location process changes are now in approval data (wfrecon__Approval_Data__c)
+                // JavaScript will parse approval data to display changes
                 
                 resultWrapper.shiftEndLogs.add(wrapper);
             }
@@ -354,7 +252,7 @@ public with sharing class ShiftEndLogV2Controller {
     }
 
     @AuraEnabled
-    public static void updateShiftEndLogWithImages(wfrecon__Log_Entry__c logEntry, List<String> contentDocumentIdsToDelete, List<String> contentDocumentIdsToUnlink, String cameraPhotosJson) {
+    public static void updateShiftEndLogWithImages(wfrecon__Log_Entry__c logEntry, List<String> contentDocumentIdsToDelete, List<String> contentDocumentIdsToUnlink, List<String> contentDocumentIdsToLink, String cameraPhotosJson) {
         try {
             if(logEntry == null) {
                 throw new AuraHandledException('Invalid log entry');
@@ -375,7 +273,7 @@ public with sharing class ShiftEndLogV2Controller {
                 }
             }
 
-            // Step 2: Delete newly uploaded files if any
+            // Step 2: Delete uploaded/captured files if any
             if (contentDocumentIdsToDelete != null && !contentDocumentIdsToDelete.isEmpty()) {
                 List<ContentDocument> docsToDelete = [
                     SELECT Id 
@@ -388,11 +286,42 @@ public with sharing class ShiftEndLogV2Controller {
                     delete as user docsToDelete;
                 }
             }
+            
+            // Step 2.5: Link new uploaded files and Chatter files to log entry
+            if (contentDocumentIdsToLink != null && !contentDocumentIdsToLink.isEmpty()) {
+                // Check for existing links to avoid "entity is already linked" error
+                Set<Id> existingLinkedDocIds = new Set<Id>();
+                for (ContentDocumentLink existingLink : [
+                    SELECT ContentDocumentId
+                    FROM ContentDocumentLink
+                    WHERE LinkedEntityId = :logEntry.Id
+                    AND ContentDocumentId IN :contentDocumentIdsToLink
+                    WITH USER_MODE
+                ]) {
+                    existingLinkedDocIds.add(existingLink.ContentDocumentId);
+                }
+                
+                List<ContentDocumentLink> newLinks = new List<ContentDocumentLink>();
+                
+                for (String docId : contentDocumentIdsToLink) {
+                    // Only create link if not already linked
+                    if (!existingLinkedDocIds.contains(docId)) {
+                        ContentDocumentLink link = new ContentDocumentLink();
+                        link.ContentDocumentId = docId;
+                        link.LinkedEntityId = logEntry.Id;
+                        link.ShareType = 'V';
+                        link.Visibility = 'AllUsers';
+                        newLinks.add(link);
+                    }
+                }
+                
+                if (!newLinks.isEmpty()) {
+                    insert as user newLinks;
+                }
+            }
 
-            // Step 3: Update the log entry (including wfrecon__Approval_Data__c if provided)
-            update as user logEntry;
-
-            // Step 4: Process camera photos if any
+            // Step 3: Process camera photos if any
+            List<String> cameraPhotoDocIds = new List<String>();
             if (String.isNotBlank(cameraPhotosJson)) {
                 List<Object> cameraPhotos = (List<Object>) JSON.deserializeUntyped(cameraPhotosJson);
                 List<ContentVersion> contentVersions = new List<ContentVersion>();
@@ -412,8 +341,48 @@ public with sharing class ShiftEndLogV2Controller {
                 
                 if (!contentVersions.isEmpty()) {
                     insert as user contentVersions;
+                    
+                    // Get the ContentDocument IDs for the camera photos we just inserted
+                    Set<Id> versionIds = new Set<Id>();
+                    for (ContentVersion cv : contentVersions) {
+                        versionIds.add(cv.Id);
+                    }
+                    
+                    List<ContentVersion> insertedVersions = [
+                        SELECT Id, ContentDocumentId, Title
+                        FROM ContentVersion
+                        WHERE Id IN :versionIds
+                        WITH USER_MODE
+                    ];
+                    
+                    // Add camera photos to metadata in approval data
+                    if (String.isNotBlank(logEntry.wfrecon__Approval_Data__c)) {
+                        Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(logEntry.wfrecon__Approval_Data__c);
+                        List<Object> mediaMetadata = (List<Object>) approvalData.get('mediaMetadata');
+                        
+                        if (mediaMetadata == null) {
+                            mediaMetadata = new List<Object>();
+                        }
+                        
+                        // Add camera photos to metadata
+                        for (ContentVersion cv : insertedVersions) {
+                            Map<String, Object> metadata = new Map<String, Object>();
+                            metadata.put('contentDocumentId', cv.ContentDocumentId);
+                            metadata.put('source', 'camera');
+                            metadata.put('name', cv.Title);
+                            mediaMetadata.add(metadata);
+                        }
+                        
+                        approvalData.put('mediaMetadata', mediaMetadata);
+                        logEntry.wfrecon__Approval_Data__c = JSON.serialize(approvalData);
+                    }
                 }
             }
+            
+            // Step 4: Update the log entry with approval data (includes camera metadata if added)
+            // Only update the fields that are explicitly set, including wfrecon__Approval_Data__c if provided
+            // The logEntry passed from JavaScript contains only the fields to update
+            update as user logEntry;
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
@@ -436,9 +405,71 @@ public with sharing class ShiftEndLogV2Controller {
                 throw new AuraHandledException('Invalid log entry ID');
             }
 
-            wfrecon__Log_Entry__c logToDelete = new wfrecon__Log_Entry__c(Id = logId);
-
-            delete as user logToDelete;
+            // Get the log entry to access approval data
+            wfrecon__Log_Entry__c logEntry = [
+                SELECT Id, wfrecon__Approval_Data__c
+                FROM wfrecon__Log_Entry__c
+                WHERE Id = :logId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            
+            // Parse media metadata to identify Chatter files
+            Set<String> chatterFileIds = new Set<String>();
+            if (String.isNotBlank(logEntry.wfrecon__Approval_Data__c)) {
+                try {
+                    Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(logEntry.wfrecon__Approval_Data__c);
+                    List<Object> mediaMetadata = (List<Object>) approvalData.get('mediaMetadata');
+                    
+                    if (mediaMetadata != null) {
+                        for (Object metaObj : mediaMetadata) {
+                            Map<String, Object> meta = (Map<String, Object>) metaObj;
+                            String source = (String) meta.get('source');
+                            String contentDocId = (String) meta.get('contentDocumentId');
+                            
+                            // Track Chatter files to avoid deleting them
+                            if (source == 'chatter' && contentDocId != null) {
+                                chatterFileIds.add(contentDocId);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.debug('Error parsing approval data for media cleanup: ' + e.getMessage());
+                }
+            }
+            
+            // Get all linked content documents
+            List<ContentDocumentLink> allLinks = [
+                SELECT ContentDocumentId
+                FROM ContentDocumentLink
+                WHERE LinkedEntityId = :logId
+                WITH USER_MODE
+            ];
+            
+            Set<String> contentDocIdsToDelete = new Set<String>();
+            for (ContentDocumentLink link : allLinks) {
+                // Only delete if NOT a Chatter file
+                if (!chatterFileIds.contains(link.ContentDocumentId)) {
+                    contentDocIdsToDelete.add(link.ContentDocumentId);
+                }
+            }
+            
+            // Delete the log entry (this will cascade delete the ContentDocumentLinks)
+            delete as user logEntry;
+            
+            // Delete uploaded/captured content documents (excluding Chatter files)
+            if (!contentDocIdsToDelete.isEmpty()) {
+                List<ContentDocument> docsToDelete = [
+                    SELECT Id
+                    FROM ContentDocument
+                    WHERE Id IN :contentDocIdsToDelete
+                    WITH USER_MODE
+                ];
+                
+                if (!docsToDelete.isEmpty()) {
+                    delete as user docsToDelete;
+                }
+            }
             
             return 'Success: Shift end log deleted successfully';
 
@@ -488,6 +519,64 @@ public with sharing class ShiftEndLogV2Controller {
         }
     }
 
+    /**
+     * Check if org has enough storage space for file uploads
+     * @return Map with hasSpace (Boolean), percentUsed (Decimal), and message (String)
+     */
+    @AuraEnabled
+    public static Map<String, Object> checkOrgStorageLimit() {
+        Map<String, Object> result = new Map<String, Object>();
+        
+        try {
+            // Get org limits for file storage
+            Map<String, System.OrgLimit> orgLimits = OrgLimits.getMap();
+            
+            // Check FileStorageMB limit
+            System.OrgLimit fileStorageLimit = orgLimits.get('FileStorageMB');
+            
+            if (fileStorageLimit != null) {
+                Integer maxFileStorage = fileStorageLimit.getLimit();
+                Integer usedFileStorage = fileStorageLimit.getValue();
+                Decimal percentUsed = (maxFileStorage > 0) ? ((Decimal)usedFileStorage / maxFileStorage * 100).setScale(2) : 0;
+                
+                Boolean hasSpace = percentUsed < 95; // Block uploads if > 95% used
+                String message = '';
+                
+                if (percentUsed >= 95) {
+                    message = 'Organization file storage is ' + percentUsed + '% full. Cannot upload more files. Please contact your administrator.';
+                } else if (percentUsed >= 90) {
+                    message = 'Warning: Organization file storage is ' + percentUsed + '% full. Consider removing unused files.';
+                }
+                
+                result.put('hasSpace', hasSpace);
+                result.put('percentUsed', percentUsed);
+                result.put('message', message);
+                result.put('usedMB', usedFileStorage);
+                result.put('maxMB', maxFileStorage);
+            } else {
+                // If limit info not available, allow upload
+                result.put('hasSpace', true);
+                result.put('percentUsed', 0);
+                result.put('message', '');
+            }
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'checkOrgStorageLimit',
+                'exceptionObj' => e,
+                'moreDetails' => 'Error checking org storage limits',
+                'apiResponse' => null
+            });
+            // On error, allow upload (don't block user)
+            result.put('hasSpace', true);
+            result.put('percentUsed', 0);
+            result.put('message', '');
+        }
+        
+        return result;
+    }
+
     // -----------------------------
     // Wrapper classes
     // -----------------------------
@@ -515,7 +604,6 @@ public with sharing class ShiftEndLogV2Controller {
         @AuraEnabled public wfrecon__Log_Entry__c logEntry { get; set; }
         @AuraEnabled public List<ContentVersion> images { get; set; }
         @AuraEnabled public List<LocationProcessSnapshot> locationProcesses { get; set; }
-        @AuraEnabled public List<FieldChangeInfo> fieldChanges { get; set; }
     }
 
     public class LocationProcessSnapshot {
@@ -536,12 +624,5 @@ public with sharing class ShiftEndLogV2Controller {
         @AuraEnabled public String todayChangeColor { get; set; }       // Color for today's change
     }
 
-    public class FieldChangeInfo {
-        @AuraEnabled public String fieldName { get; set; }
-        @AuraEnabled public String oldValue { get; set; }
-        @AuraEnabled public String newValue { get; set; }
-        @AuraEnabled public String changedBy { get; set; }
-        @AuraEnabled public DateTime changedDate { get; set; }
-    }
-
+    // Changes are now tracked in wfrecon__Approval_Data__c field
 }

@@ -292,12 +292,12 @@
                     <lightning-progress-indicator current-step={editCurrentStep} type="path" variant="base">
                         <lightning-progress-step label="Log Details" value="step1"></lightning-progress-step>
                         <lightning-progress-step label="Location Progress" value="step2"></lightning-progress-step>
-                        <lightning-progress-step label="Images" value="step3"></lightning-progress-step>
+                        <lightning-progress-step label="Gallery" value="step3"></lightning-progress-step>
                     </lightning-progress-indicator>
                 </div>
 
                 <!-- Modal content -->
-                <div class="slds-modal__content slds-p-around--medium edit-modal-body">
+                <div class="slds-modal__content edit-modal-body">
                     
                     <!-- Step 1: Log Details -->
                     <template if:true={isEditStep1}>
@@ -493,55 +493,36 @@
                             <!-- Image Gallery Section -->
                             <div class="slds-m-bottom_medium gallery-section">
                                 
-                                <!-- Upload Options -->
-                                <div class="upload-options">
-                                    <div class="custom-upload-wrapper">
-                                        <button type="button" class="custom-upload-btn" onclick={handleUploadOptionsClick}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                                <polyline points="17 8 12 3 7 8"></polyline>
-                                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                                <!-- Upload Buttons -->
+                                <div class="upload-actions">
+                                    <div class="upload-buttons-container">
+                                        <!-- Upload New Files with Standard Lightning Component -->
+                                        <div class="upload-button-wrapper">
+                                            <lightning-file-upload 
+                                                accept={acceptedFormats} 
+                                                multiple
+                                                record-id={editLogId} 
+                                                onuploadfinished={handleUploadFinished}
+                                                variant="label-hidden">
+                                            </lightning-file-upload>
+                                        </div>
+                                        
+                                        <!-- Choose from Chatter Button -->
+                                        <button type="button" class="nav-btn done-btn gallery-btn" onclick={handleChooseFromChatter}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                             </svg>
-                                            Upload Files
+                                            Choose from Chatter
                                         </button>
                                         
-                                        <!-- Upload Options Dropdown -->
-                                        <template if:true={showUploadOptions}>
-                                            <div class="upload-options-dropdown">
-                                                <button type="button" class="upload-option-item">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                        <polyline points="14 2 14 8 20 8"></polyline>
-                                                    </svg>
-                                                    Upload New Files
-                                                    <div class="file-upload-trigger">
-                                                        <lightning-file-upload
-                                                            label=""
-                                                            name="imageUpload"
-                                                            accept={acceptedFormats}
-                                                            record-id={editLogId}
-                                                            onclick={handleFileUploadClick}
-                                                            onuploadfinished={handleUploadFinished}
-                                                            multiple>
-                                                        </lightning-file-upload>
-                                                    </div>
-                                                </button>
-                                                <button type="button" class="upload-option-item" onclick={handleChooseFromChatter}>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                                    </svg>
-                                                    Choose from Chatter
-                                                </button>
-                                                <!-- Camera Option - Only for Desktop -->
-                                                <template if:true={isDesktopDevice}>
-                                                    <button type="button" class="upload-option-item" onclick={handleOpenCamera}>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 512 512" fill="currentColor">
-                                                            <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
-                                                        </svg>
-                                                        Capture Photo
-                                                    </button>
-                                                </template>
-                                            </div>
+                                        <!-- Camera Option - Only for Desktop -->
+                                        <template if:true={isDesktopDevice}>
+                                            <button type="button" class="nav-btn done-btn gallery-btn" onclick={handleOpenCamera}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 512 512" fill="currentColor">
+                                                    <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
+                                                </svg>
+                                                Capture Photo
+                                            </button>
                                         </template>
                                     </div>
                                 </div>                            
@@ -716,12 +697,20 @@
                                         </div>
                                         <div class="feed-item-attachments">
                                             <template for:each={feedItem.attachments} for:item="attachment">
-                                                <div key={attachment.id} class="attachment-card" data-id={attachment.id} onclick={handleAttachmentSelection}>
+                                                <div key={attachment.id} class={attachment.cardClass} data-id={attachment.id} onclick={handleAttachmentSelection}>
                                                     <template if:true={attachment.selected}>
                                                         <div class="attachment-selected-badge">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2">
-                                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                                                <polyline points="20 6 9 17 4 12" stroke="white" stroke-width="2" fill="none"></polyline>
                                                             </svg>
+                                                        </div>
+                                                    </template>
+                                                    <template if:true={attachment.alreadyUploaded}>
+                                                        <div class="attachment-uploaded-badge">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                                                <polyline points="20 6 9 17 4 12" stroke="white" stroke-width="2" fill="none"></polyline>
+                                                            </svg>
+                                                            Already Added
                                                         </div>
                                                     </template>
                                                     <template if:true={attachment.isImage}>
