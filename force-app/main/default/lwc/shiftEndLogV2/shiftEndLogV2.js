@@ -3,6 +3,8 @@ import getShiftEndLogsWithCrewInfo from '@salesforce/apex/ShiftEndLogV2Controlle
 import updateShiftEndLogWithImages from '@salesforce/apex/ShiftEndLogV2Controller.updateShiftEndLogWithImages';
 import deleteShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.deleteShiftEndLog';
 import deleteUploadedFiles from '@salesforce/apex/ShiftEndLogV2Controller.deleteUploadedFiles';
+import getChatterFeedItems from '@salesforce/apex/ShiftEndLogEntriesController.getChatterFeedItems';
+import checkOrgStorageLimit from '@salesforce/apex/ShiftEndLogV2Controller.checkOrgStorageLimit';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -57,12 +59,23 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Image handling
     @track existingImages = [];
     @track newUploadedFiles = [];
-    @track imagesToDelete = [];
+    @track imagesToDelete = []; // For newly uploaded files to delete
+    @track imagesToUnlink = []; // For Chatter images to unlink (not delete)
+    @track newlyUploadedContentDocIds = []; // Track new uploads during edit session for cleanup on cancel
 
     // Camera Modal
     @track showCameraModal = false;
     @track cameraStream = null;
     @track capturedPhoto = null;
+
+    // Chatter Modal
+    @track showChatterModal = false;
+    @track showUploadOptions = false;
+    @track chatterFeedItems = [];
+    @track isLoadingChatter = false;
+    @track isLoadingMoreChatter = false;
+    @track chatterDaysOffset = 0;
+    @track hasMoreChatterItems = true;
 
     // Crew information for current user
     @track crewLeaderId = null;
@@ -323,46 +336,38 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     const log = wrapper.logEntry;
                     const images = wrapper.images || [];
                     const locationProcesses = wrapper.locationProcesses || [];
-                    const fieldChanges = wrapper.fieldChanges || [];                    
-                    
-                    // Map field API names to display names
-                    const fieldNameMap = {
-                        'wfrecon__Work_Performed__c': 'Work_Performed',
-                        'wfrecon__Exceptions__c': 'Exceptions',
-                        'wfrecon__Plan_for_Tomorrow__c': 'Plan_for_Tomorrow',
-                        'wfrecon__Notes_to_Office__c': 'Notes_to_Office',
-                        'wfrecon__Work_Performed_Date__c': 'Work_Performed_Date'
-                    };
-
-                    // Create a set of fields that changed today
-                    const changedFieldsToday = new Set();
-                    const fieldChangeDetails = {};
-                    
-                    fieldChanges.forEach(change => {
-                        const mappedFieldName = fieldNameMap[change.fieldName] || change.fieldName;
-                        changedFieldsToday.add(mappedFieldName);
-                        fieldChangeDetails[mappedFieldName] = {
-                            oldValue: change.oldValue,
-                            newValue: change.newValue,
-                            changedBy: change.changedBy,
-                            changedDate: change.changedDate
-                        };
-                    });
                     
                     // Parse approval data if present - now using new structure
                     let approvalData = null;
                     let locationProcessChanges = [];
+                    let timesheetEntryChanges = {};
                     let hasPendingApproval = false;
+                    
+                    // Create a set of fields that changed (from approval data)
+                    const changedFieldsToday = new Set();
+                    const fieldChangeDetails = {};
                     if (log.wfrecon__Approval_Data__c) {
                         try {
                             const parsedData = JSON.parse(log.wfrecon__Approval_Data__c);
                             
                             // Check if it's the new structure or old structure
                             if (parsedData.locationProcessChanges) {
-                                // New structure
+                                // New structure: { locationProcessChanges: [], timesheetEntryChanges: {} }
                                 approvalData = parsedData;
                                 locationProcessChanges = parsedData.locationProcessChanges || [];
-                                hasPendingApproval = locationProcessChanges.length > 0 || Object.keys(parsedData.timesheetEntryChanges || {}).length > 0;
+                                timesheetEntryChanges = parsedData.timesheetEntryChanges || {};
+                                hasPendingApproval = locationProcessChanges.length > 0 || Object.keys(timesheetEntryChanges).length > 0;
+                                
+                                // Extract timesheet entry changes to track which fields changed
+                                // Timesheet entry changes contain clock in/out modifications
+                                Object.values(timesheetEntryChanges).forEach(entryData => {
+                                    if (entryData.changes && Array.isArray(entryData.changes)) {
+                                        entryData.changes.forEach(change => {
+                                            // Track that timesheet entries were modified
+                                            changedFieldsToday.add('Timesheet_Entries');
+                                        });
+                                    }
+                                });
                             } else if (Array.isArray(parsedData)) {
                                 // Old structure - convert to new structure for backwards compatibility
                                 locationProcessChanges = parsedData;
@@ -434,26 +439,41 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         locationProcesses: locationProcesses.map(proc => {
                             let approvalDataForProcess = null;
                             let isPendingApproval = false;
+                            let changedToday = false;
+                            let oldPercentage = null;
+                            let newPercentage = null;
                             
-                            // Parse approval data - now using locationProcessChanges array from new structure
-                            // Only show as pending if status is 'Pending' (not approved/auto-approved)
-                            if (locationProcessChanges && locationProcessChanges.length > 0 && !isApprovedStatus) {
+                            // Check if this process has changes in approval data
+                            if (locationProcessChanges && locationProcessChanges.length > 0) {
                                 approvalDataForProcess = locationProcessChanges.find(item => item.id === proc.processId);
-                                isPendingApproval = !!approvalDataForProcess;
+                                if (approvalDataForProcess) {
+                                    changedToday = true;
+                                    oldPercentage = approvalDataForProcess.oldValue || 0;
+                                    newPercentage = approvalDataForProcess.newValue || 0;
+                                    
+                                    // Only show as pending if status is not approved/auto-approved
+                                    isPendingApproval = !isApprovedStatus;
+                                }
                             }
                             
-                            const approvalOldValue = approvalDataForProcess?.oldValue || 0;
-                            const approvalNewValue = approvalDataForProcess?.newValue || 0;
-                            const yesterdayPercent = proc.yesterdayPercentage || 0;
+                            const yesterdayPercent = changedToday ? oldPercentage : (proc.completionPercentage || 0);
+                            const todayChange = changedToday ? (newPercentage - oldPercentage) : 0;
                             
                             return {
                                 ...proc,
+                                changedToday: changedToday,
+                                oldPercentage: oldPercentage,
+                                newPercentage: newPercentage,
                                 isPendingApproval: isPendingApproval,
-                                approvalOldValue: approvalOldValue,
-                                approvalNewValue: approvalNewValue,
-                                // For display: if in approval, show approval segment from yesterday to new value
+                                approvalOldValue: oldPercentage,
+                                approvalNewValue: newPercentage,
+                                // For display: show progress segments
+                                yesterdayPercentage: yesterdayPercent,
+                                todayChangePercentage: todayChange,
                                 displayYesterdayPercentage: yesterdayPercent,
-                                displayApprovalPercentage: isPendingApproval ? (approvalNewValue - yesterdayPercent) : 0
+                                displayApprovalPercentage: isPendingApproval ? todayChange : 0,
+                                progressBarColor: '#28a745',
+                                todayChangeColor: changedToday ? 'rgba(94, 90, 219, 1)' : null
                             };
                         }),
                         hasLocationProcesses: locationProcesses.length > 0,
@@ -640,18 +660,38 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 notesToOffice: logToEdit.wfrecon__Notes_to_Office__c || ''
             };
 
-            // Load existing images
+            // Parse approval data to get media metadata
+            let mediaMetadataMap = new Map(); // Map<contentDocId, source>
+            if (logToEdit.wfrecon__Approval_Data__c) {
+                try {
+                    const approvalData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
+                    const mediaMetadata = approvalData.mediaMetadata || [];
+                    
+                    // Build map of contentDocumentId -> source
+                    mediaMetadata.forEach(meta => {
+                        mediaMetadataMap.set(meta.contentDocumentId, meta.source);
+                    });
+                } catch (e) {
+                    console.error('Error parsing approval data for media metadata:', e);
+                }
+            }
+
+            // Load existing images and mark source (chatter/upload/camera)
             this.existingImages = logToEdit.images ? logToEdit.images.map(img => ({
                 id: img.ContentDocumentId,
                 versionId: img.Id,
                 name: img.Title + '.' + img.FileExtension,
                 url: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`,
-                isExisting: true
+                isExisting: true,
+                source: mediaMetadataMap.get(img.ContentDocumentId) || 'upload', // Default to upload if not found
+                isChatter: mediaMetadataMap.get(img.ContentDocumentId) === 'chatter'
             })) : [];
             
-            // Reset new uploads and delete tracking
+            // Reset new uploads and delete/unlink tracking
             this.newUploadedFiles = [];
             this.imagesToDelete = [];
+            this.imagesToUnlink = [];
+            this.newlyUploadedContentDocIds = []; // Track new uploads during this edit session
 
             // Load location processes for step 2
             this.loadEditLocationProcesses(logToEdit);
@@ -666,27 +706,14 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }
 
     // Handle close modal
-    handleCloseModal() {
-        // Delete newly uploaded files before closing (exclude camera photos as they're not yet uploaded)
-        if (this.newUploadedFiles && this.newUploadedFiles.length > 0) {
+    async handleCloseModal() {
+        // Delete newly uploaded files during this edit session (exclude camera photos and Chatter images)
+        if (this.newlyUploadedContentDocIds && this.newlyUploadedContentDocIds.length > 0) {
             try {
-                // Only delete files that have real ContentDocument IDs (not temporary camera photo IDs)
-                const contentDocumentIds = this.newUploadedFiles
-                    .filter(file => !file.isCamera && !file.id.startsWith('temp_'))
-                    .map(file => file.id);
-                
-                if (contentDocumentIds.length > 0) {
-                    deleteUploadedFiles({ contentDocumentIds })
-                    .then(() => {
-                        console.log('Successfully deleted newly uploaded files on modal close')
-                    })
-                    .catch(error => {
-                        console.error('Error deleting newly uploaded files on modal close:', error)
-                    });
-            }
+                await deleteUploadedFiles({ contentDocumentIds: this.newlyUploadedContentDocIds });
+                console.log('Successfully deleted newly uploaded files on modal close');
             } catch (error) {
-                console.error('Error deleting uploaded files:', error);
-
+                console.error('Error deleting newly uploaded files on modal close:', error);
             }
         }
 
@@ -708,6 +735,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.existingImages = [];
         this.newUploadedFiles = [];
         this.imagesToDelete = [];
+        this.imagesToUnlink = [];
         this.editLocationProcesses = [];
         this.editAllLocationProcesses = [];
         this.editModifiedProcesses = new Map();
@@ -1360,10 +1388,49 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // If IN existing approval and NOT modified now, keep it (already in map)
         });
 
+        // Get all uploaded content document IDs from Chatter images (existing + new)
+        const uploadedContentDocIds = [
+            ...this.existingImages.filter(img => img.isChatter).map(img => img.id),
+            ...this.newUploadedFiles.filter(file => file.isChatter).map(file => file.id)
+        ];
+        
+        // Build updated media metadata
+        const updatedMediaMetadata = [];
+        
+        // Add existing images that weren't removed
+        this.existingImages.forEach(img => {
+            updatedMediaMetadata.push({
+                contentDocumentId: img.id,
+                source: img.source || 'upload',
+                name: img.name
+            });
+        });
+        
+        // Add new uploaded/chatter files
+        this.newUploadedFiles.forEach(file => {
+            if (file.isChatter) {
+                updatedMediaMetadata.push({
+                    contentDocumentId: file.id,
+                    source: 'chatter',
+                    name: file.name
+                });
+            } else if (!file.isCamera) {
+                // Regular uploaded file
+                updatedMediaMetadata.push({
+                    contentDocumentId: file.id,
+                    source: 'upload',
+                    name: file.name
+                });
+            }
+            // Camera photos will be added by Apex after upload
+        });
+
         // Build the merged approval data structure
         const mergedApprovalData = {
             locationProcessChanges: Array.from(approvalDataMap.values()),
-            timesheetEntryChanges: existingApprovalData.timesheetEntryChanges || {}
+            timesheetEntryChanges: existingApprovalData.timesheetEntryChanges || {},
+            uploadedContentDocumentIds: uploadedContentDocIds, // Track Chatter files for preventing re-selection
+            mediaMetadata: updatedMediaMetadata // Track all media with source info
         };
 
         const formData = {
@@ -1376,7 +1443,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         };
 
         // Only set approval data if there are any updates (location process changes or timesheet changes)
-        if(mergedApprovalData.locationProcessChanges.length > 0 || Object.keys(mergedApprovalData.timesheetEntryChanges).length > 0) {
+        if(mergedApprovalData.locationProcessChanges.length > 0 || Object.keys(mergedApprovalData.timesheetEntryChanges).length > 0 || uploadedContentDocIds.length > 0) {
             formData.wfrecon__Approval_Data__c = JSON.stringify(mergedApprovalData);
         }
 
@@ -1388,13 +1455,34 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         this.isLoading = true;
 
-        // Combined update: delete removed images and update log entry
+        // Prepare camera photos for upload
+        const cameraPhotos = this.newUploadedFiles
+            .filter(file => file.isCamera === true && file.base64Data)
+            .map(file => ({
+                fileName: file.name,
+                base64Data: file.base64Data
+            }));
+
+        const cameraPhotosJson = cameraPhotos.length > 0 ? JSON.stringify(cameraPhotos) : null;
+
+        // Get IDs of newly uploaded files and Chatter files to link
+        const contentDocumentIdsToLink = this.newUploadedFiles
+            .filter(file => !file.isCamera) // Exclude camera photos (handled separately)
+            .map(file => file.id);
+
+        // Combined update: delete removed images, unlink Chatter images, link new files, update log entry, and upload camera photos
         updateShiftEndLogWithImages({ 
             logEntry: formData, 
-            contentDocumentIdsToDelete: this.imagesToDelete
+            contentDocumentIdsToDelete: this.imagesToDelete,
+            contentDocumentIdsToUnlink: this.imagesToUnlink,
+            contentDocumentIdsToLink: contentDocumentIdsToLink,
+            cameraPhotosJson: cameraPhotosJson
         })
         .then(() => {
             this.showToast('Success', 'Shift End Log updated successfully', 'success');
+            // Clear newlyUploadedContentDocIds so they won't be deleted on modal close
+            // These files are now successfully linked to the log entry
+            this.newlyUploadedContentDocIds = [];
             this.handleCloseModal();
             this.loadShiftEndLogsWithCrewInfo();
         })
@@ -1408,32 +1496,79 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }   
 
     // Handle file upload
-    handleUploadFinished(event) {
-        const uploadedFilesFromEvent = event.detail.files;
-        uploadedFilesFromEvent.forEach(file => {
-            this.newUploadedFiles.push({
-                id: file.documentId,
-                name: file.name,
-                url: `/sfc/servlet.shepherd/document/download/${file.documentId}`,
-                isExisting: false
+    async handleUploadFinished(event) {
+        try {
+            // Check org storage before accepting the upload
+            const storageCheck = await checkOrgStorageLimit();
+            
+            if (!storageCheck.hasSpace) {
+                this.showToast('Error', storageCheck.message, 'error');
+                // Delete the just-uploaded files
+                const uploadedFilesFromEvent = event.detail.files;
+                const docIdsToDelete = uploadedFilesFromEvent.map(file => file.documentId);
+                if (docIdsToDelete.length > 0) {
+                    await deleteUploadedFiles({ contentDocumentIds: docIdsToDelete });
+                }
+                return;
+            }
+
+            const uploadedFilesFromEvent = event.detail.files;
+            uploadedFilesFromEvent.forEach(file => {
+                this.newUploadedFiles.push({
+                    id: file.documentId,
+                    name: file.name,
+                    url: `/sfc/servlet.shepherd/document/download/${file.documentId}`,
+                    isExisting: false,
+                    isCamera: false,
+                    isChatter: false
+                });
+                // Track this as a newly uploaded file for cleanup if user cancels
+                this.newlyUploadedContentDocIds.push(file.documentId);
             });
-        });
-        this.showToast('Success', `${uploadedFilesFromEvent.length} file(s) uploaded successfully`, 'success');
+            
+            // Show storage warning if approaching limit
+            if (storageCheck.percentUsed > 90) {
+                this.showToast('Warning', storageCheck.message, 'warning');
+            } else {
+                this.showToast('Success', `${uploadedFilesFromEvent.length} file(s) uploaded successfully`, 'success');
+            }
+        } catch (error) {
+            console.error('Error in handleUploadFinished:', error);
+            this.showToast('Error', 'Failed to upload files: ' + (error.body?.message || error.message), 'error');
+        }
     }
 
     // Handle remove image
     handleRemoveImage(event) {
         const imageId = event.currentTarget.dataset.id;
         const isExisting = event.currentTarget.dataset.existing === 'true';
-        const isCamera = event.currentTarget.dataset.camera === 'true';
+        const isChatter = event.currentTarget.dataset.chatter === 'true';
 
         if (isExisting) {
-            // Mark existing image for deletion
-            this.imagesToDelete.push(imageId);
+            // For existing images, check source to decide delete vs unlink
+            const existingImg = this.existingImages.find(img => img.id === imageId);
+            
+            if (existingImg && existingImg.source === 'chatter') {
+                // Chatter images: only unlink, don't delete
+                this.imagesToUnlink.push(imageId);
+            } else {
+                // Upload/capture images: delete from org
+                this.imagesToDelete.push(imageId);
+            }
+            
             this.existingImages = this.existingImages.filter(img => img.id !== imageId);
-        } else {
-            // Remove from newly uploaded files (including camera photos)
+        } else if (isChatter) {
+            // For Chatter images that were just added, simply remove from the list (no need to unlink as not yet saved)
             this.newUploadedFiles = this.newUploadedFiles.filter(img => img.id !== imageId);
+        } else {
+            // For newly uploaded files (camera photos or file uploads), mark for deletion
+            this.newUploadedFiles = this.newUploadedFiles.filter(img => {
+                if (img.id === imageId && !img.isCamera && !img.isChatter) {
+                    // Only delete if it's a regular upload (not camera, not chatter)
+                    this.imagesToDelete.push(imageId);
+                }
+                return img.id !== imageId;
+            });
         }
 
         this.showToast('Success', 'Image removed', 'success');
@@ -1446,6 +1581,21 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     get hasImages() {
         return this.allImages.length > 0;
+    }
+
+    get hasChatterFeedItems() {
+        return this.chatterFeedItems && this.chatterFeedItems.length > 0;
+    }
+
+    get hasNoSelectedAttachments() {
+        if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) return true;
+        
+        for (let feedItem of this.chatterFeedItems) {
+            for (let attachment of feedItem.attachments) {
+                if (attachment.selected) return false;
+            }
+        }
+        return true;
     }
 
     // Edit Modal Step Getters
@@ -1463,6 +1613,207 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     get hasModifiedProcesses() {
         return this.editModifiedProcesses.size > 0;
+    }
+
+    // Upload Options Handlers
+    handleUploadOptionsClick(event) {
+        event.stopPropagation();
+        this.showUploadOptions = !this.showUploadOptions;
+        
+        // Close dropdown when clicking outside
+        if (this.showUploadOptions) {
+            document.addEventListener('click', this.handleClickOutside.bind(this));
+        }
+    }
+
+    handleClickOutside() {
+        this.showUploadOptions = false;
+    }
+
+    handleFileUploadClick(event){
+        event.stopPropagation();
+    }
+
+    handleUploadNewFiles() {
+        this.showUploadOptions = false;
+        // Trigger the file upload component
+        setTimeout(() => {
+            const fileUpload = this.template.querySelector('lightning-file-upload');
+            if (fileUpload) {
+                const inputElement = fileUpload.shadowRoot.querySelector('input[type="file"]');
+                if (inputElement) {
+                    inputElement.click();
+                }
+            }
+        }, 100);
+    }
+
+    handleChooseFromChatter() {
+        this.showUploadOptions = false;
+        this.showChatterModal = true;
+        this.chatterDaysOffset = 0;
+        this.hasMoreChatterItems = true;
+        this.loadChatterFeedItems();
+    }
+
+    // Chatter Functions
+    async loadChatterFeedItems() {
+        this.isLoadingChatter = true;
+        
+        try {
+            const result = await getChatterFeedItems({
+                jobId: this.recordId,
+                daysOffset: this.chatterDaysOffset
+            });
+            
+            console.log('Chatter Result:', result);
+            
+            // Get all currently uploaded content document IDs (existing + new)
+            const allUploadedDocIds = [
+                ...this.existingImages.map(img => img.id),
+                ...this.newUploadedFiles.map(file => file.id)
+            ];
+            
+            if (result && result.feedItems) {
+                const newFeedItems = result.feedItems.map(feedItem => ({
+                    ...feedItem,
+                    formattedDate: this.formatChatterDate(feedItem.createdDate),
+                    attachments: feedItem.attachments.map(att => {
+                        const alreadyUploaded = allUploadedDocIds.includes(att.contentDocumentId);
+                        return {
+                            ...att,
+                            selected: false,
+                            alreadyUploaded: alreadyUploaded,
+                            cardClass: alreadyUploaded ? 'attachment-card disabled' : 'attachment-card'
+                        };
+                    })
+                }));
+                
+                // Append to existing items (for Load More)
+                if (this.chatterDaysOffset === 0) {
+                    this.chatterFeedItems = newFeedItems;
+                } else {
+                    this.chatterFeedItems = [...this.chatterFeedItems, ...newFeedItems];
+                }
+                
+                this.hasMoreChatterItems = result.hasMore || false;
+            } else {
+                if (this.chatterDaysOffset === 0) {
+                    this.chatterFeedItems = [];
+                }
+                this.hasMoreChatterItems = false;
+            }
+            
+        } catch (error) {
+            console.error('Error loading Chatter feed items:', error);
+            this.showToast('Error', 'Failed to load Chatter posts', 'error');
+            this.chatterFeedItems = [];
+            this.hasMoreChatterItems = false;
+        } finally {
+            this.isLoadingChatter = false;
+        }
+    }
+
+    handleLoadMoreChatter() {
+        this.chatterDaysOffset += 3;
+        this.isLoadingMoreChatter = true;
+        this.loadChatterFeedItems().then(() => {
+            this.isLoadingMoreChatter = false;
+        });
+    }
+
+    handleAttachmentSelection(event) {
+        const attachmentId = event.currentTarget.dataset.id;
+        const cardElement = event.currentTarget;
+        
+        // Find the attachment to check if already uploaded
+        let isAlreadyUploaded = false;
+        this.chatterFeedItems.forEach(feedItem => {
+            feedItem.attachments.forEach(att => {
+                if (att.id === attachmentId && att.alreadyUploaded) {
+                    isAlreadyUploaded = true;
+                }
+            });
+        });
+        
+        // Prevent selection if already uploaded
+        if (isAlreadyUploaded) {
+            this.showToast('Info', 'This file is already uploaded to this log entry', 'info');
+            return;
+        }
+        
+        // Toggle selection
+        this.chatterFeedItems = this.chatterFeedItems.map(feedItem => ({
+            ...feedItem,
+            attachments: feedItem.attachments.map(att => ({
+                ...att,
+                selected: att.id === attachmentId ? !att.selected : att.selected
+            }))
+        }));
+        
+        // Toggle visual selection class
+        cardElement.classList.toggle('selected');
+    }
+
+    handleAddSelectedAttachments() {
+        const selectedAttachments = [];
+        
+        // Collect all selected attachments (excluding already uploaded)
+        this.chatterFeedItems.forEach(feedItem => {
+            feedItem.attachments.forEach(att => {
+                if (att.selected && !att.alreadyUploaded) {
+                    selectedAttachments.push(att);
+                }
+            });
+        });
+        
+        if (selectedAttachments.length === 0) {
+            this.showToast('Warning', 'Please select at least one attachment that is not already uploaded', 'warning');
+            return;
+        }
+        
+        // Add selected attachments to uploaded files
+        selectedAttachments.forEach(attachment => {
+            this.newUploadedFiles.push({
+                id: attachment.contentDocumentId,
+                name: attachment.title,
+                url: attachment.thumbnailUrl,
+                isImage: attachment.isImage,
+                isExisting: false,
+                isCamera: false,
+                isChatter: true
+            });
+        });
+        
+        this.showToast('Success', `${selectedAttachments.length} file(s) added from Chatter`, 'success');
+        this.closeChatterModal();
+    }
+
+    closeChatterModal() {
+        this.showChatterModal = false;
+        this.chatterFeedItems = [];
+        this.chatterDaysOffset = 0;
+        this.hasMoreChatterItems = true;
+    }
+
+    formatChatterDate(dateTimeString) {
+        const date = new Date(dateTimeString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        
+        return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+        });
     }
 
     // Camera Functions

@@ -12,18 +12,18 @@ public with sharing class ShiftEndLogEntriesController {
                 String yesterdayStr = String.valueOf(yesterday);
                 
                 // Only return today's and yesterday's mobilization dates with Job Name and Status
-                List<Mobilization__c> mobList = [SELECT Id, Name, Start_Date_Text__c, Job__r.Job_Name__c, Mobilization_Status__c 
-                                                    FROM Mobilization__c 
-                                                    WHERE Job__c = :jobId 
-                                                    AND Id IN (SELECT Mobilization__c FROM Mobilization_Member__c WHERE Crew_Leader_Id__c = :crewLeaderId)
-                                                    AND (Start_Date_Text__c = :todayStr OR Start_Date_Text__c = :yesterdayStr)
+                List<wfrecon__Mobilization__c> mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Status__c 
+                                                    FROM wfrecon__Mobilization__c 
+                                                    WHERE wfrecon__Job__c = :jobId 
+                                                    AND Id IN (SELECT wfrecon__Mobilization__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew_Leader_Id__c = :crewLeaderId)
+                                                    AND (wfrecon__Start_Date_Text__c = :todayStr OR wfrecon__Start_Date_Text__c = :yesterdayStr)
                                                     WITH USER_MODE
-                                                    ORDER BY Start_Date_Text__c DESC];
-                for (Mobilization__c mob : mobList) {
-                    String statusLabel = String.isNotBlank(mob.Mobilization_Status__c) ? mob.Mobilization_Status__c : 'N/A';
+                                                    ORDER BY wfrecon__Start_Date_Text__c DESC];
+                for (wfrecon__Mobilization__c mob : mobList) {
+                    String statusLabel = String.isNotBlank(mob.wfrecon__Mobilization_Status__c) ? mob.wfrecon__Mobilization_Status__c : 'N/A';
                     
                     // Return date and status separately for JS formatting
-                    String displayLabel = mob.Start_Date_Text__c + '||' + mob.Job__r.Job_Name__c + '||' + statusLabel;
+                    String displayLabel = mob.wfrecon__Start_Date_Text__c + '||' + mob.wfrecon__Job__r.wfrecon__Job_Name__c + '||' + statusLabel;
                     result.put(mob.Id, displayLabel);
                 }
             }
@@ -43,16 +43,16 @@ public with sharing class ShiftEndLogEntriesController {
             result.put('clockOut', new List<WrapperMember>());
             result.put('costCodeDetails', new List<WrapperMember>());
     
-            List<Mobilization__c> mobilizationRecord = [SELECT Id, Job__c, Start_Date__c, End_Date__c FROM Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
+            List<wfrecon__Mobilization__c> mobilizationRecord = [SELECT Id, wfrecon__Job__c, wfrecon__Start_Date__c, wfrecon__End_Date__c FROM wfrecon__Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
 
-            List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
-                                                    FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
-                                                    AND Contact__r.Can_Clock_In_Out__c = true AND Crew_Leader_Id__c = :crewLeaderId
-                                                    WITH USER_MODE ORDER BY Contact__r.Name ASC];
+            List<wfrecon__Mobilization_Member__c> members = [SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
+                                                    FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Mobilization__c = :mobId AND wfrecon__Contact__c != null
+                                                    AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
     
             Set<Id> contactIds = new Set<Id>();
-            for (Mobilization_Member__c m : members) {
-                contactIds.add(m.Contact__c);
+            for (wfrecon__Mobilization_Member__c m : members) {
+                contactIds.add(m.wfrecon__Contact__c);
             }
             
             // Add crew leader to contactIds if not already present
@@ -64,40 +64,40 @@ public with sharing class ShiftEndLogEntriesController {
                 return result;
             }
 
-            List<Timesheet__c> tsList = [SELECT Id, Contact__c, Timesheet_Start_Date__c, Timesheet_End_Date__c FROM Timesheet__c WHERE Contact__c IN :contactIds
-                                            AND Job__c = :jobId AND Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].Start_Date__c)
-                                            AND Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].End_Date__c) WITH USER_MODE ORDER BY Contact__r.Name ASC];
+            List<wfrecon__Timesheet__c> tsList = [SELECT Id, wfrecon__Contact__c, wfrecon__Timesheet_Start_Date__c, wfrecon__Timesheet_End_Date__c FROM wfrecon__Timesheet__c WHERE wfrecon__Contact__c IN :contactIds
+                                            AND wfrecon__Job__c = :jobId AND wfrecon__Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].wfrecon__Start_Date__c)
+                                            AND wfrecon__Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].wfrecon__End_Date__c) WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
 
-            Map<Id, Timesheet__c> contactTimesheetMap = new Map<Id, Timesheet__c>();
-            for (Timesheet__c ts : tsList) {
-                contactTimesheetMap.put(ts.Contact__c, ts);
+            Map<Id, wfrecon__Timesheet__c> contactTimesheetMap = new Map<Id, wfrecon__Timesheet__c>();
+            for (wfrecon__Timesheet__c ts : tsList) {
+                contactTimesheetMap.put(ts.wfrecon__Contact__c, ts);
             }
 
-            Date startDate = mobilizationRecord[0].Start_Date__c.date();
+            Date startDate = mobilizationRecord[0].wfrecon__Start_Date__c.date();
             DateTime startDateTime = DateTime.newInstance(startDate, Time.newInstance(0,0,0,0));
             DateTime endDateTime   = DateTime.newInstance(startDate, Time.newInstance(23,59,59,999));
-            List<Timesheet_Entry__c> entries = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__r.Contact__c FROM Timesheet_Entry__c
-                                                WHERE Timesheet__c IN :tsList AND Clock_In_Time__c >= :startDateTime AND Clock_In_Time__c < :endDateTime
+            List<wfrecon__Timesheet_Entry__c> entries = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Contact__c FROM wfrecon__Timesheet_Entry__c
+                                                WHERE wfrecon__Timesheet__c IN :tsList AND wfrecon__Clock_In_Time__c >= :startDateTime AND wfrecon__Clock_In_Time__c < :endDateTime
                                                 WITH USER_MODE];
 
-            Map<Id, List<Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<Timesheet_Entry__c>>();
-            for (Timesheet_Entry__c e : entries) {
-                if (!contactEntriesMap.containsKey(e.Timesheet__r.Contact__c)) {
-                    contactEntriesMap.put(e.Timesheet__r.Contact__c, new List<Timesheet_Entry__c>());
+            Map<Id, List<wfrecon__Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<wfrecon__Timesheet_Entry__c>>();
+            for (wfrecon__Timesheet_Entry__c e : entries) {
+                if (!contactEntriesMap.containsKey(e.wfrecon__Timesheet__r.wfrecon__Contact__c)) {
+                    contactEntriesMap.put(e.wfrecon__Timesheet__r.wfrecon__Contact__c, new List<wfrecon__Timesheet_Entry__c>());
                 }
-                contactEntriesMap.get(e.Timesheet__r.Contact__c).add(e);
+                contactEntriesMap.get(e.wfrecon__Timesheet__r.wfrecon__Contact__c).add(e);
             }
 
-            for (Mobilization_Member__c m : members) {
+            for (wfrecon__Mobilization_Member__c m : members) {
                 WrapperMember wrap = new WrapperMember();
-                wrap.jobStartTime = mobilizationRecord[0].Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].Start_Date__c)/1000);
-                wrap.jobEndTime = mobilizationRecord[0].End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].End_Date__c)/1000);
-                wrap.contactId = m.Contact__c;
-                wrap.contactName = m.Contact__r.Name;
+                wrap.jobStartTime = mobilizationRecord[0].wfrecon__Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].wfrecon__Start_Date__c)/1000);
+                wrap.jobEndTime = mobilizationRecord[0].wfrecon__End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].wfrecon__End_Date__c)/1000);
+                wrap.contactId = m.wfrecon__Contact__c;
+                wrap.contactName = m.wfrecon__Contact__r.Name;
                 wrap.mobMemberId = m.Id;
     
-                Timesheet__c ts = contactTimesheetMap.get(m.Contact__c);
-                List<Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.Contact__c);
+                wfrecon__Timesheet__c ts = contactTimesheetMap.get(m.wfrecon__Contact__c);
+                List<wfrecon__Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.wfrecon__Contact__c);
     
                 if (ts == null) {
                     wrap.isTimesheetNull = true;
@@ -118,31 +118,31 @@ public with sharing class ShiftEndLogEntriesController {
     
                 Boolean hasOpenEntry = false;
                 Boolean hasCompletedEntry = false;
-                Timesheet_Entry__c latestOpen;
-                Timesheet_Entry__c latestCompleted;
+                wfrecon__Timesheet_Entry__c latestOpen;
+                wfrecon__Timesheet_Entry__c latestCompleted;
                 DateTime mostRecentClockIn;
                 DateTime mostRecentClockOut;
     
-                for (Timesheet_Entry__c e : userEntries) {
+                for (wfrecon__Timesheet_Entry__c e : userEntries) {
                     // Track most recent clock in/out times
-                    if (e.Clock_In_Time__c != null) {
-                        if (mostRecentClockIn == null || e.Clock_In_Time__c > mostRecentClockIn) {
-                            mostRecentClockIn = e.Clock_In_Time__c;
+                    if (e.wfrecon__Clock_In_Time__c != null) {
+                        if (mostRecentClockIn == null || e.wfrecon__Clock_In_Time__c > mostRecentClockIn) {
+                            mostRecentClockIn = e.wfrecon__Clock_In_Time__c;
                         }
                     }
-                    if (e.Clock_Out_Time__c != null) {
-                        if (mostRecentClockOut == null || e.Clock_Out_Time__c > mostRecentClockOut) {
-                            mostRecentClockOut = e.Clock_Out_Time__c;
+                    if (e.wfrecon__Clock_Out_Time__c != null) {
+                        if (mostRecentClockOut == null || e.wfrecon__Clock_Out_Time__c > mostRecentClockOut) {
+                            mostRecentClockOut = e.wfrecon__Clock_Out_Time__c;
                         }
                     }
                     
-                    if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c == null) {
+                    if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) {
                         hasOpenEntry = true;
                         latestOpen = e;
-                    } else if (e.Clock_In_Time__c != null && e.Clock_Out_Time__c != null) {
+                    } else if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) {
                         hasCompletedEntry = true;
                         latestCompleted = e;
-                    } else if (e.Clock_In_Time__c == null && e.Clock_Out_Time__c != null) {
+                    } else if (e.wfrecon__Clock_In_Time__c == null && e.wfrecon__Clock_Out_Time__c != null) {
                         // Edge case → treat as open
                         hasOpenEntry = true;
                         latestOpen = e;
@@ -155,8 +155,8 @@ public with sharing class ShiftEndLogEntriesController {
                     wrap.isTimeSheetNull = false;
                     wrap.isTimeSheetEntryNull = false;
                     wrap.timesheetEntryId = latestOpen.Id;
-                    wrap.clockInTime = (latestOpen.Clock_In_Time__c != null)
-                        ? latestOpen.Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.Clock_In_Time__c)/1000)
+                    wrap.clockInTime = (latestOpen.wfrecon__Clock_In_Time__c != null)
+                        ? latestOpen.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.wfrecon__Clock_In_Time__c)/1000)
                         : null;
                     wrap.isAgain = false; // Not a new shift yet, finishing current one
                     wrap.recentClockIn = mostRecentClockIn != null ? mostRecentClockIn.addSeconds(userTz.getOffset(mostRecentClockIn)/1000) : null;
@@ -183,8 +183,8 @@ public with sharing class ShiftEndLogEntriesController {
             }
             // 5. Build cost code details
             Map<Id, String> costCodeDetails = new Map<Id, String>();
-            List<Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM Cost_Code__c WITH USER_MODE];
-            for (Cost_Code__c c : costCodeRecs) {
+            List<wfrecon__Cost_Code__c> costCodeRecs = [SELECT Id, Name FROM wfrecon__Cost_Code__c WITH USER_MODE];
+            for (wfrecon__Cost_Code__c c : costCodeRecs) {
                 costCodeDetails.put(c.Id, c.Name);
             }
             WrapperMember costCodeDetailsWrap = new WrapperMember();
@@ -195,11 +195,11 @@ public with sharing class ShiftEndLogEntriesController {
             String approvalMessage = '';
             
             // Check if there are any pending logs for this job
-            List<Log_Entry__c> pendingLogs = [SELECT Id, Status__c, Work_Performed_Date__c 
-                                              FROM Log_Entry__c 
-                                              WHERE Job__c = :jobId 
-                                              AND Log_Type__c = 'Shift End'
-                                              AND Status__c = 'Pending'
+            List<wfrecon__Log_Entry__c> pendingLogs = [SELECT Id, wfrecon__Status__c, wfrecon__Work_Performed_Date__c 
+                                              FROM wfrecon__Log_Entry__c 
+                                              WHERE wfrecon__Job__c = :jobId 
+                                              AND wfrecon__Log_Type__c = 'Shift End'
+                                              AND wfrecon__Status__c = 'Pending'
                                               WITH USER_MODE
                                               LIMIT 1];
             
@@ -229,12 +229,12 @@ public with sharing class ShiftEndLogEntriesController {
             String jobId = (String)paramsMap.get('jobId');
             String mobId = (String)paramsMap.get('mobId');
             String mobGroupId;
-            List<Mobilization__c> mobRec = [SELECT Id, Name, Mobilization_Group__r.Start_Date__c, Mobilization_Group__r.End_Date__c FROM Mobilization__c 
+            List<wfrecon__Mobilization__c> mobRec = [SELECT Id, Name, wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization_Group__r.wfrecon__End_Date__c FROM wfrecon__Mobilization__c 
                                             WHERE Id = :mobId WITH USER_MODE];
 
-            mobGroupId = mobRec[0].Mobilization_Group__r.Id;
+            mobGroupId = mobRec[0].wfrecon__Mobilization_Group__r.Id;
             
-            List<Mobilization_Member__c> mobMemberRecs = [SELECT Id, Contact__c, Mobilization__r.Mobilization_Group__r.Start_Date__c, Mobilization__r.Mobilization_Group__r.End_Date__c FROM Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
+            List<wfrecon__Mobilization_Member__c> mobMemberRecs = [SELECT Id, wfrecon__Contact__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c FROM wfrecon__Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
 
             if((String) paramsMap.get('actionType') == 'clockIn') {
                 
@@ -244,32 +244,32 @@ public with sharing class ShiftEndLogEntriesController {
 
                 // If first clockin for moblization group for contact > Create Timesheet and Timesheet Entry
                 if(paramsMap.get('isTimeSheetNull') == true) {
-                    Timesheet__c timesheetRec = new Timesheet__c();
-                    timesheetRec.Contact__c = mobMemberRecs[0].Contact__c;
-                    timesheetRec.Job__c = jobId;
-                    timesheetRec.Timesheet_Start_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.Start_Date__c.date();
-                    timesheetRec.Timesheet_End_Date__c = mobMemberRecs[0].Mobilization__r.Mobilization_Group__r.End_Date__c.date();
-                    timesheetRec.Mobilization_Group__c = mobGroupId;
-                    timesheetRec.Do_Not_Execute__c = true;
-                    insert timesheetRec;
+                    wfrecon__Timesheet__c timesheetRec = new wfrecon__Timesheet__c();
+                    timesheetRec.wfrecon__Contact__c = mobMemberRecs[0].wfrecon__Contact__c;
+                    timesheetRec.wfrecon__Job__c = jobId;
+                    timesheetRec.wfrecon__Timesheet_Start_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c.date();
+                    timesheetRec.wfrecon__Timesheet_End_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c.date();
+                    timesheetRec.wfrecon__Mobilization_Group__c = mobGroupId;
+                    timesheetRec.wfrecon__Do_Not_Execute__c = true;
+                    insert as user timesheetRec;
     
-                    Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                    timesheetEntryRec.Timesheet__c = timesheetRec.Id;
-                    timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-                    timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
-                    timesheetEntryRec.Mobilization__c = mobId;
-                    timesheetEntryRec.Do_Not_Execute__c = true;
-                    insert timesheetEntryRec;
+                    wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
+                    timesheetEntryRec.wfrecon__Timesheet__c = timesheetRec.Id;
+                    timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
+                    timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                    timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+                    insert as user timesheetEntryRec;
                 } else {
-                    List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
+                    List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
                     
-                    Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                    timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
-                    timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-                    timesheetEntryRec.Cost_Code__c = (String)paramsMap.get('costCodeId');
-                    timesheetEntryRec.Mobilization__c = mobId;
-                    timesheetEntryRec.Do_Not_Execute__c = true;
-                    insert timesheetEntryRec;
+                    wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
+                    timesheetEntryRec.wfrecon__Timesheet__c = timesheetRecs[0].Id;
+                    timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                    timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
+                    timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                    timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+                    insert as user timesheetEntryRec;
                 }
             }
 
@@ -288,7 +288,7 @@ public with sharing class ShiftEndLogEntriesController {
 
                 if(paramsMap.get('isTimeSheetEntryNull') == true) {
                     if(paramsMap.get('isTimeSheetNull') == false) {
-                        List<Timesheet__c> timesheetRecs = [SELECT Id FROM Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
+                        List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
 
                         if (!timesheetRecs.isEmpty()) {
                             Id tsId = timesheetRecs[0].Id;
@@ -299,117 +299,117 @@ public with sharing class ShiftEndLogEntriesController {
                                 Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
                                 // 1️⃣ Entry for Day 1 (till 11:59 PM)
-                                Timesheet_Entry__c entryDay1 = new Timesheet_Entry__c(
-                                    Timesheet__c = tsId,
-                                    Clock_In_Time__c = clkInUserTz,
-                                    Clock_Out_Time__c = firstDayEnd,
-                                    Mobilization__c = mobId,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry__c entryDay1 = new wfrecon__Timesheet_Entry__c(
+                                    wfrecon__Timesheet__c = tsId,
+                                    wfrecon__Clock_In_Time__c = clkInUserTz,
+                                    wfrecon__Clock_Out_Time__c = firstDayEnd,
+                                    wfrecon__Mobilization__c = mobId,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert entryDay1;
+                                insert as user entryDay1;
 
-                                Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
-                                    Timesheet_Entry__c = entryDay1.Id,
-                                    Clock_In_Time__c = entryDay1.Clock_In_Time__c,
-                                    Clock_Out_Time__c = entryDay1.Clock_Out_Time__c,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
+                                    wfrecon__Timesheet_Entry__c = entryDay1.Id,
+                                    wfrecon__Clock_In_Time__c = entryDay1.wfrecon__Clock_In_Time__c,
+                                    wfrecon__Clock_Out_Time__c = entryDay1.wfrecon__Clock_Out_Time__c,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert itemDay1;
+                                insert as user itemDay1;
 
                                 // 2️⃣ Entry for Day 2 (from 12:00 AM)
-                                Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
-                                    Timesheet__c = tsId,
-                                    Clock_In_Time__c = secondDayStart,
-                                    Clock_Out_Time__c = clkOutUserTz,
-                                    Mobilization__c = mobId,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
+                                    wfrecon__Timesheet__c = tsId,
+                                    wfrecon__Clock_In_Time__c = secondDayStart,
+                                    wfrecon__Clock_Out_Time__c = clkOutUserTz,
+                                    wfrecon__Mobilization__c = mobId,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert entryDay2;
+                                insert as user entryDay2;
 
-                                Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
-                                    Timesheet_Entry__c = entryDay2.Id,
-                                    Clock_In_Time__c = entryDay2.Clock_In_Time__c,
-                                    Clock_Out_Time__c = entryDay2.Clock_Out_Time__c,
-                                    Do_Not_Execute__c = true
+                                wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
+                                    wfrecon__Timesheet_Entry__c = entryDay2.Id,
+                                    wfrecon__Clock_In_Time__c = entryDay2.wfrecon__Clock_In_Time__c,
+                                    wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
+                                    wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert itemDay2;
+                                insert as user itemDay2;
 
                             } else {
-                                Timesheet_Entry__c timesheetEntryRec = new Timesheet_Entry__c();
-                                timesheetEntryRec.Timesheet__c = timesheetRecs[0].Id;
-                                timesheetEntryRec.Clock_In_Time__c = clkInUserTz;
-                                timesheetEntryRec.Clock_Out_Time__c = clkOutUserTz;
-                                timesheetEntryRec.Mobilization__c = mobId;
-                                timesheetEntryRec.Do_Not_Execute__c = true;
-                                insert timesheetEntryRec;
+                                wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
+                                timesheetEntryRec.wfrecon__Timesheet__c = timesheetRecs[0].Id;
+                                timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
+                                timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                                timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                                timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+                                insert as user timesheetEntryRec;
         
-                                Timesheet_Entry_Item__c timesheetEntryItemRec = new Timesheet_Entry_Item__c();
-                                timesheetEntryItemRec.Timesheet_Entry__c = timesheetEntryRec.Id;
-                                timesheetEntryItemRec.Clock_In_Time__c = timesheetEntryRec.Clock_In_Time__c;
-                                timesheetEntryItemRec.Clock_Out_Time__c = timesheetEntryRec.Clock_Out_Time__c;
-                                timesheetEntryItemRec.Cost_Code__c = timesheetEntryRec.Cost_Code__c;
-                                timesheetEntryItemRec.Do_Not_Execute__c = true;
-                                insert timesheetEntryItemRec;
+                                wfrecon__Timesheet_Entry_Item__c timesheetEntryItemRec = new wfrecon__Timesheet_Entry_Item__c();
+                                timesheetEntryItemRec.wfrecon__Timesheet_Entry__c = timesheetEntryRec.Id;
+                                timesheetEntryItemRec.wfrecon__Clock_In_Time__c = timesheetEntryRec.wfrecon__Clock_In_Time__c;
+                                timesheetEntryItemRec.wfrecon__Clock_Out_Time__c = timesheetEntryRec.wfrecon__Clock_Out_Time__c;
+                                timesheetEntryItemRec.wfrecon__Cost_Code__c = timesheetEntryRec.wfrecon__Cost_Code__c;
+                                timesheetEntryItemRec.wfrecon__Do_Not_Execute__c = true;
+                                insert as user timesheetEntryItemRec;
                             }
                         }
                     }
                 } else {
-                    List<Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Cost_Code__c, Timesheet__c FROM Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
+                    List<wfrecon__Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__c, wfrecon__Timesheet__c FROM wfrecon__Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
                     if (!timesheetEntryRecs.isEmpty()) {
-                        Timesheet_Entry__c existing = timesheetEntryRecs[0];
-                        Boolean crossesMidnightExisting = (existing.Clock_In_Time__c.date() != clkOutUserTz.date());
+                        wfrecon__Timesheet_Entry__c existing = timesheetEntryRecs[0];
+                        Boolean crossesMidnightExisting = (existing.wfrecon__Clock_In_Time__c.date() != clkOutUserTz.date());
 
                         if (crossesMidnightExisting) {
-                            Datetime firstDayEnd = DateTime.newInstance(existing.Clock_In_Time__c.date(), Time.newInstance(23, 59, 59, 999));
+                            Datetime firstDayEnd = DateTime.newInstance(existing.wfrecon__Clock_In_Time__c.date(), Time.newInstance(23, 59, 59, 999));
                             Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
 
                             // Update existing entry to end at 11:59 PM
-                            existing.Clock_Out_Time__c = firstDayEnd;
+                            existing.wfrecon__Clock_Out_Time__c = firstDayEnd;
                             update existing;
 
                             // Create Timesheet Entry Item for day 1
-                            Timesheet_Entry_Item__c itemDay1 = new Timesheet_Entry_Item__c(
-                                Timesheet_Entry__c = existing.Id,
-                                Clock_In_Time__c = existing.Clock_In_Time__c,
-                                Clock_Out_Time__c = existing.Clock_Out_Time__c,
-                                Cost_Code__c = existing.Cost_Code__c,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
+                                wfrecon__Timesheet_Entry__c = existing.Id,
+                                wfrecon__Clock_In_Time__c = existing.wfrecon__Clock_In_Time__c,
+                                wfrecon__Clock_Out_Time__c = existing.wfrecon__Clock_Out_Time__c,
+                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
+                                wfrecon__Do_Not_Execute__c = true
                             );
-                            insert itemDay1;
+                            insert as user itemDay1;
 
                             // Create new entry for next day
-                            Timesheet_Entry__c entryDay2 = new Timesheet_Entry__c(
-                                Timesheet__c = existing.Timesheet__c,
-                                Clock_In_Time__c = secondDayStart,
-                                Clock_Out_Time__c = clkOutUserTz,
-                                Cost_Code__c = existing.Cost_Code__c,
-                                Mobilization__c = mobId,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
+                                wfrecon__Timesheet__c = existing.wfrecon__Timesheet__c,
+                                wfrecon__Clock_In_Time__c = secondDayStart,
+                                wfrecon__Clock_Out_Time__c = clkOutUserTz,
+                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
+                                wfrecon__Mobilization__c = mobId,
+                                wfrecon__Do_Not_Execute__c = true
                             );
-                            insert entryDay2;
+                            insert as user entryDay2;
 
                             // Create Timesheet Entry Item for day 2
-                            Timesheet_Entry_Item__c itemDay2 = new Timesheet_Entry_Item__c(
-                                Timesheet_Entry__c = entryDay2.Id,
-                                Clock_In_Time__c = entryDay2.Clock_In_Time__c,
-                                Clock_Out_Time__c = entryDay2.Clock_Out_Time__c,
-                                Cost_Code__c = entryDay2.Cost_Code__c,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
+                                wfrecon__Timesheet_Entry__c = entryDay2.Id,
+                                wfrecon__Clock_In_Time__c = entryDay2.wfrecon__Clock_In_Time__c,
+                                wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
+                                wfrecon__Cost_Code__c = entryDay2.wfrecon__Cost_Code__c,
+                                wfrecon__Do_Not_Execute__c = true
                             );
-                            insert itemDay2;
+                            insert as user itemDay2;
                         } else {
                             // Normal same-day update
-                            existing.Clock_Out_Time__c = clkOutUserTz;
+                            existing.wfrecon__Clock_Out_Time__c = clkOutUserTz;
                             update existing;
 
-                            Timesheet_Entry_Item__c item = new Timesheet_Entry_Item__c(
-                                Timesheet_Entry__c = existing.Id,
-                                Clock_In_Time__c = existing.Clock_In_Time__c,
-                                Clock_Out_Time__c = existing.Clock_Out_Time__c,
-                                Cost_Code__c = existing.Cost_Code__c,
-                                Do_Not_Execute__c = true
+                            wfrecon__Timesheet_Entry_Item__c item = new wfrecon__Timesheet_Entry_Item__c(
+                                wfrecon__Timesheet_Entry__c = existing.Id,
+                                wfrecon__Clock_In_Time__c = existing.wfrecon__Clock_In_Time__c,
+                                wfrecon__Clock_Out_Time__c = existing.wfrecon__Clock_Out_Time__c,
+                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
+                                wfrecon__Do_Not_Execute__c = true
                             );
-                            insert item;
+                            insert as user item;
                         }
                     }
                 }
@@ -425,14 +425,14 @@ public with sharing class ShiftEndLogEntriesController {
     @AuraEnabled
     public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String jobStartDate, String mobId, String crewLeaderId){
         try {
-            List<Mobilization_Member__c> members = [SELECT Id, Contact__c, Contact__r.Name, Contact__r.Can_Clock_In_Out__c, Mobilization__r.Job__c
-                                                    FROM Mobilization_Member__c WHERE Mobilization__c = :mobId AND Contact__c != null
-                                                    AND Contact__r.Can_Clock_In_Out__c = true AND Crew_Leader_Id__c = :crewLeaderId
-                                                    WITH USER_MODE ORDER BY Contact__r.Name ASC];
+            List<wfrecon__Mobilization_Member__c> members = [SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
+                                                    FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Mobilization__c = :mobId AND wfrecon__Contact__c != null
+                                                    AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
+                                                    WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
     
             Set<Id> contactIds = new Set<Id>();
-            for (Mobilization_Member__c m : members) {
-                contactIds.add(m.Contact__c);
+            for (wfrecon__Mobilization_Member__c m : members) {
+                contactIds.add(m.wfrecon__Contact__c);
             }
             
             // Add crew leader to contactIds if not already present
@@ -446,16 +446,18 @@ public with sharing class ShiftEndLogEntriesController {
 
             Date startDate = Date.valueOf(jobStartDate);
 
-            List<Timesheet_Entry_Item__c> items = [SELECT Id, Timesheet_Entry__c, Timesheet_Entry__r.TimeSheet__r.Contact__c, 
-                                                    Timesheet_Entry__r.TimeSheet__r.Contact__r.Name, 
-                                                    Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c, Per_Diem__c, Total_Time__c, 
-                                                    Cost_Code__r.Name, Clock_In_Date__c, Premium__c, Status__c, Approval_Data__c FROM Timesheet_Entry_Item__c 
-                                                    WHERE Timesheet_Entry__r.TimeSheet__r.Job__c = :jobId AND Clock_In_Date__c = :startDate
-                                                    AND Timesheet_Entry__r.TimeSheet__r.Contact__c IN :contactIds
-                                                    WITH USER_MODE ORDER BY Timesheet_Entry__r.TimeSheet__r.Contact__r.Name ASC];
+            // Query timesheet entry items (no longer need Approval_Data__c from records)
+            List<wfrecon__Timesheet_Entry_Item__c> items = [SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__c, 
+                                                    wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__r.Name, 
+                                                    wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
+                                                    wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, wfrecon__Premium__c, wfrecon__Status__c FROM wfrecon__Timesheet_Entry_Item__c 
+                                                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Job__c = :jobId AND wfrecon__Clock_In_Date__c = :startDate
+                                                    AND wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__c IN :contactIds
+                                                    WITH USER_MODE ORDER BY wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__r.Name ASC];
 
+            // No need to query log entries - all edits are handled in JavaScript
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
-            for(Timesheet_Entry_Item__c item : items) {
+            for(wfrecon__Timesheet_Entry_Item__c item : items) {
                 result.add(new TimesheetEntryItemWrapper(item));
             }
 
@@ -467,117 +469,45 @@ public with sharing class ShiftEndLogEntriesController {
         }
     }
 
-    @AuraEnabled
-    public static Boolean updateTimesheets(String params){
-        try {
-            Map<String, Object> jsonList = (Map<String, Object>) JSON.deserializeUntyped(params);
-
-            // Query records
-            Timesheet_Entry_Item__c tsItem = [SELECT Id, Travel_Time__c, Per_Diem__c, Clock_In_Time__c, Clock_Out_Time__c, Premium__c, Status__c, 
-                                                Approval_Data__c FROM Timesheet_Entry_Item__c 
-                                                WHERE Id = :(String)jsonList.get('Id') WITH USER_MODE LIMIT 1];
-
-            Timesheet_Entry__c tsEntry = [SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Timesheet__c, Cost_Code__c, Status__c,
-                                            Approval_Data__c FROM Timesheet_Entry__c 
-                                            WHERE Id = :(String)jsonList.get('TSEId') WITH USER_MODE LIMIT 1];
-
-            // Convert clock-in and clock-out strings to Datetime
-            String newClkInUser = (String)jsonList.get('newClockIn') + ':00.000Z';
-            String newClkOutUser = (String)jsonList.get('newClockOut') + ':00.000Z';
-
-            String oldClkInUser = (String)jsonList.get('oldClockIn') + ':00.000Z';
-            String oldClkOutUser = (String)jsonList.get('oldClockOut') + ':00.000Z';
-
-            Decimal travelTime = Decimal.valueOf((String)jsonList.get('TravelTime'));
-            
-            // Build approval data JSON for changes
-            List<Map<String, Object>> approvalDataList = new List<Map<String, Object>>();
-            
-            // Store Clock_In_Time__c change if different
-            if (oldClkInUser != newClkInUser) {
-                approvalDataList.add(new Map<String, Object>{
-                    'fieldApiName' => 'Clock_In_Time__c',
-                    'oldValue' => oldClkInUser,
-                    'newValue' => newClkInUser
-                });
-            }
-            
-            // Store Clock_Out_Time__c change if different
-            if (oldClkOutUser != newClkOutUser) {
-                approvalDataList.add(new Map<String, Object>{
-                    'fieldApiName' => 'Clock_Out_Time__c',
-                    'oldValue' => oldClkOutUser,
-                    'newValue' => newClkOutUser
-                });
-            }
-            
-            // Store Travel_Time__c change if different
-            if (tsItem.Travel_Time__c != travelTime) {
-                approvalDataList.add(new Map<String, Object>{
-                    'fieldApiName' => 'Travel_Time__c',
-                    'oldValue' => tsItem.Travel_Time__c,
-                    'newValue' => travelTime
-                });
-            }
-            
-            // Only update if there are changes
-            if (!approvalDataList.isEmpty()) {
-                String approvalDataJson = JSON.serialize(approvalDataList);
-                System.debug('Approval Data JSON: ' + approvalDataJson);
-                
-                // Store approval data and set status to Pending for both Entry and Item
-                tsEntry.Approval_Data__c = approvalDataJson;
-                tsEntry.Status__c = 'Pending';
-                tsItem.Approval_Data__c = approvalDataJson;
-                tsItem.Status__c = 'Pending';
-                
-                update tsEntry;
-                update tsItem;
-            }
-
-            return true;
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'updateTimesheets', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return false;
-        }
-    }
+    // Removed - No longer needed as all editing is handled in JavaScript
+    // Timesheet edits are managed locally until log entry creation
 
     @AuraEnabled
     public static Map<String, Object> getJobLocationProcesses(Id jobId) {
         Map<String, Object> result = new Map<String, Object>();
-        List<Location_Process__c> processes = new List<Location_Process__c>();
+        List<wfrecon__Location_Process__c> processes = new List<wfrecon__Location_Process__c>();
         Map<String, Map<String, Object>> pendingApprovalData = new Map<String, Map<String, Object>>();
         
         try {
-            processes = [SELECT Id, Name, Completed_Percentage__c, Sequence__c,
-                            Location__c, Location__r.Name,
-                            Scope_Entry_Process__r.Process_Name__c
-                            FROM Location_Process__c WHERE Location__r.Job__c = :jobId WITH USER_MODE
-                            ORDER BY Location__r.Name ASC, Sequence__c ASC NULLS LAST, CreatedDate ASC];
+            processes = [SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
+                            wfrecon__Location__c, wfrecon__Location__r.Name,
+                            wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c
+                            FROM wfrecon__Location_Process__c WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId WITH USER_MODE
+                            ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC];
             
             // Query ALL pending log entries (not just today) to get approval data
             // This ensures visibility of pending approvals from previous days as well
             // Note: Cannot filter on Approval_Data__c in WHERE clause (Long Text Area field)
-            List<Log_Entry__c> pendingLogs = [
-                SELECT Id, Approval_Data__c, Work_Performed_Date__c
-                FROM Log_Entry__c
-                WHERE Job__c = :jobId
-                AND Status__c = 'Pending'
-                AND Log_Type__c = 'Shift End'
+            List<wfrecon__Log_Entry__c> pendingLogs = [
+                SELECT Id, wfrecon__Approval_Data__c, wfrecon__Work_Performed_Date__c
+                FROM wfrecon__Log_Entry__c
+                WHERE wfrecon__Job__c = :jobId
+                AND wfrecon__Status__c = 'Pending'
+                AND wfrecon__Log_Type__c = 'Shift End'
                 WITH USER_MODE
-                ORDER BY Work_Performed_Date__c DESC
+                ORDER BY wfrecon__Work_Performed_Date__c DESC
             ];
             
             // Parse approval data to get full approval details (oldValue, newValue)
             // Now supports both old structure (array) and new structure (object with locationProcessChanges)
-            for(Log_Entry__c log : pendingLogs) {
+            for(wfrecon__Log_Entry__c log : pendingLogs) {
                 // Check if Approval_Data__c is not null
-                if(String.isBlank(log.Approval_Data__c)) {
+                if(String.isBlank(log.wfrecon__Approval_Data__c)) {
                     continue;
                 }
                 
                 try {
-                    Object approvalDataObj = JSON.deserializeUntyped(log.Approval_Data__c);
+                    Object approvalDataObj = JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
                     List<Object> approvalList = new List<Object>();
                     
                     if(approvalDataObj instanceof Map<String, Object>) {
@@ -679,25 +609,24 @@ public with sharing class ShiftEndLogEntriesController {
         @AuraEnabled public String status;
         @AuraEnabled public String approvalData;
 
-        public TimesheetEntryItemWrapper(Timesheet_Entry_Item__c item) {
+        public TimesheetEntryItemWrapper(wfrecon__Timesheet_Entry_Item__c item) {
             this.id = item.Id;
-            this.TSEId = item.Timesheet_Entry__c;
-            this.contactId = item.Timesheet_Entry__r.TimeSheet__r.Contact__c;
-            this.contactName = item.Timesheet_Entry__r.TimeSheet__r.Contact__r.Name;
+            this.TSEId = item.wfrecon__Timesheet_Entry__c;
+            this.contactId = item.wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__c;
+            this.contactName = item.wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__r.Name;
             
             // Convert to user timezone
-            this.clockInTime  = item.Clock_In_Time__c  != null ? item.Clock_In_Time__c.addSeconds(userTz.getOffset(item.Clock_In_Time__c)/1000)  : null;
-            this.clockOutTime = item.Clock_Out_Time__c != null ? item.Clock_Out_Time__c.addSeconds(userTz.getOffset(item.Clock_Out_Time__c)/1000) : null;
+            this.clockInTime  = item.wfrecon__Clock_In_Time__c  != null ? item.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(item.wfrecon__Clock_In_Time__c)/1000)  : null;
+            this.clockOutTime = item.wfrecon__Clock_Out_Time__c != null ? item.wfrecon__Clock_Out_Time__c.addSeconds(userTz.getOffset(item.wfrecon__Clock_Out_Time__c)/1000) : null;
 
-            this.travelTime = item.Travel_Time__c != null ? item.Travel_Time__c : 0.00;
-            this.perDiem = item.Per_Diem__c != null ? item.Per_Diem__c : 0;
-            this.workHours = item.Total_Time__c != null ? item.Total_Time__c : 0.00;
+            this.travelTime = item.wfrecon__Travel_Time__c != null ? item.wfrecon__Travel_Time__c : 0.00;
+            this.perDiem = item.wfrecon__Per_Diem__c != null ? item.wfrecon__Per_Diem__c : 0;
+            this.workHours = item.wfrecon__Total_Time__c != null ? item.wfrecon__Total_Time__c : 0.00;
             this.totalTime = this.workHours + this.travelTime;
-            this.costCodeName = item.Cost_Code__r != null ? item.Cost_Code__r.Name : '-';
-            this.premium = item.Premium__c;
-            this.clockInDate = item.Clock_In_Date__c;
-            this.status = item.Status__c;
-            this.approvalData = item.Approval_Data__c;
+            this.costCodeName = item.wfrecon__Cost_Code__r != null ? item.wfrecon__Cost_Code__r.Name : '-';
+            this.premium = item.wfrecon__Premium__c;
+            this.clockInDate = item.wfrecon__Clock_In_Date__c;
+            this.status = item.wfrecon__Status__c;
         }
     }
 
@@ -736,25 +665,25 @@ public with sharing class ShiftEndLogEntriesController {
             String logStatus = 'Pending';
             
             // Create Log Entry record
-            Log_Entry__c logEntry = new Log_Entry__c();
-            logEntry.Job__c = jobId;
-            logEntry.Mobilization__c = mobilizationId; // Save the Mobilization lookup
-            logEntry.Log_Type__c = 'Shift End';
-            logEntry.Work_Performed__c = (String) step3Data.get('whatWeDone');
-            logEntry.Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
-            logEntry.Exceptions__c = (String) step3Data.get('exceptions');
-            logEntry.Notes_to_Office__c = (String) step3Data.get('notesToOffice');
-            logEntry.Work_Performed_Date__c = workDate;
-            logEntry.Status__c = logStatus;
+            wfrecon__Log_Entry__c logEntry = new wfrecon__Log_Entry__c();
+            logEntry.wfrecon__Job__c = jobId;
+            logEntry.wfrecon__Mobilization__c = mobilizationId;
+            logEntry.wfrecon__Log_Type__c = 'Shift End';
+            logEntry.wfrecon__Work_Performed__c = (String) step3Data.get('whatWeDone');
+            logEntry.wfrecon__Plan_for_Tomorrow__c = (String) step3Data.get('planForTomorrow');
+            logEntry.wfrecon__Exceptions__c = (String) step3Data.get('exceptions');
+            logEntry.wfrecon__Notes_to_Office__c = (String) step3Data.get('notesToOffice');
+            logEntry.wfrecon__Work_Performed_Date__c = workDate;
+            logEntry.wfrecon__Status__c = logStatus;
             
-            // Store approval data JSON directly from LWC (format: [{"id":"recordId","oldValue":73,"newValue":79}])
+            // Store approval data from JavaScript (already includes pending timesheet changes)
             if (String.isNotBlank(approvalDataJson)) {
-                logEntry.Approval_Data__c = approvalDataJson;
+                logEntry.wfrecon__Approval_Data__c = approvalDataJson;
             }
             
-            insert logEntry;
+            insert as user logEntry;
             
-            // Process camera photos if any
+            // Process camera photos if any and update approval data with camera metadata
             // Note: FirstPublishLocationId automatically creates ContentDocumentLink, so no manual linking needed
             if (String.isNotBlank(cameraPhotosJson)) {
                 List<Object> cameraPhotos = (List<Object>) JSON.deserializeUntyped(cameraPhotosJson);
@@ -775,6 +704,42 @@ public with sharing class ShiftEndLogEntriesController {
                 
                 if (!contentVersions.isEmpty()) {
                     insert as user contentVersions;
+                    
+                    // Get the ContentDocument IDs for the camera photos we just inserted
+                    Set<Id> versionIds = new Set<Id>();
+                    for (ContentVersion cv : contentVersions) {
+                        versionIds.add(cv.Id);
+                    }
+                    
+                    List<ContentVersion> insertedVersions = [
+                        SELECT Id, ContentDocumentId, Title
+                        FROM ContentVersion
+                        WHERE Id IN :versionIds
+                        WITH USER_MODE
+                    ];
+                    
+                    // Update approval data to include camera photo metadata
+                    if (String.isNotBlank(logEntry.wfrecon__Approval_Data__c)) {
+                        Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(logEntry.wfrecon__Approval_Data__c);
+                        List<Object> mediaMetadata = (List<Object>) approvalData.get('mediaMetadata');
+                        
+                        if (mediaMetadata == null) {
+                            mediaMetadata = new List<Object>();
+                        }
+                        
+                        // Add camera photos to metadata
+                        for (ContentVersion cv : insertedVersions) {
+                            Map<String, Object> metadata = new Map<String, Object>();
+                            metadata.put('contentDocumentId', cv.ContentDocumentId);
+                            metadata.put('source', 'camera');
+                            metadata.put('name', cv.Title);
+                            mediaMetadata.add(metadata);
+                        }
+                        
+                        approvalData.put('mediaMetadata', mediaMetadata);
+                        logEntry.wfrecon__Approval_Data__c = JSON.serialize(approvalData);
+                        update logEntry;
+                    }
                 }
             }
             
@@ -793,9 +758,9 @@ public with sharing class ShiftEndLogEntriesController {
             }
             
             // query job
-            Job__c jobRec = [SELECT Id, Name, Job_Name__c FROM Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
+            wfrecon__Job__c jobRec = [SELECT Id, Name, wfrecon__Job_Name__c FROM wfrecon__Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
             // Send notifications to approvers
-            String notificationContent = 'A new Shift End Log has been created for Job ' + jobRec.Job_Name__c + '. Tap to review.';
+            String notificationContent = 'A new Shift End Log has been created for Job ' + jobRec.wfrecon__Job_Name__c + '. Tap to review.';
             sendCustomNotification(logEntry.Id, notificationContent);
             
         } catch (Exception e) {
@@ -830,47 +795,175 @@ public with sharing class ShiftEndLogEntriesController {
     }
     
     @AuraEnabled
-    public static Boolean moveTimesheetBackToRegular(String timesheetEntryItemId) {
+    public static Map<String, Object> getChatterFeedItems(String jobId, Integer daysOffset) {
+        Map<String, Object> result = new Map<String, Object>();
+        List<FeedItemWrapper> feedItemWrappers = new List<FeedItemWrapper>();
+        
         try {
-            if (String.isBlank(timesheetEntryItemId)) {
-                throw new AuraHandledException('Timesheet Entry Item ID is required');
+            // Calculate date range: last 3 days from the offset
+            Integer startDay = daysOffset;
+            Integer endDay = daysOffset + 3;
+            
+            DateTime startDateTime = DateTime.now().addDays(-endDay);
+            DateTime endDateTime = DateTime.now().addDays(-startDay);
+            
+            // Query FeedItems with attachments for the job
+            List<FeedItem> feedItems = [
+                SELECT Id, Body, ParentId, CreatedDate, LastModifiedDate,
+                    (SELECT Id, RecordId, Type FROM FeedAttachments)
+                FROM FeedItem 
+                WHERE ParentId = :jobId
+                    AND CreatedDate >= :startDateTime
+                    AND CreatedDate < :endDateTime
+                    AND Id IN (SELECT FeedEntityId FROM FeedAttachment)
+                WITH USER_MODE
+                ORDER BY CreatedDate DESC
+            ];
+            
+            // Get all ContentDocument IDs from feed attachments
+            Set<Id> contentVersionIds = new Set<Id>();
+            Set<Id> contentDocumentIds = new Set<Id>();
+            
+            for (FeedItem item : feedItems) {
+                for (FeedAttachment attachment : item.FeedAttachments) {
+                    if (attachment.RecordId != null) {
+                        String recordIdStr = String.valueOf(attachment.RecordId);
+                        // NOTE: ContentVersion usually starts with '068' and ContentDocument with '069'
+                        if (recordIdStr.startsWith('068')) {
+                            // ContentVersion
+                            System.debug('Adding to contentVersionIds: ' + recordIdStr);
+                            contentVersionIds.add((Id)attachment.RecordId);
+                        } else if (recordIdStr.startsWith('069')) {
+                            // ContentDocument
+                            System.debug('Adding to contentDocumentIds: ' + recordIdStr);
+                            contentDocumentIds.add((Id)attachment.RecordId);
+                        } else {
+                            System.debug('FeedAttachment.RecordId has unexpected prefix: ' + recordIdStr);
+                        }
+                    }
+                }
             }
 
-            // Query the Timesheet Entry Item
-            Timesheet_Entry_Item__c tsItem = [
-                SELECT Id, Timesheet_Entry__c, Status__c, Approval_Data__c 
-                FROM Timesheet_Entry_Item__c 
-                WHERE Id = :timesheetEntryItemId 
-                WITH USER_MODE 
-                LIMIT 1
-            ];
-
-            // Query the related Timesheet Entry
-            Timesheet_Entry__c tsEntry = [
-                SELECT Id, Status__c, Approval_Data__c 
-                FROM Timesheet_Entry__c 
-                WHERE Id = :tsItem.Timesheet_Entry__c 
-                WITH USER_MODE 
-                LIMIT 1
-            ];
-
-            // Clear approval data and status for both records
-            tsItem.Approval_Data__c = null;
-            tsItem.Status__c = null;
+            System.debug('ContentVersion IDs: ' + contentVersionIds);
+            System.debug('ContentDocument IDs: ' + contentDocumentIds);
             
-            tsEntry.Approval_Data__c = null;
-            tsEntry.Status__c = null;
+            // Query ContentVersion to get ContentDocument IDs and file details
+            Map<Id, ContentVersion> contentVersionMap = new Map<Id, ContentVersion>();
+            if (!contentVersionIds.isEmpty()) {
+                for (ContentVersion cv : [
+                    SELECT Id, ContentDocumentId, Title, FileExtension, FileType
+                    FROM ContentVersion 
+                    WHERE Id IN :contentVersionIds
+                    WITH USER_MODE
+                ]) {
+                    contentVersionMap.put(cv.Id, cv);
+                    contentDocumentIds.add(cv.ContentDocumentId);
+                }
+            }
+            
+            // Query ContentDocument for additional details
+            Map<Id, ContentDocument> contentDocumentMap = new Map<Id, ContentDocument>();
+            if (!contentDocumentIds.isEmpty()) {
+                for (ContentDocument cd : [
+                    SELECT Id, Title, FileExtension, FileType, LatestPublishedVersionId
+                    FROM ContentDocument 
+                    WHERE Id IN :contentDocumentIds
+                    WITH USER_MODE
+                ]) {
+                    contentDocumentMap.put(cd.Id, cd);
+                }
+            }
 
-            // Update both records
-            update tsItem;
-            update tsEntry;
-
-            return true;
+            System.debug('ContentVersion Map: ' + contentVersionMap);
+            System.debug('ContentDocument Map: ' + contentDocumentMap);
+            
+            // Build feed item wrappers
+            for (FeedItem item : feedItems) {
+                FeedItemWrapper wrapper = new FeedItemWrapper();
+                wrapper.id = item.Id;
+                wrapper.body = item.Body;
+                wrapper.createdDate = item.CreatedDate;
+                wrapper.attachments = new List<AttachmentWrapper>();
+                
+                for (FeedAttachment attachment : item.FeedAttachments) {
+                    AttachmentWrapper attWrapper = new AttachmentWrapper();
+                    
+                    String recordIdStr = String.valueOf(attachment.RecordId);
+                    ContentDocument contentDoc = null;
+                    
+                    System.debug('Processing attachment RecordId: ' + recordIdStr);
+                    
+                    // Handle ContentDocument (IDs start with 069)
+                    if (recordIdStr.startsWith('069') && contentDocumentMap.containsKey(attachment.RecordId)) {
+                        contentDoc = contentDocumentMap.get(attachment.RecordId);
+                        attWrapper.id = contentDoc.LatestPublishedVersionId;
+                        attWrapper.contentDocumentId = contentDoc.Id;
+                        attWrapper.title = contentDoc.Title + (String.isNotBlank(contentDoc.FileExtension) ? '.' + contentDoc.FileExtension : '');
+                        
+                        // Determine if it's an image
+                        Set<String> imageExtensions = new Set<String>{'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'};
+                        attWrapper.isImage = String.isNotBlank(contentDoc.FileExtension) && imageExtensions.contains(contentDoc.FileExtension.toLowerCase());
+                        
+                        // Generate thumbnail URL for images
+                        if (attWrapper.isImage && contentDoc.LatestPublishedVersionId != null) {
+                            attWrapper.thumbnailUrl = '/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=' + contentDoc.LatestPublishedVersionId;
+                        }
+                        
+                        System.debug('Added ContentDocument attachment: ' + attWrapper.title);
+                    }
+                    // Handle ContentVersion (IDs start with 068)
+                    else if (recordIdStr.startsWith('068') && contentVersionMap.containsKey(attachment.RecordId)) {
+                        ContentVersion cv = contentVersionMap.get(attachment.RecordId);
+                        contentDoc = contentDocumentMap.get(cv.ContentDocumentId);
+                        attWrapper.id = cv.Id;
+                        attWrapper.contentDocumentId = cv.ContentDocumentId;
+                        attWrapper.title = cv.Title + (String.isNotBlank(cv.FileExtension) ? '.' + cv.FileExtension : '');
+                        
+                        // Determine if it's an image
+                        Set<String> imageExtensions = new Set<String>{'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'};
+                        attWrapper.isImage = String.isNotBlank(cv.FileExtension) && imageExtensions.contains(cv.FileExtension.toLowerCase());
+                        
+                        // Generate thumbnail URL for images
+                        if (attWrapper.isImage) {
+                            attWrapper.thumbnailUrl = '/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=' + cv.Id;
+                        }
+                        
+                        System.debug('Added ContentVersion attachment: ' + attWrapper.title);
+                    }
+                    
+                    if (attWrapper.contentDocumentId != null) {
+                        wrapper.attachments.add(attWrapper);
+                        System.debug('Attachment added to wrapper');
+                    } else {
+                        System.debug('Skipping attachment - no contentDocumentId');
+                    }
+                }
+                
+                // Only add feed items that have attachments
+                if (!wrapper.attachments.isEmpty()) {
+                    feedItemWrappers.add(wrapper);
+                }
+            }
+            
+            result.put('feedItems', feedItemWrappers);
+            result.put('hasMore', !feedItems.isEmpty()); // Simple check: if we got results, there might be more
+            
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'moveTimesheetBackToRegular','exceptionObj' => e,'moreDetails' => e.getMessage()});
-            throw new AuraHandledException('Error moving timesheet back to regular: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ShiftEndLogEntriesController',
+                'methodName' => 'getChatterFeedItems',
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching Chatter feed items for Job ID: ' + jobId
+            });
         }
+        System.debug('Feed Items Retrieved: ' + feedItemWrappers.size());
+        System.debug('Feed Items: ' + feedItemWrappers);
+
+        System.debug('Result: ' + result);
+        return result;
     }
+    
+    // Removed - No longer needed as all pending state is handled in JavaScript localPendingEdits Map
     
     // Helper method: Auto-approve ALL pending entries for a job
     private static void autoApproveAllPendingEntries(String jobId) {
@@ -880,12 +973,12 @@ public with sharing class ShiftEndLogEntriesController {
             // ---------------------------
             // 1. Get ALL Pending Shift End Logs for this Job
             // ---------------------------
-            List<Log_Entry__c> pendingLogs = [
-                SELECT Id, Status__c, Approval_Data__c, Mobilization__c
-                FROM Log_Entry__c 
-                WHERE Job__c = :jobId
-                AND Log_Type__c = 'Shift End'
-                AND Status__c = 'Pending'
+            List<wfrecon__Log_Entry__c> pendingLogs = [
+                SELECT Id, wfrecon__Status__c, wfrecon__Approval_Data__c, wfrecon__Mobilization__c
+                FROM wfrecon__Log_Entry__c 
+                WHERE wfrecon__Job__c = :jobId
+                AND wfrecon__Log_Type__c = 'Shift End'
+                AND wfrecon__Status__c = 'Pending'
                 WITH USER_MODE
             ];
 
@@ -894,66 +987,83 @@ public with sharing class ShiftEndLogEntriesController {
             }
 
             Set<Id> locationProcessIds = new Set<Id>();
-            Set<Id> mobilizationIds = new Set<Id>();
+            Set<Id> timesheetEntryIds = new Set<Id>();
 
-            // Collect Location Process Ids and Mobilization Ids from approval data
-            for (Log_Entry__c log : pendingLogs) {
-                mobilizationIds.add(log.Mobilization__c);
-                
-                if (String.isNotBlank(log.Approval_Data__c)) {
-                    Object parsed = JSON.deserializeUntyped(log.Approval_Data__c);
-                    if (parsed instanceof List<Object>) {
-                        for (Object o : (List<Object>) parsed) {
-                            if (o instanceof Map<String, Object>) {
-                                Map<String, Object> mapVal = (Map<String, Object>) o;
-                                String recId = (String) mapVal.get('id');
-                                if (String.isNotBlank(recId)) {
-                                    locationProcessIds.add(recId);
+            // Parse approval data from logs to collect IDs and changes
+            for (wfrecon__Log_Entry__c log : pendingLogs) {
+                if (String.isNotBlank(log.wfrecon__Approval_Data__c)) {
+                    try {
+                        Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                        
+                        // Collect location process IDs
+                        if (approvalData.containsKey('locationProcessChanges')) {
+                            List<Object> locationChanges = (List<Object>) approvalData.get('locationProcessChanges');
+                            for (Object change : locationChanges) {
+                                Map<String, Object> changeMap = (Map<String, Object>) change;
+                                String processId = (String) changeMap.get('id');
+                                if (String.isNotBlank(processId)) {
+                                    locationProcessIds.add(processId);
                                 }
                             }
                         }
+                        
+                        // Collect timesheet entry IDs
+                        if (approvalData.containsKey('timesheetEntryChanges')) {
+                            Map<String, Object> timesheetChanges = (Map<String, Object>) approvalData.get('timesheetEntryChanges');
+                            for (String tseId : timesheetChanges.keySet()) {
+                                timesheetEntryIds.add(tseId);
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.debug('Error parsing approval data for log: ' + log.Id + ', Error: ' + e.getMessage());
                     }
                 }
                 
                 // Update log entry status
-                log.Status__c = 'Auto-Approved';
-                log.Approved_Date__c = approvedDate;
+                log.wfrecon__Status__c = 'Auto-Approved';
+                log.wfrecon__Approved_Date__c = approvedDate;
             }
 
             // ---------------------------
             // 2. Update Location Processes with approval data
             // ---------------------------
             if (!locationProcessIds.isEmpty()) {
-                Map<Id, Location_Process__c> lpMap = new Map<Id, Location_Process__c>(
+                Map<Id, wfrecon__Location_Process__c> lpMap = new Map<Id, wfrecon__Location_Process__c>(
                     [
-                        SELECT Id, Completed_Percentage__c
-                        FROM Location_Process__c
+                        SELECT Id, wfrecon__Completed_Percentage__c
+                        FROM wfrecon__Location_Process__c
                         WHERE Id IN :locationProcessIds
                         WITH USER_MODE
                     ]
                 );
 
                 // Apply changes from approval data to location processes
-                for (Log_Entry__c log : pendingLogs) {
-                    if (String.isNotBlank(log.Approval_Data__c)) {
-                        Object parsed = JSON.deserializeUntyped(log.Approval_Data__c);
-                        if (parsed instanceof List<Object>) {
-                            for (Object o : (List<Object>) parsed) {
-                                Map<String, Object> mapVal = (Map<String, Object>) o;
-                                String recId = (String) mapVal.get('id');
-                                Object newValueObj = mapVal.get('newValue');
+                for (wfrecon__Log_Entry__c log : pendingLogs) {
+                    if (String.isNotBlank(log.wfrecon__Approval_Data__c)) {
+                        try {
+                            Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                            
+                            if (approvalData.containsKey('locationProcessChanges')) {
+                                List<Object> locationChanges = (List<Object>) approvalData.get('locationProcessChanges');
+                                for (Object change : locationChanges) {
+                                    Map<String, Object> changeMap = (Map<String, Object>) change;
+                                    String processId = (String) changeMap.get('id');
+                                    Object newValueObj = changeMap.get('newValue');
 
-                                if (lpMap.containsKey(recId) && newValueObj != null) {
-                                    lpMap.get(recId).Completed_Percentage__c =
-                                        Decimal.valueOf(String.valueOf(newValueObj));
+                                    if (lpMap.containsKey(processId) && newValueObj != null) {
+                                        lpMap.get(processId).wfrecon__Completed_Percentage__c =
+                                            Decimal.valueOf(String.valueOf(newValueObj));
+                                    }
                                 }
                             }
+                        } catch (Exception e) {
+                            System.debug('Error applying location process changes for log: ' + log.Id + ', Error: ' + e.getMessage());
                         }
                     }
                 }
 
                 if (!lpMap.isEmpty()) {
-                    update as user lpMap.values();
+                    update lpMap.values();
                 }
             }
 
@@ -961,107 +1071,135 @@ public with sharing class ShiftEndLogEntriesController {
             update pendingLogs;
 
             // ---------------------------
-            // 3. Get ALL Pending Timesheet Entries for these mobilizations
+            // 3. Get ALL Timesheet Entries and Items that need updates from approval data
             // ---------------------------
-            List<Timesheet_Entry__c> tsEntries = [
-                SELECT Id, Status__c, Approval_Data__c, Clock_In_Time__c, Clock_Out_Time__c
-                FROM Timesheet_Entry__c
-                WHERE Mobilization__c IN :mobilizationIds
-                AND Status__c = 'Pending'
-                WITH USER_MODE
-            ];
+            if (!timesheetEntryIds.isEmpty()) {
+                // Query all timesheet entries (not just Pending) that are referenced in approval data
+                List<wfrecon__Timesheet_Entry__c> tsEntries = [
+                    SELECT Id, wfrecon__Status__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c
+                    FROM wfrecon__Timesheet_Entry__c
+                    WHERE Id IN :timesheetEntryIds
+                    WITH USER_MODE
+                ];
 
-            Set<Id> tsEntryIds = new Set<Id>();
+                Set<Id> tsEntryIdsToUpdate = new Set<Id>();
+                for (wfrecon__Timesheet_Entry__c ts : tsEntries) {
+                    tsEntryIdsToUpdate.add(ts.Id);
+                }
 
-            // Apply changes from approval data to timesheet entries
-            for (Timesheet_Entry__c ts : tsEntries) {
-                ts.Status__c = 'Auto-Approved';
-                ts.Approved_Date__c = approvedDate;
-                tsEntryIds.add(ts.Id);
+                // Query all items for these entries (not just Pending)
+                List<wfrecon__Timesheet_Entry_Item__c> tsItems = [
+                    SELECT Id, wfrecon__Status__c, wfrecon__Timesheet_Entry__c, wfrecon__Clock_In_Time__c, 
+                           wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c
+                    FROM wfrecon__Timesheet_Entry_Item__c
+                    WHERE wfrecon__Timesheet_Entry__c IN :tsEntryIdsToUpdate
+                    WITH USER_MODE
+                ];
 
-                if (String.isNotBlank(ts.Approval_Data__c)) {
-                    Object parsed = JSON.deserializeUntyped(ts.Approval_Data__c);
+                // Build maps for quick lookup
+                Map<Id, wfrecon__Timesheet_Entry__c> tsEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(tsEntries);
+                Map<Id, List<wfrecon__Timesheet_Entry_Item__c>> tsItemsMap = new Map<Id, List<wfrecon__Timesheet_Entry_Item__c>>();
+                for (wfrecon__Timesheet_Entry_Item__c item : tsItems) {
+                    if (!tsItemsMap.containsKey(item.wfrecon__Timesheet_Entry__c)) {
+                        tsItemsMap.put(item.wfrecon__Timesheet_Entry__c, new List<wfrecon__Timesheet_Entry_Item__c>());
+                    }
+                    tsItemsMap.get(item.wfrecon__Timesheet_Entry__c).add(item);
+                }
 
-                    if (parsed instanceof List<Object>) {
-                        for (Object o : (List<Object>) parsed) {
-                            Map<String, Object> mapVal = (Map<String, Object>) o;
-                            String fieldApi = (String) mapVal.get('fieldApiName');
-                            Object newValueObj = mapVal.get('newValue');
-
-                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
-                                // Handle DateTime fields
-                                if (fieldApi == 'Clock_In_Time__c' || fieldApi == 'Clock_Out_Time__c') {
-                                    // Convert ISO format (2025-11-21T09:05:00.000Z) to Apex DateTime
-                                    String dateTimeStr = String.valueOf(newValueObj);
-                                    // Remove 'Z' and milliseconds, replace 'T' with space
-                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
-                                    if (dateTimeStr.contains('.')) {
-                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                // Apply changes from Log Entry approval data to timesheet records
+                for (wfrecon__Log_Entry__c log : pendingLogs) {
+                    if (String.isNotBlank(log.wfrecon__Approval_Data__c)) {
+                        try {
+                            Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(log.wfrecon__Approval_Data__c);
+                            
+                            if (approvalData.containsKey('timesheetEntryChanges')) {
+                                Map<String, Object> timesheetChanges = (Map<String, Object>) approvalData.get('timesheetEntryChanges');
+                                
+                                for (String tseId : timesheetChanges.keySet()) {
+                                    Map<String, Object> entryData = (Map<String, Object>) timesheetChanges.get(tseId);
+                                    List<Object> changes = (List<Object>) entryData.get('changes');
+                                    
+                                    wfrecon__Timesheet_Entry__c tsEntry = tsEntryMap.get(tseId);
+                                    List<wfrecon__Timesheet_Entry_Item__c> relatedItems = tsItemsMap.get(tseId);
+                                    
+                                    if (tsEntry != null && changes != null) {
+                                        for (Object change : changes) {
+                                            Map<String, Object> changeMap = (Map<String, Object>) change;
+                                            String fieldApi = (String) changeMap.get('fieldApiName');
+                                            Object newValueObj = changeMap.get('newValue');
+                                            
+                                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
+                                                // Handle DateTime fields for Timesheet Entry and Items
+                                                if (fieldApi == 'wfrecon__Clock_In_Time__c' || fieldApi == 'wfrecon__Clock_Out_Time__c') {
+                                                    String dateTimeStr = String.valueOf(newValueObj);
+                                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
+                                                    if (dateTimeStr.contains('.')) {
+                                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
+                                                    }
+                                                    DateTime newDateTime = DateTime.valueOf(dateTimeStr);
+                                                    tsEntry.put(fieldApi, newDateTime);
+                                                    
+                                                    // Update all items for this entry
+                                                    if (relatedItems != null) {
+                                                        for (wfrecon__Timesheet_Entry_Item__c item : relatedItems) {
+                                                            item.put(fieldApi, newDateTime);
+                                                        }
+                                                    }
+                                                }
+                                                // Handle Travel Time - applies only to items
+                                                else if (fieldApi == 'wfrecon__Travel_Time__c' && relatedItems != null) {
+                                                    Decimal newTravelTime = Decimal.valueOf(String.valueOf(newValueObj));
+                                                    for (wfrecon__Timesheet_Entry_Item__c item : relatedItems) {
+                                                        item.wfrecon__Travel_Time__c = newTravelTime;
+                                                    }
+                                                }
+                                                // Handle Per Diem - applies only to items
+                                                else if (fieldApi == 'wfrecon__Per_Diem__c' && relatedItems != null) {
+                                                    Decimal newPerDiem = Decimal.valueOf(String.valueOf(newValueObj));
+                                                    for (wfrecon__Timesheet_Entry_Item__c item : relatedItems) {
+                                                        item.wfrecon__Per_Diem__c = newPerDiem;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
-                                    ts.put(fieldApi, DateTime.valueOf(dateTimeStr));
                                 }
                             }
+                        } catch (Exception e) {
+                            System.debug('Error applying timesheet changes for log: ' + log.Id + ', Error: ' + e.getMessage());
                         }
                     }
                 }
-            }
 
-            if (!tsEntries.isEmpty()) {
-                update tsEntries;
-            }
-
-            // ---------------------------
-            // 4. Get ALL Pending Timesheet Entry Items
-            // ---------------------------
-            List<Timesheet_Entry_Item__c> tsItems = [
-                SELECT Id, Status__c, Approval_Data__c
-                FROM Timesheet_Entry_Item__c
-                WHERE Timesheet_Entry__c IN :tsEntryIds
-                AND Status__c = 'Pending'
-                WITH USER_MODE
-            ];
-
-            // Apply changes from approval data to timesheet entry items
-            for (Timesheet_Entry_Item__c item : tsItems) {
-                item.Status__c = 'Auto-Approved';
-                item.Approved_Date__c = approvedDate;
-
-                if (String.isNotBlank(item.Approval_Data__c)) {
-                    Object parsed = JSON.deserializeUntyped(item.Approval_Data__c);
-
-                    if (parsed instanceof List<Object>) {
-                        for (Object o : (List<Object>) parsed) {
-                            Map<String, Object> mapVal = (Map<String, Object>) o;
-                            String fieldApi = (String) mapVal.get('fieldApiName');
-                            Object newValueObj = mapVal.get('newValue');
-
-                            if (String.isNotBlank(fieldApi) && newValueObj != null) {
-                                // Handle DateTime fields (Clock_In_Time__c, Clock_Out_Time__c)
-                                if (fieldApi == 'Clock_In_Time__c' || fieldApi == 'Clock_Out_Time__c') {
-                                    String dateTimeStr = String.valueOf(newValueObj);
-                                    // Remove 'Z' and milliseconds, replace 'T' with space
-                                    dateTimeStr = dateTimeStr.replace('T', ' ').replace('Z', '');
-                                    if (dateTimeStr.contains('.')) {
-                                        dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));
-                                    }
-                                    item.put(fieldApi, DateTime.valueOf(dateTimeStr));
-                                } else {
-                                    // Handle numeric fields (Travel_Time__c, etc.)
-                                    item.put(fieldApi, Decimal.valueOf(String.valueOf(newValueObj)));
-                                }
-                            }
-                        }
+                // Update status and approved date only for Pending records
+                for (wfrecon__Timesheet_Entry__c ts : tsEntries) {
+                    if (ts.wfrecon__Status__c == 'Pending') {
+                        ts.wfrecon__Status__c = 'Auto-Approved';
+                        ts.wfrecon__Approved_Date__c = approvedDate;
                     }
                 }
-            }
+                
+                for (wfrecon__Timesheet_Entry_Item__c item : tsItems) {
+                    if (item.wfrecon__Status__c == 'Pending') {
+                        item.wfrecon__Status__c = 'Auto-Approved';
+                        item.wfrecon__Approved_Date__c = approvedDate;
+                    }
+                }
 
-            if (!tsItems.isEmpty()) {
-                update tsItems;
+                if (!tsEntries.isEmpty()) {
+                    update tsEntries;
+                }
+                
+                if (!tsItems.isEmpty()) {
+                    update tsItems;
+                }
+                
+                System.debug('Auto-approved ' + pendingLogs.size() + ' log entries, ' + 
+                            tsEntries.size() + ' timesheet entries, and ' + 
+                            tsItems.size() + ' timesheet items for Job: ' + jobId);
+            } else {
+                System.debug('Auto-approved ' + pendingLogs.size() + ' log entries for Job: ' + jobId);
             }
-            
-            System.debug('Auto-approved ' + pendingLogs.size() + ' log entries, ' + 
-                        tsEntries.size() + ' timesheet entries, and ' + 
-                        tsItems.size() + ' timesheet items for Job: ' + jobId);
         }
         catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'autoApproveAllPendingEntries','exceptionObj' => e,'moreDetails' => e.getMessage()});
@@ -1076,9 +1214,9 @@ public with sharing class ShiftEndLogEntriesController {
     private static void sendCustomNotification(Id recordId, String content) {
         try {
             // Query the metadata to get approver user IDs
-            List<Log_Entry_Approver__mdt> approverMetadata = [
-                SELECT Id, Label, Approvers_JSON__c 
-                FROM Log_Entry_Approver__mdt 
+            List<wfrecon__Log_Entry_Approver__mdt> approverMetadata = [
+                SELECT Id, DeveloperName, wfrecon__Approvers_JSON__c 
+                FROM wfrecon__Log_Entry_Approver__mdt 
                 WHERE DeveloperName = 'Approvers_JSON' 
                 LIMIT 1
             ];
@@ -1086,9 +1224,9 @@ public with sharing class ShiftEndLogEntriesController {
             Set<String> addressee = new Set<String>();
             
             // Parse approvers JSON from metadata
-            if (!approverMetadata.isEmpty() && String.isNotBlank(approverMetadata[0].Approvers_JSON__c)) {
+            if (!approverMetadata.isEmpty() && String.isNotBlank(approverMetadata[0].wfrecon__Approvers_JSON__c)) {
                 try {
-                    Map<String, Object> approversMap = (Map<String, Object>) JSON.deserializeUntyped(approverMetadata[0].Approvers_JSON__c);
+                    Map<String, Object> approversMap = (Map<String, Object>) JSON.deserializeUntyped(approverMetadata[0].wfrecon__Approvers_JSON__c);
                     
                     // Extract user IDs from the JSON (values in the map)
                     for (String userName : approversMap.keySet()) {
@@ -1129,7 +1267,7 @@ public with sharing class ShiftEndLogEntriesController {
                 Map<String, Object> pageRef = new Map<String, Object>{
                     'type' => 'standard__navItemPage',
                     'attributes' => new Map<String, Object>{
-                        'apiName' => 'wfrecon__Shift_Log_Approval' // Tab API Name
+                        'apiName' => 'wfrecon__Shift_Log_Approval' // Tab API Name (namespaced)
                     }
                 };
                 String title = 'New Shift End Log Entry Created';
@@ -1151,5 +1289,21 @@ public with sharing class ShiftEndLogEntriesController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'sendCustomNotification','exceptionObj' => e,'moreDetails' => 'Error sending custom notification for record: ' + recordId + ' - ' + e.getMessage()});
             System.debug('Error sending custom notification: ' + e.getMessage());
         }
+    }
+    
+    // Wrapper classes for Chatter feed items
+    public class FeedItemWrapper {
+        @AuraEnabled public String id;
+        @AuraEnabled public String body;
+        @AuraEnabled public DateTime createdDate;
+        @AuraEnabled public List<AttachmentWrapper> attachments;
+    }
+    
+    public class AttachmentWrapper {
+        @AuraEnabled public String id;
+        @AuraEnabled public String contentDocumentId;
+        @AuraEnabled public String title;
+        @AuraEnabled public Boolean isImage;
+        @AuraEnabled public String thumbnailUrl;
     }
 }
