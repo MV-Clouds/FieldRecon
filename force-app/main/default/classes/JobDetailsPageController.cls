@@ -7,10 +7,7 @@
 *--------------------------------------------------------------------------------
 * Modification History:
 * Date Modified - Developer Name - Description
-* * 2025-11-25 - Gemini - Added saveTimesheetEntryInlineEdits for bulk updates, 
-* deleteTimesheetEntriesBulk for mass deletion, and 
-* updated getTimeSheetEntryItems to expose Timesheet 
-* Entry ID (TSEId) for reference.
+*
 **/
 public with sharing class JobDetailsPageController {
     

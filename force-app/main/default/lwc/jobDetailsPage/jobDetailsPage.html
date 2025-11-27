@@ -284,14 +284,7 @@
                                                                             <template if:false={field.isEditing}>
                                                                                 <div class={field.contentClass}>
                                                                                     <template if:true={field.isDatetime}>
-                                                                                        <lightning-formatted-date-time 
-                                                                                            value={field.rawValue}
-                                                                                            year="numeric"
-                                                                                            month="short"
-                                                                                            day="2-digit"
-                                                                                            hour="2-digit"
-                                                                                            minute="2-digit">
-                                                                                        </lightning-formatted-date-time>
+                                                                                        <span class="text-truncate">{field.displayValue}</span>
                                                                                     </template>
                                                                                     <template if:true={field.isCurrency}>
                                                                                         <lightning-formatted-number 
