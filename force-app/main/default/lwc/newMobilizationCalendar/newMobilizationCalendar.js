@@ -197,7 +197,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                     this.events = result.map(ev => ({
                         ...ev,
                         start: new Date(ev.start).toLocaleDateString('en-CA'),
-                        end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null,
+                        end: new Date(ev.end).toLocaleDateString('en-CA'),
                         startDateAndTime: ev.start,
                         endDateAndTime: ev.end,
                     }));
@@ -332,44 +332,31 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
     getConfirmation(event, delta, revertFunc) {
         try{
 
-            this.showToast('Info', 'This feature will be added shortly...', 'info');
-            revertFunc();
-            return;
 
             if(!event.start || !this._oldEvent.start || !event.startDateAndTime || !this._oldEvent.startDateAndTime){
                 this.showToast('Something Went Wrong!', 'Please refresh the tab and try again.', 'error');
                 return;
             }
 
-            const toDate = (val) => {
-                if (!val) return null;
-                if (val instanceof Date) return val;
-                const d = new Date(val);
-                return isNaN(d.getTime()) ? null : d;
-            };
-    
             const mergeDateAndTime = (dateOnly, timeOnly) => {
                 return new Date(
-                    dateOnly.getFullYear(),
-                    dateOnly.getMonth(),
-                    dateOnly.getDate(),
+                    dateOnly.getUTCFullYear(),
+                    dateOnly.getUTCMonth(),
+                    dateOnly.getUTCDate(),
                     timeOnly.getHours(),
                     timeOnly.getMinutes(),
                     timeOnly.getSeconds()
                 );
             };
     
-            const eventStartDate = toDate(event.start);
-            const eventOldStartDate = toDate(this._oldEvent.start);
-            const eventStartTime = toDate(event.startDateAndTime);
-            const eventOldStartTime = toDate(this._oldEvent.startDateAndTime);
+            const eventStartDate = new Date(event.start);
+            const eventOldStartDate = new Date(this._oldEvent.start);
+            const eventStartTime = new Date(event.startDateAndTime);
+            const eventOldStartTime = new Date(this._oldEvent.startDateAndTime);
     
-            const mergedStart = mergeDateAndTime(eventStartDate, eventStartTime);
-            const mergedOldStart = mergeDateAndTime(eventOldStartDate, eventOldStartTime);
-    
-            const startLocal = this.removeOrgTimeZone(mergedStart);
-            const oldStartLocal = this.removeOrgTimeZone(mergedOldStart);
-            
+            const startLocal = mergeDateAndTime(eventStartDate, eventStartTime);
+            const oldStartLocal = mergeDateAndTime(eventOldStartDate, eventOldStartTime);
+
             let nowLocal = new Date();
 
             if(startLocal.getTime() != oldStartLocal.getTime()){
@@ -392,6 +379,8 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             this.isDropOrExpand = true;
         } catch (e) {
             console.error('Error in function NewMobilizationCalendar.getConfirmation:::', e?.message);
+            this.showToast('Error', 'Something went wrong! Please try again.', 'error');
+            revertFunc();
         }
     }
 
@@ -402,55 +391,65 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
     }
 
     handleEventDrop() {
-        this.showConfirmationPopup = false;
-        let event = this.event;
+        try{
+            this.showConfirmationPopup = false;
+            let event = this.event;
+            
+            const toApexDateTimeString = (dateObj, timeObj) => {
+                const year = dateObj.getUTCFullYear();
+                const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getUTCDate()).padStart(2, '0');
+                const hours = String(timeObj.getHours()).padStart(2, '0');
+                const minutes = String(timeObj.getMinutes()).padStart(2, '0');
+                const seconds = String(timeObj.getSeconds() || 0).padStart(2, '0');
+    
+                return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`;
+            };
 
-        const newStart = new Date(event.start);
-        const newEnd = new Date(event.end);
+            const eventStartDate = new Date(event.start);
+            let eventEndDate = new Date(event.end);
+            const eventStartTime = new Date(event.startDateAndTime);
+            const eventEndTime = new Date(event.endDateAndTime);
+            eventEndDate.setDate(eventEndDate.getDate() - 1);
 
-        // Preserve original time
-        const [sH, sM, sAMPM] = event.timestart.match(/(\d+):(\d+)\s?(AM|PM)/i).slice(1);
-        const startHour = (sAMPM === 'PM' ? 12 : 0) + (parseInt(sH) % 12);
-        newStart.setHours(startHour, sM);
-
-        const [eH, eM, eAMPM] = event.timeend.match(/(\d+):(\d+)\s?(AM|PM)/i).slice(1);
-        const endHour = (eAMPM === 'PM' ? 12 : 0) + (parseInt(eH) % 12);
-        newEnd.setHours(endHour, eM);
-
-        newEnd.setDate(newEnd.getDate() - 1);
-        const mgp = {
-            id: event.id || null,
-            startDate: newStart.toISOString(),
-            endDate: newEnd.toISOString(),
-            status: event.status || '',
-            description: event.desc || '',
-            jobId: event.jobId,
-            includeSaturday: event.saturday || false,
-            includeSunday: event.sunday || false
-        };
-        saveJobSchedule({ mgp: mgp })
-            .then(result => {
-                if (result === 'SUCCESS') {
-                    this.showToast('Success', 'Record saved successfully!', 'success');
-                    this.openModal = false;
-                    this.resetTempVariables();
-                    this.refreshCalendar();
-                } else {
-                    this.showToast('Error', 'Something went wrong!', 'error');
-                }
-                this.event = null;
-                this.revertFunc = new function() {};
-            })
-            .catch(error => {
-                console.error(error);
-                this.showToast('Error', 'Error saving record: ' + error.body?.message, 'error');
-                this.revertFunc();
-                this.event = null;
-                this.revertFunc = new function() {};
-            })
-            .finally(() => {
-                this.isSpinner = false;
-            });
+            const mgMap = {
+                id: event.id || null,
+                startDate: toApexDateTimeString(eventStartDate, eventStartTime),
+                endDate: toApexDateTimeString(eventEndDate, eventEndTime),
+                job: event.jobId,
+                includeSaturday: event.saturday || false,
+                includeSunday: event.sunday || false,
+                mobilizationStatus: event.status || '',
+                description: event.desc || ''
+            };
+            saveJobSchedule({ mgMap: mgMap })
+                .then(result => {
+                    if (result === 'SUCCESS') {
+                        this.showToast('Success', 'Record saved successfully!', 'success');
+                        this.openModal = false;
+                        this.resetTempVariables();
+                        this.refreshCalendar();
+                    } else {
+                        this.showToast('Error', 'Something went wrong!', 'error');
+                    }
+                    this.event = null;
+                    this.revertFunc = new function() {};
+                })
+                .catch(error => {
+                    console.error(error);
+                    this.showToast('Error', 'Error saving record: ' + error.body?.message, 'error');
+                    this.revertFunc();
+                    this.event = null;
+                    this.revertFunc = new function() {};
+                })
+                .finally(() => {
+                    this.isSpinner = false;
+                });
+        }catch (e) {
+            console.error('Error in function NewMobilizationCalendar.handleEventDrop:::', e?.message);
+            this.showToast('Error', 'Something went wrong! Please try again.', 'error');
+            this.revertFunc();
+        }
     }
 
     loadStatusOptions(){
@@ -488,7 +487,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                 this.events = result.map(ev => ({
                     ...ev,
                     start: new Date(ev.start).toLocaleDateString('en-CA'),
-                    end: ev.end ? new Date(ev.end).toLocaleDateString('en-CA') : null,
+                    end: new Date(ev.end).toLocaleDateString('en-CA'),
                     startDateAndTime: ev.start,
                     endDateAndTime: ev.end,
                 }));
