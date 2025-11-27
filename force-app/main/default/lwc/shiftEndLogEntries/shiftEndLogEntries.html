@@ -773,12 +773,16 @@
     <template if:true={showChatterModal}>
         <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
             <div class="slds-modal__container chatter-modal-container">
+                
                 <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
                     onclick={closeChatterModal}>
                     <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
                         size="small"></lightning-icon>
                 </button>
-                <div class="pop-heading">Choose from Chatter</div>
+                
+                <header class="slds-modal__header edit-modal-header">
+                    <h2 class="slds-text-heading_medium">Choose from Chatter</h2>
+                </header>
                 <div class="slds-modal__content chatter-modal-content">
                     <template if:true={isLoadingChatter}>
                         <div class="chatter-loading">
@@ -800,9 +804,9 @@
                             </div>
                         </template>
                         
-                        <!-- Feed Items List - Grid View -->
+                        <!-- Feed Items List -->
                         <template if:true={hasChatterFeedItems}>
-                            <div class="chatter-attachments-grid">
+                            <div class="chatter-feed-list">
                                 <template for:each={chatterFeedItems} for:item="feedItem">
                                     <div key={feedItem.id} class="chatter-feed-item">
                                         <div class="feed-item-header">
@@ -857,9 +861,9 @@
                         </template>
                     </template>
                 </div>
-                <div class="popUpFooter">
-                    <button class="cancel-button" onclick={closeChatterModal}>Cancel</button>
-                    <button class="confirm-button" onclick={handleAddSelectedAttachments} disabled={hasNoSelectedAttachments}>Add Selected</button>
+                <div class="bottom-footer-btn">
+                    <button class="retake-btn" onclick={closeChatterModal}>Cancel</button>
+                    <button class="save-btn nav-btn slds-m-left--medium" onclick={handleAddSelectedAttachments} disabled={hasNoSelectedAttachments}>Add Selected</button>
                 </div>
             </div>
         </section>
@@ -872,55 +876,40 @@
             <div class="slds-modal__container camera-modal-container">
                 <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
                     onclick={closeCameraModal}>
-                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
-                        size="small"></lightning-icon>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" size="small"></lightning-icon>
                 </button>
-                <div class="pop-heading">Capture Photo</div>
+                
+                <header class="slds-modal__header edit-modal-header">
+                    <h2 class="slds-text-heading_medium">Capture Photo</h2>
+                </header>
+                
                 <div class="slds-modal__content camera-modal-content">
                     <template if:false={capturedPhoto}>
-                        <!-- Live Camera View -->
-                        <div class="camera-container">
-                            <video class="camera-video" autoplay playsinline></video>
-                            <canvas class="camera-canvas" style="display: none;"></canvas>
-                        </div>
-                    </template>
-
-                    <template if:true={capturedPhoto}>
-                        <!-- Captured Photo Preview -->
-                        <div class="camera-container">
-                            <img src={capturedPhoto} alt="Captured" class="captured-photo">
-                        </div>
-                    </template>
-                </div>
-                <div class="popUpFooter">
-                    <template if:false={capturedPhoto}>
-                        <button class="cancel-button" onclick={closeCameraModal}>Cancel</button>
-                        <button class="camera-capture-btn" onclick={handleCapturePhoto}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                                <circle cx="12" cy="13" r="4"></circle>
+                        <video class="camera-video" autoplay playsinline></video>
+                        <button type="button" class="camera-capture-btn" onclick={handleCapturePhoto}>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="24" height="24" fill="white">
+                                <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
                             </svg>
-                            Capture
                         </button>
                     </template>
                     <template if:true={capturedPhoto}>
-                        <button class="camera-retake-btn" onclick={handleRetakePhoto}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="1 4 1 10 7 10"></polyline>
-                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                            </svg>
-                            Retake
-                        </button>
-                        <button class="camera-save-btn" onclick={handleSaveCapturedPhoto}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                            Save Photo
-                        </button>
+                        <img src={capturedPhoto} alt="Captured" class="captured-preview" />
+                        <div class="camera-actions">
+                            <button type="button" class="retake-btn" onclick={handleRetakePhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16" fill="white">
+                                    <path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5z"/>
+                                </svg>
+                                Retake
+                            </button>
+                            <button type="button" class="save-photo-btn" onclick={handleSaveCapturedPhoto}>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="16" height="16" fill="white">
+                                    <path d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V173.3c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32H64zm0 96c0-17.7 14.3-32 32-32H288c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V128zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"/>
+                                </svg>
+                                Save Photo
+                            </button>
+                        </div>
                     </template>
+                    <canvas class="camera-canvas" style="display: none;"></canvas>
                 </div>
             </div>
         </section>

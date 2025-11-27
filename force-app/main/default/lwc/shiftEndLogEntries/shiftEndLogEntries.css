@@ -1373,6 +1373,22 @@
     border-radius: 0 0 1.25rem 1.25rem;
 }
 
+.bottom-footer-btn {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    margin: 0;
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid lightgray;
+    display: flex;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .clock-in-button,
 .confirm-button {
     background-color: rgba(94, 90, 219, 1);
@@ -1453,58 +1469,50 @@
 }
 
 .camera-modal-content {
-    padding: 0 !important;
-}
-
-.camera-container {
-    width: 100%;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
 }
 
 .camera-video,
-.captured-photo {
+.captured-preview {
     width: 100%;
-    max-height: 60vh;
-    object-fit: contain;
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    background: #000;
 }
 
 .camera-actions {
     display: flex;
     gap: 1rem;
+    margin-top: 1rem;
     justify-content: center;
-    padding: 1.5rem;
-    background: white;
 }
 
 .camera-capture-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: rgba(94, 90, 219, 1);
-    color: white;
-    border: none;
-    border-radius: 4px;
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-theme-color);
+    border: 4px solid white;
+    border-radius: 50%;
+    width: 70px;
+    height: 70px;
     cursor: pointer;
-    font-weight: 600;
-    font-size: 16px;
-    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .camera-capture-btn:hover {
-    background: rgba(84, 80, 209, 1);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.35);
-}
-
-.camera-capture-btn svg {
-    stroke: rgba(94, 90, 219, 1);
-    fill: white;
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
 }
 
 .camera-retake-btn {
@@ -1530,6 +1538,42 @@
 
 .camera-retake-btn svg {
     stroke: white;
+}
+
+.retake-btn,
+.save-photo-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.retake-btn {
+    background: #706e6b;
+    color: white;
+}
+
+.retake-btn:hover {
+    background: #5a5858;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.save-photo-btn {
+    background: rgba(94, 90, 219, 1);
+    color: white;
+}
+
+.save-photo-btn:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
 .camera-save-btn {
@@ -1599,6 +1643,17 @@
     max-height: 90vh;
 }
 
+/* Use same header styling as edit modal so chatter popup matches UI */
+.edit-modal-header {
+    background: var(--primary-theme-color);
+    color: white;
+    border: none;
+}
+
+.edit-modal-header h2 {
+    color: white;
+}
+
 .chatter-modal-content {
     padding: 0 !important;
     max-height: 60vh;
@@ -1612,7 +1667,7 @@
     padding: 3rem;
 }
 
-.chatter-attachments-grid {
+.chatter-feed-list {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -1620,28 +1675,32 @@
 }
 
 .chatter-feed-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    /* margin-bottom: 1.5rem; */
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
 }
 
 .feed-item-header {
-    display: flex;
-    align-items: center;
+    margin-bottom: 0.75rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e0e0e0;
 }
 
 .feed-item-date {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: #666;
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
 .feed-item-attachments {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
+    margin-top: 1rem;
 }
 
 .attachment-card {
@@ -1978,6 +2037,10 @@
         min-height: 120px;
         height: 80px;
     }
+
+    .gallery-btn {
+        width: 100%;
+    }
 }
 
 /* Mobile phones in portrait (max-width: 480px) */
@@ -2020,15 +2083,17 @@
         padding: 0.4rem 0.6rem;
     }
 
-    .chatter-attachments-grid {
-        padding: 1rem;
-    }
-
     .feed-item-attachments {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
 
     .attachment-card {
         min-height: 120px;
+    }
+
+    .attachment-thumbnail,
+    .attachment-file-icon {
+        height: 80px;
     }
 }

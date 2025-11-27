@@ -208,12 +208,21 @@
                                 <template if:true={log.hasImages}>
                                     <div class="section-label images-label">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="14" height="14"><path d="M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM323.8 202.5c-4.5-6.6-11.9-10.5-19.8-10.5s-15.4 3.9-19.8 10.5l-87 127.6L170.7 297c-4.6-5.7-11.5-9-18.7-9s-14.2 3.3-18.7 9l-64 80c-5.8 7.2-6.9 17.1-2.9 25.4s12.4 13.6 21.6 13.6h96 32H424c8.9 0 17.1-4.9 21.2-12.8s3.6-17.4-1.4-24.7l-120-176zM112 192a48 48 0 1 0 0-96 48 48 0 1 0 0 96z"/></svg>
-                                        <span style="margin-top: 6px;">Images ({log.imageCount})</span>
+                                        <span style="margin-top: 6px;">Media ({log.imageCount})</span>
                                     </div>
                                     <div class="images-grid">
                                         <template for:each={log.images} for:item="image">
                                             <div key={image.Id} class="image-thumbnail" data-id={image.ContentDocumentId} data-version-id={image.Id} onclick={handleImagePreview}>
-                                                <img src={image.thumbnailUrl} alt={image.Title} />
+                                                <template if:true={image.isImage}>
+                                                    <img src={image.thumbnailUrl} alt={image.Title} />
+                                                </template>
+                                                <template if:false={image.isImage}>
+                                                    <div class="file-preview-placeholder">
+                                                        <lightning-icon icon-name={image.fileIcon} size="large"></lightning-icon>
+                                                        <div class="file-ext-label">{image.FileExtension}</div>
+                                                        <div class="file-name-label">{image.Title}</div>
+                                                    </div>
+                                                </template>
                                             </div>
                                         </template>
                                     </div>
@@ -531,13 +540,25 @@
                                     <div class="photo-grid">
                                         <template for:each={allImages} for:item="image">
                                             <div key={image.id} class="photo-item">
-                                                <img src={image.url} 
-                                                     alt={image.name} 
-                                                     class="photo-thumbnail" 
-                                                     loading="lazy"
-                                                     data-id={image.id}
-                                                     data-version-id={image.versionId}
-                                                     onclick={handleModalImagePreview} />
+                                                <template if:true={image.isImage}>
+                                                    <img src={image.url} 
+                                                         alt={image.name} 
+                                                         class="photo-thumbnail" 
+                                                         loading="lazy"
+                                                         data-id={image.id}
+                                                         data-version-id={image.versionId}
+                                                         onclick={handleModalImagePreview} />
+                                                </template>
+                                                <template if:false={image.isImage}>
+                                                    <div class="file-preview-placeholder modal-file-preview"
+                                                         data-id={image.id}
+                                                         data-version-id={image.versionId}
+                                                         onclick={handleModalImagePreview}>
+                                                        <lightning-icon icon-name={image.fileIcon} size="large"></lightning-icon>
+                                                        <div class="file-ext-label">{image.extension}</div>
+                                                        <div class="file-name-label">{image.name}</div>
+                                                    </div>
+                                                </template>
                                                 <button 
                                                     class="remove-photo-btn" 
                                                     data-id={image.id}
@@ -545,7 +566,7 @@
                                                     data-camera={image.isCamera}
                                                     data-chatter={image.isChatter}
                                                     onclick={handleRemoveImage}
-                                                    title="Remove image">
+                                                    title="Remove file">
                                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="12" height="12" fill="white">
                                                         <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
                                                     </svg>
