@@ -382,7 +382,7 @@ public with sharing class ShiftEndLogV2Controller {
             // Step 4: Update the log entry with approval data (includes camera metadata if added)
             // Only update the fields that are explicitly set, including wfrecon__Approval_Data__c if provided
             // The logEntry passed from JavaScript contains only the fields to update
-            update as user logEntry;
+            update logEntry;
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
