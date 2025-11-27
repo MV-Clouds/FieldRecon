@@ -107,33 +107,19 @@ public class NewMobilizationCalendarControllerTest {
     @IsTest
     static void testSaveJobSchedule(){
         wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
-        
-        Wrapper.MobilizationGroup mg = new Wrapper.MobilizationGroup();
-        mg.startDate = DateTime.newInstance(2025, 10, 15, 7, 0, 0);
-        mg.endDate = DateTime.newInstance(2025, 10, 20, 16, 30, 0);
-        mg.jobId = job.Id;
-        mg.status = 'Confirmed';
-        mg.description = 'Via test schedule';
-        mg.includeSaturday = false;
-        mg.includeSunday = false;
-        
-        String jsonStr = JSON.serialize(mg);
-        Map<String, Object> deserialized = (Map<String, Object>)JSON.deserializeUntyped(jsonStr);
-        
-        Map<String, Object> mgSObject = new Map<String, Object>{
-            'attributes' => new Map<String, Object>{'type' => 'wfrecon__Mobilization_Group__c'},
-            'wfrecon__Job__c' => job.Id,
-            'wfrecon__Mobilization_Status__c' => 'Confirmed',
-            'wfrecon__Description__c' => 'Via test schedule',
-            'wfrecon__Start_Date__c' => '2025-10-15',
-            'wfrecon__End_Date__c' => '2025-10-20',
-            'wfrecon__Include_Saturday__c' => false,
-            'wfrecon__Include_Sunday__c' => false
+ 
+        Map<String, String> mgSObject = new Map<String, String>{
+            'job' => job.Id,
+            'mobilizationStatus' => 'Confirmed',
+            'description' => 'Via test schedule',
+            'startDate' => '2025-10-15T00:00:00Z',
+            'endDate' => '2025-10-20T00:00:00Z',
+            'includeSaturday' => 'false',
+            'includeSunday' => 'false'
         };
-        deserialized.put('mobilizationGroupSObject', mgSObject);
         
         Test.startTest();
-        String result = NewMobilizationCalendarController.SaveJobSchedule(deserialized);
+        String result = NewMobilizationCalendarController.SaveJobSchedule(mgSObject);
         Test.stopTest();
         
         System.assertEquals('SUCCESS', result, 'Expected SaveJobSchedule to return SUCCESS');

@@ -10,25 +10,25 @@ public with sharing class NewMobilizationCalendarController {
             Boolean isAdmin = (Boolean) permissionMap.get('isAdmin');
             Boolean isCalendarPS = (Boolean) permissionMap.get('all');
 
-            String baseQuery = 'SELECT Id, Name, Start_Date__c, End_Date__c, Mobilization_Status__c, Description__c, Include_Sunday__c, Include_Saturday__c, ' +
-                       'Job__c, Job__r.Job_Name__c, Job__r.Name, Job__r.Address__c ' +
-                       'FROM Mobilization_Group__c ';
+            String baseQuery = 'SELECT Id, Name, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c, wfrecon__Description__c, wfrecon__Include_Sunday__c, wfrecon__Include_Saturday__c, ' +
+                       'wfrecon__Job__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Address__c ' +
+                       'FROM wfrecon__Mobilization_Group__c ';
 
             // List to hold dynamic filters
             List<String> filters = new List<String>();
             if (job != null) {
-                filters.add('Job__c = :job');
+                filters.add('wfrecon__Job__c = :job');
             }
             if (status != null && status.size() > 0) {
-                filters.add('Mobilization_Status__c  IN :status');
+                filters.add('wfrecon__Mobilization_Status__c  IN :status');
             }else{
-                filters.add('Mobilization_Status__c != \'Overhead Job\'');
+                filters.add('wfrecon__Mobilization_Status__c != \'Overhead Job\'');
             }
             if(!isAdmin && !isCalendarPS){
-                List<Mobilization_Member__c> mobGroupMap = [SELECT Mobilization__r.Mobilization_Group__c FROM Mobilization_Member__c WHERE Contact__r.User__c =: UserInfo.getUserId() WITH USER_MODE];
+                List<wfrecon__Mobilization_Member__c> mobGroupMap = [SELECT wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__r.wfrecon__User__c =: UserInfo.getUserId() WITH USER_MODE];
                 Set<Id> mobGroupIds = new Set<Id>();
-                for(Mobilization_Member__c mobGroup : mobGroupMap){
-                    mobGroupIds.add(mobGroup.Mobilization__r.Mobilization_Group__c);
+                for(wfrecon__Mobilization_Member__c mobGroup : mobGroupMap){
+                    mobGroupIds.add(mobGroup.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c);
                 }
                 if(!mobGroupIds.isEmpty()){
                     filters.add('Id IN :mobGroupIds');
@@ -41,37 +41,37 @@ public with sharing class NewMobilizationCalendarController {
             }
 
             // Execute dynamic query
-            List<Mobilization_Group__c> mobGroups = Database.query(baseQuery);
+            List<wfrecon__Mobilization_Group__c> mobGroups = Database.query(baseQuery);
 
             // Fetch all custom setting records for status colors
-            Map<String, Mobilization_Status_Color__c> colorMap = Mobilization_Status_Color__c.getAll();
+            Map<String, wfrecon__Mobilization_Status_Color__c> colorMap = wfrecon__Mobilization_Status_Color__c.getAll();
 
             List<Map<String, Object>> result = new List<Map<String, Object>>();
-            for (Mobilization_Group__c mob : mobGroups) {
+            for (wfrecon__Mobilization_Group__c mob : mobGroups) {
 
                 Map<String, Object> ev = new Map<String, Object>();
                 ev.put('id', mob.Id);
-                ev.put('title', mob.Job__r.Job_Name__c + ' - ' + mob.Job__r.Name);
-                ev.put('start', mob.Start_Date__c?.format('MM/dd/yyyy, h:mm a'));
-                ev.put('timestart', mob.Start_Date__c.format('hh:mm a'));
-                ev.put('timeend', mob.End_Date__c.format('hh:mm a'));
-                ev.put('end', mob.End_Date__c?.addDays(1)?.format('MM/dd/yyyy, h:mm a'));
-                ev.put('saturday', mob.Include_Saturday__c);
-                ev.put('sunday', mob.Include_Sunday__c);
-                ev.put('jobId', mob.Job__c);
+                ev.put('title', mob.wfrecon__Job__r.wfrecon__Job_Name__c + ' - ' + mob.wfrecon__Job__r.Name);
+                ev.put('start', mob.wfrecon__Start_Date__c?.format('MM/dd/yyyy, h:mm a'));
+                ev.put('timestart', mob.wfrecon__Start_Date__c.format('hh:mm a'));
+                ev.put('timeend', mob.wfrecon__End_Date__c.format('hh:mm a'));
+                ev.put('end', mob.wfrecon__End_Date__c?.addDays(1)?.format('MM/dd/yyyy, h:mm a'));
+                ev.put('saturday', mob.wfrecon__Include_Saturday__c);
+                ev.put('sunday', mob.wfrecon__Include_Sunday__c);
+                ev.put('jobId', mob.wfrecon__Job__c);
                 ev.put('allDay', true);
-                ev.put('desc',mob.Description__c);
+                ev.put('desc',mob.wfrecon__Description__c);
 
-                if (mob.Job__r?.Address__c != null) {
-                    ev.put('jobLocation', mob.Job__r.Address__c);
+                if (mob.wfrecon__Job__r?.wfrecon__Address__c != null) {
+                    ev.put('jobLocation', mob.wfrecon__Job__r.wfrecon__Address__c);
                 }
 
-                if (mob.Mobilization_Status__c != null) {
-                    ev.put('status', mob.Mobilization_Status__c);
-                    Mobilization_Status_Color__c colorConfig = colorMap.get(mob.Mobilization_Status__c);
+                if (mob.wfrecon__Mobilization_Status__c != null) {
+                    ev.put('status', mob.wfrecon__Mobilization_Status__c);
+                    wfrecon__Mobilization_Status_Color__c colorConfig = colorMap.get(mob.wfrecon__Mobilization_Status__c);
                     if (colorConfig != null) {
-                        ev.put('backgroundColor', colorConfig.Background_Color__c);
-                        ev.put('textColor', colorConfig.Color__c);
+                        ev.put('backgroundColor', colorConfig.wfrecon__Background_Color__c);
+                        ev.put('textColor', colorConfig.wfrecon__Color__c);
                     }
                 }
                 result.add(ev);
@@ -88,8 +88,8 @@ public with sharing class NewMobilizationCalendarController {
     // ==============================
     @AuraEnabled
     public static void deleteMobilizationGroup(Id recordId){
-        List<Mobilization_Group__c> mobGroups = [
-            SELECT Id FROM Mobilization_Group__c WHERE Id = :recordId
+        List<wfrecon__Mobilization_Group__c> mobGroups = [
+            SELECT Id FROM wfrecon__Mobilization_Group__c WHERE Id = :recordId
         ];
         if (!mobGroups.isEmpty()) {
             delete mobGroups;
@@ -100,7 +100,7 @@ public with sharing class NewMobilizationCalendarController {
     public static List<Map<String,String>> getMobStatusOptions(){
         List<Map<String,String>> result = new List<Map<String,String>>();
         try {
-            Schema.DescribeFieldResult fieldResult = Mobilization_Group__c.Mobilization_Status__c.getDescribe();
+            Schema.DescribeFieldResult fieldResult = wfrecon__Mobilization_Group__c.wfrecon__Mobilization_Status__c.getDescribe();
             List<Schema.PicklistEntry> ple = fieldResult.getPicklistValues();
             for( Schema.PicklistEntry f : ple){
                 result.add(new Map<String,String>{'label' => f.getLabel(), 'value' => f.getValue()});
@@ -119,13 +119,13 @@ public with sharing class NewMobilizationCalendarController {
     //     Wrapper.MobilizationGroup mg = 
     //         (Wrapper.MobilizationGroup) JSON.deserialize(JSON.serialize(mgp), Wrapper.MobilizationGroup.class);
 
-    //     Mobilization_Group__c mgObj = mg.getMobilizationGroupSObject();
+    //     wfrecon__Mobilization_Group__c mgObj = mg.getMobilizationGroupSObject();
 
     //     Time shiftStart = Time.newInstance(mg.startDate.hour(), mg.startDate.minute(), 0, 0);
     //     Time shiftEnd   = Time.newInstance(mg.endDate.hour(), mg.endDate.minute(), 0, 0);
 
-    //     mgObj.Start_Date__c = updateDateFromTime(shiftStart, mg.startDate);
-    //     mgObj.End_Date__c   = updateDateFromTime(shiftEnd, mg.endDate);
+    //     mgObj.wfrecon__Start_Date__c = updateDateFromTime(shiftStart, mg.startDate);
+    //     mgObj.wfrecon__End_Date__c   = updateDateFromTime(shiftEnd, mg.endDate);
 
     //     upsert mgObj;
     //     return 'SUCCESS';
@@ -146,12 +146,12 @@ public with sharing class NewMobilizationCalendarController {
         DefaultTimeWrapper defaults = new DefaultTimeWrapper();
         
         try {
-            List<Job_Default_Times__c> jobDefaultTimes = Job_Default_Times__c.getAll().values();
+            List<wfrecon__Job_Default_Times__c> jobDefaultTimes = wfrecon__Job_Default_Times__c.getAll().values();
             if (jobDefaultTimes.isEmpty()) throw new AuraHandledException('No default times found');
 
-            Job_Default_Times__c jobDefault = jobDefaultTimes[0];
-            String startTimeStr = jobDefault.Start_Time__c;
-            String endTimeStr = jobDefault.End_Time__c;
+            wfrecon__Job_Default_Times__c jobDefault = jobDefaultTimes[0];
+            String startTimeStr = jobDefault.wfrecon__Start_Time__c;
+            String endTimeStr = jobDefault.wfrecon__End_Time__c;
 
             Date onlyStartDate = Date.valueOf(startDate);
             Date onlyEndDate = Date.valueOf(endDate).addDays(-1);
@@ -183,8 +183,8 @@ public with sharing class NewMobilizationCalendarController {
                 
                 defaults.endDateTime = DateTime.newInstance(onlyEndDate, Time.newInstance(hour, minute, 0, 0));
             }
-            defaults.IncludeSaturday = jobDefault.Include_Saturday__c;
-            defaults.IncludeSunday = jobDefault.Include_Sunday__c;
+            defaults.IncludeSaturday = jobDefault.wfrecon__Include_Saturday__c;
+            defaults.IncludeSunday = jobDefault.wfrecon__Include_Sunday__c;
 
         } catch (Exception e) {
             // Fallback default values
@@ -211,23 +211,24 @@ public with sharing class NewMobilizationCalendarController {
     }
 
     @AuraEnabled
-    public static String SaveJobSchedule(Object mgp) {
-        Wrapper.MobilizationGroup mg = (Wrapper.MobilizationGroup) JSON.deserialize(JSON.serialize(mgp),Wrapper.MobilizationGroup.Class);
-        Date startDate = Date.newInstance(mg.startDate.year(), mg.startDate.month(), mg.startDate.day());
-        Date endDate = Date.newInstance(mg.endDate.year(), mg.endDate.month(), mg.endDate.day());
-        Time shiftStart = Time.newInstance(mg.startDate.hour(), mg.startDate.minute(), 0, 0);
-        Time shiftEnd = Time.newInstance(mg.endDate.hour(), mg.endDate.minute(), 0, 0);
-
-        Mobilization_Group__c mgObj = mg.getMobilizationGroupSObject();
-        mgObj.Start_Date__c = updateDateFromTime(shiftStart, mg.startDate);
-        mgObj.End_Date__c = updateDateFromTime(shiftEnd, mg.endDate);
-        upsert mgObj;
+    public static String SaveJobSchedule(Map<String, String> mgMap) {
+        wfrecon__Mobilization_Group__c mg = new wfrecon__Mobilization_Group__c(
+            Id = mgMap.get('id'),
+            wfrecon__Start_Date__c = Datetime.valueOf(mgMap.get('startDate').replace('T',' ').replace('Z','')),
+            wfrecon__End_Date__c = Datetime.valueOf(mgMap.get('endDate').replace('T',' ').replace('Z','')),
+            wfrecon__Job__c = mgMap.get('job'),
+            wfrecon__Include_Saturday__c = Boolean.valueOf(mgMap.get('includeSaturday')),
+            wfrecon__Include_Sunday__c = Boolean.valueOf(mgMap.get('includeSunday')),
+            wfrecon__Mobilization_Status__c = mgMap.get('mobilizationStatus'),
+            wfrecon__Description__c = mgMap.get('description')
+        );
+        upsert mg;
         return 'SUCCESS';
     }
 
     @AuraEnabled
     public static Wrapper.MobilizationGroup getMobilizationGroup(Id recordId){
-        List<Mobilization_Group__c> mobiGroups = [SELECT Id, Description__c,Name, Job__c,Job__r.Job_Name__c,Job__r.Name, Include_Saturday__c, Include_Sunday__c, Start_Date__c, End_Date__c, Mobilization_Status__c,toLabel(Mobilization_Status__c) mobStatus FROM Mobilization_Group__c WHERE Id = :recordId LIMIT 1];
+        List<wfrecon__Mobilization_Group__c> mobiGroups = [SELECT Id, wfrecon__Description__c,Name, wfrecon__Job__c,wfrecon__Job__r.wfrecon__Job_Name__c,wfrecon__Job__r.Name, wfrecon__Include_Saturday__c, wfrecon__Include_Sunday__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c,toLabel(wfrecon__Mobilization_Status__c) mobStatus FROM wfrecon__Mobilization_Group__c WHERE Id = :recordId LIMIT 1];
         return new Wrapper.MobilizationGroup(mobiGroups[0]);
     }   
 
