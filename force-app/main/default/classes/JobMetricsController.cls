@@ -1,17 +1,27 @@
-// /**
-// * Class Name: JobMetricsController
-// * Test Class: 
-// * @description: Controller for Job data Report
-// * Created Date: 26 November 2025
-// * Created By: Kajal Tiwari
-// *--------------------------------------------------------------------------------
-// * Modification History:
-// * Date Modified - Developer Name - Description
-// * 
-// **/
+// // /**
+// // * Class Name: JobMetricsController
+// // * Test Class: 
+// // * @description: Controller for Job data Report
+// // * Created Date: 27 November 2025
+// // * Created By: Kajal Tiwari
+// // *--------------------------------------------------------------------------------
+// // * Modification History:
+// // * Date Modified - Developer Name - Description
+// // * 
+// // **/
 
 public with sharing class JobMetricsController {
     
+    public class MetricData {
+        @AuraEnabled public Integer count { get; set; }
+        @AuraEnabled public Decimal totalValue { get; set; }
+        
+        public MetricData() {
+            this.count = 0;
+            this.totalValue = 0;
+        }
+    }
+
     /*
     *********************************************************
     @description     : Method to get all jobs with their scope entry data for calculations
@@ -136,15 +146,16 @@ public with sharing class JobMetricsController {
             }
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getAllJobsWithScopeData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+         ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getAllJobsWithScopeData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+
         }
         
         return jobDataList;
     }
-    
-    /*
+
+        /*
     *********************************************************
-    @description     : Method to get job metrics for dashboard cards
+    @description     : Method to get job metrics for dashboard cards with custom metadata
     @return          : Map<String, MetricData> - Status related data
     ********************************************************
     */
@@ -153,62 +164,248 @@ public with sharing class JobMetricsController {
         Map<String, MetricData> metrics = new Map<String, MetricData>();
         
         try {
-            // Aggregate query to get count and sum by status
-            AggregateResult[] results = [
-                SELECT wfrecon__Status__c status, 
-                       COUNT(Id) recordCount, 
-                       SUM(wfrecon__Total_Contract_Price__c) totalValue
-                FROM wfrecon__Job__c 
-                WHERE wfrecon__Status__c IN ('Backlog', 'In Progress', 'Outstanding', 'Retainage Pending', 'Closed')
-                GROUP BY wfrecon__Status__c
+            // Get metric settings from custom metadata
+            List<JobMetricSetting__mdt> metricSettings = [
+                SELECT MasterLabel, DeveloperName, Statuses__c 
+                FROM JobMetricSetting__mdt 
+                WITH USER_MODE
             ];
             
-            // Initialize all statuses with zero values
-            metrics.put('backlog', new MetricData(0, 0));
-            metrics.put('inProgress', new MetricData(0, 0));
-            metrics.put('outstanding', new MetricData(0, 0));
-            metrics.put('retainagePending', new MetricData(0, 0));
-            metrics.put('close', new MetricData(0, 0));
+            // Collect all statuses from all metrics
+            Set<String> allStatuses = new Set<String>();
+            Map<String, Set<String>> metricToStatuses = new Map<String, Set<String>>();
             
-            // Process aggregate results
-            for (AggregateResult ar : results) {
-                String status = (String)ar.get('status');
-                Integer count = (Integer)ar.get('recordCount');
-                Decimal totalValue = (Decimal)ar.get('totalValue');
+            // Initialize metrics for all custom metadata records
+            for (JobMetricSetting__mdt setting : metricSettings) {
+                metrics.put(setting.DeveloperName, new MetricData());
                 
-                if (totalValue == null) totalValue = 0;
+                if (setting.Statuses__c != null) {
+                    Set<String> statusSet = new Set<String>();
+                    List<String> statusList = setting.Statuses__c.split(',');
+                    for (String status : statusList) {
+                        statusSet.add(status.trim());
+                    }
+                    metricToStatuses.put(setting.DeveloperName, statusSet);
+                    allStatuses.addAll(statusSet);
+                }
+            }
+
+            if (allStatuses.isEmpty()) {
+                System.debug('=== No statuses found in custom metadata');
+                return metrics;
+            }
+            
+            // Get all jobs with their financial data
+            List<wfrecon__Job__c> jobs = [
+                SELECT Id, Name, wfrecon__Status__c, 
+                    wfrecon__Total_Contract_Price__c,
+                    wfrecon__Total_Paid_Amount__c  
+                FROM wfrecon__Job__c 
+                WHERE wfrecon__Status__c IN :allStatuses
+                WITH USER_MODE
+            ];
+            
+            if (jobs.isEmpty()) {
+                System.debug('=== No jobs found with the specified statuses');
+                return metrics;
+            }
+            
+            // Get job IDs for billing query only
+            Set<Id> jobIds = new Set<Id>();
+            for (wfrecon__Job__c job : jobs) {
+                jobIds.add(job.Id);
+            }
+            
+            // Get most recent approved bill for each job
+            Map<Id, wfrecon__Billing__c> latestApprovedBillsMap = new Map<Id, wfrecon__Billing__c>();
+            for (wfrecon__Billing__c bill : [
+                SELECT Id, wfrecon__Job__c, wfrecon__Total_Billed_Amount__c, CreatedDate
+                FROM wfrecon__Billing__c
+                WHERE wfrecon__Job__c IN :jobIds
+                AND wfrecon__Status__c = 'Approved'
+                WITH USER_MODE
+                ORDER BY wfrecon__Job__c, CreatedDate DESC
+            ]) {
+                if (!latestApprovedBillsMap.containsKey(bill.wfrecon__Job__c)) {
+                    latestApprovedBillsMap.put(bill.wfrecon__Job__c, bill);
+                }
+            }
+                        
+            // Calculate metrics for each job based on custom settings
+            for (wfrecon__Job__c job : jobs) {
+                Decimal totalContract = job.wfrecon__Total_Contract_Price__c != null ? job.wfrecon__Total_Contract_Price__c : 0;
+
+                wfrecon__Billing__c latestBill = latestApprovedBillsMap.get(job.Id);
+                Decimal recentBilledAmount = latestBill != null && latestBill.wfrecon__Total_Billed_Amount__c != null ? 
+                                        latestBill.wfrecon__Total_Billed_Amount__c : 0;
                 
-                switch on status {
-                    when 'Backlog' {
-                        metrics.put('backlog', new MetricData(count, totalValue));
-                    }
-                    when 'In Progress' {
-                        metrics.put('inProgress', new MetricData(count, totalValue));
-                    }
-                    when 'Outstanding' {
-                        metrics.put('outstanding', new MetricData(count, totalValue));
-                    }
-                    when 'Retainage Pending' {
-                        metrics.put('retainagePending', new MetricData(count, totalValue));
-                    }
-                    when 'Close' {
-                        metrics.put('close', new MetricData(count, totalValue));
+                Decimal totalPaidAmount = job.Total_Paid_Amount__c != null ? job.Total_Paid_Amount__c : 0;
+                
+                Decimal openBalance = recentBilledAmount - totalPaidAmount;
+                Decimal pendingAmount = totalContract - recentBilledAmount;
+                                
+                for (String metricName : metricToStatuses.keySet()) {
+                    Set<String> statuses = metricToStatuses.get(metricName);
+                    if (statuses != null && statuses.contains(job.wfrecon__Status__c)) {
+                        MetricData currentMetric = metrics.get(metricName);
+                        if (currentMetric != null) {
+                            currentMetric.count++;
+                            
+                            if (metricName == 'openBalance') {
+                                currentMetric.totalValue += openBalance;
+                                System.debug('=== Added to ' + metricName + ': openBalance = ' + openBalance);
+                            } else if (metricName == 'workRemaining') {
+                                currentMetric.totalValue += pendingAmount;
+                                System.debug('=== Added to ' + metricName + ': pendingAmount = ' + pendingAmount);
+                            } else {
+                                // For backlog, inProgress, retainagePending - use total contract value
+                                currentMetric.totalValue += totalContract;
+                                System.debug('=== Added to ' + metricName + ': totalContract = ' + totalContract);
+                            }
+                        }
                     }
                 }
             }
+                        
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getJobMetrics', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+
+            return initializeEmptyMetrics();
         }
         
         return metrics;
     }
     
+    /*
+    *********************************************************
+    @description     : Method to get metric settings for popup
+    @return          : Map<String, Object> - Metric settings and status options
+    ********************************************************
+    */
+    @AuraEnabled
+    public static Map<String, Object> getMetricSettings() {
+        Map<String, Object> result = new Map<String, Object>();
+        
+        try {
+            // Get all available status picklist values
+            List<Map<String, String>> statusOptions = new List<Map<String, String>>();
+            Schema.DescribeFieldResult fieldResult = wfrecon__Job__c.wfrecon__Status__c.getDescribe();
+            List<Schema.PicklistEntry> ple = fieldResult.getPicklistValues();
+            
+            for (Schema.PicklistEntry entry : ple) {
+                if (entry.isActive()) {
+                    statusOptions.add(new Map<String, String>{
+                        'label' => entry.getLabel(),
+                        'value' => entry.getValue()
+                    });
+                }
+            }
+            
+            // Get current metric settings from custom metadata
+            List<JobMetricSetting__mdt> metricSettings = [
+                SELECT MasterLabel, DeveloperName, Statuses__c 
+                FROM JobMetricSetting__mdt 
+                WITH USER_MODE
+            ];
+            
+            Map<String, List<String>> metricStatusMap = new Map<String, List<String>>();
+            
+            // Define default metric names
+            List<String> defaultMetrics = new List<String>{
+                'backlog', 'inProgress', 'openBalance', 'retainagePending', 'workRemaining'
+            };
+            
+            for (String metricName : defaultMetrics) {
+                metricStatusMap.put(metricName, new List<String>());
+            }
+            
+            // Populate with existing settings
+            for (JobMetricSetting__mdt setting : metricSettings) {
+                if (setting.Statuses__c != null) {
+                    metricStatusMap.put(setting.DeveloperName, setting.Statuses__c.split(','));
+                }
+            }
+            
+            result.put('statusOptions', statusOptions);
+            result.put('metricStatusMap', metricStatusMap);
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getMetricSettings', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+
+        }
+        
+        return result;
+    }
+    
+    /*
+    *********************************************************
+    @description     : Method to save metric settings using Metadata API
+    @param           : Map<String, List<String>> - Metric to statuses mapping
+    ********************************************************
+    */
+    @AuraEnabled
+    public static void saveMetricSettings(Map<String, List<String>> metricStatusMap) {
+        try {
+            // Use Metadata API to create/update custom metadata records
+            List<Metadata.CustomMetadata> customMetadataList = new List<Metadata.CustomMetadata>();
+            
+            for (String metricName : metricStatusMap.keySet()) {
+                List<String> statuses = metricStatusMap.get(metricName);
+                String statusesString = String.join(statuses, ',');
+                
+                // Create custom metadata record
+                Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
+                customMetadata.fullName = 'JobMetricSetting__mdt.' + metricName;
+                customMetadata.label = metricName;
+                
+                // Create statuses field value
+                Metadata.CustomMetadataValue statusesField = new Metadata.CustomMetadataValue();
+                statusesField.field = 'Statuses__c';
+                statusesField.value = statusesString;
+                
+                customMetadata.values = new List<Metadata.CustomMetadataValue> { statusesField };
+                customMetadataList.add(customMetadata);
+            }
+            
+            // Deploy the metadata
+            if (!customMetadataList.isEmpty()) {
+                Metadata.DeployContainer mdContainer = new Metadata.DeployContainer();
+                for (Metadata.CustomMetadata cm : customMetadataList) {
+                    mdContainer.addMetadata(cm);
+                }
+                
+                // Perform deployment
+                Id asyncResultId = Metadata.Operations.enqueueDeployment(mdContainer, null);
+            }
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'saveMetricSettings', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+
+        }
+    }
+    
+    /*
+    *********************************************************
+    @description     : Initialize empty metrics
+    @return          : Map<String, MetricData> - Empty metrics
+    ********************************************************
+    */
+    private static Map<String, MetricData> initializeEmptyMetrics() {
+        Map<String, MetricData> emptyMetrics = new Map<String, MetricData>();
+        emptyMetrics.put('backlog', new MetricData());
+        emptyMetrics.put('inProgress', new MetricData());
+        emptyMetrics.put('openBalance', new MetricData());
+        emptyMetrics.put('retainagePending', new MetricData());
+        emptyMetrics.put('workRemaining', new MetricData());
+        return emptyMetrics;
+    }
+
     // Wrapper class for job data
     public class JobData {
         @AuraEnabled public String jobId { get; set; }
         @AuraEnabled public String jobName { get; set; }
         @AuraEnabled public String jobNumber { get; set; }
-         @AuraEnabled public String status { get; set; }
+        @AuraEnabled public String status { get; set; }
         @AuraEnabled public Decimal baseContract { get; set; }
         @AuraEnabled public Decimal changeOrder { get; set; }
         @AuraEnabled public Decimal totalCompletedValue { get; set; }
@@ -225,19 +422,6 @@ public with sharing class JobMetricsController {
             this.paidAmount = 0;
             this.balanceAmount = 0;
             this.retainageHeld = 0;
-        }
-    }
-    
-    // Metric data class for dashboard
-    public class MetricData {
-        @AuraEnabled
-        public Integer count { get; set; }
-        @AuraEnabled
-        public Decimal totalValue { get; set; }
-        
-        public MetricData(Integer count, Decimal totalValue) {
-            this.count = count;
-            this.totalValue = totalValue;
         }
     }
 }

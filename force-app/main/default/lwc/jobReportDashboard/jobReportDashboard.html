@@ -28,9 +28,21 @@
 
             <div class="metrics-cards-container">
                 <!-- Backlog Metric -->
-                <div class="metric-card backlog-metric">
+                <div class="metric-card backlog-metric" data-label="backlog" onclick={handleMetricClick}>
                     <div class="metric-content">
-                        <div class="metric-title">Backlog</div>
+                        <div class="metric-head">
+                            <div class="metric-title">Backlog</div>
+
+                            <div class="action-btns">
+                                <div class="edit-btn btn action-btn" data-metric="backlog" onclick={openEditPopup}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                        <path
+                                            d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                        </div>
                         <div class="metric-count">
                             <lightning-formatted-number value={backlogValue} format-style="currency" currency-code="USD"
                                 maximum-fraction-digits="2">
@@ -60,9 +72,21 @@
                 </div>
 
                 <!-- In Progress Metric -->
-                <div class="metric-card inprogress-metric">
+                <div class="metric-card inprogress-metric" data-label="inProgress" onclick={handleMetricClick}>
                     <div class="metric-content">
-                        <div class="metric-title">In Progress</div>
+                        <div class="metric-head">
+                            <div class="metric-title">In Progress</div>
+
+                            <div class="action-btns">
+                                <div class="edit-btn btn action-btn" data-metric="inProgress" onclick={openEditPopup}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                        <path
+                                            d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                        </div>
                         <div class="metric-count">
                             <lightning-formatted-number value={inProgressValue} format-style="currency"
                                 currency-code="USD" maximum-fraction-digits="2">
@@ -82,16 +106,28 @@
                     </div>
                 </div>
 
-                <!-- Outstanding Metric -->
-                <div class="metric-card outstanding-metric">
+                <!-- Open Balance Metric -->
+                <div class="metric-card outstanding-metric" data-label="openBalance" onclick={handleMetricClick}>
                     <div class="metric-content">
-                        <div class="metric-title">Outstanding</div>
+                        <div class="metric-head">
+                            <div class="metric-title">Open Balance</div>
+
+                            <div class="action-btns">
+                                <div class="edit-btn btn action-btn" data-metric="openBalance" onclick={openEditPopup}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                        <path
+                                            d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                        </div>
                         <div class="metric-count">
-                            <lightning-formatted-number value={outstandingValue} format-style="currency"
+                            <lightning-formatted-number value={openBalanceValue} format-style="currency"
                                 currency-code="USD" maximum-fraction-digits="2">
                             </lightning-formatted-number>
                         </div>
-                        <div class="metric-value">Number of Jobs: {outstandingCount}</div>
+                        <div class="metric-value">Number of Jobs: {openBalanceCount}</div>
 
                     </div>
                     <div class="metric-icon">
@@ -106,9 +142,22 @@
                 </div>
 
                 <!-- Retainage Pending Metric -->
-                <div class="metric-card retainage-metric">
+                <div class="metric-card retainage-metric" data-label="retainagePending" onclick={handleMetricClick}>
                     <div class="metric-content">
-                        <div class="metric-title">Retainage Pending</div>
+                        <div class="metric-head">
+                            <div class="metric-title">Retainage Pending</div>
+
+                            <div class="action-btns">
+                                <div class="edit-btn btn action-btn" data-metric="retainagePending"
+                                    onclick={openEditPopup}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                        <path
+                                            d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                        </div>
                         <div class="metric-count">
                             <lightning-formatted-number value={retainageValue} format-style="currency"
                                 currency-code="USD" maximum-fraction-digits="2">
@@ -127,17 +176,29 @@
                     </div>
                 </div>
 
-                <!-- Close Metric -->
-                <div class="metric-card close-metric">
+                <!-- Work Remaining Metric -->
+                <div class="metric-card close-metric" data-label="workRemaining" onclick={handleMetricClick}>
                     <div class="metric-content">
-                        <div class="metric-title">Close</div>
+                        <div class="metric-head">
+                            <div class="metric-title">Work Remaining</div>
 
+                            <div class="action-btns">
+                                <div class="edit-btn btn action-btn" data-metric="workRemaining"
+                                    onclick={openEditPopup}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                        <path
+                                            d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                        </div>
                         <div class="metric-count">
-                            <lightning-formatted-number value={closeValue} format-style="currency" currency-code="USD"
-                                maximum-fraction-digits="2">
+                            <lightning-formatted-number value={remainingValue} format-style="currency"
+                                currency-code="USD" maximum-fraction-digits="2">
                             </lightning-formatted-number>
                         </div>
-                        <div class="metric-value">Number of Jobs: {closeCount}</div>
+                        <div class="metric-value">Number of Jobs: {remainingCount}</div>
                     </div>
                     <div class="metric-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -384,4 +445,43 @@
             </div>
         </div>
     </div>
+
+    <!-- Popup Modal -->
+    <template if:true={showEditPopup}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container mob-popup">
+                <!-- Modal header -->
+                <header class="slds-modal__header mob-popup-header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                        title="Close" onclick={closeEditPopup}>
+                        <lightning-icon icon-name="utility:close" alternative-text="close"
+                            class="slds-button__icon slds-button__icon_large">
+                        </lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-text-heading_medium">Edit Job Status</h2>
+                </header>
+
+                <!-- Modal content -->
+                <div class="slds-modal__content mob-popup-body">
+                    <div class="dual-listbox-container slds-p-horizontal_medium">
+                        <lightning-dual-listbox name="statusManager" label="Manage Job Status" variant="label-hidden"
+                            source-label="Available Statuses" selected-label="Selected Statuses" options={statusOptions}
+                            value={selectedStatuses} onchange={handleStatusSelection} class="custom-dual-listbox">
+                        </lightning-dual-listbox>
+                    </div>
+                </div>
+
+
+                <!-- Modal footer -->
+                <footer class="slds-modal__footer bottom-footer-btn">
+                    <button class="slds-button slds-button_neutral confirmation-cancel-btn"
+                        onclick={closeEditPopup}>Cancel</button>
+                    <button class="slds-button slds-button_brand save-btn" onclick={handleSave}>Save Changes</button>
+                </footer>
+            </div>
+        </section>
+        <!-- Modal Backdrop -->
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
 </template>

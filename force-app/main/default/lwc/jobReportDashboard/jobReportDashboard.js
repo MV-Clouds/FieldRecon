@@ -1,6 +1,8 @@
 import { LightningElement, track, wire } from 'lwc';
 import getAllJobsWithScopeData from '@salesforce/apex/JobMetricsController.getAllJobsWithScopeData';
 import getJobMetrics from '@salesforce/apex/JobMetricsController.getJobMetrics';
+import getMetricSettings from '@salesforce/apex/JobMetricsController.getMetricSettings';
+import saveMetricSettings from '@salesforce/apex/JobMetricsController.saveMetricSettings';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import { loadScript } from 'lightning/platformResourceLoader';
@@ -22,12 +24,12 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     @track backlogValue = 0;
     @track inProgressCount = 0;
     @track inProgressValue = 0;
-    @track outstandingCount = 0;
-    @track outstandingValue = 0;
+    @track openBalanceCount = 0;
+    @track openBalanceValue = 0;
     @track retainageCount = 0;
     @track retainageValue = 0;
-    @track closeCount = 0;
-    @track closeValue = 0;
+    @track remainingCount = 0;
+    @track remainingValue = 0;
 
     // Totals for footer
     @track totalContract = 0;
@@ -53,7 +55,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         ]
     };
 
-    @track statusOptions = []; // To store picklist values
     jobObjectInfo;
     jobPicklistResponse;
 
@@ -62,13 +63,21 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     @track allFinanceData = []; // Store original unfiltered data
     @track jobStatusMap = new Map(); // Store job statuses for filtering
 
+
+    @track showEditPopup = false;
+    @track currentEditingMetric = '';
+
+    @track statusOptions = []; // All available status options
+    @track metricSettings = {}; // Store metric to status mapping
+    @track selectedStatuses = []; // Currently selected statuses for editing
+
     // Store wired responses for refresh
     wiredMetricsResponse;
     wiredJobDataResponse;
 
     connectedCallback() {
-        // Load D3.js when component is connected
         this.loadD3();
+        this.loadMetricSettings();
     }
 
     async loadD3() {
@@ -98,10 +107,22 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 }))
             ];
         } else if (error) {
+            this.statusOptions = []; 
             this.showToast('Error', 'Failed to load status options', 'error');
         }
     }
 
+
+    async loadMetricSettings() {
+        try {
+            const result = await getMetricSettings();
+            this.statusOptions = result.statusOptions;
+            this.metricSettings = result.metricStatusMap;
+        } catch (error) {
+            console.error('Error loading metric settings:', error);
+            this.showToast('Error', 'Failed to load metric settings', 'error');
+        }
+    }
 
     @wire(getJobMetrics)
     wiredMetrics(result) {
@@ -109,6 +130,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         const { error, data } = result;
         if (data) {
             this.processMetricsData(data);
+            console.log(data);
+
         } else if (error) {
             this.showToast('Error', 'Failed to load job metrics data: ' + error.body.message, 'error');
         }
@@ -138,21 +161,31 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         return `toggle-option ${this.showChart ? 'active' : ''}`;
     }
 
+    getMetricDisplayName(metricName) {
+        const nameMap = {
+            'backlog': 'Backlog',
+            'inProgress': 'In Progress',
+            'openBalance': 'Open Balance',
+            'retainagePending': 'Retainage Pending',
+            'workRemaining': 'Work Remaining'
+        };
+        return nameMap[metricName] || metricName;
+    }
+
     processMetricsData(data) {
         this.backlogCount = data.backlog?.count || 0;
         this.backlogValue = data.backlog?.totalValue || 0;
         this.inProgressCount = data.inProgress?.count || 0;
         this.inProgressValue = data.inProgress?.totalValue || 0;
-        this.outstandingCount = data.outstanding?.count || 0;
-        this.outstandingValue = data.outstanding?.totalValue || 0;
+        this.openBalanceCount = data.openBalance?.count || 0;
+        this.openBalanceValue = data.openBalance?.totalValue || 0;
         this.retainageCount = data.retainagePending?.count || 0;
         this.retainageValue = data.retainagePending?.totalValue || 0;
-        this.closeCount = data.close?.count || 0;
-        this.closeValue = data.close?.totalValue || 0;
+        this.remainingCount = data.workRemaining?.count || 0;
+        this.remainingValue = data.workRemaining?.totalValue || 0;
     }
 
     processFinanceData(data) {
-        // Store original data for filtering
         this.allFinanceData = data.map((job, index) => {
             const totalContract = (job.baseContract || 0) + (job.changeOrder || 0);
             const completedValue = job.totalCompletedValue || 0;
@@ -172,7 +205,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             };
         });
 
-        // Apply initial filtering
         this.applyFilters();
         this.isLoading = false;
     }
@@ -247,6 +279,56 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }
     }
 
+    openEditPopup(event) {
+        const metricName = event.currentTarget.dataset.metric;
+        this.currentEditingMetric = metricName;
+
+        // Get current selected statuses for this metric
+        this.selectedStatuses = this.metricSettings[metricName] || [];
+
+        this.showEditPopup = true;
+    }
+
+    closeEditPopup() {
+        this.showEditPopup = false;
+        this.currentEditingMetric = '';
+        this.selectedStatuses = [];
+    }
+
+    handleStatusSelection(event) {
+        this.selectedStatuses = event.detail.value;
+    }
+
+    handleModalClick(event) {
+        event.stopPropagation();
+    }
+
+    async handleSave() {
+        try {
+            this.isLoading = true;
+
+            // Update the metric settings with new statuses
+            this.metricSettings[this.currentEditingMetric] = this.selectedStatuses;
+            const metricStatusMap = {};
+            for (const [metricName, statuses] of Object.entries(this.metricSettings)) {
+                metricStatusMap[metricName] = statuses;
+            }
+
+            await saveMetricSettings({ metricStatusMap: metricStatusMap });
+
+            this.closeEditPopup();
+
+            // Refresh the metrics data
+            await refreshApex(this.wiredMetricsResponse);
+
+            this.showToast('Success', 'Metric settings saved successfully', 'success');
+
+        } catch (error) {
+            this.showToast('Error', 'Failed to save settings: ' + error.body?.message || error.message, 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
 
     handleSearchInput(event) {
         this.searchTerm = event.target.value;
@@ -277,11 +359,15 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             });
         }
 
-
-        // Apply status filter - now using job.status directly
         if (this.selectedStatus) {
+            // Single status filter (from combobox)
             filteredData = filteredData.filter(job =>
                 job.status === this.selectedStatus
+            );
+        } else if (this.selectedStatuses && this.selectedStatuses.length > 0) {
+            // Multiple status filter (from metric card click)
+            filteredData = filteredData.filter(job =>
+                this.selectedStatuses.includes(job.status)
             );
         }
 
@@ -301,220 +387,242 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }
     }
 
+    handleMetricClick(event) {
+        const metricName = event.currentTarget.dataset.label;
+
+        // Get all statuses associated with this metric from your metricSettings
+        const statusesForMetric = this.metricSettings[metricName] || [];
+
+        if (statusesForMetric.length > 0) {
+            // Clear any existing search term and single status filter
+            this.searchTerm = '';
+            this.selectedStatus = '';
+
+            // Set the multiple statuses for filtering
+            this.selectedStatuses = statusesForMetric;
+
+            // Apply the filters to update the table
+            this.applyFilters();
+        } else {
+            this.showToast('No Statuses', `No statuses configured for ${this.getMetricDisplayName(metricName)}`, 'warning');
+        }
+    }
+
     clearFilters() {
         this.searchTerm = '';
         this.selectedStatus = '';
+        this.selectedStatuses = [];
         this.applyFilters();
     }
 
-   renderChart() {
-    if (!window.d3 || !this.isFinanceDataAvailable) return;
+    renderChart() {
+        if (!window.d3 || !this.isFinanceDataAvailable) return;
 
-    const container = this.template.querySelector('.chart-container');
-    if (!container) return;
+        const container = this.template.querySelector('.chart-container');
+        if (!container) return;
 
-    // Clear previous chart
-    container.innerHTML = '';
+        // Clear previous chart
+        container.innerHTML = '';
 
-    const margin = { top: 60, right: 20, bottom: 120, left: 80 };
-    const containerWidth = container.clientWidth;
-    const containerHeight = 500;
+        const margin = { top: 60, right: 20, bottom: 120, left: 80 };
+        const containerWidth = container.clientWidth;
+        const containerHeight = 500;
 
-    const width = containerWidth - margin.left - margin.right;
-    const height = containerHeight - margin.top - margin.bottom;
+        const width = containerWidth - margin.left - margin.right;
+        const height = containerHeight - margin.top - margin.bottom;
 
-    const svg = window.d3.select(container)
-        .append('svg')
-        .attr('width', '100%')
-        .attr('height', containerHeight)
-        .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
-        .attr('preserveAspectRatio', 'xMidYMid meet')
-        .append('g')
-        .attr('transform', `translate(${margin.left},${margin.top})`);
+        const svg = window.d3.select(container)
+            .append('svg')
+            .attr('width', '100%')
+            .attr('height', containerHeight)
+            .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet')
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // Prepare data for chart 
-    const chartData = [...this.financeData]
-        .sort((a, b) => (b[this.chartConfig.valueType] || 0) - (a[this.chartConfig.valueType] || 0));
+        // Prepare data for chart 
+        const chartData = [...this.financeData]
+            .sort((a, b) => (b[this.chartConfig.valueType] || 0) - (a[this.chartConfig.valueType] || 0));
 
-    // Get the current value type for display
-    const currentValueType = this.chartConfig.valueType;
-    const currentValueLabel = this.chartConfig.valueTypes.find(type => type.value === currentValueType)?.label || currentValueType;
+        // Get the current value type for display
+        const currentValueType = this.chartConfig.valueType;
+        const currentValueLabel = this.chartConfig.valueTypes.find(type => type.value === currentValueType)?.label || currentValueType;
 
-    // Calculate Y-axis domain with proper tick values
-    const maxValue = window.d3.max(chartData, d => d[currentValueType] || 0);
-    const minValue = window.d3.min(chartData, d => d[currentValueType] || 0);
+        // Calculate Y-axis domain with proper tick values
+        const maxValue = window.d3.max(chartData, d => d[currentValueType] || 0);
+        const minValue = window.d3.min(chartData, d => d[currentValueType] || 0);
 
-    // Create values for Y-axis
-    const yDomain = [0, maxValue * 1.1];
-    const yTickValues = this.generateNiceTickValues(yDomain[1]);
+        // Create values for Y-axis
+        const yDomain = [0, maxValue * 1.1];
+        const yTickValues = this.generateNiceTickValues(yDomain[1]);
 
-    const y = window.d3.scaleLinear()
-        .domain(yDomain)
-        .range([height, 0])
-        .nice();
+        const y = window.d3.scaleLinear()
+            .domain(yDomain)
+            .range([height, 0])
+            .nice();
 
-    const x = window.d3.scaleBand()
-        .domain(chartData.map(d => d.jobName))
-        .range([0, width])
-        .padding(0.4);
+        const x = window.d3.scaleBand()
+            .domain(chartData.map(d => d.jobName))
+            .range([0, width])
+            .padding(0.4);
 
-    // Light color palette
-    const lightColors = [
-        '#8ECAE6', '#219EBC', '#126782', // Light blues
-        '#FFB4A2', '#E5989B', '#B5838D', // Light pinks
-        '#A7C957', '#606C38', '#283618', // Light greens
-        '#E9C46A', '#F4A261', '#E76F51'  // Light oranges
-    ];
+        // Light color palette
+        const lightColors = [
+            '#8ECAE6', '#219EBC', '#126782', // Light blues
+            '#FFB4A2', '#E5989B', '#B5838D', // Light pinks
+            '#A7C957', '#606C38', '#283618', // Light greens
+            '#E9C46A', '#F4A261', '#E76F51'  // Light oranges
+        ];
 
-    const color = window.d3.scaleOrdinal()
-        .domain(chartData.map((d, i) => i))
-        .range(lightColors);
+        const color = window.d3.scaleOrdinal()
+            .domain(chartData.map((d, i) => i))
+            .range(lightColors);
 
-    // Add X axis with consistent styling
-    const xAxis = svg.append('g')
-        .attr('transform', `translate(0,${height})`)
-        .call(window.d3.axisBottom(x));
+        // Add X axis with consistent styling
+        const xAxis = svg.append('g')
+            .attr('transform', `translate(0,${height})`)
+            .call(window.d3.axisBottom(x));
 
-    // Style X axis labels and line
-    xAxis.selectAll('text')
-        .attr('transform', 'rotate(-45)')
-        .style('text-anchor', 'end')
-        .style('font-size', '11px')
-        .style('fill', '#666');
+        // Style X axis labels and line
+        xAxis.selectAll('text')
+            .attr('transform', 'rotate(-45)')
+            .style('text-anchor', 'end')
+            .style('font-size', '11px')
+            .style('fill', '#666');
 
-    // Style X axis line to be visible
-    xAxis.select('.domain')
-        .attr('stroke', '#666')
-        .attr('stroke-width', 1);
+        // Style X axis line to be visible
+        xAxis.select('.domain')
+            .attr('stroke', '#666')
+            .attr('stroke-width', 1);
 
-    // Add X axis label
-    svg.append('text')
-        .attr('x', width / 2)
-        .attr('y', height + margin.bottom - 40)
-        .style('text-anchor', 'middle')
-        .style('font-size', '12px')
-        .style('fill', '#666')
-        .text('Job Name');
+        // Add X axis label
+        svg.append('text')
+            .attr('x', width / 2)
+            .attr('y', height + margin.bottom - 40)
+            .style('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .text('Job Name');
 
-    // Add Y axis with consistent styling
-    const yAxis = svg.append('g')
-        .call(window.d3.axisLeft(y).tickValues(yTickValues).tickFormat(d => this.formatCurrency(d)));
+        // Add Y axis with consistent styling
+        const yAxis = svg.append('g')
+            .call(window.d3.axisLeft(y).tickValues(yTickValues).tickFormat(d => this.formatCurrency(d)));
 
-    // Style Y axis line to match X axis
-    yAxis.select('.domain')
-        .attr('stroke', '#666')
-        .attr('stroke-width', 1);
+        // Style Y axis line to match X axis
+        yAxis.select('.domain')
+            .attr('stroke', '#666')
+            .attr('stroke-width', 1);
 
-    yAxis.selectAll('text')
-        .style('font-size', '11px')
-        .style('fill', '#666');
+        yAxis.selectAll('text')
+            .style('font-size', '11px')
+            .style('fill', '#666');
 
-    // Add Y axis label
-    svg.append('text')
-        .attr('transform', 'rotate(-90)')
-        .attr('y', 0 - margin.left + 15)
-        .attr('x', 0 - (height / 2))
-        .attr('dy', '1em')
-        .style('text-anchor', 'middle')
-        .style('font-size', '12px')
-        .style('fill', '#666')
-        .text(`${currentValueLabel}`);
+        // Add Y axis label
+        svg.append('text')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', 0 - margin.left + 15)
+            .attr('x', 0 - (height / 2))
+            .attr('dy', '1em')
+            .style('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .text(`${currentValueLabel}`);
 
-    // Add dropdown with label
-    const dropdownGroup = svg.append('g')
-        .attr('class', 'chart-dropdown')
-        .attr('transform', `translate(${width - 200}, -45)`);
+        // Add dropdown with label
+        const dropdownGroup = svg.append('g')
+            .attr('class', 'chart-dropdown')
+            .attr('transform', `translate(${width - 200}, -45)`);
 
-    // Add dropdown label
-    dropdownGroup.append('text')
-        .attr('x', 70)
-        .attr('y', 2)
-        .style('font-size', '12px')
-        .style('fill', '#666')
-        .style('font-weight', '500')
-        .text('Change Y-axis:');
+        // Add dropdown label
+        dropdownGroup.append('text')
+            .attr('x', 70)
+            .attr('y', 2)
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .style('font-weight', '500')
+            .text('Change Y-axis:');
 
-    // Create foreignObject for the select element
-    const foreignObject = dropdownGroup.append('foreignObject')
-        .attr('x', 70) // Adjusted to account for label width
-        .attr('y', 6)
-        .attr('width', 130)
-        .attr('height', 26);
+        // Create foreignObject for the select element
+        const foreignObject = dropdownGroup.append('foreignObject')
+            .attr('x', 70) // Adjusted to account for label width
+            .attr('y', 6)
+            .attr('width', 130)
+            .attr('height', 26);
 
-    const selectElement = foreignObject.append('xhtml:select')
-        .style('width', '100%')
-        .style('height', '24px')
-        .style('border', '1px solid #ddd')
-        .style('border-radius', '4px')
-        .style('padding', '2px 8px')
-        .style('font-size', '12px')
-        .style('background', 'white')
-        .style('color', '#333')
-        .on('change', (event) => {
-            this.chartConfig.valueType = event.target.value;
-            this.renderChart();
-        });
+        const selectElement = foreignObject.append('xhtml:select')
+            .style('width', '100%')
+            .style('height', '24px')
+            .style('border', '1px solid #ddd')
+            .style('border-radius', '4px')
+            .style('padding', '2px 8px')
+            .style('font-size', '12px')
+            .style('background', 'white')
+            .style('color', '#333')
+            .on('change', (event) => {
+                this.chartConfig.valueType = event.target.value;
+                this.renderChart();
+            });
 
-    selectElement.selectAll('option')
-        .data(this.chartConfig.valueTypes)
-        .enter()
-        .append('xhtml:option')
-        .attr('value', d => d.value)
-        .property('selected', d => d.value === this.chartConfig.valueType)
-        .text(d => d.label);
+        selectElement.selectAll('option')
+            .data(this.chartConfig.valueTypes)
+            .enter()
+            .append('xhtml:option')
+            .attr('value', d => d.value)
+            .property('selected', d => d.value === this.chartConfig.valueType)
+            .text(d => d.label);
 
-    // Create tooltip
-    const tooltip = window.d3.select(container)
-        .append('div')
-        .attr('class', 'chart-tooltip')
-        .style('position', 'absolute')
-        .style('background', 'white')
-        .style('padding', '12px')
-        .style('border', '1px solid #e0e0e0')
-        .style('border-radius', '6px')
-        .style('pointer-events', 'none')
-        .style('opacity', 0)
-        .style('font-size', '12px')
-        .style('box-shadow', '0 2px 8px rgba(0,0,0,0.15)')
-        .style('z-index', '1000')
-        .style('max-width', '300px');
+        // Create tooltip
+        const tooltip = window.d3.select(container)
+            .append('div')
+            .attr('class', 'chart-tooltip')
+            .style('position', 'absolute')
+            .style('background', 'white')
+            .style('padding', '12px')
+            .style('border', '1px solid #e0e0e0')
+            .style('border-radius', '6px')
+            .style('pointer-events', 'none')
+            .style('opacity', 0)
+            .style('font-size', '12px')
+            .style('box-shadow', '0 2px 8px rgba(0,0,0,0.15)')
+            .style('z-index', '1000')
+            .style('max-width', '300px');
 
-    // Add bars with light colors and hover effects
-    svg.selectAll('.bar')
-        .data(chartData)
-        .enter()
-        .append('rect')
-        .attr('class', 'bar')
-        .attr('x', d => x(d.jobName))
-        .attr('y', d => y(d[currentValueType] || 0))
-        .attr('width', x.bandwidth())
-        .attr('height', d => height - y(d[currentValueType] || 0))
-        .attr('fill', (d, i) => color(i))
-        .attr('rx', 3) // Rounded corners
-        .attr('ry', 3)
-        .style('cursor', 'pointer') // Add pointer cursor on hover
-        .on('mouseover', function (event, d) {
-            const value = d[currentValueType] || 0;
-            tooltip
-                .style('opacity', 1)
-                .html(`
+        // Add bars with light colors and hover effects
+        svg.selectAll('.bar')
+            .data(chartData)
+            .enter()
+            .append('rect')
+            .attr('class', 'bar')
+            .attr('x', d => x(d.jobName))
+            .attr('y', d => y(d[currentValueType] || 0))
+            .attr('width', x.bandwidth())
+            .attr('height', d => height - y(d[currentValueType] || 0))
+            .attr('fill', (d, i) => color(i))
+            .attr('rx', 3) // Rounded corners
+            .attr('ry', 3)
+            .style('cursor', 'pointer') // Add pointer cursor on hover
+            .on('mouseover', function (event, d) {
+                const value = d[currentValueType] || 0;
+                tooltip
+                    .style('opacity', 1)
+                    .html(`
                 <div><strong>${d.jobName}</strong></div>
                 <div>${currentValueLabel}: $${window.d3.format(',')(value)}</div>
             `);
-        })
-        .on('mousemove', function (event) {
-            tooltip
-                .style('left', (event.offsetX + 20) + 'px')
-                .style('top', (event.offsetY - 40) + 'px');
-        })
-        .on('mouseout', function () {
-            // Remove hover effect from bar
-            window.d3.select(this)
-                .attr('stroke', 'none')
-                .attr('stroke-width', 0);
-            tooltip.style('opacity', 0);
-        });
-}
+            })
+            .on('mousemove', function (event) {
+                tooltip
+                    .style('left', (event.offsetX + 20) + 'px')
+                    .style('top', (event.offsetY - 40) + 'px');
+            })
+            .on('mouseout', function () {
+                // Remove hover effect from bar
+                window.d3.select(this)
+                    .attr('stroke', 'none')
+                    .attr('stroke-width', 0);
+                tooltip.style('opacity', 0);
+            });
+    }
 
     // Helper method to generate nice tick values for Y-axis
     generateNiceTickValues(maxValue) {
