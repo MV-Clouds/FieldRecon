@@ -114,7 +114,7 @@ public with sharing class JobMetricsController {
                 JobData data = new JobData();
                 data.jobId = job.Id;
                 data.jobName = job.wfrecon__Job_Name__c;
-                data.jobNumber = job.wfrecon__Job_Number__c;
+                data.jobNumber = job.Name;
                 data.status = job.wfrecon__Status__c;
                 data.baseContract = job.wfrecon__Total_Contract_Value__c != null ? job.wfrecon__Total_Contract_Value__c : 0;
                 data.changeOrder = job.wfrecon__Total_Change_Order_Value__c != null ? job.wfrecon__Total_Change_Order_Value__c : 0;
