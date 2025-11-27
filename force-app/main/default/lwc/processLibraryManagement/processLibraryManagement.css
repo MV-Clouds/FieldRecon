@@ -547,12 +547,13 @@
     height: 2rem;
     overflow: hidden;
     position: relative;
-    width: 8rem; /* Adjusted width for 'Process Type' label */
+    width: 10rem; /* Adjusted width for 'Process Type' label */
     min-width: 6rem;
     z-index: 15;
     cursor: pointer;
     border: 1px solid gray;
     border-radius: 0.5rem;
+    background-color: white;
 }
 
 .process-type-filter-picklist:hover{
@@ -571,7 +572,7 @@
     border-radius: 0.5rem;
     gap: 1px;
     margin-top: 1px; /* Slight adjustment to detach visually from label */
-    min-width: 8rem;
+    min-width: 10rem;
 }
 
 .process-type-filter-picklist:hover .process-type-options-selection-div{
