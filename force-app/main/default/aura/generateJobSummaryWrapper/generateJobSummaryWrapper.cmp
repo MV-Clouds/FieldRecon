@@ -1,0 +1,18 @@
+<aura:component implements="flexipage:availableForAllPageTypes,force:lightningQuickActionWithoutHeader,force:hasRecordId"  access="global" >
+    <aura:html tag="style"> 
+    .slds-modal__content{
+        min-height: 300px !important;
+        height: max-content !important;
+        max-height: 90% !important;
+    }
+    .modal-container {
+        width: 70%;
+        max-width: 840px;
+        min-width: min(calc(100% - 2rem), 480px);
+        margin-inline: auto;
+    }
+    </aura:html>
+    <aura:attribute name="recordId" type="String" default="false" />   
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+    <c:generateJobSummary recordId='{!v.recordId}' />
+</aura:component>

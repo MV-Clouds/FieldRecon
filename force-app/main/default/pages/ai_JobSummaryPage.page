@@ -1,0 +1,214 @@
+<apex:page controller="AI_JobSummaryPageController" applyHtmlTag="false" showHeader="false" cache="false">
+    <html>
+        <head>
+            <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+            <style></style>
+        </head>
+        <body>
+            <div id="jobSummarySection"></div>
+
+            <script type="text/javascript">
+                const dataJSON = '{!JSENCODE(summaryData)}';
+                const data = JSON.parse(dataJSON ?? '[]')
+                let htmlContent = generateJobSummaryHTML(data);
+                let labels = {};
+
+                if(!htmlContent){
+                    let jobSummarySection = document.querySelector('#jobSummarySection');
+                    if(jobSummarySection) jobSummarySection.innerHTML = htmlContent;
+                    return;
+                }
+
+                function generateJobSummaryHTML(data) {
+                try {
+                    const job = data.JobOverview || {};
+                    const summary = data.ShiftLogSummary || {};
+                    const notes = data.NotesForOffice || [];
+                    const health = data.OverallJobHealthSummary || {};
+                    labels = data.Label || {};                // <-- Label object from AI
+                    const reportDate = data.ReportMetaData?.ReportDate || "";
+
+                    function formatDate(dateStr) {
+                        if (!dateStr) return "";
+                        const date = new Date(dateStr);
+                        return date.toLocaleDateString("en-US", { day: 'numeric', month: 'long', year: 'numeric' });
+                    }
+
+                    return `
+                        <div class="frJobSummary__v1" style="font-family:'Segoe UI',Arial,sans-serif;color:#333;line-height:1.6;max-width:900px;margin:auto;padding:30px;background:#fafafa;">
+                        <style>
+                            @media screen and (max-width: 600px){ .frJobSummary__v1 {padding: 0px !important;} .frJobSummary__v1 .sub-section {padding: 12px !important;} }
+                        </style>
+                        <div class="sub-section" style="background:#ffffff;padding:25px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+
+                            <h1 style="color:#0f172a;font-size:26px;margin-bottom:5px;">Job Summary Report</h1>
+                            <p style="font-size:13px;color:#555;margin-top:0;margin-bottom:15px;">${getLabel("ReportDate")}: ${formatDate(reportDate)}</p>
+                            <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;" />
+
+                            <!-- Job Overview -->
+                            <h2 style="color:#1e293b;font-size:18px;margin-bottom:8px;">${getLabel("JobOverviewTitle")}</h2>
+                            <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:15px;">
+                                <tbody>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("JobName")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${job.JobName || ""}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("Status")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${job.Status || ""}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("Location")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;" colspan="3">${job.Location || ""}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("ContractPrice")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">₹${job.ContractPrice || "0.00"}</td>
+                                    <tr>
+                                    </tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("TotalManHoursLogged")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${job.TotalManHoursLogged || "0"} hrs</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("TotalContractValue")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">₹${job.TotalContractValue || "0.00"}</td>
+                                    <tr>
+                                    </tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("Mobilizations")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${job.Mobilizations || 0}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <hr style="border:0;border-top:1px solid #e2e8f0;margin:30px 0;" />
+
+                            <!-- Work Progress Summary -->
+                            <h2 style="color:#1e293b;font-size:18px;">${getLabel("WorkProgressSummaryTitle")}</h2>
+                            <p style="margin-top:5px;font-size:14px;"><strong>${getLabel("GroupedByWorkDates")}</strong></p>
+
+                            <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:5px;">
+                                <tbody>
+                                    <tr>
+                                        <th style="padding:10px;border:1px solid #ddd;background:#f1f5f9;text-align:left;">${getLabel("Date")}</th>
+                                        <th style="padding:10px;border:1px solid #ddd;background:#f1f5f9;text-align:left;">${getLabel("SummaryOfKeyWorkActivities")}</th>
+                                    </tr>
+                                    ${summary.EachLogSummary?.map(log => `
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;">${formatDate(log.Date)}</td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${log.SummaryOfKeyWorkActivities}</td>
+                                    </tr>`).join('') || ""}
+                                </tbody>
+                            </table>
+                            <p style="font-size:14px;margin-top:12px;"><strong>${getLabel("OverallWorkSummary")}:</strong><br>${summary.WorkPerformedOverallSummary || ""}</p>
+
+                            <hr style="border:0;border-top:1px solid #e2e8f0;margin:30px 0;" />
+
+                            <!-- Exceptions / Challenges -->
+                            <h2 style="color:#1e293b;font-size:18px;">${getLabel("ExceptionsChallengesTitle")}</h2>
+                            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                                <tbody>
+                                    <tr>
+                                        <th style="padding:10px;border:1px solid #ddd;background:#f1f5f9;text-align:left;">${getLabel("Date")}</th>
+                                        <th style="padding:10px;border:1px solid #ddd;background:#f1f5f9;text-align:left;">${getLabel("ExceptionCause")}</th>
+                                    </tr>
+                                    ${summary.EachLogSummary?.map(log => `
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;">${formatDate(log.Date)}</td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${log.ExceptionCause || ""}</td>
+                                    </tr>`).join('') || ""}
+                                </tbody>
+                            </table>
+                            <p style="font-size:14px;margin-top:12px;"><strong>${getLabel("ExceptionOverallSummary")}:</strong><br>${summary.ExceptionOverallSummary || ""}</p>
+
+                            <hr style="border:0;border-top:1px solid #e2e8f0;margin:30px 0;" />
+
+                            <!-- Notes for Office -->
+                            <h2 style="color:#1e293b;font-size:18px;">${getLabel("NotesForOfficeTitle")}</h2>
+                            <ul style="font-size:14px;margin-top:5px;padding-left:20px;">
+                                ${notes.map(n => `<li style="margin-bottom:4px;list-style: disc">${n}</li>`).join('')}
+                            </ul>
+
+                            <hr style="border:0;border-top:1px solid #e2e8f0;margin:30px 0;" />
+
+                            <!-- Overall Job Health Summary -->
+                            <h2 style="color:#1e293b;font-size:18px;">${getLabel("OverallJobHealthSummaryTitle")}</h2>
+                            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                                <tbody>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("ScheduleProgress")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${health.Progress || ""}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("CommunicationEfficiency")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${health.Efficiency || ""}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("ResourceUtilization")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${health.ResourceUtilization || ""}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:8px;border:1px solid #ddd;background:#f9fafb;"><strong>${getLabel("DocumentationStatus")}</strong></td>
+                                        <td style="padding:8px;border:1px solid #ddd;">${health.Status || ""}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <hr style="border:0;border-top:1px solid #e2e8f0;margin:30px 0;" />
+
+                            <!-- Final Summary -->
+                            <h2 style="color:#1e293b;font-size:18px;">${getLabel("FinalSummaryTitle")}</h2>
+                            <p style="font-size:14px;">${data.FinalSummary || ""}</p>
+
+                        </div>
+                        </div>
+                    `;
+                            
+                    } catch (error) {
+                        console.log('error in generateJobSummaryHTML : ', error.stack);
+                        
+                    }
+                }
+
+                function getLabel(labelKey) {
+                    return labels?.[labelKey] || defaultLabels[labelKey] || labelKey;
+                }
+
+                let defaultLabels = () => {
+                    return {
+                        JobOverviewTitle: "Job Overview",
+                        JobName: "Job Name",
+                        Status: "Status",
+                        Location: "Location",
+                        ContractPrice: "Contract Price",
+                        TotalManHoursLogged: "Total Man Hours Logged",
+                        TotalContractValue: "Total Contract Value",
+                        Mobilizations: "Mobilizations",
+    
+                        WorkProgressSummaryTitle: "Work Progress Summary (By Each Day)",
+                        GroupedByWorkDates: "Grouped by Work Dates:",
+                        Date: "Date",
+                        SummaryOfKeyWorkActivities: "Summary of Key Work Activities",
+                        OverallWorkSummary: "Overall Summary",
+    
+                        ExceptionsChallengesTitle: "Exceptions / Challenges",
+                        ExceptionCause: "Exception / Cause",
+                        ExceptionOverallSummary: "Summary",
+    
+                        NotesForOfficeTitle: "Notes for Office",
+    
+                        OverallJobHealthSummaryTitle: "Overall Job Health Summary",
+                        ScheduleProgress: "Schedule Progress",
+                        CommunicationEfficiency: "Communication Efficiency",
+                        ResourceUtilization: "Resource Utilization",
+                        DocumentationStatus: "Documentation Status",
+    
+                        FinalSummaryTitle: "Final Summary",
+                        ReportDate: "Report Date"
+                    };
+                }
+
+            </script>
+         </body>
+     </html>
+            
+</apex:page>

@@ -1,0 +1,117 @@
+:host{
+    --primary-color: #5e5af9;
+    --record-button-bg: var(--primary-color);
+    --pause-button-bg: #fff;
+    --stop-button-bg: #e3066a;
+    --upload-button-bg: #fff;
+    --save-button-bg: var(--primary-color);
+    --refresh-button-bg: #fff;
+}
+
+.visualizer {
+    width: min(300px, 100%);
+    border: 1px solid #ccc;
+    border-radius: 16px;
+    height: 2rem;
+    display: none;
+}
+
+.visualizer[data-display=true]{
+    display: block;
+}
+
+.clip p {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.output-audio{
+    height: 2rem;
+}
+
+.control-buttons{
+    width: max-content;
+    gap: 0.25rem;
+}
+
+.control-btn {
+    height: 2rem;
+    width: max-content;
+    padding-inline: 1rem;
+    line-height: 1.875rem;
+    border-radius: 1rem;
+    border: none;
+    appearance: none;
+    white-space: normal;
+    user-select: none;
+    font-family: inherit;
+    vertical-align: middle;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem;
+
+    svg{
+        width: 20px;
+        height: 20px;
+    }
+
+    &:disabled{
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+        filter: saturate(0) brightness(1.5) !important;
+    }
+}
+
+.record-button{
+    background: var(--record-button-bg);
+    color: white;
+
+    svg{
+        fill: white;
+    }
+}
+
+.pause-button{
+    background: var(--pause-button-bg);
+    color: #3c3c3c;
+    border: 1px solid #3c3c3c;
+
+    svg{
+        fill: #3c3c3c;
+    }
+}
+
+.stop-button{
+    background: var(--stop-button-bg);
+    color: white;
+    svg{
+        fill: white;
+    }
+}
+
+.upload-button{
+    background: var(--upload-button-bg);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    svg{
+        fill: var(--primary-color);
+    }
+}
+
+.save-button{
+    background: var(--save-button-bg);
+    color: white;
+    svg{
+        fill: white;
+    }
+}
+
+.refresh-button{
+    background: var(--refresh-button-bg);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    svg{
+        fill: var(--primary-color);
+    }
+}

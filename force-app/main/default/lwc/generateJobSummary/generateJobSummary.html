@@ -9,6 +9,8 @@
             </div> -->
 
             <lightning-radio-group name="durationType" label="Select Interval Type" options={timeIntervalOptions} value={selectedDurationType} type="radio" onchange={handleChange}></lightning-radio-group>
+            
+            <lightning-radio-group name="visibility" class="slds-m-top_medium" label="Select Visibility" options={visibilityOptions} value={selectedVisibility} type="radio" onchange={handleChange}></lightning-radio-group>
 
             <!-- Dates -->
             <div lwc:if={isCustomTimeInterval} class="slds-grid slds-wrap slds-gutters input-container">
@@ -83,5 +85,8 @@
         </div>
 
         <div class="summaryContainer slds-m-vertical_small"></div>
+
+        <c-cmp_-text-to-speech lwc:if={ttsContent} value={ttsContent} language={selectedLanguage}></c-cmp_-text-to-speech>
+
     </lightning-card>
 </template>
