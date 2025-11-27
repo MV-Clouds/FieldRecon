@@ -97,7 +97,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Work Hours', fieldName: 'workHours', type: 'number', editable: false, style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', type: 'number', editable: true, min: 0.00, step: 0.01, style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', type: 'number', editable: false, style: 'width: 6rem' },
-        // CHANGED: Type to boolean for Per Diem
         { label: 'Per Diem', fieldName: 'perDiem', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Premium', fieldName: 'premium', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Cost Code', fieldName: 'costCodeName', type: 'text', editable: false, style: 'width: 6rem' }
@@ -175,7 +174,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         } else {
                             cell.value = job[col.fieldName] || '';
                             if (col.isLink && col.recordIdField) {
-                                cell.recordLink = `/${job.jobId}`; // Use jobId for link navigation
+                                cell.recordLink = `/${job.jobId}`; 
                             }
                         }
 
@@ -200,7 +199,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             return [];
         }
     }
-    	
+    
     /**
      * Method Name: getTimesheetDiscardButtonTitle
      * @description: Gets the dynamic tooltip for the Discard Changes button.
@@ -235,17 +234,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     let value = originalValue; 
                     let isModified = false;
 
-                    // --- Check for modifications ---
                     const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
                     if (modification && modification.hasOwnProperty(fieldName)) {
                         value = modification[fieldName];
                         isModified = true;
                     }
 
-                    // --- CRITICAL: Boolean Normalization for UI ---
-                    // If the column is boolean (Premium or Per Diem), force value to be true/false for checked={field.rawValue}
                     if (col.type === 'boolean') {
-                        // Handles 1, 0, "1", "0", true, false, AND the modified 1 or 0 value from the map
                         value = (value === 1 || value === '1' || value === true || value === 'true');
                     }
 
@@ -256,12 +251,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if (isModified) cellClass += ' modified-process-cell';
                     if (isEditing) cellClass += ' editing-cell';
                     
-                    // Display Value Logic (for non-editing mode)
                     let displayValue = String(value || '');
                     if (col.type === 'datetime') {
                         displayValue = value ? this.formatToAMPM(value) : '--';
                     } else if (col.type === 'boolean') {
-                        // Per Diem special display: 1 or 0. Premium: Yes or No.
                         if(fieldName === 'perDiem') {
                             displayValue = value ? '1' : '0';
                         } else {
@@ -271,6 +264,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         displayValue = value !== null && value !== undefined ? Number(value).toFixed(2) : '0.00';
                     }
 
+                    // Use formatToDatetimeLocal to extract raw ISO numbers for input
                     const datetimeValue = col.type === 'datetime' && value ? this.formatToDatetimeLocal(value) : null;
                     
                     let minBoundary = null;
@@ -283,7 +277,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     return {
                         key: fieldName,
                         displayValue: displayValue,
-                        rawValue: value, // This is the boolean value for checkboxes
+                        rawValue: value, 
                         datetimeValue: datetimeValue,
                         isEditing: isEditing,
                         isEditable: col.editable,
@@ -292,7 +286,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         contentClass: 'editable-content',
                         isDatetime: col.type === 'datetime',
                         isNumber: col.type === 'number',
-                        isBoolean: col.type === 'boolean', // Important flag
+                        isBoolean: col.type === 'boolean', 
                         isText: col.type === 'text',
                         isCurrency: col.type === 'currency',
                         step: col.step,
@@ -315,18 +309,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const jobRecord = this.getCurrentJobRecord();
         const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
         
-        // Clock In min boundary is job start date
         if (fieldName === 'clockInTime') {
             const dateKey = this.extractDateKey(jobStartReference);
             return dateKey ? `${dateKey}T00:00` : null;
         } 
-        // Clock Out min boundary is Clock In time
         else if (fieldName === 'clockOutTime') {
             const clockIn = ts.clockInTime;
             const modifiedClockIn = this.modifiedTimesheetEntries.get(ts.id)?.modifications.clockInTime;
             const referenceTime = modifiedClockIn || clockIn;
             
-            // Cannot clock out before clock in time
             return referenceTime ? this.formatToDatetimeLocal(referenceTime) : null;
         }
         return null;
@@ -340,12 +331,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const jobRecord = this.getCurrentJobRecord();
         const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
         
-        // Clock In max boundary is job end date
         if (fieldName === 'clockInTime') {
             const dateKey = this.extractDateKey(jobEndReference);
             return dateKey ? `${dateKey}T23:59` : null;
         } 
-        // Clock Out max boundary is day after job end date
         else if (fieldName === 'clockOutTime') {
             const dateKey = this.extractDateKey(jobEndReference);
             if (!dateKey) return null;
@@ -356,24 +345,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return null;
     }
 
-    /** 
-    * Method Name: formatToDatetimeLocal
-    * @description: Formats ISO datetime string to YYYY-MM-DDThh:mm format for input type="datetime-local"
+    /** * Method Name: formatToDatetimeLocal
+    * @description: Extracts YYYY-MM-DDThh:mm string from ISO.
+    * Does NOT use Date object to avoid browser timezone shift.
     */
     formatToDatetimeLocal(iso) {
         if (!iso) return '';
         try {
-            const date = new Date(iso);
-            if (isNaN(date.getTime())) return '';
-
-            // Ensure the local time offset is corrected before formatting (client-side adjustment)
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
+            // Example: "2025-11-26T14:30:00.000Z" -> "2025-11-26T14:30"
+            return iso.substring(0, 16);
         } catch (error) {
             console.error('Error in formatToDatetimeLocal:', error);
             return iso;
@@ -448,7 +428,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return this.viewMode === 'custom' ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn';
     }
 
-    // New delete confirmation properties
     get isTimesheetBulkDelete() {
         return this.deleteConfirmationAction === 'bulkDeleteTimesheets';
     }
@@ -533,8 +512,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     return;
                 }
 
-                console.log('Permission check result ==> ', result);
-                
                 const assignedMap = result.assignedMap || {};
                 const isAdmin = result.isAdmin || false;
                 const hasFRAdmin = assignedMap['FR_Admin'] || false;
@@ -563,33 +540,42 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
-    // --- Data Fetching and Formatting ---
-
     /** * Method Name: formatToAMPM
-    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
+    * @description: Formats ISO datetime string to 12-hour AM/PM format.
+    * Uses string parsing to ensure perfect match with edit input.
     */
     formatToAMPM(iso) {
         if (!iso) return '';
         try {
-            const date = new Date(iso);
-            if (isNaN(date.getTime())) return iso;
+            if (!iso) return '--';
             
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const monthName = monthNames[date.getMonth()];
+            // Parsing "2025-10-05T14:30:00.000Z" manually to avoid browser timezone math
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
             
-            let hours = date.getHours();
-            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const datePart = parts[0];
+            const timePart = parts[1].substring(0, 5); // "14:30"
+            
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
             const ampm = hours >= 12 ? 'PM' : 'AM';
             
             hours = hours % 12;
-            hours = hours ? hours : 12; // the hour '0' should be '12'
+            hours = hours ? hours : 12; 
             
             const paddedHours = String(hours).padStart(2, '0');
             
-            return `${monthName} ${String(date.getDate()).padStart(2, '0')}, ${date.getFullYear()}, ${paddedHours}:${minutes} ${ampm}`;
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
             console.error('Error in formatToAMPM:', error);
-            return iso;
+            return '--';
         }
     }
 
@@ -597,21 +583,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         if (!value) {
             return null;
         }
-
         if (value instanceof Date) {
             return value.toISOString().slice(0, 10);
         }
-
         const str = value.toString().trim();
         if (!str) {
             return null;
         }
-
-        // Handle ISO string format 'YYYY-MM-DDTHH:mm:ss.sssZ' or 'YYYY-MM-DD HH:mm:ss'
         if (str.length >= 10) {
             return str.slice(0, 10);
         }
-
         return null;
     }
 
@@ -619,12 +600,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         if (!dateKey || typeof dateKey !== 'string') {
             return null;
         }
-
         const [year, month, day] = dateKey.split('-').map(Number);
         if ([year, month, day].some(num => Number.isNaN(num))) {
             return null;
         }
-
         const utcDate = new Date(Date.UTC(year, month - 1, day));
         utcDate.setUTCDate(utcDate.getUTCDate() + days);
         
@@ -640,7 +619,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
             return false;
         }
-
         return true;
     }
 
@@ -656,7 +634,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return false;
             }
         }
-
         return true;
     }
 
@@ -664,7 +641,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         if (!this.jobId || !this.jobDetailsRaw || !Array.isArray(this.jobDetailsRaw)) {
             return null;
         }
-
         return this.jobDetailsRaw.find(job => job.jobId === this.jobId || job.mobId === this.mobId);
     }
 
@@ -680,8 +656,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if(data != null) {
                         this.jobDetailsRaw = data;
                         this.filteredJobDetailsRaw = data;
-                        
-                        // Pre-load timesheet data for all jobs
                         this.preloadTimesheetData();
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -706,7 +680,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      */
     async preloadTimesheetData() {
         try {
-            // Clear existing timesheet data and preserve expanded state
             const expandedIds = new Set(this.expandedJobs);
             this.timesheetDataMap = new Map();
             this.expandedJobs = new Set();
@@ -715,14 +688,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            // Load timesheet data for all jobs
             const loadPromises = this.jobDetailsRaw.map(job => {
                 return this.loadTimesheetDataForJob(job);
             });
 
             await Promise.all(loadPromises);
             
-            // Restore expanded state and trigger display update
             this.expandedJobs = expandedIds;
             this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
             
@@ -739,7 +710,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             const mobId = job.mobId;
             const jobId = job.jobId;
-            // Use the job's date range, not the filter range
             const jobStartDate = this.extractDateKey(job.startDate);
             const jobEndDate = this.extractDateKey(job.endDate);
             
@@ -751,10 +721,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             if (data && data.length > 0) {
                 const formattedData = data.map((item, index) => ({
-                    // Keep original TSEL fields for reference/editing
                     ...item,
                     srNo: index + 1,
-                    // Ensure values are numerical for calculation consistency
                     workHours: item.workHours !== null ? Number(item.workHours) : 0.00,
                     travelTime: item.travelTime !== null ? Number(item.travelTime) : 0.00,
                     perDiem: item.perDiem !== null ? Number(item.perDiem) : 0,
@@ -762,12 +730,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 }));
                 this.timesheetDataMap.set(mobId, formattedData);
             } else {
-                // Set empty array for jobs with no timesheet entries
                 this.timesheetDataMap.set(mobId, []);
             }
         } catch (error) {
             console.error('Error loading timesheet data for job:', job, error);
-            // Set empty array on error
             this.timesheetDataMap.set(job.mobId, []);
         }
     }
@@ -783,26 +749,27 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             getMobilizationMembersWithStatus({ mobId: this.mobId})
                 .then(result => {
                     if(result != null) {
-                        
                         this.clockInList = result.clockIn;
-    
                         this.clockInOptions = this.clockInList.map(person => ({
                             label: person.contactName,
                             value: person.contactId
                         }));
-    
+   
                         if (this.clockInList.length > 0) {
                             this.defaultStartTime = result.clockIn[0].jobStartTime.slice(0, 16);
                         } else {
-                            this.defaultStartTime = new Date().toISOString().slice(0, 16);
+                            // Default to current local time string
+                            const now = new Date();
+                            const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+                            this.defaultStartTime = (new Date(now.getTime() - offsetMs)).toISOString().slice(0, 16);
                         }
                         this.clockInTime = this.defaultStartTime;
-    
+   
                         if(result.costCodeDetails.length > 0) {
-                            const costCodeMap = result.costCodeDetails[0].costCodeDetails; // this is an object
+                            const costCodeMap = result.costCodeDetails[0].costCodeDetails; 
                             this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
-                                label: costCodeMap[key], // the name
-                                value: key               // the id
+                                label: costCodeMap[key],
+                                value: key
                             }));
                         }
                     } else {
@@ -832,12 +799,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this.expandedJobs.delete(mobId);
         } else {
             this.expandedJobs.add(mobId);
-            // Ensure timesheet data is loaded/refreshed
             this.loadTimesheetData(mobId);
         }
-        // Trigger re-render
         this.expandedJobs = new Set(this.expandedJobs);
-        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force jobDetails getter to re-run
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
     }
 
     /**
@@ -848,7 +813,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             this.isLoading = true;
             
-            // Find the job object from jobDetailsRaw
             const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
             if (job) {
                 await this.loadTimesheetDataForJob(job);
@@ -858,7 +822,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             console.error('Error in loadTimesheetData:', error);
         } finally {
             this.isLoading = false;
-            this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Final refresh
+            this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
         }
     }
 
@@ -869,13 +833,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             this.searchTerm = event.target.value;
             const searchKey = event.target.value.trim().toLowerCase();
-    
+   
             if (!searchKey) {
-                // If input is empty, show all
                 this.filteredJobDetailsRaw = this.jobDetailsRaw;
                 return;
             }
-    
+   
             this.filteredJobDetailsRaw = this.jobDetailsRaw.filter(job => {
                 const jobNumber = job.jobNumber
                     ? job.jobNumber.toString().toLowerCase()
@@ -883,7 +846,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 const jobName = job.jobName
                     ? job.jobName.toString().toLowerCase()
                     : '';
-    
+   
                 return jobNumber.includes(searchKey) || jobName.includes(searchKey);
             });
         } catch (error) {
@@ -923,7 +886,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 dt.setDate(dt.getDate() - 1);
                 this.selectedDate = dt;
             } else {
-                // move 1 week back
                 this.selectedDate.setDate(this.selectedDate.getDate() - 7);
                 this.calculateWeekRange();
             }
@@ -944,7 +906,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 dt.setDate(dt.getDate() + 1);
                 this.selectedDate = dt;
             } else {
-                // move 1 week forward
                 this.selectedDate.setDate(this.selectedDate.getDate() + 7);
                 this.calculateWeekRange();
             }
@@ -961,7 +922,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     switchToDayView() {
         try {
             this.viewMode = 'day';
-            this.selectedDate = new Date(); // reset to today
+            this.selectedDate = new Date(); 
             this.customStartDate = null;
             this.customEndDate = null;
             this.getJobRelatedMoblizationDetails();
@@ -994,11 +955,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     calculateWeekRange() {
         try {
             let dt = new Date(this.selectedDate);
-            let day = dt.getDay(); // 0=Sunday, 6=Saturday
+            let day = dt.getDay(); 
             this.weekStart = new Date(dt);
-            this.weekStart.setDate(dt.getDate() - day); // move back to Sunday
+            this.weekStart.setDate(dt.getDate() - day); 
             this.weekEnd = new Date(this.weekStart);
-            this.weekEnd.setDate(this.weekStart.getDate() + 6); // Saturday
+            this.weekEnd.setDate(this.weekStart.getDate() + 6); 
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in calculateWeekRange ::', error);
@@ -1011,28 +972,17 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     switchToCustomView() {
         try {
             this.viewMode = 'custom';
-    
-            // Get today's date
             const today = new Date();
-    
-            // Get day of week (0 = Sunday, 6 = Saturday)
             const day = today.getDay();
-    
-            // Calculate Sunday (start of week)
             const sunday = new Date(today);
             sunday.setDate(today.getDate() - day);
-    
-            // Calculate Saturday (end of week)
             const saturday = new Date(sunday);
             saturday.setDate(sunday.getDate() + 6);
-    
-            // Convert to yyyy-MM-dd (for <input type="date">)
             const toISODate = date => date.toISOString().split('T')[0];
-    
+   
             this.customStartDate = toISODate(sunday);
             this.customEndDate = toISODate(saturday);
-    
-            // Optionally trigger Apex call immediately with defaults
+   
             this.getJobRelatedMoblizationDetails();
         } catch (error) {
             console.error('Error in switchToCustomView :: ', error);
@@ -1051,8 +1001,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
 
         if(this.customStartDate && this.customEndDate) {
-            // Wait 2 seconds before fetching data
-            clearTimeout(this._dateChangeTimeout); // clear previous timer if any
+            clearTimeout(this._dateChangeTimeout); 
             this._dateChangeTimeout = setTimeout(() => {
                 this.getJobRelatedMoblizationDetails();
             }, 1000);
@@ -1076,7 +1025,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
             
             const actionType = event.currentTarget.dataset.action;
-    
+   
             if (actionType === 'clock') {
                 this.getClockInDetails();
             } else if (actionType === 'list') {
@@ -1109,7 +1058,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             if(!this.selectedContactId || !this.clockInTime || !this.selectedCostCodeId) {
                 this.showToast('Error', 'Please fill value in all required the fields!', 'error');
-                console.error('No contact/cost code/time selected');
                 return;
             }
 
@@ -1131,13 +1079,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
+            // Pass raw local time string + seconds to Apex
+            const cleanClockIn = this.clockInTime.length === 16 ? this.clockInTime + ':00' : this.clockInTime;
+
             const params = {
                 actionType: 'clockIn',
                 jobId: this.jobId,
                 mobId: this.mobId,
                 contactId: this.selectedContactId,
                 costCodeId: this.selectedCostCodeId,
-                clockInTime: this.clockInTime,
+                clockInTime: cleanClockIn, 
                 isTimeSheetNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetNull : true,
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
@@ -1200,10 +1151,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     
                     this.clockOutList = result.clockOut;
                     
-                    // Clock Out list and options
                     this.clockOutList = result.clockOut.map(person => ({
                         ...person,
-                        clockInTime: person.clockInTime, // Clock In time from Apex
+                        clockInTime: person.clockInTime, 
                     }));
                     
                     this.clockOutOptions = this.clockOutList.map(person => ({
@@ -1214,7 +1164,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if (this.clockOutList.length > 0) {
                         this.defaultEndTime = result.clockOut[0].jobEndTime.slice(0, 16);
                     } else {
-                        this.defaultEndTime = new Date().toISOString().slice(0, 16);
+                        // Default to current local time string
+                        const now = new Date();
+                        const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+                        this.defaultEndTime = (new Date(now.getTime() - offsetMs)).toISOString().slice(0, 16);
                     }
                     this.clockOutTime = this.defaultEndTime;
                 })
@@ -1239,7 +1192,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             if(!this.selectedContactId || !this.clockOutTime) {
                 this.showToast('Error', 'Please fill value in all the required fields!', 'error');
-                console.error('No contact/time selected');
                 return;
             }
             
@@ -1266,13 +1218,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             this.isLoading = true;
 
+            // Pass raw local time string + seconds to Apex
+            const cleanClockOut = this.clockOutTime.length === 16 ? this.clockOutTime + ':00' : this.clockOutTime;
+
             const params = {
                 actionType: 'clockOut',
                 jobId: this.jobId,
                 mobId: this.mobId,
                 contactId: this.selectedContactId,
                 clockInTime: selectedRecordDetails ? selectedRecordDetails?.clockInTime : this.clockInTime,
-                clockOutTime: this.clockOutTime,
+                clockOutTime: cleanClockOut,
                 isTimeSheetNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetNull : true,
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
@@ -1314,7 +1269,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             let dataField = event.target.dataset.field;
             let value = event.target.value;
-    
+   
             if(dataField == 'costCode') {
                 this.selectedCostCodeId = value;
             } else if(dataField == 'clockIn' || dataField == 'clockOut') {
@@ -1330,7 +1285,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if (selectedContact) {
                         this.isSelectedContactClockedIn = selectedContact.isAgain;  
                     } else {
-                        this.isSelectedContactClockedIn = false; // default
+                        this.isSelectedContactClockedIn = false; 
                     }
                 }
         
@@ -1441,7 +1396,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             this.manualTimesheetEntry = true;
             this.isLoading = true;
-    
+   
             getContactsAndCostcode({})
                 .then((data) => {
                     if(data != null) {
@@ -1449,15 +1404,19 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                             label: contact.Name,
                             value: contact.Id
                         }));
-    
+   
                         this.costCodeOptions = data.costCodes.map(costCode => ({
                             label: costCode.Name,
                             value: costCode.Id
                         }));
 
-                        // Set current time as default for manual entry
-                        this.clockInTime = new Date().toISOString().slice(0, 16);
-                        this.clockOutTime = new Date().toISOString().slice(0, 16);
+                        // Initialize manual timesheet with current Local Time strings
+                        const now = new Date();
+                        const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+                        const localNow = (new Date(now.getTime() - offsetMs)).toISOString().slice(0, 16);
+                        
+                        this.clockInTime = localNow;
+                        this.clockOutTime = localNow;
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     }
@@ -1498,16 +1457,19 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const timesheetId = event.currentTarget.dataset.id;
         const mobId = event.currentTarget.dataset.mobid;
         
-        // Store mobId for later use
         this.mobId = mobId;
         
-        // Find the timesheet entry from the map
         const timesheets = this.timesheetDataMap.get(mobId);
         if (timesheets) {
             const timesheet = timesheets.find(ts => ts.id === timesheetId);
             if (timesheet) {
                 this.selectedTimesheetEntryLineId = timesheetId;
-                this.editableTimesheetEntry = { ...timesheet };
+                this.editableTimesheetEntry = { 
+                    ...timesheet,
+                    // Use raw local string for edit inputs
+                    ClockIn: this.formatToDatetimeLocal(timesheet.clockInTime), 
+                    ClockOut: this.formatToDatetimeLocal(timesheet.clockOutTime)
+                };
                 this.editTimesheetEntry = true;
             }
         }
@@ -1518,20 +1480,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      * @description: Handle delete button click from timesheet row (Deprecated in favor of inline delete from new table)
      */
     handleTimesheetDelete(event) {
-        // This method is now effectively used for SINGLE DELETE via the edit button's context menu.
         const timesheetId = event.currentTarget.dataset.id;
         const mobId = event.currentTarget.dataset.mobid;
         this.selectedTimesheetEntryLineId = timesheetId;
-        this.mobId = mobId; // Store mobId for refreshing data after delete
+        this.mobId = mobId; 
         this.deleteConfirmationAction = 'singleDeleteTimesheet';
         this.deleteConfirmationTitle = 'Delete Timesheet Entry';
         this.deleteConfirmationMessage = 'Are you sure you want to delete this timesheet entry?';
         this.showDeleteConfirmModal = true;
     }
 
-    /** * Method Name: createManualTimesheet 
-    * @description: Method is used to create the manual timesheet record
-    */
     createManualTimesheet() {
         try {
             if(!this.selectedManualPersonId || !this.selectedCostCodeId || !this.clockInTime || !this.clockOutTime) {
@@ -1539,8 +1497,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(this.clockInTime.replace(' ', 'T'))) {
+            if(this.clockOutTime <= this.clockInTime) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                return;
+            }
+
+            if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
+                this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
                 return;
             }
 
@@ -1548,43 +1511,39 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
-            // USE CORRECTED VALIDATION
             if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
                 return;
             }
-
             if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
-                return;
-            }
-            
-            if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
-                this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
                 return;
             }
 
             this.isLoading = true;
-    
+
+            // --- TIMEZONE FIX ---
+            // Pass raw local string (YYYY-MM-DDTHH:mm) + seconds.
+            const cleanClockIn = this.clockInTime.length === 16 ? this.clockInTime + ':00' : this.clockInTime;
+            const cleanClockOut = this.clockOutTime.length === 16 ? this.clockOutTime + ':00' : this.clockOutTime;
+
             const params = {
                 jobId : this.jobId,
                 mobId : this.mobId,
                 contactId : this.selectedManualPersonId,
                 costCodeId : this.selectedCostCodeId,
-                clockInTime : this.clockInTime,
-                clockOutTime : this.clockOutTime,
-                // Ensure correct date keys are passed
+                clockInTime : cleanClockIn,
+                clockOutTime : cleanClockOut,
                 jobStartDate : this.extractDateKey(jobStartReference),
                 jobEndDate : this.extractDateKey(jobEndReference),
                 travelTime : this.enteredManualTravelTime ? String(this.enteredManualTravelTime) : '0.00',
                 perDiem : this.enteredManualPerDiem ? String(this.enteredManualPerDiem) : '0'
             }
-    
+
             createManualTimesheetRecords({params : JSON.stringify(params)})
                 .then((result) => {
                     if(result == true) {
                         this.closeManualTimesheetModal();
                         this.showToast('Success', 'Timesheet created successfully', 'success');
                         
-                        // Refresh the specific job's timesheet data
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
                         }
@@ -1618,18 +1577,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const mobId = event.currentTarget.dataset.mobid;
             this.mobId = mobId;
             
-            // Find the record in the timesheetDataMap
             const timesheets = this.timesheetDataMap.get(mobId);
             const record = timesheets.find(item => item.id === this.selectedTimesheetEntryLineId);
             
             if(record) {
-                // Create a copy for editing, ensuring DateTimes are in YYYY-MM-DDThh:mm format for input
                 this.editableTimesheetEntry = {
                     Id: record.id,
                     TSEId: record.TSEId,
                     FullName: record.contactName,
-                    ClockIn: this.formatToDatetimeLocal(record.clockInTime), // Format for input
-                    ClockOut: this.formatToDatetimeLocal(record.clockOutTime), // Format for input
+                    ClockIn: this.formatToDatetimeLocal(record.clockInTime), 
+                    ClockOut: this.formatToDatetimeLocal(record.clockOutTime),
                     TravelTime: record.travelTime || 0.00,
                     PerDiem: record.perDiem || 0,
                     premium: record.premium || false
@@ -1648,18 +1605,16 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     */
     handleEditTSELFieldChange(event) {
         try {
-            const field = event.target.dataset.field; // data-field attribute on input
+            const field = event.target.dataset.field; 
             let value;
 
-            // Handle checkbox separately
             if (event.target.type === 'checkbox') {
                 value = event.target.checked;
             } else {
                 value = event.target.value;
             }
-    
+   
             if(field && this.editableTimesheetEntry) {
-                // Update variable dynamically
                 this.editableTimesheetEntry[field] = value;
             }
         } catch (error) {
@@ -1676,31 +1631,23 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             const entry = this.editableTimesheetEntry;
             
-            // --- Validation ---
-            
-            // Check ClockIn
             if (!entry.ClockIn || entry.ClockIn.toString().trim() === '') {
                 this.showToast('Error', 'Clock In Time cannot be empty', 'error');
                 return;
             }
-
-            // Check ClockOut
             if (!entry.ClockOut || entry.ClockOut.toString().trim() === '') {
                 this.showToast('Error', 'Clock Out Time cannot be empty', 'error');
                 return;
             }
-
-            // Normalize PerDiem and validate value (0 or 1)
-            let perDiemNum = entry.PerDiem === null || entry.PerDiem === undefined ? 0 : Number(entry.PerDiem);
             
+            let perDiemNum = entry.PerDiem === null || entry.PerDiem === undefined ? 0 : Number(entry.PerDiem);
             if (perDiemNum !== 0 && perDiemNum !== 1) {
                 this.showToast('Error', 'Per Diem must be 0 or 1', 'error');
                 return;
             }
-            entry.PerDiem = perDiemNum; 
+            entry.PerDiem = perDiemNum;
 
-            // Check Clock In/Out time order
-            if(new Date(entry.ClockOut) <= new Date(entry.ClockIn)) {
+            if(entry.ClockOut <= entry.ClockIn) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
                 return;
             }
@@ -1709,23 +1656,25 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
-            // Check date boundaries
             if (!this.validateClockInDate(entry.ClockIn, jobStartReference)) {
                 return;
             }
-
             if (!this.validateClockOutDate(entry.ClockOut, jobStartReference, jobEndReference)) {
                 return;
             }
 
             this.isLoading = true;
             
-            // Prepare payload for the bulk Apex method
+            // --- TIMEZONE FIX ---
+            // Send local string. Append seconds.
+            const cleanClockIn = entry.ClockIn.length === 16 ? entry.ClockIn + ':00' : entry.ClockIn;
+            const cleanClockOut = entry.ClockOut.length === 16 ? entry.ClockOut + ':00' : entry.ClockOut;
+
             const payload = [{
-                Id: entry.Id, // Timesheet Entry Item ID (TSELI)
-                TSEId: entry.TSEId, // Parent Timesheet Entry ID (TSE)
-                clockInTime: String(entry.ClockIn),
-                clockOutTime: String(entry.ClockOut),
+                Id: entry.Id, 
+                TSEId: entry.TSEId, 
+                clockInTime: cleanClockIn,
+                clockOutTime: cleanClockOut,
                 travelTime: String(entry.TravelTime || 0.00),
                 perDiem: String(entry.PerDiem),
                 premium: String(entry.premium || false)
@@ -1733,12 +1682,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
             const updatedTimesheetsJson = JSON.stringify(payload);
 
-            // Call the bulk-safe inline edit method
             saveTimesheetEntryInlineEdits({ updatedTimesheetEntriesJson: updatedTimesheetsJson })
                 .then((result) => {
                     if (result.startsWith('Success')) {
                         this.selectedTimesheetEntryLineId = null;
-                        // Refresh the specific job's timesheet data
+                        
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
                         }
@@ -1758,7 +1706,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 });
         } catch (error) {
             this.showToast('Error', 'An unexpected error occurred during save.', 'error');
-            console.error('Error in handleSaveTSEL (outer catch):', error);
+            console.error('Error in handleSaveTSEL:', error);
             this.isLoading = false;
         }
     }
@@ -1784,7 +1732,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.hasTimesheetModifications = false;
         this.editingTimesheetCells.clear();
         this.selectedTimesheets.clear();
-        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Final refresh to clean up UI state
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
     }
 
     /** * Method Name: showToast 
@@ -1811,22 +1759,17 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const type = event.currentTarget.dataset.type;
         const mobId = event.currentTarget.dataset.mobid;
         
-        // Prevent editing non-editable columns
         const column = this.timesheetColumns.find(col => col.fieldName === field);
         if (!column || !column.editable) return;
 
         const cellKey = `${id}-${field}`;
 
-        // Don't open editor if already editing this cell
         if (this.editingTimesheetCells.has(cellKey)) return;
 
-        // Set the cell to editing mode
         this.editingTimesheetCells.add(cellKey);
         
-        // Trigger re-render
-        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force jobDetails getter to re-run
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
         
-        // Auto-focus the input after DOM update
         setTimeout(() => {
             const inputSelector = `[data-id="${id}"][data-field="${field}"]`;
             let inputElement = this.template.querySelector(inputSelector);
@@ -1855,17 +1798,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const mobId = event.currentTarget.dataset.mobid;
         
         let newValue;
-        const isCheckbox = event.target.type === 'checkbox' || type === 'boolean'; // Force check HTML type
+        const isCheckbox = event.target.type === 'checkbox' || type === 'boolean'; 
 
-        // --- 1. Get the New Value (CRITICAL FIX: Use HTML element type to determine boolean read) ---
         if (isCheckbox) {
-            // Use event.target.checked to get the correct boolean state (true/false)
             newValue = event.target.checked; 
-            
-            // For checkboxes, immediately remove the editing state to force re-render/display the modified value
             this.editingTimesheetCells.delete(`${id}-${field}`);
         } else {
-            // Standard inputs use event.target.value
             newValue = event.target.value;
         }
 
@@ -1874,15 +1812,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             if (isNaN(newValue)) newValue = null;
         }
 
-        // --- 2. Get Original Value and Normalize for Comparison ---
         const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
         let originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
 
-        // CRITICAL FIX: Normalize Original Value to a true boolean or float for reliable comparison
         if (type === 'number') {
             originalValue = originalValue !== null && originalValue !== undefined ? parseFloat(originalValue) : null;
         } else if (type === 'boolean') {
-             // Normalize the original DB value (e.g., 1 or "1") to a true boolean
             originalValue = (originalValue === 1 || originalValue === '1' || originalValue === true || originalValue === 'true');
         }
 
@@ -1893,16 +1828,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const entry = this.modifiedTimesheetEntries.get(id);
         const modifications = entry.modifications;
         
-        // --- 3. Robust Comparison Logic ---
         const areValuesEqual = (val1, val2, valueType) => {
             if (val1 === val2) return true;
             
-            // Handle Boolean: Compare semantic truthiness
             if (valueType === 'boolean') {
                 return !!val1 === !!val2; 
             }
 
-            // Handle Number: Allow for float tolerance and null/empty string equivalence
             if (valueType === 'number') {
                 const n1 = (val1 === null || val1 === undefined || val1 === '') ? null : val1;
                 const n2 = (val2 === null || val2 === undefined || val2 === '') ? null : val2;
@@ -1910,7 +1842,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 if (n1 !== null && n2 !== null) return Math.abs(n1 - n2) < 0.005;
             }
 
-            // Handle Datetime strings
             if (valueType === 'datetime') {
                 const d1 = val1 || null;
                 const d2 = val2 || null;
@@ -1923,7 +1854,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const valuesMatch = areValuesEqual(newValue, originalValue, type);
 
         if (!valuesMatch) {
-            // FIX: Convert boolean (true/false) from UI to 1/0 for Apex/Map consumption
             if (field === 'perDiem' || field === 'premium') {
                 const valueToStore = newValue ? 1 : 0;
                 modifications[field] = valueToStore; 
@@ -1938,7 +1868,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
         
         this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
-        // Force re-render to update modified highlighting and save button state
         this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
     }
 
@@ -1953,7 +1882,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
         this.editingTimesheetCells.delete(cellKey);
 
-        // Trigger re-render
         this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
     }
 
@@ -2001,15 +1929,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
                 // --- 3. Number/Decimal Constraints Check (TravelTime only) ---
                 if (column.type === 'number') {
-                    // If the field is modified but the value is explicitly null or empty string, treat as 0 for validation against min
                     const numValue = (value === null || value === '') ? 0 : Number(value); 
 
                     if (isNaN(numValue) || numValue < column.min) {
                         errors.push(`${fullName}: ${column.label} must be a valid number, minimum ${column.min}.`);
                     } else {
-                        // Check decimal places for non-integer types (TravelTime)
                         if (column.step && column.step.toString().includes('0.01')) {
-                            // Check the string representation for more than 2 decimal places
                             const valueString = numValue.toFixed(10); 
                             const decimalPart = valueString.slice(valueString.indexOf('.') + 1);
                             
@@ -2048,69 +1973,56 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
 
         this.isSavingTimesheetEntries = true;
-
         const updatedTimesheets = [];
+
         this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
             const originalTSE = this.timesheetDataMap.get(mobId).find(ts => ts.id === id);
             
-            const tsUpdate = { 
-                Id: id, // Timesheet Entry Line Item Id
-                TSEId: originalTSE.TSEId // Parent Timesheet Entry Id for Apex reference
+            const tsUpdate = {
+                Id: id, 
+                TSEId: originalTSE.TSEId 
             };
             
             // --- Map non-boolean fields ---
             tsUpdate.clockInTime = entry.modifications.clockInTime || originalTSE.clockInTime;
             tsUpdate.clockOutTime = entry.modifications.clockOutTime || originalTSE.clockOutTime;
-            
+
             const modifiedTravelTime = entry.modifications.travelTime;
             tsUpdate.travelTime = modifiedTravelTime !== undefined ? modifiedTravelTime : originalTSE.travelTime;
             
-            
-            // 1. Per Diem (Using modification 1/0 if present, otherwise normalizing original to 1/0)
             let perDiemValue;
             if (entry.modifications.hasOwnProperty('perDiem')) {
-                 perDiemValue = entry.modifications.perDiem; // This is 1 or 0
+                 perDiemValue = entry.modifications.perDiem; 
             } else {
                  perDiemValue = (originalTSE.perDiem === 1 || originalTSE.perDiem === '1' || originalTSE.perDiem === true) ? 1 : 0;
             }
-            tsUpdate.perDiem = perDiemValue; // Kept as 1 or 0 (Integer)
+            tsUpdate.perDiem = perDiemValue; 
 
-
-            // 2. Premium (Using modification 1/0 if present, otherwise normalizing original to 1/0)
             let premiumValue;
             if (entry.modifications.hasOwnProperty('premium')) {
-                 premiumValue = entry.modifications.premium; // This is 1 or 0
+                 premiumValue = entry.modifications.premium; 
             } else {
                  premiumValue = (originalTSE.premium === 1 || originalTSE.premium === '1' || originalTSE.premium === true) ? 1 : 0;
             }
-            tsUpdate.premium = premiumValue; // Kept as 1 or 0 (Integer)
+            tsUpdate.premium = premiumValue; 
             
             updatedTimesheets.push(tsUpdate);
         });
 
-        // Clear modifications associated with this job immediately before the call
         this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
             this.modifiedTimesheetEntries.delete(id);
         });
 
-        // --- FINAL PAYLOAD STRINGIFICATION WITH BOOLEAN CONVERSION ---
         const updatedTimesheetsJson = JSON.stringify(updatedTimesheets.map(
             ts => Object.fromEntries(
                 Object.entries(ts).map(([key, value]) => {
-                    if (key === 'premium') {
-                        return [key, value === 1 ? 'true' : 'false'];
-                    } 
-                    else if (key === 'perDiem') {
-                        return [key, String(value)];
-                    }
-                    else {
-                        return [key, String(value)]; 
-                    }
+                    if (key === 'premium') return [key, value === 1 ? 'true' : 'false'];
+                    else if (key === 'perDiem') return [key, String(value)];
+                    else return [key, String(value)];
                 })
             )
         ));
         
-
         saveTimesheetEntryInlineEdits({ updatedTimesheetEntriesJson: updatedTimesheetsJson })
             .then(result => {
                 if (result.startsWith('Success')) {
@@ -2129,7 +2041,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.isSavingTimesheetEntries = false;
                 this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
                 this.editingTimesheetCells.clear();
-                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Final refresh for UI state
+                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
             });
     }
 
@@ -2192,7 +2104,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
 
         this.selectedTimesheets = new Map(this.selectedTimesheets);
-        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force re-render
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
     }
 
     /**
@@ -2218,7 +2130,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
 
         this.selectedTimesheets = new Map(this.selectedTimesheets);
-        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; // Force re-render
+        this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
     }
     
     /**
@@ -2249,8 +2161,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         if (this.deleteConfirmationAction === 'bulkDeleteTimesheets') {
             this.proceedWithTimesheetBulkDeletion();
         } 
-        // Note: The single delete modal is now typically bypassed if using the new UI.
-        // If the modal is triggered by the old flow, it defaults to single deletion.
         else if (this.deleteConfirmationAction === 'singleDeleteTimesheet') {
             this.proceedWithTimesheetSingleDeletion(this.selectedTimesheetEntryLineId, this.mobId);
         } else {
