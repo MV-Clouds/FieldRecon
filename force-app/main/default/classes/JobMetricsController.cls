@@ -165,9 +165,9 @@ public with sharing class JobMetricsController {
         
         try {
             // Get metric settings from custom metadata
-            List<JobMetricSetting__mdt> metricSettings = [
-                SELECT MasterLabel, DeveloperName, Statuses__c 
-                FROM JobMetricSetting__mdt 
+            List<wfrecon__JobMetricSetting__mdt> metricSettings = [
+                SELECT MasterLabel, DeveloperName, wfrecon__Statuses__c 
+                FROM wfrecon__JobMetricSetting__mdt 
                 WITH USER_MODE
             ];
             
@@ -176,12 +176,12 @@ public with sharing class JobMetricsController {
             Map<String, Set<String>> metricToStatuses = new Map<String, Set<String>>();
             
             // Initialize metrics for all custom metadata records
-            for (JobMetricSetting__mdt setting : metricSettings) {
+            for (wfrecon__JobMetricSetting__mdt setting : metricSettings) {
                 metrics.put(setting.DeveloperName, new MetricData());
                 
-                if (setting.Statuses__c != null) {
+                if (setting.wfrecon__Statuses__c != null) {
                     Set<String> statusSet = new Set<String>();
-                    List<String> statusList = setting.Statuses__c.split(',');
+                    List<String> statusList = setting.wfrecon__Statuses__c.split(',');
                     for (String status : statusList) {
                         statusSet.add(status.trim());
                     }
@@ -302,9 +302,9 @@ public with sharing class JobMetricsController {
             }
             
             // Get current metric settings from custom metadata
-            List<JobMetricSetting__mdt> metricSettings = [
-                SELECT MasterLabel, DeveloperName, Statuses__c 
-                FROM JobMetricSetting__mdt 
+            List<wfrecon__JobMetricSetting__mdt> metricSettings = [
+                SELECT MasterLabel, DeveloperName, wfrecon__Statuses__c 
+                FROM wfrecon__JobMetricSetting__mdt 
                 WITH USER_MODE
             ];
             
@@ -320,9 +320,9 @@ public with sharing class JobMetricsController {
             }
             
             // Populate with existing settings
-            for (JobMetricSetting__mdt setting : metricSettings) {
-                if (setting.Statuses__c != null) {
-                    metricStatusMap.put(setting.DeveloperName, setting.Statuses__c.split(','));
+            for (wfrecon__JobMetricSetting__mdt setting : metricSettings) {
+                if (setting.wfrecon__Statuses__c != null) {
+                    metricStatusMap.put(setting.DeveloperName, setting.wfrecon__Statuses__c.split(','));
                 }
             }
             
@@ -355,12 +355,12 @@ public with sharing class JobMetricsController {
                 
                 // Create custom metadata record
                 Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
-                customMetadata.fullName = 'JobMetricSetting__mdt.' + metricName;
+                customMetadata.fullName = 'wfrecon__JobMetricSetting__mdt.' + metricName;
                 customMetadata.label = metricName;
                 
                 // Create statuses field value
                 Metadata.CustomMetadataValue statusesField = new Metadata.CustomMetadataValue();
-                statusesField.field = 'Statuses__c';
+                statusesField.field = 'wfrecon__Statuses__c';
                 statusesField.value = statusesString;
                 
                 customMetadata.values = new List<Metadata.CustomMetadataValue> { statusesField };
