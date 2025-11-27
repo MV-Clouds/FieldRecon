@@ -545,7 +545,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     * Uses string parsing to ensure perfect match with edit input.
     */
     formatToAMPM(iso) {
-        if (!iso) return '';
         try {
             if (!iso) return '--';
             
@@ -610,7 +609,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return utcDate.toISOString().slice(0, 10);
     }
 
-    validateClockInDate (clockInValue, jobStartValue) {
+    validateClockInDate (clockInValue, jobStartValue, jobEndValue) {
         const clockInDate = this.extractDateKey(clockInValue);
         const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
