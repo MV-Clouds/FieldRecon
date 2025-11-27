@@ -503,6 +503,52 @@
     object-fit: cover;
 }
 
+.file-preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    gap: 0.5rem;
+}
+
+.file-ext-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5e5adb;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 0.25rem;
+}
+
+.file-name-label {
+    font-size: 0.75rem;
+    color: #666;
+    text-align: center;
+    word-break: break-word;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.modal-file-preview {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-file-preview:hover {
+    background: #e8e9f0;
+    transform: scale(1.02);
+}
+
 /* Location Processes List */
 .location-processes-list {
     display: flex;
@@ -843,8 +889,8 @@
     background-image: url(/resource/wfrecon__FieldReconBG);
     background-repeat: no-repeat;
     background-size: cover;
-    max-height: 60vh;
-    min-height: 60vh;
+    max-height: 55vh;
+    min-height: 55vh;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-theme-color) #f4f6f9;
@@ -2115,21 +2161,25 @@
 }
 
 .chatter-feed-item {
-    background: #f8f9fa;
-    border-radius: 12px;
-    padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    /* margin-bottom: 1.5rem; */
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
 }
 
 .feed-item-header {
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
 }
 
 .feed-item-date {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: #666;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
 .feed-item-attachments {

@@ -425,14 +425,28 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         planForTomorrowChanged: changedFieldsToday.has('Plan_for_Tomorrow'),
                         notesToOfficeChanged: changedFieldsToday.has('Notes_to_Office'),
                         workPerformedDateChanged: changedFieldsToday.has('Work_Performed_Date'),
-                        images: images.map(img => ({
-                            Id: img.Id,
-                            ContentDocumentId: img.ContentDocumentId,
-                            Title: img.Title,
-                            FileExtension: img.FileExtension,
-                            thumbnailUrl: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`,
-                            previewUrl: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`
-                        })),
+                        images: images.map(img => {
+                            const ext = img.FileExtension ? img.FileExtension.toLowerCase() : '';
+                            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'].includes(ext);
+                            const isVideo = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].includes(ext);
+                            const isPdf = ext === 'pdf';
+                            const isDoc = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext);
+                            
+                            return {
+                                Id: img.Id,
+                                ContentDocumentId: img.ContentDocumentId,
+                                Title: img.Title,
+                                FileExtension: ext,
+                                isImage: isImage,
+                                isVideo: isVideo,
+                                isPdf: isPdf,
+                                isDoc: isDoc,
+                                hasPreview: isImage || isVideo || isPdf,
+                                thumbnailUrl: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`,
+                                previewUrl: `/sfc/servlet.shepherd/document/download/${img.ContentDocumentId}`,
+                                fileIcon: this.getFileIconForType(ext)
+                            };
+                        }),
                         hasImages: images.length > 0,
                         imageCount: images.length,
                         // Location processes with approval data
@@ -1576,7 +1590,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     // Get all images (existing + new)
     get allImages() {
-        return [...this.existingImages, ...this.newUploadedFiles];
+        const all = [...this.existingImages, ...this.newUploadedFiles];
+        return all.map(img => {
+            const ext = img.extension || img.FileExtension || '';
+            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'].includes(ext.toLowerCase());
+            return {
+                ...img,
+                isImage: isImage,
+                fileIcon: this.getFileIconForType(ext)
+            };
+        });
     }
 
     get hasImages() {
@@ -1965,6 +1988,31 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 selectedRecordId: contentDocumentId || versionId
             }
         });
+    }
+
+    // Get file icon name based on file type
+    getFileIconForType(extension) {
+        const ext = extension ? extension.toLowerCase() : '';
+        
+        // Document types
+        if (['doc', 'docx'].includes(ext)) return 'doctype:word';
+        if (['xls', 'xlsx'].includes(ext)) return 'doctype:excel';
+        if (['ppt', 'pptx'].includes(ext)) return 'doctype:ppt';
+        if (ext === 'pdf') return 'doctype:pdf';
+        if (['txt', 'log'].includes(ext)) return 'doctype:txt';
+        if (['zip', 'rar', '7z'].includes(ext)) return 'doctype:zip';
+        
+        // Media types
+        if (['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].includes(ext)) return 'doctype:video';
+        if (['mp3', 'wav', 'ogg', 'aac'].includes(ext)) return 'doctype:audio';
+        
+        // Code/data
+        if (['csv'].includes(ext)) return 'doctype:csv';
+        if (['xml'].includes(ext)) return 'doctype:xml';
+        if (['json', 'js', 'css', 'html'].includes(ext)) return 'doctype:code';
+        
+        // Default
+        return 'doctype:unknown';
     }
 
     // Format date for display
