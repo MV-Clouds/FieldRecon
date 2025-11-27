@@ -1970,12 +1970,12 @@
 
 /* Z-Index Layer Management */
 /* Edit modal backdrop */
-.slds-backdrop.slds-backdrop_open {
+.edit-backdrop {
     z-index: 2000;
 }
 
 /* Sub-modal backdrop (for camera and chatter modals) */
-.slds-backdrop.slds-backdrop_open.sub-backdrop {
+.sub-backdrop {
     z-index: 2002;
 }
 
