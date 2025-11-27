@@ -222,207 +222,6 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static Boolean createTimesheetRecords(String params){
-        try {
-            Map<String, Object> paramsMap = (Map<String, Object>) JSON.deserializeUntyped(params);
-
-            String jobId = (String)paramsMap.get('jobId');
-            String mobId = (String)paramsMap.get('mobId');
-            String mobGroupId;
-            List<wfrecon__Mobilization__c> mobRec = [SELECT Id, Name, wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization_Group__r.wfrecon__End_Date__c FROM wfrecon__Mobilization__c 
-                                            WHERE Id = :mobId WITH USER_MODE];
-
-            mobGroupId = mobRec[0].wfrecon__Mobilization_Group__r.Id;
-            
-            List<wfrecon__Mobilization_Member__c> mobMemberRecs = [SELECT Id, wfrecon__Contact__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c FROM wfrecon__Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
-
-            if((String) paramsMap.get('actionType') == 'clockIn') {
-                
-                // Convert clockInTime to UTC to user timezone
-                String clockInTimeString = (String)paramsMap.get('clockInTime');
-                Datetime clkInUserTz = convertUtc(clockInTimeString);
-
-                // If first clockin for moblization group for contact > Create Timesheet and Timesheet Entry
-                if(paramsMap.get('isTimeSheetNull') == true) {
-                    wfrecon__Timesheet__c timesheetRec = new wfrecon__Timesheet__c();
-                    timesheetRec.wfrecon__Contact__c = mobMemberRecs[0].wfrecon__Contact__c;
-                    timesheetRec.wfrecon__Job__c = jobId;
-                    timesheetRec.wfrecon__Timesheet_Start_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c.date();
-                    timesheetRec.wfrecon__Timesheet_End_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c.date();
-                    timesheetRec.wfrecon__Mobilization_Group__c = mobGroupId;
-                    timesheetRec.wfrecon__Do_Not_Execute__c = true;
-                    insert as user timesheetRec;
-    
-                    wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
-                    timesheetEntryRec.wfrecon__Timesheet__c = timesheetRec.Id;
-                    timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
-                    timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
-                    timesheetEntryRec.wfrecon__Mobilization__c = mobId;
-                    timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
-                    insert as user timesheetEntryRec;
-                } else {
-                    List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
-                    
-                    wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
-                    timesheetEntryRec.wfrecon__Timesheet__c = timesheetRecs[0].Id;
-                    timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
-                    timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
-                    timesheetEntryRec.wfrecon__Mobilization__c = mobId;
-                    timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
-                    insert as user timesheetEntryRec;
-                }
-            }
-
-            if((String) paramsMap.get('actionType') == 'clockOut') {
-
-                // Convert clockOutTime to UTC to user timezone
-                String clockOutTimeString = (String)paramsMap.get('clockOutTime');
-                Datetime clkOutUserTz = convertUtc(clockOutTimeString);
-
-                // Convert clockInTime to UTC to user timezone
-                String clockInTimeString = (String)paramsMap.get('clockInTime');
-                Datetime clkInUserTz  = Datetime.valueOfGmt(clockInTimeString.replace('T',' ').replace('Z',''));
-
-                // Helper to check date difference
-                Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
-
-                if(paramsMap.get('isTimeSheetEntryNull') == true) {
-                    if(paramsMap.get('isTimeSheetNull') == false) {
-                        List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
-
-                        if (!timesheetRecs.isEmpty()) {
-                            Id tsId = timesheetRecs[0].Id;
-                            
-                            if (crossesMidnight) {
-                                // 🕛 Split Entry Across Two Days
-                                Datetime firstDayEnd = DateTime.newInstance(clkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
-                                Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
-
-                                // 1️⃣ Entry for Day 1 (till 11:59 PM)
-                                wfrecon__Timesheet_Entry__c entryDay1 = new wfrecon__Timesheet_Entry__c(
-                                    wfrecon__Timesheet__c = tsId,
-                                    wfrecon__Clock_In_Time__c = clkInUserTz,
-                                    wfrecon__Clock_Out_Time__c = firstDayEnd,
-                                    wfrecon__Mobilization__c = mobId,
-                                    wfrecon__Do_Not_Execute__c = true
-                                );
-                                insert as user entryDay1;
-
-                                wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
-                                    wfrecon__Timesheet_Entry__c = entryDay1.Id,
-                                    wfrecon__Clock_In_Time__c = entryDay1.wfrecon__Clock_In_Time__c,
-                                    wfrecon__Clock_Out_Time__c = entryDay1.wfrecon__Clock_Out_Time__c,
-                                    wfrecon__Do_Not_Execute__c = true
-                                );
-                                insert as user itemDay1;
-
-                                // 2️⃣ Entry for Day 2 (from 12:00 AM)
-                                wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
-                                    wfrecon__Timesheet__c = tsId,
-                                    wfrecon__Clock_In_Time__c = secondDayStart,
-                                    wfrecon__Clock_Out_Time__c = clkOutUserTz,
-                                    wfrecon__Mobilization__c = mobId,
-                                    wfrecon__Do_Not_Execute__c = true
-                                );
-                                insert as user entryDay2;
-
-                                wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
-                                    wfrecon__Timesheet_Entry__c = entryDay2.Id,
-                                    wfrecon__Clock_In_Time__c = entryDay2.wfrecon__Clock_In_Time__c,
-                                    wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
-                                    wfrecon__Do_Not_Execute__c = true
-                                );
-                                insert as user itemDay2;
-
-                            } else {
-                                wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
-                                timesheetEntryRec.wfrecon__Timesheet__c = timesheetRecs[0].Id;
-                                timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
-                                timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
-                                timesheetEntryRec.wfrecon__Mobilization__c = mobId;
-                                timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
-                                insert as user timesheetEntryRec;
-        
-                                wfrecon__Timesheet_Entry_Item__c timesheetEntryItemRec = new wfrecon__Timesheet_Entry_Item__c();
-                                timesheetEntryItemRec.wfrecon__Timesheet_Entry__c = timesheetEntryRec.Id;
-                                timesheetEntryItemRec.wfrecon__Clock_In_Time__c = timesheetEntryRec.wfrecon__Clock_In_Time__c;
-                                timesheetEntryItemRec.wfrecon__Clock_Out_Time__c = timesheetEntryRec.wfrecon__Clock_Out_Time__c;
-                                timesheetEntryItemRec.wfrecon__Cost_Code__c = timesheetEntryRec.wfrecon__Cost_Code__c;
-                                timesheetEntryItemRec.wfrecon__Do_Not_Execute__c = true;
-                                insert as user timesheetEntryItemRec;
-                            }
-                        }
-                    }
-                } else {
-                    List<wfrecon__Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__c, wfrecon__Timesheet__c FROM wfrecon__Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
-                    if (!timesheetEntryRecs.isEmpty()) {
-                        wfrecon__Timesheet_Entry__c existing = timesheetEntryRecs[0];
-                        Boolean crossesMidnightExisting = (existing.wfrecon__Clock_In_Time__c.date() != clkOutUserTz.date());
-
-                        if (crossesMidnightExisting) {
-                            Datetime firstDayEnd = DateTime.newInstance(existing.wfrecon__Clock_In_Time__c.date(), Time.newInstance(23, 59, 59, 999));
-                            Datetime secondDayStart = DateTime.newInstance(clkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
-
-                            // Update existing entry to end at 11:59 PM
-                            existing.wfrecon__Clock_Out_Time__c = firstDayEnd;
-                            update existing;
-
-                            // Create Timesheet Entry Item for day 1
-                            wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
-                                wfrecon__Timesheet_Entry__c = existing.Id,
-                                wfrecon__Clock_In_Time__c = existing.wfrecon__Clock_In_Time__c,
-                                wfrecon__Clock_Out_Time__c = existing.wfrecon__Clock_Out_Time__c,
-                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
-                                wfrecon__Do_Not_Execute__c = true
-                            );
-                            insert as user itemDay1;
-
-                            // Create new entry for next day
-                            wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
-                                wfrecon__Timesheet__c = existing.wfrecon__Timesheet__c,
-                                wfrecon__Clock_In_Time__c = secondDayStart,
-                                wfrecon__Clock_Out_Time__c = clkOutUserTz,
-                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
-                                wfrecon__Mobilization__c = mobId,
-                                wfrecon__Do_Not_Execute__c = true
-                            );
-                            insert as user entryDay2;
-
-                            // Create Timesheet Entry Item for day 2
-                            wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
-                                wfrecon__Timesheet_Entry__c = entryDay2.Id,
-                                wfrecon__Clock_In_Time__c = entryDay2.wfrecon__Clock_In_Time__c,
-                                wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
-                                wfrecon__Cost_Code__c = entryDay2.wfrecon__Cost_Code__c,
-                                wfrecon__Do_Not_Execute__c = true
-                            );
-                            insert as user itemDay2;
-                        } else {
-                            // Normal same-day update
-                            existing.wfrecon__Clock_Out_Time__c = clkOutUserTz;
-                            update existing;
-
-                            wfrecon__Timesheet_Entry_Item__c item = new wfrecon__Timesheet_Entry_Item__c(
-                                wfrecon__Timesheet_Entry__c = existing.Id,
-                                wfrecon__Clock_In_Time__c = existing.wfrecon__Clock_In_Time__c,
-                                wfrecon__Clock_Out_Time__c = existing.wfrecon__Clock_Out_Time__c,
-                                wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
-                                wfrecon__Do_Not_Execute__c = true
-                            );
-                            insert as user item;
-                        }
-                    }
-                }
-            }
-
-            return true;
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'createTimesheetRecords', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return false;
-        }
-    }
-
-    @AuraEnabled
     public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String jobStartDate, String mobId, String crewLeaderId){
         try {
             List<wfrecon__Mobilization_Member__c> members = [SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
@@ -764,12 +563,7 @@ public with sharing class ShiftEndLogEntriesController {
             sendCustomNotification(logEntry.Id, notificationContent);
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ShiftEndLogEntriesController',
-                'methodName' => 'createLogEntry',
-                'exceptionObj' => e,
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'createLogEntry','exceptionObj' => e,'moreDetails' => e.getMessage()});
             throw new AuraHandledException('Error creating Log Entry: ' + e.getMessage());
         }
     }    
@@ -784,12 +578,7 @@ public with sharing class ShiftEndLogEntriesController {
             List<ContentDocument> docsToDelete = [SELECT Id FROM ContentDocument WHERE Id IN :contentDocumentIds WITH USER_MODE];
             delete as user docsToDelete;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ShiftEndLogEntriesController',
-                'methodName' => 'deleteContentDocuments',
-                'exceptionObj' => e,
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'deleteContentDocuments','exceptionObj' => e,'moreDetails' => e.getMessage()});
             throw new AuraHandledException('Error deleting content documents: ' + e.getMessage());
         }
     }
@@ -949,12 +738,7 @@ public with sharing class ShiftEndLogEntriesController {
             result.put('hasMore', !feedItems.isEmpty()); // Simple check: if we got results, there might be more
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ShiftEndLogEntriesController',
-                'methodName' => 'getChatterFeedItems',
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching Chatter feed items for Job ID: ' + jobId
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'getChatterFeedItems','exceptionObj' => e,'moreDetails' => 'Error fetching Chatter feed items for Job ID: ' + jobId});
         }
         System.debug('Feed Items Retrieved: ' + feedItemWrappers.size());
         System.debug('Feed Items: ' + feedItemWrappers);

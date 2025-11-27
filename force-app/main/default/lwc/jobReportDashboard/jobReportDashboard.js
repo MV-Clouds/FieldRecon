@@ -9,8 +9,8 @@ import { loadScript } from 'lightning/platformResourceLoader';
 import D3 from '@salesforce/resourceUrl/d3';
 import { NavigationMixin } from 'lightning/navigation';
 import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
-import JOB_OBJECT from '@salesforce/schema/wfrecon__Job__c';
-import STATUS_FIELD from '@salesforce/schema/wfrecon__Job__c.wfrecon__Status__c';
+import JOB_OBJECT from '@salesforce/schema/Job__c';
+import STATUS_FIELD from '@salesforce/schema/Job__c.Status__c';
 
 
 export default class JobReportDashboard extends NavigationMixin(LightningElement) {
