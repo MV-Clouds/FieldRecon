@@ -413,7 +413,7 @@ public with sharing class JobDetailsPageController {
                     timesheetRec.wfrecon__Timesheet_End_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c.date();
                     timesheetRec.wfrecon__Mobilization_Group__c = mobGroupId;
                     timesheetRec.wfrecon__Do_Not_Execute__c = true;
-                    insert timesheetRec;
+                    insert as user timesheetRec;
     
                     wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
                     timesheetEntryRec.wfrecon__Timesheet__c = timesheetRec.Id;
@@ -421,7 +421,7 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                     timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
-                    insert timesheetEntryRec;
+                    insert as user timesheetEntryRec;
                 } else {
                     List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
                     
@@ -431,7 +431,7 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                     timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
-                    insert timesheetEntryRec;
+                    insert as user timesheetEntryRec;
                 }
             }
 
@@ -468,7 +468,7 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Mobilization__c = mobId,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert entryDay1;
+                                insert as user entryDay1;
 
                                 wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
                                     wfrecon__Timesheet_Entry__c = entryDay1.Id,
@@ -476,7 +476,7 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Clock_Out_Time__c = entryDay1.wfrecon__Clock_Out_Time__c,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert itemDay1;
+                                insert as user itemDay1;
 
                                 // 2️⃣ Entry for Day 2 (from 12:00 AM)
                                 wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
@@ -486,7 +486,7 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Mobilization__c = mobId,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert entryDay2;
+                                insert as user entryDay2;
 
                                 wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
                                     wfrecon__Timesheet_Entry__c = entryDay2.Id,
@@ -494,7 +494,7 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
-                                insert itemDay2;
+                                insert as user itemDay2;
 
                             } else {
                                 wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
@@ -503,7 +503,7 @@ public with sharing class JobDetailsPageController {
                                 timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
                                 timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                                 timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
-                                insert timesheetEntryRec;
+                                insert as user timesheetEntryRec;
         
                                 wfrecon__Timesheet_Entry_Item__c timesheetEntryItemRec = new wfrecon__Timesheet_Entry_Item__c();
                                 timesheetEntryItemRec.wfrecon__Timesheet_Entry__c = timesheetEntryRec.Id;
@@ -511,7 +511,7 @@ public with sharing class JobDetailsPageController {
                                 timesheetEntryItemRec.wfrecon__Clock_Out_Time__c = timesheetEntryRec.wfrecon__Clock_Out_Time__c;
                                 timesheetEntryItemRec.wfrecon__Cost_Code__c = timesheetEntryRec.wfrecon__Cost_Code__c;
                                 timesheetEntryItemRec.wfrecon__Do_Not_Execute__c = true;
-                                insert timesheetEntryItemRec;
+                                insert as user timesheetEntryItemRec;
                             }
                         }
                     }
@@ -537,7 +537,7 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
                                 wfrecon__Do_Not_Execute__c = true
                             );
-                            insert itemDay1;
+                            insert as user itemDay1;
 
                             // Create new entry for next day
                             wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
@@ -548,7 +548,7 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Mobilization__c = mobId,
                                 wfrecon__Do_Not_Execute__c = true
                             );
-                            insert entryDay2;
+                            insert as user entryDay2;
 
                             // Create Timesheet Entry Item for day 2
                             wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
@@ -558,7 +558,7 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Cost_Code__c = entryDay2.wfrecon__Cost_Code__c,
                                 wfrecon__Do_Not_Execute__c = true
                             );
-                            insert itemDay2;
+                            insert as user itemDay2;
                         } else {
                             // Normal same-day update
                             existing.wfrecon__Clock_Out_Time__c = clkOutUserTz;
@@ -571,7 +571,7 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
                                 wfrecon__Do_Not_Execute__c = true
                             );
-                            insert item;
+                            insert as user item;
                         }
                     }
                 }
@@ -674,7 +674,7 @@ public with sharing class JobDetailsPageController {
                 timesheetRec.wfrecon__Timesheet_End_Date__c = mobRec[0].wfrecon__Mobilization_Group__r.wfrecon__End_Date__c.date();
                 timesheetRec.wfrecon__Do_Not_Execute__c = true;
                 timesheetRec.wfrecon__Mobilization_Group__c = mobGroupId;
-                insert timesheetRec;
+                insert as user timesheetRec;
 
                 tsRec = timesheetRec;
             } else {
@@ -696,7 +696,7 @@ public with sharing class JobDetailsPageController {
                     wfrecon__Mobilization__c = mobId,
                     wfrecon__Do_Not_Execute__c = true
                 );
-                insert entryDay1;
+                insert as user entryDay1;
 
                 wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
                     wfrecon__Timesheet_Entry__c = entryDay1.Id,
@@ -707,7 +707,7 @@ public with sharing class JobDetailsPageController {
                     wfrecon__Per_Diem__c = perDiem,
                     wfrecon__Do_Not_Execute__c = true
                 );
-                insert itemDay1;
+                insert as user itemDay1;
 
                 // Entry for day 2
                 wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
@@ -718,7 +718,7 @@ public with sharing class JobDetailsPageController {
                     wfrecon__Mobilization__c = mobId,
                     wfrecon__Do_Not_Execute__c = true
                 );
-                insert entryDay2;
+                insert as user entryDay2;
 
                 wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
                     wfrecon__Timesheet_Entry__c = entryDay2.Id,
@@ -727,7 +727,7 @@ public with sharing class JobDetailsPageController {
                     wfrecon__Cost_Code__c = costCodeId,
                     wfrecon__Do_Not_Execute__c = true
                 );
-                insert itemDay2;
+                insert as user itemDay2;
             } else {
                 // Normal same-day record
                 wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
