@@ -934,11 +934,11 @@ public with sharing class JobDetailsPageController {
             
             // 4. Perform Deletion
             // Delete child items first
-            delete itemsToDelete;
+            delete as user itemsToDelete;
             
             // Delete parent entries that were found to have only one item before deletion
             if (!entriesToDelete.isEmpty()) {
-                delete entriesToDelete;
+                delete as user entriesToDelete;
             }
 
             return 'Success: ' + itemsToDelete.size() + ' timesheet entry item(s) and ' + entriesToDelete.size() + ' parent timesheet entry(s) deleted successfully';
@@ -974,11 +974,11 @@ public with sharing class JobDetailsPageController {
 
             // Only delete the parent entry if this is the last child item
             if (tsEntry.wfrecon__Timesheet_Entry_Items__r.size() == 1) {
-                delete tsItem;
-                delete tsEntry;
+                delete as user tsItem;
+                delete as user tsEntry;
             } else {
                 // If there are other items, just delete this item
-                delete tsItem;
+                delete as user tsItem;
             }
 
             return true;
