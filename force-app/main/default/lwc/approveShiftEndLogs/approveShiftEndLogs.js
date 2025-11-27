@@ -11,10 +11,10 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track hasAccess = false;
     @track logEntriesRaw = [];
     @track filteredLogEntriesRaw = [];
+    @track totalCountRaw = 0;
     @track isLoading = false;
     @track searchTerm = '';
     @track selectedDateFilter = 'last7days';
-    @track selectedStatusFilter = 'Pending';
     @track showModal = false;
     @track selectedLog = null;
     @track modalNotes = '';
@@ -60,14 +60,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         { label: 'All Time', value: 'alltime' }
     ];
 
-    statusFilterOptions = [
-        { label: 'All Statuses', value: 'All' },
-        { label: 'Pending', value: 'Pending' },
-        { label: 'Approved', value: 'Approved' },
-        { label: 'Auto-Approved', value: 'Auto-Approved' },
-        { label: 'Rejected', value: 'Rejected' }
-    ];
-
     /**
      * Method Name: connectedCallback
      * @description: Lifecycle hook - check user access before loading data
@@ -98,42 +90,18 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
 
     /**
      * Method Name: totalCount
-     * @description: Returns total count of all log entries
+     * @description: Returns total count of all log entries from Apex (all statuses)
      */
     get totalCount() {
-        return this.logEntriesRaw.length;
+        return this.totalCountRaw;
     }
 
     /**
      * Method Name: pendingCount
-     * @description: Returns count of pending log entries
+     * @description: Returns count of pending log entries (after search filter)
      */
     get pendingCount() {
-        return this.logEntriesRaw.filter(log => log.status === 'Pending').length;
-    }
-
-    /**
-     * Method Name: approvedCount
-     * @description: Returns count of approved log entries
-     */
-    get approvedCount() {
-        return this.logEntriesRaw.filter(log => log.status === 'Approved').length;
-    }
-
-    /**
-     * Method Name: autoApprovedCount
-     * @description: Returns count of auto-approved log entries
-     */
-    get autoApprovedCount() {
-        return this.logEntriesRaw.filter(log => log.status === 'Auto-Approved').length;
-    }
-
-    /**
-     * Method Name: rejectedCount
-     * @description: Returns count of rejected log entries
-     */
-    get rejectedCount() {
-        return this.logEntriesRaw.filter(log => log.status === 'Rejected').length;
+        return this.filteredLogEntriesRaw.length;
     }
 
     /**
@@ -377,8 +345,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         getUnapprovedLogEntries({
             dateFilter: this.selectedDateFilter
         })
-            .then(result => {
-                this.logEntriesRaw = result;
+            .then(response => {
+                this.logEntriesRaw = response.entries || [];
+                this.totalCountRaw = response.totalCount || 0;
                 this.applyFilters();
                 this.isLoading = false;
             })
@@ -408,25 +377,11 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     }
 
     /**
-     * Method Name: handleStatusFilterChange
-     * @description: Method is used to handle the status filter change
-     */
-    handleStatusFilterChange(event) {
-        this.selectedStatusFilter = event.target.value;
-        this.applyFilters();
-    }
-
-    /**
      * Method Name: applyFilters
-     * @description: Method is used to apply search and status filters in JavaScript
+     * @description: Method is used to apply search filter in JavaScript
      */
     applyFilters() {
         let filtered = [...this.logEntriesRaw];
-        
-        // Apply status filter
-        if (this.selectedStatusFilter && this.selectedStatusFilter !== 'All') {
-            filtered = filtered.filter(log => log.status === this.selectedStatusFilter);
-        }
         
         // Apply search filter
         if (this.searchTerm) {
@@ -1268,19 +1223,32 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const result = { isValid: true, message: '' };
         const pendingItems = [];
         
-        // Check timesheets
-        if (this.logEntryDetails?.timesheetEntries) {
+        // Check timesheets and their items
+        if (this.logEntryDetails?.timesheetEntries && this.logEntryDetails.timesheetEntries.length > 0) {
             this.logEntryDetails.timesheetEntries.forEach(ts => {
-                if (!this.timesheetApprovals[ts.id]) {
-                    pendingItems.push(`Timesheet: ${ts.memberName}`);
+                // If timesheet has items, validate items individually
+                if (ts.items && ts.items.length > 0) {
+                    ts.items.forEach(item => {
+                        const itemStatus = this.timesheetItemApprovals[item.id];
+                        if (!itemStatus || itemStatus === 'pending') {
+                            pendingItems.push(`Timesheet Item: ${ts.memberName} - ${item.costCode || item.name}`);
+                        }
+                    });
+                } else {
+                    // If no items, check the timesheet itself
+                    const tsStatus = this.timesheetApprovals[ts.id];
+                    if (!tsStatus || tsStatus === 'pending') {
+                        pendingItems.push(`Timesheet: ${ts.memberName}`);
+                    }
                 }
             });
         }
         
         // Check location processes
-        if (this.logEntryDetails?.locationProcesses) {
+        if (this.logEntryDetails?.locationProcesses && this.logEntryDetails.locationProcesses.length > 0) {
             this.logEntryDetails.locationProcesses.forEach(lp => {
-                if (!this.locationProcessApprovals[lp.id]) {
+                const lpStatus = this.locationProcessApprovals[lp.id];
+                if (!lpStatus || lpStatus === 'pending') {
                     pendingItems.push(`Location Process: ${lp.name}`);
                 }
             });
@@ -1288,7 +1256,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         
         if (pendingItems.length > 0) {
             result.isValid = false;
-            result.message = 'Please approve or reject all items before saving. Pending items: ' + pendingItems.join(', ');
+            result.message = 'Please approve or reject all items before saving. Pending items:\n' + pendingItems.join('\n');
         }
         
         return result;

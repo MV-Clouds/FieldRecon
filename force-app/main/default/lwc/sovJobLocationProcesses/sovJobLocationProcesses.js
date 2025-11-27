@@ -61,7 +61,7 @@ export default class SovJobLocationProcesses extends NavigationMixin(LightningEl
      */
     get activeProcessTableColumns() {
         const baseColumns = [
-            { label: 'Name', fieldName: 'Name', type: 'text', isNameField: true, sortable: true },
+            { label: 'Process Name', fieldName: 'wfrecon__Process_Name__c', type: 'text', isNameField: true, sortable: true },
             { label: 'Location Name', fieldName: 'wfrecon__Location__r.Name', type: 'text', isLocationField: true, sortable: true },
             { label: 'Sequence', fieldName: 'wfrecon__Sequence__c', type: 'number', sortable: true },
             { label: 'Contract Price', fieldName: 'wfrecon__Contract_Price__c', type: 'currency', sortable: true }

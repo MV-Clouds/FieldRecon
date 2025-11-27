@@ -12,7 +12,7 @@
                     <div class="empty-state__icon">
                         <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                     </div>
-                    <h3 class="empty-state__message" style="color: #d93025; font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">Access Denied</h3>
+                    <h3 class="empty-state__message" style="font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">Access Denied</h3>
                     <p style="color: #5f6368; margin-top: 0.75rem; font-size: 1rem; max-width: 400px; line-height: 1.5;">You do not have permission to view this page. Please contact your System Administrator for access.</p>
                 </div>
             </div>
@@ -29,32 +29,13 @@
             </div>
 
             <div class="status-counter-section">
-                <div class="counter-card total">
-                    <div class="counter-label">Total</div>
-                    <div class="counter-value">{totalCount}</div>
-                </div>
-                <div class="counter-card pending">
-                    <div class="counter-label">Pending</div>
-                    <div class="counter-value">{pendingCount}</div>
-                </div>
-                <div class="counter-card approved">
-                    <div class="counter-label">Approved</div>
-                    <div class="counter-value">{approvedCount}</div>
-                </div>
-                <div class="counter-card auto-approved">
-                    <div class="counter-label">Auto-Approved</div>
-                    <div class="counter-value">{autoApprovedCount}</div>
-                </div>
-                <div class="counter-card rejected">
-                    <div class="counter-label">Rejected</div>
-                    <div class="counter-value">{rejectedCount}</div>
+                <div class="counter-card pending-summary">
+                    <span class="counter-label">Pending Approvals:</span>
+                    <span class="counter-value">{pendingCount} of {totalCount}</span>
                 </div>
             </div>
 
             <div class="date-filter-dropdown">
-                <lightning-combobox class="slds-var-m-left_medium" name="statusFilter" label="Status Filter"
-                    value={selectedStatusFilter} placeholder="Select Status" options={statusFilterOptions}
-                    onchange={handleStatusFilterChange} variant="label-hidden"></lightning-combobox>
                 <lightning-combobox name="dateFilter" label="Date Filter" value={selectedDateFilter}
                     placeholder="Select Date Range" options={dateFilterOptions} onchange={handleDateFilterChange}
                     variant="label-hidden"></lightning-combobox>

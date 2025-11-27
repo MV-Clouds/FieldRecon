@@ -180,98 +180,39 @@
 
 .status-counter-section {
     display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+    justify-content: center;
     flex: 1;
-    justify-content: center;
-    max-width: 600px;
 }
 
-.counter-card {
+.counter-card.pending-summary {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 0.5rem 0.75rem;
-    border-radius: 4px;
-    min-width: 70px;
-    border: 1px solid #d0d0d0;
-    background: white;
+    gap: 0.5rem;
+    padding: 4px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #333333;
     transition: all 0.2s ease;
+    justify-content: center;
 }
 
-.counter-card:hover {
-    border-color: rgba(94, 90, 219, 0.5);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.counter-card.total {
-    border-color: #5e5adb;
-}
-
-.counter-card.pending {
-    border-color: #ff9500;
-}
-
-.counter-card.approved {
-    border-color: #34a853;
-}
-
-.counter-card.auto-approved {
-    border-color: #00bcd4;
-}
-
-.counter-card.rejected {
-    border-color: #ea4335;
-}
-
-.counter-label {
-    font-size: 0.65rem;
+.counter-card.pending-summary .counter-label {
+    font-size: 0.75rem;
     font-weight: 600;
+    color: #333333;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    margin-bottom: 0.15rem;
-    color: #666;
 }
 
-.counter-card.total .counter-label {
-    color: #5e5adb;
-}
-
-.counter-card.pending .counter-label {
-    color: #ff9500;
-}
-
-.counter-card.approved .counter-label {
-    color: #34a853;
-}
-
-.counter-card.auto-approved .counter-label {
-    color: #00bcd4;
-}
-
-.counter-card.rejected .counter-label {
-    color: #ea4335;
-}
-
-.counter-value {
-    font-size: 1.25rem;
-    font-weight: bold;
+.counter-card.pending-summary .counter-value {
+    font-size: 1rem;
+    font-weight: 700;
     color: #333;
 }
 
-.status-filter-dropdown {
+.date-filter-dropdown {
     min-width: 180px;
     width: 180px;
-}
-
-.date-filter-dropdown {
-    /* min-width: 180px;
-    width: 180px; */
-    display: flex;
-    flex-direction: row;
-    gap: 1rem;
-    width: 30%;
 }
 
 .date-filter-dropdown lightning-combobox {

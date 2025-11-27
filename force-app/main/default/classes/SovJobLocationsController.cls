@@ -26,7 +26,7 @@ public with sharing class SovJobLocationsController {
     public static Map<String, Object> getLocationEntries(Id jobId) {
         Map<String, Object> result = new Map<String, Object>();
         List<SObject> locationEntries = new List<SObject>();
-        Map<Id, List<Location_Process__c>> locationProcessMap = new Map<Id, List<Location_Process__c>>();
+        Map<Id, List<wfrecon__Location_Process__c>> locationProcessMap = new Map<Id, List<wfrecon__Location_Process__c>>();
         
         try {
             String objectName = 'wfrecon__Location__c';
@@ -51,22 +51,22 @@ public with sharing class SovJobLocationsController {
                     }
 
                     // --- Fetch all related Location Processes in bulk ---
-                    List<Location_Process__c> allLocationProcesses = [
-                        SELECT Id, Name, Contract_Price__c, Completed_Percentage__c, 
-                            Current_Completed_Value__c, Process_Status__c, 
-                            Scope_Entry_Process__r.wfrecon__Process_Name__c,
-                            Sequence__c, Location__c
-                        FROM Location_Process__c
-                        WHERE Location__c IN :locationIds
+                    List<wfrecon__Location_Process__c> allLocationProcesses = [
+                        SELECT Id, Name, wfrecon__Contract_Price__c, wfrecon__Completed_Percentage__c, 
+                            wfrecon__Current_Completed_Value__c, wfrecon__Process_Status__c, 
+                            wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c,
+                            wfrecon__Sequence__c, wfrecon__Location__c, wfrecon__Process_Name__c
+                        FROM wfrecon__Location_Process__c
+                        WHERE wfrecon__Location__c IN :locationIds
                         WITH USER_MODE
-                        ORDER BY Sequence__c ASC NULLS LAST, CreatedDate ASC
+                        ORDER BY wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
                     ];
 
                     // --- Group processes by location ---
-                    for (Location_Process__c process : allLocationProcesses) {
-                        Id locationId = process.Location__c;
+                    for (wfrecon__Location_Process__c process : allLocationProcesses) {
+                        Id locationId = process.wfrecon__Location__c;
                         if (!locationProcessMap.containsKey(locationId)) {
-                            locationProcessMap.put(locationId, new List<Location_Process__c>());
+                            locationProcessMap.put(locationId, new List<wfrecon__Location_Process__c>());
                         }
                         locationProcessMap.get(locationId).add(process);
                     }
@@ -84,7 +84,7 @@ public with sharing class SovJobLocationsController {
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getLocationEntries', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching Location Entries with processes dynamically for Job ID: ' + jobId,'apiResponse' => null});
             result.put('locationEntries', new List<SObject>());
-            result.put('locationProcessMap', new Map<Id, List<Location_Process__c>>());
+            result.put('locationProcessMap', new Map<Id, List<wfrecon__Location_Process__c>>());
             result.put('success', false);
             result.put('error', e.getMessage());
         }
@@ -96,7 +96,7 @@ public with sharing class SovJobLocationsController {
     *********************************************************
     @description     : Method to convert field names to relationship field format
     @param           : String fieldsList - Comma-separated field names
-    @param           : String relationshipName - Relationship name (e.g., 'Job__r')
+    @param           : String relationshipName - Relationship name (e.g., 'wfrecon__Job__r')
     @return          : String - Comma-separated relationship field names
     @author          : Rachit Shah
     ********************************************************
@@ -163,11 +163,11 @@ public with sharing class SovJobLocationsController {
     @AuraEnabled
     public static String createLocationEntry(Map<String, Object> locationData) {
         try {
-            Location__c newLocation = new Location__c();
+            wfrecon__Location__c newLocation = new wfrecon__Location__c();
             newLocation.Name = (String) locationData.get('name');
-            newLocation.Quantity__c = (Decimal) locationData.get('quantity');
-            newLocation.Unit_of_Measure__c = (String) locationData.get('unitOfMeasure');
-            newLocation.Job__c = (Id) locationData.get('jobId');
+            newLocation.wfrecon__Quantity__c = (Decimal) locationData.get('quantity');
+            newLocation.wfrecon__Unit_of_Measure__c = (String) locationData.get('unitOfMeasure');
+            newLocation.wfrecon__Job__c = (Id) locationData.get('jobId');
             
             insert as user newLocation;
             return 'Success';
@@ -193,26 +193,26 @@ public with sharing class SovJobLocationsController {
             }
             
             // Get all location processes that will be affected by location deletion
-            List<Location_Process__c> locationProcessesToDelete = [
-                SELECT Id, Scope_Entry_Process__c, Scope_Entry_Process__r.Scope_Entry__c,
-                       Location__c, Contract_Price__c
-                FROM Location_Process__c 
-                WHERE Location__c IN :locationIds 
+            List<wfrecon__Location_Process__c> locationProcessesToDelete = [
+                SELECT Id, wfrecon__Scope_Entry_Process__c, wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c,
+                       wfrecon__Location__c, wfrecon__Contract_Price__c
+                FROM wfrecon__Location_Process__c 
+                WHERE wfrecon__Location__c IN :locationIds 
                 WITH USER_MODE
             ];
             
             // Collect affected scope entry IDs for recalculation
             Set<Id> affectedScopeEntryIds = new Set<Id>();
-            for (Location_Process__c lp : locationProcessesToDelete) {
-                if (lp.Scope_Entry_Process__r.Scope_Entry__c != null) {
-                    affectedScopeEntryIds.add(lp.Scope_Entry_Process__r.Scope_Entry__c);
+            for (wfrecon__Location_Process__c lp : locationProcessesToDelete) {
+                if (lp.wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c != null) {
+                    affectedScopeEntryIds.add(lp.wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c);
                 }
             }
             
             // Delete the locations (this will cascade delete location processes due to lookup relationship)
-            List<Location__c> locationsToDelete = [
+            List<wfrecon__Location__c> locationsToDelete = [
                 SELECT Id 
-                FROM Location__c 
+                FROM wfrecon__Location__c 
                 WHERE Id IN :locationIds 
                 WITH USER_MODE
             ];
@@ -223,9 +223,9 @@ public with sharing class SovJobLocationsController {
             if (!affectedScopeEntryIds.isEmpty()) {
 
                 // Get all affected scope entries with their contract values
-                Map<Id, Scope_Entry__c> scopeEntries = new Map<Id, Scope_Entry__c>([
-                    SELECT Id, Contract_Value__c
-                    FROM Scope_Entry__c
+                Map<Id, wfrecon__Scope_Entry__c> scopeEntries = new Map<Id, wfrecon__Scope_Entry__c>([
+                    SELECT Id, wfrecon__Contract_Value__c
+                    FROM wfrecon__Scope_Entry__c
                     WHERE Id IN :affectedScopeEntryIds
                     WITH USER_MODE
                 ]);
@@ -258,17 +258,17 @@ public with sharing class SovJobLocationsController {
         Map<String, Object> configData = new Map<String, Object>();
         
         try {
-            List<LocationConfigration__mdt> configs = [
-                SELECT FieldValue__c, PageSize__c 
-                FROM LocationConfigration__mdt 
+            List<wfrecon__LocationConfigration__mdt> configs = [
+                SELECT wfrecon__FieldValue__c, wfrecon__PageSize__c 
+                FROM wfrecon__LocationConfigration__mdt 
                 WITH USER_MODE 
                 LIMIT 1
             ];
 
             if (!configs.isEmpty()) {
-                LocationConfigration__mdt config = configs[0];
-                configData.put('fieldsData', config.FieldValue__c);
-                configData.put('pageSize', config.PageSize__c);
+                wfrecon__LocationConfigration__mdt config = configs[0];
+                configData.put('fieldsData', config.wfrecon__FieldValue__c);
+                configData.put('pageSize', config.wfrecon__PageSize__c);
             } else {
                 configData.put('fieldsData', '');
                 configData.put('pageSize', 10);
@@ -295,34 +295,34 @@ public with sharing class SovJobLocationsController {
                 return 'Error: No location data provided for update.';
             }
 
-            List<Location__c> updatedLocations =
-                (List<Location__c>) JSON.deserialize(updatedLocationsJson, List<Location__c>.class);
+            List<wfrecon__Location__c> updatedLocations =
+                (List<wfrecon__Location__c>) JSON.deserialize(updatedLocationsJson, List<wfrecon__Location__c>.class);
 
             if (updatedLocations == null || updatedLocations.isEmpty()) {
                 return 'Error: No location records provided for update.';
             }
 
-            // Step 1: Fetch original Quantity__c for change detection
+            // Step 1: Fetch original wfrecon__Quantity__c for change detection
             Set<Id> locationIds = new Set<Id>();
-            for (Location__c loc : updatedLocations) {
+            for (wfrecon__Location__c loc : updatedLocations) {
                 locationIds.add(loc.Id);
             }
 
             Map<Id, Decimal> originalSqFtMap = new Map<Id, Decimal>();
-            for (Location__c oldLoc : [
-                SELECT Id, Quantity__c, Unit_of_Measure__c
-                FROM Location__c
+            for (wfrecon__Location__c oldLoc : [
+                SELECT Id, wfrecon__Quantity__c, wfrecon__Unit_of_Measure__c
+                FROM wfrecon__Location__c
                 WHERE Id IN :locationIds
                 WITH USER_MODE
             ]) {
-                originalSqFtMap.put(oldLoc.Id, oldLoc.Quantity__c);
+                originalSqFtMap.put(oldLoc.Id, oldLoc.wfrecon__Quantity__c);
             }
 
             // Step 2: Identify which locations had quantity feet changes
             Set<Id> changedLocationIds = new Set<Id>();
-            for (Location__c newLoc : updatedLocations) {
+            for (wfrecon__Location__c newLoc : updatedLocations) {
                 Decimal oldSqFt = originalSqFtMap.get(newLoc.Id);
-                Decimal newSqFt = newLoc.Quantity__c;
+                Decimal newSqFt = newLoc.wfrecon__Quantity__c;
 
                 if ((oldSqFt == null && newSqFt != null) ||
                     (oldSqFt != null && newSqFt == null) ||
@@ -382,15 +382,15 @@ public with sharing class SovJobLocationsController {
                 return 'No locations changed for recalculation.';
             }
 
-            // Get related Scope Entries via Location_Process__c
+            // Get related Scope Entries via wfrecon__Location_Process__c
             Map<Id, Id> locationToScopeEntry = new Map<Id, Id>();
-            for (Location_Process__c lp : [
-                SELECT Location__c, Scope_Entry_Process__r.Scope_Entry__c
-                FROM Location_Process__c
-                WHERE Location__c IN :changedLocationIds
+            for (wfrecon__Location_Process__c lp : [
+                SELECT wfrecon__Location__c, wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c
+                FROM wfrecon__Location_Process__c
+                WHERE wfrecon__Location__c IN :changedLocationIds
                 WITH USER_MODE
             ]) {
-                locationToScopeEntry.put(lp.Location__c, lp.Scope_Entry_Process__r.Scope_Entry__c);
+                locationToScopeEntry.put(lp.wfrecon__Location__c, lp.wfrecon__Scope_Entry_Process__r.wfrecon__Scope_Entry__c);
             }
 
             if (locationToScopeEntry.isEmpty()) {
@@ -401,9 +401,9 @@ public with sharing class SovJobLocationsController {
             Set<Id> scopeEntryIds = new Set<Id>(locationToScopeEntry.values());
 
             // Fetch related Scope Entries with their contract values
-            Map<Id, Scope_Entry__c> scopeEntries = new Map<Id, Scope_Entry__c>(
-                [SELECT Id, Contract_Value__c
-                FROM Scope_Entry__c
+            Map<Id, wfrecon__Scope_Entry__c> scopeEntries = new Map<Id, wfrecon__Scope_Entry__c>(
+                [SELECT Id, wfrecon__Contract_Value__c
+                FROM wfrecon__Scope_Entry__c
                 WHERE Id IN :scopeEntryIds
                 WITH USER_MODE]
             );
