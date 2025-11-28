@@ -214,6 +214,9 @@
 .custom-table thead {
     background: rgba(94, 90, 219, 1);
     border-bottom: 2px solid rgba(94, 90, 219, 0.8);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .custom-table th {
@@ -222,9 +225,6 @@
     font-weight: 600;
     color: white;
     font-size: 14px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 .custom-table tbody tr {
@@ -390,53 +390,75 @@
 }
 
 .action-btn {
-    width: 36px;
-    height: 36px;
-    border: 1px solid rgba(94, 90, 219, 0.3);
-    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #d8d8d8;
+    border-radius: 0.25rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    background: white;
+    background-color: transparent;
+    padding: 0.25rem;
 }
 
 .action-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.2);
+    background-color: rgba(94, 90, 219, 0.1);
+    border-color: rgba(94, 90, 219, 1);
 }
 
 .btn-files {
-    background: rgba(94, 90, 219, 0.05);
-    border-color: rgba(94, 90, 219, 0.3);
-}
-
-.btn-files:hover {
-    background: rgba(94, 90, 219, 0.1);
-    border-color: rgba(94, 90, 219, 0.5);
+    color: rgba(94, 90, 219, 1);
 }
 
 .btn-location {
-    background: rgba(254, 147, 57, 0.05);
-    border-color: rgba(254, 147, 57, 0.3);
-}
-
-.btn-location:hover {
-    background: rgba(254, 147, 57, 0.1);
-    border-color: rgba(254, 147, 57, 0.5);
+    color: rgba(94, 90, 219, 1);
 }
 
 .btn-icon {
-    width: 20px;
-    height: 20px;
-    fill: #3e3e3c;
+    width: 18px;
+    height: 18px;
+    fill: rgba(94, 90, 219, 1);
 }
 
 /* Empty State */
 .empty-state {
     text-align: center;
     padding: 80px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+}
+
+.empty-state__content {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.empty-state__icon {
+    margin-bottom: 24px;
+}
+
+/* .empty-state__icon img {
+    width: 200px;
+    height: auto;
+    opacity: 0.8;
+} */
+
+.empty-state__message {
+    font-size: 24px;
+    font-weight: 700;
+    color: #3e3e3c;
+    margin-bottom: 12px;
+}
+
+.empty-state__subtitle {
+    font-size: 16px;
+    color: #706e6b;
+    line-height: 1.5;
 }
 
 .empty-icon {

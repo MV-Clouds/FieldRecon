@@ -1,4 +1,23 @@
 <template>
+    <!-- Access Denied -->
+    <template if:false={hasAccess}>
+        <template if:false={isLoading}>
+            <div class="dashboard-container">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="Access Denied" />
+                        </div>
+                        <div class="empty-state__message">Access Denied</div>
+                        <div class="empty-state__subtitle">{accessErrorMessage}</div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </template>
+
+    <!-- Main Dashboard Content -->
+    <template if:true={hasAccess}>
     <div class="dashboard-container">
         <!-- Filters Section -->
         <div class="filters-section">
@@ -358,4 +377,5 @@
             </div>
         </template>
     </div>
+    </template>
 </template>

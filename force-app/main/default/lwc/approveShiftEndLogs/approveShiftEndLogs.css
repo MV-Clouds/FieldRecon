@@ -136,80 +136,6 @@
     flex-wrap: wrap;
 }
 
-@media (max-width: 1024px) {
-    .filter-bar {
-        /* flex-direction: column; */
-        align-items: stretch;
-    }
-
-    /* .search-div {
-        width: 100%;
-    } */
-
-    .status-counter-section {
-        width: 100%;
-        max-width: 100%;
-        justify-content: space-between;
-    }
-
-    .counter-card {
-        flex: 1;
-        min-width: 60px;
-    }
-
-    .status-filter-dropdown,
-    .date-filter-dropdown {
-        width: 100%;
-    }
-}
-
-@media (max-width: 600px) {
-    .counter-label {
-        font-size: 0.55rem;
-    }
-
-    .counter-value {
-        font-size: 1rem;
-    }
-
-    .counter-card {
-        padding: 0.4rem 0.5rem;
-        min-width: 55px;
-    }
-}
-
-.status-counter-section {
-    display: flex;
-    justify-content: center;
-    flex: 1;
-}
-
-.counter-card.pending-summary {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 4px;
-    border-radius: 8px;
-    background: #ffffff;
-    border: 1px solid #333333;
-    transition: all 0.2s ease;
-    justify-content: center;
-}
-
-.counter-card.pending-summary .counter-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #333333;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-.counter-card.pending-summary .counter-value {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #333;
-}
-
 .date-filter-dropdown {
     min-width: 180px;
     width: 180px;
@@ -375,34 +301,81 @@
 
 /* Tab Content Styles */
 .log-header-info {
-    background: white;
-    padding: 1rem;
-    border-radius: 0.25rem;
-    /* margin-bottom: 1rem; */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: #5f5adc;
+    padding: 0.75rem 1.25rem;
+    box-shadow: 0 2px 6px rgba(94, 90, 219, 0.25);
     position: absolute;
     width: 100%;
     z-index: 99;
+    border-top: 0.1px solid rgba(255, 255, 255, 0.25);
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .header-row {
     display: flex;
-    gap: 1.5rem;
+    align-items: center;
+    gap: 1rem;
     flex-wrap: wrap;
 }
 
 .header-item {
     display: flex;
+    align-items: center;
     gap: 0.5rem;
 }
 
+.header-icon {
+    stroke: white;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
 .header-label {
-    font-weight: 600;
-    color: #666;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
 }
 
 .header-value {
-    color: #333;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+}
+
+.header-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+}
+
+.header-item .status-badge {
+    margin-left: 0;
+    background: white;
+    font-weight: 600;
+}
+
+.header-item .status-badge[data-status="Pending"] {
+    background-color: white;
+    color: #ff9500;
+}
+
+.header-item .status-badge[data-status="Approved"],
+.header-item .status-badge[data-status="Auto-Approved"] {
+    background-color: white;
+    color: #34a853;
+}
+
+.header-item .status-badge[data-status="Rejected"] {
+    background-color: white;
+    color: #ea4335;
 }
 
 .tab-content {
@@ -995,6 +968,7 @@
     align-items: center;
     gap: 0.5rem;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 .contact-info lightning-icon {
@@ -1010,6 +984,10 @@
     font-weight: 600;
     font-size: 14px;
     color: #333;
+}
+
+.contact-info .status-badge {
+    margin-left: 0.25rem;
 }
 
 /* Field Data Rows */
@@ -1063,40 +1041,46 @@
     align-items: center;
 }
 
-.action-buttons .approve-btn-small,
-.action-buttons .reject-btn-small {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 4px;
+/* Timesheet Approve/Reject Buttons */
+.approve-btn-timesheet,
+.reject-btn-timesheet {
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
     border: none;
     cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 600;
     transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
 }
 
-.action-buttons .approve-btn-small {
-    background-color: #4caf50;
+.approve-btn-timesheet {
+    background-color: #5e5adb;
     color: white;
 }
 
-.action-buttons .approve-btn-small:hover {
-    background-color: #45a049;
-    transform: scale(1.05);
+.approve-btn-timesheet:hover:not(:disabled) {
+    background-color: #4a47b0;
 }
 
-.action-buttons .reject-btn-small {
-    background-color: #f44336;
+.approve-btn-timesheet:disabled {
+    background-color: #5e5adb;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.reject-btn-timesheet {
+    background-color: #ea001e;
     color: white;
 }
 
-.action-buttons .reject-btn-small:hover {
-    background-color: #da190b;
-    transform: scale(1.05);
+.reject-btn-timesheet:hover:not(:disabled) {
+    background-color: #ba0517;
+}
+
+.reject-btn-timesheet:disabled {
+    background-color: #ea001e;
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Location Slider Styles (matching shiftEndLogEntries) */
@@ -1332,38 +1316,51 @@
 
 .location-actions {
     display: flex;
-    gap: 1rem;
+    gap: 0.75rem;
     margin-top: 1.5rem;
     justify-content: flex-end;
 }
 
-.location-actions .approve-btn,
-.location-actions .reject-btn {
-    padding: 0.5rem 1.5rem;
-    border-radius: 6px;
+/* Location Process Approve/Reject Buttons */
+.approve-btn-location,
+.reject-btn-location {
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
     border: none;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
     transition: all 0.2s ease;
 }
 
-.location-actions .approve-btn {
-    background-color: #4caf50;
+.approve-btn-location {
+    background-color: #5e5adb;
     color: white;
 }
 
-.location-actions .approve-btn:hover {
-    background-color: #45a049;
+.approve-btn-location:hover:not(:disabled) {
+    background-color: #4a47b0;
 }
 
-.location-actions .reject-btn {
-    background-color: #f44336;
+.approve-btn-location:disabled {
+    background-color: #5e5adb;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.reject-btn-location {
+    background-color: #ea001e;
     color: white;
 }
 
-.location-actions .reject-btn:hover {
-    background-color: #da190b;
+.reject-btn-location:hover:not(:disabled) {
+    background-color: #ba0517;
+}
+
+.reject-btn-location:disabled {
+    background-color: #ea001e;
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Custom Datetime Input Styles (matching shiftEndLogEntries) */
