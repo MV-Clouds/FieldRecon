@@ -4,7 +4,6 @@ import getJobMetrics from '@salesforce/apex/JobMetricsController.getJobMetrics';
 import getMetricSettings from '@salesforce/apex/JobMetricsController.getMetricSettings';
 import saveMetricSettings from '@salesforce/apex/JobMetricsController.saveMetricSettings';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { refreshApex } from '@salesforce/apex';
 import { loadScript } from 'lightning/platformResourceLoader';
 import D3 from '@salesforce/resourceUrl/d3';
 import { NavigationMixin } from 'lightning/navigation';
@@ -74,10 +73,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     @track hasAccess = false;
     @track accessErrorMessage = 'You don\'t have permission to access this.';
 
-    // Store wired responses for refresh
-    wiredMetricsResponse;
-    wiredJobDataResponse;
-
     @wire(getObjectInfo, { objectApiName: JOB_OBJECT })
     objectInfo;
 
@@ -101,40 +96,42 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }
     }
 
-    @wire(getJobMetrics)
-    wiredMetrics(result) {
-        this.wiredMetricsResponse = result;
-        const { error, data } = result;
-        if (data) {
-            this.processMetricsData(data);
-        } else if (error) {
-            this.showToast('Error', 'Failed to load job metrics data: ' + error.body.message, 'error');
-        }
-    }
-
-    @wire(getAllJobsWithScopeData)
-    wiredJobData(result) {
-        this.wiredJobDataResponse = result;
-        const { error, data } = result;
-        if (data) {
-            this.processFinanceData(data);
-        } else if (error) {
-            this.showToast('Error', 'Failed to load finance data: ' + error.body.message, 'error');
-            this.isLoading = false;
-        }
-    }
 
     connectedCallback() {
         this.loadD3();
         this.loadMetricSettings();
         this.overrideSLDS();
-         this.checkUserPermissions();
+        this.checkUserPermissions();
         // Close dropdown when clicking outside
         document.addEventListener('click', this.handleOutsideClick.bind(this));
     }
 
     disconnectedCallback() {
         document.removeEventListener('click', this.handleOutsideClick.bind(this));
+    }
+
+
+    loadMetricsData() {
+        this.isLoading = true;
+        getJobMetrics()
+            .then(data => {
+                this.processMetricsData(data);
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to load job metrics data: ' + error.body?.message, 'error');
+            });
+    }
+
+    loadJobData() {
+        this.isLoading = true;
+
+        getAllJobsWithScopeData()
+            .then(data => {
+                this.processFinanceData(data);
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to load finance data: ' + error.body?.message, 'error');
+            });
     }
 
     checkUserPermissions() {
@@ -149,7 +146,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
                 if (isAdmin || hasFRAdmin) {
                     this.hasAccess = true;
-                    this.loadContactDetails();
+                    this.loadMetricsData();
+                    this.loadJobData();
                 } else {
                     this.hasAccess = false;
                     this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
@@ -440,7 +438,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
             await saveMetricSettings({ metricStatusMap: metricStatusMap });
             this.closeEditPopup();
-            await refreshApex(this.wiredMetricsResponse);
+            this.loadMetricsData();
             this.showToast('Success', 'Metric settings saved successfully', 'success');
         } catch (error) {
             this.showToast('Error', 'Failed to save settings: ' + (error.body?.message || error.message), 'error');
@@ -773,20 +771,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             return `$${(value / 1000).toFixed(0)}K`;
         } else {
             return `$${value}`;
-        }
-    }
-
-    async handleRefresh() {
-        this.isLoading = true;
-        try {
-            await Promise.all([
-                refreshApex(this.wiredMetricsResponse),
-                refreshApex(this.wiredJobDataResponse)
-            ]);
-        } catch (error) {
-            this.showToast('Error', 'Failed to refresh data: ' + (error.body?.message || error.message), 'error');
-        } finally {
-            this.isLoading = false;
         }
     }
 
