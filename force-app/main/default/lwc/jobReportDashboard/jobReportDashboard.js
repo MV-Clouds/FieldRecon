@@ -88,10 +88,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 selected: true
             }));
             this.filteredStatusOptions = [...this.statusOptions];
-            this.selectedStatuses = data.values.map(item => item.value);
         } else if (error) {
             this.statusOptions = [];
-            this.selectedStatuses = [];
             this.showToast('Error', 'Failed to load status options', 'error');
         }
     }
@@ -437,8 +435,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             }
 
             await saveMetricSettings({ metricStatusMap: metricStatusMap });
-            this.closeEditPopup();
             this.loadMetricsData();
+            this.loadJobData();
+            this.closeEditPopup();
             this.showToast('Success', 'Metric settings saved successfully', 'success');
         } catch (error) {
             this.showToast('Error', 'Failed to save settings: ' + (error.body?.message || error.message), 'error');
@@ -518,7 +517,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             this.showToast('No Statuses', `No statuses configured for ${this.getMetricDisplayName(metricName)}`, 'warning');
         }
     }
-
     clearFilters() {
         this.searchTerm = '';
         this.statusSearchTerm = '';
@@ -638,7 +636,13 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
         yAxis.selectAll('text')
             .style('font-size', '11px')
-            .style('fill', '#666');
+            .style('fill', '#666')
+            .text(d => {
+                const maxChars = 30; // Adjust based on your needs
+                return d.length > maxChars ? d.substring(0, maxChars) + '...' : d;
+            })
+            .append('title') // Add tooltip with full text
+            .text(d => d);
 
         svg.append('text')
             .attr('x', width / 2)
@@ -737,6 +741,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 tooltip.style('opacity', 0);
             });
     }
+
 
     generateNiceTickValues(maxValue) {
         if (maxValue <= 0) return [0, 1, 2];

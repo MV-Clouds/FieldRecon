@@ -502,9 +502,10 @@
                     <div class="dual-listbox-container slds-p-horizontal_medium">
                         <lightning-dual-listbox name="statusManager" label="Manage Job Status" variant="label-hidden"
                             source-label="Available Statuses" selected-label="Selected Statuses" options={statusOptions}
-                            value={selectedStatuses} onchange={handleStatusSelection} class="custom-dual-listbox">
+                            value={editSelectedStatuses} onchange={handleStatusSelection} class="custom-dual-listbox">
                         </lightning-dual-listbox>
                     </div>
+
                 </div>
 
 
