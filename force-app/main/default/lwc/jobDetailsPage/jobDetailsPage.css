@@ -400,7 +400,7 @@
 .tab-navigation button.active {
     color: rgba(94, 90, 219, 1);
     border-top: 3px solid rgba(94, 90, 219, 1);
-    background: rgb(227 227 251);;
+    background: rgb(227 227 251);
     font-weight: 700;
 }
 
@@ -1093,7 +1093,7 @@ lightning-combobox {
 }
 
 .nested-table-row {
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #fff;
 }
 
 .nested-table-row:last-child {
@@ -1109,13 +1109,13 @@ lightning-combobox {
     border: none;
 }
 
-.nested-table-row:nth-child(odd) {
+/* .nested-table-row:nth-child(odd) {
     background-color: white;
 }
 
 .nested-table-row:nth-child(even) {
     background-color: #fafafa;
-}
+} */
 
 .nested-table-row:hover {
     background-color: rgba(94, 90, 219, 0.05) !important;
@@ -1279,6 +1279,8 @@ lightning-combobox {
     transition: background-color 0.2s ease;
     max-width: 150px; /* Reduced max-width for nested table cells if needed */
     padding: 0.75rem 0.6rem !important; /* Ensure padding is consistent for click target */
+    background: inherit !important;
+    background-color: inherit !important;
 }
 
 .editable-cell:hover {
@@ -1309,7 +1311,7 @@ lightning-combobox {
     border: 2px solid rgba(94, 90, 219, 1);
     border-radius: 4px;
     font-size: 14px; /* Default font size */
-    background-color: white;
+    background-color: transparent;
     outline: none;
     box-sizing: border-box;
     overflow: hidden;
@@ -1326,7 +1328,7 @@ lightning-combobox {
     white-space: normal;
     overflow: visible;
     transform: scale(1.02);
-    background-color: #ffffff;
+    /* background-color: #ffffff; */
 }
 
 .inline-edit-input[type="number"] {
