@@ -254,11 +254,42 @@
 
                 </div>
                 <div class="filter-group">
-                    <lightning-combobox name="statusFilter" variant="label-hidden" value={selectedStatus}
-                        placeholder="All Statuses" options={statusOptions} onchange={handleStatusChange}>
-                    </lightning-combobox>
-
+                    <div class="custom-multiselect">
+                        <div class="multiselect-header" onclick={toggleStatusDropdown}>
+                            <span class="selected-text">{selectedStatusText}</span>
+                            <lightning-icon icon-name="utility:down" size="x-small"></lightning-icon>
+                        </div>
+                        <template if:true={showStatusDropdown}>
+                            <div class="multiselect-dropdown">
+                                <div class="dropdown-search">
+                                    <lightning-input type="search" placeholder="Search..." variant="label-hidden"
+                                        value={statusSearchTerm} onchange={handleStatusSearch}
+                                        onclick={handleDropdownClick}>
+                                    </lightning-input>
+                                </div>
+                                <div class="dropdown-options">
+                                    <template if:true={filteredStatusOptions.length}>
+                                        <template for:each={filteredStatusOptions} for:item="option">
+                                            <div key={option.value} class="option-item" onclick={handleStatusToggle}
+                                                data-value={option.value}>
+                                                <lightning-input type="checkbox" label={option.label}
+                                                    checked={option.selected} data-value={option.value}
+                                                    onclick={handleStatusToggle}>
+                                                </lightning-input>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <template if:false={filteredStatusOptions.length}>
+                                        <div class="no-options-found">
+                                            No options found
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                 </div>
+
                 <div class="filter-group">
                     <button class="clear-filters-btn" onclick={clearFilters}>
                         Clear Filters

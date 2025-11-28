@@ -785,6 +785,80 @@ lightning-icon {
     align-items: center;
 }
 
+
+.custom-multiselect {
+    position: relative;
+    width: 158px;
+}
+
+.multiselect-header {
+        display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 12px;
+    border: 1px solid rgb(100 100 100);
+    border-radius: 7px;
+    background: white;
+    cursor: pointer;
+}
+
+.multiselect-header:hover {
+    border-color: #0176d3;
+}
+
+.selected-text {
+        flex: 1;
+    font-size: 13px;
+    color: rgb(91 91 91);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.multiselect-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-height: 300px;
+    margin-top: 4px;
+}
+
+.dropdown-search {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.dropdown-options {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.option-item {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.option-item:hover {
+    background-color: #f3f3f3;
+}
+
+.option-item lightning-input {
+    pointer-events: none;
+}
+
+.no-options-found{
+   color: rgb(91 91 91);
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   padding: 1rem;
+}
 /* Responsive Design */
 @media (max-width: 768px) {
     .metrics-cards-container {
