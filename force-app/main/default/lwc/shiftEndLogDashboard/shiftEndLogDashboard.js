@@ -1,6 +1,7 @@
 import { LightningElement, track } from 'lwc';
 import getShiftEndLogDashboardData from '@salesforce/apex/ShiftEndLogDashboardController.getShiftEndLogDashboardData';
 import getLogEntryFiles from '@salesforce/apex/ShiftEndLogDashboardController.getLogEntryFiles';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 
@@ -11,8 +12,10 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     @track selectedLog = null;
     @track locationProcesses = [];
     @track files = [];
+    @track hasAccess = false;
+    @track accessErrorMessage = '';
 
-    isLoading = false;
+    isLoading = true;
     showFileViewer = false;
     showLocationProcessSlider = false;
     selectedDateFilter = 'last30days';
@@ -75,11 +78,42 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     }
 
     connectedCallback() {
-        this.fetchDashboardData();
+        this.checkUserPermissions();
+    }
+
+    // Check user permissions
+    async checkUserPermissions() {
+        const permissionSetsToCheck = ['FR_Admin'];
+                
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+                
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+                
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.fetchDashboardData();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR Admin permission set.";
+                    this.isLoading = false;
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+                console.error('Error checking permissions:', error);
+                this.isLoading = false;
+            });
     }
 
     // Fetch dashboard data
     fetchDashboardData() {
+        if (!this.hasAccess) {
+            return;
+        }
         this.isLoading = true;
         getShiftEndLogDashboardData()
             .then(result => {

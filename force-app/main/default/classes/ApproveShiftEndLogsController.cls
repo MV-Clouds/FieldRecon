@@ -45,9 +45,9 @@ public with sharing class ApproveShiftEndLogsController {
     }
 
     /**
-     * @description: Method to get all pending log entries based on date filter with total count
+     * @description: Method to get all pending log entries based on date filter
      * @param dateFilter: String filter option (last7days, last15days, last30days, alltime)
-     * @return: LogEntryResponse - Response containing pending log entries and total count of all log entries
+     * @return: LogEntryResponse - Response containing pending log entries
      */
     @AuraEnabled
     public static LogEntryResponse getUnapprovedLogEntries(String dateFilter) {
@@ -67,13 +67,6 @@ public with sharing class ApproveShiftEndLogsController {
             } else if (dateFilter == 'alltime') {
                 startDate = Date.newInstance(2000, 1, 1); // Set to a far past date
             }
-            
-            // Build query for TOTAL count (all statuses)
-            String totalCountQuery = 'SELECT COUNT() FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c != null';
-            if (startDate != null) {
-                totalCountQuery += ' AND wfrecon__Work_Performed_Date__c >= :startDate';
-            }
-            response.totalCount = Database.countQuery(totalCountQuery);
             
             // Build query - fetch only PENDING log entries
             String query = 'SELECT Id, Name, wfrecon__Exceptions__c, wfrecon__Job__c, wfrecon__Job__r.Id, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, ' +
@@ -112,7 +105,6 @@ public with sharing class ApproveShiftEndLogsController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'getUnapprovedLogEntries', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             LogEntryResponse errorResponse = new LogEntryResponse();
             errorResponse.entries = new List<LogEntryWrapper>();
-            errorResponse.totalCount = 0;
             return errorResponse;
         }
     }
@@ -194,7 +186,7 @@ public with sharing class ApproveShiftEndLogsController {
                                 field.fieldApiName = (String) change.get('fieldApiName');
                                 field.oldValue = change.get('oldValue') != null ? String.valueOf(change.get('oldValue')) : null;
                                 field.newValue = change.get('newValue') != null ? String.valueOf(change.get('newValue')) : null;
-                                field.recordType = 'Timesheet_Entry__c';
+                                field.recordType = 'wfrecon__Timesheet_Entry__c';
                                 field.recordId = tsId;
                                 tsWrapper.approvalFields.add(field);
                             }
@@ -344,12 +336,12 @@ public with sharing class ApproveShiftEndLogsController {
             
             // Apply field updates to parent ONLY if this specific timesheet is NOT rejected
             if (!isTimesheetRejected && fieldUpdates != null && !fieldUpdates.isEmpty()) {
-                if (fieldUpdates.containsKey('Clock_In_Time__c')) {
-                    String clockInStr = (String) fieldUpdates.get('Clock_In_Time__c');
+                if (fieldUpdates.containsKey('wfrecon__Clock_In_Time__c')) {
+                    String clockInStr = (String) fieldUpdates.get('wfrecon__Clock_In_Time__c');
                     ts.wfrecon__Clock_In_Time__c = convertUtc(clockInStr);
                 }
-                if (fieldUpdates.containsKey('Clock_Out_Time__c')) {
-                    String clockOutStr = (String) fieldUpdates.get('Clock_Out_Time__c');
+                if (fieldUpdates.containsKey('wfrecon__Clock_Out_Time__c')) {
+                    String clockOutStr = (String) fieldUpdates.get('wfrecon__Clock_Out_Time__c');
                     ts.wfrecon__Clock_Out_Time__c = convertUtc(clockOutStr);
                 }
             }
@@ -366,16 +358,16 @@ public with sharing class ApproveShiftEndLogsController {
                 
                 // Apply field updates to child ONLY if this specific timesheet is NOT rejected
                 if (!isTimesheetRejected && fieldUpdates != null && !fieldUpdates.isEmpty()) {
-                    if (fieldUpdates.containsKey('Clock_In_Time__c')) {
-                        String clockInStr = (String) fieldUpdates.get('Clock_In_Time__c');
+                    if (fieldUpdates.containsKey('wfrecon__Clock_In_Time__c')) {
+                        String clockInStr = (String) fieldUpdates.get('wfrecon__Clock_In_Time__c');
                         item.wfrecon__Clock_In_Time__c = convertUtc(clockInStr);
                     }
-                    if (fieldUpdates.containsKey('Clock_Out_Time__c')) {
-                        String clockOutStr = (String) fieldUpdates.get('Clock_Out_Time__c');
+                    if (fieldUpdates.containsKey('wfrecon__Clock_Out_Time__c')) {
+                        String clockOutStr = (String) fieldUpdates.get('wfrecon__Clock_Out_Time__c');
                         item.wfrecon__Clock_Out_Time__c = convertUtc(clockOutStr);
                     }
-                    if (fieldUpdates.containsKey('Travel_Time__c')) {
-                        item.wfrecon__Travel_Time__c = (Decimal) fieldUpdates.get('Travel_Time__c');
+                    if (fieldUpdates.containsKey('wfrecon__Travel_Time__c')) {
+                        item.wfrecon__Travel_Time__c = (Decimal) fieldUpdates.get('wfrecon__Travel_Time__c');
                     }
                 }
                 
@@ -398,7 +390,7 @@ public with sharing class ApproveShiftEndLogsController {
      * @param utcDateTimeStr: DateTime string in format YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss
      * @return: DateTime object with exact time values
      */
-    private static Datetime convertUtc(String utcDateTimeStr) {
+    public static Datetime convertUtc(String utcDateTimeStr) {
         try {
             if (String.isBlank(utcDateTimeStr)) return null;
     
@@ -537,11 +529,10 @@ public with sharing class ApproveShiftEndLogsController {
     }
     
     /**
-     * @description: Wrapper class for Log Entry Response with total count
+     * @description: Wrapper class for Log Entry Response
      */
     public class LogEntryResponse {
         @AuraEnabled public List<LogEntryWrapper> entries { get; set; }
-        @AuraEnabled public Integer totalCount { get; set; }
     }
     
     /**
