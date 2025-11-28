@@ -4,11 +4,30 @@
             <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
         </div>
     </template>
-    <div class="main-card">
+     <!-- Access Denied -->
+    <template if:false={hasAccess}>
+        <div class="wrapper">
+            <div class="no-prop">
+                <div class="empty-space">
+                    <div class="empty-space__content">
+                        <div class="empty__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="Access Denied" />
+                        </div>
+                        <div class="empty-space__message">Access Denied</div>
+                        <div class="empty-space__subtitle">{accessErrorMessage}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template if:true={hasAccess}>
+
+        <div class="main-card">
         <!-- Status Metrics Section -->
         <div class="metrics-container">
             <div class="metrics-header">
-                <h2 class="metrics-title">Job Report and Dashboard</h2>
+                <h2 class="metrics-title">WIP Report and Dashboard</h2>
                 <div class="header-actions">
                     <button class="action-button refresh-btn" onclick={handleRefresh}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -222,7 +241,7 @@
                 <h3 class="table-title">Finance Overview</h3>
                 <div class="table-actions">
                     <div class="view-toggle">
-                        <button class={tableButtonClass} onclick={switchToTableView}>
+                        <button class={tableButtonClass} onclick={switchToTableView} title="Table View">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                 xmlns="http://www.w3.org/2000/svg">
                                 <path
@@ -230,7 +249,7 @@
                                     stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                             </svg>
                         </button>
-                        <button class={chartButtonClass} onclick={switchToChartView}>
+                        <button class={chartButtonClass} onclick={switchToChartView} title="Chart View">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round"
@@ -405,7 +424,7 @@
                                 </template>
                             </tbody>
                             <!-- Footer with Totals -->
-                            <tfoot>
+                            <tfoot class="table-footer">
                                 <tr class="totals-row">
                                     <td class="data-cell totals-label"></td>
                                     <td class="data-cell totals-label"></td>
@@ -490,7 +509,7 @@
                         </lightning-icon>
                         <span class="slds-assistive-text">Close</span>
                     </button>
-                    <h2 class="slds-text-heading_medium">Edit Job Status</h2>
+                    <h2 class="slds-text-heading_medium">Edit Status for {metricDisplayName}</h2>
                 </header>
 
                 <!-- Modal content -->
@@ -515,4 +534,7 @@
         <!-- Modal Backdrop -->
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
+
+    </template>
+    
 </template>
