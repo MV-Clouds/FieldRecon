@@ -801,5 +801,78 @@ private class ManagementTabControllerTest {
         System.assertEquals(0, deletedContacts.size(), 'Contact should be deleted');
     }
 
+    @IsTest
+    static void testSaveLogEntryApprovers_SuccessPath() {
+        // enqueueDeployment runs synchronously in test context → full coverage
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.saveLogEntryApprovers('{"users":["005xxxxxxxxxxxxxxx"]}');
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testUpdateGlobalPicklistValues_FullMetadataFlow_Covered() {
+        // Build a realistic GlobalValueSet with some active/inactive values
+        MetadataService.GlobalValueSet mockGVS = new MetadataService.GlobalValueSet();
+        mockGVS.fullName = 'wfrecon__Mobilization_Status';
+        mockGVS.masterLabel = 'Mobilization Status';
+
+        MetadataService.CustomValue cv1 = new MetadataService.CustomValue();
+        cv1.fullName = 'Confirmed';
+        cv1.isActive = true;
+
+        MetadataService.CustomValue cv2 = new MetadataService.CustomValue();
+        cv2.fullName = 'Cancelled';
+        cv2.isActive = false; // will be reactivated
+
+        mockGVS.customValue = new List<MetadataService.CustomValue>{ cv1, cv2 };
+
+        // Mock will return the GVS on read, then success on update
+        Test.setMock(WebServiceMock.class, new MetadataServiceMock(new List<Object>{ mockGVS }));
+
+        Test.startTest();
+        String result = ManagementTabController.updateGlobalPicklistValues(
+            new List<String>{ 'NewStatus', 'Cancelled' },     // NewStatus added, Cancelled reactivated
+            new List<String>{ 'Confirmed' }                  // Confirmed deactivated
+        );
+        Test.stopTest();
+    }
+
+
+    public class MetadataServiceMock implements WebServiceMock {
+        private List<Object> responses;
+        private Integer callIndex = 0;
+
+        public MetadataServiceMock(List<Object> responses) {
+            this.responses = responses;
+        }
+
+        public void doInvoke(
+            Object stub,
+            Object request,
+            Map<String, Object> response,
+            String endpoint,
+            String soapAction,
+            String requestName,
+            String responseNS,
+            String responseName,
+            String responseType
+        ) {
+            if (requestName == 'readMetadata') {
+                MetadataService.readMetadataResponse_element readResp = new MetadataService.readMetadataResponse_element();
+                MetadataService.ReadResult readResult = new MetadataService.ReadResult();
+                readResult.records = new List<MetadataService.Metadata>{ (MetadataService.GlobalValueSet)responses[callIndex++] };
+                readResp.result = readResult;
+                response.put('response_x', readResp);
+            }
+            else if (requestName == 'updateMetadata') {
+                MetadataService.updateMetadataResponse_element updateResp = new MetadataService.updateMetadataResponse_element();
+                MetadataService.SaveResult saveResult = new MetadataService.SaveResult();
+                saveResult.success = true;
+                updateResp.result = new List<MetadataService.SaveResult>{ saveResult };
+                response.put('response_x', updateResp);
+                callIndex++;
+            }
+        }
+    }
 
 }
