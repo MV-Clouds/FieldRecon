@@ -478,6 +478,21 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const boundaryKey = nextDay || dateKey;
         return `${boundaryKey}T23:59`;
     }
+
+    get modalJobStartTime() {
+        const job = this.getCurrentJobRecord();
+        return job ? this.formatToAMPM(job.startDate) : '';
+    }
+
+    get modalJobEndTime() {
+        const job = this.getCurrentJobRecord();
+        return job ? this.formatToAMPM(job.endDate) : '';
+    }
+
+    isValidDateTime(dateTimeString) {
+        const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+        return regex.test(dateTimeString);
+    }
     
     // --- Lifecycle and Initialization ---
 
@@ -614,9 +629,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
 
-        if (clockInDate && jobStartDate && clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
-            this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
-            return false;
+        if (clockInDate && jobStartDate) {
+            if (clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
+                this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
+                return false;
+            }
         }
         return true;
     }
@@ -1060,6 +1077,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
+            if (!this.isValidDateTime(this.clockInTime)) {
+                this.showToast('Error', 'Please select both date and time for Clock In.', 'error');
+                return;
+            }
+
             this.isLoading = true;
 
             const selectedRecordDetails = this.clockInList.find(
@@ -1073,7 +1095,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
 
             const jobStartReference = selectedRecordDetails?.jobStartTime || this.currentJobStartDateTime;
-            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
+            const jobEndReference = selectedRecordDetails?.jobEndTime || this.currentJobEndDateTime;
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference, jobEndReference)) {
                 this.isLoading = false;
                 return;
             }
@@ -1193,6 +1216,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'Please fill value in all the required fields!', 'error');
                 return;
             }
+
+            if (!this.isValidDateTime(this.clockOutTime)) {
+                this.showToast('Error', 'Please select both date and time for Clock Out.', 'error');
+                return;
+            }
             
             const selectedRecordDetails = this.clockOutList.find(
                 record => record.contactId === this.selectedContactId
@@ -1289,6 +1317,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 }
         
                 if(dataField == 'clockOut') {
+                    if(value == null || value == '') {
+                        this.previousClockInTime = null;
+                        return;
+                    }
                     const selectedContact = this.clockOutList.find(
                         item => item.contactId === this.selectedContactId
                     );
