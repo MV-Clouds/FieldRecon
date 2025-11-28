@@ -1051,7 +1051,7 @@ public with sharing class ShiftEndLogEntriesController {
                 Map<String, Object> pageRef = new Map<String, Object>{
                     'type' => 'standard__navItemPage',
                     'attributes' => new Map<String, Object>{
-                        'apiName' => 'wfrecon__Shift_Log_Approval' // Tab API Name (namespaced)
+                        'apiName' => 'wfrecon__Shift_End_Log_Approval' // Tab API Name (namespaced)
                     }
                 };
                 String title = 'New Shift End Log Entry Created';

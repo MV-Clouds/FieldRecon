@@ -89,7 +89,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Description', fieldName: 'jobDescription', style: 'width: 15rem' }
     ];
 
-    // Timesheet columns adapted for inline editing/display
+
+    // --- Timesheet Columns Definition ---
     @track timesheetColumns = [
         { label: 'Full Name', fieldName: 'contactName', type: 'text', editable: false, style: 'width: 6rem' },
         { label: 'Clock In Time', fieldName: 'clockInTime', type: 'datetime', editable: true, style: 'width: 6rem' },
@@ -97,6 +98,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         { label: 'Work Hours', fieldName: 'workHours', type: 'number', editable: false, style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', type: 'number', editable: true, min: 0.00, step: 0.01, style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', type: 'number', editable: false, style: 'width: 6rem' },
+        // MODIFIED: Type set to 'boolean' to enable checkbox rendering and Yes/No display logic
         { label: 'Per Diem', fieldName: 'perDiem', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Premium', fieldName: 'premium', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Cost Code', fieldName: 'costCodeName', type: 'text', editable: false, style: 'width: 6rem' }
@@ -220,7 +222,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     getTimesheetDataForJobDisplay(mobId) {
         const rawTimesheets = this.timesheetDataMap.get(mobId) || [];
         const selectedIds = this.selectedTimesheets.get(mobId) || new Set();
-        
+
         return rawTimesheets.map((ts, index) => {
             const displayEntry = {
                 ...ts,
@@ -229,42 +231,42 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 displayFields: this.timesheetColumns.map(col => {
                     const fieldName = col.fieldName;
                     const cellKey = `${ts.id}-${fieldName}`;
-                    
+
                     let originalValue = ts[fieldName];
-                    let value = originalValue; 
+                    let value = originalValue; 
                     let isModified = false;
 
+                    // --- Check for modifications ---
                     const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
                     if (modification && modification.hasOwnProperty(fieldName)) {
                         value = modification[fieldName];
                         isModified = true;
                     }
 
+                    // --- CRITICAL: Boolean Normalization for UI ---
                     if (col.type === 'boolean') {
+                        // Handles 1, 0, "1", "0", true, false, AND the modified 1 or 0 value from the map
                         value = (value === 1 || value === '1' || value === true || value === 'true');
                     }
 
                     const isEditing = this.editingTimesheetCells.has(cellKey);
-                    
+
                     let cellClass = 'center-trancate-text';
                     if (col.editable) cellClass += ' editable-cell';
                     if (isModified) cellClass += ' modified-process-cell';
                     if (isEditing) cellClass += ' editing-cell';
-                    
+
+                    // Display Value Logic (for non-editing mode)
                     let displayValue = String(value || '');
                     if (col.type === 'datetime') {
                         displayValue = value ? this.formatToAMPM(value) : '--';
                     } else if (col.type === 'boolean') {
-                        if(fieldName === 'perDiem') {
-                            displayValue = value ? '1' : '0';
-                        } else {
-                            displayValue = value ? 'Yes' : 'No';
-                        }
+                        // MODIFIED: Display Yes/No for both Premium and Per Diem
+                        displayValue = value ? 'Yes' : 'No';
                     } else if (col.type === 'number' || col.type === 'currency') {
                         displayValue = value !== null && value !== undefined ? Number(value).toFixed(2) : '0.00';
                     }
 
-                    // Use formatToDatetimeLocal to extract raw ISO numbers for input
                     const datetimeValue = col.type === 'datetime' && value ? this.formatToDatetimeLocal(value) : null;
                     
                     let minBoundary = null;
@@ -277,7 +279,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     return {
                         key: fieldName,
                         displayValue: displayValue,
-                        rawValue: value, 
+                        rawValue: value, // This is the normalized boolean/number value for inputs
                         datetimeValue: datetimeValue,
                         isEditing: isEditing,
                         isEditable: col.editable,
@@ -286,7 +288,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         contentClass: 'editable-content',
                         isDatetime: col.type === 'datetime',
                         isNumber: col.type === 'number',
-                        isBoolean: col.type === 'boolean', 
+                        isBoolean: col.type === 'boolean', // Important flag
                         isText: col.type === 'text',
                         isCurrency: col.type === 'currency',
                         step: col.step,
@@ -478,6 +480,21 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const boundaryKey = nextDay || dateKey;
         return `${boundaryKey}T23:59`;
     }
+
+    get modalJobStartTime() {
+        const job = this.getCurrentJobRecord();
+        return job ? this.formatToAMPM(job.startDate) : '';
+    }
+
+    get modalJobEndTime() {
+        const job = this.getCurrentJobRecord();
+        return job ? this.formatToAMPM(job.endDate) : '';
+    }
+
+    isValidDateTime(dateTimeString) {
+        const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+        return regex.test(dateTimeString);
+    }
     
     // --- Lifecycle and Initialization ---
 
@@ -614,9 +631,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
 
-        if (clockInDate && jobStartDate && clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
-            this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
-            return false;
+        if (clockInDate && jobStartDate) {
+            if (clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
+                this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
+                return false;
+            }
         }
         return true;
     }
@@ -676,14 +695,18 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     /**
      * Method Name: preloadTimesheetData
      * @description: Pre-loads timesheet data for all jobs (like sovJobLocations pre-loads process data)
+     * Preserves the expanded state of jobs during the refresh
      */
     async preloadTimesheetData() {
         try {
+            // Store current expanded states before refresh
             const expandedIds = new Set(this.expandedJobs);
+            
+            // Clear the timesheet data map but NOT the expandedJobs set yet
             this.timesheetDataMap = new Map();
-            this.expandedJobs = new Set();
             
             if (!this.jobDetailsRaw || this.jobDetailsRaw.length === 0) {
+                this.expandedJobs = new Set();
                 return;
             }
 
@@ -693,7 +716,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
             await Promise.all(loadPromises);
             
+            // Restore the expanded state after data is loaded
             this.expandedJobs = expandedIds;
+            
+            // Force re-render to display the restored expanded states
             this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
             
         } catch (error) {
@@ -807,6 +833,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     /**
      * Method Name: loadTimesheetData
      * @description: Refresh timesheet data for a specific job (used after CRUD operations)
+     * Preserves the expanded state during refresh
      */
     async loadTimesheetData(mobId) {
         try {
@@ -815,13 +842,108 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
             if (job) {
                 await this.loadTimesheetDataForJob(job);
+                // Create new Map to trigger reactivity
                 this.timesheetDataMap = new Map(this.timesheetDataMap);
             }
         } catch (error) {
             console.error('Error in loadTimesheetData:', error);
         } finally {
             this.isLoading = false;
+            // Force re-render while preserving expanded state
             this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
+        }
+    }
+
+    /**
+     * Method Name: refreshJobDataWithState
+     * @description: Targeted refresh that refreshes job data while preserving expanded states and modifications
+     * Use this instead of getJobRelatedMoblizationDetails() after CRUD operations
+     */
+    async refreshJobDataWithState() {
+        try {
+            this.isLoading = true;
+            
+            // Store current expanded states before refresh
+            const expandedIds = new Set(this.expandedJobs);
+            
+            // Store current modifications and editing states
+            const currentModifications = new Map(this.modifiedTimesheetEntries);
+            const currentEditingCells = new Set(this.editingTimesheetCells);
+            const currentSelectedTimesheets = new Map(this.selectedTimesheets);
+            
+            const data = await getJobRelatedMoblizationDetails({ 
+                filterDate: this.apexFormattedDate, 
+                mode: this.viewMode, 
+                customStartDate: this.customStartDate, 
+                customEndDate: this.customEndDate 
+            });
+            
+            if (data != null) {
+                this.jobDetailsRaw = data;
+                this.filteredJobDetailsRaw = data;
+                
+                // Preload timesheet data (this will now preserve expanded state)
+                await this.preloadTimesheetData();
+                
+                // Restore the expanded state
+                this.expandedJobs = expandedIds;
+                
+                // Restore modifications only for entries that still exist
+                this.modifiedTimesheetEntries = new Map();
+                currentModifications.forEach((value, key) => {
+                    // Check if the modified entry still exists in the new data
+                    const mobId = value.mobId;
+                    const timesheets = this.timesheetDataMap.get(mobId);
+                    if (timesheets && timesheets.find(ts => ts.id === key)) {
+                        this.modifiedTimesheetEntries.set(key, value);
+                    }
+                });
+                
+                // Restore editing cells only for entries that still exist
+                this.editingTimesheetCells = new Set();
+                currentEditingCells.forEach(cellKey => {
+                    const [id] = cellKey.split('-');
+                    let stillExists = false;
+                    this.timesheetDataMap.forEach((timesheets) => {
+                        if (timesheets.find(ts => ts.id === id)) {
+                            stillExists = true;
+                        }
+                    });
+                    if (stillExists) {
+                        this.editingTimesheetCells.add(cellKey);
+                    }
+                });
+                
+                // Restore selected timesheets only for entries that still exist
+                this.selectedTimesheets = new Map();
+                currentSelectedTimesheets.forEach((selectedSet, mobId) => {
+                    const timesheets = this.timesheetDataMap.get(mobId);
+                    if (timesheets) {
+                        const validIds = new Set();
+                        selectedSet.forEach(id => {
+                            if (timesheets.find(ts => ts.id === id)) {
+                                validIds.add(id);
+                            }
+                        });
+                        if (validIds.size > 0) {
+                            this.selectedTimesheets.set(mobId, validIds);
+                        }
+                    }
+                });
+                
+                // Update the hasTimesheetModifications flag
+                this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
+                
+                // Force re-render
+                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
+            } else {
+                this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            }
+        } catch (error) {
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+            console.error('Error in refreshJobDataWithState:', error);
+        } finally {
+            this.isLoading = false;
         }
     }
 
@@ -1060,6 +1182,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
+            if (!this.isValidDateTime(this.clockInTime)) {
+                this.showToast('Error', 'Please select both date and time for Clock In.', 'error');
+                return;
+            }
+
             this.isLoading = true;
 
             const selectedRecordDetails = this.clockInList.find(
@@ -1073,7 +1200,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
 
             const jobStartReference = selectedRecordDetails?.jobStartTime || this.currentJobStartDateTime;
-            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
+            const jobEndReference = selectedRecordDetails?.jobEndTime || this.currentJobEndDateTime;
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference, jobEndReference)) {
                 this.isLoading = false;
                 return;
             }
@@ -1193,6 +1321,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'Please fill value in all the required fields!', 'error');
                 return;
             }
+
+            if (!this.isValidDateTime(this.clockOutTime)) {
+                this.showToast('Error', 'Please select both date and time for Clock Out.', 'error');
+                return;
+            }
             
             const selectedRecordDetails = this.clockOutList.find(
                 record => record.contactId === this.selectedContactId
@@ -1241,7 +1374,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         this.previousClockInTime = null;
                         this.clockOutTime = this.defaultEndTime;
                         this.getClockOutDetails();
-                        this.getJobRelatedMoblizationDetails();
+                        // Use targeted refresh to preserve expanded state
+                        this.refreshJobDataWithState();
                         this.showToast('Success', 'User Clocked Out Successfully', 'success');
                     } else {
                         this.showToast('Error', 'Failed to Clock Out User', 'error');
@@ -1289,6 +1423,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 }
         
                 if(dataField == 'clockOut') {
+                    if(value == null || value == '') {
+                        this.previousClockInTime = null;
+                        return;
+                    }
                     const selectedContact = this.clockOutList.find(
                         item => item.contactId === this.selectedContactId
                     );
@@ -1496,13 +1634,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            if(this.clockOutTime <= this.clockInTime) {
+            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(this.clockInTime.replace(' ', 'T'))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
-                return;
-            }
-
-            if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
-                this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
                 return;
             }
 
@@ -1510,43 +1643,53 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
 
+            // USE CORRECTED VALIDATION
             if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
                 return;
             }
+
             if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
+                return;
+            }
+             
+            // MODIFIED: Use `this.enteredManualPerDiem` (from checkbox state in UI, stored as 0 or 1)
+            // If you decide to use a checkbox in the modal HTML, you need to adjust handleInputChange for PerDiem to store true/false
+            // Assuming the number input for PerDiem is still used in the modal for simplicity, but validating it.
+            if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
+                this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
                 return;
             }
 
             this.isLoading = true;
-
-            // --- TIMEZONE FIX ---
-            // Pass raw local string (YYYY-MM-DDTHH:mm) + seconds.
-            const cleanClockIn = this.clockInTime.length === 16 ? this.clockInTime + ':00' : this.clockInTime;
-            const cleanClockOut = this.clockOutTime.length === 16 ? this.clockOutTime + ':00' : this.clockOutTime;
-
+         
             const params = {
                 jobId : this.jobId,
                 mobId : this.mobId,
                 contactId : this.selectedManualPersonId,
                 costCodeId : this.selectedCostCodeId,
-                clockInTime : cleanClockIn,
-                clockOutTime : cleanClockOut,
+                clockInTime : this.clockInTime,
+                clockOutTime : this.clockOutTime,
+                // Ensure correct date keys are passed
                 jobStartDate : this.extractDateKey(jobStartReference),
                 jobEndDate : this.extractDateKey(jobEndReference),
                 travelTime : this.enteredManualTravelTime ? String(this.enteredManualTravelTime) : '0.00',
+                // Per Diem is passed as 0 or 1 string
                 perDiem : this.enteredManualPerDiem ? String(this.enteredManualPerDiem) : '0'
             }
-
+         
             createManualTimesheetRecords({params : JSON.stringify(params)})
                 .then((result) => {
                     if(result == true) {
-                        this.closeManualTimesheetModal();
                         this.showToast('Success', 'Timesheet created successfully', 'success');
+                        // AUTO-CLOSE MODAL
+                        this.closeManualTimesheetModal();
                         
+                        // Refresh the specific job's timesheet data while preserving expanded state
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
                         }
-                        this.getJobRelatedMoblizationDetails();
+                        // Use targeted refresh to preserve expanded state
+                        this.refreshJobDataWithState();
                     } else {
                         this.showToast('Error', 'Failed to create timesheet record. Please try again.', 'error');
                     }
@@ -1689,7 +1832,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
                         }
-                        this.getJobRelatedMoblizationDetails();
+                        // Use targeted refresh to preserve expanded state
+                        this.refreshJobDataWithState();
                         this.showToast('Success', 'Timesheet entry updated successfully', 'success');
                         this.closeEditTimesheetModal();
                     } else {
@@ -1795,14 +1939,19 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const field = event.currentTarget.dataset.field;
         const type = event.currentTarget.dataset.type;
         const mobId = event.currentTarget.dataset.mobid;
-        
+         
         let newValue;
-        const isCheckbox = event.target.type === 'checkbox' || type === 'boolean'; 
+        const isCheckbox = event.target.type === 'checkbox' || type === 'boolean'; // Force check HTML type
 
+        // --- 1. Get the New Value (CRITICAL FIX: Use HTML element type to determine boolean read) ---
         if (isCheckbox) {
-            newValue = event.target.checked; 
+            // Use event.target.checked to get the correct boolean state (true/false)
+            newValue = event.target.checked; 
+             
+            // For checkboxes, immediately remove the editing state to force re-render/display the modified value
             this.editingTimesheetCells.delete(`${id}-${field}`);
         } else {
+            // Standard inputs use event.target.value
             newValue = event.target.value;
         }
 
@@ -1811,29 +1960,35 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             if (isNaN(newValue)) newValue = null;
         }
 
+        // --- 2. Get Original Value and Normalize for Comparison ---
         const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
         let originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
 
+        // CRITICAL FIX: Normalize Original Value to a true boolean or float for reliable comparison
         if (type === 'number') {
             originalValue = originalValue !== null && originalValue !== undefined ? parseFloat(originalValue) : null;
         } else if (type === 'boolean') {
+            // Normalize the original DB value (e.g., 1 or "1") to a true boolean
             originalValue = (originalValue === 1 || originalValue === '1' || originalValue === true || originalValue === 'true');
         }
 
         if (!this.modifiedTimesheetEntries.has(id)) {
             this.modifiedTimesheetEntries.set(id, { mobId: mobId, modifications: {} });
         }
-        
+         
         const entry = this.modifiedTimesheetEntries.get(id);
         const modifications = entry.modifications;
-        
+         
+        // --- 3. Robust Comparison Logic ---
         const areValuesEqual = (val1, val2, valueType) => {
             if (val1 === val2) return true;
-            
+             
+            // Handle Boolean: Compare semantic truthiness
             if (valueType === 'boolean') {
-                return !!val1 === !!val2; 
+                return !!val1 === !!val2; 
             }
 
+            // Handle Number: Allow for float tolerance and null/empty string equivalence
             if (valueType === 'number') {
                 const n1 = (val1 === null || val1 === undefined || val1 === '') ? null : val1;
                 const n2 = (val2 === null || val2 === undefined || val2 === '') ? null : val2;
@@ -1841,6 +1996,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 if (n1 !== null && n2 !== null) return Math.abs(n1 - n2) < 0.005;
             }
 
+            // Handle Datetime strings
             if (valueType === 'datetime') {
                 const d1 = val1 || null;
                 const d2 = val2 || null;
@@ -1853,9 +2009,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const valuesMatch = areValuesEqual(newValue, originalValue, type);
 
         if (!valuesMatch) {
+            // CRITICAL FIX: Convert UI boolean (true/false) to 1/0 for Apex/Map consumption
             if (field === 'perDiem' || field === 'premium') {
                 const valueToStore = newValue ? 1 : 0;
-                modifications[field] = valueToStore; 
+                modifications[field] = valueToStore; 
             } else {
                 modifications[field] = newValue;
             }
@@ -1865,8 +2022,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.modifiedTimesheetEntries.delete(id);
             }
         }
-        
+         
         this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
+        // Force re-render to update modified highlighting and save button state
         this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
     }
 
@@ -1973,6 +2131,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
         this.isSavingTimesheetEntries = true;
         const updatedTimesheets = [];
+        this.isLoading = true;
 
         this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
             const originalTSE = this.timesheetDataMap.get(mobId).find(ts => ts.id === id);
@@ -2028,7 +2187,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     this.showToast('Success', 'Timesheet changes saved successfully', 'success');
                     // Re-load data for this job to refresh calculated fields and UI
                     this.loadTimesheetData(mobId);
-                    this.getJobRelatedMoblizationDetails();
+                    // Use targeted refresh to preserve expanded state
+                    this.refreshJobDataWithState();
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -2040,7 +2200,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.isSavingTimesheetEntries = false;
                 this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
                 this.editingTimesheetCells.clear();
-                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
+                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
+                this.isLoading = false;
             });
     }
 
@@ -2159,8 +2320,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     handleDeleteConfirmTSEL() {
         if (this.deleteConfirmationAction === 'bulkDeleteTimesheets') {
             this.proceedWithTimesheetBulkDeletion();
-        } 
+        }
+        // Note: The single delete modal is now typically bypassed if using the new UI.
+        // If the modal is triggered by the old flow, it defaults to single deletion.
         else if (this.deleteConfirmationAction === 'singleDeleteTimesheet') {
+            // Call single delete function which handles closing/refreshing
             this.proceedWithTimesheetSingleDeletion(this.selectedTimesheetEntryLineId, this.mobId);
         } else {
             this.closeDeleteConfirmModal();
@@ -2174,7 +2338,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     proceedWithTimesheetSingleDeletion(tselId, mobId) {
         try {
             this.isLoading = true;
-            this.showDeleteConfirmModal = false; // Close modal
+            // The modal closes immediately before the call, simplifying logic
+            this.showDeleteConfirmModal = false; 
             
             deleteTimesheetEntry({ TSELId: tselId })
                 .then((result) => {
@@ -2183,11 +2348,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         this.selectedTimesheetEntryLineId = null;
                         this.resetDeleteConfirmationState();
                         
-                        // Refresh the specific job's timesheet data
+                        // Refresh the specific job's timesheet data while preserving expanded state
                         if (mobId) {
                             this.loadTimesheetData(mobId);
                         }
-                        this.getJobRelatedMoblizationDetails();
+                        // Use targeted refresh to preserve expanded state
+                        this.refreshJobDataWithState();
                     } else {
                         this.showToast('Error', 'Failed to delete timesheet record. Please try again.', 'error');
                     }
@@ -2214,7 +2380,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const tselIdsToDelete = Array.from(this.selectedTimesheets.get(mobId) || []);
 
         this.isLoading = true;
-        this.showDeleteConfirmModal = false; // Close modal
+        this.showDeleteConfirmModal = false; // Close modal immediately
         
         deleteTimesheetEntriesBulk({ tselIds: tselIdsToDelete })
             .then(result => {
@@ -2225,9 +2391,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     this.selectedTimesheets.delete(mobId);
                     this.resetDeleteConfirmationState();
 
-                    // Refresh data
+                    // Refresh data while preserving expanded state
                     this.loadTimesheetData(mobId);
-                    this.getJobRelatedMoblizationDetails();
+                    // Use targeted refresh to preserve expanded state
+                    this.refreshJobDataWithState();
                 } else {
                     this.showToast('Error', result, 'error');
                 }

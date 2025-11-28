@@ -281,6 +281,22 @@
                         <div class="popUpBody">
                             <div class="clock-in-container">
                                 <div class="input-column">
+                                    <div class="datetime-container">
+                                        <label class="datetime-label">Job Start Date</label>
+                                        <div class="datetime-wrapper">
+                                            <input type="text" class="custom-datetime input-disabled" value={modalJobStartTime} disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="input-column">
+                                    <div class="datetime-container">
+                                        <label class="datetime-label">Job End Date</label>
+                                        <div class="datetime-wrapper">
+                                            <input type="text" class="custom-datetime input-disabled" value={modalJobEndTime} disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="input-column">
                                     <div class="select-person-container">
                                         <label class="select-label required">Select Cost Code</label>
                                         <div class="select-wrapper">
@@ -332,6 +348,32 @@
                     <div class="slds-modal__content pop-up" id="modal-content-id">
                         <div class="popUpBody">
                             <div class="clock-in-container">
+                                <div class="input-column">
+                                    <div class="datetime-container">
+                                        <label class="datetime-label">Job Start Date</label>
+                                        <div class="datetime-wrapper">
+                                            <input type="text" class="custom-datetime input-disabled" value={modalJobStartTime} disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="input-column">
+                                    <div class="datetime-container">
+                                        <label class="datetime-label">Job End Date</label>
+                                        <div class="datetime-wrapper">
+                                            <input type="text" class="custom-datetime input-disabled" value={modalJobEndTime} disabled />
+                                        </div>
+                                    </div>
+                                </div>
+                                <template if:true={previousClockInTime}>
+                                    <div class="input-column">
+                                        <div class="datetime-container">
+                                            <label class="datetime-label">Clock In DateTime</label>
+                                            <div class="datetime-wrapper">
+                                                <input type="text" class="custom-datetime input-disabled" value={previousClockInTime} disabled />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
                                 <div class="form-wrapper">
                                     <div class="input-column">
                                         <div class="datetime-container">
@@ -342,12 +384,6 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <template if:true={previousClockInTime}>
-                                    <div class="info-message">
-                                        Clock In Time : {previousClockInTime}
-                                    </div>
-                                </template>
                             </div>
                         </div>
                     </div>

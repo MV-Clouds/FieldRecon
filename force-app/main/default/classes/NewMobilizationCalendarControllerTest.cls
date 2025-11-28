@@ -104,29 +104,56 @@ public class NewMobilizationCalendarControllerTest {
         System.assertEquals(false, wrap.IncludeSunday);
     }
 
-    @IsTest
-    static void testSaveJobSchedule(){
+    static void testSaveJobSchedule() {
         wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
- 
-        Map<String, String> mgSObject = new Map<String, String>{
-            'job' => job.Id,
-            'mobilizationStatus' => 'Confirmed',
-            'description' => 'Via test schedule',
-            'startDate' => '2025-10-15T00:00:00Z',
-            'endDate' => '2025-10-20T00:00:00Z',
-            'includeSaturday' => 'false',
-            'includeSunday' => 'false'
-        };
         
-        Test.startTest();
-        String result = NewMobilizationCalendarController.SaveJobSchedule(mgSObject);
-        Test.stopTest();
+        Wrapper.MobilizationGroup mg = new Wrapper.MobilizationGroup();
+        mg.startDate = DateTime.newInstance(2025, 10, 15, 7, 0, 0);
+        mg.endDate = DateTime.newInstance(2025, 10, 20, 16, 30, 0);
+        mg.jobId = job.Id;
+        mg.status = 'Confirmed';
+        mg.description = 'Via test schedule';
+        mg.includeSaturday = false;
+        mg.includeSunday = false;
         
-        System.assertEquals('SUCCESS', result, 'Expected SaveJobSchedule to return SUCCESS');
-        System.assert([SELECT COUNT() FROM wfrecon__Mobilization_Group__c 
-                      WHERE wfrecon__Description__c = 'Via test schedule'] > 0,
-                     'Schedule should be saved');
-    }
+        // Original object → JSON → Map<String,Object>
+        String jsonStr = JSON.serialize(mg);
+        Map<String, Object> deserialized = (Map<String, Object>) JSON.deserializeUntyped(jsonStr);
+
+        // 🔄 Convert entire map => Map<String,String>
+        Map<String, String> convertedMainMap = new Map<String, String>();
+        for (String key : deserialized.keySet()) {
+            Object val = deserialized.get(key);
+            convertedMainMap.put(key, val == null ? null : String.valueOf(val));
+        }
+
+        // 🔄 Build Mobilization Group SObject map in String-String format
+        Map<String, String> mgSObjectStringMap = new Map<String, String>{
+            'attributes' => JSON.serialize(new Map<String, String>{ 'type' => 'wfrecon__Mobilization_Group__c' }),
+            'wfrecon__Job__c' => String.valueOf(job.Id),
+            'wfrecon__Mobilization_Status__c' => 'Confirmed',
+            'wfrecon__Description__c' => 'Via test schedule',
+        'wfrecon__Start_Date__c' => '2025-10-15',
+        'wfrecon__End_Date__c' => '2025-10-20',
+        'wfrecon__Include_Saturday__c' => String.valueOf(false),
+        'wfrecon__Include_Sunday__c' => String.valueOf(false)
+    };
+
+    // Put SObject map into your final String-String container
+    convertedMainMap.put('mobilizationGroupSObject', JSON.serialize(mgSObjectStringMap));
+    
+    Test.startTest();
+    String result = NewMobilizationCalendarController.SaveJobSchedule(convertedMainMap);
+    Test.stopTest();
+    
+    System.assertEquals('SUCCESS', result, 'Expected SaveJobSchedule to return SUCCESS');
+    System.assert(
+        [SELECT COUNT() FROM wfrecon__Mobilization_Group__c 
+         WHERE wfrecon__Description__c = 'Via test schedule'] > 0,
+        'Schedule should be saved'
+    );
+}
+
 
     @IsTest
     static void testGetEventsEmpty(){ 
