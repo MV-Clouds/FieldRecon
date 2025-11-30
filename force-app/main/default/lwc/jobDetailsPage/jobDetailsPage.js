@@ -231,7 +231,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     const cellKey = `${ts.id}-${fieldName}`;
                     
                     let originalValue = ts[fieldName];
-                    let value = originalValue; 
+                    let value = originalValue; 
                     let isModified = false;
 
                     const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
@@ -255,11 +255,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if (col.type === 'datetime') {
                         displayValue = value ? this.formatToAMPM(value) : '--';
                     } else if (col.type === 'boolean') {
-                        if(fieldName === 'perDiem') {
-                            displayValue = value ? '1' : '0';
-                        } else {
-                            displayValue = value ? 'Yes' : 'No';
-                        }
+                        // MODIFIED: Display Yes/No for both Premium and Per Diem
+                        displayValue = value ? 'Yes' : 'No';
                     } else if (col.type === 'number' || col.type === 'currency') {
                         displayValue = value !== null && value !== undefined ? Number(value).toFixed(2) : '0.00';
                     }
@@ -1501,11 +1498,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
-                this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
-                return;
-            }
-
             const jobRecord = this.getCurrentJobRecord();
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
@@ -1514,6 +1506,14 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
             if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
+                return;
+            }
+             
+            // MODIFIED: Use `this.enteredManualPerDiem` (from checkbox state in UI, stored as 0 or 1)
+            // If you decide to use a checkbox in the modal HTML, you need to adjust handleInputChange for PerDiem to store true/false
+            // Assuming the number input for PerDiem is still used in the modal for simplicity, but validating it.
+            if (this.enteredManualPerDiem != 0 && this.enteredManualPerDiem != 1) {
+                this.showToast('Error', 'Per Diem must be either 0 or 1.', 'error');
                 return;
             }
 
@@ -1946,7 +1946,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
             
             // --- 4. Cross-Field Clock In/Out Time Order Check ---
-            if (currentClockIn && currentClockOut && new Date(currentClockOut) <= new Date(currentClockIn)) {
+            if ((currentClockIn || currentClockOut) && new Date(currentClockOut) <= new Date(currentClockIn)) {
                  errors.push(`${fullName}: Clock Out Time must be greater than Clock In Time.`);
             }
         });
@@ -1973,6 +1973,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
         this.isSavingTimesheetEntries = true;
         const updatedTimesheets = [];
+        this.isLoading = true;
 
         this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
             const originalTSE = this.timesheetDataMap.get(mobId).find(ts => ts.id === id);
@@ -2040,7 +2041,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.isSavingTimesheetEntries = false;
                 this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
                 this.editingTimesheetCells.clear();
-                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
+                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
+                this.isLoading = false;
             });
     }
 
