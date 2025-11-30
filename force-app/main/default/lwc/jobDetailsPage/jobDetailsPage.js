@@ -1795,12 +1795,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const field = event.currentTarget.dataset.field;
         const type = event.currentTarget.dataset.type;
         const mobId = event.currentTarget.dataset.mobid;
-        
+
         let newValue;
-        const isCheckbox = event.target.type === 'checkbox' || type === 'boolean'; 
+        const isCheckbox = event.target.type === 'checkbox' || type === 'boolean';
 
         if (isCheckbox) {
-            newValue = event.target.checked; 
+            newValue = event.target.checked;
             this.editingTimesheetCells.delete(`${id}-${field}`);
         } else {
             newValue = event.target.value;
@@ -1814,6 +1814,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
         let originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
 
+        // Normalize original value for comparison
         if (type === 'number') {
             originalValue = originalValue !== null && originalValue !== undefined ? parseFloat(originalValue) : null;
         } else if (type === 'boolean') {
@@ -1823,27 +1824,34 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         if (!this.modifiedTimesheetEntries.has(id)) {
             this.modifiedTimesheetEntries.set(id, { mobId: mobId, modifications: {} });
         }
-        
+
         const entry = this.modifiedTimesheetEntries.get(id);
         const modifications = entry.modifications;
-        
+
+        // FIX: Reliable comparison logic for different types
         const areValuesEqual = (val1, val2, valueType) => {
             if (val1 === val2) return true;
-            
+
             if (valueType === 'boolean') {
-                return !!val1 === !!val2; 
+                return !!val1 === !!val2;
             }
 
             if (valueType === 'number') {
-                const n1 = (val1 === null || val1 === undefined || val1 === '') ? null : val1;
-                const n2 = (val2 === null || val2 === undefined || val2 === '') ? null : val2;
+                const n1 = (val1 === null || val1 === undefined || val1 === '') ? null : Number(val1);
+                const n2 = (val2 === null || val2 === undefined || val2 === '') ? null : Number(val2);
                 if (n1 === n2) return true;
                 if (n1 !== null && n2 !== null) return Math.abs(n1 - n2) < 0.005;
             }
 
             if (valueType === 'datetime') {
+                // Critical Fix: Normalize original ISO string (if present) to local datetime format (YYYY-MM-DDTHH:mm) for comparison.
                 const d1 = val1 || null;
-                const d2 = val2 || null;
+                const d2 = val2 ? this.formatToDatetimeLocal(val2) : null;
+                
+                if (d1 && d2) {
+                    const normalizedVal1 = this.formatToDatetimeLocal(d1);
+                    return normalizedVal1 === d2;
+                }
                 return d1 === d2;
             }
 
@@ -1855,17 +1863,19 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         if (!valuesMatch) {
             if (field === 'perDiem' || field === 'premium') {
                 const valueToStore = newValue ? 1 : 0;
-                modifications[field] = valueToStore; 
+                modifications[field] = valueToStore;
             } else {
                 modifications[field] = newValue;
             }
         } else {
+            // Value is back to original: remove from modifications
             delete modifications[field];
             if (Object.keys(modifications).length === 0) {
                 this.modifiedTimesheetEntries.delete(id);
             }
         }
-        
+
+        this.modifiedTimesheetEntries = new Map(this.modifiedTimesheetEntries);
         this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
         this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
     }
@@ -1898,13 +1908,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         modifications.forEach((entry, id) => {
             const originalEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
             const fullName = originalEntry?.contactName || id;
-            
+
             const changes = entry.modifications;
-            
+
             // Get current values (modified or original) for cross-field validation
-            const currentClockIn = changes.clockInTime || originalEntry.clockInTime;
-            const currentClockOut = changes.clockOutTime || originalEntry.clockOutTime;
-            
+            const currentClockIn = changes.hasOwnProperty('clockInTime') ? changes.clockInTime : originalEntry.clockInTime;
+            const currentClockOut = changes.hasOwnProperty('clockOutTime') ? changes.clockOutTime : originalEntry.clockOutTime;
+
             for (const [field, value] of Object.entries(changes)) {
                 const column = this.timesheetColumns.find(col => col.fieldName === field);
                 if (!column || !column.editable) continue;
@@ -1913,11 +1923,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 if ((field === 'clockInTime' || field === 'clockOutTime') && (!value || value.toString().trim() === '')) {
                     errors.push(`${fullName}: ${column.label} cannot be empty.`);
                 }
-                
+
                 // --- 2. Date Boundaries Check ---
                 if (field === 'clockInTime' && value) {
-                    if (!this.validateClockInDate(value, jobStartReference, jobRecord?.endDate)) { 
-                         errors.push(`${fullName}: Clock In time must be on the job start date or job end date.`);
+                    if (!this.validateClockInDate(value, jobStartReference, jobRecord?.endDate)) {
+                         errors.push(`${fullName}: Clock In time must be on the job start date or job end date.`);
                     }
                 }
                 if (field === 'clockOutTime' && value) {
@@ -1928,15 +1938,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
                 // --- 3. Number/Decimal Constraints Check (TravelTime only) ---
                 if (column.type === 'number') {
-                    const numValue = (value === null || value === '') ? 0 : Number(value); 
+                    const numValue = (value === null || value === '') ? 0 : Number(value);
 
                     if (isNaN(numValue) || numValue < column.min) {
                         errors.push(`${fullName}: ${column.label} must be a valid number, minimum ${column.min}.`);
                     } else {
                         if (column.step && column.step.toString().includes('0.01')) {
-                            const valueString = numValue.toFixed(10); 
+                            const valueString = numValue.toFixed(10);
                             const decimalPart = valueString.slice(valueString.indexOf('.') + 1);
-                            
+
                             if (decimalPart.length > 2 && decimalPart.slice(2).replace(/0+$/, '').length > 0) {
                                 errors.push(`${fullName}: ${column.label} cannot have more than 2 decimal places.`);
                             }
@@ -1944,13 +1954,19 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     }
                 }
             }
-            
+
             // --- 4. Cross-Field Clock In/Out Time Order Check ---
-            if ((currentClockIn || currentClockOut) && new Date(currentClockOut) <= new Date(currentClockIn)) {
-                 errors.push(`${fullName}: Clock Out Time must be greater than Clock In Time.`);
+            const clockInValueNormalized = this.formatToDatetimeLocal(currentClockIn) + ':00';
+            const clockOutValueNormalized = this.formatToDatetimeLocal(currentClockOut) + ':00';
+
+            const clockInDateTime = clockInValueNormalized ? new Date(clockInValueNormalized) : null;
+            const clockOutDateTime = clockOutValueNormalized ? new Date(clockOutValueNormalized) : null;
+
+            if (clockInDateTime && clockOutDateTime && clockOutDateTime <= clockInDateTime) {
+                errors.push(`${fullName}: Clock Out Time (${this.formatToAMPM(currentClockOut)}) must be greater than Clock In Time (${this.formatToAMPM(currentClockIn)}).`);
             }
         });
-        
+
         return errors;
     }
 
