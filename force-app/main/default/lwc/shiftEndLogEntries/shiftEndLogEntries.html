@@ -2,13 +2,14 @@
     <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
         aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_full">
         <div class="slds-modal__container shiftEndLogEntries-modal-container">
-            <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
-                onclick={handleDialogueClose}>
-                <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
-                    size="small"></lightning-icon>
-            </button>
-
-            <div class="pop-heading">Create Shift End Log</div>
+            <div class="pop-heading">
+                Create Shift End Log
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
+                    onclick={handleDialogueClose}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+            </div>
 
             <!-- Progress Indicator - Hidden when no mobilization options -->
             <template if:true={hasMobilizationOptions}>
@@ -184,7 +185,7 @@
                         <!-- Approval Message Banner -->
                         <template if:true={showApprovalMessage}>
                             <div class="approval-info-banner">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <line x1="12" y1="16" x2="12" y2="12"></line>
                                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -359,7 +360,7 @@
                         <!-- Approval Message -->
                         <template if:true={showApprovalMessage}>
                             <div class="approval-info-banner">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <line x1="12" y1="16" x2="12" y2="12"></line>
                                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -722,12 +723,14 @@
                         <div class="input-column">
                             <label class="datetime-label required">Clock In Time</label>
                             <input type="datetime-local" class="custom-datetime" data-field="editClockIn"
-                                value={editTimesheetData.newclockInTime} onchange={handleEditInputChange}>
+                                value={editTimesheetData.newclockInTime} onchange={handleEditInputChange}
+                                min={editClockInMinBoundary} max={editClockInMaxBoundary}>
                         </div>
                         <div class="input-column">
                             <label class="datetime-label required">Clock Out Time</label>
                             <input type="datetime-local" class="custom-datetime" data-field="editClockOut"
-                                value={editTimesheetData.newclockOutTime} onchange={handleEditInputChange}>
+                                value={editTimesheetData.newclockOutTime} onchange={handleEditInputChange}
+                                min={editClockOutMinBoundary} max={editClockOutMaxBoundary}>
                         </div>
                         <div class="input-column">
                             <label class="select-label">Travel Time (hours)</label>
@@ -737,7 +740,7 @@
                     </div>
                 </div>
                 <div class="popUpFooter">
-                    <button class="clock-in-button" onclick={saveEditedTimesheet}>Save</button>
+                    <button class="clock-in-button" onclick={saveEditedTimesheet} disabled={isEditSaveDisabled}>Save</button>
                 </div>
             </div>
         </section>
