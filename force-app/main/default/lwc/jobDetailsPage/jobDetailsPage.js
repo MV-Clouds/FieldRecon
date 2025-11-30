@@ -837,13 +837,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
             if (job) {
                 await this.loadTimesheetDataForJob(job);
-                this.timesheetDataMap = new Map(this.timesheetDataMap);
+                this.updateJobDetailsInUI(mobId); // Update the single job row in the UI
             }
         } catch (error) {
             console.error('Error in loadTimesheetData:', error);
         } finally {
             this.isLoading = false;
-            this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw]; 
         }
     }
 
@@ -1571,7 +1570,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
                         }
-                        this.getJobRelatedMoblizationDetails();
                     } else {
                         this.showToast('Error', 'Failed to create timesheet record. Please try again.', 'error');
                     }
@@ -2029,6 +2027,33 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: updateJobDetailsInUI
+     * @description: Finds a job in the filtered list and replaces it with a new object 
+     * to force a targeted re-render of only the updated row/nested table via jobDetails getter.
+     */
+    updateJobDetailsInUI(mobId) {
+        if (!this.filteredJobDetailsRaw) return;
+
+        // Find the index of the job in the filtered list
+        const jobIndex = this.filteredJobDetailsRaw.findIndex(j => j.mobId === mobId);
+
+        if (jobIndex > -1) {
+            // Find the original, potentially updated job data from the master list
+            const updatedJob = this.jobDetailsRaw.find(j => j.mobId === mobId);
+            
+            if (updatedJob) {
+                // Create a new array reference to trigger UI update for the whole table (lowest overhead for this component)
+                const newFilteredList = [...this.filteredJobDetailsRaw];
+                
+                // Replace the old job object with a shallow clone of the updated job 
+                // This tells LWC that ONLY this object has changed, avoiding a full component re-render.
+                newFilteredList[jobIndex] = {...updatedJob}; 
+                this.filteredJobDetailsRaw = newFilteredList;
+            }
+        }
+    }
+
+    /**
      * Method Name: handleSaveTimesheetChanges
      * @description: Saves all modified timesheet entries for a specific job/mobilization.
      */
@@ -2057,35 +2082,28 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 TSEId: originalTSE.TSEId 
             };
             
-            // --- Map non-boolean fields ---
+            // Map fields (same logic as before)
             tsUpdate.clockInTime = entry.modifications.clockInTime || originalTSE.clockInTime;
             tsUpdate.clockOutTime = entry.modifications.clockOutTime || originalTSE.clockOutTime;
-
             const modifiedTravelTime = entry.modifications.travelTime;
             tsUpdate.travelTime = modifiedTravelTime !== undefined ? modifiedTravelTime : originalTSE.travelTime;
             
-            let perDiemValue;
-            if (entry.modifications.hasOwnProperty('perDiem')) {
-                 perDiemValue = entry.modifications.perDiem; 
-            } else {
-                 perDiemValue = (originalTSE.perDiem === 1 || originalTSE.perDiem === '1' || originalTSE.perDiem === true) ? 1 : 0;
-            }
+            let perDiemValue = entry.modifications.hasOwnProperty('perDiem') ? entry.modifications.perDiem : 
+                (originalTSE.perDiem === 1 || originalTSE.perDiem === '1' || originalTSE.perDiem === true) ? 1 : 0;
             tsUpdate.perDiem = perDiemValue; 
 
-            let premiumValue;
-            if (entry.modifications.hasOwnProperty('premium')) {
-                 premiumValue = entry.modifications.premium; 
-            } else {
-                 premiumValue = (originalTSE.premium === 1 || originalTSE.premium === '1' || originalTSE.premium === true) ? 1 : 0;
-            }
+            let premiumValue = entry.modifications.hasOwnProperty('premium') ? entry.modifications.premium : 
+                (originalTSE.premium === 1 || originalTSE.premium === '1' || originalTSE.premium === true) ? 1 : 0;
             tsUpdate.premium = premiumValue; 
             
             updatedTimesheets.push(tsUpdate);
         });
 
+        // Clear modifications for this job
         this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
             this.modifiedTimesheetEntries.delete(id);
         });
+        this.modifiedTimesheetEntries = new Map(this.modifiedTimesheetEntries);
 
         const updatedTimesheetsJson = JSON.stringify(updatedTimesheets.map(
             ts => Object.fromEntries(
@@ -2101,9 +2119,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             .then(result => {
                 if (result.startsWith('Success')) {
                     this.showToast('Success', 'Timesheet changes saved successfully', 'success');
-                    // Re-load data for this job to refresh calculated fields and UI
-                    this.loadTimesheetData(mobId);
-                    this.getJobRelatedMoblizationDetails();
+                    // 1. Re-load data for this job (updates map and triggers row re-render)
+                    this.loadTimesheetData(mobId); 
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -2115,7 +2132,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.isSavingTimesheetEntries = false;
                 this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
                 this.editingTimesheetCells.clear();
-                this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
                 this.isLoading = false;
             });
     }
@@ -2303,7 +2319,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
                     // Refresh data
                     this.loadTimesheetData(mobId);
-                    this.getJobRelatedMoblizationDetails();
                 } else {
                     this.showToast('Error', result, 'error');
                 }
