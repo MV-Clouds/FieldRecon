@@ -231,7 +231,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     const cellKey = `${ts.id}-${fieldName}`;
                     
                     let originalValue = ts[fieldName];
-                    let value = originalValue; 
+                    let value = originalValue; 
                     let isModified = false;
 
                     const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
@@ -250,23 +250,26 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if (col.editable) cellClass += ' editable-cell';
                     if (isModified) cellClass += ' modified-process-cell';
                     if (isEditing) cellClass += ' editing-cell';
-                    
-                    let displayValue = String(value || '');
-                    if (col.type === 'datetime') {
-                        displayValue = value ? this.formatToAMPM(value) : '--';
-                    } else if (col.type === 'boolean') {
-                        // MODIFIED: Display Yes/No for both Premium and Per Diem
-                        displayValue = value ? 'Yes' : 'No';
-                    } else if (col.type === 'number' || col.type === 'currency') {
-                        displayValue = value !== null && value !== undefined ? Number(value).toFixed(2) : '0.00';
-                    }
 
                     // Use formatToDatetimeLocal to extract raw ISO numbers for input
                     const datetimeValue = col.type === 'datetime' && value ? this.formatToDatetimeLocal(value) : null;
                     
+                    let displayValue = String(value || '');
+                    if (col.type === 'datetime') {
+                        // Display uses the formatted version
+                        displayValue = value ? this.formatToAMPM(value) : '--';
+                    } else if (col.type === 'boolean') {
+                        // Display uses Yes/No based on boolean state of the 'value'
+                        displayValue = !!(value === 1 || value === '1' || value === true || value === 'true') ? 'Yes' : 'No';
+                    } else if (col.type === 'number' || col.type === 'currency') {
+                        // Display uses formatted number
+                        displayValue = value !== null && value !== undefined && !isNaN(Number(value)) ? Number(value).toFixed(2) : '0.00';
+                    }
+
                     let minBoundary = null;
                     let maxBoundary = null;
                     if (col.type === 'datetime') {
+                        // Ensure min/max boundaries are correctly formatted for the HTML input
                         minBoundary = this.getDatetimeMinBoundary(ts, fieldName);
                         maxBoundary = this.getDatetimeMaxBoundary(ts, fieldName);
                     }
@@ -274,12 +277,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     return {
                         key: fieldName,
                         displayValue: displayValue,
-                        rawValue: value, 
-                        datetimeValue: datetimeValue,
-                        isEditing: isEditing,
+                        rawValue: value,  // rawValue holds the modified or original value (can be 0/1 for boolean)
+                        datetimeValue: datetimeValue, // datetimeValue holds YYYY-MM-DDTHH:mm string for input binding
+                        isEditing: this.editingTimesheetCells.has(cellKey),
                         isEditable: col.editable,
                         isModified: isModified,
-                        cellClass: cellClass,
+                        cellClass: 'center-trancate-text' + (col.editable ? ' editable-cell' : '') + (isModified ? ' modified-process-cell' : '') + (this.editingTimesheetCells.has(cellKey) ? ' editing-cell' : ''),
                         contentClass: 'editable-content',
                         isDatetime: col.type === 'datetime',
                         isNumber: col.type === 'number',
@@ -340,6 +343,28 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             return nextDay ? `${nextDay}T23:59` : null;
         }
         return null;
+    }
+
+    /**
+     * Helper to get the field type reliably, even if the data-type attribute is missing.
+     */
+    getFieldType(fieldName) {
+        const column = this.timesheetColumns.find(col => col.fieldName === fieldName);
+        if (column && column.type) {
+            return column.type;
+        }
+        
+        // Fallback for fields we know should be certain types (critical fix)
+        if (fieldName === 'perDiem' || fieldName === 'premium') {
+            return 'boolean';
+        }
+        if (fieldName === 'clockInTime' || fieldName === 'clockOutTime') {
+            return 'datetime';
+        }
+        if (fieldName === 'travelTime' || fieldName === 'workHours' || fieldName === 'totalTime') {
+            return 'number';
+        }
+        return 'text';
     }
 
     /** * Method Name: formatToDatetimeLocal
@@ -1787,13 +1812,75 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: areValuesEqual
+     * @description: Robust comparison logic for different data types.
+     */
+    areValuesEqual(newValue, originalValue, valueType, field) {
+        // Log the comparison being attempted
+
+        if (newValue === originalValue) {
+            return true;
+        }
+
+        // --- BOOLEAN Check (For Per Diem and Premium) ---
+        if (valueType === 'boolean') {
+            // Normalize all possible states (true/false, 1/0, '1'/'0', null/undefined) to strict boolean values
+            // Apex stores 0/1. Checkbox returns true/false.
+            const b1 = (newValue === 1 || newValue === '1' || newValue === true || newValue === 'true');
+            const b2 = (originalValue === 1 || originalValue === '1' || originalValue === true || originalValue === 'true');
+            
+            const result = b1 === b2;
+            return result;
+        }
+
+        // --- DATETIME Check (For clockInTime and clockOutTime) ---
+        if (valueType === 'datetime') {
+            // 1. Normalize the original ISO string (with seconds) from Apex
+            const normalizedOriginal = originalValue ? this.formatToDatetimeLocal(originalValue) : null;
+            
+            // 2. The newValue is the local datetime-local string (without seconds)
+            const normalizedNew = newValue || null;
+            
+            const result = normalizedOriginal === normalizedNew;
+            return result;
+        }
+
+        // --- NUMBER Check (Including Travel Time and Work Hours) ---
+        if (valueType === 'number' || valueType === 'currency') {
+            const n1 = (newValue === null || newValue === undefined || newValue === '') ? null : Number(newValue);
+            const n2 = (originalValue === null || originalValue === undefined || originalValue === '') ? null : Number(originalValue);
+            
+            if (n1 === null && n2 === null) {
+                return true;
+            }
+            if (isNaN(n1) && isNaN(n2)) {
+                return true;
+            }
+
+            if (n1 !== null && n2 !== null && !isNaN(n1) && !isNaN(n2)) {
+                const diff = Math.abs(n1 - n2);
+                const result = diff < 0.005; // Tolerance for floating point math
+                return result;
+            }
+            return false;
+        }
+        
+        // For other types (text)
+        const result = String(newValue) === String(originalValue);
+        return result;
+    }
+
+    /**
      * Method Name: handleTimesheetCellInputChange
      * @description: Updates the modifiedTimesheetEntries Map on input change.
      */
     handleTimesheetCellInputChange(event) {
         const id = event.currentTarget.dataset.id;
         const field = event.currentTarget.dataset.field;
-        const type = event.currentTarget.dataset.type;
+        
+        // CRITICAL FIX: Use getFieldType utility to ensure we always have a valid type
+        const type = this.getFieldType(field);
+        
         const mobId = event.currentTarget.dataset.mobid;
 
         let newValue;
@@ -1801,25 +1888,25 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
         if (isCheckbox) {
             newValue = event.target.checked;
-            this.editingTimesheetCells.delete(`${id}-${field}`);
+            // Immediate blur equivalent for checkboxes
+            this.editingTimesheetCells.delete(`${id}-${field}`); 
         } else {
             newValue = event.target.value;
         }
-
+        
+        // --- 1. New Value Normalization for Storage/Comparison ---
         if (type === 'number') {
             newValue = newValue === '' || newValue === null || newValue === undefined ? null : parseFloat(newValue);
             if (isNaN(newValue)) newValue = null;
+        } else if (type === 'datetime') {
+            newValue = newValue || null;
         }
-
+        
         const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
         let originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
 
-        // Normalize original value for comparison
-        if (type === 'number') {
-            originalValue = originalValue !== null && originalValue !== undefined ? parseFloat(originalValue) : null;
-        } else if (type === 'boolean') {
-            originalValue = (originalValue === 1 || originalValue === '1' || originalValue === true || originalValue === 'true');
-        }
+        // --- 2. Comparison to Original Value ---
+        const valuesMatch = this.areValuesEqual(newValue, originalValue, type, field);
 
         if (!this.modifiedTimesheetEntries.has(id)) {
             this.modifiedTimesheetEntries.set(id, { mobId: mobId, modifications: {} });
@@ -1827,44 +1914,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
         const entry = this.modifiedTimesheetEntries.get(id);
         const modifications = entry.modifications;
-
-        // FIX: Reliable comparison logic for different types
-        const areValuesEqual = (val1, val2, valueType) => {
-            if (val1 === val2) return true;
-
-            if (valueType === 'boolean') {
-                return !!val1 === !!val2;
-            }
-
-            if (valueType === 'number') {
-                const n1 = (val1 === null || val1 === undefined || val1 === '') ? null : Number(val1);
-                const n2 = (val2 === null || val2 === undefined || val2 === '') ? null : Number(val2);
-                if (n1 === n2) return true;
-                if (n1 !== null && n2 !== null) return Math.abs(n1 - n2) < 0.005;
-            }
-
-            if (valueType === 'datetime') {
-                // Critical Fix: Normalize original ISO string (if present) to local datetime format (YYYY-MM-DDTHH:mm) for comparison.
-                const d1 = val1 || null;
-                const d2 = val2 ? this.formatToDatetimeLocal(val2) : null;
-                
-                if (d1 && d2) {
-                    const normalizedVal1 = this.formatToDatetimeLocal(d1);
-                    return normalizedVal1 === d2;
-                }
-                return d1 === d2;
-            }
-
-            return false;
-        };
-
-        const valuesMatch = areValuesEqual(newValue, originalValue, type);
+        
 
         if (!valuesMatch) {
             if (field === 'perDiem' || field === 'premium') {
+                // Store boolean as 1 or 0 in modifications map for Apex
                 const valueToStore = newValue ? 1 : 0;
                 modifications[field] = valueToStore;
             } else {
+                // Store normalized new value
                 modifications[field] = newValue;
             }
         } else {
