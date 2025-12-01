@@ -5,8 +5,6 @@
 * Created Date: 29 September 2025
 * Created By: Harsh Gandhi
 *--------------------------------------------------------------------------------
-* Modification History:
-* Date Modified - Developer Name - Description
 *
 **/
 public with sharing class JobDetailsPageController {
@@ -193,7 +191,7 @@ public with sharing class JobDetailsPageController {
                 LIMIT 1
             ];
             System.debug('mobilizationRecord.size() ::' + mobilizationRecord.size());
-    
+
             // 1. Fetch Members
             List<wfrecon__Mobilization_Member__c> members = [
                 SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.RecordType.DeveloperName, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
@@ -248,7 +246,7 @@ public with sharing class JobDetailsPageController {
                 WITH USER_MODE
             ];
             System.debug('entries: ' + entries.size());
-            
+
             // Group entries by Contact
             Map<Id, List<wfrecon__Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<wfrecon__Timesheet_Entry__c>>();
             for (wfrecon__Timesheet_Entry__c e : entries) {
@@ -258,7 +256,7 @@ public with sharing class JobDetailsPageController {
                 contactEntriesMap.get(e.wfrecon__Timesheet__r.wfrecon__Contact__c).add(e);
             }
             System.debug('contactEntriesMap: ' + contactEntriesMap);
-    
+
             // 4. Build wrapper list
             for (wfrecon__Mobilization_Member__c m : members) {
                 WrapperMember wrap = new WrapperMember();
@@ -765,111 +763,222 @@ public with sharing class JobDetailsPageController {
     */
     @AuraEnabled
     public static String saveTimesheetEntryInlineEdits(String updatedTimesheetEntriesJson) {
+        
+        // List to hold IDs of successfully inserted TSEs, used to link TSELI records
+        List<wfrecon__Timesheet_Entry__c> insertedEntries = new List<wfrecon__Timesheet_Entry__c>();
+
         try {
             if (String.isBlank(updatedTimesheetEntriesJson)) {
                 return 'Error: No timesheet entry item data provided for update.';
             }
 
-            // Deserialize JSON string into a list of Timesheet Entry Item records
-            // We use SObject list to handle dynamic fields from JSON, then cast/map
-            List<wfrecon__Timesheet_Entry_Item__c> updatedItems = new List<wfrecon__Timesheet_Entry_Item__c>();
             List<Object> rawUpdates = (List<Object>) JSON.deserializeUntyped(updatedTimesheetEntriesJson);
-            
+
             Set<Id> tsEntryItemIds = new Set<Id>();
             Map<Id, Map<String, Object>> itemChangesMap = new Map<Id, Map<String, Object>>();
-            
+
             for (Object obj : rawUpdates) {
                 Map<String, Object> mapObj = (Map<String, Object>) obj;
                 Id itemId = (Id) mapObj.get('Id');
                 tsEntryItemIds.add(itemId);
                 itemChangesMap.put(itemId, mapObj);
             }
-            
+
             // Fetch current records and their parent Timesheet Entries
             List<wfrecon__Timesheet_Entry_Item__c> currentItems = [
                 SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c,
-                       wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Premium__c
+                       wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Premium__c, wfrecon__Cost_Code__c
                 FROM wfrecon__Timesheet_Entry_Item__c
                 WHERE Id IN :tsEntryItemIds
                 WITH USER_MODE
             ];
-            
+
             Set<Id> tsEntryIds = new Set<Id>();
             for(wfrecon__Timesheet_Entry_Item__c item : currentItems) {
                 tsEntryIds.add(item.wfrecon__Timesheet_Entry__c);
             }
 
+            // Fetch parent TSEs and required lookups (Timesheet, Mobilization)
             Map<Id, wfrecon__Timesheet_Entry__c> tsEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(
-                [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c FROM wfrecon__Timesheet_Entry__c WHERE Id IN :tsEntryIds WITH USER_MODE]
+                [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, 
+                        wfrecon__Timesheet__c, wfrecon__Mobilization__c, wfrecon__Cost_Code__c 
+                FROM wfrecon__Timesheet_Entry__c WHERE Id IN :tsEntryIds WITH USER_MODE]
             );
 
+            // Lists for DML operations
+            List<wfrecon__Timesheet_Entry_Item__c> itemsToUpdate = new List<wfrecon__Timesheet_Entry_Item__c>();
             List<wfrecon__Timesheet_Entry__c> entriesToUpdate = new List<wfrecon__Timesheet_Entry__c>();
-            
+            List<wfrecon__Timesheet_Entry__c> entriesToInsert = new List<wfrecon__Timesheet_Entry__c>();
+            List<wfrecon__Timesheet_Entry_Item__c> itemsToInsert = new List<wfrecon__Timesheet_Entry_Item__c>();
+
+            Integer newItemsCount = 0;
+
             for (wfrecon__Timesheet_Entry_Item__c currentItem : currentItems) {
                 Map<String, Object> changes = itemChangesMap.get(currentItem.Id);
                 wfrecon__Timesheet_Entry__c parentEntry = tsEntryMap.get(currentItem.wfrecon__Timesheet_Entry__c);
-                Boolean parentNeedsUpdate = false;
 
-                // 1. Apply changes to Timesheet Entry Item
-                wfrecon__Timesheet_Entry_Item__c updatedItem = new wfrecon__Timesheet_Entry_Item__c(Id = currentItem.Id);
-                
-                // Clock In Time
-                if(changes.containsKey('clockInTime')) {
-                    Datetime clkInUserTz = convertUtc((String)changes.get('clockInTime'));
-                    updatedItem.wfrecon__Clock_In_Time__c = clkInUserTz;
-                    parentEntry.wfrecon__Clock_In_Time__c = clkInUserTz;
-                    parentNeedsUpdate = true;
-                }
-                
-                // Clock Out Time
-                if(changes.containsKey('clockOutTime')) {
-                    Datetime clkOutUserTz = convertUtc((String)changes.get('clockOutTime'));
-                    updatedItem.wfrecon__Clock_Out_Time__c = clkOutUserTz;
-                    parentEntry.wfrecon__Clock_Out_Time__c = clkOutUserTz;
-                    parentNeedsUpdate = true;
-                }
-                
-                // Travel Time
-                if(changes.containsKey('travelTime')) {
-                    updatedItem.wfrecon__Travel_Time__c = Decimal.valueOf((String)changes.get('travelTime'));
-                }
-                
-                // Per Diem
-                if(changes.containsKey('perDiem')) {
-                    updatedItem.wfrecon__Per_Diem__c = Integer.valueOf((String)changes.get('perDiem'));
-                }
-                
-                // Premium
-                if(changes.containsKey('premium')) {
-                    updatedItem.wfrecon__Premium__c = Boolean.valueOf((String)changes.get('premium'));
-                }
-                
-                updatedItems.add(updatedItem);
+                // --- Determine New Values ---
+                Datetime newClkInUserTz = currentItem.wfrecon__Clock_In_Time__c;
+                Datetime newClkOutUserTz = currentItem.wfrecon__Clock_Out_Time__c;
+                Decimal travelTime = currentItem.wfrecon__Travel_Time__c != null ? currentItem.wfrecon__Travel_Time__c : 0.00;
+                Integer perDiem = currentItem.wfrecon__Per_Diem__c != null ? (Integer)currentItem.wfrecon__Per_Diem__c : 0;
+                Boolean premium = currentItem.wfrecon__Premium__c != null ? currentItem.wfrecon__Premium__c : false;
 
-                // 2. Queue parent update if times changed
-                if (parentNeedsUpdate) {
-                    entriesToUpdate.add(parentEntry);
+                if (changes.containsKey('clockInTime')) {
+                    newClkInUserTz = convertUtc((String)changes.get('clockInTime'));
+                }
+                if (changes.containsKey('clockOutTime')) {
+                    newClkOutUserTz = convertUtc((String)changes.get('clockOutTime'));
+                }
+                
+                if (changes.containsKey('travelTime')) {
+                    travelTime = Decimal.valueOf((String)changes.get('travelTime'));
+                }
+                if (changes.containsKey('perDiem')) {
+                    perDiem = Integer.valueOf((String)changes.get('perDiem'));
+                }
+                if (changes.containsKey('premium')) {
+                    premium = Boolean.valueOf((String)changes.get('premium'));
+                }
+
+                Boolean crossesMidnight = (newClkInUserTz.date() != newClkOutUserTz.date());
+
+                // 1. Prepare existing Timesheet Entry Item for update (TSELI)
+                wfrecon__Timesheet_Entry_Item__c itemToUpdate = new wfrecon__Timesheet_Entry_Item__c(Id = currentItem.Id);
+                itemToUpdate.wfrecon__Travel_Time__c = travelTime;
+                itemToUpdate.wfrecon__Per_Diem__c = perDiem;
+                itemToUpdate.wfrecon__Premium__c = premium;
+                itemToUpdate.wfrecon__Do_Not_Execute__c = true; 
+
+                wfrecon__Timesheet_Entry__c entryToUpdate = null;
+
+                if (crossesMidnight) {
+                    
+                    // --- Midnight Split Logic ---
+                    
+                    Datetime firstDayEnd = DateTime.newInstance(newClkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
+                    Datetime secondDayStart = DateTime.newInstance(newClkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
+
+                    // A. Update Existing Item (Day 1)
+                    itemToUpdate.wfrecon__Clock_In_Time__c = newClkInUserTz;
+                    itemToUpdate.wfrecon__Clock_Out_Time__c = firstDayEnd;
+                    itemsToUpdate.add(itemToUpdate);
+                    
+                    // Update Parent TSE (Day 1) - FLS FIX applied here
+                    entryToUpdate = new wfrecon__Timesheet_Entry__c(
+                        Id = parentEntry.Id,
+                        wfrecon__Clock_In_Time__c = newClkInUserTz,
+                        wfrecon__Clock_Out_Time__c = firstDayEnd,
+                        wfrecon__Do_Not_Execute__c = true 
+                    );
+                    entriesToUpdate.add(entryToUpdate);
+                    
+                    // B. Insert New Entry (Day 2)
+                    wfrecon__Timesheet_Entry__c newEntry = new wfrecon__Timesheet_Entry__c(
+                        wfrecon__Timesheet__c = parentEntry.wfrecon__Timesheet__c,
+                        wfrecon__Clock_In_Time__c = secondDayStart,
+                        wfrecon__Clock_Out_Time__c = newClkOutUserTz,
+                        wfrecon__Cost_Code__c = parentEntry.wfrecon__Cost_Code__c, 
+                        wfrecon__Mobilization__c = parentEntry.wfrecon__Mobilization__c, // CRUCIAL for job linkage
+                        wfrecon__Do_Not_Execute__c = true
+                    );
+                    entriesToInsert.add(newEntry);
+                    
+                    // Create New Item (Day 2) - No Travel Time or Per Diem on the second item
+                    wfrecon__Timesheet_Entry_Item__c newItem = new wfrecon__Timesheet_Entry_Item__c(
+                        wfrecon__Clock_In_Time__c = secondDayStart,
+                        wfrecon__Clock_Out_Time__c = newClkOutUserTz,
+                        wfrecon__Cost_Code__c = parentEntry.wfrecon__Cost_Code__c,
+                        wfrecon__Travel_Time__c = 0.00, 
+                        wfrecon__Per_Diem__c = 0,    
+                        wfrecon__Premium__c = premium,
+                        wfrecon__Do_Not_Execute__c = true
+                    );
+                    itemsToInsert.add(newItem);
+                    newItemsCount++;
+                    
+                } else {
+                    // --- Normal Same-Day Update ---
+                    
+                    // Update Item with new times
+                    itemToUpdate.wfrecon__Clock_In_Time__c = newClkInUserTz;
+                    itemToUpdate.wfrecon__Clock_Out_Time__c = newClkOutUserTz;
+                    itemsToUpdate.add(itemToUpdate);
+                    
+                    // Update Parent TSE only if times changed
+                    if (changes.containsKey('clockInTime') || changes.containsKey('clockOutTime')) {
+                        
+                        // FLS FIX applied here
+                        entryToUpdate = new wfrecon__Timesheet_Entry__c(
+                            Id = parentEntry.Id,
+                            wfrecon__Clock_In_Time__c = newClkInUserTz,
+                            wfrecon__Clock_Out_Time__c = newClkOutUserTz,
+                            wfrecon__Do_Not_Execute__c = true 
+                        );
+                        entriesToUpdate.add(entryToUpdate);
+                    }
                 }
             }
-            
-            // Perform bulk DML updates
-            if (!updatedItems.isEmpty()) {
-                Database.update(updatedItems, AccessLevel.USER_MODE);
-            }
-            
+
+            // 1. Update existing Parent Entries (TSE)
             if (!entriesToUpdate.isEmpty()) {
-                // Ensure only one update per parent entry
                 Database.update(entriesToUpdate, AccessLevel.USER_MODE);
             }
+            
+            // 2. Update existing Items (TSELI)
+            if (!itemsToUpdate.isEmpty()) {
+                Database.update(itemsToUpdate, AccessLevel.USER_MODE);
+            }
+            
+            // 3. Insert new Parent Entries (TSE) for split - USE ALLORNONE=FALSE FOR ERROR TRACING
+            if (!entriesToInsert.isEmpty()) {
+                Database.SaveResult[] results = Database.insert(entriesToInsert, false, AccessLevel.USER_MODE);
+                
+                Integer errorCount = 0;
+                for (Database.SaveResult result : results) {
+                    if (result.isSuccess()) {
+                        // Collect successful inserts to link TSELI records later
+                        insertedEntries.add(new wfrecon__Timesheet_Entry__c(Id = result.getId()));
+                    } else {
+                        errorCount++;
+                        for (Database.Error err : result.getErrors()) {
+                            if (err.getFields() != null) {
+                                System.debug('Fields: ' + err.getFields());
+                            }
+                        }
+                    }
+                }
+                
+                if (errorCount > 0) {
+                    throw new DmlException('Failed to insert ' + errorCount + ' Timesheet Entries during split. See logs for specific field/validation errors.');
+                }
 
-            return 'Success: ' + updatedItems.size() + ' timesheet entry item(s) updated successfully';
+                // Link new Items (TSELI) to their newly created Parent Entry IDs
+                for(Integer i = 0; i < insertedEntries.size(); i++) {
+                    // Note: insertedEntries now holds only successful inserts, which must match the size/order of the successful itemsToInsert.
+                    itemsToInsert[i].wfrecon__Timesheet_Entry__c = insertedEntries[i].Id;
+                }
+            }
+            
+            // 4. Insert new Items (TSELI) for split
+            if (!itemsToInsert.isEmpty()) {
+                // If the items are valid but the parent TSE failed, this DML will fail or roll back
+                // We rely on the TSE insert handling (step 3) to prevent invalid data from reaching here.
+                Database.insert(itemsToInsert, AccessLevel.USER_MODE);
+            }
+
+            return 'Success: ' + (itemsToUpdate.size() + newItemsCount) + ' total timesheet entry item(s) processed successfully.';
 
         } catch (Exception e) {
+            if (e.getTypeName() == 'System.DmlException') {
+                System.debug('DML Exception Details: ' + e.getDmlStatusCode(0) + ' - ' + e.getDmlMessage(0));
+            }
+
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => 'JobDetailsPageController',
                 'methodName' => 'saveTimesheetEntryInlineEdits',
                 'exceptionObj' => e,
-                'moreDetails' => 'Error occurred while saving timesheet entry item inline edits.'
+                'moreDetails' => 'DML error during inline edit process.'
             });
             return 'Error: ' + e.getMessage();
         }
