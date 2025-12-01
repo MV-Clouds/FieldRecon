@@ -1448,7 +1448,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             this.manualTimesheetEntry = true;
             this.isLoading = true;
-   
+    
             getContactsAndCostcode({})
                 .then((data) => {
                     if(data != null) {
@@ -1456,19 +1456,40 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                             label: contact.Name,
                             value: contact.Id
                         }));
-   
+    
                         this.costCodeOptions = data.costCodes.map(costCode => ({
                             label: costCode.Name,
                             value: costCode.Id
                         }));
 
-                        // Initialize manual timesheet with current Local Time strings
-                        const now = new Date();
-                        const offsetMs = now.getTimezoneOffset() * 60 * 1000;
-                        const localNow = (new Date(now.getTime() - offsetMs)).toISOString().slice(0, 16);
                         
-                        this.clockInTime = localNow;
-                        this.clockOutTime = localNow;
+                        let defaultClockInTime = null;
+                        let defaultClockOutTime = null;
+
+                        if (this.currentJobStartDateTime) {
+                            defaultClockInTime = this.formatToDatetimeLocal(this.currentJobStartDateTime);
+                        }
+                        
+                        if (this.currentJobEndDateTime) {
+                            defaultClockOutTime = this.formatToDatetimeLocal(this.currentJobEndDateTime);
+                        }
+                        
+                        // Fallback to current local time if job dates are missing
+                        if (!defaultClockInTime || !defaultClockOutTime) {
+                            const now = new Date();
+                            const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+                            const localNow = (new Date(now.getTime() - offsetMs)).toISOString().slice(0, 16);
+                            
+                            if (!defaultClockInTime) {
+                                defaultClockInTime = localNow;
+                            }
+                            if (!defaultClockOutTime) {
+                                defaultClockOutTime = localNow;
+                            }
+                        }
+                        
+                        this.clockInTime = defaultClockInTime;
+                        this.clockOutTime = defaultClockOutTime;
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     }
