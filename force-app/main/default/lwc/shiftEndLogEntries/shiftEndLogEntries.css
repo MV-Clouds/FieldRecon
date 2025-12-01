@@ -23,6 +23,17 @@
     background: rgba(94, 90, 219, 1);
     border-radius: 1.25rem 1.25rem 0 0;
     flex-shrink: 0;
+    position: relative;
+}
+
+/* Default positioning for close button (Desktop) - floats above header */
+.pop-heading .slds-modal__close {
+    position: absolute !important;
+    top: -2.5rem !important;
+    right: 0 !important;
+    width: 2rem;
+    height: 2rem;
+    visibility: visible;
 }
 
 /* =============================================
@@ -72,7 +83,8 @@
     background-image: url('/resource/wfrecon__FieldReconBG');
     background-repeat: no-repeat;
     background-size: cover;
-    min-height: 0;
+    min-height: 45vh;
+    max-height: 45vh;
     position: relative;
 }
 
@@ -1409,6 +1421,14 @@
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
 }
 
+.clock-in-button:disabled,
+.confirm-button:disabled {
+    background-color: #c9c7c5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 .confirmation-message {
     text-align: center;
     padding: 1rem 0;
@@ -2056,6 +2076,18 @@
     .pop-heading {
         font-size: 16px;
         height: 40px;
+    }
+
+    .pop-heading .slds-modal__close {
+        top: 50% !important;
+        transform: translateY(-50%);
+        right: 0.5rem !important;
+    }
+
+    .pop-heading .slds-modal__close .close-icon {
+        background-color: transparent !important;
+        --slds-c-icon-color-foreground-default: white;
+        --slds-c-icon-color-foreground: white;
     }
 
     .wizard-content {
