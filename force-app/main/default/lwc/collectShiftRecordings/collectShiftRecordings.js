@@ -1,16 +1,16 @@
-import { LightningElement, track, api } from 'lwc';
+import { LightningElement, track, api, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getSavedClips from '@salesforce/apex/CollectShiftRecordingsController.getSavedClips';
 import saveClipToMobilization from '@salesforce/apex/CollectShiftRecordingsController.saveClipToMobilization';
 import deleteClip from '@salesforce/apex/CollectShiftRecordingsController.deleteClip';
-
+import USER_ID from '@salesforce/user/Id';
 export default class CollectShiftRecordings extends LightningElement {
 
-
     @api recordId;
-    @track crewLeaderId;
+    // @track crewLeaderId;
     @track mobilizationId;
     @track clips = [];
+    userName;
     isLoading;
     clipsTotalSize = 0;
     clipSizeLimit = 10 * 1024 * 1024
@@ -43,10 +43,13 @@ export default class CollectShiftRecordings extends LightningElement {
                 }
 
                 // Collect Clips, crewLeaderId and mobilizationId for further use
-                this.clips = result.clips.map(ele => { 
-                    return { ...ele, size_mb: this.calculateSize(ele.ContentSize)?.MB}
+                this.clips = result.clips.map(clip => { 
+                    return { 
+                        ...clip, size_mb: this.calculateSize(clip.ContentSize)?.MB, 
+                        createdByName: clip.CreatedBy?.Name, notMyClip: clip.CreatedBy?.Id !== USER_ID 
+                    }
                 }) ?? [];
-                this.crewLeaderId = result.crewLeaderId;
+                // this.crewLeaderId = result.crewLeaderId;
                 this.mobilizationId = result.mobilizationId;
                 this.clipsTotalSize = this.clips.reduce((acc, clip) => acc + Number(clip.ContentSize), 0);
                 console.log('clipsTotalSize : ', this.clipsTotalSize);
@@ -76,7 +79,7 @@ export default class CollectShiftRecordings extends LightningElement {
         this.isLoading = true;
         let params = { 
             jobId: this.recordId, 
-            crewLeaderId: this.crewLeaderId, 
+            // crewLeaderId: this.crewLeaderId, 
             mobilizationId: this.mobilizationId, 
             clipData: clipData,
             clipExtension: mimeType
@@ -90,8 +93,11 @@ export default class CollectShiftRecordings extends LightningElement {
                 return;
             }
 
-            let newClip = result.newClip[0];
-            this.clips.unshift({...newClip, size_mb: this.calculateSize(newClip.ContentSize)?.MB});
+            let clip = result.newClip[0];
+            this.clips.unshift({
+                ...clip, size_mb: this.calculateSize(clip.ContentSize)?.MB,
+                createdByName: clip.CreatedBy?.Name, notMyClip: clip.CreatedBy?.Id !== USER_ID 
+            });
             this.clipsTotalSize = this.clips.reduce((acc, clip) => acc + Number(clip.ContentSize), 0);
             console.log('clipsTotalSize : ', this.clipsTotalSize);
             this.showToast('', 'Clip Saved successfully', 'success');
@@ -120,8 +126,14 @@ export default class CollectShiftRecordings extends LightningElement {
     }
 
     handleDeleteClip(event){
-        this.isLoading = true;
         let clipId = event.currentTarget.dataset.id;
+        let clip = this.clips.find(c => c.Id === clipId);
+        if(!clip) return;
+        if(clip.notMyClip){
+            this.showToast('Unauthorized', 'You are not authorized to delete this clip!', 'error');
+            return;
+        }
+        this.isLoading = true;
         deleteClip({ cvId : clipId })
         .then(result => {
             console.log('result : ', result);

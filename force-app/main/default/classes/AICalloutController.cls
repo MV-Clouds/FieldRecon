@@ -139,11 +139,6 @@ public with sharing class AICalloutController {
             '}';
 
             result = callGeminiAPI(requestBody);
-            // String aiResponse = result.get('ai_Response__c');
-            String aiResponse = '{ "Label": { "JobOverviewTitle": "Resumen del trabajo", "JobName": "Nombre del trabajo", "Status": "Estado", "Location": "Ubicación", "ContractPrice": "Precio del contrato", "TotalManHoursLogged": "Total de horas-hombre registradas", "TotalContractValue": "Valor total del contrato", "Mobilizations": "Movilizaciones", "WorkProgressSummaryTitle": "Resumen del progreso del trabajo (por cada día)", "GroupedByWorkDates": "Agrupado por fechas de trabajo:", "Date": "Fecha", "SummaryOfKeyWorkActivities": "Resumen de las actividades de trabajo clave", "OverallWorkSummary": "Resumen general", "ExceptionsChallengesTitle": "Excepciones / Desafíos", "ExceptionCause": "Excepción / Causa", "ExceptionOverallSummary": "Resumen general", "NotesForOfficeTitle": "Notas para la oficina", "OverallJobHealthSummaryTitle": "Resumen general del estado del trabajo", "ScheduleProgress": "Progreso del horario", "CommunicationEfficiency": "Eficiencia de la comunicación", "ResourceUtilization": "Utilización de recursos", "DocumentationStatus": "Estado de la documentación", "FinalSummaryTitle": "Resumen final", "ReportDate": "Fecha del informe" } }';
-
-            Blob htmlContentBlob = new PageReference(Site.getBaseUrl() + '/apex/ai_JobSummaryPage?summary='+aiResponse).getContent();
-            System.debug('htmlContent : '+ htmlContentBlob.toString());
             
         } catch (Exception e) {
             result.put('ai_Response_Error__c', 'Error : Failed in generateRecordingSummary ' + e.getMessage());
@@ -254,8 +249,15 @@ public with sharing class AICalloutController {
 
     public static Map<string, object> prepareForHtmlContent(Map<string, object> result, String aiResponse, String jobId){
 
+        FR_Job_AI_Settings__c aiSettings = FR_Job_AI_Settings__c.getOrgDefaults();
+        String htmlContentVfPage = aiSettings.HTML_Content_VF_Page__c;
+        if(String.isBlank(htmlContentVfPage)){
+            result.put('error', 'Error : HTML Content VF Page is not configured in AI Settings');
+            return result;
+        }
+
         // prepare VF page URL to render HTML content
-        String vfURL = Site.getBaseUrl() + '/apex/ai_JobSummaryPage?summary='+EncodingUtil.urlEncode(aiResponse,'UTF-8');
+        String vfURL = Site.getBaseUrl() + '/apex/'+htmlContentVfPage+'?summary='+EncodingUtil.urlEncode(aiResponse,'UTF-8');
         if(vfURL.length() < 4000) {
             // Render the page only if URL length is within limits(4096)
             Blob htmlContentBlob = new PageReference(vfURL).getContent();
@@ -286,8 +288,15 @@ public with sharing class AICalloutController {
                 return result;
             }
 
+            FR_Job_AI_Settings__c aiSettings = FR_Job_AI_Settings__c.getOrgDefaults();
+            String htmlContentVfPage = aiSettings.HTML_Content_VF_Page__c;
+            if(String.isBlank(htmlContentVfPage)){
+                result.put('error', 'Error : HTML Content VF Page is not configured in AI Settings');
+                return result;
+            }
+
             // Pass the jobSummaryId to VF page to render HTML content
-            String vfURL = Site.getBaseUrl() + '/apex/ai_JobSummaryPage?jobSummaryId='+jobSummaryId;
+            String vfURL = Site.getBaseUrl() + '/apex/'+htmlContentVfPage+'?jobSummaryId='+jobSummaryId;
             Blob htmlContentBlob = new PageReference(vfURL).getContent();
             result.put('htmlContent', htmlContentBlob.toString());
             System.debug('htmlContent : '+ htmlContentBlob.toString());

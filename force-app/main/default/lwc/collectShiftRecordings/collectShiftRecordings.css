@@ -114,8 +114,8 @@ audio::-webkit-media-controls-panel {
 }
 
 .clip-info{
-    display: flex;
-    align-items: center;
+    /* display: flex;
+    align-items: center; */
     gap: 0.5rem;
 }
 
