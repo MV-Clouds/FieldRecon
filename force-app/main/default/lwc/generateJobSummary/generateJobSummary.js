@@ -6,6 +6,8 @@ import { getPicklistValues } from 'lightning/uiObjectInfoApi';
 import USER_OBJECT from '@salesforce/schema/User';
 import Preferred_Language_Field from '@salesforce/schema/User.Preferred_Native_Language__c';
 import getUserDesignation from '@salesforce/apex/AICalloutController.getUserDesignation';
+import getCrewsByJob from '@salesforce/apex/AICalloutController.getCrewsByJob';
+import getSummaryAsHtml from '@salesforce/apex/AICalloutController.getSummaryAsHtml';
 import userId from '@salesforce/user/Id';
 import { getRecord } from 'lightning/uiRecordApi';
 import { Text_To_Speech } from 'c/cmp_TextToSpeech';
@@ -28,14 +30,17 @@ export default class GenerateJobSummary extends LightningElement {
     
     visibilityOptions = [
         { label: 'All Work', value: 'all_work' },
-        { label: 'My Work', value: 'my_work' }
+        { label: 'Specific Crew', value: 'specific_Crew' }
     ];
     selectedVisibility = 'all_work';
+    
+    ttsContent = '';
 
     isJobManager = false;
 
-    @wire(getUserDesignation)
+    @wire(getUserDesignation,{jobId: '$recordId'})
     userDesignation({data, error}){
+
         if (data) {
             this.isJobManager = data.isJobManager;
         } else if (error) {
@@ -43,8 +48,27 @@ export default class GenerateJobSummary extends LightningElement {
         }
     }
 
+    @track crewsList = [];
+
+    @wire(getCrewsByJob,{jobId: '$recordId'})
+    crewsByJob({data, error}){
+        if (data) {
+            Object.keys(data.crewInfo).map((crewId)=>{
+                this.crewsList.push({'label': data.crewInfo[crewId], 'value': crewId});
+            });
+            console.log('CrewList: ',this.crewsList);
+        } else if (error) {
+            console.error('Error fetching crews:', error);
+        }
+    }
+    selectedCrews = [];
+
     get isCustomTimeInterval() {
         return this.selectedDurationType === 'custom_Duration';
+    }
+
+    get isSpecificCrewSelected() {
+        return this.selectedVisibility === 'specific_Crew';
     }
 
     @track languages = [];
@@ -52,8 +76,9 @@ export default class GenerateJobSummary extends LightningElement {
     selectedLanguage_Label = 'English'
 
     get disableSummarizeBtn(){
-        return !this.selectedLanguage || !this.selectedDurationType 
+        return !this.selectedLanguage || !this.selectedDurationType || !this.selectedVisibility
             || (this.selectedDurationType === 'custom_Duration' && (!this.startDate || !this.endDate))
+            || (this.selectedVisibility === 'specific_Crew' && this.selectedCrews.length === 0);
     }
 
     get userObjRecordType(){
@@ -98,26 +123,34 @@ export default class GenerateJobSummary extends LightningElement {
             this.selectedLanguage_Label = this.languages?.find(option => option.value === event.target.value)?.label;
         }else if(event.target.name === 'durationType'){
             this.selectedDurationType = event.target.value;
+        }else if(event.target.name === 'crewGroup'){
+            this.selectedCrews = event.target.value;
         }else if(event.target.name === 'visibility'){
-            this.selectedDurationType = event.target.value;
+            this.selectedVisibility = event.target.value;
         }
     }
 
     handleClick(event){
-        this.loading = true;
         this.jobSummary = '';
         console.log('this.recordId', this.recordId);
         console.log('this.startDate', this.startDate);
         console.log('this.endDate', this.endDate);
         console.log('this.selectedLanguage', this.selectedLanguage);
-
+        
+        if(this.selectedVisibility === 'specific_Crew' && this.selectedCrews.length === 0){
+            this.ShowToastMessage('Error', 'Please select at least one Crew', 'error');
+            return;
+        }
+        
         const requestData = {
             jobId: this.recordId,
             durationType: this.selectedDurationType,
             language: `${this.selectedLanguage} (${this.selectedLanguage_Label})`,
-            userVisibilityChoice: this.selectedVisibility
+            workVisibility: this.selectedVisibility,
+            crews: this.selectedCrews
         };
-
+        
+        this.loading = true;
         if(requestData.durationType === 'custom_Duration'){
             requestData.startDate = this.startDate;
             requestData.endDate = this.endDate;
@@ -126,55 +159,194 @@ export default class GenerateJobSummary extends LightningElement {
         const missingKey = Object.keys(requestData).find(key => !requestData[key]);
         
         const errorKeyMapping = {
-            jobId: 'Job',
-            startDate: 'Start Date',
-            endDate: 'End Date',
-            language: 'Language',
-            durationType: 'Interval Type',
-            userVisibilityChoice: 'Visibility'
+            jobId: 'Error In Fetching Current Job Id',
+            startDate: 'Please enter Start Date',
+            endDate: 'Please enter End Date',
+            language: 'Please Select Language',
+            durationType: 'Please Select Interval Type',
+            workVisibility: 'Please Select Visibility',
         };
 
         if (missingKey) {
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Error',
-                    message: `Please enter ${errorKeyMapping[missingKey]}`,
-                    variant: 'error',
-                })
-            );
+            this.ShowToastMessage('Error', errorKeyMapping[missingKey], 'error');
             this.loading = false;
             return;
         }
 
         console.log('requestData', requestData);
 
-        ttsContent = '';
+        let continueProcessing;
         generateJobSummary({inputData: JSON.stringify(requestData)})
-            .then(result => {
-                // this.jobSummary = result.slice(7);
-                
-                // this.jobSummary = result.replace(/```html|```/g, '').trim();
+        .then(result => {
+                console.log('result', result);
                 try {
 
                     this.jobSummary = JSON.parse(result.ai_Response__c || '[]');
                     console.log('this.jobSummary', this.jobSummary);
-                    const htmlContent = this.generateJobSummaryHTML(this.jobSummary);
-                    this.template.querySelector(".summaryContainer").innerHTML = htmlContent;
-                    console.log('htmlContent : ', htmlContent);
-                    const tts_htmlContent = this.htmlToSpeechText(htmlContent);
-                    this.ttsContent = this.convertToSSML(tts_htmlContent);
-                    console.log('ttsContent : ', this.ttsContent);
+
+                    if(result.jobSummaryId){
+                        this.fetchHtmlContent(result.jobSummaryId);
+                        continueProcessing = true;
+                    }
+                    else if(result.htmlContent){
+                        this.prepareHtml_and_TTS(result.htmlContent);
+                    }
+
+
+                    // const htmlContent = this.generateJobSummaryHTML(this.jobSummary);
+                    // this.template.querySelector(".summaryContainer").innerHTML = htmlContent;
+                    // console.log('htmlContent : ', htmlContent);
+                    // const tts_htmlContent = this.htmlToSpeechText(htmlContent);
+                    // this.ttsContent = this.convertToSSML(tts_htmlContent);
+                    // console.log('ttsContent : ', this.ttsContent);
                     
                 } catch (error) {
+                    this.ShowToastMessage('Error', 'Something went wrong! Please try again', 'error');
                     console.log('error', error.stack);
                 }
-
-                console.log('result', result);
-                this.loading = false;
             })
             .catch(error => {
                 console.log('error', error);
+                this.ShowToastMessage('Error', 'Something went wrong! Please try again', 'error');
+            })
+            .finally(() => {
+                this.loading = continueProcessing;
+            })
+    }
+
+    fetchHtmlContent(jobSummaryId) {
+        this.loading = true;
+        getSummaryAsHtml({jobSummaryId: jobSummaryId})
+        .then(result => {
+            if(result.htmlContent){
+                const htmlContent = result.htmlContent;
+                this.prepareHtml_and_TTS(htmlContent);
+            }
+            else if(result.error){
+                this.ShowToastMessage('Error', 'Something went wrong! Please try again', 'error');
+                console.log('error in fetchHtmlContent : ', result.error);
+            }
+        })
+        .catch(error => {
+            this.ShowToastMessage('Error', 'Something went wrong! Please try again', 'error');
+            console.log('error in fetchHtmlContent : ', error.body?.message ?? error?.message);
+        })
+        .finally( () => {
+            this.loading = false;
+        })
+    }
+
+    prepareHtml_and_TTS(htmlContent){
+        try {
+            let div = document.createElement('div');
+            div.innerHTML = htmlContent;
+            this.template.querySelector(".summaryContainer").innerHTML = htmlContent;
+            const tts_htmlContent = this.htmlToSpeechText(htmlContent);
+            // this.ttsContent = this.convertToSSML(tts_htmlContent);
+            this.ttsContent = this.prepareTTSContent(tts_htmlContent);
+            console.log('ttsContent : ', this.ttsContent);
+        } catch (error) {
+            console.log('error in prepareHtml_and_TTS : ', error.stack);
+        }
+    }
+
+    prepareTTSContent(){
+        let data = this.jobSummary;
+        const job = data.JobOverview || {};
+        const summary = data.ShiftLogSummary || {};
+        const notes = data.NotesForOffice || [];
+        const health = data.OverallJobHealthSummary || {};
+        let label = data.Label || {};
+        const eachLogs = summary.EachLogSummary || [];
+        const reportDate = data.ReportMetaData?.ReportDate || "";
+
+        let speech = '';
+
+        // Report Heading
+        speech += `Job Summary Report. <break time='600ms'/>`;
+
+        // Report Date
+        speech += `${label.ReportDate || 'Report Date'}: ${new Date(reportDate).toLocaleDateString("en-US", 
+                { day: 'numeric', month: 'long', year: 'numeric' })}. <break time='500ms'/>`;
+
+        // Job Overview
+        speech += `${label.JobOverviewTitle || 'Job Overview'}. <break time='400ms'/>`;
+        speech += `${label.JobName || 'Job Name'}: ${job.JobName || 'Not available'}. `;
+        speech += `${label.Status || 'Status'}: ${job.Status || 'Not available'}. `;
+        speech += `${label.Location || 'Location'}: ${job.Location || 'Not available'}. `;
+        speech += `${label.ContractPrice || 'Contract Price'} is ${job.ContractPrice ? job.ContractPrice + ' Rupees' : 'Not available'}. `;
+        speech += `${label.TotalManHoursLogged || 'Total Man Hours Logged'}: ${job.TotalManHoursLogged || '0'} hours. `;
+        speech += `${label.Mobilizations || 'Mobilizations'}: ${job.Mobilizations || '0'}. <break time='600ms'/>`;
+
+        // Work Progress Summary
+        speech += `${label.WorkProgressSummaryTitle || 'Work Progress Summary'}. <break time='500ms'/>`;
+        speech += `Here is a summary of work performed on different dates. <break time='400ms'/>`;
+
+        eachLogs.forEach(log => {
+            speech += `On ${new Date(log.Date).toLocaleDateString("en-US", 
+                    { day: 'numeric', month: 'long', year: 'numeric' })}, `;
+            speech += `${log.SummaryOfKeyWorkActivities || 'No activities recorded'}. <break time='500ms'/>`;
+        });
+
+        speech += `Overall work summary: ${summary.WorkPerformedOverallSummary || 'Not available'}. <break time='700ms'/>`;
+
+        // Exceptions / Challenges
+        speech += `${label.ExceptionsChallengesTitle || 'Exceptions and Challenges'}. <break time='500ms'/>`;
+
+        eachLogs.forEach(log => {
+            if (log.ExceptionCause) {
+                speech += `On ${new Date(log.Date).toLocaleDateString("en-US", 
+                        { day: 'numeric', month: 'long', year: 'numeric' })}, `;
+                speech += `Exception noted: ${log.ExceptionCause}. <break time='500ms'/>`;
+            }
+        });
+
+        speech += `Overall exception summary: ${summary.ExceptionOverallSummary || 'No major exceptions noted'}. <break time='700ms'/>`;
+
+        // Notes for Office
+        if(notes.length){
+            speech += `${label.NotesForOfficeTitle || 'Notes for Office'}. <break time='500ms'/>`;
+            notes.forEach(n => {
+                speech += `${n}. <break time='500ms'/>`;
             });
+        }
+
+        speech += `<break time='700ms'/>`;
+
+        // Job Health Summary
+        speech += `${label.OverallJobHealthSummaryTitle || 'Job Health Summary'}. <break time='500ms'/>`;
+        speech += `${label.ScheduleProgress || 'Schedule Progress'}: ${health.Progress || 'Not available'}. `;
+        speech += `${label.CommunicationEfficiency || 'Communication Efficiency'}: ${health.Efficiency || 'Not available'}. `;
+        speech += `${label.ResourceUtilization || 'Resource Utilization'}: ${health.ResourceUtilization || 'Not available'}. `;
+        speech += `${label.DocumentationStatus || 'Documentation Status'}: ${health.Status || 'Not available'}. <break time='700ms'/>`;
+
+        // Final Summary
+        speech += `${label.FinalSummaryTitle || 'Final Summary'}. <break time='400ms'/>`;
+        speech += `${data.FinalSummary || 'Summary not available'}. <break time='800ms'/>`;
+
+        speech += `End of Job Summary Report.`;
+
+        // Add natural speech pauses
+        speech = speech
+            .replace(/:/g, ". ")          // Change colons to pauses
+            .replace(/\./g, ". ")         // Ensure full-stop spacing
+            .replace(/,/g, ", ");         // Ensure comma pauses
+
+        // add some breaks
+        speech = speech
+            .replace(/\. /g, ". <break time='300ms'/>")
+            .replace(/:/g, "<break time='300ms'/>")
+
+        return `<speak>${speech}</speak>`;
+    }
+
+
+    ShowToastMessage(title,message,variant) {
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title,message,variant
+            })
+        );
     }
 
     labels = {};

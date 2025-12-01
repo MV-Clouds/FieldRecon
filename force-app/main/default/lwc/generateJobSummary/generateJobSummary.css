@@ -51,6 +51,13 @@
     font-size: 1rem;
 }
 
+.manager-info-message {
+    margin-top: 10px;
+    color: #3a3a3a;
+    background: whitesmoke;
+    padding: 8px 12px;
+}
+
 /* Responsive: Language dropdown goes under header title for small screens */
 @media(max-width: 600px) {
     .header-row {

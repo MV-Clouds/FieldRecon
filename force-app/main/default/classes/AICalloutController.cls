@@ -11,7 +11,52 @@
 * 1.0 | November 25, 2025 |   | Initial Version
 **/
 
-public class AICalloutController {
+public with sharing class AICalloutController {
+
+    @AuraEnabled(cacheable=true)
+    public static Map<String,Object> getCrewsByJob(String jobId){
+        Map<String,Object> result = new Map<String,Object>();
+        try {
+            // String jobId = 'a0KC300000DB4NNMA1';
+            List<wfrecon__Mobilization__c> mobilizationList = [SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Job__c = :jobId WITH USER_MODE];
+            
+            Set<Id> mobilizationIds = new Set<Id>();
+            
+            for(wfrecon__Mobilization__c mobilization : mobilizationList){
+                mobilizationIds.add(mobilization.Id);
+            }
+            
+            List<wfrecon__Mobilization_Member__c> mobilizationMembers= [SELECT Id,wfrecon__Crew__r.Id,wfrecon__Crew__r.Name FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Mobilization__c IN :mobilizationIds WITH USER_MODE];
+            
+            System.debug('mobilizationMembers' + mobilizationMembers);
+            Map<String,Object> crewInfo = new Map<String,Object>();
+            for(wfrecon__Mobilization_Member__c mobilizationMember : mobilizationMembers){
+                crewInfo.put(mobilizationMember.wfrecon__Crew__r.Id,mobilizationMember.wfrecon__Crew__r.Name);
+            }
+
+            result.put('crewInfo',crewInfo);
+
+        } catch (Exception e) {
+            result.put('error', 'Error : Failed in getCrewsByJob ' + e.getMessage());
+        }
+        return result;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static Map<String,Object> getUserDesignation(String jobId){
+        Map<String,Object> result = new Map<String,Object>();
+        try {
+            wfrecon__Job__c jobToSummarize = [SELECT Id,Job_Manager__c FROM wfrecon__Job__c WHERE id =:jobId];
+            result.put('isJobManager',UserInfo.getUserId() == jobToSummarize.Job_Manager__c);
+            
+        } catch (Exception e) {
+            result.put('error', 'Error : Failed in getUserDesignation ' + e.getMessage());
+        }
+        return result;
+    }
+
+
+
     @AuraEnabled
     public static Map<String, Object> generateRecordingSummary(String audioData) {
         Map<String, Object> result = new Map<String, Object>();
@@ -94,6 +139,11 @@ public class AICalloutController {
             '}';
 
             result = callGeminiAPI(requestBody);
+            // String aiResponse = result.get('ai_Response__c');
+            String aiResponse = '{ "Label": { "JobOverviewTitle": "Resumen del trabajo", "JobName": "Nombre del trabajo", "Status": "Estado", "Location": "Ubicación", "ContractPrice": "Precio del contrato", "TotalManHoursLogged": "Total de horas-hombre registradas", "TotalContractValue": "Valor total del contrato", "Mobilizations": "Movilizaciones", "WorkProgressSummaryTitle": "Resumen del progreso del trabajo (por cada día)", "GroupedByWorkDates": "Agrupado por fechas de trabajo:", "Date": "Fecha", "SummaryOfKeyWorkActivities": "Resumen de las actividades de trabajo clave", "OverallWorkSummary": "Resumen general", "ExceptionsChallengesTitle": "Excepciones / Desafíos", "ExceptionCause": "Excepción / Causa", "ExceptionOverallSummary": "Resumen general", "NotesForOfficeTitle": "Notas para la oficina", "OverallJobHealthSummaryTitle": "Resumen general del estado del trabajo", "ScheduleProgress": "Progreso del horario", "CommunicationEfficiency": "Eficiencia de la comunicación", "ResourceUtilization": "Utilización de recursos", "DocumentationStatus": "Estado de la documentación", "FinalSummaryTitle": "Resumen final", "ReportDate": "Fecha del informe" } }';
+
+            Blob htmlContentBlob = new PageReference(Site.getBaseUrl() + '/apex/ai_JobSummaryPage?summary='+aiResponse).getContent();
+            System.debug('htmlContent : '+ htmlContentBlob.toString());
             
         } catch (Exception e) {
             result.put('ai_Response_Error__c', 'Error : Failed in generateRecordingSummary ' + e.getMessage());
@@ -107,6 +157,9 @@ public class AICalloutController {
         @AuraEnabled public String endDate;
         @AuraEnabled public String language;
         @AuraEnabled public String durationType;
+        @AuraEnabled public String workVisibility;
+        @AuraEnabled public List<String> crews;
+        @AuraEnabled public Boolean avoidHtmlContent;
     }
 
     public static string generateConfig = ''+
@@ -118,41 +171,59 @@ public class AICalloutController {
         Map<String,Object> result = new Map<String,Object>();
         try {
             
-            System.debug('input : '+ inputData);
+            System.debug('InputData : '+ inputData);
             RequestInput input = (RequestInput)JSON.deserialize(inputData, RequestInput.class);
             String jobId = input.jobId;
             String startDate = input.startDate;
             String endDate = input.endDate;
             String language = input.language ?? 'English';
             String durationType = input.durationType ?? 'all';
+            String workChoice = input.workVisibility ?? 'my_work';
+            List<String> crews = input.crews ?? new List<String>();
+            Boolean avoidHtmlContent = input.avoidHtmlContent ?? false;
             
-
-            String whereClause = ' WHERE wfrecon__Job__c = :jobId ';
-            
-            // Validate required inputs
-            // if (String.isBlank(recordId) || String.isBlank(startDate) || String.isBlank(endDate)) {
-            //     return 'Please provide all required inputs.';
-            // }
+            String userId = UserInfo.getUserId();
+            List<String> clausePart = new List<String>();
+            clausePart.add('wfrecon__Job__c = :jobId');
             
             if(durationType == 'custom_Duration'){
                 // Convert string inputs to Date
                 Date startDt = Date.valueOf(startDate);
                 Date endDt   = Date.valueOf(endDate);
-                whereClause += 'AND (wfrecon__Work_Performed_Date__c >= :startDt AND wfrecon__Work_Performed_Date__c <= :endDt)';
+                clausePart.add('(wfrecon__Work_Performed_Date__c >= :startDt AND wfrecon__Work_Performed_Date__c <= :endDt)');
             }else if(durationType == 'this_Week'){
-                whereClause += 'AND wfrecon__Date__c >= LAST_N_DAYS:7';
+                Integer daysFromWeekStart = weekDay() - 1;
+                clausePart.add('wfrecon__Work_Performed_Date__c >= LAST_N_DAYS: ' + daysFromWeekStart);
             }
 
-
             // Need To Review Start
-            wfrecon__Job__c jobToSummarize = [SELECT Id, Name, CreatedDate, LastModifiedDate, wfrecon__Account__c, wfrecon__Actual_Man_Hours__c, wfrecon__Architect__c, wfrecon__City__c, wfrecon__Click_for_Map__c, wfrecon__Complete__c, wfrecon__Completion_Date__c, wfrecon__Contract_Date__c, wfrecon__Country__c, wfrecon__County__c, wfrecon__Description__c, wfrecon__FIPS_County__c, wfrecon__FIPS_State__c, wfrecon__Geocode__Latitude__s, wfrecon__Geocode__Longitude__s, wfrecon__Geocode__c, wfrecon__Job_Address__c, wfrecon__Job_Name__c, wfrecon__Job_Number__c, wfrecon__Need_Hotels__c, wfrecon__Parent_Job__c, wfrecon__Per_Diem__c, wfrecon__QB_Customer_Id__c, wfrecon__Retainage__c, wfrecon__State__c, wfrecon__Status__c, wfrecon__Street__c, wfrecon__Sync_Token__c, wfrecon__Title__c, wfrecon__Total_Budgeted_Man_Hours__c, wfrecon__Total_Budgeted_Material_Cost__c, wfrecon__Total_Contract_Price__c, wfrecon__Total_Job_Material_Expense__c, wfrecon__Value_of_Current_Completed_Work__c, wfrecon__Zip_Code__c, wfrecon__End_Date_Rollup__c, wfrecon__Mobilization_Count__c, wfrecon__Start_Date_Rollup__c, wfrecon__Total_Change_Order_Value__c, wfrecon__Total_Contract_Value__c, wfrecon__Address__c, wfrecon__Client_Name__c, wfrecon__Job_Link__c, wfrecon__Remaining_Budgeted_Man_Hours__c, wfrecon__Remaining_Budgeted_Material_Cost__c, wfrecon__Status_Light__c, wfrecon__Total_Man_Hours__c FROM wfrecon__Job__c WHERE Id = :jobId ];
+            wfrecon__Job__c jobToSummarize = [SELECT Id, Name, CreatedDate, LastModifiedDate, Job_Manager__c, wfrecon__Account__c, wfrecon__Actual_Man_Hours__c, wfrecon__Architect__c, wfrecon__City__c, wfrecon__Click_for_Map__c, wfrecon__Complete__c, wfrecon__Completion_Date__c, wfrecon__Contract_Date__c, wfrecon__Country__c, wfrecon__County__c, wfrecon__Description__c, wfrecon__FIPS_County__c, wfrecon__FIPS_State__c, wfrecon__Geocode__Latitude__s, wfrecon__Geocode__Longitude__s, wfrecon__Geocode__c, wfrecon__Job_Address__c, wfrecon__Job_Name__c, wfrecon__Job_Number__c, wfrecon__Need_Hotels__c, wfrecon__Parent_Job__c, wfrecon__Per_Diem__c, wfrecon__QB_Customer_Id__c, wfrecon__Retainage__c, wfrecon__State__c, wfrecon__Status__c, wfrecon__Street__c, wfrecon__Sync_Token__c, wfrecon__Title__c, wfrecon__Total_Budgeted_Man_Hours__c, wfrecon__Total_Budgeted_Material_Cost__c, wfrecon__Total_Contract_Price__c, wfrecon__Total_Job_Material_Expense__c, wfrecon__Value_of_Current_Completed_Work__c, wfrecon__Zip_Code__c, wfrecon__End_Date_Rollup__c, wfrecon__Mobilization_Count__c, wfrecon__Start_Date_Rollup__c, wfrecon__Total_Change_Order_Value__c, wfrecon__Total_Contract_Value__c, wfrecon__Address__c, wfrecon__Client_Name__c, wfrecon__Job_Link__c, wfrecon__Remaining_Budgeted_Man_Hours__c, wfrecon__Remaining_Budgeted_Material_Cost__c, wfrecon__Status_Light__c, wfrecon__Total_Man_Hours__c FROM wfrecon__Job__c WHERE Id = :jobId ];
             
-            List<wfrecon__Log_Entry__c> logEntries = Database.query('SELECT Name, wfrecon__Approval_Data__c, wfrecon__Approved_Date__c, wfrecon__Exceptions__c, wfrecon__Log_Type__c, wfrecon__Material_Usage_Complete__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, wfrecon__Processes_Updated__c, wfrecon__Status__c, wfrecon__Time_Entries_Complete__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed__c, wfrecon__Work_Performed_Date__c FROM wfrecon__Log_Entry__c' + whereClause);
+            Set<Id> mobIds = new Set<Id>();
+            if(userId == jobToSummarize.Job_Manager__c && workChoice == 'specific_Crew' && crews.size() > 0){
+                List<wfrecon__Mobilization_Member__c> mobMeb = [SELECT Id, wfrecon__Mobilization__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew__c IN :crews AND wfrecon__Mobilization__r.wfrecon__Job__c =: jobId];
+                for(wfrecon__Mobilization_Member__c mb : mobMeb){
+                    mobIds.add(mb.wfrecon__Mobilization__c);
+                }
+                clausePart.add('wfrecon__Mobilization__c IN :mobIds');
+            }
+            else if(userId != jobToSummarize.Job_Manager__c || workChoice == 'my_work'){
+               clausePart.add('CreatedById = :userId');
+            }
+
+            clausePart.add('wfrecon__Work_Performed_Date__c != NULL');
+
+            String whereClause = clausePart.size() > 0 ? (' WHERE ' + String.join(clausePart, ' AND ')) : '';
+
+            List<wfrecon__Log_Entry__c> logEntries = Database.query('SELECT Name, wfrecon__Approval_Data__c, wfrecon__Approved_Date__c, wfrecon__Exceptions__c, wfrecon__Log_Type__c, wfrecon__Material_Usage_Complete__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, wfrecon__Processes_Updated__c, wfrecon__Status__c, wfrecon__Time_Entries_Complete__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed__c, wfrecon__Work_Performed_Date__c FROM wfrecon__Log_Entry__c' + whereClause +' ORDER BY wfrecon__Work_Performed_Date__c ASC');
             System.debug('logEntries : '+ logEntries);
-            // String prompt = 'You will receive a job record and optionally a list of daily log entries. Your task is to generate a professional, visually consistent HTML summary report that is fully self-contained with inline styles only and spans the full width of the page. VERY IMPORTANT: - The response must contain only HTML markup. - All styling must be inline using the style attribute; no external CSS or classes. - The entire report must use 100% width with no fixed-width containers. - Each section and daily log entry must use consistent fixed styling. - All content must be summarized and rewritten in your own words; do not copy text verbatim. - The report must be written in the following language:' + language + ' . REPORT STRUCTURE AND STYLE REQUIREMENTS: 1. JOB DETAILS   - Do NOT include job name or job number.   - Include the following fields in <p> tags (font-size: 16px; margin: 5px 0):     Start Date, End Date, Total Mobilizations, Total Man Hours, Location.   - Add a Job Description <p> summarizing the overall scope and purpose (font-size: 16px; line-height: 1.6).   - If team members or stakeholders exist, list them in a <ul> (font-size: 16px; padding-left: 20px). 2. DAILY LOGS   - Add a <h2> with: color: #2a7ae2; font-size: 24px; margin-bottom: 15px.   - If log entries exist:     Each log entry must be wrapped in a <div> with the following inline styles:       - background-color: #ffffff       - border-left: 5px solid #2a7ae2       - padding: 20px       - margin-bottom: 20px       - border-radius: 8px       - box-shadow: 0 1px 4px rgba(0,0,0,0.1)       - width: 100%       - box-sizing: border-box     Include:       - <h3> for date (color: #1f4e79; font-size: 20px; margin-top: 0)       - Several <p> elements with bold labels:           • <strong>Work Performed:</strong> summarized description           • <strong>Challenges / Issues:</strong> summarized obstacles           • <strong>Resources Used:</strong> machinery, materials, manpower summary           • <strong>Discussions / Approvals:</strong> approvals or decisions           • <strong>Plan for Tomorrow:</strong> next-day plan   - If NO log entries exist:     Display a single <p> with inline styles:       font-size: 16px; margin: 10px 0; color: #555555;       background-color: #f8f8f8; padding: 15px;       border-radius: 6px; width: 100%; box-sizing: border-box;     Text: No log entries available for this job period. 3. OVERALL SUMMARY   - Add a <h2> with: color: #2a7ae2; font-size: 24px.   - Include a <p> summarizing total work, progress, milestones, issues, lessons learned, and recommendations.   - Use: font-size: 16px; line-height: 1.6; margin: 10px 0; width: 100%; box-sizing: border-box.   - If no logs exist, provide a general high-level summary instead. ADDITIONAL RULES: - Use clear, simple, and professional language. - Never include template fragments, comments, or any non-HTML explanation. - The entire response must be HTML and must follow the styling rules exactly. - Apply summarization intelligently, in your own words. OUTPUT: Only output valid HTML markup with inline styles, written in the language specified: ' + language + '. DATA INPUT: Job record: ' + JSON.serialize(jobToSummarize) + ' and  Daily logs:' + JSON.serialize(logEntries);
-            // Need To Review End
-            String prompt = 'Job Record:' + JSON.serialize(jobToSummarize) + ' and  Daily logs:' + JSON.serialize(logEntries) + 'Summarize and strictly give response in the expeced format even if no log entries is present. Also the response must be in the language with following language code: ' + language;
+
+             // Need To Review End
+            String prompt = '';
+            prompt += 'Job Record:' + JSON.serialize(jobToSummarize) + ' and  Daily logs:' + JSON.serialize(logEntries) + 'Summarize and strictly give response in the expeced format even if no log entries is present. Also the response must be in the language with following language code: ' + language;
+            
             System.debug('prompt : '+ prompt);
+
             // Build full request body using content structure
             String requestBody = '{' + 
                 '"contents": [' + 
@@ -165,18 +236,73 @@ public class AICalloutController {
                 '"generationConfig": ' + String.escapeSingleQuotes(generateConfig) +
             '}';
 
-            
             result = callGeminiAPI(requestBody);
-            // String aiResponse = result.get('ai_Response__c');
-            String aiResponse = '{ "JobOverview": { "JobName": "MVC JOB 1", "Status": "Planning", "Location": "Phulera, U.P, 250101", "ContractPrice": "₹150.00", "TotalManHoursLogged": "28.53", "Mobilizations": 6, "ChangeOrderValue": "₹0.00", "EstimatedEndDate": "28-11-2025 19:15", "JobNumber": "JOB-000001", "StartDate": "20-11-2025 12:00", "TotalContractValue": "₹0.00" } }';
+            String aiResponse = (String) result.get('ai_Response__c');
 
-            Blob htmlContentBlob = new PageReference(Site.getBaseUrl() + '/apex/ai_JobSummaryPage?summary='+aiResponse).getContent();
-            System.debug('htmlContent : '+ htmlContentBlob.toString());
+            if(String.isBlank(aiResponse)) return result;
+
+            if(avoidHtmlContent == true) return result;
+
+            // prepare HTML content or store temporary record to fetch HTML content later
+            result.putAll(prepareForHtmlContent(result, aiResponse, jobId));
 
         } catch (Exception e) {
             result.put('ai_Response_Error__c', 'Error : Failed in generateJobSummary ' + e.getMessage());
         }
         return result;
+    }
+
+    public static Map<string, object> prepareForHtmlContent(Map<string, object> result, String aiResponse, String jobId){
+
+        // prepare VF page URL to render HTML content
+        String vfURL = Site.getBaseUrl() + '/apex/ai_JobSummaryPage?summary='+EncodingUtil.urlEncode(aiResponse,'UTF-8');
+        if(vfURL.length() < 4000) {
+            // Render the page only if URL length is within limits(4096)
+            Blob htmlContentBlob = new PageReference(vfURL).getContent();
+            result.put('htmlContent', htmlContentBlob.toString());
+            System.debug('htmlContent : '+ htmlContentBlob.toString());
+        }
+        else{
+            // Otherwise...
+            // Store the summary data in a temporary Job_Summary_AI__c record
+            // Send job Summary Id to LWC to fetch HTML content in next call
+            Job_Summary_AI__c jsa = new Job_Summary_AI__c();
+            jsa.Job__c = jobId;
+            jsa.Summary_Data_Raw__c = aiResponse;
+            jsa.Is_Temporary__c = true;
+            insert as user jsa;
+            result.put('jobSummaryId', jsa.Id);
+        }
+
+        return result;
+    }
+
+    @AuraEnabled
+    public static Map<String,Object> getSummaryAsHtml(String jobSummaryId) {
+        Map<String,Object> result = new Map<String,Object>();
+        try {
+            if(String.isBlank(jobSummaryId)){
+                result.put('error', 'Error : jobSummaryId is required');
+                return result;
+            }
+
+            // Pass the jobSummaryId to VF page to render HTML content
+            String vfURL = Site.getBaseUrl() + '/apex/ai_JobSummaryPage?jobSummaryId='+jobSummaryId;
+            Blob htmlContentBlob = new PageReference(vfURL).getContent();
+            result.put('htmlContent', htmlContentBlob.toString());
+            System.debug('htmlContent : '+ htmlContentBlob.toString());
+            
+            // If the Job Summary is temporary, delete it after fetching HTML content
+            List<Job_Summary_AI__c> jsaList = [SELECT Id, Is_Temporary__c FROM Job_Summary_AI__c WHERE Id = :jobSummaryId LIMIT 1];
+            if(jsaList.size() > 0 && jsaList[0].Is_Temporary__c == true){
+                delete as user jsaList[0];
+            }
+
+        } catch (Exception e) {
+            result.put('error', 'Error : Failed in generateJobSummary ' + e.getMessage());
+        }
+        return result;
+        
     }
 
     public static Map<String,Object> callGeminiAPI(String requestBody) {
@@ -235,5 +361,9 @@ public class AICalloutController {
             result.put('ai_Response_Error__c', 'Error : Failed to get response from Gemini API. ' + e.getMessage());
         }
         return result;
+    }
+
+    public static Integer weekDay(){
+        return Date.today().toStartOfWeek().daysBetween(Date.today()) + 1;
     }
 }

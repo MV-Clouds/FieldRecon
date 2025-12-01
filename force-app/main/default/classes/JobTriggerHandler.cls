@@ -42,7 +42,8 @@ public with sharing class JobTriggerHandler {
         try {
             for(wfrecon__Job__c job : newJobs){
                 if(job.wfrecon__Status__c == 'Closed' && oldJobsMap.get(job.Id).wfrecon__Status__c != 'Closed'){
-                    generateJobSummary_Async(job.Id);
+                    // generateJobSummary_Async(job.Id);
+                    System.enqueueJob(new JobSummaryAI_Queue(new Map<String, String>{'jobId' => job.Id}));
                 }
             }
         } catch (Exception e) {

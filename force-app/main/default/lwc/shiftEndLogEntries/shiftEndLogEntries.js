@@ -1828,10 +1828,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.noLogRecordings = true;
                 this.showToast('Error', this.infoMessages.no_recording, 'error');
             }
-            else if(result.ai_response){
+            else if(result.ai_Response__c){
                 // Collect AI Response and match fill to input fields
                 try {
-                    this.step3Data = JSON.parse(result.ai_response);
+                    this.step3Data = JSON.parse(result.ai_Response__c);
                 } catch (error) {}
                 this.isRecordingSummarized = true;
                 this.showToast('Success', this.infoMessages.ai_success, 'success');
