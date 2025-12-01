@@ -38,7 +38,9 @@ global class PostInstallSetup implements InstallHandler {
                                'wfrecon__Mobilization_Scheduler', 
                                'wfrecon__Time_Log_Manager', 
                                'wfrecon__Management', 
-                               'wfrecon__Time_Card')
+                               'wfrecon__Time_Card',
+                               'wfrecon__Shift_End_Log_Dashboard',
+                               'wfrecon__WIP_Report')
                 AND Parent.Profile.Name != null
             ];
 
