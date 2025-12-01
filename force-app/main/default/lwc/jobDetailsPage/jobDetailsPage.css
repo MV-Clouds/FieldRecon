@@ -595,6 +595,12 @@
     box-shadow: 0 0 3px rgba(94, 90, 219, 1);
 }
 
+.input-disabled {
+    background-color: #f3f2f2;
+    color: #747474;
+    cursor: not-allowed;
+}
+
 .button-container {
     text-align: center;
 }
