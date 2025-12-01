@@ -11,6 +11,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track hasAccess = false;
     @track logEntriesRaw = [];
     @track filteredLogEntriesRaw = [];
+    @track shownLogEntriesRaw = [];
     @track isLoading = false;
     @track searchTerm = '';
     @track selectedDateFilter = 'last7days';
@@ -21,6 +22,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track activeTab = 'timesheets';
     @track editedFields = {};
     @track editedLocationProcesses = {};
+    @track currentPage = 1;
+    @track pageSize = 20;
+    @track visiblePages = 5;
     
     // State tracking for approvals and rejections
     @track timesheetApprovals = {}; // { timesheetId: 'approved' | 'rejected' | 'pending' }
@@ -137,6 +141,88 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         return this.hasAccess && this.logEntries && this.logEntries.length > 0;
     }
 
+    get totalItems() {
+        return this.filteredLogEntriesRaw ? this.filteredLogEntriesRaw.length : 0;
+    }
+
+    get totalPages() {
+        return Math.ceil(this.totalItems / this.pageSize);
+    }
+
+    get isFirstPage() {
+        return this.currentPage === 1;
+    }
+
+    get isLastPage() {
+        return this.currentPage === this.totalPages;
+    }
+
+    get pageNumbers() {
+        const pages = [];
+        const totalPages = this.totalPages;
+
+        if (totalPages <= this.visiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push({
+                    number: i,
+                    isActive: i === this.currentPage,
+                    isEllipsis: false,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                });
+            }
+        } else {
+            const startPage = Math.max(1, this.currentPage - Math.floor(this.visiblePages / 2));
+            const endPage = Math.min(totalPages, startPage + this.visiblePages - 1);
+
+            if (startPage > 1) {
+                pages.push({
+                    number: 1,
+                    isActive: false,
+                    isEllipsis: false,
+                    cssClass: 'pagination-button'
+                });
+
+                if (startPage > 2) {
+                    pages.push({
+                        number: '...',
+                        isActive: false,
+                        isEllipsis: true,
+                        cssClass: ''
+                    });
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pages.push({
+                    number: i,
+                    isActive: i === this.currentPage,
+                    isEllipsis: false,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                });
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pages.push({
+                        number: '...',
+                        isActive: false,
+                        isEllipsis: true,
+                        cssClass: ''
+                    });
+                }
+
+                pages.push({
+                    number: totalPages,
+                    isActive: false,
+                    isEllipsis: false,
+                    cssClass: 'pagination-button'
+                });
+            }
+        }
+
+        return pages;
+    }
+
     /**
      * Method Name: showNoData
      * @description: Show no data message if user has access but no records found
@@ -158,7 +244,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: This method processes raw log entries and formats them for display in the UI.
      */
     get logEntries() {
-        return this.filteredLogEntriesRaw.map((log, index) => {
+        return this.shownLogEntriesRaw.map((log, index) => {
             return {
                 Id: log.Id,
                 key: log.Id,
@@ -363,6 +449,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Method is used to apply search filter in JavaScript
      */
     applyFilters() {
+        // Reset to first page when filters change
+        this.currentPage = 1;
         let filtered = [...this.logEntriesRaw];
         
         // Apply search filter
@@ -376,6 +464,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         }
         
         this.filteredLogEntriesRaw = filtered;
+        
+        // Update shown data for current page
+        this.updateShownData();
     }
 
     /**
@@ -1876,5 +1967,58 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         this.showConfirmModal = false;
         this.confirmModalAction = null;
         this.confirmModalContext = null;
+    }
+
+    /**
+     * Method Name: updateShownData
+     * @description: Update shownLogEntriesRaw for current page
+     */
+    updateShownData() {
+        try {
+            if (!this.filteredLogEntriesRaw || this.filteredLogEntriesRaw.length === 0) {
+                this.shownLogEntriesRaw = [];
+                return;
+            }
+
+            const startIndex = (this.currentPage - 1) * this.pageSize;
+            const endIndex = startIndex + this.pageSize;
+            this.shownLogEntriesRaw = this.filteredLogEntriesRaw.slice(startIndex, endIndex);
+        } catch (error) {
+            console.error('Error updating shown data:', error);
+        }
+    }
+
+    /**
+     * Method Name: handlePrevious
+     * @description: Navigate to previous page
+     */
+    handlePrevious() {
+        if (this.currentPage > 1) {
+            this.currentPage -= 1;
+            this.updateShownData();
+        }
+    }
+
+    /**
+     * Method Name: handleNext
+     * @description: Navigate to next page
+     */
+    handleNext() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage += 1;
+            this.updateShownData();
+        }
+    }
+
+    /**
+     * Method Name: handlePageChange
+     * @description: Navigate to selected page number
+     */
+    handlePageChange(event) {
+        const selectedPage = parseInt(event.target.dataset.page, 10);
+        if (selectedPage && selectedPage !== this.currentPage) {
+            this.currentPage = selectedPage;
+            this.updateShownData();
+        }
     }
 }

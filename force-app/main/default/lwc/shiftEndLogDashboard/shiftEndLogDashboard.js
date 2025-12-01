@@ -9,11 +9,15 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     @track dashboardData = {};
     @track logEntries = [];
     @track filteredLogEntries = [];
+    @track shownLogEntries = [];
     @track selectedLog = null;
     @track locationProcesses = [];
     @track files = [];
     @track hasAccess = false;
     @track accessErrorMessage = '';
+    @track currentPage = 1;
+    @track pageSize = 20;
+    @track visiblePages = 5;
 
     isLoading = true;
     showFileViewer = false;
@@ -66,7 +70,89 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
     }
 
     get hasLogs() {
-        return this.filteredLogEntries && this.filteredLogEntries.length > 0;
+        return this.shownLogEntries && this.shownLogEntries.length > 0;
+    }
+
+    get totalItems() {
+        return this.filteredLogEntries ? this.filteredLogEntries.length : 0;
+    }
+
+    get totalPages() {
+        return Math.ceil(this.totalItems / this.pageSize);
+    }
+
+    get isFirstPage() {
+        return this.currentPage === 1;
+    }
+
+    get isLastPage() {
+        return this.currentPage === this.totalPages;
+    }
+
+    get pageNumbers() {
+        const pages = [];
+        const totalPages = this.totalPages;
+
+        if (totalPages <= this.visiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push({
+                    number: i,
+                    isActive: i === this.currentPage,
+                    isEllipsis: false,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                });
+            }
+        } else {
+            const startPage = Math.max(1, this.currentPage - Math.floor(this.visiblePages / 2));
+            const endPage = Math.min(totalPages, startPage + this.visiblePages - 1);
+
+            if (startPage > 1) {
+                pages.push({
+                    number: 1,
+                    isActive: false,
+                    isEllipsis: false,
+                    cssClass: 'pagination-button'
+                });
+
+                if (startPage > 2) {
+                    pages.push({
+                        number: '...',
+                        isActive: false,
+                        isEllipsis: true,
+                        cssClass: ''
+                    });
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pages.push({
+                    number: i,
+                    isActive: i === this.currentPage,
+                    isEllipsis: false,
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button'
+                });
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pages.push({
+                        number: '...',
+                        isActive: false,
+                        isEllipsis: true,
+                        cssClass: ''
+                    });
+                }
+
+                pages.push({
+                    number: totalPages,
+                    isActive: false,
+                    isEllipsis: false,
+                    cssClass: 'pagination-button'
+                });
+            }
+        }
+
+        return pages;
     }
 
     get hasFiles() {
@@ -201,12 +287,17 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             });
         }
 
-        // Add status class and serial number to each log (dates already formatted in fetchDashboardData)
-        this.filteredLogEntries = filtered.map((log, index) => ({
+        // Add status class to each log (dates already formatted in fetchDashboardData)
+        this.filteredLogEntries = filtered.map((log) => ({
             ...log,
-            serialNumber: index + 1,
             statusClass: this.getStatusClass(log.status)
         }));
+
+        // Reset to first page when filters change
+        this.currentPage = 1;
+
+        // Update shown data for current page
+        this.updateShownData();
 
         // Update KPIs based on filtered data
         this.updateKPIs(this.filteredLogEntries);
@@ -418,5 +509,64 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             variant: variant
         });
         this.dispatchEvent(event);
+    }
+
+    /**
+     * Method Name: updateShownData
+     * @description: Update shownLogEntries for current page
+     */
+    updateShownData() {
+        try {
+            if (!this.filteredLogEntries || this.filteredLogEntries.length === 0) {
+                this.shownLogEntries = [];
+                return;
+            }
+
+            const startIndex = (this.currentPage - 1) * this.pageSize;
+            const endIndex = startIndex + this.pageSize;
+            const pageData = this.filteredLogEntries.slice(startIndex, endIndex);
+
+            // Add serial numbers based on current page
+            this.shownLogEntries = pageData.map((log, index) => ({
+                ...log,
+                serialNumber: startIndex + index + 1
+            }));
+        } catch (error) {
+            console.error('Error updating shown data:', error);
+        }
+    }
+
+    /**
+     * Method Name: handlePrevious
+     * @description: Navigate to previous page
+     */
+    handlePrevious() {
+        if (this.currentPage > 1) {
+            this.currentPage -= 1;
+            this.updateShownData();
+        }
+    }
+
+    /**
+     * Method Name: handleNext
+     * @description: Navigate to next page
+     */
+    handleNext() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage += 1;
+            this.updateShownData();
+        }
+    }
+
+    /**
+     * Method Name: handlePageChange
+     * @description: Navigate to selected page number
+     */
+    handlePageChange(event) {
+        const selectedPage = parseInt(event.target.dataset.page, 10);
+        if (selectedPage && selectedPage !== this.currentPage) {
+            this.currentPage = selectedPage;
+            this.updateShownData();
+        }
     }
 }
