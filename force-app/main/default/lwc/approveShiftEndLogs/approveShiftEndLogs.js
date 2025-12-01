@@ -11,7 +11,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track hasAccess = false;
     @track logEntriesRaw = [];
     @track filteredLogEntriesRaw = [];
-    @track totalCountRaw = 0;
     @track isLoading = false;
     @track searchTerm = '';
     @track selectedDateFilter = 'last7days';
@@ -86,22 +85,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 this.isLoading = false;
                 this.showToast('Error', 'Error checking access permissions', 'error');
             });
-    }
-
-    /**
-     * Method Name: totalCount
-     * @description: Returns total count of all log entries from Apex (all statuses)
-     */
-    get totalCount() {
-        return this.totalCountRaw;
-    }
-
-    /**
-     * Method Name: pendingCount
-     * @description: Returns count of pending log entries (after search filter)
-     */
-    get pendingCount() {
-        return this.filteredLogEntriesRaw.length;
     }
 
     /**
@@ -347,7 +330,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         })
             .then(response => {
                 this.logEntriesRaw = response.entries || [];
-                this.totalCountRaw = response.totalCount || 0;
                 this.applyFilters();
                 this.isLoading = false;
             })
@@ -598,8 +580,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         formattedField.fieldLabel = this.getFieldLabel(field.fieldApiName);
         
         // Determine field type
-        const dateTimeFields = ['Clock_In_Time__c', 'Clock_Out_Time__c'];
-        const numberFields = ['Travel_Time__c', 'Per_Diem__c', 'Premium__c'];
+        const dateTimeFields = ['wfrecon__Clock_In_Time__c', 'wfrecon__Clock_Out_Time__c'];
+        const numberFields = ['wfrecon__Travel_Time__c', 'wfrecon__Per_Diem__c', 'wfrecon__Premium__c'];
         
         formattedField.isDateTime = dateTimeFields.includes(field.fieldApiName);
         formattedField.isNumber = numberFields.includes(field.fieldApiName);
@@ -653,7 +635,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const inputValue = event.target.value; // Store original input value
 
         // Validate and convert datetime-local format
-        if ((fieldName === 'Clock_In_Time__c' || fieldName === 'Clock_Out_Time__c') && newValue) {
+        if ((fieldName === 'wfrecon__Clock_In_Time__c' || fieldName === 'wfrecon__Clock_Out_Time__c') && newValue) {
             // Basic validation: Check if datetime is valid format YYYY-MM-DDTHH:mm
             const dateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
             if (!dateTimePattern.test(newValue)) {
@@ -662,13 +644,13 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             }
 
             // Check if clock out is after clock in for the same entry
-            if (fieldName === 'Clock_Out_Time__c') {
+            if (fieldName === 'wfrecon__Clock_Out_Time__c') {
                 const entry = this.logEntryDetails?.timesheetEntries?.find(e => e.id === recordId);
                 if (entry) {
-                    const clockInField = entry.approvalFields?.find(f => f.fieldApiName === 'Clock_In_Time__c');
+                    const clockInField = entry.approvalFields?.find(f => f.fieldApiName === 'wfrecon__Clock_In_Time__c');
                     if (clockInField) {
                         // Get clock in value from edited fields or original
-                        const clockInKey = `${recordId}.Clock_In_Time__c`;
+                        const clockInKey = `${recordId}.wfrecon__Clock_In_Time__c`;
                         const clockInValue = this.editedFields[clockInKey] || clockInField.newValue;
                         const clockInFormatted = clockInValue ? clockInValue.slice(0, 16) : null;
                         
@@ -688,7 +670,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         }
 
         // Validate travel time is non-negative
-        if (fieldName === 'Travel_Time__c' && newValue) {
+        if (fieldName === 'wfrecon__Travel_Time__c' && newValue) {
             const travelTime = parseFloat(newValue);
             if (isNaN(travelTime) || travelTime < 0) {
                 this.showToast('Error', 'Travel time must be a positive number', 'error');
@@ -1292,12 +1274,12 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                         fieldUpdates[field.fieldApiName] = this.editedFields[editKey];
                     } else {
                         // Use the original new value if not edited
-                        if (field.fieldApiName === 'Clock_In_Time__c' || field.fieldApiName === 'Clock_Out_Time__c') {
+                        if (field.fieldApiName === 'wfrecon__Clock_In_Time__c' || field.fieldApiName === 'wfrecon__Clock_Out_Time__c') {
                             // Convert ISO string to format expected by Apex: YYYY-MM-DD HH:mm:ss
                             // field.newValue is in format: 2025-11-19T13:02:00.000Z
                             // Convert to: 2025-11-19 13:02:00
                             fieldUpdates[field.fieldApiName] = this.convertISOToApexFormat(field.newValue);
-                        } else if (field.fieldApiName === 'Travel_Time__c') {
+                        } else if (field.fieldApiName === 'wfrecon__Travel_Time__c') {
                             fieldUpdates[field.fieldApiName] = parseFloat(field.newValue) || 0;
                         }
                     }
@@ -1751,11 +1733,11 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     getFieldLabel(apiName) {
         const labelMap = {
-            'Clock_In_Time__c': 'Clock In Time',
-            'Clock_Out_Time__c': 'Clock Out Time',
-            'Travel_Time__c': 'Travel Time',
-            'Per_Diem__c': 'Per Diem',
-            'Premium__c': 'Premium'
+            'wfrecon__Clock_In_Time__c': 'Clock In Time',
+            'wfrecon__Clock_Out_Time__c': 'Clock Out Time',
+            'wfrecon__Travel_Time__c': 'Travel Time',
+            'wfrecon__Per_Diem__c': 'Per Diem',
+            'wfrecon__Premium__c': 'Premium'
         };
         return labelMap[apiName] || apiName;
     }

@@ -581,6 +581,12 @@
     color: #dc3545;
 }
 
+.input-disabled{
+    cursor: not-allowed;
+    pointer-events: all !important;
+    background: #dad4d4;
+}
+
 .button-container {
     text-align: center;
 }

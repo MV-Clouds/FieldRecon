@@ -167,7 +167,7 @@
 
 .log-card svg {
     min-width: 16px;
-    fill: #5a5adb;
+    fill: white;
 }
 
 .log-card-body {
@@ -216,6 +216,7 @@
     flex-shrink: 0;
     border-bottom: 1px solid transparent;
     flex-direction: column;
+    border-radius: 16px;
 }
 
 .log-card-sub-header{
@@ -500,6 +501,52 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.file-preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    gap: 0.5rem;
+}
+
+.file-ext-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5e5adb;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 0.25rem;
+}
+
+.file-name-label {
+    font-size: 0.75rem;
+    color: #666;
+    text-align: center;
+    word-break: break-word;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.modal-file-preview {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-file-preview:hover {
+    background: #e8e9f0;
+    transform: scale(1.02);
 }
 
 /* Location Processes List */
@@ -791,7 +838,7 @@
 /* Photo grid for edit modal */
 .photo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 12px;
     margin-top: 15px;
 }
@@ -822,6 +869,11 @@
     transform: scale(1.05);
 }
 
+.edit-modal {
+    /* width: 65% !important; */
+    max-width: unset !important;
+}
+
 .edit-modal-header {
     background: var(--primary-theme-color);
     color: white;
@@ -837,10 +889,12 @@
     background-image: url(/resource/wfrecon__FieldReconBG);
     background-repeat: no-repeat;
     background-size: cover;
-    max-height: 60vh;
+    max-height: 55vh;
+    min-height: 55vh;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-theme-color) #f4f6f9;
+    padding: 0rem 1rem;
 }
 
 .edit-modal-body::-webkit-scrollbar {
@@ -859,6 +913,11 @@
 
 .edit-modal-body::-webkit-scrollbar-thumb:hover {
     background: rgba(94, 90, 219, 0.8);
+}
+
+/* Edit Modal - Main Modal Layer */
+.shift-end-edit-modal {
+    z-index: 2001;
 }
 
 .edit-modal .slds-modal__container {
@@ -941,22 +1000,57 @@
     transform: scale(1.1);
 }
 
-.upload-options {
+/* Upload Actions for Gallery */
+.upload-actions {
     display: flex;
-    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.upload-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    width: 100%;
     align-items: center;
-    margin-bottom: 15px;
-    gap: 10px;
 }
 
-.upload-left {
+.upload-button-wrapper {
     flex: 0 0 auto;
 }
 
-.upload-right {
-    flex: 0 0 auto;
-    margin-left: auto;
+.gallery-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
     margin-top: 1rem;
+}
+
+.gallery-btn svg {
+    flex-shrink: 0;
+}
+
+/* Responsive for Upload Buttons */
+@media (max-width: 768px) {
+    .upload-buttons-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .upload-button-wrapper,
+    .gallery-btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-btn {
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+    }
 }
 
 .camera-btn {
@@ -986,10 +1080,6 @@
 }
 
 /* Camera Modal Styles */
-.camera-modal-container {
-    width: 90%;
-    max-width: 600px;
-}
 
 .camera-modal-content {
     position: relative;
@@ -1079,7 +1169,7 @@
     padding: 1rem 1.5rem;
     background-color: #f3f3f3;
     border-bottom: 1px solid #dddbda;
-    overflow-x: auto;
+    /* overflow-x: auto; */
     pointer-events: none;
 }
 
@@ -1750,10 +1840,6 @@
     .photo-grid {
         grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     }
-
-    .camera-modal-container {
-        width: 95%;
-    }
 }
 
 /* 2. Tablets (768px to 1023px) */
@@ -1928,6 +2014,22 @@
     overflow-y: auto;
 }
 
+/* Z-Index Layer Management */
+/* Edit modal backdrop */
+.edit-backdrop {
+    z-index: 2000;
+}
+
+/* Sub-modal backdrop (for camera and chatter modals) */
+.sub-backdrop {
+    z-index: 2002;
+}
+
+/* Sub-modals (camera and chatter) */
+.sub-modal {
+    z-index: 2003;
+}
+
 /* Mobile responsiveness for accordions */
 @media screen and (max-width: 768px) {
     .location-accordion-header,
@@ -1940,4 +2042,333 @@
     .edit-location-accordion-content.open {
         padding: 0.75rem;
     }
+}
+
+/* File upload trigger - visually hidden but accessible */
+.file-upload-trigger {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Custom Upload Button & Dropdown */
+.custom-upload-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.custom-upload-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: rgba(94, 90, 219, 1);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.custom-upload-btn:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.3);
+}
+
+.custom-upload-btn svg {
+    flex-shrink: 0;
+}
+
+.upload-options-dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 200px;
+    z-index: 1000;
+    overflow: hidden;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.upload-option-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: none;
+    text-align: left;
+    font-size: 0.9rem;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.upload-option-item:hover {
+    background: #f5f5ff;
+}
+
+.upload-option-item svg {
+    flex-shrink: 0;
+    color: #5e5adb;
+}
+
+/* Chatter Modal */
+
+.chatter-modal-content {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.chatter-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem;
+}
+
+.chatter-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.chatter-feed-item {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    /* margin-bottom: 1.5rem; */
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.feed-item-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+}
+
+.feed-item-date {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.feed-item-attachments {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.attachment-card {
+    position: relative;
+    background: white;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 140px;
+}
+
+.attachment-card:hover {
+    border-color: #5e5adb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.2);
+}
+
+.attachment-card.selected {
+    border-color: #5e5adb;
+    background: #f5f5ff;
+}
+
+.attachment-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.attachment-card.disabled:hover {
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+.attachment-selected-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    background: #5e5adb;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.attachment-uploaded-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 0.25rem 0.5rem;
+    background: #4caf50;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.attachment-thumbnail {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.attachment-file-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100px;
+    color: #5e5adb;
+}
+
+.attachment-title {
+    font-size: 0.85rem;
+    color: #333;
+    text-align: center;
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+.load-more-container {
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.load-more-btn {
+    padding: 0.5rem 1.5rem;
+    background: white;
+    color: #5e5adb;
+    border: 2px solid #5e5adb;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.load-more-btn:hover:not(:disabled) {
+    background: #5e5adb;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.3);
+}
+
+.load-more-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Mobile responsiveness for Chatter */
+@media screen and (max-width: 768px) {
+
+    .feed-item-attachments {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .attachment-card {
+        min-height: 120px;
+    }
+
+    .attachment-thumbnail,
+    .attachment-file-icon {
+        height: 80px;
+    }
+}
+
+/* No Data Message Styles */
+.no-data-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+    text-align: center;
+    color: #706e6b;
+    height: 100%;
+    width: 100%;
+    min-height: 300px;
+}
+
+.no-data-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1.5rem;
+    color: #c9c7c5;
+}
+
+.no-data-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+}
+
+.no-data-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #3e3e3c;
+}
+
+.no-data-description {
+    font-size: 0.95rem;
+    color: #706e6b;
+    max-width: 300px;
+    line-height: 1.5;
 }

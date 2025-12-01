@@ -100,13 +100,18 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         return utcDate.toISOString().slice(0, 10);
     }
 
-    validateClockInDate(clockInValue, jobStartValue) {
+    validateClockInDate(clockInValue, jobStartValue, jobEndValue) {
         const clockInDate = this.extractDateKey(clockInValue);
         const jobStartDate = this.extractDateKey(jobStartValue);
+        const jobEndDate = this.extractDateKey(jobEndValue);
 
-        if (clockInDate && jobStartDate && clockInDate !== jobStartDate) {
-            this.showToast('Error', 'Clock In time must be on the job start date', 'error');
-            return false;
+        console.log(clockInDate, jobStartDate, jobEndDate);
+
+        if (clockInDate && jobStartDate) {
+            if (clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
+                this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
+                return false;
+            }
         }
 
         return true;
@@ -181,6 +186,21 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         const nextDay = this.addDaysToDateKey(dateKey, 1);
         const boundaryKey = nextDay || dateKey;
         return `${boundaryKey}T23:59`;
+    }
+
+    get modalJobStartTime() {
+        const job = this.getCurrentModalJobRecord();
+        return job ? job.jobStartTime : '';
+    }
+
+    get modalJobEndTime() {
+        const job = this.getCurrentModalJobRecord();
+        return job ? job.jobEndTime : '';
+    }
+
+    isValidDateTime(dateTimeString) {
+        const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+        return regex.test(dateTimeString);
     }
 
     /** 
@@ -443,14 +463,12 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     groupWeeklyJobData(apexData) {
         try {
-            // Generate week range: today → next Monday (7 days total)
             let today = new Date();
 
             // normalize apexData keys
             const normalizedApexData = {};
             for (let key in apexData) {
-                const date = new Date(key);
-                normalizedApexData[date.toDateString()] = apexData[key].map(job => {
+                normalizedApexData[key] = apexData[key].map(job => {
                     const description = job.jobDescription || '--';
                     const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
                     
@@ -489,7 +507,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 let currentDate = new Date(today);
                 currentDate.setDate(today.getDate() + i);
 
-                let dateKey = currentDate.toDateString();
+                let dateKey = currentDate.toISOString().slice(0, 10);
                 let jobsForDay = normalizedApexData[dateKey] || []; 
 
                 weekSections.push({
@@ -574,6 +592,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         this.showClockInModal = true;
         const mobId = event.currentTarget.dataset.id;
         const selectedMob = this.todayJobList.find(job => job.mobId === mobId);
+        console.log('selectedMob :: ', selectedMob);
         if(selectedMob) {
             this.selectedContactId = selectedMob.contactId;
             this.selectedMobilizationId = selectedMob.mobId;
@@ -664,6 +683,14 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
 
+            console.log('this.clockInTime :: ', this.clockInTime);
+            
+
+            if (!this.isValidDateTime(this.clockInTime)) {
+                this.showToast('Error', 'Please select both date and time for clock in.', 'error');
+                return;
+            }
+
             const selectedRecordDetails = this.todayJobList.find(
                 record => record.mobId === this.selectedMobilizationId
             );
@@ -674,7 +701,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             }
 
             const jobStartReference = selectedRecordDetails?.jobStartTimeIso || selectedRecordDetails?.jobStartTime;
-            if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
+            const jobEndReference = selectedRecordDetails?.jobEndTimeIso || selectedRecordDetails?.jobEndTime;
+            if (!this.validateClockInDate(this.clockInTime, jobStartReference, jobEndReference)) {
                 return;
             }
 
@@ -733,6 +761,11 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
 
+            if (!this.isValidDateTime(this.clockOutTime)) {
+                this.showToast('Error', 'Please select both date and time for clock out.', 'error');
+                return;
+            }
+
             const selectedRecordDetails = this.todayJobList.find(
                 record => record.mobId === this.selectedMobilizationId
             );
@@ -743,7 +776,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             }
 
             if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
-                this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
+                this.showToast('Error', 'Clock out time must be greater than clock in time', 'error');
                 return;
             }
 
