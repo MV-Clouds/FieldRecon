@@ -167,7 +167,7 @@
 
 .log-card svg {
     min-width: 16px;
-    fill: #5a5adb;
+    fill: white;
 }
 
 .log-card-body {
@@ -2330,4 +2330,45 @@
     .attachment-file-icon {
         height: 80px;
     }
+}
+
+/* No Data Message Styles */
+.no-data-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+    text-align: center;
+    color: #706e6b;
+    height: 100%;
+    width: 100%;
+    min-height: 300px;
+}
+
+.no-data-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1.5rem;
+    color: #c9c7c5;
+}
+
+.no-data-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+}
+
+.no-data-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #3e3e3c;
+}
+
+.no-data-description {
+    font-size: 0.95rem;
+    color: #706e6b;
+    max-width: 300px;
+    line-height: 1.5;
 }

@@ -168,6 +168,32 @@ export default class ShiftEndLogEntries extends LightningElement {
         return nextDay ? `${nextDay}T23:59` : null;
     }
 
+    get editClockInMinBoundary() {
+        const reference = this.currentJobStartDateTime || (this.editTimesheetData ? this.editTimesheetData.newclockInTime : null);
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+
+    get editClockInMaxBoundary() {
+        const reference = this.currentJobStartDateTime || (this.editTimesheetData ? this.editTimesheetData.newclockInTime : null);
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T23:59` : null;
+    }
+
+    get editClockOutMinBoundary() {
+        const reference = this.currentJobEndDateTime || (this.editTimesheetData ? this.editTimesheetData.newclockOutTime : null);
+        const dateKey = this.extractDateKey(reference);
+        return dateKey ? `${dateKey}T00:00` : null;
+    }
+
+    get editClockOutMaxBoundary() {
+        const reference = this.currentJobEndDateTime || (this.editTimesheetData ? this.editTimesheetData.newclockOutTime : null);
+        const dateKey = this.extractDateKey(reference);
+        if (!dateKey) return null;
+        const nextDay = this.addDaysToDateKey(dateKey, 1);
+        return nextDay ? `${nextDay}T23:59` : null;
+    }
+
     get showApprovalMessage() {
         return this.approvalStatus.approvalMessage && this.approvalStatus.approvalMessage.trim() !== '';
     }
@@ -187,6 +213,24 @@ export default class ShiftEndLogEntries extends LightningElement {
         return true;
     }
 
+    get isEditSaveDisabled() {
+        if (!this.editTimesheetData) return true;
+        
+        const oldClkIn = this.editTimesheetData.oldclockInTime ? this.editTimesheetData.oldclockInTime.slice(0, 16) : '';
+        const newClkIn = this.editTimesheetData.newclockInTime ? this.editTimesheetData.newclockInTime.slice(0, 16) : '';
+        
+        const oldClkOut = this.editTimesheetData.oldclockOutTime ? this.editTimesheetData.oldclockOutTime.slice(0, 16) : '';
+        const newClkOut = this.editTimesheetData.newclockOutTime ? this.editTimesheetData.newclockOutTime.slice(0, 16) : '';
+        
+        const oldTravel = parseFloat(this.editTimesheetData.oldTravelTime || 0);
+        const newTravel = parseFloat(this.editTimesheetData.travelTime || 0);
+        
+        const isClockInChanged = oldClkIn !== newClkIn;
+        const isClockOutChanged = oldClkOut !== newClkOut;
+        const isTravelChanged = oldTravel !== newTravel;
+        
+        return !(isClockInChanged || isClockOutChanged || isTravelChanged);
+    }
 
     connectedCallback() {
         this.loadMobilizationList();
@@ -506,7 +550,6 @@ export default class ShiftEndLogEntries extends LightningElement {
             isTimeSheetNull: member.isTimesheetNull,
             timesheetId: member.timesheetId,
             isTimeSheetEntryNull: member.isTimesheetEntryNull,
-            timesheetEntryId: member.timesheetEntryId,
             mobMemberId: member.mobMemberId
         };
 
@@ -889,8 +932,6 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.showToast('Success', 'Timesheet entry marked as pending locally', 'success');
                 this.closeEditTimesheetModal();
                 this.loadTimesheetEntries();
-            } else {
-                this.showToast('Info', 'No changes detected', 'info');
             }
         } catch (error) {
             console.error('Error saving timesheet edit:', error);
