@@ -190,6 +190,7 @@ public with sharing class JobDetailsPageController {
                 WITH USER_MODE
                 LIMIT 1
             ];
+            System.debug('mobilizationRecord.size() ::' + mobilizationRecord.size());
 
             // 1. Fetch Members
             List<wfrecon__Mobilization_Member__c> members = [
@@ -201,6 +202,7 @@ public with sharing class JobDetailsPageController {
                 AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true
                 WITH USER_MODE
             ];
+            System.debug('members.size() ::' + members.size());
     
             Set<Id> contactIds = new Set<Id>();
             Id jobId;
@@ -208,6 +210,8 @@ public with sharing class JobDetailsPageController {
                 contactIds.add(m.wfrecon__Contact__c);
                 jobId = m.wfrecon__Mobilization__r.wfrecon__Job__c; 
             }
+            System.debug('contactIds: ' + contactIds);
+            System.debug('jobId: ' + jobId);
     
             if (contactIds.isEmpty()) {
                 return result;
@@ -223,8 +227,10 @@ public with sharing class JobDetailsPageController {
                 AND wfrecon__Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].wfrecon__End_Date__c)
                 WITH USER_MODE
             ];
+            System.debug('tsList: ' + tsList.size());
             Map<Id, wfrecon__Timesheet__c> contactTimesheetMap = new Map<Id, wfrecon__Timesheet__c>();
             for (wfrecon__Timesheet__c ts : tsList) {
+                System.debug('ts.Ids: ' + ts.Id);
                 contactTimesheetMap.put(ts.wfrecon__Contact__c, ts);
             }
     
@@ -239,6 +245,7 @@ public with sharing class JobDetailsPageController {
                 OR wfrecon__Clock_In_Time__c <= :endDate.addDays(1))
                 WITH USER_MODE
             ];
+            System.debug('entries: ' + entries.size());
 
             // Group entries by Contact
             Map<Id, List<wfrecon__Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<wfrecon__Timesheet_Entry__c>>();
@@ -248,6 +255,7 @@ public with sharing class JobDetailsPageController {
                 }
                 contactEntriesMap.get(e.wfrecon__Timesheet__r.wfrecon__Contact__c).add(e);
             }
+            System.debug('contactEntriesMap: ' + contactEntriesMap);
 
             // 4. Build wrapper list
             for (wfrecon__Mobilization_Member__c m : members) {
@@ -370,6 +378,7 @@ public with sharing class JobDetailsPageController {
     public static Boolean createTimesheetRecords(String params){
         try {
             Map<String, Object> paramsMap = (Map<String, Object>) JSON.deserializeUntyped(params);
+            System.debug(paramsMap);
 
             String jobId = (String)paramsMap.get('jobId');
             String mobId = (String)paramsMap.get('mobId');
@@ -565,6 +574,7 @@ public with sharing class JobDetailsPageController {
 
             return true;
         } catch (Exception e) {
+            System.debug(e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobDetailsPageController', 'methodName' => 'createTimesheetRecords', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return false;
         }
@@ -753,8 +763,6 @@ public with sharing class JobDetailsPageController {
     */
     @AuraEnabled
     public static String saveTimesheetEntryInlineEdits(String updatedTimesheetEntriesJson) {
-        System.debug('*** saveTimesheetEntryInlineEdits START ***');
-        System.debug('Input JSON: ' + updatedTimesheetEntriesJson);
         
         // List to hold IDs of successfully inserted TSEs, used to link TSELI records
         List<wfrecon__Timesheet_Entry__c> insertedEntries = new List<wfrecon__Timesheet_Entry__c>();
@@ -775,7 +783,6 @@ public with sharing class JobDetailsPageController {
                 tsEntryItemIds.add(itemId);
                 itemChangesMap.put(itemId, mapObj);
             }
-            System.debug('Items being updated (TSELI IDs): ' + tsEntryItemIds);
 
             // Fetch current records and their parent Timesheet Entries
             List<wfrecon__Timesheet_Entry_Item__c> currentItems = [
@@ -809,8 +816,6 @@ public with sharing class JobDetailsPageController {
             for (wfrecon__Timesheet_Entry_Item__c currentItem : currentItems) {
                 Map<String, Object> changes = itemChangesMap.get(currentItem.Id);
                 wfrecon__Timesheet_Entry__c parentEntry = tsEntryMap.get(currentItem.wfrecon__Timesheet_Entry__c);
-                
-                System.debug('--- Processing Item: ' + currentItem.Id + ' (Parent: ' + parentEntry.Id + ') ---');
 
                 // --- Determine New Values ---
                 Datetime newClkInUserTz = currentItem.wfrecon__Clock_In_Time__c;
@@ -853,8 +858,6 @@ public with sharing class JobDetailsPageController {
                     
                     Datetime firstDayEnd = DateTime.newInstance(newClkInUserTz.date(), Time.newInstance(23, 59, 59, 999));
                     Datetime secondDayStart = DateTime.newInstance(newClkOutUserTz.date(), Time.newInstance(0, 0, 0, 0));
-                    
-                    System.debug('Split triggered: Day 1 End: ' + firstDayEnd + ', Day 2 Start: ' + secondDayStart);
 
                     // A. Update Existing Item (Day 1)
                     itemToUpdate.wfrecon__Clock_In_Time__c = newClkInUserTz;
@@ -916,9 +919,6 @@ public with sharing class JobDetailsPageController {
                     }
                 }
             }
-            
-            // --- Perform Bulk DML Operations ---
-            System.debug('--- DML Operations ---');
 
             // 1. Update existing Parent Entries (TSE)
             if (!entriesToUpdate.isEmpty()) {
@@ -942,8 +942,6 @@ public with sharing class JobDetailsPageController {
                     } else {
                         errorCount++;
                         for (Database.Error err : result.getErrors()) {
-                            System.debug('*** FATAL INSERT ERROR ON TSE ***');
-                            System.debug('Status Code: ' + err.getStatusCode() + ', Message: ' + err.getMessage());
                             if (err.getFields() != null) {
                                 System.debug('Fields: ' + err.getFields());
                             }
@@ -969,15 +967,9 @@ public with sharing class JobDetailsPageController {
                 Database.insert(itemsToInsert, AccessLevel.USER_MODE);
             }
 
-            System.debug('*** saveTimesheetEntryInlineEdits END (Success) ***');
             return 'Success: ' + (itemsToUpdate.size() + newItemsCount) + ' total timesheet entry item(s) processed successfully.';
 
         } catch (Exception e) {
-            System.debug('*** saveTimesheetEntryInlineEdits ERROR ***');
-            System.debug('Exception Type: ' + e.getTypeName());
-            System.debug('Exception Message: ' + e.getMessage());
-            System.debug('Line Number: ' + e.getLineNumber());
-
             if (e.getTypeName() == 'System.DmlException') {
                 System.debug('DML Exception Details: ' + e.getDmlStatusCode(0) + ' - ' + e.getDmlMessage(0));
             }
