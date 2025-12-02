@@ -65,7 +65,7 @@ public with sharing class ApproveShiftEndLogsController {
             } else if (dateFilter == 'last30days') {
                 startDate = Date.today().addDays(-30);
             } else if (dateFilter == 'alltime') {
-                startDate = Date.newInstance(2000, 1, 1); // Set to a far past date
+                startDate = null;
             }
             
             // Build query - fetch only PENDING log entries

@@ -253,7 +253,7 @@
 
 /* Table Column Widths */
 .th-serial {
-    min-width: 30px;
+    min-width: 70px;
 }
 
 .th-actions {
@@ -420,6 +420,68 @@
     width: 18px;
     height: 18px;
     fill: rgba(94, 90, 219, 1);
+}
+
+/* Pagination Section */
+.pagination-section {
+    display: flex;
+    justify-content: center;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
+}
+
+.pagination-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.pagination-button {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    border: 1px solid rgba(94, 90, 219, 0.4);
+    background: white;
+    color: rgba(94, 90, 219, 1);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    height: 36px;
+    font-size: 14px;
+}
+
+.pagination-button svg {
+    width: 14px;
+    height: 14px;
+}
+
+.pagination-button:hover {
+    background-color: rgba(94, 90, 219, 0.1);
+}
+
+.pagination-button.active {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-button:disabled:hover {
+    background-color: white;
+}
+
+.pagination-ellipsis {
+    padding: 0 0.75rem;
+    color: #999;
+    font-weight: 600;
 }
 
 /* Empty State */
@@ -829,15 +891,15 @@
 }
 
 .slider-section.completed {
-    background: linear-gradient(90deg, #1f8e3f 0%, #00aa00 100%);
+    background: #2e844a;
 }
 
 .slider-section.today {
-    background: linear-gradient(90deg, rgba(255, 179, 71, 0.8) 0%, rgba(255, 152, 0, 1) 100%);
+    background: #fe9339;
 }
 
 .slider-section.remaining {
-    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+    background: #ffffff;
 }
 
 /* Location Process Item */

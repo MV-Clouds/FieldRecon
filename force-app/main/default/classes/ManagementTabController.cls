@@ -1273,7 +1273,7 @@ public with sharing class ManagementTabController {
 
             // Create metadata deployment
             Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
-            mdata.fullName = metadataType + '.wfrecon__' + developerName;
+            mdata.fullName = metadataType + '.' + developerName;
             mdata.label = masterLabel;
 
             // Add the approvers JSON field
