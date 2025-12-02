@@ -764,7 +764,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     workHours: item.workHours !== null ? Number(item.workHours) : 0.00,
                     travelTime: item.travelTime !== null ? Number(item.travelTime) : 0.00,
                     perDiem: item.perDiem !== null ? Number(item.perDiem) : 0,
-                    totalTime: item.totalTime !== null ? Number(item.totalTime) + (item.travelTime !== null ? Number(item.travelTime) : 0) : 0.00
+                    totalTime: item.totalTime !== null ? Number(item.totalTime) : 0.00
                 }));
                 this.timesheetDataMap.set(mobId, formattedData);
             } else {

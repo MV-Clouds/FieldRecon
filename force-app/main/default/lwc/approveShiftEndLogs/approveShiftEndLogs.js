@@ -82,6 +82,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 this.hasAccess = result;
                 if (this.hasAccess) {
                     this.loadLogEntries();
+                } else {
+                    this.isLoading = false;
                 }
             })
             .catch(error => {
