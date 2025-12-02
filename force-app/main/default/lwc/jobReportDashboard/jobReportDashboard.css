@@ -274,7 +274,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid rgba(94, 90, 219, 0.2);
 }
@@ -298,7 +297,7 @@
     overflow: auto;
     border-radius: 8px;
     background-color: white;
-    max-height: 500px;
+    max-height: 430px;
     scrollbar-width: auto;
     scrollbar-color: #5e5adb, #5e5adb;
 }
@@ -318,7 +317,7 @@
     z-index: 10;
 }
 
-.table-footer{
+.table-footer {
     box-shadow: 0 -1px 0 rgb(91, 91, 91);
     position: sticky;
     bottom: 0;
@@ -378,11 +377,6 @@
     text-align: center;
     color: #585858;
     font-size: 13px;
-}
-
-.totals-row {
-    /* background-color: rgba(94, 90, 219, 0.1) !important; */
-    border-top: 2px solid rgba(94, 90, 219, 0.3);
 }
 
 .totals-label {
@@ -506,14 +500,14 @@
 
 /* Chart Container */
 .chart-container {
-     padding: 16px;
-     width: 100%;
-     max-height: 600px;        /* Maximum viewport height */
-    overflow: auto !important;    /* Enable vertical scrolling */
+    padding: 16px;
+    width: 100%;
+    /* max-height: 600px;       
+    overflow: auto !important;   */
     position: relative;
-    border: 1px solid #e0e0e0; 
-    border-radius: 4px;      
-     scrollbar-width: thin;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    scrollbar-width: thin;
     scrollbar-color: #5e5adb, #5e5adb;
 }
 
@@ -554,7 +548,12 @@
     stroke-width: 1 !important;
 }
 
+.filters-contain{
+        display: flex;
+    justify-content: space-between;
+    padding: 0;
 
+}
 .filters-container {
     display: flex;
     align-items: center;
@@ -794,7 +793,7 @@ lightning-icon {
 }
 
 .multiselect-header {
-        display: flex;
+    display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 5px 12px;
@@ -809,7 +808,7 @@ lightning-icon {
 }
 
 .selected-text {
-        flex: 1;
+    flex: 1;
     font-size: 13px;
     color: rgb(91 91 91);
     overflow: hidden;
@@ -854,12 +853,12 @@ lightning-icon {
     pointer-events: none;
 }
 
-.no-options-found{
-   color: rgb(91 91 91);
-   display: flex;
-   justify-content: center;
-   align-items: center;
-   padding: 1rem;
+.no-options-found {
+    color: rgb(91 91 91);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
 }
 
 /* Access Control Styles */
@@ -909,7 +908,7 @@ lightning-icon {
 }
 
 .empty__icon {
-   width: 100%;
+    width: 100%;
     height: 100%;
 }
 
@@ -931,6 +930,94 @@ lightning-icon {
     color: #706e6b;
     text-align: center;
     line-height: 1.5;
+}
+
+/* Add these styles to your existing CSS */
+.pagination-section {
+    display: flex;
+    justify-content: center;
+    /* margin-top: 1rem; */
+    padding: 1rem 0;
+    /* border-top: 1px solid #e0e0e0; */
+}
+
+.pagination-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.pagination-button,
+.pagination-button {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    border: 1px solid rgba(94, 90, 219, 0.4);
+    background: white;
+    color: rgba(94, 90, 219, 1);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    height: 36px;
+    min-width: 36px;
+    justify-content: center;
+}
+
+.pagination-button svg {
+    width: 14px;
+    height: 14px;
+}
+
+.pagination-button:hover,
+.pagination-button:hover {
+    background-color: rgba(94, 90, 219, 0.1);
+}
+
+.pagination-button.active {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.pagination-button:disabled,
+.pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    padding: 0 0.75rem;
+    color: #999;
+    display: flex;
+    align-items: center;
+    height: 36px;
+}
+
+/* Recently Viewed Button Styles */
+.recently-viewed-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid #5e5adb;
+    border-radius: 4px;
+    background: #5e5adb;
+    color: white;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.recently-viewed-btn svg {
+    stroke: white;
+}
+
+.recently-viewed-btn:hover {
+    background: #4a48b8;
+    border-color: #4a48b8;
 }
 
 /* Responsive Design */

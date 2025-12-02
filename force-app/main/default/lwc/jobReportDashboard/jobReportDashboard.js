@@ -73,6 +73,14 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     @track hasAccess = false;
     @track accessErrorMessage = 'You don\'t have permission to access this.';
 
+    @track currentPage = 1;
+    @track pageSize = 50;
+    @track totalPages = 1;
+    @track paginatedFinanceData = [];
+    @track showRecentlyViewed = true;
+
+
+
     @wire(getObjectInfo, { objectApiName: JOB_OBJECT })
     objectInfo;
 
@@ -95,6 +103,50 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     }
 
 
+    get isFirstPage() {
+        return this.currentPage === 1;
+    }
+
+    get isLastPage() {
+        return this.currentPage === this.totalPages;
+    }
+
+    get pageNumbers() {
+        const pages = [];
+        const totalPages = this.totalPages;
+        const currentPage = this.currentPage;
+
+        // Always show first page
+        pages.push({ number: 1, isEllipsis: false });
+
+        if (currentPage > 3) {
+            pages.push({ number: '...', isEllipsis: true });
+        }
+
+        // Show pages around current page
+        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+            if (i > 1 && i < totalPages) {
+                pages.push({ number: i, isEllipsis: false });
+            }
+        }
+
+        if (currentPage < totalPages - 2) {
+            pages.push({ number: '...', isEllipsis: true });
+        }
+
+        // Always show last page if there is more than one page
+        if (totalPages > 1) {
+            pages.push({ number: totalPages, isEllipsis: false });
+        }
+
+        // Add CSS class for active page
+        return pages.map(page => ({
+            ...page,
+            cssClass: page.isEllipsis ? 'pagination-ellipsis' :
+                `pagination-button ${page.number === this.currentPage ? 'active' : ''}`
+        }));
+    }
+
     connectedCallback() {
         this.loadD3();
         this.loadMetricSettings();
@@ -113,6 +165,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         this.isLoading = true;
         getJobMetrics()
             .then(data => {
+                console.log('data', data);
+
                 this.processMetricsData(data);
             })
             .catch(error => {
@@ -123,7 +177,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     loadJobData() {
         this.isLoading = true;
 
-        getAllJobsWithScopeData()
+        // Pass the showRecentlyViewed flag to Apex
+        getAllJobsWithScopeData({ filterByRecentlyViewed: this.showRecentlyViewed })
             .then(data => {
                 this.processFinanceData(data);
             })
@@ -201,6 +256,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         try {
             const result = await getMetricSettings();
             this.metricSettings = result.metricStatusMap;
+            console.log('loadMetricSettings', result, ' ', this.metricSettings);
+
         } catch (error) {
             console.error('Error loading metric settings:', error);
             this.showToast('Error', 'Failed to load metric settings', 'error');
@@ -234,7 +291,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     }
 
     get isFinanceDataAvailable() {
-        return this.financeData && this.financeData.length > 0;
+        return this.paginatedFinanceData && this.paginatedFinanceData.length > 0;
     }
 
     get tableButtonClass() {
@@ -247,6 +304,10 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
     get metricDisplayName() {
         return this.getMetricDisplayName(this.currentEditingMetric);
+    }
+
+    get recentlyViewedButtonLabel() {
+        return this.showRecentlyViewed ? 'Show All Jobs' : 'Recently Viewed Jobs';
     }
 
     toggleStatusDropdown(event) {
@@ -304,6 +365,13 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         return nameMap[metricName] || metricName;
     }
 
+    toggleRecentlyViewed() {
+        this.showRecentlyViewed = !this.showRecentlyViewed;
+
+        // Reload data with the new filter
+        this.loadJobData();
+    }
+
     processMetricsData(data) {
         this.backlogCount = data.backlog?.count || 0;
         this.backlogValue = data.backlog?.totalValue || 0;
@@ -318,11 +386,19 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     }
 
     processFinanceData(data) {
+        // Clear the allJobIds set
+        this.allJobIds = new Set();
+
         this.allFinanceData = data.map((job, index) => {
             const totalContract = (job.baseContract || 0) + (job.changeOrder || 0);
             const completedValue = job.totalCompletedValue || 0;
             const completionPercentage = totalContract > 0 ? (completedValue / totalContract) : 0;
             const remainingValue = Math.max(0, totalContract - completedValue);
+
+            // Store job ID
+            if (job.jobId) {
+                this.allJobIds.add(job.jobId);
+            }
 
             return {
                 ...job,
@@ -354,6 +430,44 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             });
         }
     }
+
+
+    // Add pagination update method
+    updatePaginatedData() {
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+
+        // Update paginated data with correct serial numbers
+        this.paginatedFinanceData = this.financeData
+            .slice(startIndex, endIndex)
+            .map((job, index) => ({
+                ...job,
+                srNo: startIndex + index + 1
+            }));
+    }
+
+    handlePageChange(event) {
+        const pageNumber = parseInt(event.currentTarget.dataset.page, 10);
+        if (!isNaN(pageNumber) && pageNumber !== this.currentPage) {
+            this.currentPage = pageNumber;
+            this.updatePaginatedData();
+        }
+    }
+
+    handlePrevious() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.updatePaginatedData();
+        }
+    }
+
+    handleNext() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+            this.updatePaginatedData();
+        }
+    }
+
 
     calculateTotals() {
         this.totalContract = 0;
@@ -477,11 +591,18 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             );
         }
 
+        // Reset to first page when filters change
+        this.currentPage = 1;
+
         // Reassign serial numbers
         this.financeData = filteredData.map((job, index) => ({
             ...job,
             srNo: index + 1
         }));
+
+        // Calculate pagination
+        this.totalPages = Math.ceil(this.financeData.length / this.pageSize);
+        this.updatePaginatedData();
 
         this.calculateTotals();
 
@@ -546,7 +667,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
         container.innerHTML = '';
 
-        const margin = { top: 60, right: 20, bottom: 120, left: 80 };
+        const margin = { top: 60, right: 20, bottom: 120, left: 100 };
         const containerWidth = container.clientWidth;
 
         const barMinHeight = 50; // minimum pixels per bar
@@ -619,7 +740,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
         svg.append('text')
             .attr('transform', 'rotate(-90)')
-            .attr('y', 0 - margin.left + 15)
+            .attr('y', 0 - margin.left)
             .attr('x', 0 - (height / 2))
             .attr('dy', '1em')
             .style('text-anchor', 'middle')
@@ -637,12 +758,22 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         yAxis.selectAll('text')
             .style('font-size', '11px')
             .style('fill', '#666')
-            .text(d => {
-                const maxChars = 30; // Adjust based on your needs
-                return d.length > maxChars ? d.substring(0, maxChars) + '...' : d;
-            })
-            .append('title') // Add tooltip with full text
-            .text(d => d);
+            .each(function (d) {
+                const text = window.d3.select(this);
+
+                // Split text every 10 characters
+                const parts = d.match(/.{1,10}/g);
+
+                text.text(null);
+
+                parts.forEach((p, i) => {
+                    text.append("tspan")
+                        .attr("x", text.attr("x"))
+                        .attr("dy", i === 0 ? 0 : 12)
+                        .text(p);
+                });
+            });
+
 
         svg.append('text')
             .attr('x', width / 2)
