@@ -891,15 +891,15 @@
 }
 
 .slider-section.completed {
-    background: linear-gradient(90deg, #1f8e3f 0%, #00aa00 100%);
+    background: #2e844a;
 }
 
 .slider-section.today {
-    background: linear-gradient(90deg, rgba(255, 179, 71, 0.8) 0%, rgba(255, 152, 0, 1) 100%);
+    background: #fe9339;
 }
 
 .slider-section.remaining {
-    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+    background: #ffffff;
 }
 
 /* Location Process Item */
