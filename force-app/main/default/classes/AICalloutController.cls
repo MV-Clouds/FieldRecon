@@ -58,9 +58,11 @@ public with sharing class AICalloutController {
 
 
     @AuraEnabled
-    public static Map<String, Object> generateRecordingSummary(String audioData) {
+    public static Map<String, Object> generateRecordingSummary(Map<String, Object> audioData) {
         Map<String, Object> result = new Map<String, Object>();
         try {
+
+            String audio = (String) String.valueOf(audioData.get('audio'));
             
             String userPrompt = 'I will provide work Shift Log entry detail in audio form. i will provide information about what me and my crew has been done over the working shift or whole day'+
                 'Please Provide the Transcript for the following audio in the language it has been spoken.'+
@@ -73,7 +75,7 @@ public with sharing class AICalloutController {
 
             Map<String, Object> data = new Map<String, Object>();
             data.put('mime_type', 'audio/webm');
-            data.put('data', audioData);
+            data.put('data', audio);
             String prompt = JSON.serialize(data);
             System.debug('prompt : '+prompt);
 
@@ -139,8 +141,80 @@ public with sharing class AICalloutController {
             '}';
 
             result = callGeminiAPI(requestBody);
+            // result = {'ai_Response__c' : 'summary'}
             
         } catch (Exception e) {
+            result.put('ai_Response_Error__c', 'Error : Failed in generateRecordingSummary ' + e.getMessage());
+        }
+        return result;
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> generateSingleRecordingTranscript(Map<String, Object> audioData) {
+        Map<String, Object> result = new Map<String, Object>();
+        try {
+            String audio = (String) String.valueOf(audioData.get('audio'));
+            
+            String userPrompt = ''+
+            'I will provide work Shift Log entry detail in audio form. I will provide information about what work has been done over the working shift or whole day'+
+            'Please Provide the Transcript for the following audio in the language it has been spoken.'+
+            'Provide language and its code. Translate the Transcript it into english. '+
+            'If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it'+
+            'Only Provide Response In Mentioned Format/Structure '+
+            'Note: Always provide JSON within (even if no audio is available) the response as i need parsing JSON.'+
+            'Thank you for your assistance';
+
+            Map<String, Object> data = new Map<String, Object>();
+            data.put('mime_type', 'audio/webm');
+            data.put('data', audio);
+            String prompt = JSON.serialize(data);
+            System.debug('prompt : '+prompt);
+
+            // Build full request body using content structure
+            String requestBody = '{' + 
+                '"contents": [' + 
+                    '{' + 
+                        '"parts": [' + 
+                            '{"text": "' + userPrompt + '"},' +
+                            '{"inline_data": ' + prompt + '}' +
+                        ']' + 
+                    '}' + 
+                '],' + 
+                '"generationConfig": {' + 
+                    '"responseMimeType": "application/json",' + 
+                    '"responseJsonSchema": {' + 
+                        '"type": "object",' + 
+                        '"properties": {' + 
+                            '"language": {' + 
+                                '"type": "string",' + 
+                                '"description": "The language detected in the input audio/text."' + 
+                            '},' + 
+                            '"lang_code": {' + 
+                                '"type": "string",' + 
+                                '"description": "The ISO 639-1 language code (e.g., \'en\', \'hi\', \'fr\')."' + 
+                            '},' + 
+                            '"transcript": {' + 
+                                '"type": "string",' + 
+                                '"description": "The full verbatim transcript of the speech."' + 
+                            '},' + 
+                            '"translation_en": {' + 
+                                '"type": "string",' + 
+                                '"description": "An English translation of the full transcript."' + 
+                            '},' + 
+                            '"no_valid_entry": {' + 
+                                '"type": "boolean",' + 
+                                '"description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false."' + 
+                            '}' + 
+                        '},' + 
+                        '"required": [ "language", "lang_code", "transcript", "translation_en", "no_valid_entry" ]' + 
+                    '}' + 
+                '}' + 
+            '}';
+
+            result = callGeminiAPI(requestBody);
+            // result = {'ai_Response__c' : 'summary'}
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'AICalloutController', 'methodName' => 'generateSingleRecordingTranscript', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             result.put('ai_Response_Error__c', 'Error : Failed in generateRecordingSummary ' + e.getMessage());
         }
         return result;

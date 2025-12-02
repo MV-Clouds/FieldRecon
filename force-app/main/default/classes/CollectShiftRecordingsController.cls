@@ -69,7 +69,7 @@ public without sharing class CollectShiftRecordingsController {
 
             Id userId = UserInfo.getUserId();
             Contact userContact = [SELECT Id, Name  FROM Contact  WHERE wfrecon__User__c = :userId WITH USER_MODE LIMIT 1];
-            
+
             ContentVersion clip = new ContentVersion();
             clip.FirstPublishLocationId = params.mobilizationId;
             clip.VersionData = EncodingUtil.base64Decode(params?.clipData?.substringAfter('base64,'));
@@ -81,12 +81,78 @@ public without sharing class CollectShiftRecordingsController {
 
             result.put('newClip', newClip);
 
+            postLogDetailToChatter(JSON.serialize(new Map<String, Object>{
+                'clipData' => params?.clipData?.substringAfter('base64,'), 
+                'jobId' => params.jobId, 
+                'clipDocumentId' => newClip.ContentDocumentId
+            }));
+
             result.put('success', 'Success');
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'CollectShiftRecordingsController', 'methodName' => 'saveClipToMobilization', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             result.put('error', e.getMessage());
         }
         return result;
+    }
+
+    @future(callout=true)
+    public static void postLogDetailToChatter(String inputParams){
+        try {
+
+            InputParams data = (InputParams) JSON.deserialize(inputParams, InputParams.class); 
+            String audioData = data.clipData;
+            String jobId = data.jobId;
+            String clipDocumentId = data.clipDocumentId;
+
+            Map<String, Object> ai_response = AICalloutController.generateSingleRecordingTranscript(new Map<String, Object>{ 'audio' => audioData});
+            System.debug('ai_response : '+ ai_response);
+            if(ai_response.containsKey('ai_Response__c')){
+                Map<String, Object> audio_summary = (Map<String, Object>) JSON.deserializeUntyped(String.valueOf(ai_response.get('ai_Response__c')));
+                System.debug('audio_summary : '+ audio_summary);
+
+                ConnectApi.FeedItemInput feedItemInput = new ConnectApi.FeedItemInput();
+                // connect to record
+                feedItemInput.subjectId = jobId ?? 'me';
+
+                // Prepare body text
+                ConnectApi.TextSegmentInput textSegmentInput = new ConnectApi.TextSegmentInput();
+                textSegmentInput.text = ''+
+                'New Work Log Recoding has been added by one of your crew member. Here is full transcript of recording: '+
+                String.valueOf(audio_summary.get('translation_en'));
+
+                // Prepare Messaging body
+                ConnectApi.MessageBodyInput messageBodyInput = new ConnectApi.MessageBodyInput();
+                messageBodyInput.messageSegments = new List<ConnectApi.MessageSegmentInput>();
+                messageBodyInput.messageSegments.add(textSegmentInput);
+
+                // Attach File
+                ConnectApi.FilesCapabilityInput filesInput = new ConnectApi.FilesCapabilityInput();
+                filesInput.items = new List<ConnectApi.FileIdInput>();
+                ConnectApi.FileIdInput idInput = new ConnectApi.FileIdInput();
+                idInput.id = clipDocumentId;
+                filesInput.items.add(idInput);
+                ConnectApi.FeedElementCapabilitiesInput feedElementCapabilitiesInput = new ConnectApi.FeedElementCapabilitiesInput();
+                feedElementCapabilitiesInput.files = filesInput;
+                feedItemInput.capabilities = feedElementCapabilitiesInput;
+
+                ConnectApi.FeedElement feedElement = ConnectApi.ChatterFeeds.postFeedElement(Network.getNetworkId(), feedItemInput);
+
+                System.debug('feedElement : ' + feedElement);
+
+                List<CustomNotificationType> notificationTypes = [SELECT Id, DeveloperName  FROM CustomNotificationType WHERE DeveloperName='FR_New_Log_Recording_Notification'];
+                if(notificationTypes.size() > 0){
+                    Messaging.CustomNotification notification = new Messaging.CustomNotification();
+                    notification.setNotificationTypeId(notificationTypes[0].Id);
+                    notification.setTitle('New Work Log Has Been added!');
+                    notification.setBody('The notifications are coming from INSIDE the Apex!');
+                    notification.setTargetId(feedElement.id);
+                    Set<String> recipientsIds = new Set<String>{UserInfo.getUserId()};
+                    notification.send(recipientsIds);
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'CollectShiftRecordingsController', 'methodName' => 'postLogDetailToChatter', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+        }
     }
 
     public static Map<String, String> getMobilization(InputParams params){
@@ -97,20 +163,6 @@ public without sharing class CollectShiftRecordingsController {
             result.put('error', 'Job id not available');
             return result;
         }
-
-        // If crew leader id is not present, try to re-collect it...
-        // if(String.isBlank(params?.crewLeaderId)) {
-        //     Map<String, String> crewLeaderResult = getCrewLeaderId();
-        //     // Still not present, return error
-        //     if(crewLeaderResult.containsKey('error')) {
-        //         result.put('error', crewLeaderResult.get('error'));
-        //         return result;
-        //     }
-        //     else{
-        //         params.crewLeaderId = crewLeaderResult.get('crewLeaderId');
-        //         result.put('crewLeaderId', crewLeaderResult.get('crewLeaderId'));
-        //     }
-        // }
 
         List<Contact> userContact = [SELECT Id FROM Contact WHERE wfrecon__User__c =: UserInfo.getUserId() WITH USER_MODE LIMIT 1];
         if(userContact.isEmpty()){
@@ -130,44 +182,10 @@ public without sharing class CollectShiftRecordingsController {
             return result;
         }
 
-        // params.crewLeaderId = String.valueOf(mobMemberList[0].wfrecon__Crew_Leader_Id__c);
-        // result.put('crewLeaderId', params.crewLeaderId);
         result.put('mobilizationId', mobMemberList[0].wfrecon__Mobilization__c);
-
-        // List<wfrecon__Mobilization__c> mobList = [SELECT Id, Name  FROM wfrecon__Mobilization__c  WHERE wfrecon__Job__c = :params.jobId 
-        //                                     AND Id IN (SELECT wfrecon__Mobilization__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew_Leader_Id__c = : params.crewLeaderId)
-        //                                     AND (wfrecon__Start_Date_Text__c = :todayStr)
-        //                                     WITH USER_MODE
-        //                                     ORDER BY wfrecon__Start_Date_Text__c DESC];
-
-        // if (mobList.isEmpty()) {
-        //     result.put('error', 'No mobilizations found for the selected crew leader');
-        //     return result;
-        // }
-
-        // result.put('mobilizationId', mobList[0].Id);
 
         return result;
     }
-
-    // public static Map<String, String> getCrewLeaderId(){
-    //     Map<String, String> result = new Map<String, String>();
-    //     try {
-    //         Id userId = UserInfo.getUserId();
-    //         Contact userContact = [SELECT Id, User__c  FROM Contact  WHERE wfrecon__User__c = :userId WITH USER_MODE LIMIT 1];
-    
-    //         if(userContact == null) {
-    //             result.put('error', 'User contact not available');
-    //             return result;
-    //         }
-            
-    //         result.put('crewLeaderId', String.valueOf(userContact.Id));
-    //         return result;
-    //     } catch (Exception e) {
-    //         result.put('error', e.getMessage());
-    //         return result;
-    //     }
-    // }
 
     @AuraEnabled
     public static Map<String, String> deleteClip(String cvId){
@@ -258,7 +276,7 @@ public without sharing class CollectShiftRecordingsController {
                 audioData += EncodingUtil.base64Encode(clip.VersionData);
             }
             
-            return AICalloutController.generateRecordingSummary(audioData);
+            return AICalloutController.generateRecordingSummary(new Map<String, Object>{ 'audio' => audioData});
             
         } catch (Exception e) {
             System.debug('Error in ProcessShiftLogsByAI: ' + e.getMessage());
@@ -302,5 +320,7 @@ public without sharing class CollectShiftRecordingsController {
         @AuraEnabled public String mobilizationId;
         @AuraEnabled public String clipData;
         @AuraEnabled public String clipExtension;
+        @AuraEnabled public String clipId;
+        @AuraEnabled public String clipDocumentId;
     }
 }
