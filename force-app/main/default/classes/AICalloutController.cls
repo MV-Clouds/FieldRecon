@@ -213,23 +213,20 @@ public with sharing class AICalloutController {
             List<wfrecon__Log_Entry__c> logEntries = Database.query('SELECT Name, wfrecon__Approval_Data__c, wfrecon__Approved_Date__c, wfrecon__Exceptions__c, wfrecon__Log_Type__c, wfrecon__Material_Usage_Complete__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, wfrecon__Processes_Updated__c, wfrecon__Status__c, wfrecon__Time_Entries_Complete__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed__c, wfrecon__Work_Performed_Date__c FROM wfrecon__Log_Entry__c' + whereClause +' ORDER BY wfrecon__Work_Performed_Date__c ASC');
             System.debug('logEntries : '+ logEntries);
 
-             // Need To Review End
+            List<AI_Prompt_Library__c> promptList = [SELECT Id, Name, Prompt_Type__c, Prompt_Body__c FROM AI_Prompt_Library__c WHERE Prompt_Type__c = 'Job Summary' LIMIT 1];
+            String userPrompt = promptList?.size() > 0 ? promptList[0].Prompt_Body__c : 'Summarize the job and its shift log entries.';
+
             String prompt = '';
-            prompt += 'Job Record:' + JSON.serialize(jobToSummarize) + ' and  Daily logs:' + JSON.serialize(logEntries) + 'Summarize and strictly give response in the expeced format even if no log entries is present. Also the response must be in the language with following language code: ' + language;
+            prompt += userPrompt +
+            // 'Summarize and  Also the response must be in the language with following language code: ' + 
+            ' Carefully comprehend the above message and strictly give response based on Job and its shift log entries in the "expected format" even if no log entries is present. '+
+            'Response Detail Must be in following language: '+language+'. '+
+            'Here is Detail of Job Record:' + JSON.serialize(jobToSummarize) + ' and  Daily logs:' + JSON.serialize(logEntries) + 
+            '';
             
             System.debug('prompt : '+ prompt);
 
-            // Build full request body using content structure
-            String requestBody = '{' + 
-                '"contents": [' + 
-                    '{' + 
-                        '"parts": [' + 
-                            '{"text": ' + JSON.serialize(prompt) + '}' +
-                        ']' + 
-                    '}' + 
-                '],' + 
-                '"generationConfig": ' + String.escapeSingleQuotes(generateConfig) +
-            '}';
+            String requestBody = prepareRequestBody(prompt, generateConfig);
 
             result = callGeminiAPI(requestBody);
             String aiResponse = (String) result.get('ai_Response__c');
@@ -312,6 +309,27 @@ public with sharing class AICalloutController {
         }
         return result;
         
+    }
+
+    public static string prepareRequestBody(String prompt,String generateConfig){
+        try {
+            // Build full request body using content structure
+            String requestBody = '{' + 
+                '"contents": [' + 
+                    '{' + 
+                        '"parts": [' + 
+                            '{"text": ' + JSON.serialize(prompt) + '}' +
+                        ']' + 
+                    '}' + 
+                '],' + 
+                '"generationConfig": ' + String.escapeSingleQuotes(generateConfig) +
+            '}';
+
+            return requestBody;
+        } catch (Exception e) {
+            System.debug('Error in preparePrompt: ' + e.getMessage() + ' at line ' + e.getLineNumber());
+            return '';
+        }
     }
 
     public static Map<String,Object> callGeminiAPI(String requestBody) {

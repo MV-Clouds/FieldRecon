@@ -8,7 +8,7 @@ export default class CollectShiftRecordings extends LightningElement {
 
     @api recordId;
     // @track crewLeaderId;
-    @track mobilizationId;
+    @api mobilizationId;
     @track clips = [];
     userName;
     isLoading;
@@ -49,6 +49,7 @@ export default class CollectShiftRecordings extends LightningElement {
                         createdByName: clip.CreatedBy?.Name, notMyClip: clip.CreatedBy?.Id !== USER_ID 
                     }
                 }) ?? [];
+                this.clips = this.clips.sort((a, b) => !a.notMyClip && b.notMyClip ? -1 : 1);
                 // this.crewLeaderId = result.crewLeaderId;
                 this.mobilizationId = result.mobilizationId;
                 this.clipsTotalSize = this.clips.reduce((acc, clip) => acc + Number(clip.ContentSize), 0);
@@ -93,7 +94,7 @@ export default class CollectShiftRecordings extends LightningElement {
                 return;
             }
 
-            let clip = result.newClip[0];
+            let clip = result.newClip;
             this.clips.unshift({
                 ...clip, size_mb: this.calculateSize(clip.ContentSize)?.MB,
                 createdByName: clip.CreatedBy?.Name, notMyClip: clip.CreatedBy?.Id !== USER_ID 

@@ -32,7 +32,7 @@
     &:disabled{
         cursor: not-allowed !important;
         pointer-events: none !important;
-        filter: saturate(0) brightness(1.5) !important;
+        filter: saturate(0) !important;
     }
 }
 
@@ -83,7 +83,7 @@
     font-weight: 400;
 }
 
-.gemini-field-section{
+.gemini-field-section, .prompt-editor-section{
     width: min(100%, 1080px);
     margin-inline: auto;
 }

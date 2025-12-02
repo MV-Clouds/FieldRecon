@@ -16,17 +16,36 @@ public without sharing class CollectShiftRecordingsController {
 
             // merge mobilizationId and crewLeaderId
             result.putAll(mobRes);
-    
-            List<ContentVersion> clipList = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name FROM ContentVersion WHERE FirstPublishLocationId =: mobRes.get('mobilizationId') ORDER BY CreatedDate Desc];
+            List<ContentVersion> clipList = getCVofMobilization(mobRes.get('mobilizationId'));
     
             result.put('clips', clipList);
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'CollectShiftRecordingsController', 'methodName' => 'getSavedClips', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             result.put('error', e.getMessage());
         }
-
         return result;
+    }
 
+    public static List<ContentVersion> getCVofMobilization(String mobilizationId){
+        try {
+
+            // First collect all ContentDocumentLink records for the given mobilization Id
+            List<ContentDocumentLink> cdl = [SELECT ContentDocument.LatestPublishedVersionId FROM ContentDocumentLink WHERE LinkedEntityId =: mobilizationId];
+            // Now collect all ContentVersion Id for the collected ContentDocumentLink records
+            Set<Id> cvIds = new Set<Id>();
+            for(ContentDocumentLink cdlRec : cdl){
+                cvIds.add(cdlRec.ContentDocument.LatestPublishedVersionId);
+            }
+            // Note: If you directly query ContentVersion with FirstPublishLocationId, it may not return all records due to file sharing settings
+            // So you must need to query it using Ids of all content versions.
+            // So collect all ContentVersion Id from ContentDocumentLink records and then query ContentVersion using those Ids.
+            List<ContentVersion> clipList = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name FROM ContentVersion WHERE Id IN: cvIds ORDER BY CreatedDate Desc];
+
+            return clipList;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'CollectShiftRecordingsController', 'methodName' => 'collectContentVerionsOfMobilization', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return new List<ContentVersion>();
+        }
     }
 
 
@@ -58,7 +77,9 @@ public without sharing class CollectShiftRecordingsController {
             clip.PathOnClient = clip.Title+'.'+params?.clipExtension.substringAfter('/');
             insert clip;
 
-            result.put('newClip', [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name FROM ContentVersion WHERE Id =: clip.Id LIMIT 1]);
+            ContentVersion newClip = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name, ContentDocumentId FROM ContentVersion WHERE Id =: clip.Id LIMIT 1];
+
+            result.put('newClip', newClip);
 
             result.put('success', 'Success');
         } catch (Exception e) {
@@ -191,7 +212,7 @@ public without sharing class CollectShiftRecordingsController {
                 params.mobilizationId = mobRes.get('mobilizationId');
             }
     
-            List<ContentVersion> clipList = [SELECT Id, ContentSize FROM ContentVersion WHERE FirstPublishLocationId =: params.mobilizationId ORDER BY CreatedDate Desc];
+            List<ContentVersion> clipList = getCVofMobilization(params.mobilizationId);
 
             if(clipList.isEmpty()){
                 result.put('no_recording', 'No recordings found');

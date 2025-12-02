@@ -881,4 +881,17 @@
     .summary-card-subtitle {
         font-size: 0.65rem;
     }
+
+    .job-log-recording.slds-grow{
+        display: none;
+    }
+}
+
+.work-log-record{
+    width: 1080px;
+    max-width: calc(100% - 4rem);
+}
+
+.clock-in-button{
+    width: max-content;
 }

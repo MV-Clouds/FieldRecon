@@ -30,7 +30,6 @@ audio::-webkit-media-controls-panel {
 
     &:disabled{
         cursor: not-allowed !important;
-        pointer-events: none !important;
         filter: saturate(0) brightness(1.5) !important;
     }
 }
@@ -107,10 +106,14 @@ audio::-webkit-media-controls-panel {
     background: #e5e5e5;
 
     svg{
-        width: 22px;
-        height: 22px;
+        width: 20px;
+        height: 20px;
         fill: #595959;
     }
+}
+
+.single-clip-sub{
+    width: min(100%, 364px);
 }
 
 .clip-info{
