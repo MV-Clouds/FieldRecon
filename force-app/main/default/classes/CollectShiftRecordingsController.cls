@@ -1,4 +1,4 @@
-public without sharing class CollectShiftRecordingsController {
+public with sharing class CollectShiftRecordingsController {
     
     @AuraEnabled
     public static Map<String, Object> getSavedClips(String paramString){
@@ -16,7 +16,26 @@ public without sharing class CollectShiftRecordingsController {
 
             // merge mobilizationId and crewLeaderId
             result.putAll(mobRes);
-            List<ContentVersion> clipList = getCVofMobilization(mobRes.get('mobilizationId'));
+
+            List<wfrecon__Crew_Member__c> crewMembers = [SELECT Id, wfrecon__Member_Type__c FROM wfrecon__Crew_Member__c WHERE wfrecon__Contact__r.wfrecon__User__c =: UserInfo.getUserId()];
+            if(crewMembers.isEmpty()){
+                result.put('error', 'No crew member found for the current user.');
+                return result;
+            }
+
+            String mobilizationId = mobRes.get('mobilizationId');
+            String userId = UserInfo.getUserId();
+
+            List<ContentVersion> clipList = new List<ContentVersion>();
+            if(crewMembers[0]?.wfrecon__Member_Type__c == 'Leader'){
+                // If the user in the crew leader, then collect all clips from the mobilization
+                clipList = getCVofMobilization(mobilizationId);
+            }
+            else{
+                // if the user in crew member, only shows its own clips
+                String clipQuery = getCVFieldsToQuery()+' WHERE FirstPublishLocationId =:mobilizationId AND CreatedById =:userId  ORDER BY CreatedDate Desc';
+                clipList = Database.query(clipQuery);
+            }
     
             result.put('clips', clipList);
         } catch (Exception e) {
@@ -39,7 +58,8 @@ public without sharing class CollectShiftRecordingsController {
             // Note: If you directly query ContentVersion with FirstPublishLocationId, it may not return all records due to file sharing settings
             // So you must need to query it using Ids of all content versions.
             // So collect all ContentVersion Id from ContentDocumentLink records and then query ContentVersion using those Ids.
-            List<ContentVersion> clipList = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name FROM ContentVersion WHERE Id IN: cvIds ORDER BY CreatedDate Desc];
+            String clipQuery = getCVFieldsToQuery() + ' WHERE Id IN: cvIds AND Is_Work_Log_Recording__c = true ORDER BY CreatedDate Desc';
+            List<ContentVersion> clipList = Database.query(clipQuery);
 
             return clipList;
         } catch (Exception e) {
@@ -47,7 +67,6 @@ public without sharing class CollectShiftRecordingsController {
             return new List<ContentVersion>();
         }
     }
-
 
     @AuraEnabled
     public static Map<String, Object> saveClipToMobilization(String paramString){
@@ -72,18 +91,25 @@ public without sharing class CollectShiftRecordingsController {
 
             ContentVersion clip = new ContentVersion();
             clip.FirstPublishLocationId = params.mobilizationId;
+            clip.Is_Work_Log_Recording__c = true;
             clip.VersionData = EncodingUtil.base64Decode(params?.clipData?.substringAfter('base64,'));
             clip.Title = userContact.Name + ' - ' + DateTime.now().format('yyyy-MM-dd HH:mm:ss');
             clip.PathOnClient = clip.Title+'.'+params?.clipExtension.substringAfter('/');
             insert clip;
 
-            ContentVersion newClip = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name, ContentDocumentId FROM ContentVersion WHERE Id =: clip.Id LIMIT 1];
+            String clipId = clip.Id;
+            String clipQuery = getCVFieldsToQuery() + ' WHERE Id =: clipId LIMIT 1';
+            ContentVersion newClip = Database.query(clipQuery);
+            // ContentVersion newClip = [SELECT Id, FirstPublishLocationId, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name, ContentDocumentId, FirstPublishLocation.Name FROM ContentVersion WHERE Id =: clip.Id LIMIT 1];
 
             result.put('newClip', newClip);
 
             postLogDetailToChatter(JSON.serialize(new Map<String, Object>{
                 'clipData' => params?.clipData?.substringAfter('base64,'), 
                 'jobId' => params.jobId, 
+                'clipId' => newClip.Id,
+                'mobilizationId' => params.mobilizationId,
+                'mobilizationName' => newClip.FirstPublishLocation.Name,
                 'clipDocumentId' => newClip.ContentDocumentId
             }));
 
@@ -103,50 +129,83 @@ public without sharing class CollectShiftRecordingsController {
             String audioData = data.clipData;
             String jobId = data.jobId;
             String clipDocumentId = data.clipDocumentId;
+            String clipId = data.clipId;
+            String mobilizationId = data.mobilizationId;
+            String mobilizationName = data.mobilizationName;
 
+            // Summarize Recoding and collect its transcript with help of AI
             Map<String, Object> ai_response = AICalloutController.generateSingleRecordingTranscript(new Map<String, Object>{ 'audio' => audioData});
             System.debug('ai_response : '+ ai_response);
             if(ai_response.containsKey('ai_Response__c')){
+                
                 Map<String, Object> audio_summary = (Map<String, Object>) JSON.deserializeUntyped(String.valueOf(ai_response.get('ai_Response__c')));
                 System.debug('audio_summary : '+ audio_summary);
 
-                ConnectApi.FeedItemInput feedItemInput = new ConnectApi.FeedItemInput();
-                // connect to record
-                feedItemInput.subjectId = jobId ?? 'me';
+                // Update Content Version/ Recoding File with Transcript for future case
+                ContentVersion clip = new ContentVersion();
+                clip.Id = clipId;
+                clip.Recoding_Language__c = String.valueOf(audio_summary.get('lang_code')+' ('+audio_summary.get('language')+')');
+                clip.Transcript_Native__c = String.valueOf(audio_summary.get('transcript'));
+                clip.Transcript_English__c = String.valueOf(audio_summary.get('translation_en'));
+                clip.Transcript_Size__c =  Blob.valueOf(clip.Transcript_English__c).size();
+                update as user clip;
 
-                // Prepare body text
-                ConnectApi.TextSegmentInput textSegmentInput = new ConnectApi.TextSegmentInput();
-                textSegmentInput.text = ''+
-                'New Work Log Recoding has been added by one of your crew member. Here is full transcript of recording: '+
-                String.valueOf(audio_summary.get('translation_en'));
+                String orgBaseURL = URL.getOrgDomainURL().toExternalForm();
+                List<wfrecon__Mobilization_Member__c> mobMembers = [SELECT Id, wfrecon__Crew__c, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Crew_Leader_Id__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__r.User__c =: UserInfo.getUserId() WITH USER_MODE];
+                wfrecon__Mobilization_Member__c mobMember =  mobMembers.size() > 0 ? mobMembers[0] : new wfrecon__Mobilization_Member__c();
+                String member_url = orgBaseURL+'/'+(mobMember.wfrecon__Contact__c ?? UserInfo.getUserId());
 
-                // Prepare Messaging body
-                ConnectApi.MessageBodyInput messageBodyInput = new ConnectApi.MessageBodyInput();
-                messageBodyInput.messageSegments = new List<ConnectApi.MessageSegmentInput>();
-                messageBodyInput.messageSegments.add(textSegmentInput);
-
-                // Attach File
-                ConnectApi.FilesCapabilityInput filesInput = new ConnectApi.FilesCapabilityInput();
-                filesInput.items = new List<ConnectApi.FileIdInput>();
-                ConnectApi.FileIdInput idInput = new ConnectApi.FileIdInput();
-                idInput.id = clipDocumentId;
-                filesInput.items.add(idInput);
-                ConnectApi.FeedElementCapabilitiesInput feedElementCapabilitiesInput = new ConnectApi.FeedElementCapabilitiesInput();
-                feedElementCapabilitiesInput.files = filesInput;
-                feedItemInput.capabilities = feedElementCapabilitiesInput;
-
-                ConnectApi.FeedElement feedElement = ConnectApi.ChatterFeeds.postFeedElement(Network.getNetworkId(), feedItemInput);
+                // Create chatter post
+                FeedItem feedElement = new FeedItem();
+                String richtextBody = ''+
+                '<p>'+
+                '  <p><b>New Work Log Submitted</b></p>'+
+                '  <p>&nbsp</p>'+
+                '  <p> A new work-log has been submitted by <b><a href="{#member_url}" rel="noopener noreferrer" target="_blank">{#member_name}</a></b>.</p>'+
+                '  <p><b>Details:</b></p>'+
+                '  <ul>'+
+                '    <li><b>Date: </b>{#today}</li>'+
+                '    <li><b>Mobilization: </b><a href="{#mobilization_url}" rel="noopener noreferrer" target="_blank">{#mobilization_name}</a></li>'+
+                '  </ul>'+
+                '  <p>&nbsp</p>'+
+                '  <p><b>Work Log:</b></p>'+
+                '  <p>'+
+                '    {#transcript}'+
+                '  </p>'+
+                '</p>'+
+                '';
+                richtextBody = richtextBody.replace('{#member_url}', member_url);
+                richtextBody = richtextBody.replace('{#member_name}', mobMember.wfrecon__Contact__r?.Name ?? UserInfo.getName());
+                richtextBody = richtextBody.replace('{#today}', String.valueOf(Date.today()));
+                richtextBody = richtextBody.replace('{#mobilization_url}', orgBaseURL+'/'+mobilizationId);
+                richtextBody = richtextBody.replace('{#mobilization_name}', mobilizationName);
+                richtextBody = richtextBody.replace('{#transcript}', String.valueOf(audio_summary.get('translation_en')));
+                System.debug('richtextBody : ' + richtextBody);
+                feedElement.Body = richtextBody;
+                feedElement.ParentId = jobId;
+                feedElement.RelatedRecordId = clipId;
+                feedElement.IsRichText = true;
+                feedElement.Type = 'ContentPost';
+                insert feedElement;
 
                 System.debug('feedElement : ' + feedElement);
 
+                // Notify to user and crew leader/boss
                 List<CustomNotificationType> notificationTypes = [SELECT Id, DeveloperName  FROM CustomNotificationType WHERE DeveloperName='FR_New_Log_Recording_Notification'];
                 if(notificationTypes.size() > 0){
                     Messaging.CustomNotification notification = new Messaging.CustomNotification();
                     notification.setNotificationTypeId(notificationTypes[0].Id);
-                    notification.setTitle('New Work Log Has Been added!');
-                    notification.setBody('The notifications are coming from INSIDE the Apex!');
-                    notification.setTargetId(feedElement.id);
+                    notification.setTitle('New Work Log added!');
+                    notification.setBody('A new Work Log entry has been added by '+mobMember.wfrecon__Contact__r?.Name ?? UserInfo.getName()+'. Click to review its full transcript and related details.');
+                    notification.setTargetId(feedElement.Id);
                     Set<String> recipientsIds = new Set<String>{UserInfo.getUserId()};
+                    // Add crew leader to send notification
+                    if(String.isNotBlank(mobMember.wfrecon__Crew_Leader_Id__c)){
+                        List<Contact> crewLeaderContact = [SELECT Id, wfrecon__User__c FROM Contact WHERE Id =: mobMember.wfrecon__Crew_Leader_Id__c WITH USER_MODE LIMIT 1];
+                        if(crewLeaderContact.size() > 0 && String.isNotBlank(crewLeaderContact[0].wfrecon__User__c) && crewLeaderContact[0].wfrecon__User__c != UserInfo.getUserId()){
+                            recipientsIds.add(crewLeaderContact[0].wfrecon__User__c);
+                        }
+                    }
                     notification.send(recipientsIds);
                 }
             }
@@ -209,7 +268,6 @@ public without sharing class CollectShiftRecordingsController {
         return result;
     }
 
-
     @AuraEnabled
     public static Map<String, Object> collectShiftLogInfo(String paramString){
         Map<String, Object> result = new Map<String, Object>();
@@ -237,16 +295,26 @@ public without sharing class CollectShiftRecordingsController {
                 return result;
             }
 
+            Map<String, String> workLogs = new Map<String,String>();
+
             Integer totalClipSize = 0;
+            Decimal totalTranscriptSize = 0;
             List<String> clipIds = new List<String>();
             for(ContentVersion clip : clipList){
                 totalClipSize += clip.ContentSize;
+                totalTranscriptSize += clip.Transcript_Size__c;
                 clipIds.add(clip.Id);
+                workLogs.put(clip.createdBy.Name+' ('+clip.CreatedDate+')', clip.Transcript_English__c);
             }
             result.put('totalClipSize', totalClipSize);
 
+            String transcript = JSON.serialize(workLogs);
+            System.debug('transcript : '+ transcript);
+            System.debug('transcript size : '+ Blob.valueOf(transcript).size());
+            System.debug('Transcript_Size__c '+ totalTranscriptSize);
+
             // if totalClipSize is less than 5 MB, then call AI to summarize the clips
-            if(totalClipSize <= 0.40 * 1024 * 1024){
+            if(totalClipSize <= 5 * 1024 * 1024){
                 return ProcessShiftLogsByAI(clipIds);
             }
             else{
@@ -268,22 +336,22 @@ public without sharing class CollectShiftRecordingsController {
     public static Map<String, Object> ProcessShiftLogsByAI(List<String> clipIds){
         try {
 
-            List<ContentVersion> clipList = [SELECT Id, VersionData FROM ContentVersion WHERE Id IN : clipIds ORDER BY CreatedDate];
+            List<ContentVersion> clipList = [SELECT Id, Transcript_English__c FROM ContentVersion WHERE Id IN : clipIds ORDER BY CreatedDate];
 
             String audioData = '';
+            String transcript_en = '';
             for(ContentVersion clip : clipList) {
-                // System.debug(clip.Title + ' ' + EncodingUtil.base64Encode(clip.VersionData));
-                audioData += EncodingUtil.base64Encode(clip.VersionData);
+                // audioData += EncodingUtil.base64Encode(clip.VersionData);
+                transcript_en += clip.Transcript_English__c;
             }
             
-            return AICalloutController.generateRecordingSummary(new Map<String, Object>{ 'audio' => audioData});
+            return AICalloutController.generateRecordingSummary(new Map<String, Object>{ 'audio' => audioData, 'transcript_en' => transcript_en});
             
         } catch (Exception e) {
             System.debug('Error in ProcessShiftLogsByAI: ' + e.getMessage());
             return new Map<String, Object>{ 'error' => 'error in ProcessShiftLogsByAI: ' + e.getMessage()};
         }
     }
-
 
     @future(callout=true)
     public static void ProcessShiftLogsByAI_Async(String clipIdsString){
@@ -313,11 +381,24 @@ public without sharing class CollectShiftRecordingsController {
         }
     }
 
+    /**
+     * Get the fields to query for ContentVersion
+     * @return
+     * Reason: At line no 31, 56, 94 (might be changed), you will see the database.query() has been used to query record...
+     * this is because to keep query fields same for all these queries, 
+     * there might be a chance that developer update the one query(add or remove fields) and forget to update another one...
+     * In that case the field will not be available in the record and it will cases issue.
+     * So, to avoid this, we are using this approach to query the field to keep fields same for all related query.
+     */
+    private static String getCVFieldsToQuery(){
+        return 'SELECT Id, FirstPublishLocationId, FirstPublishLocation.Name, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name, Transcript_English__c, ContentDocumentId, Transcript_Size__c FROM ContentVersion';
+    }
 
     public class InputParams{
         @AuraEnabled public String jobId;
         @AuraEnabled public String crewLeaderId;
         @AuraEnabled public String mobilizationId;
+        @AuraEnabled public String mobilizationName;
         @AuraEnabled public String clipData;
         @AuraEnabled public String clipExtension;
         @AuraEnabled public String clipId;

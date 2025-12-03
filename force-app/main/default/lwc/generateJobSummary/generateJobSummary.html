@@ -1,104 +1,54 @@
 <template>
-    <lightning-card icon-name="utility:sparkle" title="Job Summary" variant="base">
-        <div class="main-container">
+    <div class="main-container">
 
-            <!-- Header Row -->
-            <!-- <div class="header-row">
-                <h2 class="header-title">Enter the duration to summarize</h2>
+        <div class="header-row">
+            <svg xmlns="http://www.w3.org/2000/svg" width="25px" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8L23.5 12L16 16L12 23.5L8 16L0.5 12L8 8L12 0.5L16 8ZM19.25 12L14.5217 9.47826L12 4.75L9.47826 9.47826L4.75 12L9.47826 14.5217L12 19.25L14.5217 14.5217L19.25 12Z"></path></svg>
+            <div class="header-title">Job Summary</div>
+        </div>
 
-            </div> -->
-
+        <div class="section-layout">
             <lightning-radio-group name="durationType" label="Select Interval Type" options={timeIntervalOptions} value={selectedDurationType} type="radio" onchange={handleChange}></lightning-radio-group>
             
-            <!-- Dates -->
             <div lwc:if={isCustomTimeInterval} class="slds-grid slds-wrap slds-gutters input-container">
                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                     <lightning-input  required  type="date"  name="startDate"  label="Start Date"  value={startDate}  onchange={handleChange}></lightning-input>
                 </div>
-
+                
                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                     <lightning-input  required  type="date"  name="endDate"  label="End Date"  value={endDate}  onchange={handleChange}></lightning-input>
                 </div>
             </div>
-
-            <template lwc:if={isJobManager}>
-                <div class="manager-info-message slds-grid">
-                    <svg class="slds-m-right_x-small" width="32px" viewBox="0 0 24 24" fill="#8b8b8b"><path d="M12 22C6.47715 22 2 17.5228 2 12 2 6.47715 6.47715 2 12 2 17.5228 2 22 6.47715 22 12 22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12 20 7.58172 16.4183 4 12 4 7.58172 4 4 7.58172 4 12 4 16.4183 7.58172 20 12 20ZM13 10.5V15H14V17H10V15H11V12.5H10V10.5H13ZM13.5 8C13.5 8.82843 12.8284 9.5 12 9.5 11.1716 9.5 10.5 8.82843 10.5 8 10.5 7.17157 11.1716 6.5 12 6.5 12.8284 6.5 13.5 7.17157 13.5 8Z"></path></svg>
-                    <p>
-                        You are assigned as both the Job Manager and Crew Leader for this job. </br>
-                        Please select the Work Visibility you want to summarize.
-                    </p>
-                </div>
-                <lightning-radio-group name="visibility" class="slds-m-top_xx-small" label="Select Work Visibility" options={visibilityOptions} value={selectedVisibility} type="radio" onchange={handleChange}></lightning-radio-group>
-                <lightning-checkbox-group lwc:if={isSpecificCrewSelected} name="crewGroup" class="slds-m-top_small" label="Select Crew" options={crewsList} value={selectedCrews} onchange={handleChange}></lightning-checkbox-group>
-            
-            </template>
-
-
-            <!-- Button -->
-            <div class="button-container">
-                <lightning-combobox  label="Preferred Language" class="lang-dropdown" options={languages} name="language" value={selectedLanguage} onchange={handleChange}></lightning-combobox>
-                <lightning-button variant="brand" label="Summarize" onclick={handleClick} disabled={disableSummarizeBtn}></lightning-button>
-            </div>
-
-            <!-- Loader -->
-            <template lwc:if={loading}>
-                <div class="spinner-container">
-                    <lightning-spinner alternative-text="Loading" size="medium" variant="brand"></lightning-spinner>
-                </div>
-            </template>
-
-            <!-- Output -->
-            <template if:true={MVC}>
-                <hr class="divider" />
-                <!-- <lightning-formatted-rich-text class="result-text" value={jobSummary}></lightning-formatted-rich-text> -->
-                <!-- Job Summary -->
-                <div style="width: 100%; box-sizing: border-box; margin-bottom: 30px;">
-                    <h1 style="color: #2a7ae2; font-size: 32px; margin-bottom: 20px;">Job Summary</h1>
-
-                    <p style="font-size: 16px; margin: 5px 0;"><strong>Start Date:</strong> {jobSummary.start_date}</p>
-                    <p style="font-size: 16px; margin: 5px 0;"><strong>End Date:</strong> {jobSummary.end_date}</p>
-                    <p style="font-size: 16px; margin: 5px 0;"><strong>Total Mobilizations:</strong> {jobSummary.total_mobilizations}</p>
-                    <p style="font-size: 16px; margin: 5px 0;"><strong>Total Man Hours:</strong> {jobSummary.total_man_hours}</p>
-                    <p style="font-size: 16px; margin: 5px 0;"><strong>Location:</strong> {jobSummary.location}</p>
-
-                    <p style="font-size: 16px; line-height: 1.6;">{jobSummary.job_description}</p>
-                </div>
-
-                <!-- Daily Logs -->
-                <div style="width: 100%; box-sizing: border-box;">
-                    <h2 style="color: #2a7ae2; font-size: 24px; margin-bottom: 15px;">Daily Logs</h2>
-
-                    <!-- Repeat This Block For Each Daily Log Entry -->
-                    <!-- {{#daily_logs}} -->
-                     <template for:each={jobSummary.daily_logs} for:item="logItem">
-
-                         <div key={logItem.date} style="background-color: #ffffff; border-left: 5px solid #2a7ae2; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); width: 100%; box-sizing: border-box;">
-                             <h3 style="color: #1f4e79; font-size: 20px; margin-top: 0;">{logItem.date}</h3>
-                             
-                             <p style="font-size: 16px; margin-bottom: 8px;"><strong>Work Performed:</strong> {logItem.work_performed}</p>
-                             <p style="font-size: 16px; margin-bottom: 8px;"><strong>Challenges / Issues:</strong> {logItem.challenges}</p>
-                             <p style="font-size: 16px; margin-bottom: 8px;"><strong>Resources Used:</strong> {logItem.resources}</p>
-                             <p style="font-size: 16px; margin-bottom: 8px;"><strong>Discussions / Approvals:</strong> {logItem.discussions}</p>
-                             <p style="font-size: 16px; margin-bottom: 8px;"><strong>Plan for Tomorrow:</strong> {logItem.plan_tomorrow}</p>
-                        </div>
-                    </template>
-                        <!-- {{/daily_logs}} -->
-                            
-                </div>
-
-                <!-- Overall Summary -->
-                <div style="width: 100%; box-sizing: border-box;">
-                    <h2 style="color: #2a7ae2; font-size: 24px;">Overall Summary</h2>
-                    <p style="font-size: 16px; line-height: 1.6; margin: 10px 0; width: 100%; box-sizing: border-box;">{jobSummary.overall_summary}</p>
-                </div>
-            </template>
-            
         </div>
 
-        <div class="summaryContainer slds-m-vertical_small"></div>
+        <div class="manager-info-message slds-grid">
+            <svg class="slds-m-right_x-small" width="32px" viewBox="0 0 24 24" fill="#8b8b8b"><path d="M12 22C6.47715 22 2 17.5228 2 12 2 6.47715 6.47715 2 12 2 17.5228 2 22 6.47715 22 12 22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12 20 7.58172 16.4183 4 12 4 7.58172 4 4 7.58172 4 12 4 16.4183 7.58172 20 12 20ZM13 10.5V15H14V17H10V15H11V12.5H10V10.5H13ZM13.5 8C13.5 8.82843 12.8284 9.5 12 9.5 11.1716 9.5 10.5 8.82843 10.5 8 10.5 7.17157 11.1716 6.5 12 6.5 12.8284 6.5 13.5 7.17157 13.5 8Z"></path></svg>
+            <p>
+                You are assigned as both the Job Manager and Crew Leader for this job. </br>
+                Please select the Work Visibility you want to summarize.
+            </p>
+        </div>
 
-        <!-- <c-cmp_-text-to-speech lwc:if={ttsContent} value={ttsContent} language={selectedLanguage}></c-cmp_-text-to-speech> -->
+        <template lwc:if={isJobManager}>
+            <div class="section-layout">        
+                <lightning-radio-group name="visibility" class="slds-m-top_xx-small" label="Select Work Visibility" options={visibilityOptions} value={selectedVisibility} type="radio" onchange={handleChange}></lightning-radio-group>
+                <lightning-checkbox-group lwc:if={isSpecificCrewSelected} name="crewGroup" class="slds-m-top_small" label="Select Crew" options={crewsList} value={selectedCrews} onchange={handleChange}></lightning-checkbox-group>
+            </div>
+        </template>
 
-    </lightning-card>
+
+        <div class="button-container">
+            <lightning-combobox  label="Preferred Language" class="lang-dropdown" options={languages} name="language" value={selectedLanguage} onchange={handleChange}></lightning-combobox>
+            <lightning-button variant="brand" label="Summarize" onclick={handleClick} disabled={disableSummarizeBtn}></lightning-button>
+        </div>
+
+        <template lwc:if={loading}>
+            <div class="spinner-container">
+                <lightning-spinner alternative-text="Loading" size="medium" variant="brand"></lightning-spinner>
+            </div>
+        </template>
+    </div>
+
+    <div class="summaryContainer slds-m-vertical_small"></div>
+
+    <!-- <c-cmp_-text-to-speech lwc:if={ttsContent} value={ttsContent} language={selectedLanguage}></c-cmp_-text-to-speech> -->
 </template>

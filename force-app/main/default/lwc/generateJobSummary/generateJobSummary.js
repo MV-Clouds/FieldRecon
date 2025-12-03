@@ -10,7 +10,6 @@ import getCrewsByJob from '@salesforce/apex/AICalloutController.getCrewsByJob';
 import getSummaryAsHtml from '@salesforce/apex/AICalloutController.getSummaryAsHtml';
 import userId from '@salesforce/user/Id';
 import { getRecord } from 'lightning/uiRecordApi';
-import { Text_To_Speech } from 'c/cmp_TextToSpeech';
 
 // Note: this is universal for all the salesforce orgs, use this id if the object's default record type is null
 let MASTER_RECORD_TYPE = '012000000000000AAA'
@@ -84,8 +83,6 @@ export default class GenerateJobSummary extends LightningElement {
     get userObjRecordType(){
         return this.objectInfo.data?.defaultRecordTypeId ?? MASTER_RECORD_TYPE;
     }
-
-    textToSpeech = new Text_To_Speech();
 
     // Get object metadata (to access record type ID)
     @wire(getObjectInfo, { objectApiName: USER_OBJECT })

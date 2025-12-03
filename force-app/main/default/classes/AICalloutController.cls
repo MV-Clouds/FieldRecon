@@ -55,37 +55,40 @@ public with sharing class AICalloutController {
         return result;
     }
 
-
-
     @AuraEnabled
     public static Map<String, Object> generateRecordingSummary(Map<String, Object> audioData) {
         Map<String, Object> result = new Map<String, Object>();
         try {
 
-            String audio = (String) String.valueOf(audioData.get('audio'));
+            // String audio = (String) String.valueOf(audioData.get('audio'));
+            String transcript_en = (String) String.valueOf(audioData.get('transcript_en'));
             
-            String userPrompt = 'I will provide work Shift Log entry detail in audio form. i will provide information about what me and my crew has been done over the working shift or whole day'+
-                'Please Provide the Transcript for the following audio in the language it has been spoken.'+
-                'Provide language and its code. Translate the Transcript it into english. '+
-                'Provide Some Detailed information about the work had been done on shift based on audion transcript.'+
-                'If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it'+
-                'Only Provide Response In Mentioned Format/Structure '+
-                'Note: Always provide JSON within (even if no audio is available) the response as i am parsing JSON.'+
-                'Thank you for your assistance';
+            String userPrompt = ''+
+            'Here is Shift Log Detail: '+transcript_en+
+            'Detail contains work log information about each crew member.'+
+            // 'I will provide work Shift Log entry detail. i will provide information about what crew has been done over the working shift or whole day'+
+            // 'I will provide work Shift Log entry detail in audio form. i will provide information about what me and my crew has been done over the working shift or whole day'+
+            // 'Please Provide the Transcript for the following audio in the language it has been spoken.'+
+            // 'Provide language and its code. Translate the Transcript it into english. '+
+            // 'Please consider '+UserInfo.getName()+' as me. And Summarize the detail based on what work has been done by each person.'+
+            'Provide Some Detailed information about the work had been done on shift based on detail.'+
+            'If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it'+
+            'Only Provide Response In Mentioned Format/Structure '+
+            'Thank you for your assistance';
 
-            Map<String, Object> data = new Map<String, Object>();
-            data.put('mime_type', 'audio/webm');
-            data.put('data', audio);
-            String prompt = JSON.serialize(data);
-            System.debug('prompt : '+prompt);
+            // Map<String, Object> data = new Map<String, Object>();
+            // data.put('mime_type', 'audio/webm');
+            // data.put('data', audio);
+            // String prompt = JSON.serialize(data);
+            // System.debug('prompt : '+prompt);
 
             // Build full request body using content structure
             String requestBody = '{' + 
                 '"contents": [' + 
                     '{' + 
                         '"parts": [' + 
-                            '{"text": "' + userPrompt + '"},' +
-                            '{"inline_data": ' + prompt + '}' +
+                            '{"text": "' + userPrompt + '"}' +
+                            // '{"inline_data": ' + prompt + '}' +
                         ']' + 
                     '}' + 
                 '],' + 
@@ -94,22 +97,22 @@ public with sharing class AICalloutController {
                     '"responseJsonSchema": {' + 
                         '"type": "object",' + 
                         '"properties": {' + 
-                            '"language": {' + 
-                                '"type": "string",' + 
-                                '"description": "The language detected in the input audio/text."' + 
-                            '},' + 
-                            '"lang_code": {' + 
-                                '"type": "string",' + 
-                                '"description": "The ISO 639-1 language code (e.g., \'en\', \'hi\', \'fr\')."' + 
-                            '},' + 
-                            '"transcript": {' + 
-                                '"type": "string",' + 
-                                '"description": "The full verbatim transcript of the speech."' + 
-                            '},' + 
-                            '"translation_en": {' + 
-                                '"type": "string",' + 
-                                '"description": "An English translation of the full transcript."' + 
-                            '},' + 
+                            // '"language": {' + 
+                            //     '"type": "string",' + 
+                            //     '"description": "The language detected in the input audio/text."' + 
+                            // '},' + 
+                            // '"lang_code": {' + 
+                            //     '"type": "string",' + 
+                            //     '"description": "The ISO 639-1 language code (e.g., \'en\', \'hi\', \'fr\')."' + 
+                            // '},' + 
+                            // '"transcript": {' + 
+                            //     '"type": "string",' + 
+                            //     '"description": "The full verbatim transcript of the speech."' + 
+                            // '},' + 
+                            // '"translation_en": {' + 
+                            //     '"type": "string",' + 
+                            //     '"description": "An English translation of the full transcript."' + 
+                            // '},' + 
                             '"info": {' + 
                                 '"type": "string",' + 
                                 '"description": "General summary or context of the input."' + 
@@ -135,7 +138,8 @@ public with sharing class AICalloutController {
                                 '"description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false."' + 
                             '}' + 
                         '},' + 
-                        '"required": [ "language", "lang_code", "transcript", "translation_en", "info", "whatWeDone", "planForTomorrow", "notesToOffice", "exceptions", "no_valid_entry" ]' + 
+                        // '"required": [ "language", "lang_code", "transcript", "translation_en", "info", "whatWeDone", "planForTomorrow", "notesToOffice", "exceptions", "no_valid_entry" ]' + 
+                        '"required": [ "info", "whatWeDone", "planForTomorrow", "notesToOffice", "exceptions", "no_valid_entry" ]' + 
                     '}' + 
                 '}' + 
             '}';
@@ -156,12 +160,12 @@ public with sharing class AICalloutController {
             String audio = (String) String.valueOf(audioData.get('audio'));
             
             String userPrompt = ''+
-            'I will provide work Shift Log entry detail in audio form. I will provide information about what work has been done over the working shift or whole day'+
+            'I will provide work Shift Log entry detail in audio form. Audio has information about what work has been done over the working shift or whole day'+
             'Please Provide the Transcript for the following audio in the language it has been spoken.'+
             'Provide language and its code. Translate the Transcript it into english. '+
             'If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it'+
             'Only Provide Response In Mentioned Format/Structure '+
-            'Note: Always provide JSON within (even if no audio is available) the response as i need parsing JSON.'+
+            'Note: Always provide JSON within (even if no detail is available) the response as i need parsing JSON.'+
             'Thank you for your assistance';
 
             Map<String, Object> data = new Map<String, Object>();

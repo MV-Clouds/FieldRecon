@@ -6,11 +6,11 @@
     width: 75%;
 }
 
-/* Header Row with language dropdown right-aligned */
 .header-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 10px;
     margin-bottom: 1rem;
     flex-wrap: wrap;
 }
@@ -20,11 +20,18 @@
     font-weight: 600;
 }
 
+.section-layout {
+    padding: 24px;
+    border: 1px solid #DADFE3;
+    border-radius: 5px;
+    background: #F7F9FC;
+    margin-bottom: 15px;
+}
+
 .lang-dropdown {
     min-width: 180px;
 }
 
-/* Button centered */
 .button-container {
     display: flex;
     justify-content: left;
@@ -34,31 +41,27 @@
     margin-top: 1rem;
 }
 
-/* Spinner center alignment */
 .spinner-container {
     display: flex;
     justify-content: center;
     margin: 20px 0;
 }
 
-/* Divider style */
 .divider {
     margin: 20px 0;
 }
 
-/* Result styling */
 .result-text {
     font-size: 1rem;
 }
 
 .manager-info-message {
-    margin-top: 10px;
+    margin-block: 10px;
     color: #3a3a3a;
     background: whitesmoke;
     padding: 8px 12px;
 }
 
-/* Responsive: Language dropdown goes under header title for small screens */
 @media(max-width: 600px) {
     .header-row {
         flex-direction: column;
