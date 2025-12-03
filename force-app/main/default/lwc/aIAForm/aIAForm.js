@@ -205,7 +205,7 @@ export default class aIAForm extends LightningElement {
                 .join(', '); 
                 
                 this.billEndDate = (br && br.wfrecon__End_Date__c) || "";
-                this.contractDate = (job && job.Contract_Date__c) || "";
+                this.contractDate = (job && job.wfrecon__Contract_Date__c) || "";
                 
                 // Format all currency values with proper null checks
                 this.totalContractValue = this.formatCurrency((job && job.wfrecon__Total_Contract_Value__c) || 0.00);
@@ -375,8 +375,10 @@ export default class aIAForm extends LightningElement {
                     // your existing logic attempted dynamic sizing based on lastChunkCount — preserve intent but compute per-iteration
                     let totalChangeOrderTables = 0;
                     if (typeof lastChunkCount === 'number') {
-                        if (lastChunkCount >= 30 || (this.contractList.length <=20 && this.contractList.length <= 22)) {
-                            coChunkSize = 32;
+                        console.log('OUTPUT this.contractList.length *** : ',this.contractList.length);
+                        console.log('OUTPUT lastChunkCount *** : ',lastChunkCount);
+                        if (this.contractList.length <=20 && this.contractList.length <= 22) {
+                            coChunkSize = 22;
                         } else if (lastChunkCount < 26) {
                             // keep a positive fallback (if lastChunkCount is 0, chunkSize becomes 28)
                             coChunkSize = Math.max(1, 28 - lastChunkCount);
@@ -388,8 +390,22 @@ export default class aIAForm extends LightningElement {
                     // iterate safely without mutating the loop-control variable inside header
                     for (let i = 0; i < this.changeOrderList.length; ) {
                         // For subsequent pages you want chunkSize 30 — choose based on table count
-                        const currentChunkSize = (coTableCount === 0) ? coChunkSize : 30;
-                        const end = Math.min(i + currentChunkSize, this.changeOrderList.length);
+                        console.log('OUTPUT this.changeOrderList.length *** : ',this.changeOrderList.length);
+                        let currentChunkSize = (coTableCount === 0) ? coChunkSize : 30;
+                        if(this.contractList.length <=20){
+                            currentChunkSize = Math.max(1, 21 - this.contractList.length)
+                        }
+                        let end = Math.min(i + currentChunkSize, this.changeOrderList.length);
+                        console.log('OUTPUT : ',currentChunkSize,' ***',end );
+                        // if(this.contractList.length <=20){
+                        //     currentChunkSize = Math.max(1, 28 - this.contractList.length);
+                        //      htmlContent += `<div style="margin-top: 40px;"></div>
+                        //                         <div style="width: 100%; display:flex; justify-content: space-between;">
+                        //                             <div style="font-weight: bold; font-size: 8pt;">SCHEDULE OF VALUES</div>
+                        //                             <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
+                        //                         </div>
+                        //                         <hr style="border: 1px solid #000" />`;
+                        // }
 
                         if (coTableCount === 0) {
                             if (currentChunkSize === 30 || (totalTabelContractList == 1 && lastChunkCount == 20)) {
@@ -400,6 +416,7 @@ export default class aIAForm extends LightningElement {
                                                     <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
                                                 </div>
                                                 <hr style="border: 1px solid #000" />`;
+                                     pageNo++; // increment pageNo each chunk just like you did previously
 
                                 }else{
                                     htmlContent += `<div style="margin-top: 40px;"></div>
@@ -408,6 +425,7 @@ export default class aIAForm extends LightningElement {
                                                     <div style="font-weight: bold; font-size: 8pt;">Page ${pageNo}</div>
                                                 </div>
                                                 <hr style="border: 1px solid #000" />`;
+                                     pageNo++; // increment pageNo each chunk just like you did previously
                                 }
                                 
                             }
@@ -423,11 +441,12 @@ export default class aIAForm extends LightningElement {
                                             <hr style="border: 1px solid #000" />`;
                             htmlContent += buildTable(this.changeOrderList, i, end);
                             coTableCount++;
+                            pageNo++; // increment pageNo each chunk just like you did previously
                         }
 
                         // advance i safely
                         i = end;
-                        pageNo++; // increment pageNo each chunk just like you did previously
+                        // pageNo++; // increment pageNo each chunk just like you did previously
                     }
                     tabel2.innerHTML = htmlContent;
                 }
