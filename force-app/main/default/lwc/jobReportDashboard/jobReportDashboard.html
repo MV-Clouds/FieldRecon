@@ -28,6 +28,10 @@
             <div class="metrics-container">
                 <div class="metrics-header">
                     <h2 class="metrics-title">WIP Report and Dashboard</h2>
+                    <!-- Add Refresh Button -->
+                    <button class="refresh-btn" onclick={handleRefresh} title="Refresh All Data">
+                        Refresh
+                    </button>
                 </div>
 
                 <div class="metrics-cards-container">
@@ -267,56 +271,56 @@
                 </div>
 
                 <div class="filters-contain">
-                <div class="filters-container">
-                    <div class="filter-group">
-                        <lightning-input type="search" placeholder="Search by job name..." variant="label-hidden"
-                            value={searchTerm} onchange={handleSearchInput} onkeypress={handleKeyPress}
-                            class="search-box">
-                        </lightning-input>
+                    <div class="filters-container">
+                        <div class="filter-group">
+                            <lightning-input type="search" placeholder="Search by job name..." variant="label-hidden"
+                                value={searchTerm} onchange={handleSearchInput} onkeypress={handleKeyPress}
+                                class="search-box">
+                            </lightning-input>
 
-                    </div>
-                    <div class="filter-group">
-                        <div class="custom-multiselect">
-                            <div class="multiselect-header" onclick={toggleStatusDropdown}>
-                                <span class="selected-text">{selectedStatusText}</span>
-                                <lightning-icon icon-name="utility:down" size="x-small"></lightning-icon>
-                            </div>
-                            <template if:true={showStatusDropdown}>
-                                <div class="multiselect-dropdown">
-                                    <div class="dropdown-search">
-                                        <lightning-input type="search" placeholder="Search..." variant="label-hidden"
-                                            value={statusSearchTerm} onchange={handleStatusSearch}
-                                            onclick={handleDropdownClick}>
-                                        </lightning-input>
-                                    </div>
-                                    <div class="dropdown-options">
-                                        <template if:true={filteredStatusOptions.length}>
-                                            <template for:each={filteredStatusOptions} for:item="option">
-                                                <div key={option.value} class="option-item" onclick={handleStatusToggle}
-                                                    data-value={option.value}>
-                                                    <lightning-input type="checkbox" label={option.label}
-                                                        checked={option.selected} data-value={option.value}
-                                                        onclick={handleStatusToggle}>
-                                                    </lightning-input>
+                        </div>
+                        <div class="filter-group">
+                            <div class="custom-multiselect">
+                                <div class="multiselect-header" onclick={toggleStatusDropdown}>
+                                    <span class="selected-text">{selectedStatusText}</span>
+                                    <lightning-icon icon-name="utility:down" size="x-small"></lightning-icon>
+                                </div>
+                                <template if:true={showStatusDropdown}>
+                                    <div class="multiselect-dropdown">
+                                        <div class="dropdown-search">
+                                            <lightning-input type="search" placeholder="Search..."
+                                                variant="label-hidden" value={statusSearchTerm}
+                                                onchange={handleStatusSearch} onclick={handleDropdownClick}>
+                                            </lightning-input>
+                                        </div>
+                                        <div class="dropdown-options">
+                                            <template if:true={filteredStatusOptions.length}>
+                                                <template for:each={filteredStatusOptions} for:item="option">
+                                                    <div key={option.value} class="option-item"
+                                                        onclick={handleStatusToggle} data-value={option.value}>
+                                                        <lightning-input type="checkbox" label={option.label}
+                                                            checked={option.selected} data-value={option.value}
+                                                            onclick={handleStatusToggle}>
+                                                        </lightning-input>
+                                                    </div>
+                                                </template>
+                                            </template>
+                                            <template if:false={filteredStatusOptions.length}>
+                                                <div class="no-options-found">
+                                                    No options found
                                                 </div>
                                             </template>
-                                        </template>
-                                        <template if:false={filteredStatusOptions.length}>
-                                            <div class="no-options-found">
-                                                No options found
-                                            </div>
-                                        </template>
+                                        </div>
                                     </div>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="filter-group">
-                        <button class="clear-filters-btn" onclick={clearFilters}>
-                            Clear Filters
-                        </button>
-                    </div>
+                        <div class="filter-group">
+                            <button class="clear-filters-btn" onclick={clearFilters}>
+                                Clear Filters
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Recently Viewed Button -->

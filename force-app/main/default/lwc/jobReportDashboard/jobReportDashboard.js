@@ -90,12 +90,25 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     })
     wiredStatusValues({ data, error }) {
         if (data) {
+            // Create status options from picklist values
             this.statusOptions = data.values.map(item => ({
                 label: item.label,
                 value: item.value,
                 selected: true
             }));
+
+            // Add "None" option for null status
+            this.statusOptions.push({
+                label: 'None',
+                value: 'null',
+                selected: true
+            });
+
             this.filteredStatusOptions = [...this.statusOptions];
+
+            // Initialize selected statuses with all options including "None"
+            this.selectedStatuses = this.statusOptions.map(option => option.value);
+
         } else if (error) {
             this.statusOptions = [];
             this.showToast('Error', 'Failed to load status options', 'error');
@@ -270,8 +283,10 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             return 'All Statuses';
         }
 
-        // If all available status options are selected, show "All Statuses"
+        // Get all available status values including "None"
         const allStatusValues = this.statusOptions.map(option => option.value);
+
+        // Check if all statuses are selected (including "None")
         const allSelected = allStatusValues.length > 0 &&
             this.selectedStatuses.length === allStatusValues.length &&
             allStatusValues.every(status => this.selectedStatuses.includes(status));
@@ -282,12 +297,29 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
         // If only one status selected, show its label
         if (this.selectedStatuses.length === 1) {
-            const option = this.statusOptions.find(opt => opt.value === this.selectedStatuses[0]);
+            const selectedValue = this.selectedStatuses[0];
+            // Handle "null" value specially
+            if (selectedValue === 'null') {
+                return 'None';
+            }
+            const option = this.statusOptions.find(opt => opt.value === selectedValue);
             return option ? option.label : 'All Statuses';
         }
 
-        // Otherwise show count of selected statuses
-        return `${this.selectedStatuses.length} Statuses Selected`;
+        const selectedCount = this.selectedStatuses.length;
+        const hasEmptyStatus = this.selectedStatuses.includes('null');
+
+        if (hasEmptyStatus) {
+            const regularStatusCount = selectedCount - 1;
+
+            if (regularStatusCount === 0) {
+                return 'None';
+            } else {
+                return `${selectedCount} Statuses Selected`;
+            }
+        } else {
+            return `${selectedCount} Statuses Selected`;
+        }
     }
 
     get isFinanceDataAvailable() {
@@ -409,7 +441,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 billedAmount: job.billedAmount || 0,
                 paidAmount: job.paidAmount || 0,
                 balanceAmount: job.balanceAmount || 0,
-                retainageHeld: job.retainageHeld || 0
+                retainageHeld: job.retainageHeld || 0,
+                // Ensure status is properly handled for null values
+                status: job.status === null || job.status === undefined ? 'null' : job.status
             };
         });
 
@@ -444,6 +478,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 ...job,
                 srNo: startIndex + index + 1
             }));
+
+        this.calculateTotals();
     }
 
     handlePageChange(event) {
@@ -468,6 +504,38 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }
     }
 
+    handleRefresh() {
+        this.isLoading = true;
+
+        // Reset to first page
+        this.currentPage = 1;
+
+        Promise.all([
+            getMetricSettings(),
+            getJobMetrics(),
+            getAllJobsWithScopeData({ filterByRecentlyViewed: this.showRecentlyViewed })
+        ])
+            .then(([settingsResult, metricsData, jobsData]) => {
+                // Process metric settings
+                this.metricSettings = settingsResult?.metricStatusMap || {};
+
+                // Process metrics data
+                this.processMetricsData(metricsData);
+
+                // Process job data
+                this.processFinanceData(jobsData);
+
+                this.showToast('Success', 'Data refreshed successfully', 'success');
+            })
+            .catch(error => {
+                console.error('Error refreshing data:', error);
+                this.showToast('Error', 'Failed to refresh data: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
 
     calculateTotals() {
         this.totalContract = 0;
@@ -480,7 +548,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         this.totalBalance = 0;
         this.totalRetainage = 0;
 
-        this.financeData.forEach(job => {
+        this.paginatedFinanceData.forEach(job => {
             this.totalContract += job.totalContract || 0;
             this.totalBaseContract += job.baseContract || 0;
             this.totalChangeOrder += job.changeOrder || 0;
@@ -586,9 +654,11 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
         // Apply status filter
         if (this.selectedStatuses && this.selectedStatuses.length > 0) {
-            filteredData = filteredData.filter(job =>
-                this.selectedStatuses.includes(job.status)
-            );
+            filteredData = filteredData.filter(job => {
+                // Handle "null" status value
+                const jobStatus = job.status === null || job.status === undefined ? 'null' : job.status;
+                return this.selectedStatuses.includes(jobStatus);
+            });
         }
 
         // Reset to first page when filters change
@@ -642,7 +712,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         this.searchTerm = '';
         this.statusSearchTerm = '';
 
-        // Select ALL statuses instead of clearing
+        // Select ALL statuses including "None"
         this.selectedStatuses = this.statusOptions.map(option => option.value);
 
         // Update the selected property in options
