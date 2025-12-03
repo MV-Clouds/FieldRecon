@@ -73,6 +73,12 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     @track hasAccess = false;
     @track accessErrorMessage = 'You don\'t have permission to access this.';
 
+    @track currentPage = 1;
+    @track pageSize = 50;
+    @track totalPages = 1;
+    @track paginatedFinanceData = [];
+    @track showRecentlyViewed = true;
+
     @wire(getObjectInfo, { objectApiName: JOB_OBJECT })
     objectInfo;
 
@@ -82,18 +88,139 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     })
     wiredStatusValues({ data, error }) {
         if (data) {
+            // Create status options from picklist values
             this.statusOptions = data.values.map(item => ({
                 label: item.label,
                 value: item.value,
                 selected: true
             }));
+
+            // Add "None" option for null status
+            this.statusOptions.push({
+                label: 'None',
+                value: 'null',
+                selected: true
+            });
+
             this.filteredStatusOptions = [...this.statusOptions];
+
+            // Initialize selected statuses with all options including "None"
+            this.selectedStatuses = this.statusOptions.map(option => option.value);
+
         } else if (error) {
             this.statusOptions = [];
             this.showToast('Error', 'Failed to load status options', 'error');
         }
     }
 
+
+    get isFirstPage() {
+        return this.currentPage === 1;
+    }
+
+    get isLastPage() {
+        return this.currentPage === this.totalPages;
+    }
+
+    get pageNumbers() {
+        const pages = [];
+        const totalPages = this.totalPages;
+        const currentPage = this.currentPage;
+
+        // Always show first page
+        pages.push({ number: 1, isEllipsis: false });
+
+        if (currentPage > 3) {
+            pages.push({ number: '...', isEllipsis: true });
+        }
+
+        // Show pages around current page
+        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+            if (i > 1 && i < totalPages) {
+                pages.push({ number: i, isEllipsis: false });
+            }
+        }
+
+        if (currentPage < totalPages - 2) {
+            pages.push({ number: '...', isEllipsis: true });
+        }
+
+        // Always show last page if there is more than one page
+        if (totalPages > 1) {
+            pages.push({ number: totalPages, isEllipsis: false });
+        }
+
+        // Add CSS class for active page
+        return pages.map(page => ({
+            ...page,
+            cssClass: page.isEllipsis ? 'pagination-ellipsis' :
+                `pagination-button ${page.number === this.currentPage ? 'active' : ''}`
+        }));
+    }
+
+    get selectedStatusText() {
+        // If no statuses selected, show "All Statuses"
+        if (this.selectedStatuses.length === 0) {
+            return 'All Statuses';
+        }
+
+        // Get all available status values including "None"
+        const allStatusValues = this.statusOptions.map(option => option.value);
+
+        const allSelected = allStatusValues.length > 0 &&
+            this.selectedStatuses.length === allStatusValues.length &&
+            allStatusValues.every(status => this.selectedStatuses.includes(status));
+
+        if (allSelected) {
+            return 'All Statuses';
+        }
+
+        // If only one status selected, show its label
+        if (this.selectedStatuses.length === 1) {
+            const selectedValue = this.selectedStatuses[0];
+            // Handle "null" value specially
+            if (selectedValue === 'null') {
+                return 'None';
+            }
+            const option = this.statusOptions.find(opt => opt.value === selectedValue);
+            return option ? option.label : 'All Statuses';
+        }
+
+        const selectedCount = this.selectedStatuses.length;
+        const hasEmptyStatus = this.selectedStatuses.includes('null');
+
+        if (hasEmptyStatus) {
+            const regularStatusCount = selectedCount - 1;
+
+            if (regularStatusCount === 0) {
+                return 'None';
+            } else {
+                return `${selectedCount} Statuses Selected`;
+            }
+        } else {
+            return `${selectedCount} Statuses Selected`;
+        }
+    }
+
+    get isFinanceDataAvailable() {
+        return this.paginatedFinanceData && this.paginatedFinanceData.length > 0;
+    }
+
+    get tableButtonClass() {
+        return `toggle-option ${!this.showChart ? 'active' : ''}`;
+    }
+
+    get chartButtonClass() {
+        return `toggle-option ${this.showChart ? 'active' : ''}`;
+    }
+
+    get metricDisplayName() {
+        return this.getMetricDisplayName(this.currentEditingMetric);
+    }
+
+    get recentlyViewedButtonLabel() {
+        return this.showRecentlyViewed ? 'Show All Jobs' : 'Recently Viewed Jobs';
+    }
 
     connectedCallback() {
         this.loadD3();
@@ -107,7 +234,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     disconnectedCallback() {
         document.removeEventListener('click', this.handleOutsideClick.bind(this));
     }
-
 
     loadMetricsData() {
         this.isLoading = true;
@@ -123,9 +249,16 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     loadJobData() {
         this.isLoading = true;
 
-        getAllJobsWithScopeData()
+        // Pass the showRecentlyViewed flag to Apex
+        getAllJobsWithScopeData({ filterByRecentlyViewed: this.showRecentlyViewed })
             .then(data => {
                 this.processFinanceData(data);
+                // If chart is showing, re-render after data loads
+                if (this.showChart && this.d3Initialized && this.isFinanceDataAvailable) {
+                    setTimeout(() => {
+                        this.renderChart();
+                    }, 150);
+                }
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to load finance data: ' + error.body?.message, 'error');
@@ -154,7 +287,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .catch(error => {
                 this.hasAccess = false;
                 this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
-                console.error('Error checking permissions:', error);
             })
             .finally(() => {
                 this.isLoading = false;
@@ -192,7 +324,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             await loadScript(this, D3);
             this.d3Initialized = true;
         } catch (error) {
-            console.error('Error loading D3.js:', error);
             this.showToast('Error', 'Something went wrong!', 'error');
         }
     }
@@ -201,52 +332,10 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         try {
             const result = await getMetricSettings();
             this.metricSettings = result.metricStatusMap;
+
         } catch (error) {
-            console.error('Error loading metric settings:', error);
             this.showToast('Error', 'Failed to load metric settings', 'error');
         }
-    }
-
-    get selectedStatusText() {
-        // If no statuses selected, show "All Statuses"
-        if (this.selectedStatuses.length === 0) {
-            return 'All Statuses';
-        }
-
-        // If all available status options are selected, show "All Statuses"
-        const allStatusValues = this.statusOptions.map(option => option.value);
-        const allSelected = allStatusValues.length > 0 &&
-            this.selectedStatuses.length === allStatusValues.length &&
-            allStatusValues.every(status => this.selectedStatuses.includes(status));
-
-        if (allSelected) {
-            return 'All Statuses';
-        }
-
-        // If only one status selected, show its label
-        if (this.selectedStatuses.length === 1) {
-            const option = this.statusOptions.find(opt => opt.value === this.selectedStatuses[0]);
-            return option ? option.label : 'All Statuses';
-        }
-
-        // Otherwise show count of selected statuses
-        return `${this.selectedStatuses.length} Statuses Selected`;
-    }
-
-    get isFinanceDataAvailable() {
-        return this.financeData && this.financeData.length > 0;
-    }
-
-    get tableButtonClass() {
-        return `toggle-option ${!this.showChart ? 'active' : ''}`;
-    }
-
-    get chartButtonClass() {
-        return `toggle-option ${this.showChart ? 'active' : ''}`;
-    }
-
-    get metricDisplayName() {
-        return this.getMetricDisplayName(this.currentEditingMetric);
     }
 
     toggleStatusDropdown(event) {
@@ -304,6 +393,34 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         return nameMap[metricName] || metricName;
     }
 
+    toggleRecentlyViewed() {
+        this.showRecentlyViewed = !this.showRecentlyViewed;
+        this.currentPage = 1;
+        this.searchTerm = '';
+        this.selectedStatuses = this.statusOptions.map(option => option.value);
+
+        // Update status options selection
+        this.statusOptions = this.statusOptions.map(option => ({
+            ...option,
+            selected: true
+        }));
+
+        this.filteredStatusOptions = this.filteredStatusOptions.map(option => ({
+            ...option,
+            selected: true
+        }));
+
+        if (this.showChart) {
+            const container = this.template.querySelector('.chart-container');
+            if (container) {
+                container.innerHTML = '';
+            }
+        }
+
+        // Reload data with the new filter
+        this.loadJobData();
+    }
+
     processMetricsData(data) {
         this.backlogCount = data.backlog?.count || 0;
         this.backlogValue = data.backlog?.totalValue || 0;
@@ -318,11 +435,19 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     }
 
     processFinanceData(data) {
+        // Clear the allJobIds set
+        this.allJobIds = new Set();
+
         this.allFinanceData = data.map((job, index) => {
             const totalContract = (job.baseContract || 0) + (job.changeOrder || 0);
             const completedValue = job.totalCompletedValue || 0;
             const completionPercentage = totalContract > 0 ? (completedValue / totalContract) : 0;
             const remainingValue = Math.max(0, totalContract - completedValue);
+
+            // Store job ID
+            if (job.jobId) {
+                this.allJobIds.add(job.jobId);
+            }
 
             return {
                 ...job,
@@ -333,7 +458,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 billedAmount: job.billedAmount || 0,
                 paidAmount: job.paidAmount || 0,
                 balanceAmount: job.balanceAmount || 0,
-                retainageHeld: job.retainageHeld || 0
+                retainageHeld: job.retainageHeld || 0,
+                // Ensure status is properly handled for null values
+                status: job.status === null || job.status === undefined ? 'null' : job.status
             };
         });
 
@@ -355,6 +482,76 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }
     }
 
+    updatePaginatedData() {
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+
+        // Update paginated data with correct serial numbers
+        this.paginatedFinanceData = this.financeData
+            .slice(startIndex, endIndex)
+            .map((job, index) => ({
+                ...job,
+                srNo: startIndex + index + 1
+            }));
+
+        this.calculateTotals();
+
+        // If chart is showing, re-render it with new page data
+        if (this.showChart && this.d3Initialized && this.isFinanceDataAvailable) {
+            setTimeout(() => {
+                this.renderChart();
+            }, 50);
+        }
+    }
+
+    handlePageChange(event) {
+        const pageNumber = parseInt(event.currentTarget.dataset.page, 10);
+        if (!isNaN(pageNumber) && pageNumber !== this.currentPage) {
+            this.currentPage = pageNumber;
+            this.updatePaginatedData();
+        }
+    }
+
+    handlePrevious() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.updatePaginatedData();
+        }
+    }
+
+    handleNext() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+            this.updatePaginatedData();
+        }
+    }
+
+    handleRefresh() {
+        this.isLoading = true;
+
+        // Reset to first page
+        this.currentPage = 1;
+
+        Promise.all([
+            getMetricSettings(),
+            getJobMetrics(),
+            getAllJobsWithScopeData({ filterByRecentlyViewed: this.showRecentlyViewed })
+        ])
+            .then(([settingsResult, metricsData, jobsData]) => {
+                this.metricSettings = settingsResult?.metricStatusMap || {};
+                this.processMetricsData(metricsData);
+                this.processFinanceData(jobsData);
+
+                this.showToast('Success', 'Data refreshed successfully', 'success');
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to refresh data: ' + (error.body?.message || error.message), 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
     calculateTotals() {
         this.totalContract = 0;
         this.totalBaseContract = 0;
@@ -366,7 +563,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         this.totalBalance = 0;
         this.totalRetainage = 0;
 
-        this.financeData.forEach(job => {
+        this.paginatedFinanceData.forEach(job => {
             this.totalContract += job.totalContract || 0;
             this.totalBaseContract += job.baseContract || 0;
             this.totalChangeOrder += job.changeOrder || 0;
@@ -387,11 +584,13 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
     switchToChartView() {
         this.showChart = true;
-        if (this.d3Initialized && this.isFinanceDataAvailable) {
-            setTimeout(() => {
+
+        // Force a re-render by waiting for the DOM update
+        setTimeout(() => {
+            if (this.showChart && this.d3Initialized) {
                 this.renderChart();
-            }, 0);
-        }
+            }
+        }, 100);
     }
 
     handleValueTypeChange(event) {
@@ -472,20 +671,25 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
         // Apply status filter
         if (this.selectedStatuses && this.selectedStatuses.length > 0) {
-            filteredData = filteredData.filter(job =>
-                this.selectedStatuses.includes(job.status)
-            );
+            filteredData = filteredData.filter(job => {
+                // Handle "null" status value
+                const jobStatus = job.status === null || job.status === undefined ? 'null' : job.status;
+                return this.selectedStatuses.includes(jobStatus);
+            });
         }
 
-        // Reassign serial numbers
+        this.currentPage = 1;
         this.financeData = filteredData.map((job, index) => ({
             ...job,
             srNo: index + 1
         }));
 
+        // Calculate pagination
+        this.totalPages = Math.ceil(this.financeData.length / this.pageSize);
+        this.updatePaginatedData();
+
         this.calculateTotals();
 
-        // Re-render chart if needed
         if (this.showChart && this.d3Initialized && this.isFinanceDataAvailable) {
             setTimeout(() => {
                 this.renderChart();
@@ -521,10 +725,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         this.searchTerm = '';
         this.statusSearchTerm = '';
 
-        // Select ALL statuses instead of clearing
         this.selectedStatuses = this.statusOptions.map(option => option.value);
-
-        // Update the selected property in options
         this.statusOptions = this.statusOptions.map(option => ({
             ...option,
             selected: true
@@ -539,30 +740,47 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     }
 
     renderChart() {
-        if (!window.d3 || !this.isFinanceDataAvailable) return;
+        if (!window.d3) {
+            return;
+        }
+
+        if (!this.isFinanceDataAvailable) {
+            return;
+        }
 
         const container = this.template.querySelector('.chart-container');
-        if (!container) return;
+        if (!container) {
+            return;
+        }
 
         container.innerHTML = '';
-
-        const margin = { top: 60, right: 20, bottom: 120, left: 80 };
-        const containerWidth = container.clientWidth;
-
-        const barMinHeight = 50; // minimum pixels per bar
-        const chartData = [...this.financeData]
+        const chartData = [...this.paginatedFinanceData]
             .sort((a, b) => (b[this.chartConfig.valueType] || 0) - (a[this.chartConfig.valueType] || 0));
 
-        // Calculate height based on number of items
-        const calculatedHeight = chartData.length * barMinHeight + margin.top + margin.bottom;
+        if (chartData.length === 0) {
+            container.innerHTML = '<div class="no-chart-data">No data available for chart</div>';
+            return;
+        }
+
+        const margin = { top: 60, right: 20, bottom: 120, left: 100 };
+        let containerWidth = container.clientWidth;
+
+        // Ensure minimum width
+        if (!containerWidth || containerWidth < 500) {
+            containerWidth = 800;
+        }
+
+        const barMinHeight = 50;
+        const calculatedHeight = Math.max(chartData.length * barMinHeight + margin.top + margin.bottom, 400);
         const containerHeight = calculatedHeight;
 
         const width = containerWidth - margin.left - margin.right;
         const height = containerHeight - margin.top - margin.bottom;
 
+        // Create SVG container
         const svg = window.d3.select(container)
             .append('svg')
-            .attr('width', '100%')
+            .attr('width', containerWidth)
             .attr('height', containerHeight)
             .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
             .attr('preserveAspectRatio', 'xMidYMid meet')
@@ -573,6 +791,12 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         const currentValueLabel = this.chartConfig.valueTypes.find(type => type.value === currentValueType)?.label || currentValueType;
 
         const maxValue = window.d3.max(chartData, d => d[currentValueType] || 0);
+
+        if (maxValue <= 0) {
+            container.innerHTML = '<div class="no-chart-data">All values are zero for the selected metric</div>';
+            return;
+        }
+
         const yDomain = [0, maxValue * 1.1];
         const yTickValues = this.generateNiceTickValues(yDomain[1]);
 
@@ -582,7 +806,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .nice();
 
         const y = window.d3.scaleBand()
-            .domain(chartData.map(d => d.jobName))
+            .domain(chartData.map(d => d.jobName || 'Unnamed Job'))
             .range([0, height])
             .padding(0.4);
 
@@ -603,6 +827,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .domain(chartData.map((d, i) => i))
             .range(lightColors);
 
+        // X-axis
         const xAxis = svg.append('g')
             .attr('transform', `translate(0,${height})`)
             .call(window.d3.axisBottom(x).tickValues(yTickValues).tickFormat(d => this.formatCurrency(d)));
@@ -617,9 +842,10 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .attr('stroke', '#666')
             .attr('stroke-width', 1);
 
+        // Y-axis label
         svg.append('text')
             .attr('transform', 'rotate(-90)')
-            .attr('y', 0 - margin.left + 15)
+            .attr('y', 0 - margin.left)
             .attr('x', 0 - (height / 2))
             .attr('dy', '1em')
             .style('text-anchor', 'middle')
@@ -627,6 +853,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .style('fill', '#666')
             .text('Job Name');
 
+        // Y-axis
         const yAxis = svg.append('g')
             .call(window.d3.axisLeft(y));
 
@@ -634,16 +861,66 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .attr('stroke', '#666')
             .attr('stroke-width', 1);
 
+        // Create tooltip for job names
+        const nameTooltip = window.d3.select(container)
+            .append('div')
+            .attr('class', 'name-tooltip')
+            .style('position', 'absolute')
+            .style('background', 'rgba(0, 0, 0, 0.7)')
+            .style('color', 'white')
+            .style('padding', '8px 12px')
+            .style('border-radius', '4px')
+            .style('font-size', '12px')
+            .style('pointer-events', 'none')
+            .style('opacity', 0)
+            .style('z-index', '1001')
+            .style('max-width', '300px')
+            .style('white-space', 'normal')
+            .style('word-wrap', 'break-word')
+            .style('word-break', 'break-word')
+            .style('box-shadow', '0 4px 12px rgba(0,0,0,0.2)')
+            .style('line-height', '1.4');
+
         yAxis.selectAll('text')
             .style('font-size', '11px')
             .style('fill', '#666')
-            .text(d => {
-                const maxChars = 30; // Adjust based on your needs
-                return d.length > maxChars ? d.substring(0, maxChars) + '...' : d;
-            })
-            .append('title') // Add tooltip with full text
-            .text(d => d);
+            .style('cursor', 'pointer')
+            .style('pointer-events', 'all')
+            .each(function (d) {
+                const text = window.d3.select(this);
+                const jobName = d || 'Unnamed Job';
 
+                // Truncate to 10 characters and add ellipsis
+                const displayName = jobName.length > 10 ? jobName.substring(0, 10) + '...' : jobName;
+
+                text.text(displayName);
+
+                text.attr('data-fullname', jobName);
+            })
+            .on('mouseenter', function (event, d) {
+                const fullName = this.getAttribute('data-fullname') || d || 'Unnamed Job';
+                nameTooltip
+                    .style('opacity', 1)
+                    .html(fullName);
+            })
+            .on('mousemove', function (event) {
+                // Update tooltip position as mouse moves
+                const containerRect = container.getBoundingClientRect();
+                const textRect = this.getBoundingClientRect();
+
+                const left = (textRect.right - containerRect.left) + 10;
+                const top = (textRect.top - containerRect.top) + (textRect.height / 2);
+
+                nameTooltip
+                    .style('left', left + 'px')
+                    .style('top', top + 'px');
+            })
+            .on('mouseleave', function () {
+                // Hide tooltip when mouse leaves
+                nameTooltip.style('opacity', 0);
+            });
+
+        // X-axis label
         svg.append('text')
             .attr('x', width / 2)
             .attr('y', height + margin.bottom - 40)
@@ -652,46 +929,52 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .style('fill', '#666')
             .text(currentValueLabel);
 
-        const dropdownGroup = svg.append('g')
-            .attr('class', 'chart-dropdown')
-            .attr('transform', `translate(${width - 200}, -45)`);
+        // dropdown for changing chart type 
+        if (width > 300) {
+            const dropdownGroup = svg.append('g')
+                .attr('class', 'chart-dropdown')
+                .attr('transform', `translate(${width - 200}, -45)`);
 
-        dropdownGroup.append('text')
-            .attr('x', 70)
-            .attr('y', 2)
-            .style('font-size', '12px')
-            .style('fill', '#666')
-            .style('font-weight', '500')
-            .text('Change X-axis:');
+            dropdownGroup.append('text')
+                .attr('x', 70)
+                .attr('y', 2)
+                .style('font-size', '12px')
+                .style('fill', '#666')
+                .style('font-weight', '500')
+                .text('Change X-axis:');
 
-        const foreignObject = dropdownGroup.append('foreignObject')
-            .attr('x', 70)
-            .attr('y', 6)
-            .attr('width', 130)
-            .attr('height', 26);
+            const foreignObject = dropdownGroup.append('foreignObject')
+                .attr('x', 70)
+                .attr('y', 6)
+                .attr('width', 130)
+                .attr('height', 26);
 
-        const selectElement = foreignObject.append('xhtml:select')
-            .style('width', '100%')
-            .style('height', '24px')
-            .style('border', '1px solid #ddd')
-            .style('border-radius', '4px')
-            .style('padding', '2px 8px')
-            .style('font-size', '12px')
-            .style('background', 'white')
-            .style('color', '#333')
-            .on('change', (event) => {
-                this.chartConfig.valueType = event.target.value;
-                this.renderChart();
-            });
+            const selectElement = foreignObject.append('xhtml:select')
+                .style('width', '100%')
+                .style('height', '24px')
+                .style('border', '1px solid #ddd')
+                .style('border-radius', '4px')
+                .style('padding', '2px 8px')
+                .style('font-size', '12px')
+                .style('background', 'white')
+                .style('color', '#333')
+                .on('change', (event) => {
+                    this.chartConfig.valueType = event.target.value;
+                    this.renderChart();
+                });
 
-        selectElement.selectAll('option')
-            .data(this.chartConfig.valueTypes)
-            .enter()
-            .append('xhtml:option')
-            .attr('value', d => d.value)
-            .property('selected', d => d.value === this.chartConfig.valueType)
-            .text(d => d.label);
+            selectElement.selectAll('option')
+                .data(this.chartConfig.valueTypes)
+                .enter()
+                .append('xhtml:option')
+                .attr('value', d => d.value)
+                .property('selected', d => d.value === this.chartConfig.valueType)
+                .text(d => d.label);
+        } else {
+            console.log('Not enough width for dropdown:', width);
+        }
 
+        // Tooltip
         const tooltip = window.d3.select(container)
             .append('div')
             .attr('class', 'chart-tooltip')
@@ -712,10 +995,17 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .enter()
             .append('rect')
             .attr('class', 'bar')
-            .attr('y', d => y(d.jobName))
+            .attr('y', d => {
+                const yPos = y(d.jobName || 'Unnamed Job');
+                return yPos;
+            })
             .attr('x', 0)
             .attr('height', y.bandwidth())
-            .attr('width', d => x(d[currentValueType] || 0))
+            .attr('width', d => {
+                const value = d[currentValueType] || 0;
+                const widthVal = x(value);
+                return widthVal;
+            })
             .attr('fill', (d, i) => color(i))
             .attr('rx', 3)
             .attr('ry', 3)
@@ -725,9 +1015,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 tooltip
                     .style('opacity', 1)
                     .html(`
-                    <div><strong>${d.jobName}</strong></div>
-                    <div>${currentValueLabel}: $${window.d3.format(',')(value)}</div>
-                `);
+                <div><strong>${d.jobName || 'Unnamed Job'}</strong></div>
+                <div>${currentValueLabel}: $${window.d3.format(',')(value)}</div>
+            `);
             })
             .on('mousemove', function (event) {
                 tooltip
@@ -735,13 +1025,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                     .style('top', (event.offsetY - 40) + 'px');
             })
             .on('mouseout', function () {
-                window.d3.select(this)
-                    .attr('stroke', 'none')
-                    .attr('stroke-width', 0);
                 tooltip.style('opacity', 0);
             });
     }
-
 
     generateNiceTickValues(maxValue) {
         if (maxValue <= 0) return [0, 1, 2];

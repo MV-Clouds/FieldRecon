@@ -2,10 +2,10 @@
 // // * Class Name: JobMetricsController
 // // * Test Class: 
 // // * @description: Controller for Job data Report
-// // * Created Date: 27 November 2025
+// // * Created Date: 3 December 2025
 // // * Created By: Kajal Tiwari
 // // *--------------------------------------------------------------------------------
-// // * Modification History:
+// // * Modification History: To return all the jobs having status null in getAllJobsWithScopeData
 // // * Date Modified - Developer Name - Description
 // // * 
 // // **/
@@ -25,28 +25,50 @@ public with sharing class JobMetricsController {
     /*
     *********************************************************
     @description     : Method to get all jobs with their scope entry data for calculations
+                    Can filter by recently viewed jobs or return all jobs
+    @param           : Boolean filterByRecentlyViewed - Whether to filter by recently viewed jobs
     @return          : List<JobData> - List of jobs with calculated metrics
     ********************************************************
     */
     @AuraEnabled(cacheable=true)
-    public static List<JobData> getAllJobsWithScopeData() {
+    public static List<JobData> getAllJobsWithScopeData(Boolean filterByRecentlyViewed) {
         List<JobData> jobDataList = new List<JobData>();
+        Set<Id> jobIdsToQuery = new Set<Id>();
         
         try {
-            // Get all jobs with financial data
-            List<wfrecon__Job__c> jobs = [
-                SELECT Id, Name, wfrecon__Job_Name__c, wfrecon__Status__c, wfrecon__Job_Number__c,
-                       wfrecon__Total_Contract_Price__c, 
-                       wfrecon__Total_Contract_Value__c,
-                       wfrecon__Total_Change_Order_Value__c
-                FROM wfrecon__Job__c
-                WITH USER_MODE
-                ORDER BY Name
-            ];
+            // If filtering by recently viewed, get the recently viewed job IDs
+            if (filterByRecentlyViewed) {
+                jobIdsToQuery = getRecentlyViewedJobIds();
+                
+                // If no recently viewed jobs found, return empty list
+                if (jobIdsToQuery.isEmpty()) {
+                    return jobDataList;
+                }
+            }
+            
+            // Build dynamic query based on filter
+            String query = 'SELECT Id, Name, wfrecon__Job_Name__c, wfrecon__Status__c, wfrecon__Job_Number__c, ' +
+                        'wfrecon__Total_Contract_Price__c, ' +
+                        'wfrecon__Total_Contract_Value__c, ' +
+                        'wfrecon__Total_Change_Order_Value__c ' +
+                        'FROM wfrecon__Job__c ';
+            
+            // Add WHERE clause if filtering by recently viewed
+            if (filterByRecentlyViewed && !jobIdsToQuery.isEmpty()) {
+                query += 'WHERE Id IN :jobIdsToQuery ';
+            }
+            
+            query += 'ORDER BY LastViewedDate DESC NULLS LAST, Name ASC';
+            
+            // Get jobs based on filter
+            List<wfrecon__Job__c> jobs = Database.query(query);
             
             if (jobs.isEmpty()) {
+                System.debug('=== No jobs found with the current filter');
                 return jobDataList;
             }
+            
+            System.debug('=== Found ' + jobs.size() + ' jobs, filterByRecentlyViewed: ' + filterByRecentlyViewed);
             
             // Get job IDs for all queries
             Set<Id> jobIds = new Set<Id>();
@@ -58,7 +80,7 @@ public with sharing class JobMetricsController {
             Map<Id, Decimal> jobCompletedValueMap = new Map<Id, Decimal>();
             AggregateResult[] scopeResults = [
                 SELECT wfrecon__Job__c jobId, 
-                       SUM(wfrecon__Current_Complete_Value__c) totalCompleted
+                    SUM(wfrecon__Current_Complete_Value__c) totalCompleted
                 FROM wfrecon__Scope_Entry__c
                 WHERE wfrecon__Job__c IN :jobIds
                 AND wfrecon__Current_Complete_Value__c != null
@@ -78,7 +100,7 @@ public with sharing class JobMetricsController {
             // Query for the most recent approved bill per job
             for (wfrecon__Billing__c bill : [
                 SELECT Id, wfrecon__Job__c, wfrecon__Total_Billed_Amount__c, 
-                       wfrecon__Retainage_Completed_to_Date__c, CreatedDate
+                    wfrecon__Retainage_Completed_to_Date__c, CreatedDate
                 FROM wfrecon__Billing__c
                 WHERE wfrecon__Job__c IN :jobIds
                 AND wfrecon__Status__c = 'Approved'
@@ -95,7 +117,7 @@ public with sharing class JobMetricsController {
             Map<Id, Decimal> jobTotalPaymentsMap = new Map<Id, Decimal>();
             AggregateResult[] paymentResults = [
                 SELECT wfrecon__Job__c jobId, 
-                       SUM(wfrecon__Payable_Amount_Received__c) totalPaid
+                    SUM(wfrecon__Payable_Amount_Received__c) totalPaid
                 FROM wfrecon__Payment__c
                 WHERE wfrecon__Job__c IN :jobIds
                 AND wfrecon__Payable_Amount_Received__c != null
@@ -146,11 +168,49 @@ public with sharing class JobMetricsController {
             }
             
         } catch (Exception e) {
-         ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'getAllJobsWithScopeData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'JobMetricsController', 
+                'methodName' => 'getAllJobsWithScopeData', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
         }
         
         return jobDataList;
+    }
+
+    /*
+    *********************************************************
+    @description     : Helper method to get recently viewed job IDs
+    @return          : Set<Id> - Set of recently viewed job IDs
+    ********************************************************
+    */
+    private static Set<Id> getRecentlyViewedJobIds() {
+        Set<Id> recentlyViewedJobIds = new Set<Id>();
+        
+        try {
+            // Query RecentlyViewed object to get recently viewed Job__c records
+            List<RecentlyViewed> recentViews = [
+                SELECT Id, Name, Type, LastViewedDate
+                FROM RecentlyViewed 
+                WHERE Type = 'wfrecon__Job__c' 
+                ORDER BY LastViewedDate DESC 
+            ];
+            
+            for (RecentlyViewed rv : recentViews) {
+                recentlyViewedJobIds.add(rv.Id);
+            }
+                    
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'JobMetricsController', 
+                'methodName' => 'getRecentlyViewedJobIds', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
+        }
+        
+        return recentlyViewedJobIds;
     }
 
         /*
@@ -159,7 +219,7 @@ public with sharing class JobMetricsController {
     @return          : Map<String, MetricData> - Status related data
     ********************************************************
     */
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static Map<String, MetricData> getJobMetrics() {
         Map<String, MetricData> metrics = new Map<String, MetricData>();
         
