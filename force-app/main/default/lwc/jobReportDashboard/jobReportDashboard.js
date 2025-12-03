@@ -79,8 +79,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     @track paginatedFinanceData = [];
     @track showRecentlyViewed = true;
 
-
-
     @wire(getObjectInfo, { objectApiName: JOB_OBJECT })
     objectInfo;
 
@@ -160,123 +158,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }));
     }
 
-    connectedCallback() {
-        this.loadD3();
-        this.loadMetricSettings();
-        this.overrideSLDS();
-        this.checkUserPermissions();
-        // Close dropdown when clicking outside
-        document.addEventListener('click', this.handleOutsideClick.bind(this));
-    }
-
-    disconnectedCallback() {
-        document.removeEventListener('click', this.handleOutsideClick.bind(this));
-    }
-
-
-    loadMetricsData() {
-        this.isLoading = true;
-        getJobMetrics()
-            .then(data => {
-                console.log('data', data);
-
-                this.processMetricsData(data);
-            })
-            .catch(error => {
-                this.showToast('Error', 'Failed to load job metrics data: ' + error.body?.message, 'error');
-            });
-    }
-
-    loadJobData() {
-        this.isLoading = true;
-
-        // Pass the showRecentlyViewed flag to Apex
-        getAllJobsWithScopeData({ filterByRecentlyViewed: this.showRecentlyViewed })
-            .then(data => {
-                this.processFinanceData(data);
-            })
-            .catch(error => {
-                this.showToast('Error', 'Failed to load finance data: ' + error.body?.message, 'error');
-            });
-    }
-
-    checkUserPermissions() {
-        const permissionSetsToCheck = ['FR_Admin'];
-
-        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
-            .then(result => {
-                const assignedMap = result.assignedMap || {};
-                const isAdmin = result.isAdmin || false;
-
-                const hasFRAdmin = assignedMap['FR_Admin'] || false;
-
-                if (isAdmin || hasFRAdmin) {
-                    this.hasAccess = true;
-                    this.loadMetricsData();
-                    this.loadJobData();
-                } else {
-                    this.hasAccess = false;
-                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
-                }
-            })
-            .catch(error => {
-                this.hasAccess = false;
-                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
-                console.error('Error checking permissions:', error);
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
-    }
-
-    overrideSLDS() {
-        let style = document.createElement('style');
-        style.innerText = `
-                .mob-popup .slds-dueling-list__options [aria-selected='true'] {
-                    background-color: #5e5adb !important;
-                }
-
-                .mob-popup .slds-button__icon {
-                    fill: #5e5adb !important;
-                }
-
-                .mob-popup .slds-listbox_vertical .slds-listbox__option[aria-selected='false']:hover,
-                .mob-popup .slds-listbox_vertical .slds-listbox__option:not([aria-selected='true']):hover {
-                    background-color: #e3e3fb !important;
-                }
-        `;
-        this.template.host.appendChild(style);
-    }
-
-    handleOutsideClick(event) {
-        const dropdown = this.template.querySelector('.custom-multiselect');
-        if (dropdown && !dropdown.contains(event.target)) {
-            this.showStatusDropdown = false;
-        }
-    }
-
-    async loadD3() {
-        try {
-            await loadScript(this, D3);
-            this.d3Initialized = true;
-        } catch (error) {
-            console.error('Error loading D3.js:', error);
-            this.showToast('Error', 'Something went wrong!', 'error');
-        }
-    }
-
-    async loadMetricSettings() {
-        try {
-            const result = await getMetricSettings();
-            this.metricSettings = result.metricStatusMap;
-            console.log('loadMetricSettings', result, ' ', this.metricSettings);
-
-        } catch (error) {
-            console.error('Error loading metric settings:', error);
-            this.showToast('Error', 'Failed to load metric settings', 'error');
-        }
-    }
-
     get selectedStatusText() {
         // If no statuses selected, show "All Statuses"
         if (this.selectedStatuses.length === 0) {
@@ -286,7 +167,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         // Get all available status values including "None"
         const allStatusValues = this.statusOptions.map(option => option.value);
 
-        // Check if all statuses are selected (including "None")
         const allSelected = allStatusValues.length > 0 &&
             this.selectedStatuses.length === allStatusValues.length &&
             allStatusValues.every(status => this.selectedStatuses.includes(status));
@@ -340,6 +220,122 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
     get recentlyViewedButtonLabel() {
         return this.showRecentlyViewed ? 'Show All Jobs' : 'Recently Viewed Jobs';
+    }
+
+    connectedCallback() {
+        this.loadD3();
+        this.loadMetricSettings();
+        this.overrideSLDS();
+        this.checkUserPermissions();
+        // Close dropdown when clicking outside
+        document.addEventListener('click', this.handleOutsideClick.bind(this));
+    }
+
+    disconnectedCallback() {
+        document.removeEventListener('click', this.handleOutsideClick.bind(this));
+    }
+
+    loadMetricsData() {
+        this.isLoading = true;
+        getJobMetrics()
+            .then(data => {
+                this.processMetricsData(data);
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to load job metrics data: ' + error.body?.message, 'error');
+            });
+    }
+
+    loadJobData() {
+        this.isLoading = true;
+
+        // Pass the showRecentlyViewed flag to Apex
+        getAllJobsWithScopeData({ filterByRecentlyViewed: this.showRecentlyViewed })
+            .then(data => {
+                this.processFinanceData(data);
+                // If chart is showing, re-render after data loads
+                if (this.showChart && this.d3Initialized && this.isFinanceDataAvailable) {
+                    setTimeout(() => {
+                        this.renderChart();
+                    }, 150);
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Failed to load finance data: ' + error.body?.message, 'error');
+            });
+    }
+
+    checkUserPermissions() {
+        const permissionSetsToCheck = ['FR_Admin'];
+
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};
+                const isAdmin = result.isAdmin || false;
+
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+
+                if (isAdmin || hasFRAdmin) {
+                    this.hasAccess = true;
+                    this.loadMetricsData();
+                    this.loadJobData();
+                } else {
+                    this.hasAccess = false;
+                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
+                }
+            })
+            .catch(error => {
+                this.hasAccess = false;
+                this.accessErrorMessage = 'An error occurred while checking permissions. Please try again or contact your system administrator.';
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
+    overrideSLDS() {
+        let style = document.createElement('style');
+        style.innerText = `
+                .mob-popup .slds-dueling-list__options [aria-selected='true'] {
+                    background-color: #5e5adb !important;
+                }
+
+                .mob-popup .slds-button__icon {
+                    fill: #5e5adb !important;
+                }
+
+                .mob-popup .slds-listbox_vertical .slds-listbox__option[aria-selected='false']:hover,
+                .mob-popup .slds-listbox_vertical .slds-listbox__option:not([aria-selected='true']):hover {
+                    background-color: #e3e3fb !important;
+                }
+        `;
+        this.template.host.appendChild(style);
+    }
+
+    handleOutsideClick(event) {
+        const dropdown = this.template.querySelector('.custom-multiselect');
+        if (dropdown && !dropdown.contains(event.target)) {
+            this.showStatusDropdown = false;
+        }
+    }
+
+    async loadD3() {
+        try {
+            await loadScript(this, D3);
+            this.d3Initialized = true;
+        } catch (error) {
+            this.showToast('Error', 'Something went wrong!', 'error');
+        }
+    }
+
+    async loadMetricSettings() {
+        try {
+            const result = await getMetricSettings();
+            this.metricSettings = result.metricStatusMap;
+
+        } catch (error) {
+            this.showToast('Error', 'Failed to load metric settings', 'error');
+        }
     }
 
     toggleStatusDropdown(event) {
@@ -399,6 +395,27 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
     toggleRecentlyViewed() {
         this.showRecentlyViewed = !this.showRecentlyViewed;
+        this.currentPage = 1;
+        this.searchTerm = '';
+        this.selectedStatuses = this.statusOptions.map(option => option.value);
+
+        // Update status options selection
+        this.statusOptions = this.statusOptions.map(option => ({
+            ...option,
+            selected: true
+        }));
+
+        this.filteredStatusOptions = this.filteredStatusOptions.map(option => ({
+            ...option,
+            selected: true
+        }));
+
+        if (this.showChart) {
+            const container = this.template.querySelector('.chart-container');
+            if (container) {
+                container.innerHTML = '';
+            }
+        }
 
         // Reload data with the new filter
         this.loadJobData();
@@ -465,8 +482,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }
     }
 
-
-    // Add pagination update method
     updatePaginatedData() {
         const startIndex = (this.currentPage - 1) * this.pageSize;
         const endIndex = startIndex + this.pageSize;
@@ -480,6 +495,13 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             }));
 
         this.calculateTotals();
+
+        // If chart is showing, re-render it with new page data
+        if (this.showChart && this.d3Initialized && this.isFinanceDataAvailable) {
+            setTimeout(() => {
+                this.renderChart();
+            }, 50);
+        }
     }
 
     handlePageChange(event) {
@@ -516,26 +538,19 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             getAllJobsWithScopeData({ filterByRecentlyViewed: this.showRecentlyViewed })
         ])
             .then(([settingsResult, metricsData, jobsData]) => {
-                // Process metric settings
                 this.metricSettings = settingsResult?.metricStatusMap || {};
-
-                // Process metrics data
                 this.processMetricsData(metricsData);
-
-                // Process job data
                 this.processFinanceData(jobsData);
 
                 this.showToast('Success', 'Data refreshed successfully', 'success');
             })
             .catch(error => {
-                console.error('Error refreshing data:', error);
                 this.showToast('Error', 'Failed to refresh data: ' + (error.body?.message || error.message), 'error');
             })
             .finally(() => {
                 this.isLoading = false;
             });
     }
-
 
     calculateTotals() {
         this.totalContract = 0;
@@ -569,11 +584,13 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
     switchToChartView() {
         this.showChart = true;
-        if (this.d3Initialized && this.isFinanceDataAvailable) {
-            setTimeout(() => {
+
+        // Force a re-render by waiting for the DOM update
+        setTimeout(() => {
+            if (this.showChart && this.d3Initialized) {
                 this.renderChart();
-            }, 0);
-        }
+            }
+        }, 100);
     }
 
     handleValueTypeChange(event) {
@@ -661,10 +678,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             });
         }
 
-        // Reset to first page when filters change
         this.currentPage = 1;
-
-        // Reassign serial numbers
         this.financeData = filteredData.map((job, index) => ({
             ...job,
             srNo: index + 1
@@ -676,7 +690,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
 
         this.calculateTotals();
 
-        // Re-render chart if needed
         if (this.showChart && this.d3Initialized && this.isFinanceDataAvailable) {
             setTimeout(() => {
                 this.renderChart();
@@ -712,10 +725,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         this.searchTerm = '';
         this.statusSearchTerm = '';
 
-        // Select ALL statuses including "None"
         this.selectedStatuses = this.statusOptions.map(option => option.value);
-
-        // Update the selected property in options
         this.statusOptions = this.statusOptions.map(option => ({
             ...option,
             selected: true
@@ -730,30 +740,47 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     }
 
     renderChart() {
-        if (!window.d3 || !this.isFinanceDataAvailable) return;
+        if (!window.d3) {
+            return;
+        }
+
+        if (!this.isFinanceDataAvailable) {
+            return;
+        }
 
         const container = this.template.querySelector('.chart-container');
-        if (!container) return;
+        if (!container) {
+            return;
+        }
 
         container.innerHTML = '';
-
-        const margin = { top: 60, right: 20, bottom: 120, left: 100 };
-        const containerWidth = container.clientWidth;
-
-        const barMinHeight = 50; // minimum pixels per bar
-        const chartData = [...this.financeData]
+        const chartData = [...this.paginatedFinanceData]
             .sort((a, b) => (b[this.chartConfig.valueType] || 0) - (a[this.chartConfig.valueType] || 0));
 
-        // Calculate height based on number of items
-        const calculatedHeight = chartData.length * barMinHeight + margin.top + margin.bottom;
+        if (chartData.length === 0) {
+            container.innerHTML = '<div class="no-chart-data">No data available for chart</div>';
+            return;
+        }
+
+        const margin = { top: 60, right: 20, bottom: 120, left: 100 };
+        let containerWidth = container.clientWidth;
+
+        // Ensure minimum width
+        if (!containerWidth || containerWidth < 500) {
+            containerWidth = 800;
+        }
+
+        const barMinHeight = 50;
+        const calculatedHeight = Math.max(chartData.length * barMinHeight + margin.top + margin.bottom, 400);
         const containerHeight = calculatedHeight;
 
         const width = containerWidth - margin.left - margin.right;
         const height = containerHeight - margin.top - margin.bottom;
 
+        // Create SVG container
         const svg = window.d3.select(container)
             .append('svg')
-            .attr('width', '100%')
+            .attr('width', containerWidth)
             .attr('height', containerHeight)
             .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
             .attr('preserveAspectRatio', 'xMidYMid meet')
@@ -764,6 +791,12 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         const currentValueLabel = this.chartConfig.valueTypes.find(type => type.value === currentValueType)?.label || currentValueType;
 
         const maxValue = window.d3.max(chartData, d => d[currentValueType] || 0);
+
+        if (maxValue <= 0) {
+            container.innerHTML = '<div class="no-chart-data">All values are zero for the selected metric</div>';
+            return;
+        }
+
         const yDomain = [0, maxValue * 1.1];
         const yTickValues = this.generateNiceTickValues(yDomain[1]);
 
@@ -773,7 +806,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .nice();
 
         const y = window.d3.scaleBand()
-            .domain(chartData.map(d => d.jobName))
+            .domain(chartData.map(d => d.jobName || 'Unnamed Job'))
             .range([0, height])
             .padding(0.4);
 
@@ -794,6 +827,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .domain(chartData.map((d, i) => i))
             .range(lightColors);
 
+        // X-axis
         const xAxis = svg.append('g')
             .attr('transform', `translate(0,${height})`)
             .call(window.d3.axisBottom(x).tickValues(yTickValues).tickFormat(d => this.formatCurrency(d)));
@@ -808,6 +842,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .attr('stroke', '#666')
             .attr('stroke-width', 1);
 
+        // Y-axis label
         svg.append('text')
             .attr('transform', 'rotate(-90)')
             .attr('y', 0 - margin.left)
@@ -818,6 +853,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .style('fill', '#666')
             .text('Job Name');
 
+        // Y-axis
         const yAxis = svg.append('g')
             .call(window.d3.axisLeft(y));
 
@@ -825,26 +861,66 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .attr('stroke', '#666')
             .attr('stroke-width', 1);
 
+        // Create tooltip for job names
+        const nameTooltip = window.d3.select(container)
+            .append('div')
+            .attr('class', 'name-tooltip')
+            .style('position', 'absolute')
+            .style('background', 'rgba(0, 0, 0, 0.7)')
+            .style('color', 'white')
+            .style('padding', '8px 12px')
+            .style('border-radius', '4px')
+            .style('font-size', '12px')
+            .style('pointer-events', 'none')
+            .style('opacity', 0)
+            .style('z-index', '1001')
+            .style('max-width', '300px')
+            .style('white-space', 'normal')
+            .style('word-wrap', 'break-word')
+            .style('word-break', 'break-word')
+            .style('box-shadow', '0 4px 12px rgba(0,0,0,0.2)')
+            .style('line-height', '1.4');
+
         yAxis.selectAll('text')
             .style('font-size', '11px')
             .style('fill', '#666')
+            .style('cursor', 'pointer')
+            .style('pointer-events', 'all')
             .each(function (d) {
                 const text = window.d3.select(this);
+                const jobName = d || 'Unnamed Job';
 
-                // Split text every 10 characters
-                const parts = d.match(/.{1,10}/g);
+                // Truncate to 10 characters and add ellipsis
+                const displayName = jobName.length > 10 ? jobName.substring(0, 10) + '...' : jobName;
 
-                text.text(null);
+                text.text(displayName);
 
-                parts.forEach((p, i) => {
-                    text.append("tspan")
-                        .attr("x", text.attr("x"))
-                        .attr("dy", i === 0 ? 0 : 12)
-                        .text(p);
-                });
+                text.attr('data-fullname', jobName);
+            })
+            .on('mouseenter', function (event, d) {
+                const fullName = this.getAttribute('data-fullname') || d || 'Unnamed Job';
+                nameTooltip
+                    .style('opacity', 1)
+                    .html(fullName);
+            })
+            .on('mousemove', function (event) {
+                // Update tooltip position as mouse moves
+                const containerRect = container.getBoundingClientRect();
+                const textRect = this.getBoundingClientRect();
+
+                const left = (textRect.right - containerRect.left) + 10;
+                const top = (textRect.top - containerRect.top) + (textRect.height / 2);
+
+                nameTooltip
+                    .style('left', left + 'px')
+                    .style('top', top + 'px');
+            })
+            .on('mouseleave', function () {
+                // Hide tooltip when mouse leaves
+                nameTooltip.style('opacity', 0);
             });
 
-
+        // X-axis label
         svg.append('text')
             .attr('x', width / 2)
             .attr('y', height + margin.bottom - 40)
@@ -853,46 +929,52 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .style('fill', '#666')
             .text(currentValueLabel);
 
-        const dropdownGroup = svg.append('g')
-            .attr('class', 'chart-dropdown')
-            .attr('transform', `translate(${width - 200}, -45)`);
+        // dropdown for changing chart type 
+        if (width > 300) {
+            const dropdownGroup = svg.append('g')
+                .attr('class', 'chart-dropdown')
+                .attr('transform', `translate(${width - 200}, -45)`);
 
-        dropdownGroup.append('text')
-            .attr('x', 70)
-            .attr('y', 2)
-            .style('font-size', '12px')
-            .style('fill', '#666')
-            .style('font-weight', '500')
-            .text('Change X-axis:');
+            dropdownGroup.append('text')
+                .attr('x', 70)
+                .attr('y', 2)
+                .style('font-size', '12px')
+                .style('fill', '#666')
+                .style('font-weight', '500')
+                .text('Change X-axis:');
 
-        const foreignObject = dropdownGroup.append('foreignObject')
-            .attr('x', 70)
-            .attr('y', 6)
-            .attr('width', 130)
-            .attr('height', 26);
+            const foreignObject = dropdownGroup.append('foreignObject')
+                .attr('x', 70)
+                .attr('y', 6)
+                .attr('width', 130)
+                .attr('height', 26);
 
-        const selectElement = foreignObject.append('xhtml:select')
-            .style('width', '100%')
-            .style('height', '24px')
-            .style('border', '1px solid #ddd')
-            .style('border-radius', '4px')
-            .style('padding', '2px 8px')
-            .style('font-size', '12px')
-            .style('background', 'white')
-            .style('color', '#333')
-            .on('change', (event) => {
-                this.chartConfig.valueType = event.target.value;
-                this.renderChart();
-            });
+            const selectElement = foreignObject.append('xhtml:select')
+                .style('width', '100%')
+                .style('height', '24px')
+                .style('border', '1px solid #ddd')
+                .style('border-radius', '4px')
+                .style('padding', '2px 8px')
+                .style('font-size', '12px')
+                .style('background', 'white')
+                .style('color', '#333')
+                .on('change', (event) => {
+                    this.chartConfig.valueType = event.target.value;
+                    this.renderChart();
+                });
 
-        selectElement.selectAll('option')
-            .data(this.chartConfig.valueTypes)
-            .enter()
-            .append('xhtml:option')
-            .attr('value', d => d.value)
-            .property('selected', d => d.value === this.chartConfig.valueType)
-            .text(d => d.label);
+            selectElement.selectAll('option')
+                .data(this.chartConfig.valueTypes)
+                .enter()
+                .append('xhtml:option')
+                .attr('value', d => d.value)
+                .property('selected', d => d.value === this.chartConfig.valueType)
+                .text(d => d.label);
+        } else {
+            console.log('Not enough width for dropdown:', width);
+        }
 
+        // Tooltip
         const tooltip = window.d3.select(container)
             .append('div')
             .attr('class', 'chart-tooltip')
@@ -913,10 +995,17 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .enter()
             .append('rect')
             .attr('class', 'bar')
-            .attr('y', d => y(d.jobName))
+            .attr('y', d => {
+                const yPos = y(d.jobName || 'Unnamed Job');
+                return yPos;
+            })
             .attr('x', 0)
             .attr('height', y.bandwidth())
-            .attr('width', d => x(d[currentValueType] || 0))
+            .attr('width', d => {
+                const value = d[currentValueType] || 0;
+                const widthVal = x(value);
+                return widthVal;
+            })
             .attr('fill', (d, i) => color(i))
             .attr('rx', 3)
             .attr('ry', 3)
@@ -926,9 +1015,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 tooltip
                     .style('opacity', 1)
                     .html(`
-                    <div><strong>${d.jobName}</strong></div>
-                    <div>${currentValueLabel}: $${window.d3.format(',')(value)}</div>
-                `);
+                <div><strong>${d.jobName || 'Unnamed Job'}</strong></div>
+                <div>${currentValueLabel}: $${window.d3.format(',')(value)}</div>
+            `);
             })
             .on('mousemove', function (event) {
                 tooltip
@@ -936,13 +1025,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                     .style('top', (event.offsetY - 40) + 'px');
             })
             .on('mouseout', function () {
-                window.d3.select(this)
-                    .attr('stroke', 'none')
-                    .attr('stroke-width', 0);
                 tooltip.style('opacity', 0);
             });
     }
-
 
     generateNiceTickValues(maxValue) {
         if (maxValue <= 0) return [0, 1, 2];
