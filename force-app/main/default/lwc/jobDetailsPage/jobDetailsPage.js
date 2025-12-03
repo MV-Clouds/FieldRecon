@@ -200,6 +200,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             return [];
         }
     }
+
+    /**
+     * Helper to bind the checkbox UI state to the 0/1 data value
+     */
+    get isPerDiemChecked() {
+        return this.enteredManualPerDiem === 1;
+    }
     
     /**
      * Method Name: getTimesheetDiscardButtonTitle
@@ -1363,7 +1370,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             } else if(dataField == 'TravelTime') {
                 this.enteredManualTravelTime = value;
             } else if (dataField == 'PerDiem') {
-                this.enteredManualPerDiem = value;
+                this.enteredManualPerDiem = event.target.checked ? 1 : 0;
             } else if (dataField == 'clockInDateTime') {
                 this.clockInTime = value;
             } else if (dataField == 'clockOutDateTime') {
