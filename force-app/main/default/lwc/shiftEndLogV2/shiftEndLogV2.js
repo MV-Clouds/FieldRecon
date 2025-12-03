@@ -1041,19 +1041,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             // Green = yesterday/base completed (previous completed)
                             completed.style.width = `${yesterday}%`;
                             completed.style.display = yesterday > 0 ? 'block' : 'none';
-                            completed.style.background = '#28a745'; // Green
                             
                             // Purple = today's changes (from yesterday to current)
                             const todayChange = Math.max(0, current - yesterday);
                             today.style.width = `${todayChange}%`;
                             today.style.display = todayChange > 0 ? 'block' : 'none';
-                            today.style.background = 'rgba(94, 90, 219, 1)'; // Purple
                             
                             // Gray = remaining
                             const remainingPercent = Math.max(0, 100 - current);
                             remaining.style.width = `${remainingPercent}%`;
                             remaining.style.display = remainingPercent > 0 ? 'block' : 'none';
-                            remaining.style.background = '#e0e0e0'; // Gray
                         }
                     }
                 }
@@ -1108,19 +1105,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         // Green = yesterday/base completed
                         completed.style.width = `${yesterday}%`;
                         completed.style.display = yesterday > 0 ? 'block' : 'none';
-                        completed.style.background = '#28a745';
                         
                         // Purple = today's changes (from yesterday to current)
                         const todayProgress = Math.max(0, newValue - yesterday);
                         today.style.width = `${todayProgress}%`;
                         today.style.display = todayProgress > 0 ? 'block' : 'none';
-                        today.style.background = 'rgba(94, 90, 219, 1)';
                         
                         // Gray = remaining
                         const remainingProgress = Math.max(0, 100 - newValue);
                         remaining.style.width = `${remainingProgress}%`;
                         remaining.style.display = remainingProgress > 0 ? 'block' : 'none';
-                        remaining.style.background = '#e0e0e0';
                     }
 
                     // Update labels
@@ -1262,6 +1256,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         approvalNewValue: 0,
                         approvalChange: 0,
                         displayApprovalPercentage: 0,
+                        sliderMinValue: resetValue,
                         completedStyle: `width: ${resetValue}%`,
                         todayStyle: `width: 0%`,
                         approvalStyle: `width: 0%`,
@@ -1288,6 +1283,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         approvalNewValue: 0,
                         approvalChange: 0,
                         displayApprovalPercentage: 0,
+                        sliderMinValue: resetValue,
                         completedStyle: `width: ${resetValue}%`,
                         todayStyle: `width: 0%`,
                         approvalStyle: `width: 0%`,
@@ -1298,16 +1294,28 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             });
         }
         
-        // Update the original completion percentage map
+        // Update the original completion percentage map to reset value
         this.editOriginalCompletionPercentages.set(processId, resetValue);
         
-        // Remove from modified processes if present
+        // Remove from modified processes (this will remove it from approval data when saved)
         this.editModifiedProcesses.delete(processId);
         
-        // Update visual sliders
-        setTimeout(() => this.updateEditSliderVisuals(), 50);
+        // Rebuild grouped location processes to reflect the change
+        this.groupEditLocationProcesses();
         
-        this.showToast('Success', 'Approval reset to original base value', 'success');
+        // Update visual sliders and force re-render
+        setTimeout(() => {
+            this.updateEditSliderVisuals();
+            
+            // Manually update the slider input value
+            const sliderElement = this.template.querySelector(`input[data-process-id="${processId}"]`);
+            if (sliderElement) {
+                sliderElement.value = resetValue;
+                sliderElement.dataset.originalValue = resetValue;
+            }
+        }, 100);
+        
+        this.showToast('Success', 'Reset to previous completed value. Today\'s progress is now 0%.', 'success');
     }
 
     // Removed handleDiscardEditChanges and handleSaveEditChanges
@@ -1381,25 +1389,18 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             });
         });
 
-        // Only remove processes that were in the current edit session and were reset back
-        // Don't touch processes that were already in approval but not modified in this session
-        this.editAllLocationProcesses.forEach(proc => {
-            const wasInExistingApproval = existingApprovalData.locationProcessChanges.some(item => item.id === proc.processId);
-            const wasModifiedNow = this.editModifiedProcesses.has(proc.processId);
+        // Handle processes that were in existing approval but reset/reverted in this session
+        existingApprovalData.locationProcessChanges.forEach(existingApproval => {
+            const processId = existingApproval.id;
+            const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
             
-            // Only remove if it was modified in THIS session and then reset back
-            // OR if it's a new modification that was later reset (but this shouldn't happen as we check !== in handleEditSliderChange)
-            if (wasModifiedNow) {
-                const originalPercentage = this.editOriginalCompletionPercentages.get(proc.processId);
-                const currentPercentage = proc.completionPercentage;
-                
-                // If modified in this session but reset to original, remove from approval data
-                if (originalPercentage === currentPercentage) {
-                    approvalDataMap.delete(proc.processId);
+            if (processData) {
+                // If the process was in approval but now reset back to yesterdayPercentage, remove it
+                if (processData.completionPercentage === processData.yesterdayPercentage) {
+                    approvalDataMap.delete(processId);
                 }
+                // If it was modified again in this session, editModifiedProcesses already updated it above
             }
-            // If NOT in existing approval and NOT modified now, don't add it
-            // If IN existing approval and NOT modified now, keep it (already in map)
         });
 
         // Get all uploaded content document IDs from Chatter images (existing + new)
@@ -1611,11 +1612,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }
 
     get hasNoSelectedAttachments() {
-        if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) return true;
+        if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) {
+            return true;
+        }
         
         for (let feedItem of this.chatterFeedItems) {
             for (let attachment of feedItem.attachments) {
-                if (attachment.selected) return false;
+                // Only enable button if attachment is selected AND not already uploaded
+                if (attachment.selected && !attachment.alreadyUploaded) {
+                    return false;
+                }
             }
         }
         return true;
@@ -1691,13 +1697,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             
             console.log('Chatter Result:', result);
             
+            // Check if there are more items
+            this.hasMoreChatterItems = result && result.hasMore;
+
             // Get all currently uploaded content document IDs (existing + new)
             const allUploadedDocIds = [
                 ...this.existingImages.map(img => img.id),
                 ...this.newUploadedFiles.map(file => file.id)
             ];
             
-            if (result && result.feedItems) {
+            if (result && result.feedItems && result.feedItems.length > 0) {
                 const newFeedItems = result.feedItems.map(feedItem => ({
                     ...feedItem,
                     formattedDate: this.formatChatterDate(feedItem.createdDate),
@@ -1718,13 +1727,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 } else {
                     this.chatterFeedItems = [...this.chatterFeedItems, ...newFeedItems];
                 }
-                
-                this.hasMoreChatterItems = result.hasMore || false;
             } else {
                 if (this.chatterDaysOffset === 0) {
                     this.chatterFeedItems = [];
                 }
-                this.hasMoreChatterItems = false;
             }
             
         } catch (error) {
@@ -1747,7 +1753,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     handleAttachmentSelection(event) {
         const attachmentId = event.currentTarget.dataset.id;
-        const cardElement = event.currentTarget;
         
         // Find the attachment to check if already uploaded
         let isAlreadyUploaded = false;
@@ -1768,17 +1773,26 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Toggle selection
         this.chatterFeedItems = this.chatterFeedItems.map(feedItem => ({
             ...feedItem,
-            attachments: feedItem.attachments.map(att => ({
-                ...att,
-                selected: att.id === attachmentId ? !att.selected : att.selected
-            }))
+            attachments: feedItem.attachments.map(att => {
+                if (att.id === attachmentId) {
+                    const newSelected = !att.selected;
+                    return {
+                        ...att,
+                        selected: newSelected,
+                        cardClass: `attachment-card${att.alreadyUploaded ? ' disabled' : ''}${newSelected ? ' selected' : ''}`
+                    };
+                }
+                return att;
+            })
         }));
-        
-        // Toggle visual selection class
-        cardElement.classList.toggle('selected');
     }
 
     handleAddSelectedAttachments() {
+        // Double-check before proceeding
+        if (this.hasNoSelectedAttachments) {
+            return;
+        }
+
         const selectedAttachments = [];
         
         // Collect all selected attachments (excluding already uploaded)
@@ -1791,7 +1805,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         });
         
         if (selectedAttachments.length === 0) {
-            this.showToast('Warning', 'Please select at least one attachment that is not already uploaded', 'warning');
             return;
         }
         

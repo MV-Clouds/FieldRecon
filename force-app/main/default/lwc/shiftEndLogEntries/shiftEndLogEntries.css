@@ -162,6 +162,19 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1rem;
+    overflow-y: auto;
+    scroll-behavior: auto;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
+}
+
+.clock-status-container::-webkit-scrollbar-thumb {
+    background: rgba(94, 90, 219, 0.5);
+    border-radius: 4px;
+}
+
+.clock-status-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(94, 90, 219, 0.8);
 }
 
 .crew-member-card {
@@ -632,7 +645,7 @@
 /* =============================================
    NO DATA MESSAGES & APPROVAL BANNERS
    ============================================= */
-.no-data-message,
+.no-data-message, .no-data-message-chatter,
 .gallery-empty-state {
     text-align: center;
     border-radius: 12px;
@@ -641,6 +654,11 @@
     width: 100%;
     flex-direction: column;
     align-content: center;
+}
+
+.no-data-message-chatter{
+    height: unset;
+    padding: 4rem;
 }
 
 .gallery-empty-state {
@@ -804,6 +822,16 @@
     background: rgba(94, 90, 219, 0.9);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.save-btn:disabled {
+    background: #d1d5db !important;
+    color: #9ca3af !important;
+    cursor: not-allowed !important;
+    pointer-events: all !important;
+    opacity: 0.6 !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .action-btn:disabled {
@@ -1677,6 +1705,7 @@
 .chatter-modal-content {
     padding: 0 !important;
     max-height: 60vh;
+    min-height: 50vh;
     overflow-y: auto;
 }
 
@@ -2084,11 +2113,15 @@
         right: 0.5rem !important;
     }
 
-    .pop-heading .slds-modal__close .close-icon {
+    /* .pop-heading .slds-modal__close .close-icon {
         background-color: transparent !important;
         --slds-c-icon-color-foreground-default: white;
         --slds-c-icon-color-foreground: white;
-    }
+    } */
+
+    /* .close-icon svg {
+        fill: black !important;
+    } */
 
     .wizard-content {
         padding: 0rem 0.5rem;
@@ -2128,4 +2161,12 @@
     .attachment-file-icon {
         height: 80px;
     }
+}
+
+.create-close-icon svg {
+    fill: black !important;
+}
+
+.create-close-icon {
+    background: transparent !important;
 }

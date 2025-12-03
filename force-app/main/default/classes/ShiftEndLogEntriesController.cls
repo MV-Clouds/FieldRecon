@@ -280,7 +280,7 @@ public with sharing class ShiftEndLogEntriesController {
         try {
             processes = [SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
                             wfrecon__Location__c, wfrecon__Location__r.Name,
-                            wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c
+                            wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c, wfreon__Process_Name__c
                             FROM wfrecon__Location_Process__c WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId WITH USER_MODE
                             ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC];
             
@@ -560,7 +560,7 @@ public with sharing class ShiftEndLogEntriesController {
             wfrecon__Job__c jobRec = [SELECT Id, Name, wfrecon__Job_Name__c FROM wfrecon__Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
             // Send notifications to approvers
             String notificationContent = 'A new Shift End Log has been created for Job ' + jobRec.wfrecon__Job_Name__c + '. Tap to review.';
-            sendCustomNotification(logEntry.Id, notificationContent);
+            sendCustomNotification('New Shift End Log Entry Created', logEntry.Id, notificationContent, 'Tab');
             
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'createLogEntry','exceptionObj' => e,'moreDetails' => e.getMessage()});
@@ -735,7 +735,19 @@ public with sharing class ShiftEndLogEntriesController {
             }
             
             result.put('feedItems', feedItemWrappers);
-            result.put('hasMore', !feedItems.isEmpty()); // Simple check: if we got results, there might be more
+            
+            // Check if there are older items to determine if Load More should be shown
+            Integer olderItemsCount = [
+                SELECT Count()
+                FROM FeedItem 
+                WHERE ParentId = :jobId
+                    AND CreatedDate < :startDateTime
+                    AND Id IN (SELECT FeedEntityId FROM FeedAttachment)
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            
+            result.put('hasMore', olderItemsCount > 0);
             
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'getChatterFeedItems','exceptionObj' => e,'moreDetails' => 'Error fetching Chatter feed items for Job ID: ' + jobId});
@@ -758,7 +770,7 @@ public with sharing class ShiftEndLogEntriesController {
             // 1. Get ALL Pending Shift End Logs for this Job
             // ---------------------------
             List<wfrecon__Log_Entry__c> pendingLogs = [
-                SELECT Id, wfrecon__Status__c, wfrecon__Approval_Data__c, wfrecon__Mobilization__c
+                SELECT Id, Name, wfrecon__Status__c, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Approval_Data__c, wfrecon__Mobilization__c
                 FROM wfrecon__Log_Entry__c 
                 WHERE wfrecon__Job__c = :jobId
                 AND wfrecon__Log_Type__c = 'Shift End'
@@ -806,6 +818,10 @@ public with sharing class ShiftEndLogEntriesController {
                 // Update log entry status
                 log.wfrecon__Status__c = 'Auto-Approved';
                 log.wfrecon__Approved_Date__c = approvedDate;
+
+                // Send notifications to approvers
+                String notificationContent = 'A Shift End Log ' + log.Name + ' has been Auto-Approved for Job ' + log.wfrecon__Job__r.wfrecon__Job_Name__c + '. Tap to review.';
+                sendCustomNotification('Shift End Log Auto-Approved', log.wfrecon__Job__c, notificationContent, 'Record');
             }
 
             // ---------------------------
@@ -995,7 +1011,7 @@ public with sharing class ShiftEndLogEntriesController {
      * @param recordId - The record ID to link the notification to
      * @param content - The notification message content
      */
-    private static void sendCustomNotification(Id recordId, String content) {
+    private static void sendCustomNotification(String title, Id recordId, String content, String targetType) {
         try {
             // Query the metadata to get approver user IDs
             List<wfrecon__Log_Entry_Approver__mdt> approverMetadata = [
@@ -1054,13 +1070,16 @@ public with sharing class ShiftEndLogEntriesController {
                         'apiName' => 'wfrecon__Shift_End_Log_Approval' // Tab API Name (namespaced)
                     }
                 };
-                String title = 'New Shift End Log Entry Created';
 
                 Messaging.CustomNotification customNotificationObj = new Messaging.CustomNotification();
                 customNotificationObj.setBody(content);
                 customNotificationObj.setTitle(title);
                 customNotificationObj.setNotificationTypeId(cnType[0].Id);
-                customNotificationObj.setTargetPageRef(JSON.serialize(pageRef));
+                if(targetType == 'Record') {
+                    customNotificationObj.setTargetId(recordId);
+                } else {
+                    customNotificationObj.setTargetPageRef(JSON.serialize(pageRef));
+                }
                 customNotificationObj.send(addressee);
                 
                 System.debug('Custom notification sent to ' + addressee.size() + ' users for record: ' + recordId);

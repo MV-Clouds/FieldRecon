@@ -426,10 +426,10 @@
 .pagination-section {
     display: flex;
     justify-content: center;
-    background: white;
+    /* background: white; */
     padding: 1rem;
     border-radius: 8px;
-    box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
+    /* box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em; */
 }
 
 .pagination-container {
@@ -895,11 +895,11 @@
 }
 
 .slider-section.today {
-    background: #fe9339;
+    background: rgba(94, 90, 219, 1);
 }
 
 .slider-section.remaining {
-    background: #ffffff;
+    background: lightgrey;
 }
 
 /* Location Process Item */
@@ -955,8 +955,8 @@
 }
 
 .lp-new-value {
-    color: #fe9339;
-    background: #fff4e5;
+    color: rgba(94, 90, 219, 1);
+    background: rgba(94, 90, 219, 0.1);
     padding: 4px 8px;
     border-radius: 4px;
 }
@@ -992,12 +992,12 @@
 }
 
 .slider-labels-display .label-today {
-    color: #fe9339;
+    color: rgba(94, 90, 219, 1);
     font-weight: 600;
 }
 
 .slider-labels-display .label-today svg {
-    fill: #fe9339;
+    fill: rgba(94, 90, 219, 1);
 }
 
 .slider-labels-display .label-remaining {
