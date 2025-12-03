@@ -85,7 +85,7 @@
                                         <div class="slds-truncate cell-wrapper" title={val.value}>
                                             <template if:true={val.isActions}>
                                                 <div class="action-button-container">
-                                                    <button class="clock-icon" title="Clock In/Out" data-job={job.jobId} data-mobid={job.mobId} data-action="clock" onclick={handleActionClick}>
+                                                    <button class="clock-icon" title="Clock In/Out" data-job={job.jobId} data-mobid={job.mobId} data-index={index} data-action="clock" onclick={handleActionClick}>
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
                                                             <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -145,6 +145,7 @@
                                                                 onclick={handleAddTimesheet} 
                                                                 data-job={job.jobId} 
                                                                 data-mobid={job.mobId}
+                                                                data-index={index}
                                                                 disabled={isSavingTimesheetEntries}>
                                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                     <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

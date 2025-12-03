@@ -69,6 +69,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track deleteConfirmationTitle = '';
     @track deleteConfirmationMessage = '';
     @track deleteTargetMobId = '';
+    @track selectedRowIndex;
     
     @track jobColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -676,6 +677,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
     getCurrentJobRecord() {
+        // Use the index to get the exact row from the current filtered list
+        if (this.selectedRowIndex !== undefined && this.selectedRowIndex !== null && 
+            this.filteredJobDetailsRaw && this.filteredJobDetailsRaw[this.selectedRowIndex]) {
+            return this.filteredJobDetailsRaw[this.selectedRowIndex];
+        }
+        
         if (!this.jobId || !this.jobDetailsRaw || !Array.isArray(this.jobDetailsRaw)) {
             return null;
         }
@@ -1052,6 +1059,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             const jobId = event.currentTarget.dataset.job;
             const mobId = event.currentTarget.dataset.mobid;
+            this.selectedRowIndex = event.currentTarget.dataset.index; 
+
             this.jobId = jobId;
             this.mobId = mobId;
 
@@ -1062,7 +1071,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             }
             
             const actionType = event.currentTarget.dataset.action;
-   
             if (actionType === 'clock') {
                 this.getClockInDetails();
             } else if (actionType === 'list') {
@@ -1436,6 +1444,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             const jobId = event.currentTarget.dataset.job;
             const mobId = event.currentTarget.dataset.mobid;
+            this.selectedRowIndex = event.currentTarget.dataset.index;
             
             if (jobId) this.jobId = jobId;
             if (mobId) this.mobId = mobId;
