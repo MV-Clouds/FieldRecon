@@ -38,10 +38,7 @@
     border-radius: 8px;
     height: 100%;
     background-color: transparent;
-    /* margin: 16px 0; */
-    /* scroll-behavior: smooth;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(94, 90, 219, 1) transparent; */
+    scrollbar-width: thin !important;
 }
 
 .table-content .slds-table th,
@@ -101,7 +98,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 400px;
     width: 100%;
 }
 
@@ -1281,7 +1277,6 @@ lightning-combobox {
 .editable-cell {
     cursor: pointer;
     position: relative;
-    transition: background-color 0.2s ease;
     max-width: 150px; /* Reduced max-width for nested table cells if needed */
     padding: 0.75rem 0.6rem !important; /* Ensure padding is consistent for click target */
     background-color: inherit !important;
