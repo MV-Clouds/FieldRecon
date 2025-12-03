@@ -641,7 +641,12 @@
                                         <div class="input-column">
                                             <label class="select-label">Per Diem</label>
                                             <div class="select-wrapper">    
-                                                <input type="number" step="1" max="1" min="0" data-field="PerDiem" class="custom-select width-100" value={enteredManualPerDiem} onchange={handleInputChange} />
+                                                <div class="select-wrapper">    
+                                                    <input type="checkbox" 
+                                                        data-field="PerDiem" 
+                                                        onchange={handleInputChange}
+                                                        checked={isPerDiemChecked} />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
