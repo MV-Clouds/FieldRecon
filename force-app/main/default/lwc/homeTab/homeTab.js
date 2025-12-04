@@ -45,7 +45,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     ];
 
     get apexFormattedDate() {
-        return this.selectedDate.toISOString().split('T')[0];
+        const start = this.normalizeDate(new Date(this.selectedDate));
+        let currentDate = start.toLocaleDateString('en-CA');
+        return currentDate;
     }
 
     get isTodayTabActive(){
@@ -196,6 +198,10 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     get modalJobEndTime() {
         const job = this.getCurrentModalJobRecord();
         return job ? job.jobEndTime : '';
+    }
+
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     }
 
     isValidDateTime(dateTimeString) {
@@ -380,7 +386,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             this.isLoading = true;
             getMobilizationMembers({ filterDate: this.apexFormattedDate, mode: this.activeTab })
                 .then((data) => {
-                    console.log('getMobilizationMembers fetched successfully:', data);
+                    console.log('getMobilizationMembers fetched successfully:', JSON.stringify(data));
                     if(data && !data?.ERROR){
                         this.hasError = false;
                         this.errorMessage = '';
@@ -507,7 +513,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 let currentDate = new Date(today);
                 currentDate.setDate(today.getDate() + i);
 
-                let dateKey = currentDate.toISOString().slice(0, 10);
+                const start = this.normalizeDate(currentDate);
+                let dateKey = start.toLocaleDateString('en-CA');
+                
                 let jobsForDay = normalizedApexData[dateKey] || []; 
 
                 weekSections.push({
