@@ -145,7 +145,7 @@ public with sharing class ShiftEndLogV2Controller {
             Map<Id, List<LocationProcessSnapshot>> jobLocationProcessesMap = new Map<Id, List<LocationProcessSnapshot>>();
             if(jobId != null) {
                 List<wfrecon__Location_Process__c> locationProcesses = [
-                    SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
+                    SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c, wfrecon__Process_Name__c,
                            wfrecon__Location__c, wfrecon__Location__r.Name
                     FROM wfrecon__Location_Process__c 
                     WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId 
@@ -157,7 +157,7 @@ public with sharing class ShiftEndLogV2Controller {
                 for(wfrecon__Location_Process__c lp : locationProcesses) {
                     LocationProcessSnapshot snapshot = new LocationProcessSnapshot();
                     snapshot.processId = lp.Id;
-                    snapshot.processName = lp.Name;
+                    snapshot.processName = lp.wfrecon__Process_Name__c != null ? lp.wfrecon__Process_Name__c : lp.Name;
                     snapshot.locationName = lp.wfrecon__Location__r.Name;
                     snapshot.completionPercentage = lp.wfrecon__Completed_Percentage__c != null 
                         ? lp.wfrecon__Completed_Percentage__c 

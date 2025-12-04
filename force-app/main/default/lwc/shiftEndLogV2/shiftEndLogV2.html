@@ -697,14 +697,17 @@
                     <template if:false={isLoadingChatter}>
                         <!-- No Feed Items Message -->
                         <template if:false={hasChatterFeedItems}>
-                            <div class="no-data-message">
+                            <div class="no-data-message-chatter">
                                 <div class="no-data-icon">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                     </svg>
                                 </div>
                                 <h3 class="no-data-title">No Chatter Posts</h3>
-                                <p class="no-data-description">No posts with attachments found for this job.</p>
+                                <p class="no-data-description">
+                                    <template if:true={hasMoreChatterItems}>No posts found in the current time range.</template>
+                                    <template if:false={hasMoreChatterItems}>No posts with attachments found for this job.</template>
+                                </p>
                             </div>
                         </template>
                         
@@ -752,16 +755,16 @@
                                     </div>
                                 </template>
                             </div>
-                            
-                            <!-- Load More Button -->
-                            <template if:true={hasMoreChatterItems}>
-                                <div class="load-more-container">
-                                    <button type="button" class="load-more-btn" onclick={handleLoadMoreChatter} disabled={isLoadingMoreChatter}>
-                                        <template if:true={isLoadingMoreChatter}>Loading...</template>
-                                        <template if:false={isLoadingMoreChatter}>Load More</template>
-                                    </button>
-                                </div>
-                            </template>
+                        </template>
+
+                        <!-- Load More Button -->
+                        <template if:true={hasMoreChatterItems}>
+                            <div class="load-more-container">
+                                <button type="button" class="load-more-btn" onclick={handleLoadMoreChatter} disabled={isLoadingMoreChatter}>
+                                    <template if:true={isLoadingMoreChatter}>Loading...</template>
+                                    <template if:false={isLoadingMoreChatter}>Load More</template>
+                                </button>
+                            </div>
                         </template>
                     </template>
                 </div>

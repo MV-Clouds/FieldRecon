@@ -125,10 +125,10 @@
 .pagination-section {
     display: flex;
     justify-content: center;
-    background: white;
+    /* background: white; */
     padding: 1rem;
     border-radius: 8px;
-    box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
+    /* box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em; */
 }
 
 .pagination-container {
@@ -448,6 +448,7 @@
     height: calc(100vh - 25rem);
     scroll-behavior: smooth;
     padding-bottom: 0;
+    scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
 }
 
 /* Bulk Actions */
@@ -746,7 +747,7 @@
 
 .tab-navigation {
     display: flex;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 2px solid #5e5adb;
     background: white;
 }
 
@@ -770,7 +771,7 @@
 
 .tab-button.active {
     color: #5e5adb;
-    border-bottom: 3px solid #5e5adb;
+    border-top: 3px solid #5e5adb;
     background: rgba(94, 90, 219, 0.05);
 }
 

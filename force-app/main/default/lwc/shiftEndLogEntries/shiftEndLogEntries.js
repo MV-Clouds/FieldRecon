@@ -203,11 +203,16 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     get hasNoSelectedAttachments() {
-        if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) return true;
+        if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) {
+            return true;
+        }
         
         for (let feedItem of this.chatterFeedItems) {
             for (let attachment of feedItem.attachments) {
-                if (attachment.selected) return false;
+                // Only enable button if attachment is selected AND not already uploaded
+                if (attachment.selected && !attachment.alreadyUploaded) {
+                    return false;
+                }
             }
         }
         return true;
@@ -1013,7 +1018,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         
                         return {
                             id: proc.Id,
-                            name: proc.wfrecon__Scope_Entry_Process__r?.wfrecon__Process_Name__c || proc.Name,
+                            name: proc?.wfrecon__Process_Name__c || proc.Name,
                             locationId: proc.wfrecon__Location__c,
                             locationName: proc.wfrecon__Location__r?.Name || 'Unknown Location',
                             sequence: proc.wfrecon__Sequence__c,
@@ -1434,6 +1439,9 @@ export default class ShiftEndLogEntries extends LightningElement {
                 daysOffset: this.chatterDaysOffset
             });
             
+            // Check if there are more items
+            this.hasMoreChatterItems = result && result.hasMore;
+
             if (result && result.feedItems && Array.isArray(result.feedItems) && result.feedItems.length > 0) {
                 // Get set of already uploaded content document IDs
                 const uploadedContentDocIds = new Set(
@@ -1466,14 +1474,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                 } else {
                     this.chatterFeedItems = [...this.chatterFeedItems, ...formattedItems];
                 }
-                
-                // Check if there are more items
-                this.hasMoreChatterItems = result.hasMore;
             } else {
                 if (this.chatterDaysOffset === 0) {
                     this.chatterFeedItems = [];
                 }
-                this.hasMoreChatterItems = false;
             }
         } catch (error) {
             console.error('Error loading chatter feed items:', error);
@@ -1496,7 +1500,6 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     handleAttachmentSelection(event) {
         const attachmentId = event.currentTarget.dataset.id;
-        const cardElement = event.currentTarget;
         
         // Find the attachment to check if it's already uploaded
         let isAlreadyUploaded = false;
@@ -1517,17 +1520,26 @@ export default class ShiftEndLogEntries extends LightningElement {
         // Toggle selection
         this.chatterFeedItems = this.chatterFeedItems.map(feedItem => ({
             ...feedItem,
-            attachments: feedItem.attachments.map(att => ({
-                ...att,
-                selected: att.id === attachmentId ? !att.selected : att.selected
-            }))
+            attachments: feedItem.attachments.map(att => {
+                if (att.id === attachmentId) {
+                    const newSelected = !att.selected;
+                    return {
+                        ...att,
+                        selected: newSelected,
+                        cardClass: `attachment-card${att.alreadyUploaded ? ' disabled' : ''}${newSelected ? ' selected' : ''}`
+                    };
+                }
+                return att;
+            })
         }));
-        
-        // Toggle visual selection class
-        cardElement.classList.toggle('selected');
     }
 
     handleAddSelectedAttachments() {
+        // Double-check before proceeding
+        if (this.hasNoSelectedAttachments) {
+            return;
+        }
+        
         const selectedAttachments = [];
         
         // Collect all selected attachments (excluding already uploaded)
@@ -1540,7 +1552,6 @@ export default class ShiftEndLogEntries extends LightningElement {
         });
         
         if (selectedAttachments.length === 0) {
-            this.showToast('Warning', 'Please select at least one attachment', 'warning');
             return;
         }
         
