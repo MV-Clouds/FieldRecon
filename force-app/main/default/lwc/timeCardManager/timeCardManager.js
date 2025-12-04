@@ -55,6 +55,10 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         { label: 'Cost Code', fieldName: 'costCode'}
     ];
 
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
     /**
      * Method Name: getDefaultStartDate
      * @description: Get default start date (previous Sunday or current day if today is Sunday)
@@ -65,13 +69,17 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         
         if (dayOfWeek === 0) {
             // Today is Sunday, use today
-            return today.toISOString().split('T')[0];
+            const start = this.normalizeDate(new Date(today));
+            let currentDate = start.toLocaleDateString('en-CA');
+            return currentDate;
         } else {
             // Go back to previous Sunday
             const daysToSubtract = dayOfWeek;
             const previousSunday = new Date(today);
             previousSunday.setDate(today.getDate() - daysToSubtract);
-            return previousSunday.toISOString().split('T')[0];
+            const start = this.normalizeDate(new Date(previousSunday));
+            let currentDate = start.toLocaleDateString('en-CA');
+            return currentDate;
         }
     }
 
@@ -85,13 +93,17 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         
         if (dayOfWeek === 6) {
             // Today is Saturday, use today
-            return today.toISOString().split('T')[0];
+            const start = this.normalizeDate(new Date(today));
+            let currentDate = start.toLocaleDateString('en-CA');
+            return currentDate;
         } else {
             // Go forward to next Saturday
             const daysToAdd = 6 - dayOfWeek;
             const nextSaturday = new Date(today);
             nextSaturday.setDate(today.getDate() + daysToAdd);
-            return nextSaturday.toISOString().split('T')[0];
+            const start = this.normalizeDate(new Date(nextSaturday));
+            let currentDate = start.toLocaleDateString('en-CA');
+            return currentDate;
         }
     }
 
@@ -145,12 +157,15 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         const startDate = this.customStartDate ? new Date(this.customStartDate) : null;
         const endDate = this.customEndDate ? new Date(this.customEndDate) : null;
 
+        console.log('Loading contact details for date range:', startDate, 'to', endDate);
+        
+
         getAllContactsWithDetails({ 
             customStartDate: startDate, 
             customEndDate: endDate 
         })
         .then(result => {
-            
+            console.log('getAllContactsWithDetails result :: ', JSON.stringify(result));
             if (result && Array.isArray(result)) {
                 this.contactDetails = result.map(contact => ({
                     ...contact,

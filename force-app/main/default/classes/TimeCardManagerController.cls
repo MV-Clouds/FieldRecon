@@ -17,6 +17,9 @@ public with sharing class TimeCardManagerController {
             DateTime startOfDay;
             DateTime endOfDay;
 
+            System.debug('customStartDate ::' + customStartDate);
+            System.debug('customEndDate ::' + customEndDate);
+
             if (customStartDate != null && customEndDate != null) {
                 startOfDay = DateTime.newInstance(customStartDate, Time.newInstance(0,0,0,0));
                 endOfDay   = DateTime.newInstance(customEndDate, Time.newInstance(23,59,59,999));
@@ -26,18 +29,21 @@ public with sharing class TimeCardManagerController {
                 endOfDay   = DateTime.newInstance(today, Time.newInstance(23,59,59,999));
             }
 
-            List<Mobilization_Member__c> mobilizationMembers = [
-                SELECT Id, Contact__c, Contact__r.Name, Contact__r.RecordType.DeveloperName, 
-                       Contact__r.Can_Clock_In_Out__c, Contact__r.Email, Contact__r.Phone,
-                       Mobilization__c, Mobilization__r.Job__c, Mobilization__r.Job__r.Name, 
-                       Mobilization__r.Job__r.Job_Name__c, Mobilization__r.Start_Date__c, 
-                       Mobilization__r.End_Date__c, Mobilization__r.Job__r.Address__c,
-                       Mobilization__r.Job__r.Description__c, Mobilization__r.Job__r.Status__c
-                FROM Mobilization_Member__c 
-                WHERE Contact__c != null 
-                AND Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
-                AND Mobilization__r.Start_Date__c <= :endOfDay
-                AND (Mobilization__r.End_Date__c = null OR Mobilization__r.End_Date__c >= :startOfDay)
+            System.debug('startOfDay ::' + startOfDay);
+            System.debug('endOfDay ::' + endOfDay);
+
+            List<wfrecon__Mobilization_Member__c> mobilizationMembers = [
+                SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.RecordType.DeveloperName, 
+                       wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Contact__r.Email, wfrecon__Contact__r.Phone,
+                       wfrecon__Mobilization__c, wfrecon__Mobilization__r.wfrecon__Job__c, wfrecon__Mobilization__r.wfrecon__Job__r.Name, 
+                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization__r.wfrecon__Start_Date__c, 
+                       wfrecon__Mobilization__r.wfrecon__End_Date__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c,
+                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Status__c
+                FROM wfrecon__Mobilization_Member__c 
+                WHERE wfrecon__Contact__c != null 
+                AND wfrecon__Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
+                AND wfrecon__Mobilization__r.wfrecon__Start_Date__c <= :endOfDay
+                AND (wfrecon__Mobilization__r.wfrecon__End_Date__c = null OR wfrecon__Mobilization__r.wfrecon__End_Date__c >= :startOfDay)
                 WITH USER_MODE
             ];
 
@@ -48,99 +54,99 @@ public with sharing class TimeCardManagerController {
             // Create a global map to track unique mobilizations per contact to prevent duplicates from all sources
             Map<String, MobilizationGroupWrapper> globalUniqueMobilizationsMap = new Map<String, MobilizationGroupWrapper>();
             
-            for (Mobilization_Member__c member : mobilizationMembers) {
-                contactIds.add(member.Contact__c);
-                jobIds.add(member.Mobilization__r.Job__c);
+            for (wfrecon__Mobilization_Member__c member : mobilizationMembers) {
+                contactIds.add(member.wfrecon__Contact__c);
+                jobIds.add(member.wfrecon__Mobilization__r.wfrecon__Job__c);
 
-                if (!contactMap.containsKey(member.Contact__c)) {
+                if (!contactMap.containsKey(member.wfrecon__Contact__c)) {
                     ContactWrapper cw = new ContactWrapper();
-                    cw.contactId = member.Contact__c;
-                    cw.contactName = member.Contact__r.Name;
-                    cw.canClockInOut = member.Contact__r.Can_Clock_In_Out__c;
-                    cw.email = member.Contact__r.Email;
-                    cw.phone = member.Contact__r.Phone;
+                    cw.contactId = member.wfrecon__Contact__c;
+                    cw.contactName = member.wfrecon__Contact__r.Name;
+                    cw.canClockInOut = member.wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c;
+                    cw.email = member.wfrecon__Contact__r.Email;
+                    cw.phone = member.wfrecon__Contact__r.Phone;
                     cw.mobilizationGroups = new List<MobilizationGroupWrapper>();
                     cw.timesheetEntries = new List<TimesheetEntryWrapper>();
                     cw.totalManHours = 0;
                     cw.totalManHoursWithTravel = 0;
-                    contactMap.put(member.Contact__c, cw);
+                    contactMap.put(member.wfrecon__Contact__c, cw);
                 }
 
                 // Create unique key for contact + job combination to prevent duplicates across different sources
-                String uniqueKey = member.Contact__c + '_' + member.Mobilization__r.Job__c;
+                String uniqueKey = member.wfrecon__Contact__c + '_' + member.wfrecon__Mobilization__r.wfrecon__Job__c;
                 
                 if (!globalUniqueMobilizationsMap.containsKey(uniqueKey)) {
                     MobilizationGroupWrapper mg = new MobilizationGroupWrapper();
-                    mg.mobilizationId = member.Mobilization__c; // Individual mobilization ID
+                    mg.mobilizationId = member.wfrecon__Mobilization__c; // Individual mobilization ID
                     mg.mobilizationGroupId = null; // Will be set if we have group information
-                    mg.jobId = member.Mobilization__r.Job__c;
-                    mg.jobName = member.Mobilization__r.Job__r.Job_Name__c;
-                    mg.jobNumber = member.Mobilization__r.Job__r.Name;
-                    mg.jobAddress = member.Mobilization__r.Job__r.Address__c;
-                    mg.jobDescription = member.Mobilization__r.Job__r.Description__c;
-                    mg.startDate = member.Mobilization__r.Start_Date__c != null 
-                        ? member.Mobilization__r.Start_Date__c
+                    mg.jobId = member.wfrecon__Mobilization__r.wfrecon__Job__c;
+                    mg.jobName = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c;
+                    mg.jobNumber = member.wfrecon__Mobilization__r.wfrecon__Job__r.Name;
+                    mg.jobAddress = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c;
+                    mg.jobDescription = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c;
+                    mg.startDate = member.wfrecon__Mobilization__r.wfrecon__Start_Date__c != null 
+                        ? member.wfrecon__Mobilization__r.wfrecon__Start_Date__c
                         : null;
-                    mg.endDate = member.Mobilization__r.End_Date__c != null 
-                        ? member.Mobilization__r.End_Date__c
+                    mg.endDate = member.wfrecon__Mobilization__r.wfrecon__End_Date__c != null 
+                        ? member.wfrecon__Mobilization__r.wfrecon__End_Date__c
                         : null;
                     mg.totalManHours = 0;
                     mg.totalManHoursWithTravel = 0;
                     
                     globalUniqueMobilizationsMap.put(uniqueKey, mg);
-                    contactMap.get(member.Contact__c).mobilizationGroups.add(mg);
+                    contactMap.get(member.wfrecon__Contact__c).mobilizationGroups.add(mg);
                 }
             }
 
             // Query Mobilization Groups and their associated Mobilizations
-            List<Mobilization_Group__c> mobilizationGroups = [
-                SELECT Id, Job__c, Job__r.Job_Name__c, Job__r.Name, Job__r.Address__c,
-                       Job__r.Description__c, Job__r.Status__c,
-                       (SELECT Id, Start_Date__c, End_Date__c FROM Mobilizations__r)
-                FROM Mobilization_Group__c
-                WHERE Job__c IN :jobIds
+            List<wfrecon__Mobilization_Group__c> mobilizationGroups = [
+                SELECT Id, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Address__c,
+                       wfrecon__Job__r.wfrecon__Description__c, wfrecon__Job__r.wfrecon__Status__c,
+                       (SELECT Id, wfrecon__Start_Date__c, wfrecon__End_Date__c FROM wfrecon__Mobilizations__r)
+                FROM wfrecon__Mobilization_Group__c
+                WHERE wfrecon__Job__c IN :jobIds
                 WITH USER_MODE
             ];
 
             // Create a map of Mobilization Group to its Mobilizations
-            Map<Id, List<Mobilization__c>> mobGroupToMobilizationsMap = new Map<Id, List<Mobilization__c>>();
-            for (Mobilization_Group__c mobGroup : mobilizationGroups) {
-                mobGroupToMobilizationsMap.put(mobGroup.Id, mobGroup.Mobilizations__r);
+            Map<Id, List<wfrecon__Mobilization__c>> mobGroupToMobilizationsMap = new Map<Id, List<wfrecon__Mobilization__c>>();
+            for (wfrecon__Mobilization_Group__c mobGroup : mobilizationGroups) {
+                mobGroupToMobilizationsMap.put(mobGroup.Id, mobGroup.wfrecon__Mobilizations__r);
             }
 
-            List<Timesheet__c> manualTimesheets = [
-                SELECT Id, Contact__c, Mobilization_Group__c,
-                       Mobilization_Group__r.Job__c,
-                       Mobilization_Group__r.Job__r.Job_Name__c,
-                       Mobilization_Group__r.Job__r.Name,
-                       Mobilization_Group__r.Job__r.Address__c,
-                       Mobilization_Group__r.Job__r.Description__c,
-                       Mobilization_Group__r.Job__r.Status__c
-                FROM Timesheet__c
-                WHERE Contact__c != null
+            List<wfrecon__Timesheet__c> manualTimesheets = [
+                SELECT Id, wfrecon__Contact__c, wfrecon__Mobilization_Group__c,
+                       wfrecon__Mobilization_Group__r.wfrecon__Job__c,
+                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Job_Name__c,
+                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.Name,
+                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Address__c,
+                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Description__c,
+                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Status__c
+                FROM wfrecon__Timesheet__c
+                WHERE wfrecon__Contact__c != null
                 AND CreatedDate >= :startOfDay 
                 AND CreatedDate <= :endOfDay
-                AND Mobilization_Group__c != null
+                AND wfrecon__Mobilization_Group__c != null
                 WITH USER_MODE
             ];
 
             Set<Id> manualContactIds = new Set<Id>();
-            for (Timesheet__c ts : manualTimesheets) {
-                manualContactIds.add(ts.Contact__c);
-                contactIds.add(ts.Contact__c);
-                jobIds.add(ts.Mobilization_Group__r.Job__c);
+            for (wfrecon__Timesheet__c ts : manualTimesheets) {
+                manualContactIds.add(ts.wfrecon__Contact__c);
+                contactIds.add(ts.wfrecon__Contact__c);
+                jobIds.add(ts.wfrecon__Mobilization_Group__r.wfrecon__Job__c);
             }
 
 
             if (!manualContactIds.isEmpty()) {
                 Map<Id, Contact> contactDetails = new Map<Id, Contact>([
-                    SELECT Id, Name, RecordType.DeveloperName, Can_Clock_In_Out__c, Email, Phone 
+                    SELECT Id, Name, RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c, Email, Phone 
                     FROM Contact WHERE Id IN :manualContactIds WITH USER_MODE
                 ]);
 
-                for (Timesheet__c ts : manualTimesheets) {
-                    if (!contactMap.containsKey(ts.Contact__c)) {
-                        Contact c = contactDetails.get(ts.Contact__c);
+                for (wfrecon__Timesheet__c ts : manualTimesheets) {
+                    if (!contactMap.containsKey(ts.wfrecon__Contact__c)) {
+                        Contact c = contactDetails.get(ts.wfrecon__Contact__c);
                         if (c == null){
                             continue;
                         }
@@ -148,7 +154,7 @@ public with sharing class TimeCardManagerController {
                         ContactWrapper cw = new ContactWrapper();
                         cw.contactId = c.Id;
                         cw.contactName = c.Name;
-                        cw.canClockInOut = c.Can_Clock_In_Out__c;
+                        cw.canClockInOut = c.wfrecon__Can_Clock_In_Out__c;
                         cw.email = c.Email;
                         cw.phone = c.Phone;
                         cw.mobilizationGroups = new List<MobilizationGroupWrapper>();
@@ -159,41 +165,41 @@ public with sharing class TimeCardManagerController {
                     }
 
                     // Use the same global unique key for contact + job combination
-                    String globalUniqueKey = ts.Contact__c + '_' + ts.Mobilization_Group__r.Job__c;
+                    String globalUniqueKey = ts.wfrecon__Contact__c + '_' + ts.wfrecon__Mobilization_Group__r.wfrecon__Job__c;
                     
                     if (!globalUniqueMobilizationsMap.containsKey(globalUniqueKey)) {
                         // Create MobilizationGroupWrapper for the group
                         MobilizationGroupWrapper mg = new MobilizationGroupWrapper();
-                        mg.mobilizationGroupId = ts.Mobilization_Group__c; // Store the group ID
+                        mg.mobilizationGroupId = ts.wfrecon__Mobilization_Group__c; // Store the group ID
                         
                         // Set mobilization ID from related mobilizations if available
-                        if (mobGroupToMobilizationsMap.containsKey(ts.Mobilization_Group__c)) {
-                            List<Mobilization__c> mobilizations = mobGroupToMobilizationsMap.get(ts.Mobilization_Group__c);
+                        if (mobGroupToMobilizationsMap.containsKey(ts.wfrecon__Mobilization_Group__c)) {
+                            List<wfrecon__Mobilization__c> mobilizations = mobGroupToMobilizationsMap.get(ts.wfrecon__Mobilization_Group__c);
                             if (!mobilizations.isEmpty()) {
                                 mg.mobilizationId = mobilizations[0].Id; // Use first mobilization ID
-                                mg.startDate = mobilizations[0].Start_Date__c != null 
-                                    ? mobilizations[0].Start_Date__c.addSeconds(userTz.getOffset(mobilizations[0].Start_Date__c)/1000)
+                                mg.startDate = mobilizations[0].wfrecon__Start_Date__c != null 
+                                    ? mobilizations[0].wfrecon__Start_Date__c.addSeconds(userTz.getOffset(mobilizations[0].wfrecon__Start_Date__c)/1000)
                                     : null;
-                                mg.endDate = mobilizations[0].End_Date__c != null 
-                                    ? mobilizations[0].End_Date__c.addSeconds(userTz.getOffset(mobilizations[0].End_Date__c)/1000)
+                                mg.endDate = mobilizations[0].wfrecon__End_Date__c != null 
+                                    ? mobilizations[0].wfrecon__End_Date__c.addSeconds(userTz.getOffset(mobilizations[0].wfrecon__End_Date__c)/1000)
                                     : null;
                             } else {
-                                mg.mobilizationId = ts.Mobilization_Group__c; 
+                                mg.mobilizationId = ts.wfrecon__Mobilization_Group__c; 
                             }
                         } else {
-                            mg.mobilizationId = ts.Mobilization_Group__c; 
+                            mg.mobilizationId = ts.wfrecon__Mobilization_Group__c; 
                         }
                         
-                        mg.jobId = ts.Mobilization_Group__r.Job__c;
-                        mg.jobName = ts.Mobilization_Group__r.Job__r.Job_Name__c;
-                        mg.jobNumber = ts.Mobilization_Group__r.Job__r.Name;
-                        mg.jobAddress = ts.Mobilization_Group__r.Job__r.Address__c;
-                        mg.jobDescription = ts.Mobilization_Group__r.Job__r.Description__c;
+                        mg.jobId = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__c;
+                        mg.jobName = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Job_Name__c;
+                        mg.jobNumber = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.Name;
+                        mg.jobAddress = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Address__c;
+                        mg.jobDescription = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Description__c;
                         mg.totalManHours = 0;
                         mg.totalManHoursWithTravel = 0;
                         
                         globalUniqueMobilizationsMap.put(globalUniqueKey, mg);
-                        contactMap.get(ts.Contact__c).mobilizationGroups.add(mg);
+                        contactMap.get(ts.wfrecon__Contact__c).mobilizationGroups.add(mg);
                     }
                 }
             }
@@ -203,19 +209,19 @@ public with sharing class TimeCardManagerController {
 
             // Get all timesheet hours with a single query
             for (AggregateResult ar : [
-                SELECT Timesheet_Entry__r.TimeSheet__r.Contact__c contactId,
-                       Timesheet_Entry__r.TimeSheet__r.Job__c timesheetJobId,
-                       Timesheet_Entry__r.Mobilization__r.Job__c mobilizationJobId,
-                       SUM(Total_Time__c) totalHours,
-                       SUM(Travel_Time__c) travelTime
-                FROM Timesheet_Entry_Item__c
-                WHERE Timesheet_Entry__r.TimeSheet__r.Contact__c IN :contactIds
-                AND Clock_In_Date__c >= :customStartDate
-                AND Clock_In_Date__c <= :customEndDate
+                SELECT wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c contactId,
+                       wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c timesheetJobId,
+                       wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c mobilizationJobId,
+                       SUM(wfrecon__Total_Time__c) totalHours,
+                       SUM(wfrecon__Travel_Time__c) travelTime
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c IN :contactIds
+                AND wfrecon__Clock_In_Date__c >= :customStartDate
+                AND wfrecon__Clock_In_Date__c <= :customEndDate
                 WITH USER_MODE
-                GROUP BY Timesheet_Entry__r.TimeSheet__r.Contact__c, 
-                         Timesheet_Entry__r.TimeSheet__r.Job__c,
-                         Timesheet_Entry__r.Mobilization__r.Job__c
+                GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c, 
+                         wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c,
+                         wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c
             ]) {
                 Id contactId = (Id)ar.get('contactId');
                 Id timesheetJobId = (Id)ar.get('timesheetJobId');
@@ -270,54 +276,54 @@ public with sharing class TimeCardManagerController {
             }
 
             if (!contactIds.isEmpty()) {
-                List<Timesheet_Entry_Item__c> entryItems = [
-                    SELECT Id, Clock_In_Time__c, Clock_Out_Time__c, Cost_Code__r.Name,
-                           Travel_Time__c, Per_Diem__c, Total_Time__c, Premium__c,
-                           Timesheet_Entry__r.TimeSheet__r.Contact__c,
-                           Timesheet_Entry__r.TimeSheet__r.Job__c,
-                           Timesheet_Entry__r.TimeSheet__r.Job__r.Job_Name__c,
-                           Timesheet_Entry__r.TimeSheet__r.Job__r.Name,
-                           Timesheet_Entry__r.Mobilization__r.Job__c,
-                           Timesheet_Entry__r.Mobilization__r.Job__r.Job_Name__c
-                    FROM Timesheet_Entry_Item__c
-                    WHERE Timesheet_Entry__r.TimeSheet__r.Contact__c IN :contactIds
-                    AND Clock_In_Date__c >= :customStartDate
-                    AND Clock_In_Date__c <= :customEndDate
+                List<wfrecon__Timesheet_Entry_Item__c> entryItems = [
+                    SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__r.Name,
+                           wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Total_Time__c, wfrecon__Premium__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__r.wfrecon__Job_Name__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__r.Name,
+                           wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c
+                    FROM wfrecon__Timesheet_Entry_Item__c
+                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c IN :contactIds
+                    AND wfrecon__Clock_In_Date__c >= :customStartDate
+                    AND wfrecon__Clock_In_Date__c <= :customEndDate
                     WITH USER_MODE
-                    ORDER BY Clock_In_Time__c DESC
+                    ORDER BY wfrecon__Clock_In_Time__c DESC
                 ];
 
-                for (Timesheet_Entry_Item__c item : entryItems) {
-                    Id cId = item.Timesheet_Entry__r.TimeSheet__r.Contact__c;
+                for (wfrecon__Timesheet_Entry_Item__c item : entryItems) {
+                    Id cId = item.wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c;
                     if (!contactMap.containsKey(cId)) {
                         continue;
                     }
 
                     TimesheetEntryWrapper tw = new TimesheetEntryWrapper();
                     tw.entryId = item.Id;
-                    tw.clockInTime = item.Clock_In_Time__c != null 
-                        ? item.Clock_In_Time__c.addSeconds(userTz.getOffset(item.Clock_In_Time__c)/1000)
+                    tw.clockInTime = item.wfrecon__Clock_In_Time__c != null 
+                        ? item.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(item.wfrecon__Clock_In_Time__c)/1000)
                         : null;
-                    tw.clockOutTime = item.Clock_Out_Time__c != null 
-                        ? item.Clock_Out_Time__c.addSeconds(userTz.getOffset(item.Clock_Out_Time__c)/1000)
+                    tw.clockOutTime = item.wfrecon__Clock_Out_Time__c != null 
+                        ? item.wfrecon__Clock_Out_Time__c.addSeconds(userTz.getOffset(item.wfrecon__Clock_Out_Time__c)/1000)
                         : null;
-                    tw.jobId = item.Timesheet_Entry__r.Mobilization__r.Job__c != null 
-                        ? item.Timesheet_Entry__r.Mobilization__r.Job__c 
-                        : item.Timesheet_Entry__r.TimeSheet__r.Job__c;
-                    tw.jobName = item.Timesheet_Entry__r.Mobilization__r.Job__r.Job_Name__c != null 
-                        ? item.Timesheet_Entry__r.Mobilization__r.Job__r.Job_Name__c 
-                        : item.Timesheet_Entry__r.TimeSheet__r.Job__r.Job_Name__c;
-                    tw.jobNumber = item.Timesheet_Entry__r.TimeSheet__r.Job__r.Name;
-                    tw.costCode = item.Cost_Code__r != null ? item.Cost_Code__r.Name : null;
+                    tw.jobId = item.wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c != null 
+                        ? item.wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c 
+                        : item.wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c;
+                    tw.jobName = item.wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c != null 
+                        ? item.wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c 
+                        : item.wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__r.wfrecon__Job_Name__c;
+                    tw.jobNumber = item.wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__r.Name;
+                    tw.costCode = item.wfrecon__Cost_Code__r != null ? item.wfrecon__Cost_Code__r.Name : null;
 
-                    Decimal workHrs = item.Total_Time__c != null ? item.Total_Time__c : 0;
-                    Decimal travelHrs = item.Travel_Time__c != null ? item.Travel_Time__c : 0;
+                    Decimal workHrs = item.wfrecon__Total_Time__c != null ? item.wfrecon__Total_Time__c : 0;
+                    Decimal travelHrs = item.wfrecon__Travel_Time__c != null ? item.wfrecon__Travel_Time__c : 0;
 
                     tw.workHours = workHrs;
                     tw.travelTime = travelHrs;
                     tw.totalTime = workHrs + travelHrs;
-                    tw.perDiem = item.Per_Diem__c != null ? Integer.valueOf(item.Per_Diem__c) : 0;
-                    tw.premium = item.Premium__c != null ? item.Premium__c : false;
+                    tw.perDiem = item.wfrecon__Per_Diem__c != null ? Integer.valueOf(item.wfrecon__Per_Diem__c) : 0;
+                    tw.premium = item.wfrecon__Premium__c != null ? item.wfrecon__Premium__c : false;
                     contactMap.get(cId).timesheetEntries.add(tw);
                 }
             }
