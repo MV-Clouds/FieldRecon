@@ -42,9 +42,9 @@
                         <template if:true={hasMobilizationOptions}>
                             <div class="mobilization-selector">
                                 <label class="form-label required">Select Scheduled Job</label>
-                                <lightning-combobox name="mobilization" label="" placeholder="-- Select Scheduled Job --"
-                                    options={mobilizationOptions} value={selectedMobilizationId}
-                                    onchange={handleMobilizationChange}>
+                                <lightning-combobox name="mobilization" label=""
+                                    placeholder="-- Select Scheduled Job --" options={mobilizationOptions}
+                                    value={selectedMobilizationId} onchange={handleMobilizationChange}>
                                 </lightning-combobox>
                             </div>
                         </template>
@@ -174,18 +174,20 @@
 
                         </template>
 
-                       
+
 
                     </div>
                 </template>
 
                 <!-- Step 2: Timesheet Entries Table -->
                 <template if:true={isStep2}>
-                                        <div class="step-container">
+                    <div class="step-container">
                         <!-- Approval Message Banner -->
                         <template if:true={showApprovalMessage}>
                             <div class="approval-info-banner">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <line x1="12" y1="16" x2="12" y2="12"></line>
                                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -193,13 +195,14 @@
                                 <span>{approvalStatus.approvalMessage}</span>
                             </div>
                         </template>
-                        
+
                         <template if:true={hasTimesheetEntries}>
                             <!-- Tab Navigation -->
                             <div class="tab-container">
                                 <div class="tab-navigation">
                                     <button class={approvedTabClass} onclick={handleApprovedTab}>Regular</button>
-                                    <button class={pendingTabClass} onclick={handlePendingTab}>Pending For Approval</button>
+                                    <button class={pendingTabClass} onclick={handlePendingTab}>Pending For
+                                        Approval</button>
                                 </div>
 
                                 <!-- Approved Tab Content -->
@@ -228,20 +231,40 @@
                                                                 <td style="width: 4rem">
                                                                     <div class="edit-icon-center">
                                                                         <template if:true={entry.canEdit}>
-                                                                            <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry}>
-                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                                            <button class="edit-icon-btn"
+                                                                                data-id={entry.id}
+                                                                                onclick={handleEditTimesheetEntry}>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                                                    width="16" height="16"
+                                                                                    viewBox="0 0 24 24" fill="none"
+                                                                                    stroke="currentColor"
+                                                                                    stroke-width="2"
+                                                                                    stroke-linecap="round"
+                                                                                    stroke-linejoin="round">
+                                                                                    <path
+                                                                                        d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7">
+                                                                                    </path>
+                                                                                    <path
+                                                                                        d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z">
+                                                                                    </path>
                                                                                 </svg>
                                                                             </button>
                                                                         </template>
                                                                         <template if:false={entry.canEdit}>
-                                                                            <button class="edit-icon-btn disabled" disabled>
-                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                                                                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                                                            <button class="edit-icon-btn disabled"
+                                                                                disabled>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                                                    width="16" height="16"
+                                                                                    viewBox="0 0 24 24" fill="none"
+                                                                                    stroke="currentColor"
+                                                                                    stroke-width="2"
+                                                                                    stroke-linecap="round"
+                                                                                    stroke-linejoin="round">
+                                                                                    <path
+                                                                                        d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z">
+                                                                                    </path>
+                                                                                    <line x1="1" y1="1" x2="23" y2="23">
+                                                                                    </line>
                                                                                 </svg>
                                                                             </button>
                                                                         </template>
@@ -267,7 +290,8 @@
                                                 <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                                             </div>
                                             <p class="no-data-title">No Approved Entries</p>
-                                            <p class="no-data-description">There are no approved timesheet entries for this date.</p>
+                                            <p class="no-data-description">There are no approved timesheet entries for
+                                                this date.</p>
                                         </div>
                                     </template>
                                 </template>
@@ -299,30 +323,54 @@
                                                                 <td style="width: 3rem">{entry.srNo}</td>
                                                                 <td style="width: 8rem">
                                                                     <div class="action-buttons">
-                                                                        <button class="edit-icon-btn" data-id={entry.id} onclick={handleEditTimesheetEntry} title="Edit">
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                                        <button class="edit-icon-btn" data-id={entry.id}
+                                                                            onclick={handleEditTimesheetEntry}
+                                                                            title="Edit">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                                                width="14" height="14"
+                                                                                viewBox="0 0 24 24" fill="none"
+                                                                                stroke="currentColor" stroke-width="2"
+                                                                                stroke-linecap="round"
+                                                                                stroke-linejoin="round">
+                                                                                <path
+                                                                                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7">
+                                                                                </path>
+                                                                                <path
+                                                                                    d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z">
+                                                                                </path>
                                                                             </svg>
                                                                         </button>
-                                                                        <button class="move-back-btn" data-id={entry.id} onclick={handleMoveBackToRegular} title="Move to Regular">
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                                                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                                <polyline points="15 18 9 12 15 6"></polyline>
+                                                                        <button class="move-back-btn" data-id={entry.id}
+                                                                            onclick={handleMoveBackToRegular}
+                                                                            title="Move to Regular">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                                                width="14" height="14"
+                                                                                viewBox="0 0 24 24" fill="none"
+                                                                                stroke="currentColor" stroke-width="2"
+                                                                                stroke-linecap="round"
+                                                                                stroke-linejoin="round">
+                                                                                <polyline points="15 18 9 12 15 6">
+                                                                                </polyline>
                                                                             </svg>
                                                                         </button>
                                                                     </div>
                                                                 </td>
                                                                 <td style="width: 10rem">{entry.contactName}</td>
                                                                 <td style="width: 12rem">{entry.oldClockIn}</td>
-                                                                <td style="width: 12rem" class={entry.hasClockInChange}>{entry.newClockIn}</td>
+                                                                <td style="width: 12rem" class={entry.hasClockInChange}>
+                                                                    {entry.newClockIn}</td>
                                                                 <td style="width: 12rem">{entry.oldClockOut}</td>
-                                                                <td style="width: 12rem" class={entry.hasClockOutChange}>{entry.newClockOut}</td>
+                                                                <td style="width: 12rem"
+                                                                    class={entry.hasClockOutChange}>{entry.newClockOut}
+                                                                </td>
                                                                 <td style="width: 6rem">{entry.oldTravelTime}</td>
-                                                                <td style="width: 6rem" class={entry.hasTravelTimeChange}>{entry.newTravelTime}</td>
+                                                                <td style="width: 6rem"
+                                                                    class={entry.hasTravelTimeChange}>
+                                                                    {entry.newTravelTime}</td>
                                                                 <td style="width: 10rem">{entry.oldTotalHours}</td>
-                                                                <td style="width: 10rem" class={entry.hasTotalHoursChange}>{entry.newTotalHours}</td>
+                                                                <td style="width: 10rem"
+                                                                    class={entry.hasTotalHoursChange}>
+                                                                    {entry.newTotalHours}</td>
                                                             </tr>
                                                         </template>
                                                     </tbody>
@@ -336,7 +384,8 @@
                                                 <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                                             </div>
                                             <p class="no-data-title">No Pending Entries</p>
-                                            <p class="no-data-description">There are no pending timesheet entries for approval.</p>
+                                            <p class="no-data-description">There are no pending timesheet entries for
+                                                approval.</p>
                                         </div>
                                     </template>
                                 </template>
@@ -360,7 +409,9 @@
                         <!-- Approval Message -->
                         <template if:true={showApprovalMessage}>
                             <div class="approval-info-banner">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <line x1="12" y1="16" x2="12" y2="12"></line>
                                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -422,79 +473,100 @@
                                         <div class="location-accordion">
                                             <template for:each={groupedLocationProcesses} for:item="locationGroup">
                                                 <div key={locationGroup.locationId} class="location-accordion-item">
-                                                    <div class="location-accordion-header" data-section={locationGroup.sectionName} onclick={handleAccordionToggle}>
-                                                        <span class="location-accordion-title">{locationGroup.locationName}</span>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="12" height="12" class="accordion-icon">
-                                                            <path d="M201.4 374.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 306.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/>
+                                                    <div class="location-accordion-header"
+                                                        data-section={locationGroup.sectionName}
+                                                        onclick={handleAccordionToggle}>
+                                                        <span
+                                                            class="location-accordion-title">{locationGroup.locationName}</span>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"
+                                                            width="12" height="12" class="accordion-icon">
+                                                            <path
+                                                                d="M201.4 374.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 306.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z" />
                                                         </svg>
                                                     </div>
-                                                    <div class="location-accordion-content" data-section={locationGroup.sectionName}>
+                                                    <div class="location-accordion-content"
+                                                        data-section={locationGroup.sectionName}>
                                                         <!-- Process Sliders -->
                                                         <template for:each={locationGroup.processes} for:item="process">
-                                                    <div key={process.id} class="location-slider-container">
-                                                        <div class="slider-header">
-                                                            <div class="process-info">
-                                                                <span class="process-name">{process.name}</span>
-                                                                <template if:true={process.sequence}>
-                                                                    <span class="process-sequence">Seq:
-                                                                        {process.sequence}</span>
-                                                                </template>
-                                                                <template if:true={process.isPendingApproval}>
-                                                                    <span class="process-approval-badge">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                                            <circle cx="12" cy="12" r="10"></circle>
-                                                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                                            <div key={process.id} class="location-slider-container">
+                                                                <div class="slider-header">
+                                                                    <div class="process-info">
+                                                                        <span class="process-name">{process.name}</span>
+                                                                        <template if:true={process.sequence}>
+                                                                            <span class="process-sequence">Seq:
+                                                                                {process.sequence}</span>
+                                                                        </template>
+                                                                        <template if:true={process.isPendingApproval}>
+                                                                            <span class="process-approval-badge">
+                                                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                                                    width="12" height="12"
+                                                                                    viewBox="0 0 24 24" fill="none"
+                                                                                    stroke="currentColor"
+                                                                                    stroke-width="2">
+                                                                                    <circle cx="12" cy="12" r="10">
+                                                                                    </circle>
+                                                                                    <polyline points="12 6 12 12 16 14">
+                                                                                    </polyline>
+                                                                                </svg>
+                                                                                Pending Approval
+                                                                                ({process.approvalOldValue}% →
+                                                                                {process.approvalNewValue}%)
+                                                                            </span>
+                                                                        </template>
+                                                                    </div>
+                                                                    <span
+                                                                        class="progress-percentage">{process.completedPercent}%
+                                                                        Complete</span>
+                                                                </div>
+                                                                <div class="slider-wrapper">
+                                                                    <div class="slider-track">
+                                                                        <div class="slider-section completed"
+                                                                            lwc:dom="manual">
+                                                                        </div>
+                                                                        <div class="slider-section today"
+                                                                            lwc:dom="manual">
+                                                                        </div>
+                                                                        <div class="slider-section remaining"
+                                                                            lwc:dom="manual">
+                                                                        </div>
+                                                                    </div>
+                                                                    <input type="range" class="progress-slider"
+                                                                        min={process.previousPercent} max="100" step="1"
+                                                                        value={process.completedPercent}
+                                                                        data-id={process.id}
+                                                                        data-process-id={process.id}
+                                                                        data-original-value={process.previousPercent}
+                                                                        onchange={handleSliderChange}
+                                                                        oninput={handleSliderInput}
+                                                                        disabled={isFormDisabled}>
+                                                                </div>
+                                                                <div class="slider-labels">
+                                                                    <span class="label-completed">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                                                            width="12" height="12" viewBox="0 0 24 24"
+                                                                            fill="currentColor">
+                                                                            <circle cx="12" cy="12" r="10" />
                                                                         </svg>
-                                                                        Pending Approval ({process.approvalOldValue}% → {process.approvalNewValue}%)
+                                                                        Completed: {process.previousPercent}%
                                                                     </span>
-                                                                </template>
+                                                                    <span class="label-today">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                                                            width="12" height="12" viewBox="0 0 24 24"
+                                                                            fill="currentColor">
+                                                                            <circle cx="12" cy="12" r="10" />
+                                                                        </svg>
+                                                                        Today: {process.todayPercent}%
+                                                                    </span>
+                                                                    <span class="label-remaining">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                                                            width="12" height="12" viewBox="0 0 24 24"
+                                                                            fill="currentColor">
+                                                                            <circle cx="12" cy="12" r="10" />
+                                                                        </svg>
+                                                                        Remaining: {process.remainingPercent}%
+                                                                    </span>
+                                                                </div>
                                                             </div>
-                                                            <span
-                                                                class="progress-percentage">{process.completedPercent}%
-                                                                Complete</span>
-                                                        </div>
-                                                        <div class="slider-wrapper">
-                                                            <div class="slider-track">
-                                                                <div class="slider-section completed" lwc:dom="manual">
-                                                                </div>
-                                                                <div class="slider-section today" lwc:dom="manual">
-                                                                </div>
-                                                                <div class="slider-section remaining" lwc:dom="manual">
-                                                                </div>
-                                                            </div>
-                                                            <input type="range" class="progress-slider"
-                                                                min={process.previousPercent} max="100" step="1"
-                                                                value={process.completedPercent} data-id={process.id}
-                                                                data-process-id={process.id}
-                                                                data-original-value={process.previousPercent}
-                                                                onchange={handleSliderChange}
-                                                                oninput={handleSliderInput}
-                                                                disabled={isFormDisabled}>
-                                                        </div>
-                                                        <div class="slider-labels">
-                                                            <span class="label-completed">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
-                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                                    <circle cx="12" cy="12" r="10" />
-                                                                </svg>
-                                                                Completed: {process.previousPercent}%
-                                                            </span>
-                                                            <span class="label-today">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
-                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                                    <circle cx="12" cy="12" r="10" />
-                                                                </svg>
-                                                                Today: {process.todayPercent}%
-                                                            </span>
-                                                            <span class="label-remaining">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12"
-                                                                    height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                                    <circle cx="12" cy="12" r="10" />
-                                                                </svg>
-                                                                Remaining: {process.remainingPercent}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
                                                         </template>
                                                     </div>
                                                 </div>
@@ -516,29 +588,31 @@
                                 <div class="upload-buttons-container">
                                     <!-- Upload New Files with Standard Lightning Component -->
                                     <div class="upload-button-wrapper">
-                                        <lightning-file-upload 
-                                            accept={acceptedFormats} 
-                                            multiple
-                                            record-id={jobId} 
-                                            onuploadfinished={handleUploadFinished}
-                                            disabled={isFormDisabled}
+                                        <lightning-file-upload accept={acceptedFormats} multiple record-id={jobId}
+                                            onuploadfinished={handleUploadFinished} disabled={isFormDisabled}
                                             variant="label-hidden">
                                         </lightning-file-upload>
                                     </div>
-                                    
+
                                     <!-- Choose from Chatter Button -->
-                                    <button type="button" class="nav-btn done-btn gallery-btn" onclick={handleChooseFromChatter} disabled={isFormDisabled}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    <button type="button" class="nav-btn done-btn gallery-btn"
+                                        onclick={handleChooseFromChatter} disabled={isFormDisabled}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z">
+                                            </path>
                                         </svg>
                                         Choose from Chatter
                                     </button>
-                                    
+
                                     <!-- Camera Option - Only for Desktop -->
                                     <template if:true={isDesktopDevice}>
-                                        <button type="button" class="nav-btn done-btn gallery-btn" onclick={handleOpenCamera} disabled={isFormDisabled}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 512 512" fill="currentColor">
-                                                <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
+                                        <button type="button" class="nav-btn done-btn gallery-btn"
+                                            onclick={handleOpenCamera} disabled={isFormDisabled}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                                viewBox="0 0 512 512" fill="currentColor">
+                                                <path
+                                                    d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
                                             </svg>
                                             Capture Photo
                                         </button>
@@ -553,7 +627,8 @@
                                         <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                                     </div>
                                     <h3 class="no-data-title">No Files Uploaded</h3>
-                                    <p class="no-data-description">Upload photos or documents to add them to this shift log.</p>
+                                    <p class="no-data-description">Upload photos or documents to add them to this shift
+                                        log.</p>
                                 </div>
                             </template>
 
@@ -575,8 +650,8 @@
                                             </template>
 
                                             <template if:false={isFormDisabled}>
-                                                <button class="remove-file-btn" data-id={file.id} onclick={handleRemoveFile}
-                                                    title="Remove file">
+                                                <button class="remove-file-btn" data-id={file.id}
+                                                    onclick={handleRemoveFile} title="Remove file">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                         stroke-width="2">
@@ -600,8 +675,8 @@
                 <div class="wizard-footer">
                     <template if:false={isStep1}>
                         <button class="nav-btn prev-btn" onclick={handlePrevious}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="15 18 9 12 15 6"></polyline>
                             </svg>
                             Previous
@@ -611,8 +686,8 @@
                     <template if:false={isStep4}>
                         <button class="nav-btn next-btn" onclick={handleNext}>
                             Next
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>
                         </button>
@@ -620,8 +695,8 @@
                     <template if:true={isStep4}>
                         <template if:false={isFormDisabled}>
                             <button class="nav-btn done-btn" onclick={handleDone}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                                 Done
@@ -650,6 +725,24 @@
                 <div class="pop-heading">Clock In</div>
                 <div class="slds-modal__content pop-up">
                     <div class="clock-in-container">
+                        <div class="input-column">
+                            <div class="datetime-container">
+                                <label class="datetime-label">Job Start Date</label>
+                                <div class="datetime-wrapper">
+                                    <input type="text" class="custom-datetime input-disabled" value={modalJobStartTime}
+                                        disabled />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="input-column">
+                            <div class="datetime-container">
+                                <label class="datetime-label">Job End Date</label>
+                                <div class="datetime-wrapper">
+                                    <input type="text" class="custom-datetime input-disabled" value={modalJobEndTime}
+                                        disabled />
+                                </div>
+                            </div>
+                        </div>
                         <div class="input-column">
                             <label class="select-label required">Cost Code</label>
                             <select class="custom-select-costcode" data-field="costCode" onchange={handleInputChange}>
@@ -687,17 +780,42 @@
                 <div class="pop-heading">Clock Out</div>
                 <div class="slds-modal__content pop-up">
                     <div class="clock-in-container">
+
+                        <div class="input-column">
+                            <div class="datetime-container">
+                                <label class="datetime-label">Job Start Date</label>
+                                <div class="datetime-wrapper">
+                                    <input type="text" class="custom-datetime input-disabled" value={modalJobStartTime}
+                                        disabled />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="input-column">
+                            <div class="datetime-container">
+                                <label class="datetime-label">Job End Date</label>
+                                <div class="datetime-wrapper">
+                                    <input type="text" class="custom-datetime input-disabled" value={modalJobEndTime}
+                                        disabled />
+                                </div>
+                            </div>
+                        </div>
+                        <template if:true={previousClockInTime}>
+                            <div class="input-column">
+                                <div class="datetime-container">
+                                    <label class="datetime-label">Clock In DateTime</label>
+                                    <div class="datetime-wrapper">
+                                        <input type="text" class="custom-datetime input-disabled"
+                                            value={previousClockInTime} disabled />
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                         <div class="input-column">
                             <label class="datetime-label required">Clock Out Time</label>
                             <input type="datetime-local" class="custom-datetime" data-field="clockOut"
                                 value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary}
                                 max={clockOutMaxBoundary}>
                         </div>
-                        <template if:true={previousClockInTime}>
-                            <div class="info-message">
-                                Previous Clock In: {previousClockInTime}
-                            </div>
-                        </template>
                     </div>
                 </div>
                 <div class="popUpFooter">
@@ -740,7 +858,8 @@
                     </div>
                 </div>
                 <div class="popUpFooter">
-                    <button class="clock-in-button" onclick={saveEditedTimesheet} disabled={isEditSaveDisabled}>Save</button>
+                    <button class="clock-in-button" onclick={saveEditedTimesheet}
+                        disabled={isEditSaveDisabled}>Save</button>
                 </div>
             </div>
         </section>
@@ -760,7 +879,8 @@
                 <div class="slds-modal__content pop-up">
                     <div class="confirmation-message">
                         <p class="confirmation-text">Are you sure you want to move this entry back to regular?</p>
-                        <p class="confirmation-subtext">This will clear all pending changes and move the entry back to the Regular tab.</p>
+                        <p class="confirmation-subtext">This will clear all pending changes and move the entry back to
+                            the Regular tab.</p>
                     </div>
                 </div>
                 <div class="popUpFooter">
@@ -776,13 +896,13 @@
     <template if:true={showChatterModal}>
         <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
             <div class="slds-modal__container chatter-modal-container">
-                
+
                 <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
                     onclick={closeChatterModal}>
                     <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
                         size="small"></lightning-icon>
                 </button>
-                
+
                 <header class="slds-modal__header edit-modal-header">
                     <h2 class="slds-text-heading_medium">Choose from Chatter</h2>
                 </header>
@@ -792,24 +912,27 @@
                             <lightning-spinner alternative-text="Loading..." size="small"></lightning-spinner>
                         </div>
                     </template>
-                    
+
                     <template if:false={isLoadingChatter}>
                         <!-- No Feed Items Message -->
                         <template if:false={hasChatterFeedItems}>
                             <div class="no-data-message-chatter">
                                 <div class="no-data-icon">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
                                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                     </svg>
                                 </div>
                                 <h3 class="no-data-title">No Chatter Posts</h3>
                                 <p class="no-data-description">
-                                    <template if:true={hasMoreChatterItems}>No posts found in the current time range.</template>
-                                    <template if:false={hasMoreChatterItems}>No posts with attachments found for this job.</template>
+                                    <template if:true={hasMoreChatterItems}>No posts found in the current time
+                                        range.</template>
+                                    <template if:false={hasMoreChatterItems}>No posts with attachments found for this
+                                        job.</template>
                                 </p>
                             </div>
                         </template>
-                        
+
                         <!-- Feed Items List -->
                         <template if:true={hasChatterFeedItems}>
                             <div class="chatter-feed-list">
@@ -820,29 +943,39 @@
                                         </div>
                                         <div class="feed-item-attachments">
                                             <template for:each={feedItem.attachments} for:item="attachment">
-                                                <div key={attachment.id} class={attachment.cardClass} data-id={attachment.id} onclick={handleAttachmentSelection}>
+                                                <div key={attachment.id} class={attachment.cardClass}
+                                                    data-id={attachment.id} onclick={handleAttachmentSelection}>
                                                     <template if:true={attachment.selected}>
                                                         <div class="attachment-selected-badge">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">
-                                                                <polyline points="20 6 9 17 4 12" stroke="white" stroke-width="2" fill="none"></polyline>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16"
+                                                                height="16" viewBox="0 0 24 24" fill="white">
+                                                                <polyline points="20 6 9 17 4 12" stroke="white"
+                                                                    stroke-width="2" fill="none"></polyline>
                                                             </svg>
                                                         </div>
                                                     </template>
                                                     <template if:true={attachment.alreadyUploaded}>
                                                         <div class="attachment-uploaded-badge">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">
-                                                                <polyline points="20 6 9 17 4 12" stroke="white" stroke-width="2" fill="none"></polyline>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16"
+                                                                height="16" viewBox="0 0 24 24" fill="white">
+                                                                <polyline points="20 6 9 17 4 12" stroke="white"
+                                                                    stroke-width="2" fill="none"></polyline>
                                                             </svg>
                                                             Already Added
                                                         </div>
                                                     </template>
                                                     <template if:true={attachment.isImage}>
-                                                        <img src={attachment.thumbnailUrl} alt={attachment.title} class="attachment-thumbnail">
+                                                        <img src={attachment.thumbnailUrl} alt={attachment.title}
+                                                            class="attachment-thumbnail">
                                                     </template>
                                                     <template if:false={attachment.isImage}>
                                                         <div class="attachment-file-icon">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="40"
+                                                                height="40" viewBox="0 0 24 24" fill="none"
+                                                                stroke="currentColor" stroke-width="1.5">
+                                                                <path
+                                                                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z">
+                                                                </path>
                                                                 <polyline points="14 2 14 8 20 8"></polyline>
                                                             </svg>
                                                         </div>
@@ -859,7 +992,8 @@
                         <!-- Load More Button -->
                         <template if:true={hasMoreChatterItems}>
                             <div class="load-more-container">
-                                <button type="button" class="load-more-btn" onclick={handleLoadMoreChatter} disabled={isLoadingMoreChatter}>
+                                <button type="button" class="load-more-btn" onclick={handleLoadMoreChatter}
+                                    disabled={isLoadingMoreChatter}>
                                     <template if:true={isLoadingMoreChatter}>Loading...</template>
                                     <template if:false={isLoadingMoreChatter}>Load More</template>
                                 </button>
@@ -869,7 +1003,8 @@
                 </div>
                 <div class="bottom-footer-btn">
                     <button class="retake-btn" onclick={closeChatterModal}>Cancel</button>
-                    <button class="save-btn nav-btn slds-m-left--medium" onclick={handleAddSelectedAttachments} disabled={hasNoSelectedAttachments}>Add Selected</button>
+                    <button class="save-btn nav-btn slds-m-left--medium" onclick={handleAddSelectedAttachments}
+                        disabled={hasNoSelectedAttachments}>Add Selected</button>
                 </div>
             </div>
         </section>
@@ -884,17 +1019,19 @@
                     onclick={closeCameraModal}>
                     <lightning-icon icon-name="utility:close" alternative-text="Close" size="small"></lightning-icon>
                 </button>
-                
+
                 <header class="slds-modal__header edit-modal-header">
                     <h2 class="slds-text-heading_medium">Capture Photo</h2>
                 </header>
-                
+
                 <div class="slds-modal__content camera-modal-content">
                     <template if:false={capturedPhoto}>
                         <video class="camera-video" autoplay playsinline></video>
                         <button type="button" class="camera-capture-btn" onclick={handleCapturePhoto}>
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="24" height="24" fill="white">
-                                <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="24" height="24"
+                                fill="white">
+                                <path
+                                    d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
                             </svg>
                         </button>
                     </template>
@@ -902,14 +1039,18 @@
                         <img src={capturedPhoto} alt="Captured" class="captured-preview" />
                         <div class="camera-actions">
                             <button type="button" class="retake-btn" onclick={handleRetakePhoto}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16" fill="white">
-                                    <path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5z"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16"
+                                    fill="white">
+                                    <path
+                                        d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5z" />
                                 </svg>
                                 Retake
                             </button>
                             <button type="button" class="save-photo-btn" onclick={handleSaveCapturedPhoto}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="16" height="16" fill="white">
-                                    <path d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V173.3c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32H64zm0 96c0-17.7 14.3-32 32-32H288c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V128zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="16" height="16"
+                                    fill="white">
+                                    <path
+                                        d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V173.3c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32H64zm0 96c0-17.7 14.3-32 32-32H288c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V128zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z" />
                                 </svg>
                                 Save Photo
                             </button>

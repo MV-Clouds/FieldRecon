@@ -51,6 +51,8 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track currentJobStartDateTime;
     @track currentJobEndDateTime;
 
+    @track modalJobStartTime = '';
+    @track modalJobEndTime = '';
     // Edit Timesheet Modal
     @track showEditTimesheetModal = false;
     @track editTimesheetData = {};
@@ -81,7 +83,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     };
 
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
-    
+
     get isDesktopDevice() {
         const userAgent = navigator.userAgent.toLowerCase();
         const isMobile = /iphone|ipad|ipod|android|blackberry|windows phone|mobile/i.test(userAgent);
@@ -206,7 +208,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) {
             return true;
         }
-        
+
         for (let feedItem of this.chatterFeedItems) {
             for (let attachment of feedItem.attachments) {
                 // Only enable button if attachment is selected AND not already uploaded
@@ -220,20 +222,20 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     get isEditSaveDisabled() {
         if (!this.editTimesheetData) return true;
-        
+
         const oldClkIn = this.editTimesheetData.oldclockInTime ? this.editTimesheetData.oldclockInTime.slice(0, 16) : '';
         const newClkIn = this.editTimesheetData.newclockInTime ? this.editTimesheetData.newclockInTime.slice(0, 16) : '';
-        
+
         const oldClkOut = this.editTimesheetData.oldclockOutTime ? this.editTimesheetData.oldclockOutTime.slice(0, 16) : '';
         const newClkOut = this.editTimesheetData.newclockOutTime ? this.editTimesheetData.newclockOutTime.slice(0, 16) : '';
-        
+
         const oldTravel = parseFloat(this.editTimesheetData.oldTravelTime || 0);
         const newTravel = parseFloat(this.editTimesheetData.travelTime || 0);
-        
+
         const isClockInChanged = oldClkIn !== newClkIn;
         const isClockOutChanged = oldClkOut !== newClkOut;
         const isTravelChanged = oldTravel !== newTravel;
-        
+
         return !(isClockInChanged || isClockOutChanged || isTravelChanged);
     }
 
@@ -247,11 +249,11 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.isStep3 && this.groupedLocationProcesses.length > 0) {
             this.updateSliderStyles();
             this.updateRowHighlighting();
-            
+
             // Open first accordion by default
             const firstAccordionContent = this.template.querySelector('.location-accordion-content');
             const firstAccordionHeader = this.template.querySelector('.location-accordion-header');
-            
+
             if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
                 firstAccordionContent.classList.add('open');
                 if (firstAccordionHeader) {
@@ -269,7 +271,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 if (slider) {
                     // Set the slider value to reflect current completion percentage
                     slider.value = proc.completedPercent;
-                    
+
                     const sliderTrack = slider.closest('.slider-wrapper')?.querySelector('.slider-track');
                     if (sliderTrack) {
                         const completed = sliderTrack.querySelector('.completed');
@@ -280,7 +282,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                             completed.style.width = `${proc.previousPercent}%`;
                             today.style.width = `${proc.todayPercent}%`;
                             remaining.style.width = `${proc.remainingPercent}%`;
-                            
+
                             // Apply orange color if pending approval, purple if editing
                             if (proc.isPendingApproval) {
                                 today.classList.remove('today');
@@ -334,10 +336,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                         const dateStr = parts[0]; // YYYY-MM-DD
                         const jobName = parts[1];
                         const status = parts[2];
-                        
+
                         // Format date as "MMM DD, YYYY"
                         const formattedDate = this.formatDateToDisplay(dateStr);
-                        
+
                         return {
                             label: `${jobName} (Date - ${formattedDate}, Status - ${status})`,
                             value: key,
@@ -368,14 +370,14 @@ export default class ShiftEndLogEntries extends LightningElement {
      */
     formatDateToDisplay(dateStr) {
         if (!dateStr) return '';
-        
+
         const date = new Date(dateStr + 'T00:00:00');
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
+
         const month = months[date.getMonth()];
         const day = date.getDate();
         const year = date.getFullYear();
-        
+
         return `${month} ${day}, ${year}`;
     }
 
@@ -391,7 +393,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         getMobilizationMembersWithStatus({ mobId: this.selectedMobilizationId, jobId: this.jobId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 console.log('getMobilizationMembersWithStatus result:', result);
-                
+
                 if (result) {
                     // Process approval status
                     const approvalStatusList = result.approvalStatus || [];
@@ -407,7 +409,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                             canEditTimesheet: true
                         };
                     }
-                    
+
                     // Process clock in members
                     const clockInList = result.clockIn || [];
                     const clockOutList = result.clockOut || [];
@@ -494,12 +496,16 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     handleClockInClick(event) {
+        console.log('enter in clock in');
         const contactId = event.currentTarget.dataset.id;
         const member = this.crewMembers.find(m => m.contactId === contactId);
 
+        console.log('members ==> ', contactId, ' ', member)
         if (member) {
             this.selectedContactId = contactId;
             this.clockInTime = member.jobStartTime ? member.jobStartTime.slice(0, 16) : new Date().toISOString().slice(0, 16);
+            this.modalJobStartTime = member.jobStartTime ? this.formatToAMPM(member.jobStartTime) : '';
+            this.modalJobEndTime = member.jobEndTime ? this.formatToAMPM(member.jobEndTime) : '';
             this.showClockInModal = true;
         }
     }
@@ -511,6 +517,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (member) {
             this.selectedContactId = contactId;
             this.clockOutTime = member.jobEndTime ? member.jobEndTime.slice(0, 16) : new Date().toISOString().slice(0, 16);
+            this.modalJobStartTime = member.jobStartTime ? this.formatToAMPM(member.jobStartTime) : '';
+            this.modalJobEndTime = member.jobEndTime ? this.formatToAMPM(member.jobEndTime) : '';
             this.previousClockInTime = member.clockInTime ? this.formatToAMPM(member.clockInTime) : null;
             this.showClockOutModal = true;
         }
@@ -585,7 +593,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
         const member = this.crewMembers.find(m => m.contactId === this.selectedContactId);
         if (!member) return;
-        
+
         if (new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(member.clockInTime.slice(0, 16).replace('T', ' '))) {
             this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
             return;
@@ -667,12 +675,12 @@ export default class ShiftEndLogEntries extends LightningElement {
                         // Check if there's a local pending edit for this entry
                         const localEdit = this.localPendingEdits.get(entry.id);
                         const isPendingLocally = localEdit !== undefined;
-                        
+
                         // Use raw ISO strings for formatting (to avoid timezone issues)
                         let displayClockIn = entry.clockInTime; // Keep ISO format
                         let displayClockOut = entry.clockOutTime; // Keep ISO format
                         let displayTravelTime = entry.travelTime ? entry.travelTime.toFixed(2) : '0.00';
-                        
+
                         if (isPendingLocally) {
                             // Override with pending new values from local edits
                             const changesMap = new Map(localEdit.changes.map(c => [c.fieldApiName, c.newValue]));
@@ -686,11 +694,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                                 displayTravelTime = changesMap.get('wfrecon__Travel_Time__c');
                             }
                         }
-                        
+
                         const workHrs = entry.workHours ? parseFloat(entry.workHours) : 0;
                         const travelHrs = displayTravelTime ? parseFloat(displayTravelTime) : 0;
                         const totalHrs = workHrs + travelHrs;
-                        
+
                         return {
                             id: entry.id,
                             contactId: entry.contactId,
@@ -718,50 +726,50 @@ export default class ShiftEndLogEntries extends LightningElement {
                     // Separate regular and pending entries based on local edits
                     const regularEntries = allEntries.filter(entry => !this.localPendingEdits.has(entry.id));
                     const pendingEntries = allEntries.filter(entry => this.localPendingEdits.has(entry.id));
-                    
+
                     // Assign serial numbers starting from 1 for each section
                     this.regularTimesheetEntries = regularEntries.map((entry, index) => ({
                         ...entry,
                         srNo: index + 1
                     }));
-                    
+
                     // For pending entries, extract old/new values from local edits
                     this.pendingTimesheetEntries = pendingEntries.map((entry, index) => {
                         const localEdit = this.localPendingEdits.get(entry.id);
-                        
+
                         // Create maps for quick lookup
                         const changesMap = new Map(localEdit.changes.map(c => [c.fieldApiName, c]));
-                        
+
                         // Get old and new values from local edits
                         const clockInChange = changesMap.get('wfrecon__Clock_In_Time__c');
                         const clockOutChange = changesMap.get('wfrecon__Clock_Out_Time__c');
                         const travelTimeChange = changesMap.get('wfrecon__Travel_Time__c');
-                        
+
                         // Get old and new values (keep ISO format for accurate comparison and formatting)
                         const oldClockInVal = clockInChange ? clockInChange.oldValue : entry.rawClockIn;
                         const oldClockOutVal = clockOutChange ? clockOutChange.oldValue : entry.rawClockOut;
                         const oldTravelTimeVal = travelTimeChange ? travelTimeChange.oldValue : (entry.travelTime || '0.00');
-                        
+
                         const newClockInVal = clockInChange ? clockInChange.newValue : entry.rawClockIn;
                         const newClockOutVal = clockOutChange ? clockOutChange.newValue : entry.rawClockOut;
                         const newTravelTimeVal = travelTimeChange ? travelTimeChange.newValue : (entry.travelTime || '0.00');
-                        
+
                         // Calculate old total hours using old values
                         const oldWorkHours = this.calculateWorkHours(oldClockInVal, oldClockOutVal);
                         const oldTravelHours = parseFloat(oldTravelTimeVal || 0);
                         const oldTotalHours = (oldWorkHours + oldTravelHours).toFixed(2);
-                        
+
                         // Calculate new total hours using new values
                         const newWorkHours = this.calculateWorkHours(newClockInVal, newClockOutVal);
                         const newTravelHours = parseFloat(newTravelTimeVal || 0);
                         const newTotalHours = (newWorkHours + newTravelHours).toFixed(2);
-                        
+
                         // Check if values actually changed (compare ISO strings for clock times)
                         const isClockInChanged = oldClockInVal !== newClockInVal;
                         const isClockOutChanged = oldClockOutVal !== newClockOutVal;
                         const isTravelTimeChanged = parseFloat(oldTravelTimeVal) !== parseFloat(newTravelTimeVal);
                         const isTotalHoursChanged = parseFloat(oldTotalHours) !== parseFloat(newTotalHours);
-                        
+
                         return {
                             ...entry,
                             srNo: index + 1,
@@ -787,10 +795,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                             hasTotalHoursChange: isTotalHoursChanged ? 'value-changed' : ''
                         };
                     });
-                    
+
                     // Keep all entries for reference (with mixed serial numbers)
                     this.timesheetEntries = [...this.regularTimesheetEntries, ...this.pendingTimesheetEntries];
-                    
+
                     console.log('Total entries:', this.timesheetEntries.length);
                     console.log('Regular entries:', this.regularTimesheetEntries);
                     console.log('Pending entries:', this.pendingTimesheetEntries);
@@ -821,20 +829,20 @@ export default class ShiftEndLogEntries extends LightningElement {
             console.log('Raw NEW Clock In:', entry.rawNewClockIn);
             console.log('Raw Clock Out:', entry.rawClockOut);
             console.log('Raw NEW Clock Out:', entry.rawNewClockOut);
-            
+
             // Check if there's a local pending edit for this entry
             const localEdit = this.localPendingEdits.get(entry.id);
             const isPending = localEdit !== undefined;
-            
+
             // For pending entries, use rawNewClockIn/Out if available, otherwise use rawClockIn/Out
             const currentClockIn = (isPending && entry.rawNewClockIn) ? entry.rawNewClockIn : entry.rawClockIn;
             const currentClockOut = (isPending && entry.rawNewClockOut) ? entry.rawNewClockOut : entry.rawClockOut;
             const currentTravelTime = (isPending && entry.newTravelTime) ? entry.newTravelTime : (entry.travelTime || '0.00');
-            
+
             console.log('Using Clock In:', currentClockIn);
             console.log('Using Clock Out:', currentClockOut);
             console.log('Using Travel Time:', currentTravelTime);
-            
+
             this.editTimesheetData = {
                 id: entry.id,
                 TSEId: entry.TSEId,
@@ -864,7 +872,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         }
 
         console.log('this.editTimesheetData ::', this.editTimesheetData);
-        
+
     }
 
     saveEditedTimesheet() {
@@ -873,7 +881,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.showToast('Error', 'Clock In and Clock Out times are required', 'error');
                 return;
             }
-    
+
             if (new Date(this.editTimesheetData.newclockOutTime.replace(' ', 'T')) <= new Date(this.editTimesheetData.newclockInTime.replace(' ', 'T'))) {
                 this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
                 return;
@@ -888,7 +896,7 @@ export default class ShiftEndLogEntries extends LightningElement {
             if (!this.validateClockOutDate(this.editTimesheetData.newclockOutTime, this.currentJobStartDateTime, this.currentJobEndDateTime)) {
                 return;
             }
-    
+
             // Convert to ISO format for storage
             const newClkIn = this.editTimesheetData.newclockInTime.slice(0, 16) + ':00.000Z';
             const newClkOut = this.editTimesheetData.newclockOutTime.slice(0, 16) + ':00.000Z';
@@ -896,10 +904,10 @@ export default class ShiftEndLogEntries extends LightningElement {
             const oldClkOut = this.editTimesheetData.oldclockOutTime.slice(0, 16) + ':00.000Z';
             const travelTime = this.editTimesheetData.travelTime || '0.00';
             const oldTravelTime = this.editTimesheetData.oldTravelTime || '0.00';
-            
+
             // Build changes array
             const changes = [];
-            
+
             if (oldClkIn !== newClkIn) {
                 changes.push({
                     fieldApiName: 'wfrecon__Clock_In_Time__c',
@@ -907,7 +915,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     newValue: newClkIn
                 });
             }
-            
+
             if (oldClkOut !== newClkOut) {
                 changes.push({
                     fieldApiName: 'wfrecon__Clock_Out_Time__c',
@@ -915,7 +923,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     newValue: newClkOut
                 });
             }
-            
+
             if (oldTravelTime !== travelTime) {
                 changes.push({
                     fieldApiName: 'wfrecon__Travel_Time__c',
@@ -923,7 +931,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     newValue: parseFloat(travelTime)
                 });
             }
-            
+
             // Only proceed if there are changes
             if (changes.length > 0) {
                 // Store locally - no database update
@@ -933,7 +941,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     contactId: this.editTimesheetData.contactId,
                     contactName: this.editTimesheetData.contactName
                 });
-                
+
                 this.showToast('Success', 'Timesheet entry marked as pending locally', 'success');
                 this.closeEditTimesheetModal();
                 this.loadTimesheetEntries();
@@ -952,7 +960,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     handleMoveBackToRegular(event) {
         const entryId = event.currentTarget.dataset.id;
         const entry = this.pendingTimesheetEntries.find(e => e.id === entryId);
-        
+
         if (!entry) {
             this.showToast('Error', 'Entry not found', 'error');
             return;
@@ -976,11 +984,11 @@ export default class ShiftEndLogEntries extends LightningElement {
 
         // Remove from local pending edits
         this.localPendingEdits.delete(this.selectedMoveBackEntryId);
-        
+
         this.showToast('Success', 'Entry moved back to regular successfully. The Regular tab has been updated.', 'success');
         this.showMoveBackModal = false;
         this.selectedMoveBackEntryId = null;
-        
+
         // Reload timesheet entries to reflect changes in both tabs
         this.loadTimesheetEntries();
     }
@@ -1004,18 +1012,18 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (!this.jobId) return;
 
         this.isLoading = true;
-        
+
         getJobLocationProcesses({ jobId: this.jobId })
             .then(result => {
                 console.log('Location Processes Result:', result);
                 if (result && result.processes && result.processes.length > 0) {
                     const pendingApprovalData = result.pendingApprovalData || {};
-                    
+
                     this.allLocationProcesses = result.processes.map(proc => {
                         const prevPercent = parseFloat(proc.wfrecon__Completed_Percentage__c || 0);
                         const approvalInfo = pendingApprovalData[proc.Id];
                         const isPendingApproval = !!approvalInfo;
-                        
+
                         return {
                             id: proc.Id,
                             name: proc?.wfrecon__Process_Name__c || proc.Name,
@@ -1031,10 +1039,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                             approvalNewValue: approvalInfo ? approvalInfo.newValue : null
                         };
                     });
-                    
+
                     // Build location options
                     this.buildLocationOptions();
-                    
+
                     // Set default location to "Job Site" or first available
                     this.setDefaultLocation();
                 }
@@ -1050,7 +1058,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     buildLocationOptions() {
         const locationMap = new Map();
-        
+
         this.allLocationProcesses.forEach(proc => {
             if (!locationMap.has(proc.locationId)) {
                 locationMap.set(proc.locationId, {
@@ -1059,23 +1067,23 @@ export default class ShiftEndLogEntries extends LightningElement {
                 });
             }
         });
-        
+
         this.locationOptions = Array.from(locationMap.values());
     }
 
     setDefaultLocation() {
         // Try to find "Job Site" location
-        const jobSiteLocation = this.locationOptions.find(loc => 
+        const jobSiteLocation = this.locationOptions.find(loc =>
             loc.label.toLowerCase() === 'job site'
         );
-        
+
         if (jobSiteLocation) {
             this.selectedLocationId = jobSiteLocation.value;
         } else if (this.locationOptions.length > 0) {
             // If no "Job Site", select first location
             this.selectedLocationId = this.locationOptions[0].value;
         }
-        
+
         // Filter processes for selected location
         this.filterProcessesByLocation();
     }
@@ -1083,7 +1091,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     handleLocationChange(event) {
         this.selectedLocationId = event.detail.value;
         this.filterProcessesByLocation();
-        
+
         // Force re-render after short delay to apply slider values
         setTimeout(() => {
             this.updateSliderStyles();
@@ -1097,12 +1105,12 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.groupedLocationProcesses = [];
             return;
         }
-        
+
         // Filter processes for selected location
         this.locationProcesses = this.allLocationProcesses.filter(
             proc => proc.locationId === this.selectedLocationId
         );
-        
+
         // Apply any saved modifications to the filtered processes
         this.locationProcesses.forEach(proc => {
             if (this.modifiedProcesses.has(proc.id)) {
@@ -1112,7 +1120,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 proc.remainingPercent = parseFloat((100 - modification.newValue).toFixed(1));
             }
         });
-        
+
         this.groupProcessesByLocation();
     }
 
@@ -1141,13 +1149,13 @@ export default class ShiftEndLogEntries extends LightningElement {
         });
 
         this.groupedLocationProcesses = Array.from(locationMap.values());
-        
+
         // Set first accordion as active by default
         if (this.groupedLocationProcesses.length > 0) {
             this.activeAccordionSections = [this.groupedLocationProcesses[0].sectionName];
         }
     }
-    
+
     handleAccordionToggle(event) {
         event.stopPropagation();
         const sectionName = event.currentTarget.dataset.section;
@@ -1155,23 +1163,23 @@ export default class ShiftEndLogEntries extends LightningElement {
         const contentElement = this.template.querySelector(
             `.location-accordion-content[data-section="${sectionName}"]`
         );
-        
+
         if (contentElement) {
             const isOpen = contentElement.classList.contains('open');
-            
+
             // Close all accordions first (only one open at a time)
             const allContents = this.template.querySelectorAll('.location-accordion-content');
             const allHeaders = this.template.querySelectorAll('.location-accordion-header');
-            
+
             allContents.forEach(content => content.classList.remove('open'));
             allHeaders.forEach(header => header.classList.remove('active'));
-            
+
             // If it wasn't open, open it
             if (!isOpen) {
                 contentElement.classList.add('open');
                 headerElement.classList.add('active');
             }
-            
+
             // Update slider visuals after DOM settles
             setTimeout(() => this.updateSliderStyles(), 100);
         }
@@ -1200,7 +1208,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         completed.style.width = `${proc.previousPercent}%`;
                         today.style.width = `${todayPercent}%`;
                         remaining.style.width = `${remainingPercent}%`;
-                        
+
                         // Ensure it's purple (editing mode) when user is dragging
                         today.classList.remove('pending-approval');
                         today.classList.add('today');
@@ -1290,7 +1298,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 }
                 return proc;
             });
-            
+
             // Rebuild grouped processes
             this.groupProcessesByLocation();
         }
@@ -1329,7 +1337,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         try {
             // Check org storage before accepting the upload
             const storageCheck = await checkOrgStorageLimit();
-            
+
             if (!storageCheck.hasSpace) {
                 this.showToast('Error', storageCheck.message, 'error');
                 // Delete the just-uploaded files
@@ -1353,10 +1361,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                     icon: this.getFileIcon(file.name)
                 });
             });
-            
+
             // Force UI update
             this.uploadedFiles = [...this.uploadedFiles];
-            
+
             // Show storage warning if approaching limit
             if (storageCheck.percentUsed > 90) {
                 this.showToast('Warning', storageCheck.message, 'warning');
@@ -1373,7 +1381,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         const extension = fileName.split('.').pop().toLowerCase();
         const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'];
         const documentExtensions = ['pdf', 'doc', 'docx'];
-        
+
         if (imageExtensions.includes(extension)) {
             return 'image';
         } else if (documentExtensions.includes(extension)) {
@@ -1384,8 +1392,8 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     getFileIcon(fileName) {
         const extension = fileName.split('.').pop().toLowerCase();
-        
-        switch(extension) {
+
+        switch (extension) {
             case 'pdf':
                 return 'doctype:pdf';
             case 'doc':
@@ -1401,17 +1409,17 @@ export default class ShiftEndLogEntries extends LightningElement {
         this.isLoading = true;
         // Find the file to check if it's a camera photo
         const fileToRemove = this.uploadedFiles.find(file => file.id === fileId);
-        
+
         try {
             // Only delete from Salesforce if it's not a camera photo or chatter file
             // Camera photos and chatter files are not yet saved to Salesforce
             if (!fileToRemove?.isCamera && !fileToRemove?.isChatter) {
                 await deleteContentDocuments({ contentDocumentIds: [fileId] });
             }
-            
+
             // Remove from local array
             this.uploadedFiles = this.uploadedFiles.filter(file => file.id !== fileId);
-            
+
             this.showToast('Success', 'File removed successfully', 'success');
         } catch (error) {
             console.error('Error removing file:', error);
@@ -1432,13 +1440,13 @@ export default class ShiftEndLogEntries extends LightningElement {
     // Chatter Functions
     async loadChatterFeedItems() {
         this.isLoadingChatter = true;
-        
+
         try {
             const result = await getChatterFeedItems({
                 jobId: this.jobId,
                 daysOffset: this.chatterDaysOffset
             });
-            
+
             // Check if there are more items
             this.hasMoreChatterItems = result && result.hasMore;
 
@@ -1449,7 +1457,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         .filter(file => file.isChatter)
                         .map(file => file.id)
                 );
-                
+
                 const formattedItems = result.feedItems.map(item => ({
                     id: item.id,
                     body: item.body || '',
@@ -1468,7 +1476,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                         };
                     })
                 }));
-                
+
                 if (this.chatterDaysOffset === 0) {
                     this.chatterFeedItems = formattedItems;
                 } else {
@@ -1500,7 +1508,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     handleAttachmentSelection(event) {
         const attachmentId = event.currentTarget.dataset.id;
-        
+
         // Find the attachment to check if it's already uploaded
         let isAlreadyUploaded = false;
         for (let feedItem of this.chatterFeedItems) {
@@ -1510,13 +1518,13 @@ export default class ShiftEndLogEntries extends LightningElement {
                 break;
             }
         }
-        
+
         // Don't allow selection of already uploaded files
         if (isAlreadyUploaded) {
             this.showToast('Info', 'This file is already added', 'info');
             return;
         }
-        
+
         // Toggle selection
         this.chatterFeedItems = this.chatterFeedItems.map(feedItem => ({
             ...feedItem,
@@ -1539,9 +1547,9 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.hasNoSelectedAttachments) {
             return;
         }
-        
+
         const selectedAttachments = [];
-        
+
         // Collect all selected attachments (excluding already uploaded)
         this.chatterFeedItems.forEach(feedItem => {
             feedItem.attachments.forEach(attachment => {
@@ -1550,11 +1558,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                 }
             });
         });
-        
+
         if (selectedAttachments.length === 0) {
             return;
         }
-        
+
         // Add selected attachments to uploaded files
         selectedAttachments.forEach(attachment => {
             const fileType = attachment.isImage ? 'image' : 'document';
@@ -1568,7 +1576,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 icon: this.getFileIcon(attachment.title)
             });
         });
-        
+
         this.showToast('Success', `${selectedAttachments.length} file(s) added from Chatter`, 'success');
         this.closeChatterModal();
     }
@@ -1587,16 +1595,16 @@ export default class ShiftEndLogEntries extends LightningElement {
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
-        
+
         if (diffMins < 1) return 'Just now';
         if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
         if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
         if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-        
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
         });
     }
 
@@ -1604,7 +1612,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     handleOpenCamera() {
         this.showCameraModal = true;
         this.capturedPhoto = null;
-        
+
         // Wait for modal to render, then start camera
         setTimeout(() => {
             this.startCamera();
@@ -1615,12 +1623,12 @@ export default class ShiftEndLogEntries extends LightningElement {
         try {
             const videoElement = this.template.querySelector('.camera-video');
             if (videoElement) {
-                this.cameraStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
+                this.cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         facingMode: 'user',
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
-                    } 
+                    }
                 });
                 videoElement.srcObject = this.cameraStream;
             }
@@ -1634,16 +1642,16 @@ export default class ShiftEndLogEntries extends LightningElement {
     handleCapturePhoto() {
         const videoElement = this.template.querySelector('.camera-video');
         const canvasElement = this.template.querySelector('.camera-canvas');
-        
+
         if (videoElement && canvasElement) {
             const context = canvasElement.getContext('2d');
             canvasElement.width = videoElement.videoWidth;
             canvasElement.height = videoElement.videoHeight;
             context.drawImage(videoElement, 0, 0);
-            
+
             // Get image data URL
             this.capturedPhoto = canvasElement.toDataURL('image/jpeg', 0.8);
-            
+
             // Stop camera stream after capturing
             if (this.cameraStream) {
                 this.cameraStream.getTracks().forEach(track => track.stop());
@@ -1662,22 +1670,22 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     handleSaveCapturedPhoto() {
         if (!this.capturedPhoto) return;
-        
+
         try {
             // Convert base64 to blob for size validation
             const base64Data = this.capturedPhoto.split(',')[1];
             const blob = this.base64ToBlob(base64Data, 'image/jpeg');
-            
+
             // Check file size (4MB limit)
             const fileSizeInMB = blob.size / (1024 * 1024);
             if (fileSizeInMB > 4) {
                 this.showToast('Error', 'Photo size exceeds 4MB limit. Please try again with lower quality.', 'error');
                 return;
             }
-            
+
             // Create file name
             const fileName = `Camera_${new Date().getTime()}.jpg`;
-            
+
             // Store temporarily in uploaded files list (will be saved on final submit)
             this.uploadedFiles.push({
                 id: `temp_${new Date().getTime()}`, // Temporary ID
@@ -1689,7 +1697,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 isCamera: true, // Flag to identify camera photos
                 base64Data: base64Data // Store base64 for later upload
             });
-            
+
             this.closeCameraModal();
             this.showToast('Success', 'Photo captured successfully. It will be saved when you complete the log entry.', 'success');
         } catch (error) {
@@ -1728,23 +1736,23 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.showToast('Error', 'Please select a mobilization', 'error');
                 return;
             }
-            
+
             // Check if there are any crew members
             if (!this.crewMembers || this.crewMembers.length === 0) {
                 this.showToast('Error', 'No crew members found for the selected mobilization', 'error');
                 return;
             }
-            
+
             // Validate that at least one crew member has clock in and clock out
             const hasAtLeastOneEntry = this.crewMembers.some(member => {
                 return member.recentClockIn && member.recentClockOut;
             });
-            
+
             if (!hasAtLeastOneEntry) {
                 this.showToast('Error', 'At least one crew member must have a clock in and clock out before proceeding', 'error');
                 return;
             }
-            
+
             this.currentStep = 'step2';
             this.loadTimesheetEntries();
         } else if (this.currentStep === 'step2') {
@@ -1775,7 +1783,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     async handleDone() {
         this.isLoading = true;
-        
+
         try {
             // Prepare step3 data with trimmed values
             const step3DataToSave = {
@@ -1801,7 +1809,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
             // Build new approval data structure with locationProcessChanges and timesheetEntryChanges
             let approvalDataJson = null;
-            
+
             // Build locationProcessChanges array
             const locationProcessChanges = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => {
                 // Find the process to get its name
@@ -1813,10 +1821,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                     name: process ? process.processName : 'Unknown'
                 };
             });
-            
+
             // Build timesheetEntryChanges object from local pending edits
             const timesheetEntryChanges = {};
-            
+
             this.localPendingEdits.forEach((editData, itemId) => {
                 timesheetEntryChanges[editData.TSEId] = {
                     changes: editData.changes,
@@ -1824,10 +1832,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                     contactName: editData.contactName
                 };
             });
-            
+
             // Build media metadata with source info for all files
             const mediaMetadata = [];
-            
+
             // Add regular uploaded files
             regularFiles.forEach(file => {
                 mediaMetadata.push({
@@ -1836,7 +1844,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     name: file.name
                 });
             });
-            
+
             // Add chatter files
             chatterFiles.forEach(file => {
                 mediaMetadata.push({
@@ -1845,7 +1853,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     name: file.name
                 });
             });
-            
+
             // Camera photos will be added after creation with source 'camera'
 
             // Build the new structure only if there are changes
@@ -1856,7 +1864,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     uploadedContentDocumentIds: chatterFiles.map(file => file.id), // Track Chatter files for preventing re-selection in edit mode
                     mediaMetadata: mediaMetadata // Track all media with source info
                 };
-                
+
                 approvalDataJson = JSON.stringify(approvalDataStructure);
             }
 
@@ -1877,8 +1885,8 @@ export default class ShiftEndLogEntries extends LightningElement {
             });
 
             this.showToast('Success', 'Shift End Log created successfully', 'success');
-            this.dispatchEvent(new CustomEvent('close', { 
-                detail: { isRecordCreated: true } 
+            this.dispatchEvent(new CustomEvent('close', {
+                detail: { isRecordCreated: true }
             }));
         } catch (error) {
             console.error('Error creating log entry:', error);
@@ -1893,7 +1901,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         // Camera photos and chatter files are not saved yet, so no need to delete them
         const regularFiles = this.uploadedFiles.filter(file => !file.isCamera && !file.isChatter);
         const fileIds = regularFiles.map(file => file.id);
-        
+
         if (fileIds.length > 0) {
             try {
                 await deleteContentDocuments({ contentDocumentIds: fileIds });
@@ -1901,8 +1909,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                 console.error('Error deleting files:', error);
             }
         }
-        this.dispatchEvent(new CustomEvent('close', { 
-            detail: { isRecordCreated: false } 
+        this.dispatchEvent(new CustomEvent('close', {
+            detail: { isRecordCreated: false }
         }));
     }
 
@@ -1943,7 +1951,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         const clockOutDate = this.extractDateKey(clockOutValue);
         const jobStartDate = this.extractDateKey(jobStartValue);
         const jobEndDate = this.extractDateKey(jobEndValue);
-        
+
         if (clockOutDate && jobEndDate) {
             const nextDay = this.addDaysToDateKey(jobEndDate, 1);
             if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
@@ -1957,36 +1965,36 @@ export default class ShiftEndLogEntries extends LightningElement {
     formatToAMPM(iso) {
         try {
             if (!iso) return '--';
-            
+
             // Extract date and time parts from ISO string
             // Format: "2025-11-19T13:02:00.000Z" or "2025-11-19T13:02"
             const parts = iso.split('T');
             if (parts.length < 2) return iso;
-            
+
             const datePart = parts[0]; // "2025-11-19"
             const timePart = parts[1].substring(0, 5); // "13:02"
-            
+
             // Parse date components
             const [year, month, day] = datePart.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const monthName = monthNames[parseInt(month, 10) - 1];
-            
+
             // Extract hours and minutes
             const [hoursStr, minutesStr] = timePart.split(':');
             let hours = parseInt(hoursStr, 10);
             const minutes = minutesStr;
-            
+
             // Determine AM/PM
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            
+
             // Convert to 12-hour format
             hours = hours % 12;
             hours = hours ? hours : 12; // hour '0' should be '12'
-            
+
             // Pad hours with leading zero if needed
             const paddedHours = String(hours).padStart(2, '0');
-            
+
             // Format: "Nov 19, 2025, 01:02 PM"
             return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
@@ -1998,17 +2006,17 @@ export default class ShiftEndLogEntries extends LightningElement {
     calculateWorkHours(clockInStr, clockOutStr) {
         try {
             if (!clockInStr || !clockOutStr) return 0;
-            
+
             // Parse datetime strings (format: "YYYY-MM-DD HH:MM")
             const clockIn = new Date(clockInStr.replace(' ', 'T'));
             const clockOut = new Date(clockOutStr.replace(' ', 'T'));
-            
+
             if (isNaN(clockIn.getTime()) || isNaN(clockOut.getTime())) return 0;
-            
+
             // Calculate difference in hours
             const diffMs = clockOut - clockIn;
             const diffHours = diffMs / (1000 * 60 * 60);
-            
+
             return diffHours > 0 ? diffHours : 0;
         } catch (error) {
             console.error('Error calculating work hours:', error);
@@ -2018,7 +2026,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     parseApprovalData(approvalDataJson) {
         if (!approvalDataJson) return [];
-        
+
         try {
             const approvalData = JSON.parse(approvalDataJson);
             return approvalData.map(change => {
@@ -2026,10 +2034,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                 if (fieldLabel === 'Clock_In_Time__c') fieldLabel = 'Clock In';
                 else if (fieldLabel === 'Clock_Out_Time__c') fieldLabel = 'Clock Out';
                 else if (fieldLabel === 'Travel_Time__c') fieldLabel = 'Travel Time';
-                
+
                 let oldVal = change.oldValue;
                 let newVal = change.newValue;
-                
+
                 // Process values based on field type
                 if (fieldLabel === 'Clock In' || fieldLabel === 'Clock Out') {
                     // Keep ISO format for internal processing, formatting happens at display time
@@ -2039,7 +2047,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     oldVal = oldVal ? parseFloat(oldVal).toFixed(2) : '0.00';
                     newVal = newVal ? parseFloat(newVal).toFixed(2) : '0.00';
                 }
-                
+
                 return {
                     fieldLabel,
                     oldValue: oldVal || '--',

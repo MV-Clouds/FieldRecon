@@ -5,6 +5,7 @@ import deleteShiftEndLog from '@salesforce/apex/ShiftEndLogV2Controller.deleteSh
 import deleteUploadedFiles from '@salesforce/apex/ShiftEndLogV2Controller.deleteUploadedFiles';
 import getChatterFeedItems from '@salesforce/apex/ShiftEndLogEntriesController.getChatterFeedItems';
 import checkOrgStorageLimit from '@salesforce/apex/ShiftEndLogV2Controller.checkOrgStorageLimit';
+import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 
@@ -20,7 +21,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track editLogId = null;
     @track showEntryPopup = false;
     @track expandedCardId = null; // Track which card is expanded
-    
+
     // Edit Modal Multi-Step Properties
     @track editCurrentStep = 'step1';
     @track editLocationProcesses = [];
@@ -81,6 +82,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track crewLeaderId = null;
     @track crewIds = [];
     @track isCurrentUserCrewLeader = false;
+    @track isAdminUser = false;
+    @track hasAccess = false;
 
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff';
 
@@ -125,7 +128,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     get pageNumbers() {
         const pages = [];
         const totalPages = this.totalPages;
-        
+
         if (totalPages <= this.visiblePages) {
             for (let i = 1; i <= totalPages; i++) {
                 pages.push({
@@ -181,7 +184,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 });
             }
         }
-        
+
         return pages;
     }
 
@@ -196,12 +199,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     setCurrentPageReference(pageRef) {
         this.recordId = pageRef.attributes.recordId;
     }
-    
+
     connectedCallback() {
         this.isLoading = true;
+        this.checkUserPermissions();
         this.loadShiftEndLogsWithCrewInfo();
     }
-    
+
     renderedCallback() {
         // Open first accordion in view mode by default for each expanded card
         if (this.expandedCardId) {
@@ -211,7 +215,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             const firstAccordionHeader = this.template.querySelector(
                 `.location-accordion-header[data-log-id="${this.expandedCardId}"]`
             );
-            
+
             if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
                 firstAccordionContent.classList.add('open');
                 if (firstAccordionHeader) {
@@ -219,12 +223,12 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 }
             }
         }
-        
+
         // Open first accordion in edit mode by default for Step 2
         if (this.showEditModal && this.editCurrentStep === 'step2') {
             const firstEditContent = this.template.querySelector('.edit-location-accordion-content');
             const firstEditHeader = this.template.querySelector('.edit-location-accordion-header');
-            
+
             if (firstEditContent && !firstEditContent.classList.contains('open')) {
                 firstEditContent.classList.add('open');
                 if (firstEditHeader) {
@@ -239,22 +243,22 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Helper to group location processes for accordion view
     groupLocationProcessesForView(locationProcesses, locationProcessChanges, isApprovedStatus) {
         const locationMap = new Map();
-        
+
         locationProcesses.forEach(proc => {
             let approvalDataForProcess = null;
             let isPendingApproval = false;
-            
+
             // Parse approval data - locationProcessChanges is now an array from the new structure
             // Only show as pending if status is 'Pending' (not approved/auto-approved)
             if (locationProcessChanges && locationProcessChanges.length > 0 && !isApprovedStatus) {
                 approvalDataForProcess = locationProcessChanges.find(item => item.id === proc.processId);
                 isPendingApproval = !!approvalDataForProcess;
             }
-            
+
             const approvalOldValue = approvalDataForProcess?.oldValue || 0;
             const approvalNewValue = approvalDataForProcess?.newValue || 0;
             const yesterdayPercent = proc.yesterdayPercentage || 0;
-            
+
             const processWithApproval = {
                 ...proc,
                 isPendingApproval: isPendingApproval,
@@ -263,7 +267,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 displayYesterdayPercentage: yesterdayPercent,
                 displayApprovalPercentage: isPendingApproval ? (approvalNewValue - yesterdayPercent) : 0
             };
-            
+
             if (!locationMap.has(proc.locationName)) {
                 locationMap.set(proc.locationName, {
                     locationName: proc.locationName,
@@ -273,7 +277,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
             locationMap.get(proc.locationName).processes.push(processWithApproval);
         });
-        
+
         return Array.from(locationMap.values());
     }
 
@@ -311,6 +315,27 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         }, 0);
     }
 
+    checkUserPermissions() {
+        const permissionSetsToCheck = ['FR_Admin'];
+
+        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+            .then(result => {
+                const assignedMap = result.assignedMap || {};                
+                const isAdmin = result.isAdmin || false;
+                
+                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+
+                // Set both flags
+                this.isAdminUser = isAdmin || hasFRAdmin;
+            })
+            .catch(error => {
+                this.isAdminUser = false;
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
     // Load shift end logs with crew information
     loadShiftEndLogsWithCrewInfo() {
         if (!this.recordId) {
@@ -331,25 +356,28 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     console.log('Crew IDs where user is leader:', this.crewIds);
                 }
 
+                this.hasAccess = this.isCurrentUserCrewLeader || this.isAdminUser;
+console.log('has access ',this.hasAccess);
+
                 // Extract and process shift end logs
                 this.shiftEndLogs = data.shiftEndLogs.map(wrapper => {
                     const log = wrapper.logEntry;
                     const images = wrapper.images || [];
                     const locationProcesses = wrapper.locationProcesses || [];
-                    
+
                     // Parse approval data if present - now using new structure
                     let approvalData = null;
                     let locationProcessChanges = [];
                     let timesheetEntryChanges = {};
                     let hasPendingApproval = false;
-                    
+
                     // Create a set of fields that changed (from approval data)
                     const changedFieldsToday = new Set();
                     const fieldChangeDetails = {};
                     if (log.wfrecon__Approval_Data__c) {
                         try {
                             const parsedData = JSON.parse(log.wfrecon__Approval_Data__c);
-                            
+
                             // Check if it's the new structure or old structure
                             if (parsedData.locationProcessChanges) {
                                 // New structure: { locationProcessChanges: [], timesheetEntryChanges: {} }
@@ -357,7 +385,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                                 locationProcessChanges = parsedData.locationProcessChanges || [];
                                 timesheetEntryChanges = parsedData.timesheetEntryChanges || {};
                                 hasPendingApproval = locationProcessChanges.length > 0 || Object.keys(timesheetEntryChanges).length > 0;
-                                
+
                                 // Extract timesheet entry changes to track which fields changed
                                 // Timesheet entry changes contain clock in/out modifications
                                 Object.values(timesheetEntryChanges).forEach(entryData => {
@@ -385,7 +413,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     // Check if status is Auto-Approved or Approved
                     const status = log.wfrecon__Status__c;
                     const isApprovedStatus = status === 'Auto-Approved' || status === 'Approved';
-                    
+
                     return {
                         Id: log.Id,
                         Name: log.Name,
@@ -431,7 +459,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             const isVideo = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].includes(ext);
                             const isPdf = ext === 'pdf';
                             const isDoc = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext);
-                            
+
                             return {
                                 Id: img.Id,
                                 ContentDocumentId: img.ContentDocumentId,
@@ -456,7 +484,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             let changedToday = false;
                             let oldPercentage = null;
                             let newPercentage = null;
-                            
+
                             // Check if this process has changes in approval data
                             if (locationProcessChanges && locationProcessChanges.length > 0) {
                                 approvalDataForProcess = locationProcessChanges.find(item => item.id === proc.processId);
@@ -464,15 +492,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                                     changedToday = true;
                                     oldPercentage = approvalDataForProcess.oldValue || 0;
                                     newPercentage = approvalDataForProcess.newValue || 0;
-                                    
+
                                     // Only show as pending if status is not approved/auto-approved
                                     isPendingApproval = !isApprovedStatus;
                                 }
                             }
-                            
+
                             const yesterdayPercent = changedToday ? oldPercentage : (proc.completionPercentage || 0);
                             const todayChange = changedToday ? (newPercentage - oldPercentage) : 0;
-                            
+
                             return {
                                 ...proc,
                                 changedToday: changedToday,
@@ -495,7 +523,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         groupedLocationProcesses: this.groupLocationProcessesForView(locationProcesses, locationProcessChanges, isApprovedStatus)
                     };
                 });
-                
+
                 this.filteredLogs = [...this.shiftEndLogs];
                 this.currentPage = 1; // Reset to first page
                 this.updateDisplayedLogs(); // Initialize displayed logs
@@ -527,14 +555,14 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             logs = logs.filter(log => {
                 // Search by person name
                 const matchesPerson = log.createdByName && log.createdByName.toLowerCase().includes(this.searchTerm);
-                
+
                 // Search by work performed date in YYYY-MM-DD format
                 let matchesDate = false;
                 if (log.wfrecon__Work_Performed_Date__c) {
                     const workPerformedDate = new Date(log.wfrecon__Work_Performed_Date__c).toISOString().split('T')[0];
                     matchesDate = workPerformedDate.includes(this.searchTerm);
                 }
-                
+
                 return matchesPerson || matchesDate;
             });
         }
@@ -600,7 +628,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     handleCloseEntryPopup(event) {
         this.showEntryPopup = false;
-        
+
         // Check if a record was created and refresh data
         if (event && event.detail && event.detail.isRecordCreated) {
             this.loadShiftEndLogsWithCrewInfo();
@@ -610,7 +638,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Handle View More / View Less toggle
     handleToggleCard(event) {
         const logId = event.currentTarget.dataset.id;
-        
+
         // If clicking on already expanded card, collapse it
         if (this.expandedCardId === logId) {
             this.expandedCardId = null;
@@ -618,11 +646,11 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // Expand the clicked card and collapse any other
             this.expandedCardId = logId;
         }
-        
+
         // Update displayed logs to reflect the change
         this.updateDisplayedLogs();
     }
-    
+
     // Handle accordion toggle in view mode
     handleViewAccordionToggle(event) {
         event.stopPropagation();
@@ -632,10 +660,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const contentElement = this.template.querySelector(
             `.location-accordion-content[data-section="${sectionName}"][data-log-id="${logId}"]`
         );
-        
+
         if (contentElement) {
             const isOpen = contentElement.classList.contains('open');
-            
+
             // Close all accordions for this log first
             const allContents = this.template.querySelectorAll(
                 `.location-accordion-content[data-log-id="${logId}"]`
@@ -643,16 +671,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             const allHeaders = this.template.querySelectorAll(
                 `.location-accordion-header[data-log-id="${logId}"]`
             );
-            
+
             allContents.forEach(content => content.classList.remove('open'));
             allHeaders.forEach(header => header.classList.remove('active'));
-            
+
             // If it wasn't open, open it
             if (!isOpen) {
                 contentElement.classList.add('open');
                 headerElement.classList.add('active');
             }
-            
+
             // Update progress bars after DOM settles
             setTimeout(() => this.updateProgressBars(), 50);
         }
@@ -662,7 +690,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleEdit(event) {
         const logId = event.currentTarget.dataset.id;
         this.editLogId = logId;
-        
+
         // Find the log to edit and populate form fields
         const logToEdit = this.shiftEndLogs.find(log => log.Id === logId);
         if (logToEdit) {
@@ -680,7 +708,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 try {
                     const approvalData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
                     const mediaMetadata = approvalData.mediaMetadata || [];
-                    
+
                     // Build map of contentDocumentId -> source
                     mediaMetadata.forEach(meta => {
                         mediaMetadataMap.set(meta.contentDocumentId, meta.source);
@@ -700,7 +728,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 source: mediaMetadataMap.get(img.ContentDocumentId) || 'upload', // Default to upload if not found
                 isChatter: mediaMetadataMap.get(img.ContentDocumentId) === 'chatter'
             })) : [];
-            
+
             // Reset new uploads and delete/unlink tracking
             this.newUploadedFiles = [];
             this.imagesToDelete = [];
@@ -710,11 +738,11 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // Load location processes for step 2
             this.loadEditLocationProcesses(logToEdit);
         }
-        
+
         // Reset to step 1
         this.editCurrentStep = 'step1';
         this.showEditModal = true;
-        
+
         // Update slider visuals after modal renders (increased timeout for modal animation)
         setTimeout(() => this.updateEditSliderVisuals(), 300);
     }
@@ -758,7 +786,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.editSelectedLocationId = '';
     }
 
-        // Handle input change in edit form
+    // Handle input change in edit form
     handleEditInputChange(event) {
         const field = event.target.dataset.field;
         if (field) {
@@ -785,7 +813,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'Plan for Tomorrow is required', 'error');
                 return;
             }
-            
+
             this.editCurrentStep = 'step2';
             // Update slider visuals after DOM renders (increased timeout for render)
             setTimeout(() => this.updateEditSliderVisuals(), 300);
@@ -807,16 +835,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Load location processes for edit modal
     loadEditLocationProcesses(logToEdit) {
         if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
-            
+
             // Clear the original percentages map at the start
             this.editOriginalCompletionPercentages.clear();
-            
+
             // Check if there's approval data - handle both new and old structure
             let approvalDataArray = [];
             if (logToEdit.wfrecon__Approval_Data__c) {
                 try {
                     const parsedData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
-                    
+
                     // Check if it's the new structure or old structure
                     if (parsedData.locationProcessChanges) {
                         // New structure
@@ -829,7 +857,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     console.error('Error parsing approval data in edit modal:', e);
                 }
             }
-            
+
             // Map backend fields to component properties
             this.editAllLocationProcesses = logToEdit.locationProcesses.map(proc => {
                 // Handle different possible field names from backend
@@ -837,37 +865,37 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 const processName = proc.Name || proc.processName;
                 const locationName = proc.wfrecon__Location__r?.Name || proc.locationName || 'Unknown Location';
                 const sequence = proc.wfrecon__Sequence__c || proc.sequence || 0;
-                
+
                 // Get yesterday's percentage (total completed before today)
                 const yesterdayPercentage = Math.round(parseFloat(proc.yesterdayPercentage || proc.oldPercentage || 0));
-                
+
                 // Get current total completed percentage
                 const completionPercentage = Math.round(parseFloat(proc.wfrecon__Completed_Percentage__c || proc.completionPercentage || 0));
-                
+
                 // Calculate today's change (difference between current and yesterday)
                 const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
                 const remainingProgress = Math.max(0, 100 - completionPercentage);
-                
+
                 // Check if this process is pending approval from the JSON array
                 const approvalDataForProcess = approvalDataArray.find(item => item.id === processId);
                 const isPendingApproval = !!approvalDataForProcess;
                 const approvalOldValue = approvalDataForProcess?.oldValue || 0;
                 const approvalNewValue = approvalDataForProcess?.newValue || 0;
-                
+
                 // If in approval: purple shows (yesterday → approval value)
                 // If current > approval: that's new changes after approval
-                const approvalChange = isPendingApproval 
+                const approvalChange = isPendingApproval
                     ? Math.round(approvalNewValue - yesterdayPercentage)
                     : 0;
-                
+
                 // Calculate today's progress considering approval
-                const actualTodayProgress = isPendingApproval 
+                const actualTodayProgress = isPendingApproval
                     ? Math.max(0, completionPercentage - yesterdayPercentage) // Show total change from yesterday
                     : todayProgress;
-                
+
                 // Store the original completion percentage in the separate Map
                 this.editOriginalCompletionPercentages.set(processId, completionPercentage);
-                                
+
                 return {
                     processId: processId,
                     processName: processName,
@@ -890,7 +918,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     remainingStyle: `width: ${remainingProgress}%`
                 };
             });
-            
+
             this.buildEditLocationOptions();
             this.setEditDefaultLocation();
         }
@@ -907,7 +935,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
         });
         this.editLocationOptions = Array.from(locationMap.values());
-        
+
         // Group processes by location for accordion view
         this.groupEditLocationProcesses();
     }
@@ -921,10 +949,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
         }
     }
-    
+
     groupEditLocationProcesses() {
         const locationMap = new Map();
-        
+
         this.editAllLocationProcesses.forEach(proc => {
             if (!locationMap.has(proc.locationName)) {
                 locationMap.set(proc.locationName, {
@@ -935,15 +963,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
             locationMap.get(proc.locationName).processes.push(proc);
         });
-        
+
         this.editGroupedLocationProcesses = Array.from(locationMap.values());
-        
+
         // Set first accordion as active by default
         if (this.editGroupedLocationProcesses.length > 0) {
             this.editActiveAccordionSections = [this.editGroupedLocationProcesses[0].sectionName];
         }
     }
-    
+
     handleEditViewAccordionToggle(event) {
         event.stopPropagation();
         const sectionName = event.currentTarget.dataset.section;
@@ -951,23 +979,23 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const contentElement = this.template.querySelector(
             `.edit-location-accordion-content[data-section="${sectionName}"]`
         );
-        
+
         if (contentElement) {
             const isOpen = contentElement.classList.contains('open');
-            
+
             // Close all accordions first (only one open at a time)
             const allContents = this.template.querySelectorAll('.edit-location-accordion-content');
             const allHeaders = this.template.querySelectorAll('.edit-location-accordion-header');
-            
+
             allContents.forEach(content => content.classList.remove('open'));
             allHeaders.forEach(header => header.classList.remove('active'));
-            
+
             // If it wasn't open, open it
             if (!isOpen) {
                 contentElement.classList.add('open');
                 headerElement.classList.add('active');
             }
-            
+
             // Update slider visuals after DOM settles
             setTimeout(() => this.updateEditSliderVisuals(), 100);
         }
@@ -989,13 +1017,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         } else {
             filtered = [...this.editAllLocationProcesses];
         }
-        
+
         // Ensure styles are recalculated for filtered processes
         this.editLocationProcesses = filtered.map(proc => {
             const todayProgress = Math.max(0, proc.completionPercentage - proc.yesterdayPercentage);
             const remainingProgress = Math.max(0, 100 - proc.completionPercentage);
             const approvalChange = proc.isPendingApproval ? proc.approvalChange : 0;
-            
+
             return {
                 ...proc,
                 todayProgress: todayProgress,
@@ -1007,7 +1035,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 remainingStyle: `width: ${remainingProgress}%`
             };
         });
-        
+
         // Update visual sliders after DOM renders
         setTimeout(() => this.updateEditSliderVisuals(), 50);
     }
@@ -1020,7 +1048,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             if (sliderElement) {
                 // Set the slider value to reflect current completion percentage
                 sliderElement.value = processData.completionPercentage;
-                
+
                 const sliderContainer = sliderElement.closest('.slider-wrapper');
                 if (sliderContainer) {
                     const sliderTrack = sliderContainer.querySelector('.slider-track');
@@ -1033,20 +1061,20 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         if (completed && today && approval && remaining) {
                             const yesterday = processData.yesterdayPercentage || 0;
                             const current = processData.completionPercentage || 0;
-                            
+
                             // Always hide approval section (no orange)
                             approval.style.width = '0%';
                             approval.style.display = 'none';
-                            
+
                             // Green = yesterday/base completed (previous completed)
                             completed.style.width = `${yesterday}%`;
                             completed.style.display = yesterday > 0 ? 'block' : 'none';
-                            
+
                             // Purple = today's changes (from yesterday to current)
                             const todayChange = Math.max(0, current - yesterday);
                             today.style.width = `${todayChange}%`;
                             today.style.display = todayChange > 0 ? 'block' : 'none';
-                            
+
                             // Gray = remaining
                             const remainingPercent = Math.max(0, 100 - current);
                             remaining.style.width = `${remainingPercent}%`;
@@ -1054,7 +1082,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         }
                     }
                 }
-                
+
                 // Position slider to start at yesterdayPercentage (always from base, not approval)
                 const sliderWidth = 100 - processData.yesterdayPercentage;
                 sliderElement.style.left = `${processData.yesterdayPercentage}%`;
@@ -1076,7 +1104,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const processId = event.target.dataset.processId;
         const newValue = parseInt(event.target.value, 10);
         const sliderElement = event.target;
-        
+
         // Find process data from ALL processes (not just filtered)
         const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
         if (!processData) return;
@@ -1091,7 +1119,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     const yesterday = proc.yesterdayPercentage || 0;
                     const approvalValue = proc.approvalNewValue || 0;
                     const isInApproval = proc.isPendingApproval;
-                    
+
                     const completed = sliderTrack.querySelector('.completed');
                     const today = sliderTrack.querySelector('.today');
                     const approval = sliderTrack.querySelector('.approval');
@@ -1101,16 +1129,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         // Always hide approval section (no orange)
                         approval.style.width = '0%';
                         approval.style.display = 'none';
-                        
+
                         // Green = yesterday/base completed
                         completed.style.width = `${yesterday}%`;
                         completed.style.display = yesterday > 0 ? 'block' : 'none';
-                        
+
                         // Purple = today's changes (from yesterday to current)
                         const todayProgress = Math.max(0, newValue - yesterday);
                         today.style.width = `${todayProgress}%`;
                         today.style.display = todayProgress > 0 ? 'block' : 'none';
-                        
+
                         // Gray = remaining
                         const remainingProgress = Math.max(0, 100 - newValue);
                         remaining.style.width = `${remainingProgress}%`;
@@ -1122,7 +1150,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     if (labelsContainer) {
                         const todayPercent = Math.max(0, newValue - yesterday);
                         const remainingPercent = Math.max(0, 100 - newValue);
-                        
+
                         const todayLabel = labelsContainer.querySelector('.label-today');
                         if (todayLabel) {
                             // Find the text node after the SVG
@@ -1139,7 +1167,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             }
                         }
                     }
-                    
+
                     // Update percentage display
                     const percentageDisplay = sliderElement.closest('.edit-location-slider-container')?.querySelector('.progress-percentage');
                     if (percentageDisplay) {
@@ -1154,14 +1182,14 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const processId = event.target.dataset.processId;
         const yesterdayValue = parseInt(event.target.dataset.originalValue, 10); // This is yesterdayPercentage (sliderMinValue)
         const newValue = parseInt(event.target.value, 10);
-        
+
         // Find the process data to check if it's in approval and get original completion %
         const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
         if (!processData) return;
-        
+
         // Get the ORIGINAL completion percentage from the separate Map
         const originalCompletionPercentage = this.editOriginalCompletionPercentages.get(processId);
-        
+
         // For approval data JSON, always use yesterdayPercentage as the base
         // This ensures approval data always shows changes from the base value
         // Track modification only if changed from the original state
@@ -1181,7 +1209,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             const proc = this.editAllLocationProcesses[allProcessIndex];
             const todayProgress = Math.max(0, newValue - proc.yesterdayPercentage);
             const remainingProgress = Math.max(0, 100 - newValue);
-            
+
             this.editAllLocationProcesses = this.editAllLocationProcesses.map((p, index) => {
                 if (index === allProcessIndex) {
                     return {
@@ -1205,7 +1233,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             const proc = this.editLocationProcesses[processIndex];
             const todayProgress = Math.max(0, newValue - proc.yesterdayPercentage);
             const remainingProgress = Math.max(0, 100 - newValue);
-            
+
             this.editLocationProcesses = this.editLocationProcesses.map((p, index) => {
                 if (index === processIndex) {
                     return {
@@ -1230,16 +1258,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Reset approval for a process (restore to original base)
     handleResetApproval(event) {
         const processId = event.currentTarget.dataset.processId;
-        
+
         // Find the process in editAllLocationProcesses
         const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
         if (!processData || !processData.isPendingApproval) {
             return;
         }
-        
+
         // Reset to yesterday's percentage (the original base before approval)
         const resetValue = processData.yesterdayPercentage;
-        
+
         // Update in editAllLocationProcesses
         const allProcessIndex = this.editAllLocationProcesses.findIndex(p => p.processId === processId);
         if (allProcessIndex !== -1) {
@@ -1266,7 +1294,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 return p;
             });
         }
-        
+
         // Update in editLocationProcesses for current display
         const processIndex = this.editLocationProcesses.findIndex(p => p.processId === processId);
         if (processIndex !== -1) {
@@ -1293,20 +1321,20 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 return p;
             });
         }
-        
+
         // Update the original completion percentage map to reset value
         this.editOriginalCompletionPercentages.set(processId, resetValue);
-        
+
         // Remove from modified processes (this will remove it from approval data when saved)
         this.editModifiedProcesses.delete(processId);
-        
+
         // Rebuild grouped location processes to reflect the change
         this.groupEditLocationProcesses();
-        
+
         // Update visual sliders and force re-render
         setTimeout(() => {
             this.updateEditSliderVisuals();
-            
+
             // Manually update the slider input value
             const sliderElement = this.template.querySelector(`input[data-process-id="${processId}"]`);
             if (sliderElement) {
@@ -1314,7 +1342,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 sliderElement.dataset.originalValue = resetValue;
             }
         }, 100);
-        
+
         this.showToast('Success', 'Reset to previous completed value. Today\'s progress is now 0%.', 'success');
     }
 
@@ -1345,11 +1373,11 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             locationProcessChanges: [],
             timesheetEntryChanges: {}
         };
-        
+
         if (currentLog && currentLog.wfrecon__Approval_Data__c) {
             try {
                 const parsedData = JSON.parse(currentLog.wfrecon__Approval_Data__c);
-                
+
                 // Check if it's the new structure or old structure
                 if (parsedData.locationProcessChanges) {
                     // New structure
@@ -1380,7 +1408,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         Array.from(this.editModifiedProcesses.entries()).forEach(([processId, modification]) => {
             // Find the process to get its name
             const process = this.editAllLocationProcesses.find(p => p.processId === processId);
-            
+
             approvalDataMap.set(processId, {
                 id: processId,
                 oldValue: modification.originalValue,
@@ -1393,7 +1421,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         existingApprovalData.locationProcessChanges.forEach(existingApproval => {
             const processId = existingApproval.id;
             const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
-            
+
             if (processData) {
                 // If the process was in approval but now reset back to yesterdayPercentage, remove it
                 if (processData.completionPercentage === processData.yesterdayPercentage) {
@@ -1408,10 +1436,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             ...this.existingImages.filter(img => img.isChatter).map(img => img.id),
             ...this.newUploadedFiles.filter(file => file.isChatter).map(file => file.id)
         ];
-        
+
         // Build updated media metadata
         const updatedMediaMetadata = [];
-        
+
         // Add existing images that weren't removed
         this.existingImages.forEach(img => {
             updatedMediaMetadata.push({
@@ -1420,7 +1448,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 name: img.name
             });
         });
-        
+
         // Add new uploaded/chatter files
         this.newUploadedFiles.forEach(file => {
             if (file.isChatter) {
@@ -1458,7 +1486,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         };
 
         // Only set approval data if there are any updates (location process changes or timesheet changes)
-        if(mergedApprovalData.locationProcessChanges.length > 0 || Object.keys(mergedApprovalData.timesheetEntryChanges).length > 0 || uploadedContentDocIds.length > 0) {
+        if (mergedApprovalData.locationProcessChanges.length > 0 || Object.keys(mergedApprovalData.timesheetEntryChanges).length > 0 || uploadedContentDocIds.length > 0) {
             formData.wfrecon__Approval_Data__c = JSON.stringify(mergedApprovalData);
         }
 
@@ -1466,7 +1494,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         console.log('Existing approval data:', existingApprovalData);
         console.log('New modifications from editModifiedProcesses:', Array.from(this.editModifiedProcesses.entries()));
         console.log('Merged approval data:', mergedApprovalData);
-        
+
 
         this.isLoading = true;
 
@@ -1486,36 +1514,36 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             .map(file => file.id);
 
         // Combined update: delete removed images, unlink Chatter images, link new files, update log entry, and upload camera photos
-        updateShiftEndLogWithImages({ 
-            logEntry: formData, 
+        updateShiftEndLogWithImages({
+            logEntry: formData,
             contentDocumentIdsToDelete: this.imagesToDelete,
             contentDocumentIdsToUnlink: this.imagesToUnlink,
             contentDocumentIdsToLink: contentDocumentIdsToLink,
             cameraPhotosJson: cameraPhotosJson
         })
-        .then(() => {
-            this.showToast('Success', 'Shift End Log updated successfully', 'success');
-            // Clear newlyUploadedContentDocIds so they won't be deleted on modal close
-            // These files are now successfully linked to the log entry
-            this.newlyUploadedContentDocIds = [];
-            this.handleCloseModal();
-            this.loadShiftEndLogsWithCrewInfo();
-        })
-        .catch(error => {
-            const errorMessage = error.body?.message || 'Error updating shift end log';
-            this.showToast('Error', errorMessage, 'error');
-        })
-        .finally(() => {
-            this.isLoading = false;
-        });
-    }   
+            .then(() => {
+                this.showToast('Success', 'Shift End Log updated successfully', 'success');
+                // Clear newlyUploadedContentDocIds so they won't be deleted on modal close
+                // These files are now successfully linked to the log entry
+                this.newlyUploadedContentDocIds = [];
+                this.handleCloseModal();
+                this.loadShiftEndLogsWithCrewInfo();
+            })
+            .catch(error => {
+                const errorMessage = error.body?.message || 'Error updating shift end log';
+                this.showToast('Error', errorMessage, 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
 
     // Handle file upload
     async handleUploadFinished(event) {
         try {
             // Check org storage before accepting the upload
             const storageCheck = await checkOrgStorageLimit();
-            
+
             if (!storageCheck.hasSpace) {
                 this.showToast('Error', storageCheck.message, 'error');
                 // Delete the just-uploaded files
@@ -1540,7 +1568,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 // Track this as a newly uploaded file for cleanup if user cancels
                 this.newlyUploadedContentDocIds.push(file.documentId);
             });
-            
+
             // Show storage warning if approaching limit
             if (storageCheck.percentUsed > 90) {
                 this.showToast('Warning', storageCheck.message, 'warning');
@@ -1562,7 +1590,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         if (isExisting) {
             // For existing images, check source to decide delete vs unlink
             const existingImg = this.existingImages.find(img => img.id === imageId);
-            
+
             if (existingImg && existingImg.source === 'chatter') {
                 // Chatter images: only unlink, don't delete
                 this.imagesToUnlink.push(imageId);
@@ -1570,7 +1598,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 // Upload/capture images: delete from org
                 this.imagesToDelete.push(imageId);
             }
-            
+
             this.existingImages = this.existingImages.filter(img => img.id !== imageId);
         } else if (isChatter) {
             // For Chatter images that were just added, simply remove from the list (no need to unlink as not yet saved)
@@ -1615,7 +1643,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         if (!this.chatterFeedItems || this.chatterFeedItems.length === 0) {
             return true;
         }
-        
+
         for (let feedItem of this.chatterFeedItems) {
             for (let attachment of feedItem.attachments) {
                 // Only enable button if attachment is selected AND not already uploaded
@@ -1648,7 +1676,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleUploadOptionsClick(event) {
         event.stopPropagation();
         this.showUploadOptions = !this.showUploadOptions;
-        
+
         // Close dropdown when clicking outside
         if (this.showUploadOptions) {
             document.addEventListener('click', this.handleClickOutside.bind(this));
@@ -1659,7 +1687,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.showUploadOptions = false;
     }
 
-    handleFileUploadClick(event){
+    handleFileUploadClick(event) {
         event.stopPropagation();
     }
 
@@ -1688,15 +1716,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Chatter Functions
     async loadChatterFeedItems() {
         this.isLoadingChatter = true;
-        
+
         try {
             const result = await getChatterFeedItems({
                 jobId: this.recordId,
                 daysOffset: this.chatterDaysOffset
             });
-            
+
             console.log('Chatter Result:', result);
-            
+
             // Check if there are more items
             this.hasMoreChatterItems = result && result.hasMore;
 
@@ -1705,7 +1733,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 ...this.existingImages.map(img => img.id),
                 ...this.newUploadedFiles.map(file => file.id)
             ];
-            
+
             if (result && result.feedItems && result.feedItems.length > 0) {
                 const newFeedItems = result.feedItems.map(feedItem => ({
                     ...feedItem,
@@ -1720,7 +1748,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         };
                     })
                 }));
-                
+
                 // Append to existing items (for Load More)
                 if (this.chatterDaysOffset === 0) {
                     this.chatterFeedItems = newFeedItems;
@@ -1732,7 +1760,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                     this.chatterFeedItems = [];
                 }
             }
-            
+
         } catch (error) {
             console.error('Error loading Chatter feed items:', error);
             this.showToast('Error', 'Failed to load Chatter posts', 'error');
@@ -1753,7 +1781,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     handleAttachmentSelection(event) {
         const attachmentId = event.currentTarget.dataset.id;
-        
+
         // Find the attachment to check if already uploaded
         let isAlreadyUploaded = false;
         this.chatterFeedItems.forEach(feedItem => {
@@ -1763,13 +1791,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 }
             });
         });
-        
+
         // Prevent selection if already uploaded
         if (isAlreadyUploaded) {
             this.showToast('Info', 'This file is already uploaded to this log entry', 'info');
             return;
         }
-        
+
         // Toggle selection
         this.chatterFeedItems = this.chatterFeedItems.map(feedItem => ({
             ...feedItem,
@@ -1794,7 +1822,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         }
 
         const selectedAttachments = [];
-        
+
         // Collect all selected attachments (excluding already uploaded)
         this.chatterFeedItems.forEach(feedItem => {
             feedItem.attachments.forEach(att => {
@@ -1803,11 +1831,11 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 }
             });
         });
-        
+
         if (selectedAttachments.length === 0) {
             return;
         }
-        
+
         // Add selected attachments to uploaded files
         selectedAttachments.forEach(attachment => {
             this.newUploadedFiles.push({
@@ -1820,7 +1848,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 isChatter: true
             });
         });
-        
+
         this.showToast('Success', `${selectedAttachments.length} file(s) added from Chatter`, 'success');
         this.closeChatterModal();
     }
@@ -1839,16 +1867,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
-        
+
         if (diffMins < 1) return 'Just now';
         if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
         if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
         if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-        
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
         });
     }
 
@@ -1856,7 +1884,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleOpenCamera() {
         this.showCameraModal = true;
         this.capturedPhoto = null;
-        
+
         // Wait for modal to render, then start camera
         setTimeout(() => {
             this.startCamera();
@@ -1867,12 +1895,12 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         try {
             const videoElement = this.template.querySelector('.camera-video');
             if (videoElement) {
-                this.cameraStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
+                this.cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         facingMode: 'environment', // Use back camera by default
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
-                    } 
+                    }
                 });
                 videoElement.srcObject = this.cameraStream;
             }
@@ -1886,16 +1914,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleCapturePhoto() {
         const videoElement = this.template.querySelector('.camera-video');
         const canvasElement = this.template.querySelector('.camera-canvas');
-        
+
         if (videoElement && canvasElement && videoElement.videoWidth > 0) {
             const context = canvasElement.getContext('2d');
             canvasElement.width = videoElement.videoWidth;
             canvasElement.height = videoElement.videoHeight;
             context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-            
+
             // Get image data URL
             this.capturedPhoto = canvasElement.toDataURL('image/jpeg', 0.9);
-            
+
             // Stop camera stream after capture
             if (this.cameraStream) {
                 this.cameraStream.getTracks().forEach(track => track.stop());
@@ -1916,22 +1944,22 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     handleSaveCapturedPhoto() {
         if (!this.capturedPhoto) return;
-        
+
         try {
             // Convert base64 to blob for size validation
             const base64Data = this.capturedPhoto.split(',')[1];
             const blob = this.base64ToBlob(base64Data, 'image/jpeg');
-            
+
             // Check file size (4MB limit)
             const fileSizeInMB = blob.size / (1024 * 1024);
             if (fileSizeInMB > 8) {
                 this.showToast('Error', 'Photo size exceeds 8MB limit. Please try again.', 'error');
                 return;
             }
-            
+
             // Create file name
             const fileName = `Camera_${new Date().getTime()}.jpg`;
-            
+
             // Store temporarily in uploaded files list
             this.newUploadedFiles.push({
                 id: `temp_${new Date().getTime()}`,
@@ -1941,7 +1969,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 isCamera: true,
                 base64Data: base64Data
             });
-            
+
             this.closeCameraModal();
             this.showToast('Success', 'Photo captured successfully', 'success');
         } catch (error) {
@@ -1974,7 +2002,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         event.stopPropagation();
         const contentDocumentId = event.currentTarget.dataset.id;
         const versionId = event.currentTarget.dataset.versionId;
-        
+
         this[NavigationMixin.Navigate]({
             type: 'standard__namedPage',
             attributes: {
@@ -1991,7 +2019,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         event.stopPropagation();
         const contentDocumentId = event.currentTarget.dataset.id;
         const versionId = event.currentTarget.dataset.versionId;
-        
+
         this[NavigationMixin.Navigate]({
             type: 'standard__namedPage',
             attributes: {
@@ -2006,7 +2034,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Get file icon name based on file type
     getFileIconForType(extension) {
         const ext = extension ? extension.toLowerCase() : '';
-        
+
         // Document types
         if (['doc', 'docx'].includes(ext)) return 'doctype:word';
         if (['xls', 'xlsx'].includes(ext)) return 'doctype:excel';
@@ -2014,16 +2042,16 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         if (ext === 'pdf') return 'doctype:pdf';
         if (['txt', 'log'].includes(ext)) return 'doctype:txt';
         if (['zip', 'rar', '7z'].includes(ext)) return 'doctype:zip';
-        
+
         // Media types
         if (['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].includes(ext)) return 'doctype:video';
         if (['mp3', 'wav', 'ogg', 'aac'].includes(ext)) return 'doctype:audio';
-        
+
         // Code/data
         if (['csv'].includes(ext)) return 'doctype:csv';
         if (['xml'].includes(ext)) return 'doctype:xml';
         if (['json', 'js', 'css', 'html'].includes(ext)) return 'doctype:code';
-        
+
         // Default
         return 'doctype:unknown';
     }
@@ -2044,7 +2072,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         event.stopPropagation();
         const logId = event.currentTarget.dataset.id;
         const logName = event.currentTarget.dataset.name;
-        
+
         // Show confirmation modal
         this.confirmationTitle = 'Delete Shift End Log';
         this.confirmationMessage = `Are you sure you want to delete <strong>${logName}</strong>? This action cannot be undone.`;
@@ -2100,7 +2128,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Proceed with actual deletion after confirmation
     proceedWithLogDeletion(logId) {
         this.isLoading = true;
-        
+
         deleteShiftEndLog({ logId: logId })
             .then(result => {
                 if (result.includes('Success')) {
@@ -2132,9 +2160,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     // Get status variant for styling
     getStatusVariant(logType) {
         if (!logType) return 'neutral';
-        
+
         const type = logType.toLowerCase();
-        switch(type) {
+        switch (type) {
             case 'standard': return 'success';
             case 'emergency': return 'error';
             case 'exception': return 'warning';
