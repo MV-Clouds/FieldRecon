@@ -46,6 +46,10 @@ public with sharing class CollectWorkLogsController {
     }
 
     public static List<ContentVersion> getCVofMobilization(String mobilizationId){
+        return getCVofMobilization(mobilizationId, null);
+    }
+
+    public static List<ContentVersion> getCVofMobilization(String mobilizationId, String queryFields){
         try {
 
             // First collect all ContentDocumentLink records for the given mobilization Id
@@ -58,7 +62,7 @@ public with sharing class CollectWorkLogsController {
             // Note: If you directly query ContentVersion with FirstPublishLocationId, it may not return all records due to file sharing settings
             // So you must need to query it using Ids of all content versions.
             // So collect all ContentVersion Id from ContentDocumentLink records and then query ContentVersion using those Ids.
-            String clipQuery = getCVFieldsToQuery() + ' WHERE Id IN: cvIds AND Is_Work_Log_Recording__c = true ORDER BY CreatedDate Desc';
+            String clipQuery = (queryFields ?? getCVFieldsToQuery()) + ' WHERE Id IN: cvIds AND Is_Work_Log_Recording__c = true ORDER BY CreatedDate Desc';
             List<ContentVersion> clipList = Database.query(clipQuery);
 
             return clipList;
@@ -162,25 +166,13 @@ public with sharing class CollectWorkLogsController {
             wfrecon__Mobilization_Member__c mobMember =  mobMembers.size() > 0 ? mobMembers[0] : new wfrecon__Mobilization_Member__c();
             String member_url = orgBaseURL+'/'+(mobMember.wfrecon__Contact__c ?? UserInfo.getUserId());
 
+            List<AI_Defaults__mdt> ai_defaults_records = [SELECT Work_Log_Entry_Chatter_Body__c FROM AI_Defaults__mdt WHERE DeveloperName = 'AI_Defaults' LIMIT 1];
+            AI_Defaults__mdt ai_defaults = ai_defaults_records.size() > 0 ? ai_defaults_records[0] : new AI_Defaults__mdt();
+
             // Create chatter post
             FeedItem feedElement = new FeedItem();
-            String richtextBody = ''+
-            '<p>'+
-            '  <p><b>New Work Log Submitted</b></p>'+
-            '  <p>&nbsp</p>'+
-            '  <p> A new work-log has been submitted by <b><a href="{#member_url}" rel="noopener noreferrer" target="_blank">{#member_name}</a></b>.</p>'+
-            '  <p><b>Details:</b></p>'+
-            '  <ul>'+
-            '    <li><b>Date: </b>{#today}</li>'+
-            '    <li><b>Mobilization: </b><a href="{#mobilization_url}" rel="noopener noreferrer" target="_blank">{#mobilization_name}</a></li>'+
-            '  </ul>'+
-            '  <p>&nbsp</p>'+
-            '  <p><b>Work Log:</b></p>'+
-            '  <p>'+
-            '    {#transcript}'+
-            '  </p>'+
-            '</p>'+
-            '';
+            System.debug('ai_defaults.Work_Log_Entry_Chatter_Body__c : '+ ai_defaults.Work_Log_Entry_Chatter_Body__c);
+            String richtextBody = ai_defaults.Work_Log_Entry_Chatter_Body__c ?? '<p> <p><b>New Work Log Submitted</b></p> <p>&nbsp</p> <p> A new work-log has been submitted by <b><a href="{#member_url}" rel="noopener noreferrer" target="_blank">{#member_name}</a></b>.</p> <p><b>Details:</b></p> <ul> <li><b>Date: </b>{#today}</li> <li><b>Mobilization: </b><a href="{#mobilization_url}" rel="noopener noreferrer" target="_blank">{#mobilization_name}</a></li> </ul> <p>&nbsp</p> <p><b>Work Log:</b></p> <p> {#transcript} </p> </p>';
             richtextBody = richtextBody.replace('{#member_url}', member_url);
             richtextBody = richtextBody.replace('{#member_name}', mobMember.wfrecon__Contact__r?.Name ?? UserInfo.getName());
             richtextBody = richtextBody.replace('{#today}', String.valueOf(Date.today()));
@@ -294,10 +286,10 @@ public with sharing class CollectWorkLogsController {
                 params.mobilizationId = mobRes.get('mobilizationId');
             }
     
-            List<ContentVersion> clipList = getCVofMobilization(params.mobilizationId);
+            List<ContentVersion> clipList = getCVofMobilization(params.mobilizationId, 'SELECT Id, ContentSize, Transcript_Size__c FROM ContentVersion');
 
             if(clipList.isEmpty()){
-                result.put('no_recording', 'No recordings found');
+                result.put('no_recording', 'No Work Logs found');
                 return result;
             }
 
@@ -310,18 +302,16 @@ public with sharing class CollectWorkLogsController {
                 totalClipSize += clip.ContentSize;
                 totalTranscriptSize += clip.Transcript_Size__c;
                 clipIds.add(clip.Id);
-                workLogs.put(clip.createdBy.Name+' ('+clip.CreatedDate+')', clip.Transcript_English__c);
             }
             result.put('totalClipSize', totalClipSize);
 
             String transcript = JSON.serialize(workLogs);
             System.debug('transcript : '+ transcript);
-            System.debug('transcript size : '+ Blob.valueOf(transcript).size());
             System.debug('Transcript_Size__c '+ totalTranscriptSize);
 
-            // if totalClipSize is less than 5 MB, then call AI to summarize the clips
-            if(totalClipSize <= 5 * 1024 * 1024){
-                return ProcessShiftLogsByAI(clipIds);
+            // if totalTranscriptSize is less than 5 MB, then call AI to summarize the clips
+            if(totalTranscriptSize <= (5 * 1024 * 1024)){
+                return ProcessShiftLogsByAI(clipIds); 
             }
             else{
                 // process recorded shift log in future method to increase the limit
@@ -397,7 +387,7 @@ public with sharing class CollectWorkLogsController {
      * So, to avoid this, we are using this approach to query the field to keep fields same for all related query.
      */
     private static String getCVFieldsToQuery(){
-        return 'SELECT Id, FirstPublishLocationId, FirstPublishLocation.Name, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name, Transcript_English__c, ContentDocumentId, Transcript_Size__c FROM ContentVersion';
+        return 'SELECT Id, FirstPublishLocationId, FirstPublishLocation.Name, VersionData, VersionDataUrl, CreatedDate, FileExtension, ContentSize, CreatedBy.Name, ContentDocumentId, Transcript_Size__c FROM ContentVersion';
     }
 
     public class InputParams{

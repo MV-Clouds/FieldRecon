@@ -62,25 +62,20 @@ public with sharing class AICalloutController {
 
             // String audio = (String) String.valueOf(audioData.get('audio'));
             String transcript_en = (String) String.valueOf(audioData.get('transcript_en'));
-            
-            String userPrompt = ''+
-            'Here is Shift Log Detail: '+transcript_en+
-            'Detail contains work log information about each crew member.'+
-            // 'I will provide work Shift Log entry detail. i will provide information about what crew has been done over the working shift or whole day'+
-            // 'I will provide work Shift Log entry detail in audio form. i will provide information about what me and my crew has been done over the working shift or whole day'+
-            // 'Please Provide the Transcript for the following audio in the language it has been spoken.'+
-            // 'Provide language and its code. Translate the Transcript it into english. '+
-            // 'Please consider '+UserInfo.getName()+' as me. And Summarize the detail based on what work has been done by each person.'+
-            'Provide Some Detailed information about the work had been done on shift based on detail.'+
-            'If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it'+
-            'Only Provide Response In Mentioned Format/Structure '+
-            'Thank you for your assistance';
 
-            // Map<String, Object> data = new Map<String, Object>();
-            // data.put('mime_type', 'audio/webm');
-            // data.put('data', audio);
-            // String prompt = JSON.serialize(data);
-            // System.debug('prompt : '+prompt);
+            List<AI_Defaults__mdt> ai_defaults_records = [SELECT Shift_Log_Summary_Prompt_Instruction__c, Shift_Log_Summary_generationConfig__c FROM AI_Defaults__mdt WHERE DeveloperName = 'AI_Defaults' LIMIT 1];
+            AI_Defaults__mdt ai_defaults = ai_defaults_records.size() > 0 ? ai_defaults_records[0] : new AI_Defaults__mdt();
+            
+            // customized user prompt
+            String customized_prompt = 'Detail contains work log information about each crew member. Provide Some Detailed information about the work had been done on shift based on detail.';
+            
+            // build user prompt by adding customized_prompt & prompt instruction
+            String userPrompt = ai_defaults.Shift_Log_Summary_Prompt_Instruction__c ?? 'Here is Shift Log Detail: {#transcript_en}. {#customized_prompt} If there is no Information About Work Detail make no_valid_entry to true, otherwise false. Only Provide Response In Mentioned Format/Structure . Thank you for your assistance.';
+            userPrompt += userPrompt.replace('{#transcript_en}', transcript_en);
+            userPrompt += userPrompt.replace('{#customized_prompt}', customized_prompt);
+
+            // collect generationConfig...
+            String generationConfig = ai_defaults.Shift_Log_Summary_generationConfig__c ?? '{ "responseMimeType": "application/json", "responseJsonSchema": { "type": "object", "properties": { "info": { "type": "string", "description": "General summary or context of the input." }, "whatWeDone": { "type": "string", "description": "Summary (about 50 or more words) work completed by me or my crew today or in the specified period, including specific achievements and key results. Keep me and my crew as subject." }, "planForTomorrow": { "type": "string", "description": "A detailed plan (about 50 or more words) for the next day, including prioritized tasks, required resources, and anticipated outcomes." }, "notesToOffice": { "type": "string", "description": "Any specific notes, requests, or messages to be communicated to the office or management (e.g., supplies needed, meeting requests). If no information available then leave this blank" }, "exceptions": { "type": "string", "description": "Any issues, blockers, or unusual circumstances encountered. If no information available then leave this blank" }, "no_valid_entry": { "type": "boolean", "description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false." } }, "required": [ "info", "whatWeDone", "planForTomorrow", "notesToOffice", "exceptions", "no_valid_entry" ] } }';
 
             // Build full request body using content structure
             String requestBody = '{' + 
@@ -88,60 +83,10 @@ public with sharing class AICalloutController {
                     '{' + 
                         '"parts": [' + 
                             '{"text": "' + userPrompt + '"}' +
-                            // '{"inline_data": ' + prompt + '}' +
                         ']' + 
                     '}' + 
                 '],' + 
-                '"generationConfig": {' + 
-                    '"responseMimeType": "application/json",' + 
-                    '"responseJsonSchema": {' + 
-                        '"type": "object",' + 
-                        '"properties": {' + 
-                            // '"language": {' + 
-                            //     '"type": "string",' + 
-                            //     '"description": "The language detected in the input audio/text."' + 
-                            // '},' + 
-                            // '"lang_code": {' + 
-                            //     '"type": "string",' + 
-                            //     '"description": "The ISO 639-1 language code (e.g., \'en\', \'hi\', \'fr\')."' + 
-                            // '},' + 
-                            // '"transcript": {' + 
-                            //     '"type": "string",' + 
-                            //     '"description": "The full verbatim transcript of the speech."' + 
-                            // '},' + 
-                            // '"translation_en": {' + 
-                            //     '"type": "string",' + 
-                            //     '"description": "An English translation of the full transcript."' + 
-                            // '},' + 
-                            '"info": {' + 
-                                '"type": "string",' + 
-                                '"description": "General summary or context of the input."' + 
-                            '},' + 
-                            '"whatWeDone": {' + 
-                                '"type": "string",' + 
-                                '"description": "Summary (about 50 or more words) work completed by me or my crew today or in the specified period, including specific achievements and key results. Keep me and my crew as subject."' + 
-                            '},' + 
-                            '"planForTomorrow": {' + 
-                                '"type": "string",' + 
-                                '"description": "A detailed plan (about 50 or more words) for the next day, including prioritized tasks, required resources, and anticipated outcomes."' + 
-                            '},' + 
-                            '"notesToOffice": {' + 
-                                '"type": "string",' + 
-                                '"description": "Any specific notes, requests, or messages to be communicated to the office or management (e.g., supplies needed, meeting requests). If no information available then leave this blank"' + 
-                            '},' + 
-                            '"exceptions": {' + 
-                                '"type": "string",' + 
-                                '"description": "Any issues, blockers, or unusual circumstances encountered. If no information available then leave this blank"' + 
-                            '},' + 
-                            '"no_valid_entry": {' + 
-                                '"type": "boolean",' + 
-                                '"description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false."' + 
-                            '}' + 
-                        '},' + 
-                        // '"required": [ "language", "lang_code", "transcript", "translation_en", "info", "whatWeDone", "planForTomorrow", "notesToOffice", "exceptions", "no_valid_entry" ]' + 
-                        '"required": [ "info", "whatWeDone", "planForTomorrow", "notesToOffice", "exceptions", "no_valid_entry" ]' + 
-                    '}' + 
-                '}' + 
+                '"generationConfig": '+generationConfig+
             '}';
 
             result = callGeminiAPI(requestBody);
@@ -154,25 +99,23 @@ public with sharing class AICalloutController {
     }
 
     @AuraEnabled
-    public static Map<String, Object> generateSingleRecordingTranscript(Map<String, Object> audioData) {
+    public static Map<String, Object> generateSingleRecordingTranscript(Map<String, Object> data) {
         Map<String, Object> result = new Map<String, Object>();
         try {
-            String audio = (String) String.valueOf(audioData.get('audio'));
-            
-            String userPrompt = ''+
-            'I will provide work Shift Log entry detail in audio form. Audio has information about what work has been done over the working shift or whole day'+
-            'Please Provide the Transcript for the following audio in the language it has been spoken.'+
-            'Provide language and its code. Translate the Transcript it into english. '+
-            'If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it'+
-            'Only Provide Response In Mentioned Format/Structure '+
-            'Note: Always provide JSON within (even if no detail is available) the response as i need parsing JSON.'+
-            'Thank you for your assistance';
+            String audio = (String) String.valueOf(data.get('audio'));
 
-            Map<String, Object> data = new Map<String, Object>();
-            data.put('mime_type', 'audio/webm');
-            data.put('data', audio);
-            String prompt = JSON.serialize(data);
-            System.debug('prompt : '+prompt);
+            List<AI_Defaults__mdt> ai_defaults_records = [SELECT Work_Log_Transcript_Prompt__c, Work_Log_Transcript_GenerateConfig__c FROM AI_Defaults__mdt WHERE DeveloperName = 'AI_Defaults' LIMIT 1];
+            AI_Defaults__mdt ai_defaults = ai_defaults_records.size() > 0 ? ai_defaults_records[0] : new AI_Defaults__mdt();
+            
+            String userPrompt = ai_defaults.Work_Log_Transcript_Prompt__c ?? 'I will provide work Shift Log entry detail in audio form. Audio has information about what work has been done over the working shift or whole day. Please Provide the Transcript for the following audio in the language it has been spoken. Provide language and its code. Translate the Transcript it into english. If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it. Only Provide Response In Mentioned Format/Structure. Note: Always provide JSON within (even if no detail is available) the response as i need parsing JSON. Thank you for your assistance.';
+
+            Map<String, Object> audioData = new Map<String, Object>();
+            audioData.put('mime_type', 'audio/webm');
+            audioData.put('data', audio);
+            String inline_data = JSON.serialize(audioData);
+            System.debug('inline_data : '+inline_data);
+
+            String generationConfig = ai_defaults.Work_Log_Transcript_GenerateConfig__c ?? '{"responseMimeType": "application/json", "responseJsonSchema": { "type": "object", "properties": { "language": { "type": "string", "description": "The language detected in the input audio/text." }, "lang_code": { "type": "string", "description": "The ISO 639-1 language code (e.g.,en, hi, fr)." }, "transcript": { "type": "string", "description": "The full verbatim transcript of the speech." }, "translation_en": { "type": "string", "description": "An English translation of the full transcript." }, "no_valid_entry": { "type": "boolean", "description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false." } }, "required": [ "language", "lang_code", "transcript", "translation_en", "no_valid_entry" ] }}';
 
             // Build full request body using content structure
             String requestBody = '{' + 
@@ -180,39 +123,11 @@ public with sharing class AICalloutController {
                     '{' + 
                         '"parts": [' + 
                             '{"text": "' + userPrompt + '"},' +
-                            '{"inline_data": ' + prompt + '}' +
+                            '{"inline_data": ' + inline_data + '}' +
                         ']' + 
                     '}' + 
                 '],' + 
-                '"generationConfig": {' + 
-                    '"responseMimeType": "application/json",' + 
-                    '"responseJsonSchema": {' + 
-                        '"type": "object",' + 
-                        '"properties": {' + 
-                            '"language": {' + 
-                                '"type": "string",' + 
-                                '"description": "The language detected in the input audio/text."' + 
-                            '},' + 
-                            '"lang_code": {' + 
-                                '"type": "string",' + 
-                                '"description": "The ISO 639-1 language code (e.g., \'en\', \'hi\', \'fr\')."' + 
-                            '},' + 
-                            '"transcript": {' + 
-                                '"type": "string",' + 
-                                '"description": "The full verbatim transcript of the speech."' + 
-                            '},' + 
-                            '"translation_en": {' + 
-                                '"type": "string",' + 
-                                '"description": "An English translation of the full transcript."' + 
-                            '},' + 
-                            '"no_valid_entry": {' + 
-                                '"type": "boolean",' + 
-                                '"description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false."' + 
-                            '}' + 
-                        '},' + 
-                        '"required": [ "language", "lang_code", "transcript", "translation_en", "no_valid_entry" ]' + 
-                    '}' + 
-                '}' + 
+                '"generationConfig": '+generationConfig+'' + 
             '}';
 
             result = callGeminiAPI(requestBody);
@@ -234,10 +149,6 @@ public with sharing class AICalloutController {
         @AuraEnabled public List<String> crews;
         @AuraEnabled public Boolean avoidHtmlContent;
     }
-
-    public static string generateConfig = ''+
-    '{"responseMimeType":"application/json","responseSchema":{"type":"object","properties":{"ReportMetaData":{"type":"object","properties":{"ReportDate":{"type":"string"}},"required":["ReportDate"]},"JobOverview":{"type":"object","properties":{"JobName":{"type":"string"},"JobNumber":{"type":"string"},"Status":{"type":"string"},"Location":{"type":"string"},"StartDate":{"type":"string"},"EstimatedEndDate":{"type":"string"},"ContractPrice":{"type":"string"},"TotalManHoursLogged":{"type":"string"},"TotalContractValue":{"type":"string"},"ChangeOrderValue":{"type":"string"},"Mobilizations":{"type":"integer"}},"required":["JobName","Status","Location","ContractPrice","TotalManHoursLogged","Mobilizations"]},"ShiftLogSummary":{"type":"object","properties":{"EachLogSummary":{"type":"array","description":"Daily summary of key work activities such as work performed, exception and other information. if there is multiple log for the same day, merge into one day.","items":{"type":"object","properties":{"Date":{"type":"string"},"SummaryOfKeyWorkActivities":{"type":"string","description":"Daily summary of key work performed."},"ExceptionCause":{"type":"string","description":"Specific exceptions/challenges logged by date."}},"required":["Date","SummaryOfKeyWorkActivities","ExceptionCause"]}},"WorkPerformedOverallSummary":{"type":"string","description":"Narrative summarizing the scope and status of work performed."},"ExceptionOverallSummary":{"type":"string","description":"Narrative summarizing the impact of the exceptions."}},"required":["EachLogSummary","ExceptionOverallSummary","WorkPerformedOverallSummary"]},"NotesForOffice":{"type":"array","description":"Action items or suggestions for management/office staff.","items":{"type":"string"}},"OverallJobHealthSummary":{"type":"object","properties":{"Progress":{"type":"string","description":"Progress of the overall job in minimal word"},"RiskLevel":{"type":"string","description":"Risk Level"},"Efficiency":{"type":"string","description":"Efficiency of the job in  minimal word"},"ResourceUtilization":{"type":"string","description":"Resource utilization throughout the job in  minimal word"},"Status":{"type":"string","description":"Status of the job in  minimal word"}},"required":["Progress","Efficiency","ResourceUtilization","Status"]},"FinalSummary":{"type":"string","description":"The concluding statement on the project\'s health and outlook."},"Label":{ "type": "object", "description": "Contains all UI labels translated into the selected language while keeping original meaning and context.", "properties": { "JobOverviewTitle": { "type": "string", "description": "Label for \'Job Overview\' section title." }, "JobName": { "type": "string", "description": "Label for \'Job Name\'." }, "Status": { "type": "string", "description": "Label for \'Status\'." }, "Location": { "type": "string", "description": "Label for \'Location\'." }, "ContractPrice": { "type": "string", "description": "Label for \'Contract Price\'." }, "TotalManHoursLogged": { "type": "string", "description": "Label for \'Total Man Hours Logged\'." }, "TotalContractValue": { "type": "string", "description": "Label for \'Total Contract Value\'." }, "Mobilizations": { "type": "string", "description": "Label for \'Mobilizations\'." }, "WorkProgressSummaryTitle": { "type": "string", "description": "Label for \'Work Progress Summary (By Each Day)\' section title." }, "GroupedByWorkDates": { "type": "string", "description": "Label for \'Grouped by Work Dates:\'." }, "Date": { "type": "string", "description": "Label for \'Date\' column." }, "SummaryOfKeyWorkActivities": { "type": "string", "description": "Label for \'Summary of Key Work Activities\'." }, "OverallWorkSummary": { "type": "string", "description": "Label for \'Overall Summary\'." }, "ExceptionsChallengesTitle": { "type": "string", "description": "Label for \'Exceptions / Challenges\' section title." }, "ExceptionCause": { "type": "string", "description": "Label for \'Exception / Cause\' column." }, "ExceptionOverallSummary": { "type": "string", "description": "Label for \'Summary\' under exceptions." }, "NotesForOfficeTitle": { "type": "string", "description": "Label for \'Notes for Office\' section title." }, "OverallJobHealthSummaryTitle": { "type": "string", "description": "Label for \'Overall Job Health Summary\' section title." }, "ScheduleProgress": { "type": "string", "description": "Label for \'Schedule Progress\'." }, "CommunicationEfficiency": { "type": "string", "description": "Label for \'Communication Efficiency\'." }, "ResourceUtilization": { "type": "string", "description": "Label for \'Resource Utilization\'." }, "DocumentationStatus": { "type": "string", "description": "Label for \'Documentation Status\'." }, "FinalSummaryTitle": { "type": "string", "description": "Label for \'Final Summary\' section title." }, "ReportDate": { "type": "string", "description": "Label for \'Report Date\' at top of page." } }, "required": [ "JobOverviewTitle", "JobName", "Status", "Location", "ContractPrice", "TotalManHoursLogged", "TotalContractValue", "Mobilizations", "WorkProgressSummaryTitle", "GroupedByWorkDates", "Date", "SummaryOfKeyWorkActivities", "OverallWorkSummary", "ExceptionsChallengesTitle", "ExceptionCause", "ExceptionOverallSummary", "NotesForOfficeTitle", "OverallJobHealthSummaryTitle", "ScheduleProgress", "CommunicationEfficiency", "ResourceUtilization", "DocumentationStatus", "FinalSummaryTitle", "ReportDate" ]}},"required":["JobOverview","ShiftLogSummary","NotesForOffice","OverallJobHealthSummary","FinalSummary"]}}'+
-    '';
 
     @AuraEnabled
     public static Map<String,Object> generateJobSummary(String inputData) {
@@ -291,20 +202,35 @@ public with sharing class AICalloutController {
             List<wfrecon__Log_Entry__c> logEntries = Database.query('SELECT Name, wfrecon__Approval_Data__c, wfrecon__Approved_Date__c, wfrecon__Exceptions__c, wfrecon__Log_Type__c, wfrecon__Material_Usage_Complete__c, wfrecon__Notes_to_Office__c, wfrecon__Plan_for_Tomorrow__c, wfrecon__Processes_Updated__c, wfrecon__Status__c, wfrecon__Time_Entries_Complete__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed__c, wfrecon__Work_Performed_Date__c FROM wfrecon__Log_Entry__c' + whereClause +' ORDER BY wfrecon__Work_Performed_Date__c ASC');
             System.debug('logEntries : '+ logEntries);
 
+            // collect use customized prompt
             List<AI_Prompt_Library__c> promptList = [SELECT Id, Name, Prompt_Type__c, Prompt_Body__c FROM AI_Prompt_Library__c WHERE Prompt_Type__c = 'Job Summary' LIMIT 1];
-            String userPrompt = promptList?.size() > 0 ? promptList[0].Prompt_Body__c : 'Summarize the job and its shift log entries.';
+            String customized_prompt = promptList?.size() > 0 ? promptList[0].Prompt_Body__c : 'Summarize the job and its shift log entries.';
 
-            String prompt = '';
-            prompt += userPrompt +
-            // 'Summarize and  Also the response must be in the language with following language code: ' + 
-            ' Carefully comprehend the above message and strictly give response based on Job and its shift log entries in the "expected format" even if no log entries is present. '+
-            'Response Detail Must be in following language: '+language+'. '+
-            'Here is Detail of Job Record:' + JSON.serialize(jobToSummarize) + ' and  Daily logs:' + JSON.serialize(logEntries) + 
-            '';
+            // collect default values for the AI API callout
+            List<AI_Defaults__mdt> ai_defaults_records = [SELECT Job_Summary_Prompt_Instruction__c, Job_Summary_generationConfig__c FROM AI_Defaults__mdt WHERE DeveloperName = 'AI_Defaults' LIMIT 1];
+            AI_Defaults__mdt ai_defaults = ai_defaults_records.size() > 0 ? ai_defaults_records[0] : new AI_Defaults__mdt();
+
+            String prompt_instruction = ai_defaults.Job_Summary_Prompt_Instruction__c ?? 'Carefully comprehend the above message and strictly give response based on Job and its shift log entries in the "expected format" even if no log entries is present. Response Detail Must be in following language: {#language}. Here is Detail of Job Record: {#job} and  Daily logs {#log_entries}. Thank you for your assistance.';
+            prompt_instruction = prompt_instruction.replace('{#language}', language);
+            prompt_instruction = prompt_instruction.replace('{#job}', JSON.serialize(jobToSummarize));
+            prompt_instruction = prompt_instruction.replace('{#log_entries}', JSON.serialize(logEntries));
             
+            String prompt = '';
+            prompt += customized_prompt + prompt_instruction;
             System.debug('prompt : '+ prompt);
 
-            String requestBody = prepareRequestBody(prompt, generateConfig);
+            String generateConfig = ai_defaults.Job_Summary_generationConfig__c ?? '{"responseMimeType":"application/json","responseSchema":{"type":"object","properties":{"ReportMetaData":{"type":"object","properties":{"ReportDate":{"type":"string"}},"required":["ReportDate"]},"JobOverview":{"type":"object","properties":{"JobName":{"type":"string"},"JobNumber":{"type":"string"},"Status":{"type":"string"},"Location":{"type":"string"},"StartDate":{"type":"string"},"EstimatedEndDate":{"type":"string"},"ContractPrice":{"type":"string"},"TotalManHoursLogged":{"type":"string"},"TotalContractValue":{"type":"string"},"ChangeOrderValue":{"type":"string"},"Mobilizations":{"type":"integer"}},"required":["JobName","Status","Location","ContractPrice","TotalManHoursLogged","Mobilizations"]},"ShiftLogSummary":{"type":"object","properties":{"EachLogSummary":{"type":"array","description":"Daily summary of key work activities such as work performed, exception and other information. if there is multiple log for the same day, merge into one day.","items":{"type":"object","properties":{"Date":{"type":"string"},"SummaryOfKeyWorkActivities":{"type":"string","description":"Daily summary of key work performed."},"ExceptionCause":{"type":"string","description":"Specific exceptions/challenges logged by date."}},"required":["Date","SummaryOfKeyWorkActivities","ExceptionCause"]}},"WorkPerformedOverallSummary":{"type":"string","description":"Narrative summarizing the scope and status of work performed."},"ExceptionOverallSummary":{"type":"string","description":"Narrative summarizing the impact of the exceptions."}},"required":["EachLogSummary","ExceptionOverallSummary","WorkPerformedOverallSummary"]},"NotesForOffice":{"type":"array","description":"Action items or suggestions for management/office staff.","items":{"type":"string"}},"OverallJobHealthSummary":{"type":"object","properties":{"Progress":{"type":"string","description":"Progress of the overall job in minimal word"},"RiskLevel":{"type":"string","description":"Risk Level"},"Efficiency":{"type":"string","description":"Efficiency of the job in  minimal word"},"ResourceUtilization":{"type":"string","description":"Resource utilization throughout the job in  minimal word"},"Status":{"type":"string","description":"Status of the job in  minimal word"}},"required":["Progress","Efficiency","ResourceUtilization","Status"]},"FinalSummary":{"type":"string","description":"The concluding statement on the project\'s health and outlook."},"Label":{ "type": "object", "description": "Contains all UI labels translated into the selected language while keeping original meaning and context.", "properties": { "JobOverviewTitle": { "type": "string", "description": "Label for \'Job Overview\' section title." }, "JobName": { "type": "string", "description": "Label for \'Job Name\'." }, "Status": { "type": "string", "description": "Label for \'Status\'." }, "Location": { "type": "string", "description": "Label for \'Location\'." }, "ContractPrice": { "type": "string", "description": "Label for \'Contract Price\'." }, "TotalManHoursLogged": { "type": "string", "description": "Label for \'Total Man Hours Logged\'." }, "TotalContractValue": { "type": "string", "description": "Label for \'Total Contract Value\'." }, "Mobilizations": { "type": "string", "description": "Label for \'Mobilizations\'." }, "WorkProgressSummaryTitle": { "type": "string", "description": "Label for \'Work Progress Summary (By Each Day)\' section title." }, "GroupedByWorkDates": { "type": "string", "description": "Label for \'Grouped by Work Dates:\'." }, "Date": { "type": "string", "description": "Label for \'Date\' column." }, "SummaryOfKeyWorkActivities": { "type": "string", "description": "Label for \'Summary of Key Work Activities\'." }, "OverallWorkSummary": { "type": "string", "description": "Label for \'Overall Summary\'." }, "ExceptionsChallengesTitle": { "type": "string", "description": "Label for \'Exceptions / Challenges\' section title." }, "ExceptionCause": { "type": "string", "description": "Label for \'Exception / Cause\' column." }, "ExceptionOverallSummary": { "type": "string", "description": "Label for \'Summary\' under exceptions." }, "NotesForOfficeTitle": { "type": "string", "description": "Label for \'Notes for Office\' section title." }, "OverallJobHealthSummaryTitle": { "type": "string", "description": "Label for \'Overall Job Health Summary\' section title." }, "ScheduleProgress": { "type": "string", "description": "Label for \'Schedule Progress\'." }, "CommunicationEfficiency": { "type": "string", "description": "Label for \'Communication Efficiency\'." }, "ResourceUtilization": { "type": "string", "description": "Label for \'Resource Utilization\'." }, "DocumentationStatus": { "type": "string", "description": "Label for \'Documentation Status\'." }, "FinalSummaryTitle": { "type": "string", "description": "Label for \'Final Summary\' section title." }, "ReportDate": { "type": "string", "description": "Label for \'Report Date\' at top of page." } }, "required": [ "JobOverviewTitle", "JobName", "Status", "Location", "ContractPrice", "TotalManHoursLogged", "TotalContractValue", "Mobilizations", "WorkProgressSummaryTitle", "GroupedByWorkDates", "Date", "SummaryOfKeyWorkActivities", "OverallWorkSummary", "ExceptionsChallengesTitle", "ExceptionCause", "ExceptionOverallSummary", "NotesForOfficeTitle", "OverallJobHealthSummaryTitle", "ScheduleProgress", "CommunicationEfficiency", "ResourceUtilization", "DocumentationStatus", "FinalSummaryTitle", "ReportDate" ]}},"required":["JobOverview","ShiftLogSummary","NotesForOffice","OverallJobHealthSummary","FinalSummary"]}}';
+
+            String requestBody = '{' + 
+                '"contents": [' + 
+                    '{' + 
+                        '"parts": [' + 
+                            '{"text": ' + JSON.serialize(prompt) + '}' +
+                        ']' + 
+                    '}' + 
+                '],' + 
+                '"generationConfig": ' + String.escapeSingleQuotes(generateConfig) +
+            '}';
 
             result = callGeminiAPI(requestBody);
             String aiResponse = (String) result.get('ai_Response__c');
@@ -387,27 +313,6 @@ public with sharing class AICalloutController {
         }
         return result;
         
-    }
-
-    public static string prepareRequestBody(String prompt,String generateConfig){
-        try {
-            // Build full request body using content structure
-            String requestBody = '{' + 
-                '"contents": [' + 
-                    '{' + 
-                        '"parts": [' + 
-                            '{"text": ' + JSON.serialize(prompt) + '}' +
-                        ']' + 
-                    '}' + 
-                '],' + 
-                '"generationConfig": ' + String.escapeSingleQuotes(generateConfig) +
-            '}';
-
-            return requestBody;
-        } catch (Exception e) {
-            System.debug('Error in preparePrompt: ' + e.getMessage() + ' at line ' + e.getLineNumber());
-            return '';
-        }
     }
 
     public static Map<String,Object> callGeminiAPI(String requestBody) {

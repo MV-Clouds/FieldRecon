@@ -9,7 +9,7 @@ import updateTimesheets from '@salesforce/apex/ShiftEndLogEntriesController.upda
 import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
-import fetchShiftLogInfo from '@salesforce/apex/CollectShiftRecordingsController.collectShiftLogInfo';
+import fetchShiftLogInfo from '@salesforce/apex/CollectWorkLogsController.collectShiftLogInfo';
 import { subscribe, unsubscribe, onError, setDebugFlag, isEmpEnabled } from 'lightning/empApi';
 
 export default class ShiftEndLogEntries extends LightningElement {
