@@ -20,23 +20,25 @@
             </div>
         </div>
 
-        <div class="manager-info-message slds-grid">
-            <svg class="slds-m-right_x-small" width="32px" viewBox="0 0 24 24" fill="#8b8b8b"><path d="M12 22C6.47715 22 2 17.5228 2 12 2 6.47715 6.47715 2 12 2 17.5228 2 22 6.47715 22 12 22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12 20 7.58172 16.4183 4 12 4 7.58172 4 4 7.58172 4 12 4 16.4183 7.58172 20 12 20ZM13 10.5V15H14V17H10V15H11V12.5H10V10.5H13ZM13.5 8C13.5 8.82843 12.8284 9.5 12 9.5 11.1716 9.5 10.5 8.82843 10.5 8 10.5 7.17157 11.1716 6.5 12 6.5 12.8284 6.5 13.5 7.17157 13.5 8Z"></path></svg>
-            <p>
-                You are assigned as both the Job Manager and Crew Leader for this job. </br>
-                Please select the Work Visibility you want to summarize.
-            </p>
-        </div>
-
         <template lwc:if={isJobManager}>
+            <div class="manager-info-message slds-grid">
+                <svg class="slds-m-right_x-small" width="32px" viewBox="0 0 24 24" fill="#8b8b8b"><path d="M12 22C6.47715 22 2 17.5228 2 12 2 6.47715 6.47715 2 12 2 17.5228 2 22 6.47715 22 12 22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12 20 7.58172 16.4183 4 12 4 7.58172 4 4 7.58172 4 12 4 16.4183 7.58172 20 12 20ZM13 10.5V15H14V17H10V15H11V12.5H10V10.5H13ZM13.5 8C13.5 8.82843 12.8284 9.5 12 9.5 11.1716 9.5 10.5 8.82843 10.5 8 10.5 7.17157 11.1716 6.5 12 6.5 12.8284 6.5 13.5 7.17157 13.5 8Z"></path></svg>
+                <p>
+                    You are assigned as both the Job Manager and Crew Leader for this job. </br>
+                    Please select the Work Visibility you want to summarize.
+                </p>
+            </div>
+
             <div class="section-layout">        
                 <lightning-radio-group name="visibility" class="slds-m-top_xx-small" label="Select Work Visibility" options={visibilityOptions} value={selectedVisibility} type="radio" onchange={handleChange}></lightning-radio-group>
-                <lightning-checkbox-group lwc:if={isSpecificCrewSelected} name="crewGroup" class="slds-m-top_small" label="Select Crew" options={crewsList} value={selectedCrews} onchange={handleChange}></lightning-checkbox-group>
+                <div lwc:if={isSpecificCrewSelected} class="section-inner-layout">
+                    <lightning-checkbox-group name="crewGroup" class="slds-m-top_small" label="Select Crew" options={crewsList} value={selectedCrews} onchange={handleChange}></lightning-checkbox-group>
+                </div>
             </div>
         </template>
 
 
-        <div class="button-container">
+        <div class="section-layout button-container">
             <lightning-combobox  label="Preferred Language" class="lang-dropdown" options={languages} name="language" value={selectedLanguage} onchange={handleChange}></lightning-combobox>
             <lightning-button variant="brand" label="Summarize" onclick={handleClick} disabled={disableSummarizeBtn}></lightning-button>
         </div>

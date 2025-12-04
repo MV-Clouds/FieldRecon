@@ -1,13 +1,19 @@
 :host{
-    --primary-color: #5e5af9;
+    --primary-color: #5E5ADB;
     --record-button-bg: var(--primary-color);
-    --pause-button-bg: #fff;
+    --pause-button-bg: white;
     --stop-button-bg: #e3066a;
-    --upload-button-bg: #fff;
+    --upload-button-text: #fff;
     --save-button-bg: var(--primary-color);
     --refresh-button-bg: #fff;
+    --button-height: 2.5rem;
 }
-
+.main-container {
+    background-color: #FFFFFF;
+    border : 1px solid #DADFE3;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
 .visualizer {
     width: min(300px, 100%);
     border: 1px solid #ccc;
@@ -25,20 +31,47 @@
     font-weight: bold;
 }
 
+.recording-heading {
+    color: #323133;
+    font-size: 20px;
+    font-weight: 700;
+}
+.recording-controller {
+    align-items: center;
+    gap: 0.5rem;
+}
 .output-audio{
-    height: 2rem;
+    gap: 0.5rem;
+    height: var(--button-height);
+    
+    audio{
+        height: 100%;
+    }
+}
+
+.file-size{
+    height: 100%;
+    background-color: #f1f3f4;
+    color: #595959;
+    padding-inline: 12px;
+    border-radius: 26px;
+    width: 100px;
+    white-space: pre;
+
+    svg{
+        min-width: 16px;
+    }
 }
 
 .control-buttons{
-    gap: 0.25rem;
+    gap: 1rem;
 }
 
 .control-btn {
-    height: 2rem;
-    width: max-content;
-    padding-inline: 1rem;
+    height: var(--button-height);
+    padding-inline: 0.6rem;
     line-height: 1.875rem;
-    border-radius: 1rem;
+    border-radius: 6px;
     border: none;
     appearance: none;
     white-space: normal;
@@ -65,6 +98,8 @@
 .record-button{
     background: var(--record-button-bg);
     color: white;
+    border: 1px solid var(--record-button-bg);
+    width: 2.5rem;
 
     svg{
         fill: white;
@@ -73,35 +108,66 @@
 
 .pause-button{
     background: var(--pause-button-bg);
-    color: #3c3c3c;
-    border: 1px solid #3c3c3c;
+    color: var(--record-button-bg);
+    border: 1px solid var(--record-button-bg);
+    width: 2.5rem;
 
     svg{
-        fill: #3c3c3c;
+        fill: var(--record-button-bg);
     }
 }
 
 .stop-button{
     background: var(--stop-button-bg);
     color: white;
+    border: 1px solid var(--stop-button-bg);
+    width: 2.5rem;
+
     svg{
-        fill: white;
+        fill: #fff;
     }
 }
 
 .upload-button{
-    background: var(--upload-button-bg);
-    color: var(--primary-color);
-    border: 1px solid var(--primary-color);
+    width: max-content;
+    padding-inline: 1rem;
+    background: var(--primary-color);
+    color: var(--upload-button-text);
+    border-radius: 4px;
+    font-size: 14px;
+    
     svg{
+        fill: var(--upload-button-text);
+    }
+}
+
+.info-message {
+    background-color: #F7F9FC;
+    border-radius: 4px;
+    padding: 12px;
+    display: flex;
+
+    svg{
+        width: 24px;
+        height: 24px;
         fill: var(--primary-color);
     }
+}
+
+.info-message p {
+    color: #78767A;
+    font-size: 14px;
 }
 
 .save-button{
     background: var(--save-button-bg);
     color: white;
+    border: 1px solid var(--save-button-bg);
+    padding-inline: 0.6rem;
+
     svg{
+        height: 20px;
+        width: 20px;
         fill: white;
     }
 }
@@ -110,7 +176,51 @@
     background: var(--refresh-button-bg);
     color: var(--primary-color);
     border: 1px solid var(--primary-color);
+    padding-inline: 0.6rem;
+
     svg{
+        height: 20px;
+        width: 20px;
         fill: var(--primary-color);
+    }
+}
+
+.refresh-button, .save-button{
+    height: calc(var(--button-height, 2.5rem) - 3px);
+}
+
+.recording-time{
+
+    svg{
+        width: 16px;
+    }
+}
+
+@media (max-width: 532px){
+
+    .recording-controller{
+        width: 100%;
+    }
+    .output-audio{
+        width: 100%;
+
+        audio{
+            width: calc(100% - 100px);
+        }
+    }
+    .refresh-button, .save-button{
+        flex-grow: 1;
+        margin-inline: 0;
+        height: 2rem;
+        margin-top: 0.25rem;
+    }
+
+    .file-size{
+        font-size: 12px;
+        padding-inline: 8px;
+
+        svg{
+            width: 16px;
+        }
     }
 }

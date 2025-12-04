@@ -882,9 +882,14 @@
         font-size: 0.65rem;
     }
 
-    .job-log-recording.slds-grow{
-        display: none;
-    }
+}
+
+/* ********* ********* ********* CSS Implemented for AI related Features ********* ******* ********* */
+
+.job-header{
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
 }
 
 .work-log-record{
@@ -894,4 +899,32 @@
 
 .clock-in-button{
     width: max-content;
+}
+
+@media (max-width: 768px) {
+
+    .job-log-recording{
+        width: 100%;
+    }
+
+    .job-log-recording .clock-in-button{
+        padding-inline: 12px;
+        margin-inline: auto;
+    }
+
+    .work-log-record{
+        max-width: calc(100% - 1rem);
+        margin-inline: auto;
+        height: 100%;
+        padding-block: 0;
+        margin-block: 0;
+    }
+
+    .work-log-record .popUpBody{
+        padding-inline: 0.25rem;
+    }
+
+    .job-log-recording.slds-grow{
+        display: none;
+    }
 }

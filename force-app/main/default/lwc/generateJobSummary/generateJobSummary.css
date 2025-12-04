@@ -1,9 +1,9 @@
 .main-container{
-    margin: 25px 15px;
+    padding: 25px 15px;
 }
 
 .input-container {
-    width: 75%;
+    width: 100%;
 }
 
 .header-row {
@@ -12,7 +12,7 @@
     justify-content: flex-start;
     gap: 10px;
     margin-bottom: 1rem;
-    flex-wrap: wrap;
+    /* flex-wrap: wrap; */
 }
 
 .header-title {
@@ -25,11 +25,20 @@
     border: 1px solid #DADFE3;
     border-radius: 5px;
     background: #F7F9FC;
-    margin-bottom: 15px;
+    margin-block: 15px;
+}
+
+.section-inner-layout {
+    padding: 15px;
+    padding-top: 0;
+    border: 1px solid #DADFE3;
+    border-radius: 5px;
+    background: #fff;
+    margin-top: 15px;
 }
 
 .lang-dropdown {
-    min-width: 180px;
+    min-width: 80%;
 }
 
 .button-container {
@@ -60,9 +69,10 @@
     color: #3a3a3a;
     background: whitesmoke;
     padding: 8px 12px;
+    align-items: center;
 }
 
-@media(max-width: 600px) {
+/* @media(max-width: 600px) {
     .header-row {
         flex-direction: column;
         align-items: flex-start;
@@ -70,4 +80,4 @@
     .input-container {
         width: 100%;
     }
-}
+} */

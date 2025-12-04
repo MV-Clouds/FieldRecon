@@ -1,10 +1,11 @@
 import { LightningElement, track, api, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import getSavedClips from '@salesforce/apex/CollectShiftRecordingsController.getSavedClips';
-import saveClipToMobilization from '@salesforce/apex/CollectShiftRecordingsController.saveClipToMobilization';
-import deleteClip from '@salesforce/apex/CollectShiftRecordingsController.deleteClip';
+import getSavedClips from '@salesforce/apex/CollectWorkLogsController.getSavedClips';
+import saveClipToMobilization from '@salesforce/apex/CollectWorkLogsController.saveClipToMobilization';
+import deleteClip from '@salesforce/apex/CollectWorkLogsController.deleteClip';
 import USER_ID from '@salesforce/user/Id';
-export default class CollectShiftRecordings extends LightningElement {
+
+export default class CollectWorkLogs extends LightningElement {
 
     @api recordId;
     // @track crewLeaderId;
@@ -13,10 +14,12 @@ export default class CollectShiftRecordings extends LightningElement {
     userName;
     isLoading;
     clipsTotalSize = 0;
-    clipSizeLimit = 10 * 1024 * 1024
+    clipSizeLimit = 10 * 1024 * 1024;
 
+    // Need to remove from code once testing is done
     get limitExceeded(){
-        return this.clipsTotalSize > this.clipSizeLimit;
+        // return this.clipsTotalSize > this.clipSizeLimit;
+        return false;
     }
 
     get clipSizeLimits(){
@@ -110,6 +113,7 @@ export default class CollectShiftRecordings extends LightningElement {
         })
         .catch(error => {
             console.log('error in saveClipToMobilization apex callout : ', error?.body?.message ?? error.message);
+            this.showToast('', 'Something went wrong while saving recording!', 'error');
         })
         .finally(() => {
             this.isLoading = false;
@@ -117,17 +121,21 @@ export default class CollectShiftRecordings extends LightningElement {
     }
 
     handleSaveRecoding(event){
-        console.log('recording blob  : ', event.target.value);
-        console.log('clipsTotalSize : ', this.clipsTotalSize + Number(event.target.value.size));
-        if(this.clipsTotalSize + Number(event.target.value.size) > this.clipSizeLimit ){
-            this.showToast('Limit Exceeded', 'Your Today\'s Shift Logs Recoding Limit is exceeding. Please try to capture small recording!', 'error')
+        // if(this.clipsTotalSize + Number(event.target.value.size) > this.clipSizeLimit ){
+        //     this.showToast('Limit Exceeded', 'Your Today\'s Shift Logs Recoding Limit is exceeding. Please try to capture small recording!', 'error')
+        //     return;
+        // }
+
+        // 4 MB limit for single recording
+        if(event?.target?.value?.size > (4 * 1024 * 1024)){
+            this.showToast('File too large!!','You can not upload recording more than 4 MB!', 'error');
             return;
         }
         this.initiateSaveRecording(event.target.value, event.target.value?.type);
     }
 
     refreshRecording(){
-        this.template.querySelector('c-cmp_audio-recorder')?.refreshRecording();
+        this.template.querySelector('[data-name="audioRecorder"')?.refreshRecording();
     }
 
     handleDeleteClip(event){

@@ -1,5 +1,5 @@
-public with sharing class CollectShiftRecordingsController {
-    
+public with sharing class CollectWorkLogsController {
+
     @AuraEnabled
     public static Map<String, Object> getSavedClips(String paramString){
         Map<String, Object> result = new Map<String, Object>();

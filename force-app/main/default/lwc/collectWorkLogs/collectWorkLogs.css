@@ -1,0 +1,225 @@
+:host{
+    --primary-color: #5e5adb;
+    --title-text-color: #323133;
+}
+
+audio::-webkit-media-controls-panel {
+    background: #fff;
+}
+
+.control-btn {
+    height: 2.5rem;
+    width: max-content;
+    padding-inline: 1rem;
+    line-height: 1.875rem;
+    border-radius: 1rem;
+    border: none;
+    appearance: none;
+    white-space: normal;
+    user-select: none;
+    font-family: inherit;
+    vertical-align: middle;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem;
+
+    svg{
+        width: 20px;
+        height: 20px;
+    }
+
+    &:disabled{
+        cursor: not-allowed !important;
+        filter: saturate(0) brightness(1.5) !important;
+    }
+}
+
+.output-audio{
+    height: 2rem;
+    border: 1px solid #DADFE3;
+    border-radius: 21px;
+}
+.header-info{
+    background: linear-gradient(to right, #D9D8FF66, #BFD6FF66);
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+.header-info .title{
+    font-size: 24px;
+    color: var(--primary-color);
+    font-weight: 600;
+
+    svg{
+        width: 32px;
+        height: 32px;
+        fill: var(--primary-color);
+    }
+}
+.header-info .sub-info{
+    padding-top: 6px;
+    font-weight: 500;
+}
+
+.empty-state .title{
+    font-size: 16px;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.empty-state .sub-info{
+    font-weight: 500;
+}
+
+.recording-section{
+    display: block;
+}
+
+.clip-list-section{
+    padding-inline: 1.5rem;
+    border: 1px solid #DADFE3;
+    border-radius: 0.5rem;
+    background-color: #fff;
+}
+
+.spinner-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.log-list {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.log-list-title{
+    font-size: 20px;
+    color: var(--title-text-color);
+    font-weight: 700;
+    
+    svg{
+        width: 30px;
+        height: 30px;
+        fill: var(--primary-color);
+    }
+}
+
+.total-fileSize {
+    background-color: #F4F3FF;
+    border: 1px solid #D5D2FF;
+    border-radius: 40px;
+    padding: 0.5rem 1rem;
+    color: #78767A;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.single-clip {
+    padding: 1rem;
+    border-radius: 12px;
+    background: #F7F9FC;
+    border: 1px solid #DADFE3;
+
+    svg{
+        width: 20px;
+        height: 20px;
+        fill: #595959;
+    }
+}
+
+.single-clip-sub{
+    width: 100%;
+    /* width: max(100%, 364px); */
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    
+}
+
+.clip-info{
+    /* display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap; */
+    gap: 0.5rem;
+}
+
+.createdBy-text {
+    font-size: 16px;
+    color: #323133;
+    font-weight: 600;
+    align-items: center;
+}
+
+.info-text {
+    font-size: 12px;
+    color: #78767A;
+    font-weight: 500;
+    align-items: center;
+}
+
+.delete-btn{
+    background: #e3066a;
+    color: white;
+    height: 2rem;
+    width: max-content;
+    border-radius: 50%;
+    padding: 8px;
+
+    svg{
+        width: 16px;
+        height: 20px;
+        fill: white;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .header-info .title{
+        font-size: 20px;
+    }
+
+    .header-info .sub-info{
+        font-size: 14px;
+    }
+
+    .total-fileSize {
+        padding: 0.25rem 0.5rem;
+        color: #78767A;
+        font-size: 12px;
+        font-weight: 500;
+    }
+}
+
+@media (max-width: 438px){
+    .main-container{
+        padding: 1rem 0.75rem;
+    }
+
+    .control-btn{
+        margin-left: 0;
+        margin-top: 0.5rem;
+        width: 100%;
+        border-radius: 16px;
+    }
+
+    .redio-info{
+        width: 100%;
+    }
+
+    .output-audio{
+        width: 100%;
+    }
+}

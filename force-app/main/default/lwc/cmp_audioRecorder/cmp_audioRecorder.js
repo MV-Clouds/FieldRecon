@@ -31,6 +31,11 @@ export default class Cmp_audioRecorder extends LightningElement {
     _hideInfoMessage = false;
     @api get hideInfoMessage(){ String(this._hideInfoMessage) === 'true'}
     set hideInfoMessage(val){ this._hideInfoMessage = val; }
+
+    // max recording time in seconds
+    _maxRecodingTime;
+    @api get maxTime(){ return this._maxRecodingTime}
+    set maxTime(val){ this._maxRecodingTime = Number(val) ?? null; }
     
     @track clip;
     chunks = [];
@@ -78,7 +83,7 @@ export default class Cmp_audioRecorder extends LightningElement {
             return 'Microphone permission has been denied. Please allow microphone permission.';
         }
         else if(!this.clip && this.recordState == 'inactive'){
-            return 'Click on Record button to start recording.';
+            return 'Click on Record button (▶) to start recording.';
         }
         else if(this.recordState == 'recording'){
             return 'Recording is in progress...';
@@ -92,6 +97,16 @@ export default class Cmp_audioRecorder extends LightningElement {
         else return ''
     }
 
+    @track clipSize = {};
+    totalSeconds = 0;
+    timerId;
+    get recodingTime(){
+        return this.calculateTime(this.totalSeconds);
+    }
+
+    get maxAllowTime(){
+        return this.maxTime != null ? this.calculateTime(this.maxTime) : null;
+    }
 
     async connectedCallback() {
         this.overrideSLDS();
@@ -186,29 +201,48 @@ export default class Cmp_audioRecorder extends LightningElement {
     }
 
     startRecording() {
-        console.log("Start Recording");
         // if recording start from stop state not pause state
         if (!this._mediaRecorder || this._mediaRecorder.state == 'inactive') {
             this.resetRecording();
             this._mediaRecorder.start();
+
+            this.controlTimer();
         }
         else if(this._mediaRecorder.state == 'paused'){
             this._mediaRecorder.resume();
+            this.controlTimer();
         }
 
     }
 
     pauseRecording() {
-        console.log("Pausing");
-        console.log('state : ', this._mediaRecorder.state);
-        
         // stop recording on puase
         this._mediaRecorder.pause();
+        this.controlTimer();
     }
 
     stopRecording() {
-        console.log("Stopping");
         this._mediaRecorder.stop();     // onstop() fires AFTER chunks are populated
+        this.controlTimer();
+    }
+
+    controlTimer(){
+
+        if(['paused', 'inactive'].includes(this._mediaRecorder.state)) {
+            clearInterval(this.timerId);
+            if(this._mediaRecorder.state === 'inactive') this.timerId = null;
+            return;
+        };
+
+        if(this._mediaRecorder.state === 'recording' && this.recordState != 'paused')  this.totalSeconds = 0;
+
+        this.timerId = setInterval(() => {
+            this.totalSeconds++;
+
+            // stop recording once time reach its's maximum allowed time
+            if(this.maxTime != null && this.totalSeconds > this.maxTime) this.stopRecording();
+        }, 1000);
+
     }
 
     collectClip(){
@@ -219,7 +253,7 @@ export default class Cmp_audioRecorder extends LightningElement {
             }
 
             this.value = new Blob(this.chunks, { type: 'audio/webm' });
-            this.prepareClip(this.value)
+            this.prepareClip(this.value);
 
             this.dispatchEvent(new CustomEvent('completed', { detail: { blob : this.value, clip : this.clip} }));
 
@@ -232,6 +266,7 @@ export default class Cmp_audioRecorder extends LightningElement {
     prepareClip(blob){
         const url = URL.createObjectURL(blob);
         this.clip = { id: Date.now(), name: `Your Clip`, url, blob };
+        this.clipSize = this.calculateSize(this.value.size);
     }
 
     saveClip() {
@@ -337,4 +372,26 @@ export default class Cmp_audioRecorder extends LightningElement {
         this.template.host.classList.add('slds-override');
         this.template.host.appendChild(style);
     }    
+
+    calculateSize(inByte = 0){
+        return {
+            Byte: inByte,
+            KB: (inByte/(1024)).toFixed(2),
+            MB: (inByte/(1024*1024)).toFixed(2),
+            GB: (inByte/(1024*1024*1024)).toFixed(2),
+        }
+    }
+
+    calculateTime(sec = 0){
+        let hours   = Math.floor(sec / 3600);
+        let minutes = Math.floor((sec % 3600) / 60);
+        let seconds = sec % 60;
+        const pad = num => String(num).padStart(2, "0");
+        if (hours > 0) {
+            return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`; // hh:mm:ss
+        }
+        else{
+            return `${pad(minutes)}:${pad(seconds)}`; 
+        }
+    }
 }
