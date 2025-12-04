@@ -50,6 +50,7 @@ public with sharing class ShiftEndLogEntriesController {
                                                     AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
                                                     WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
     
+            System.debug('mobilization data--> '+ mobilizationRecord);
             Set<Id> contactIds = new Set<Id>();
             for (wfrecon__Mobilization_Member__c m : members) {
                 contactIds.add(m.wfrecon__Contact__c);
@@ -64,16 +65,19 @@ public with sharing class ShiftEndLogEntriesController {
                 return result;
             }
 
+            Date mobilizationStartDate = mobilizationRecord[0].wfrecon__Start_Date__c.date();
+            Date mobilizationEndDate = mobilizationRecord[0].wfrecon__End_Date__c.date();
+
             List<wfrecon__Timesheet__c> tsList = [SELECT Id, wfrecon__Contact__c, wfrecon__Timesheet_Start_Date__c, wfrecon__Timesheet_End_Date__c FROM wfrecon__Timesheet__c WHERE wfrecon__Contact__c IN :contactIds
-                                            AND wfrecon__Job__c = :jobId AND wfrecon__Timesheet_Start_Date__c <= :Date.valueOf(mobilizationRecord[0].wfrecon__Start_Date__c)
-                                            AND wfrecon__Timesheet_End_Date__c >= :Date.valueOf(mobilizationRecord[0].wfrecon__End_Date__c) WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
+                                            AND wfrecon__Job__c = :jobId AND wfrecon__Timesheet_Start_Date__c <= :mobilizationStartDate
+                                            AND wfrecon__Timesheet_End_Date__c >= :mobilizationEndDate WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
 
             Map<Id, wfrecon__Timesheet__c> contactTimesheetMap = new Map<Id, wfrecon__Timesheet__c>();
             for (wfrecon__Timesheet__c ts : tsList) {
                 contactTimesheetMap.put(ts.wfrecon__Contact__c, ts);
             }
 
-            Date startDate = mobilizationRecord[0].wfrecon__Start_Date__c.date();
+            Date startDate = mobilizationStartDate;
             DateTime startDateTime = DateTime.newInstance(startDate, Time.newInstance(0,0,0,0));
             DateTime endDateTime   = DateTime.newInstance(startDate, Time.newInstance(23,59,59,999));
             List<wfrecon__Timesheet_Entry__c> entries = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Contact__c FROM wfrecon__Timesheet_Entry__c
