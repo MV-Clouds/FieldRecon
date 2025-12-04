@@ -3,7 +3,7 @@ import { CurrentPageReference } from 'lightning/navigation';
 import getMobilizationsForJob from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationsForJob';
 import getMobilizationMembersForSelection from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationMembersForSelection';
 import bulkClockInOut from '@salesforce/apex/WholeCrewClockInOutController.bulkClockInOut';
-import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
+import checkUserAccess from '@salesforce/apex/WholeCrewClockInOutController.checkUserAccess';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
 
@@ -145,32 +145,30 @@ export default class WholeCrewClockInOut extends LightningElement {
 
     /** 
     * Method Name: checkUserPermissions
-    * @description: Check if user has required permissions to access this component
+    * @description: Check if user has required permissions to access this component (Admin or Crew Leader)
     */
     checkUserPermissions() {
         this.isLoading = true;
-        const permissionSetsToCheck = ['FR_Admin'];
         
-        checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
+        if (!this.recordId) {
+            this.hasAccess = false;
+            this.hasData = false;
+            this.accessErrorMessage = 'No Job ID provided. Please use this component from a Job record page.';
+            this.isLoading = false;
+            return;
+        }
+        
+        checkUserAccess({ jobId: this.recordId })
             .then(result => {
-                const assignedMap = result.assignedMap || {};
-                const isAdmin = result.isAdmin || false;
+                console.log('checkAccess result ::', result);
                 
-                const hasFRAdmin = assignedMap['FR_Admin'] || false;
+                this.hasAccess = result.hasAccess || false;
+                this.accessErrorMessage = result.accessErrorMessage || '';
                 
-                if (isAdmin || hasFRAdmin) {
-                    this.hasAccess = true;
+                if (this.hasAccess) {
                     // Proceed with loading mobilizations
-                    if (this.recordId) {
-                        this.loadMobilizations();
-                    } else {
-                        this.hasData = false;
-                        this.errorMessage = 'No Job ID provided. Please use this component from a Job record page.';
-                        this.isLoading = false;
-                    }
+                    this.loadMobilizations();
                 } else {
-                    this.hasAccess = false;
-                    this.accessErrorMessage = "You don't have permission to access this page. Please contact your system administrator to request the FR_Admin permission set.";
                     this.isLoading = false;
                 }
             })

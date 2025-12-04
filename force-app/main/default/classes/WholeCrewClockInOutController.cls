@@ -567,4 +567,116 @@ public with sharing class WholeCrewClockInOutController {
             return null;
         }
     }
+
+    /**
+     * Check if user has access (Admin or Crew Leader for the job)
+     */
+    @AuraEnabled
+    public static Map<String, Object> checkUserAccess(Id jobId) {
+        Map<String, Object> response = new Map<String, Object>();
+        
+        try {
+            Id userId = UserInfo.getUserId();
+            Boolean hasAccess = false;
+            Boolean isCrewLeader = false;
+            String accessErrorMessage = '';
+            
+            // Check if user is System Admin
+            List<PermissionSetAssignment> adminAssignments = [
+                SELECT Id 
+                FROM PermissionSetAssignment 
+                WHERE AssigneeId = :userId 
+                AND PermissionSet.Name = 'FR_Admin'
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            
+            if (!adminAssignments.isEmpty()) {
+                hasAccess = true;
+                response.put('hasAccess', true);
+                response.put('isCrewLeader', false);
+                response.put('accessErrorMessage', '');
+                return response;
+            }
+            
+            // Check if user is a Crew Leader for this job
+            List<Contact> userContacts = [
+                SELECT Id, wfrecon__User__c 
+                FROM Contact 
+                WHERE wfrecon__User__c = :userId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            
+            if (!userContacts.isEmpty() && jobId != null) {
+                Contact userContact = userContacts[0];
+                
+                // Get today's mobilizations only (same logic as getMobilizationsForJob)
+                Date today = Date.today();
+                DateTime startOfDay = DateTime.newInstance(today, Time.newInstance(0,0,0,0));
+                DateTime endOfDay = DateTime.newInstance(today, Time.newInstance(23,59,59,999));
+                
+                List<Mobilization__c> mobilizations = [
+                    SELECT Id 
+                    FROM Mobilization__c 
+                    WHERE Job__c = :jobId 
+                    AND Start_Date__c >= :startOfDay
+                    AND Start_Date__c <= :endOfDay
+                    WITH USER_MODE
+                ];
+                
+                if (!mobilizations.isEmpty()) {
+                    Set<Id> mobilizationIds = new Set<Id>();
+                    for (Mobilization__c mob : mobilizations) {
+                        mobilizationIds.add(mob.Id);
+                    }
+                    
+                    // Get Crew IDs from today's Mobilization Members
+                    Set<Id> crewIdsFromMobilizations = new Set<Id>();
+                    for (Mobilization_Member__c mm : [
+                        SELECT Crew__c 
+                        FROM Mobilization_Member__c 
+                        WHERE Mobilization__c IN :mobilizationIds
+                        AND Crew__c != null
+                        WITH USER_MODE
+                    ]) {
+                        crewIdsFromMobilizations.add(mm.Crew__c);
+                    }
+                    
+                    // Check if user is a Crew Leader in any of today's crews
+                    if (!crewIdsFromMobilizations.isEmpty()) {
+                        List<Crew_Member__c> leaderCrewMembers = [
+                            SELECT Id, Crew__c, Contact__c
+                            FROM Crew_Member__c
+                            WHERE Crew__c IN :crewIdsFromMobilizations
+                            AND Contact__c = :userContact.Id
+                            AND Member_Type__c = 'Leader'
+                            WITH USER_MODE
+                        ];
+                        
+                        if (!leaderCrewMembers.isEmpty()) {
+                            hasAccess = true;
+                            isCrewLeader = true;
+                        }
+                    }
+                }
+            }
+            
+            if (!hasAccess) {
+                accessErrorMessage = 'You don\'t have permission to access this page. Only Crew Leaders and Admins can manage crew clock in/out.';
+            }
+            
+            response.put('hasAccess', hasAccess);
+            response.put('isCrewLeader', isCrewLeader);
+            response.put('accessErrorMessage', accessErrorMessage);
+            
+        } catch (Exception e) {
+            response.put('hasAccess', false);
+            response.put('isCrewLeader', false);
+            response.put('accessErrorMessage', 'An error occurred while checking permissions. Please try again or contact your system administrator.');
+            System.debug('Error in checkUserAccess: ' + e.getMessage() + '\n' + e.getStackTraceString());
+        }
+        
+        return response;
+    }
 }
