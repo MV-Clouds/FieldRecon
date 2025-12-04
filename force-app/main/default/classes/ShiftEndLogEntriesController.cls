@@ -280,7 +280,7 @@ public with sharing class ShiftEndLogEntriesController {
         try {
             processes = [SELECT Id, Name, wfrecon__Completed_Percentage__c, wfrecon__Sequence__c,
                             wfrecon__Location__c, wfrecon__Location__r.Name,
-                            wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c, wfreon__Process_Name__c
+                            wfrecon__Scope_Entry_Process__r.wfrecon__Process_Name__c, wfrecon__Process_Name__c
                             FROM wfrecon__Location_Process__c WHERE wfrecon__Location__r.wfrecon__Job__c = :jobId WITH USER_MODE
                             ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC];
             
