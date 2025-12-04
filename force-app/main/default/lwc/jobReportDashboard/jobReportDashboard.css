@@ -32,7 +32,7 @@
 .main-card {
     background-color: white;
     border-radius: 6px;
-    padding: 20px;
+    padding: 1rem;
     box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
 }
 
@@ -70,7 +70,7 @@
 .metric-card {
     background: rgb(244, 244, 255);
     border-radius: 8px;
-    padding: 20px;
+    padding: 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -268,7 +268,6 @@
     border-radius: 8px;
     padding: 1rem;
     box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
-    margin-bottom: 1.5rem;
 }
 
 .table-header-section {
@@ -534,7 +533,7 @@
 /* Bar styles */
 .bar {
     transition: all 0.3s ease;
-    opacity: 0.9;
+    opacity: 0.6;
 }
 
 .bar:hover {
@@ -559,7 +558,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    margin: 20px 0;
+    padding: 15px 0;
     flex-wrap: wrap;
 }
 
@@ -939,6 +938,7 @@ lightning-icon {
     justify-content: center;
     /* margin-top: 1rem; */
     padding: 1rem 0;
+    padding-bottom: 0;
     /* border-top: 1px solid #e0e0e0; */
 }
 

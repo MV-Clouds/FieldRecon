@@ -632,11 +632,10 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             for (const [metricName, statuses] of Object.entries(this.metricSettings)) {
                 metricStatusMap[metricName] = statuses;
             }
-
+            this.closeEditPopup();
             await saveMetricSettings({ metricStatusMap: metricStatusMap });
             this.loadMetricsData();
             this.loadJobData();
-            this.closeEditPopup();
             this.showToast('Success', 'Metric settings saved successfully', 'success');
         } catch (error) {
             this.showToast('Error', 'Failed to save settings: ' + (error.body?.message || error.message), 'error');
@@ -890,10 +889,41 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                 const text = window.d3.select(this);
                 const jobName = d || 'Unnamed Job';
 
-                // Truncate to 10 characters and add ellipsis
-                const displayName = jobName.length > 10 ? jobName.substring(0, 10) + '...' : jobName;
+                if (jobName.length <= 10) {
+                    // Single line if 10 characters or less
+                    text.text(jobName);
+                } else {
+                    // Split into two lines
+                    const firstLine = jobName.substring(0, 10);
+                    const remaining = jobName.substring(10);
 
-                text.text(displayName);
+                    // Clear and add as tspans
+                    text.text('');
+
+                    // First line: always exactly 10 characters
+                    text.append('tspan')
+                        .attr('x', -13)
+                        .attr('dy', '0em')
+                        .style('font-size', '11px')
+                        .style('fill', '#666')
+                        .text(firstLine);
+
+                    // Second line: up to 12 characters
+                    let secondLine;
+                    if (remaining.length <= 12) {
+                        secondLine = remaining;
+                    } else {
+                        // Show 12 characters + "..."
+                        secondLine = remaining.substring(0, 12) + '...';
+                    }
+
+                    text.append('tspan')
+                        .attr('x', -13)
+                        .attr('dy', '1.2em')
+                        .style('font-size', '11px')
+                        .style('fill', '#666')
+                        .text(secondLine);
+                }
 
                 text.attr('data-fullname', jobName);
             })
@@ -904,7 +934,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                     .html(fullName);
             })
             .on('mousemove', function (event) {
-                // Update tooltip position as mouse moves
                 const containerRect = container.getBoundingClientRect();
                 const textRect = this.getBoundingClientRect();
 
@@ -916,7 +945,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
                     .style('top', top + 'px');
             })
             .on('mouseleave', function () {
-                // Hide tooltip when mouse leaves
                 nameTooltip.style('opacity', 0);
             });
 
@@ -990,15 +1018,18 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .style('z-index', '1000')
             .style('max-width', '300px');
 
-        svg.selectAll('.bar')
+        // Create bars
+        const bars = svg.selectAll('.bar')
             .data(chartData)
             .enter()
-            .append('rect')
+            .append('g')
+            .attr('class', 'bar-group')
+            .style('cursor', 'pointer');
+
+        // Add rectangle bars
+        bars.append('rect')
             .attr('class', 'bar')
-            .attr('y', d => {
-                const yPos = y(d.jobName || 'Unnamed Job');
-                return yPos;
-            })
+            .attr('y', d => y(d.jobName || 'Unnamed Job'))
             .attr('x', 0)
             .attr('height', y.bandwidth())
             .attr('width', d => {
@@ -1009,8 +1040,8 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .attr('fill', (d, i) => color(i))
             .attr('rx', 3)
             .attr('ry', 3)
-            .style('cursor', 'pointer')
             .on('mouseover', function (event, d) {
+                // Show tooltip on hover
                 const value = d[currentValueType] || 0;
                 tooltip
                     .style('opacity', 1)
@@ -1027,6 +1058,70 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .on('mouseout', function () {
                 tooltip.style('opacity', 0);
             });
+
+        // Add text 
+        bars.each(function (d) {
+            const barGroup = window.d3.select(this);
+            const value = d[currentValueType] || 0;
+            const barWidth = x(value);
+            const yPos = y(d.jobName || 'Unnamed Job');
+            const bandwidth = y.bandwidth();
+
+            // Format value for display
+            const formattedValue = '$' + window.d3.format(',')(value);
+
+            // Create text element first to measure it
+            const text = barGroup.append('text')
+                .attr('class', 'bar-value')
+                .attr('x', 0)
+                .attr('y', yPos + (bandwidth / 2))
+                .attr('dy', '0.35em')
+                .style('font-size', '10px')
+                .style('font-weight', '600')
+                .style('fill', '#000000')
+                .style('text-shadow', '0px 1px 1px rgba(255,255,255,0.8)')
+                .style('pointer-events', 'none')
+                .style('opacity', 0)
+                .text(formattedValue);
+
+            // Get text width
+            const textNode = text.node();
+            const textWidth = textNode.getBBox().width;
+
+            // Determine where to place the text
+            const minSpaceInside = 10; // Minimum space needed inside bar
+            const textMargin = 5; // Margin around text
+
+            if (barWidth > textWidth + minSpaceInside) {
+                // Text fits inside the bar - place it at the end
+                text
+                    .attr('x', barWidth - textMargin)
+                    .attr('text-anchor', 'end')
+                    .style('fill', '#000000') // Black for contrast inside bar
+                    .style('text-shadow', '0px 1px 1px rgba(255,255,255,0.8)')
+                    .style('opacity', 1);
+            } else {
+                // Text doesn't fit inside - place it outside
+                text
+                    .attr('x', barWidth + textMargin)
+                    .attr('text-anchor', 'start')
+                    .style('fill', '#333333') // Dark gray for outside
+                    .style('text-shadow', 'none')
+                    .style('opacity', 1);
+
+                // Add a background for better readability when outside
+                barGroup.insert('rect', '.bar-value')
+                    .attr('class', 'value-bg')
+                    .attr('x', barWidth + 2)
+                    .attr('y', yPos + (bandwidth / 2) - 8)
+                    .attr('width', textWidth + 6)
+                    .attr('height', 16)
+                    .attr('fill', 'rgba(255, 255, 255, 0.9)')
+                    .attr('rx', 3)
+                    .attr('ry', 3);
+            }
+        });
+
     }
 
     generateNiceTickValues(maxValue) {

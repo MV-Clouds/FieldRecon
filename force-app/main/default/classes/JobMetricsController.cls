@@ -1,14 +1,14 @@
-// // /**
-// // * Class Name: JobMetricsController
-// // * Test Class: 
-// // * @description: Controller for Job data Report
-// // * Created Date: 3 December 2025
-// // * Created By: Kajal Tiwari
-// // *--------------------------------------------------------------------------------
-// // * Modification History: To return all the jobs having status null in getAllJobsWithScopeData
-// // * Date Modified - Developer Name - Description
-// // * 
-// // **/
+// /**
+// * Class Name: JobMetricsController
+// * Test Class: 
+// * @description: Controller for Job data Report
+// * Created Date: 4 December 2025
+// * Created By: Kajal Tiwari
+// *--------------------------------------------------------------------------------
+// * Modification History: Change custom metadata to custom setting
+// * Date Modified - Developer Name - Description
+// * 
+// **/
 
 public with sharing class JobMetricsController {
     
@@ -224,31 +224,27 @@ public with sharing class JobMetricsController {
         Map<String, MetricData> metrics = new Map<String, MetricData>();
         
         try {
-            // Get metric settings from custom metadata
-            List<wfrecon__JobMetricSetting__mdt> metricSettings = [
-                SELECT MasterLabel, DeveloperName, wfrecon__Statuses__c 
-                FROM wfrecon__JobMetricSetting__mdt 
-                WITH USER_MODE
-            ];
+                    wfrecon__JobMetrics__c[] metricSettings = wfrecon__JobMetrics__c.getAll().values();
+        
+        // Collect all statuses from all metrics
+        Set<String> allStatuses = new Set<String>();
+        Map<String, Set<String>> metricToStatuses = new Map<String, Set<String>>();
+        
+        // Initialize metrics for all custom setting records
+        for (wfrecon__JobMetrics__c setting : metricSettings) {
+            metrics.put(setting.Name, new MetricData());
             
-            // Collect all statuses from all metrics
-            Set<String> allStatuses = new Set<String>();
-            Map<String, Set<String>> metricToStatuses = new Map<String, Set<String>>();
-            
-            // Initialize metrics for all custom metadata records
-            for (wfrecon__JobMetricSetting__mdt setting : metricSettings) {
-                metrics.put(setting.DeveloperName, new MetricData());
-                
-                if (setting.wfrecon__Statuses__c != null) {
-                    Set<String> statusSet = new Set<String>();
-                    List<String> statusList = setting.wfrecon__Statuses__c.split(',');
-                    for (String status : statusList) {
-                        statusSet.add(status.trim());
-                    }
-                    metricToStatuses.put(setting.DeveloperName, statusSet);
-                    allStatuses.addAll(statusSet);
+            if (setting.wfrecon__Statuses__c != null) {
+                Set<String> statusSet = new Set<String>();
+                List<String> statusList = setting.wfrecon__Statuses__c.split(',');
+                for (String status : statusList) {
+                    statusSet.add(status.trim());
                 }
+                metricToStatuses.put(setting.Name, statusSet);
+                allStatuses.addAll(statusSet);
             }
+        }
+
 
             if (allStatuses.isEmpty()) {
                 System.debug('=== No statuses found in custom metadata');
@@ -361,13 +357,8 @@ public with sharing class JobMetricsController {
                 }
             }
             
-            // Get current metric settings from custom metadata
-            List<wfrecon__JobMetricSetting__mdt> metricSettings = [
-                SELECT MasterLabel, DeveloperName, wfrecon__Statuses__c 
-                FROM wfrecon__JobMetricSetting__mdt 
-                WITH USER_MODE
-            ];
-            
+                    wfrecon__JobMetrics__c[] metricSettings = wfrecon__JobMetrics__c.getAll().values();
+
             Map<String, List<String>> metricStatusMap = new Map<String, List<String>>();
             
             // Define default metric names
@@ -379,12 +370,11 @@ public with sharing class JobMetricsController {
                 metricStatusMap.put(metricName, new List<String>());
             }
             
-            // Populate with existing settings
-            for (wfrecon__JobMetricSetting__mdt setting : metricSettings) {
-                if (setting.wfrecon__Statuses__c != null) {
-                    metricStatusMap.put(setting.DeveloperName, setting.wfrecon__Statuses__c.split(','));
-                }
+            for (wfrecon__JobMetrics__c setting : metricSettings) {
+            if (setting.wfrecon__Statuses__c != null) {
+                metricStatusMap.put(setting.Name, setting.wfrecon__Statuses__c.split(','));
             }
+        }
             
             result.put('statusOptions', statusOptions);
             result.put('metricStatusMap', metricStatusMap);
@@ -398,51 +388,38 @@ public with sharing class JobMetricsController {
     }
     
     /*
-    *********************************************************
-    @description     : Method to save metric settings using Metadata API
-    @param           : Map<String, List<String>> - Metric to statuses mapping
-    ********************************************************
-    */
-    @AuraEnabled
-    public static void saveMetricSettings(Map<String, List<String>> metricStatusMap) {
-        try {
-            // Use Metadata API to create/update custom metadata records
-            List<Metadata.CustomMetadata> customMetadataList = new List<Metadata.CustomMetadata>();
+*********************************************************
+@description     : Method to save metric settings using Custom Settings
+@param           : Map<String, List<String>> - Metric to statuses mapping
+********************************************************
+*/
+@AuraEnabled
+public static void saveMetricSettings(Map<String, List<String>> metricStatusMap) {
+    try {
+        List<wfrecon__JobMetrics__c> settingsToUpsert = new List<wfrecon__JobMetrics__c>();
+        
+        for (String metricName : metricStatusMap.keySet()) {
+            List<String> statuses = metricStatusMap.get(metricName);
+            String statusesString = String.join(statuses, ',');
             
-            for (String metricName : metricStatusMap.keySet()) {
-                List<String> statuses = metricStatusMap.get(metricName);
-                String statusesString = String.join(statuses, ',');
-                
-                // Create custom metadata record
-                Metadata.CustomMetadata customMetadata = new Metadata.CustomMetadata();
-                customMetadata.fullName = 'wfrecon__JobMetricSetting__mdt.' + metricName;
-                customMetadata.label = metricName;
-                
-                // Create statuses field value
-                Metadata.CustomMetadataValue statusesField = new Metadata.CustomMetadataValue();
-                statusesField.field = 'wfrecon__Statuses__c';
-                statusesField.value = statusesString;
-                
-                customMetadata.values = new List<Metadata.CustomMetadataValue> { statusesField };
-                customMetadataList.add(customMetadata);
-            }
-            
-            // Deploy the metadata
-            if (!customMetadataList.isEmpty()) {
-                Metadata.DeployContainer mdContainer = new Metadata.DeployContainer();
-                for (Metadata.CustomMetadata cm : customMetadataList) {
-                    mdContainer.addMetadata(cm);
-                }
-                
-                // Perform deployment
-                Id asyncResultId = Metadata.Operations.enqueueDeployment(mdContainer, null);
-            }
-            
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'saveMetricSettings', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-
+            // Create or update custom setting record
+            wfrecon__JobMetrics__c setting = new wfrecon__JobMetrics__c(
+                Name = metricName,
+                wfrecon__Statuses__c = statusesString
+            );
+            settingsToUpsert.add(setting);
         }
+        
+        // UPSERT the custom settings
+        if (!settingsToUpsert.isEmpty()) {
+            upsert settingsToUpsert Name; 
+        }
+        
+    } catch (Exception e) {
+        ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'saveMetricSettings', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+        throw new AuraHandledException('Error saving metric settings: ' + e.getMessage());
     }
+}
     
     /*
     *********************************************************

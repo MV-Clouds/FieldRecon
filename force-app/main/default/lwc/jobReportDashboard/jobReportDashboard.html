@@ -121,6 +121,43 @@
                             </div>
                         </div>
 
+                        <!-- Work Remaining Metric -->
+                        <div class="metric-card close-metric" data-label="workRemaining" onclick={handleMetricClick}>
+                            <div class="metric-content">
+                                <div class="metric-head">
+                                    <div class="metric-title">Work Remaining</div>
+
+                                    <div class="action-btns">
+                                        <div class="edit-btn btn action-btn" data-metric="workRemaining"
+                                            onclick={openEditPopup}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                                <path
+                                                    d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="metric-count">
+                                    <lightning-formatted-number value={remainingValue} format-style="currency"
+                                        currency-code="USD" maximum-fraction-digits="2">
+                                    </lightning-formatted-number>
+                                </div>
+                                <div class="metric-value">Number of Jobs: {remainingCount}</div>
+                            </div>
+                            <div class="metric-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                    <path
+                                        d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                        </div>
+
                         <!-- Open Balance Metric -->
                         <div class="metric-card outstanding-metric" data-label="openBalance"
                             onclick={handleMetricClick}>
@@ -198,42 +235,6 @@
                             </div>
                         </div>
 
-                        <!-- Work Remaining Metric -->
-                        <div class="metric-card close-metric" data-label="workRemaining" onclick={handleMetricClick}>
-                            <div class="metric-content">
-                                <div class="metric-head">
-                                    <div class="metric-title">Work Remaining</div>
-
-                                    <div class="action-btns">
-                                        <div class="edit-btn btn action-btn" data-metric="workRemaining"
-                                            onclick={openEditPopup}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-                                                <path
-                                                    d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z" />
-                                            </svg>
-                                        </div>
-                                    </div>
-
-                                </div>
-                                <div class="metric-count">
-                                    <lightning-formatted-number value={remainingValue} format-style="currency"
-                                        currency-code="USD" maximum-fraction-digits="2">
-                                    </lightning-formatted-number>
-                                </div>
-                                <div class="metric-value">Number of Jobs: {remainingCount}</div>
-                            </div>
-                            <div class="metric-icon">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round" />
-                                    <path
-                                        d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
