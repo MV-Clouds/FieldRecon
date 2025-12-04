@@ -17,9 +17,6 @@ public with sharing class TimeCardManagerController {
             DateTime startOfDay;
             DateTime endOfDay;
 
-            System.debug('customStartDate ::' + customStartDate);
-            System.debug('customEndDate ::' + customEndDate);
-
             if (customStartDate != null && customEndDate != null) {
                 startOfDay = DateTime.newInstance(customStartDate, Time.newInstance(0,0,0,0));
                 endOfDay   = DateTime.newInstance(customEndDate, Time.newInstance(23,59,59,999));
@@ -28,9 +25,6 @@ public with sharing class TimeCardManagerController {
                 startOfDay = DateTime.newInstance(today, Time.newInstance(0,0,0,0));
                 endOfDay   = DateTime.newInstance(today, Time.newInstance(23,59,59,999));
             }
-
-            System.debug('startOfDay ::' + startOfDay);
-            System.debug('endOfDay ::' + endOfDay);
 
             List<wfrecon__Mobilization_Member__c> mobilizationMembers = [
                 SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.RecordType.DeveloperName, 
@@ -85,10 +79,11 @@ public with sharing class TimeCardManagerController {
                     mg.jobAddress = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c;
                     mg.jobDescription = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c;
                     mg.startDate = member.wfrecon__Mobilization__r.wfrecon__Start_Date__c != null 
-                        ? member.wfrecon__Mobilization__r.wfrecon__Start_Date__c
+                        ? member.wfrecon__Mobilization__r.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(member.wfrecon__Mobilization__r.wfrecon__Start_Date__c)/1000)
                         : null;
+                        
                     mg.endDate = member.wfrecon__Mobilization__r.wfrecon__End_Date__c != null 
-                        ? member.wfrecon__Mobilization__r.wfrecon__End_Date__c
+                        ? member.wfrecon__Mobilization__r.wfrecon__End_Date__c.addSeconds(userTz.getOffset(member.wfrecon__Mobilization__r.wfrecon__End_Date__c)/1000)
                         : null;
                     mg.totalManHours = 0;
                     mg.totalManHoursWithTravel = 0;

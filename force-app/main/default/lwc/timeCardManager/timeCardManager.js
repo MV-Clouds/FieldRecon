@@ -157,15 +157,11 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         const startDate = this.customStartDate ? new Date(this.customStartDate) : null;
         const endDate = this.customEndDate ? new Date(this.customEndDate) : null;
 
-        console.log('Loading contact details for date range:', startDate, 'to', endDate);
-        
-
         getAllContactsWithDetails({ 
             customStartDate: startDate, 
             customEndDate: endDate 
         })
         .then(result => {
-            console.log('getAllContactsWithDetails result :: ', JSON.stringify(result));
             if (result && Array.isArray(result)) {
                 this.contactDetails = result.map(contact => ({
                     ...contact,
