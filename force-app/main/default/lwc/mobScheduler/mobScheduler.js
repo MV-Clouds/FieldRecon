@@ -823,9 +823,11 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
             if (start == end) {
                 this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
-            } else if (startLocal.getTime() < nowLocal.getTime()) {
-                this.showToast('Error', 'Start date/time can not be in past.', 'error');
-            } else if (start > end) {
+            } 
+            // else if (startLocal.getTime() < nowLocal.getTime()) {
+            //     this.showToast('Error', 'Start date/time can not be in past.', 'error');
+            // } 
+            else if (start > end) {
                 this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');
             } else {
                 this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
