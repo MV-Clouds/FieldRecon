@@ -125,7 +125,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      * @description: Gets the formatted date string for the header based on view mode.
      */
     get apexFormattedDate() {
-        return this.selectedDate.toISOString().split('T')[0];
+        try{
+            const start = this.normalizeDate(new Date(this.selectedDate));
+            let currentDate = start.toLocaleDateString('en-CA');
+            return currentDate;
+        }catch(error){
+            console.error('Error in apexFormattedDate ::', error.stack);
+        }
     }
 
     /** 
@@ -206,6 +212,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      */
     get isPerDiemChecked() {
         return this.enteredManualPerDiem === 1;
+    }
+
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     }
     
     /**

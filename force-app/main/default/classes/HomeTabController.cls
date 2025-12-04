@@ -23,6 +23,7 @@ public with sharing class HomeTabController {
     @AuraEnabled
     public static Map<String, Object> getMobilizationMembers(Date filterDate, String mode) {
         try {
+            System.debug('Fetching mobilization members for date: ' + filterDate + ' in mode: ' + mode);
             Map<String, Object> result = new Map<String, Object>();
 
             String userId = UserInfo.getUserId();
@@ -55,9 +56,8 @@ public with sharing class HomeTabController {
             Date weekEnd;
 
             if (mode == 'week') {
-                Date today = Date.today();
-                weekStart = today;
-                weekEnd   = today.addDays(6);
+                weekStart = filterDate;
+                weekEnd   = filterDate.addDays(6);
                 startDateTime = DateTime.newInstance(weekStart, Time.newInstance(0,0,0,0));
                 endDateTime   = DateTime.newInstance(weekEnd, Time.newInstance(23,59,59,999));
             } else {
@@ -167,7 +167,7 @@ public with sharing class HomeTabController {
 
             } else {
                 // WEEK MODE → from today (inclusive) to next 6 days (7 total)
-                Date weekStartD = Date.today(); // Start date of the 7-day window
+                Date weekStartD = filterDate; // Start date of the 7-day window
                 Date weekEndD = weekStartD.addDays(6); // End date of the 7-day window
                 
                 Map<String, List<WrapperMember>> weekMap = new Map<String, List<WrapperMember>>(); 
