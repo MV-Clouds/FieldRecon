@@ -572,12 +572,12 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
 
             const nowLocal = this.normalizeDate(new Date()).toLocaleDateString('en-CA');
 
-            if (startStr < nowLocal) {
-                this.isSpinner = false;
-                this.showToast('Warning', 'Cannot create events in the past.','warn');
-                console.warn('Cannot create events in the past.');
-                return; // Exit early
-            }
+            // if (startStr < nowLocal) {
+            //     this.isSpinner = false;
+            //     this.showToast('Warning', 'Cannot create events in the past.','warn');
+            //     console.warn('Cannot create events in the past.');
+            //     return; // Exit early
+            // }
 
             // Subtract 1 day from end to make it inclusive
             endDate.setDate(endDate.getDate() - 1);
@@ -670,9 +670,11 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
 
             if (start == end) {
                 this.showToast('Error', 'Start date-time can not be same as end date-time.', 'error');
-            } else if (!this.isEdit && startLocal.getTime() < nowLocal.getTime()) {
-                this.showToast('Error', 'Start date/time can not be in past.', 'error');
-            } else if (start > end) {
+            } 
+            // else if (!this.isEdit && startLocal.getTime() < nowLocal.getTime()) {
+            //     this.showToast('Error', 'Start date/time can not be in past.', 'error');
+            // } 
+            else if (start > end) {
                 this.showToast('Error', 'End date cannot be earlier than the start date. Please select a valid range.', 'error');
             } else {
                 this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
