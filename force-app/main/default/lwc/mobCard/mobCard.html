@@ -6,7 +6,7 @@
                 <div class="job-card-description record-nav-link" onclick={handleRecordNavigation}>{mobDetails.jobId}</div>
             </div>
             <div class="action-btns">
-                <div class="edit-btn btn action-btn" data-past={mobDetails.isPast} onclick={handleJobCardEdit}>
+                <div class="edit-btn btn action-btn" onclick={handleJobCardEdit}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></svg>
                 </div>
                 <div class="delete-btn btn action-btn" onclick={handleJobCardDelete}>
@@ -41,7 +41,7 @@
                         <template for:each={section.items} for:item="item">
                             <div class="tile" key={item.id} style={item.bgStyle}>
                                 <div class="slds-truncate" title={item.name} data-id={item.id}>{item.name}</div>
-                                <svg class="remove-btn-svg" data-past={mobDetails.isPast} data-job={mobDetails.id} data-id={item.id} data-type={section.type} onclick={handleRemoveSpecificResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
+                                <svg class="remove-btn-svg" data-job={mobDetails.id} data-id={item.id} data-type={section.type} onclick={handleRemoveSpecificResource} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#5a5adb">
                                     <path d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"/>
                                 </svg>
                             </div>
@@ -56,7 +56,7 @@
                 </div>
             </div>
         </template>
-        <div class="bottom-btn" data-past={mobDetails.isPast}>
+        <div class="bottom-btn">
             <button class="assign-btn btn" onclick={handleAssignResources}>+ Assign Resources</button>
         </div>
         <div class="card-view-change-btns">
