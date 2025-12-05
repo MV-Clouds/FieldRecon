@@ -501,9 +501,12 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         if (contact && mobilization) {
             // Filter timesheet entries for this specific contact and job
             // Use the custom date range instead of mobilization dates for better filtering
-            const customStartDate = new Date(this.customStartDate);
-            const customEndDate = new Date(this.customEndDate);
-            customEndDate.setHours(23, 59, 59, 999); // End of day
+            
+            const [sYear, sMonth, sDay] = this.customStartDate.split('-');
+            const [eYear, eMonth, eDay] = this.customEndDate.split('-');
+
+            const customStartDate = new Date(Date.UTC(sYear, sMonth - 1, sDay, 0, 0, 0, 0));
+            const customEndDate = new Date(Date.UTC(eYear, eMonth - 1, eDay, 23, 59, 59, 999));
             
             const filteredEntries = contact.timesheetEntries.filter(entry => {
                 if (entry.jobId !== jobId) {
@@ -513,7 +516,10 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
                 // If clockInTime exists, use it for date filtering
                 if (entry.clockInTime) {
                     const entryDate = new Date(entry.clockInTime);
-                    return entryDate >= customStartDate && entryDate <= customEndDate;
+            
+                    // Compare timestamps (milliseconds)
+                    return entryDate.getTime() >= customStartDate.getTime() && 
+                        entryDate.getTime() <= customEndDate.getTime();
                 }
                 
                 return true; // Include entries without clockInTime
