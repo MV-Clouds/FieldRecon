@@ -13,44 +13,43 @@
 
 public with sharing class AICalloutController {
 
-    @AuraEnabled(cacheable=true)
-    public static Map<String,Object> getCrewsByJob(String jobId){
-        Map<String,Object> result = new Map<String,Object>();
+    @AuraEnabled
+    public static Map<String, Object> generateSingleRecordingTranscript(Map<String, Object> data) {
+        Map<String, Object> result = new Map<String, Object>();
         try {
-            // String jobId = 'a0KC300000DB4NNMA1';
-            List<wfrecon__Mobilization__c> mobilizationList = [SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Job__c = :jobId WITH USER_MODE];
-            
-            Set<Id> mobilizationIds = new Set<Id>();
-            
-            for(wfrecon__Mobilization__c mobilization : mobilizationList){
-                mobilizationIds.add(mobilization.Id);
-            }
-            
-            List<wfrecon__Mobilization_Member__c> mobilizationMembers= [SELECT Id,wfrecon__Crew__r.Id,wfrecon__Crew__r.Name FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Mobilization__c IN :mobilizationIds WITH USER_MODE];
-            
-            System.debug('mobilizationMembers' + mobilizationMembers);
-            Map<String,Object> crewInfo = new Map<String,Object>();
-            for(wfrecon__Mobilization_Member__c mobilizationMember : mobilizationMembers){
-                crewInfo.put(mobilizationMember.wfrecon__Crew__r.Id,mobilizationMember.wfrecon__Crew__r.Name);
-            }
+            String audio = (String) String.valueOf(data.get('audio'));
 
-            result.put('crewInfo',crewInfo);
+            List<AI_Defaults__mdt> ai_defaults_records = [SELECT Work_Log_Transcript_Prompt__c, Work_Log_Transcript_GenerateConfig__c FROM AI_Defaults__mdt WHERE DeveloperName = 'AI_Defaults' LIMIT 1];
+            AI_Defaults__mdt ai_defaults = ai_defaults_records.size() > 0 ? ai_defaults_records[0] : new AI_Defaults__mdt();
+            
+            String userPrompt = ai_defaults.Work_Log_Transcript_Prompt__c ?? 'I will provide work Shift Log entry detail in audio form. Audio has information about what work has been done over the working shift or whole day. Please Provide the Transcript for the following audio in the language it has been spoken. Provide language and its code. Translate the Transcript it into english. If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it. Only Provide Response In Mentioned Format/Structure. Note: Always provide JSON within (even if no detail is available) the response as i need parsing JSON. Thank you for your assistance.';
 
+            Map<String, Object> audioData = new Map<String, Object>();
+            audioData.put('mime_type', 'audio/webm');
+            audioData.put('data', audio);
+            String inline_data = JSON.serialize(audioData);
+            System.debug('inline_data : '+inline_data);
+
+            String generationConfig = ai_defaults.Work_Log_Transcript_GenerateConfig__c ?? '{"responseMimeType": "application/json", "responseJsonSchema": { "type": "object", "properties": { "language": { "type": "string", "description": "The language detected in the input audio/text." }, "lang_code": { "type": "string", "description": "The ISO 639-1 language code (e.g.,en, hi, fr)." }, "transcript": { "type": "string", "description": "The full verbatim transcript of the speech." }, "translation_en": { "type": "string", "description": "An English translation of the full transcript." }, "no_valid_entry": { "type": "boolean", "description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false." } }, "required": [ "language", "lang_code", "transcript", "translation_en", "no_valid_entry" ] }}';
+
+            // Build full request body using content structure
+            String requestBody = '{' + 
+                '"contents": [' + 
+                    '{' + 
+                        '"parts": [' + 
+                            '{"text": "' + userPrompt + '"},' +
+                            '{"inline_data": ' + inline_data + '}' +
+                        ']' + 
+                    '}' + 
+                '],' + 
+                '"generationConfig": '+generationConfig+'' + 
+            '}';
+
+            result = callGeminiAPI(requestBody);
+            // result = {'ai_Response__c' : 'summary'}
         } catch (Exception e) {
-            result.put('error', 'Error : Failed in getCrewsByJob ' + e.getMessage());
-        }
-        return result;
-    }
-
-    @AuraEnabled(cacheable=true)
-    public static Map<String,Object> getUserDesignation(String jobId){
-        Map<String,Object> result = new Map<String,Object>();
-        try {
-            wfrecon__Job__c jobToSummarize = [SELECT Id,Job_Manager__c FROM wfrecon__Job__c WHERE id =:jobId];
-            result.put('isJobManager',UserInfo.getUserId() == jobToSummarize.Job_Manager__c);
-            
-        } catch (Exception e) {
-            result.put('error', 'Error : Failed in getUserDesignation ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'AICalloutController', 'methodName' => 'generateSingleRecordingTranscript', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            result.put('ai_Response_Error__c', 'Error : Failed in generateRecordingSummary ' + e.getMessage());
         }
         return result;
     }
@@ -93,61 +92,10 @@ public with sharing class AICalloutController {
             // result = {'ai_Response__c' : 'summary'}
             
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'AICalloutController', 'methodName' => 'generateRecordingSummary', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             result.put('ai_Response_Error__c', 'Error : Failed in generateRecordingSummary ' + e.getMessage());
         }
         return result;
-    }
-
-    @AuraEnabled
-    public static Map<String, Object> generateSingleRecordingTranscript(Map<String, Object> data) {
-        Map<String, Object> result = new Map<String, Object>();
-        try {
-            String audio = (String) String.valueOf(data.get('audio'));
-
-            List<AI_Defaults__mdt> ai_defaults_records = [SELECT Work_Log_Transcript_Prompt__c, Work_Log_Transcript_GenerateConfig__c FROM AI_Defaults__mdt WHERE DeveloperName = 'AI_Defaults' LIMIT 1];
-            AI_Defaults__mdt ai_defaults = ai_defaults_records.size() > 0 ? ai_defaults_records[0] : new AI_Defaults__mdt();
-            
-            String userPrompt = ai_defaults.Work_Log_Transcript_Prompt__c ?? 'I will provide work Shift Log entry detail in audio form. Audio has information about what work has been done over the working shift or whole day. Please Provide the Transcript for the following audio in the language it has been spoken. Provide language and its code. Translate the Transcript it into english. If there is no Information About Work Detail add No Job Detail In no_valid_entry key, otherwise skip it. Only Provide Response In Mentioned Format/Structure. Note: Always provide JSON within (even if no detail is available) the response as i need parsing JSON. Thank you for your assistance.';
-
-            Map<String, Object> audioData = new Map<String, Object>();
-            audioData.put('mime_type', 'audio/webm');
-            audioData.put('data', audio);
-            String inline_data = JSON.serialize(audioData);
-            System.debug('inline_data : '+inline_data);
-
-            String generationConfig = ai_defaults.Work_Log_Transcript_GenerateConfig__c ?? '{"responseMimeType": "application/json", "responseJsonSchema": { "type": "object", "properties": { "language": { "type": "string", "description": "The language detected in the input audio/text." }, "lang_code": { "type": "string", "description": "The ISO 639-1 language code (e.g.,en, hi, fr)." }, "transcript": { "type": "string", "description": "The full verbatim transcript of the speech." }, "translation_en": { "type": "string", "description": "An English translation of the full transcript." }, "no_valid_entry": { "type": "boolean", "description": "Set to true if the input did not contain valid or relevant information for the other fields, otherwise false." } }, "required": [ "language", "lang_code", "transcript", "translation_en", "no_valid_entry" ] }}';
-
-            // Build full request body using content structure
-            String requestBody = '{' + 
-                '"contents": [' + 
-                    '{' + 
-                        '"parts": [' + 
-                            '{"text": "' + userPrompt + '"},' +
-                            '{"inline_data": ' + inline_data + '}' +
-                        ']' + 
-                    '}' + 
-                '],' + 
-                '"generationConfig": '+generationConfig+'' + 
-            '}';
-
-            result = callGeminiAPI(requestBody);
-            // result = {'ai_Response__c' : 'summary'}
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'AICalloutController', 'methodName' => 'generateSingleRecordingTranscript', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            result.put('ai_Response_Error__c', 'Error : Failed in generateRecordingSummary ' + e.getMessage());
-        }
-        return result;
-    }
-
-    public class RequestInput {
-        @AuraEnabled public String jobId;
-        @AuraEnabled public String startDate;
-        @AuraEnabled public String endDate;
-        @AuraEnabled public String language;
-        @AuraEnabled public String durationType;
-        @AuraEnabled public String workVisibility;
-        @AuraEnabled public List<String> crews;
-        @AuraEnabled public Boolean avoidHtmlContent;
     }
 
     @AuraEnabled
@@ -165,6 +113,7 @@ public with sharing class AICalloutController {
             String workChoice = input.workVisibility ?? 'my_work';
             List<String> crews = input.crews ?? new List<String>();
             Boolean avoidHtmlContent = input.avoidHtmlContent ?? false;
+            String promptId = input.promptId;
             
             String userId = UserInfo.getUserId();
             List<String> clausePart = new List<String>();
@@ -203,8 +152,11 @@ public with sharing class AICalloutController {
             System.debug('logEntries : '+ logEntries);
 
             // collect use customized prompt
-            List<AI_Prompt_Library__c> promptList = [SELECT Id, Name, Prompt_Type__c, Prompt_Body__c FROM AI_Prompt_Library__c WHERE Prompt_Type__c = 'Job Summary' LIMIT 1];
-            String customized_prompt = promptList?.size() > 0 ? promptList[0].Prompt_Body__c : 'Summarize the job and its shift log entries.';
+            String customized_prompt = 'Summarize the job and its shift log entries.';
+            if(String.isNotBlank(promptId)){
+                List<AI_Prompt_Library__c> promptList = [SELECT Id, Name, Prompt_Type__c, Prompt_Body__c FROM AI_Prompt_Library__c WHERE Id =: promptId LIMIT 1];
+                if(promptList?.size() > 0) customized_prompt = promptList[0].Prompt_Body__c;
+            }
 
             // collect default values for the AI API callout
             List<AI_Defaults__mdt> ai_defaults_records = [SELECT Job_Summary_Prompt_Instruction__c, Job_Summary_generationConfig__c FROM AI_Defaults__mdt WHERE DeveloperName = 'AI_Defaults' LIMIT 1];
@@ -243,6 +195,7 @@ public with sharing class AICalloutController {
             result.putAll(prepareForHtmlContent(result, aiResponse, jobId));
 
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'AICalloutController', 'methodName' => 'generateJobSummary', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             result.put('ai_Response_Error__c', 'Error : Failed in generateJobSummary ' + e.getMessage());
         }
         return result;
@@ -278,41 +231,6 @@ public with sharing class AICalloutController {
         }
 
         return result;
-    }
-
-    @AuraEnabled
-    public static Map<String,Object> getSummaryAsHtml(String jobSummaryId) {
-        Map<String,Object> result = new Map<String,Object>();
-        try {
-            if(String.isBlank(jobSummaryId)){
-                result.put('error', 'Error : jobSummaryId is required');
-                return result;
-            }
-
-            FR_Job_AI_Settings__c aiSettings = FR_Job_AI_Settings__c.getOrgDefaults();
-            String htmlContentVfPage = aiSettings.HTML_Content_VF_Page__c;
-            if(String.isBlank(htmlContentVfPage)){
-                result.put('error', 'Error : HTML Content VF Page is not configured in AI Settings');
-                return result;
-            }
-
-            // Pass the jobSummaryId to VF page to render HTML content
-            String vfURL = Site.getBaseUrl() + '/apex/'+htmlContentVfPage+'?jobSummaryId='+jobSummaryId;
-            Blob htmlContentBlob = new PageReference(vfURL).getContent();
-            result.put('htmlContent', htmlContentBlob.toString());
-            System.debug('htmlContent : '+ htmlContentBlob.toString());
-            
-            // If the Job Summary is temporary, delete it after fetching HTML content
-            List<Job_Summary_AI__c> jsaList = [SELECT Id, Is_Temporary__c FROM Job_Summary_AI__c WHERE Id = :jobSummaryId LIMIT 1];
-            if(jsaList.size() > 0 && jsaList[0].Is_Temporary__c == true){
-                delete as user jsaList[0];
-            }
-
-        } catch (Exception e) {
-            result.put('error', 'Error : Failed in generateJobSummary ' + e.getMessage());
-        }
-        return result;
-        
     }
 
     public static Map<String,Object> callGeminiAPI(String requestBody) {
@@ -375,5 +293,17 @@ public with sharing class AICalloutController {
 
     public static Integer weekDay(){
         return Date.today().toStartOfWeek().daysBetween(Date.today()) + 1;
+    }
+    
+    public class RequestInput {
+        @AuraEnabled public String jobId;
+        @AuraEnabled public String startDate;
+        @AuraEnabled public String endDate;
+        @AuraEnabled public String language;
+        @AuraEnabled public String durationType;
+        @AuraEnabled public String workVisibility;
+        @AuraEnabled public List<String> crews;
+        @AuraEnabled public Boolean avoidHtmlContent;
+        @AuraEnabled public String promptId;
     }
 }

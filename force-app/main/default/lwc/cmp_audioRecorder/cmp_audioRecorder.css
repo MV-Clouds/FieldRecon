@@ -203,9 +203,12 @@
     }
     .output-audio{
         width: 100%;
+        flex-direction: column-reverse;
+        align-items: end;
+        height: calc( var(--button-height) * 2);
 
         audio{
-            width: calc(100% - 100px);
+            width: 100%;
         }
     }
     .refresh-button, .save-button{

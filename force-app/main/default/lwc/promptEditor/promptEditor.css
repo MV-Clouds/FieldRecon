@@ -1,0 +1,120 @@
+
+:host{
+    --primary-color: #5e5af9;
+    --record-button-bg: var(--primary-color);
+    --pause-button-bg: #fff;
+    --stop-button-bg: #e3066a;
+    --upload-button-bg: #fff;
+    --save-button-bg: var(--primary-color);
+    --refresh-button-bg: #fff;
+}
+
+.control-btn {
+    height: 37px;
+    width: max-content;
+    padding-inline: 0.75rem;
+    border-radius: 0.5rem;
+    border: none;
+    appearance: none;
+    white-space: normal;
+    user-select: none;
+    font-family: inherit;
+    vertical-align: middle;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem;
+
+    svg{
+        width: 16px;
+        height: 16px;
+    }
+
+    &:disabled{
+        cursor: not-allowed !important;
+        filter: saturate(0) brightness(1.5) !important;
+    }
+}
+
+.save-button{
+    background: var(--save-button-bg);
+    color: white;
+    svg{
+        fill: white;
+    }
+}
+
+.edit-button{
+    background: var(--refresh-button-bg);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    svg{
+        fill: var(--primary-color);
+    }
+}
+
+.delete-btn{
+    background: #e3066a;
+    color: white;
+
+    svg{
+        width: 16px;
+        height: 20px;
+        fill: white;
+    }
+}
+
+.prompt-container{
+    background: #f7f7f7;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #cecece;
+}
+
+.prompt-header{
+    gap: 0.5rem;
+}
+
+.prompt-title{
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: currentColor;
+    gap: 0.5rem;
+    line-height: 1.875rem;
+}
+
+.prompt-title svg{
+    width: 26px;
+    fill: var(--primary-color);
+    transition: all ease 0.15s;
+
+    &[data-not-edit=true]{
+        fill:currentColor;
+    }
+}
+
+.prompt-actions{
+    gap: 0.5rem;
+}
+
+.header-info{
+    background: linear-gradient(to right, #D9D8FF66, #BFD6FF66);
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+.header-info .title{
+    font-size: 24px;
+    color: var(--primary-color);
+    font-weight: 600;
+
+    svg{
+        width: 32px;
+        height: 32px;
+        fill: var(--primary-color);
+    }
+}
+.header-info .sub-info{
+    padding-top: 6px;
+    font-weight: 500;
+}

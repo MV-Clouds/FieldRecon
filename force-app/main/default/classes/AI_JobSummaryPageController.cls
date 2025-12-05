@@ -48,7 +48,9 @@ public with sharing class AI_JobSummaryPageController {
                     JobOverview = (Map<String, Object>) data.get('JobOverview');
                     ShiftLogSummary = (Map<String, Object>) data.get('ShiftLogSummary');
                     EachLogSummary = (List<Object>) JSON.deserializeUntyped(JSON.serialize(ShiftLogSummary?.get('EachLogSummary')));
+                    // if(EachLogSummary != null && EachLogSummary.size() == 0) EachLogSummary = null;
                     NotesForOffice = (List<Object>) data.get('NotesForOffice');
+                    // if(NotesForOffice != null && NotesForOffice.size() == 0) EachLogSummary = null;
                     OverallJobHealthSummary = (Map<String, Object>) data.get('OverallJobHealthSummary');
                     FinalSummary = (Object) data.get('FinalSummary');
                     ReportMetaData = (Map<String, Object>) data.get('ReportMetaData');

@@ -71,28 +71,7 @@
                     </lightning-accordion-section>
                      <lightning-accordion-section name="Prompt_Editor" label="Prompt Editor">
                         <div class="prompt-editor-section">
-                            <div class="info-class">
-                                <h2 class="slds-text-heading_medium slds-grid slds-grid_vertical-align-end">
-                                    <svg class="slds-m-right_x-small" width="28px" viewBox="0 0 24 24" fill="#5e5af9"><path d="M12 22C6.47715 22 2 17.5228 2 12 2 6.47715 6.47715 2 12 2 17.5228 2 22 6.47715 22 12 22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12 20 7.58172 16.4183 4 12 4 7.58172 4 4 7.58172 4 12 4 16.4183 7.58172 20 12 20ZM13 10.5V15H14V17H10V15H11V12.5H10V10.5H13ZM13.5 8C13.5 8.82843 12.8284 9.5 12 9.5 11.1716 9.5 10.5 8.82843 10.5 8 10.5 7.17157 11.1716 6.5 12 6.5 12.8284 6.5 13.5 7.17157 13.5 8Z"></path></svg>
-                                    Prompt Editor
-                                </h2>
-                                <p class="slds-m-left_xx-small slds-m-top_xx-small">
-                                    Edit the prompts used by the AI Assistant.</p>
-                            </div>
-                            <div class="prompt-editor slds-m-vertical_small">
-                                <lightning-textarea class="" label="Job Summary Prompt" value={prompts.Job_Summary.value} onchange={handlePromptChange} data-name="Job_Summary"></lightning-textarea>
-                                <lightning-textarea class="slds-m-top_small" label="Shift Log Recording Summary Prompt" value={prompts.Log_Summary.value} onchange={handlePromptChange} data-name="Log_Summary"></lightning-textarea>
-                            </div>
-                        </div>
-                        <div class="btn-section slds-grid slds-grid_align-end">
-                            <button class="slds-m-right_xx-small control-btn save" onclick={savePrompt} disabled={disableSaveButton.prompt}>
-                                <svg viewBox="0 0 24 24"><path d="M5 5V19H19V7.82843L16.1716 5H5ZM4 3H17L20.7071 6.70711C20.8946 6.89464 21 7.149 21 7.41421V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3ZM12 18C10.3431 18 9 16.6569 9 15C9 13.3431 10.3431 12 12 12C13.6569 12 15 13.3431 15 15C15 16.6569 13.6569 18 12 18ZM6 6H15V10H6V6Z"></path></svg>
-                                Save Prompt
-                            </button>
-                            <button class="slds-m-right_xx-small control-btn cancel" onclick={resetPrompt} disabled={disableSaveButton.prompt}>
-                                <svg viewBox="0 0 24 24"><path d="M2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2V4C16.4183 4 20 7.58172 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 9.25022 5.38734 6.82447 7.50024 5.38451L7.5 8H9.5V2L3.5 2V4L5.99918 3.99989C3.57075 5.82434 2 8.72873 2 12Z"></path></svg>
-                                Reset Prompt
-                            </button>
+                            <c-prompt-editor></c-prompt-editor>
                         </div>
                         <hr class="hr-line" >
                      </lightning-accordion-section>

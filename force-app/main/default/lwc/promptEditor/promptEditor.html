@@ -1,0 +1,173 @@
+<template>
+    
+    <div class="spinner-container slds-is-fixed" if:true={isLoading}>
+        <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+    </div>
+
+    <div class="header-info slds-m-bottom_medium">
+        <h1 class="title slds-grid slds-grid_vertical-align-center">
+            <svg viewBox="0 0 24 24" class="slds-m-right_x-small"><path d="M4.7134 7.12811L4.46682 7.69379C4.28637 8.10792 3.71357 8.10792 3.53312 7.69379L3.28656 7.12811C2.84706 6.11947 2.05545 5.31641 1.06767 4.87708L0.308047 4.53922C-0.102682 4.35653 -0.102682 3.75881 0.308047 3.57612L1.0252 3.25714C2.03838 2.80651 2.84417 1.97373 3.27612 0.930828L3.52932 0.319534C3.70578 -0.106511 4.29417 -0.106511 4.47063 0.319534L4.72382 0.930828C5.15577 1.97373 5.96158 2.80651 6.9748 3.25714L7.69188 3.57612C8.10271 3.75881 8.10271 4.35653 7.69188 4.53922L6.93228 4.87708C5.94451 5.31641 5.15288 6.11947 4.7134 7.12811ZM3.06361 21.6132C4.08854 15.422 6.31105 1.99658 21 1.99658C19.5042 4.99658 18.5 6.49658 17.5 7.49658L16.5 8.49658L18 9.49658C17 12.4966 14 15.9966 10 16.4966C7.33146 16.8301 5.66421 18.6635 4.99824 21.9966H3C3.02074 21.8722 3.0419 21.7443 3.06361 21.6132Z"></path></svg>
+            Prompt Editor
+        </h1>
+        <p class="sub-info">Build, edit and customize prompts so the AI can better understand what you want and provide more accurate, helpful responses.</p>
+    </div>
+
+    <lightning-accordion active-section-name={activeSectionName} allow-multiple-sections-open="true">
+        <lightning-accordion-section name="job_summary_prompts" label="Job Summary Prompts">
+            <div class="slds-grid slds-grid_align-end slds-m-vertical_x-small">
+                <button class="control-btn edit-button" data-type="job_summary_prompts" onclick={handleCreate} disabled={isNewDisabled.job_summary_prompts}>
+                    <svg viewBox="0 0 24 24"><path d="M11 11V7H13V11H17V13H13V17H11V13H7V11H11ZM12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20Z"></path></svg>
+                    Create New
+                </button>
+            </div>
+            <template lwc:if={job_summary_prompts.length} for:each={job_summary_prompts} for:item="prompt">
+                <div class="prompt-container slds-m-bottom_small" key={prompt.Id}>
+                    <div class="prompt-header slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                        <div class="prompt-title slds-grow slds-grid slds-grid_vertical-align-center">
+                            <svg viewBox="0 0 24 24" data-not-edit={prompt.isNotEdit}><path d="M15.9991 2.99995C19.3131 2.99995 22 5.69516 22 8.9941V21H8.00099C4.68693 21 2.00001 18.3048 2.00001 15.0058V10.6572C2.62568 10.8784 3.29859 11 4.00001 11C7.31372 11 10 8.31367 10 4.99995C10 4.29854 9.87844 3.62562 9.65724 2.99995H15.9991ZM8.00002 13H10V11H8.00002V13ZM14 13H16V11H14V13ZM3.52931 1.31928C3.70584 0.89349 4.29418 0.893492 4.47071 1.31928L4.72364 1.93061C5.15555 2.9734 5.96155 3.80612 6.97462 4.25679L7.6924 4.57612C8.10268 4.75894 8.10263 5.35615 7.6924 5.53902L6.93263 5.87691C5.94498 6.31619 5.15339 7.11941 4.71388 8.12789L4.46681 8.69332C4.28636 9.10745 3.71366 9.10745 3.53321 8.69332L3.28614 8.12789C2.84661 7.11942 2.05506 6.31619 1.06739 5.87691L0.307623 5.53902C-0.102517 5.35615 -0.102565 4.75894 0.307623 4.57612L1.0254 4.25679C2.03845 3.80613 2.84446 2.97343 3.27638 1.93061L3.52931 1.31928Z"></path></svg>
+                            <lightning-input class="slds-grow" type="text" variant="label-hidden" max="255" value={prompt.prompt_name}  placeholder="Enter prompt name..."
+                                data-name="prompt_name" data-id={prompt.Id} data-type="job_summary_prompts" onchange={handleEdit} disabled={prompt.isNotEdit}>
+                            </lightning-input>
+                        </div>
+                        <div class="prompt-actions slds-grid slds-grid_align-end">
+                            <button class="control-btn edit-button" data-id={prompt.Id} data-type="job_summary_prompts" onclick={toggleEdit} disabled={prompt.isNew}>
+                                <svg lwc:if={prompt.isNotEdit}  viewBox="0 0 24 24"><path d="M15.7279 9.57627L14.3137 8.16206L5 17.4758V18.89H6.41421L15.7279 9.57627ZM17.1421 8.16206L18.5563 6.74785L17.1421 5.33363L15.7279 6.74785L17.1421 8.16206ZM7.24264 20.89H3V16.6473L16.435 3.21231C16.8256 2.82179 17.4587 2.82179 17.8492 3.21231L20.6777 6.04074C21.0682 6.43126 21.0682 7.06443 20.6777 7.45495L7.24264 20.89Z"></path></svg>
+                                <svg lwc:else                   viewBox="0 0 24 24"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM12 10.5858L14.8284 7.75736L16.2426 9.17157L13.4142 12L16.2426 14.8284L14.8284 16.2426L12 13.4142L9.17157 16.2426L7.75736 14.8284L10.5858 12L7.75736 9.17157L9.17157 7.75736L12 10.5858Z"></path></svg>
+                            </button>
+                            <button class="control-btn save-button" data-id={prompt.Id} data-type="job_summary_prompts" onclick={handleSave} disabled={prompt.isNotEdit}>
+                                <svg viewBox="0 0 24 24"><path d="M5 5V19H19V7.82843L16.1716 5H5ZM4 3H17L20.7071 6.70711C20.8946 6.89464 21 7.149 21 7.41421V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3ZM12 18C10.3431 18 9 16.6569 9 15C9 13.3431 10.3431 12 12 12C13.6569 12 15 13.3431 15 15C15 16.6569 13.6569 18 12 18ZM6 6H15V10H6V6Z"></path></svg>
+                            </button>
+                            <button class="control-btn delete-btn" data-id={prompt.Id} data-type="job_summary_prompts" onclick={handleDeleteConfirm}>
+                                <svg viewBox="0 0 24 24" ><path d="M7 4V2H17V4H22V6H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V6H2V4H7ZM6 6V20H18V6H6ZM9 9H11V17H9V9ZM13 9H15V17H13V9Z"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="prompt-body">
+                        <lightning-textarea class="slds-m-top_x-small" variant="label-hidden" value={prompt.prompt_body} placeholder="Enter prompt..."
+                            data-name="prompt_body" data-id={prompt.Id} data-type="job_summary_prompts" onchange={handleEdit} disabled={prompt.isNotEdit}>
+                        </lightning-textarea>
+                    </div>
+                    <div class="prompt-footer slds-grid slds-grid_align-spread slds-m-vertical_small">
+                        <div class="slds-text-color_waek">
+                            <div lwc:if={prompt.CreatedByName} class="slds-grid slds-m-bottom_x-small">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M20 22H4V20C4 17.2386 6.23858 15 9 15H15C17.7614 15 20 17.2386 20 20V22ZM12 13C8.68629 13 6 10.3137 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 10.3137 15.3137 13 12 13Z"></path></svg>
+                                Created By: {prompt.CreatedByName}
+                            </div>
+                            <div lwc:if={prompt.CreatedDate} class="slds-grid">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M7 1V3H3C2.44772 3 2 3.44772 2 4V20C2 20.5523 2.44772 21 3 21H10.7546C9.65672 19.6304 9 17.8919 9 16C9 11.5817 12.5817 8 17 8C18.8919 8 20.6304 8.65672 22 9.75463V4C22 3.44772 21.5523 3 21 3H17V1H15V3H9V1H7ZM23 16C23 19.3137 20.3137 22 17 22C13.6863 22 11 19.3137 11 16C11 12.6863 13.6863 10 17 10C20.3137 10 23 12.6863 23 16ZM16 12V16.4142L18.2929 18.7071L19.7071 17.2929L18 15.5858V12H16Z"></path></svg>
+                                <lightning-formatted-date-time class="slds-m-left_xx-small info-text" value={prompt.CreatedDate} year="numeric" month="numeric" day="numeric"
+                                                hour="2-digit" minute="2-digit" >
+                                </lightning-formatted-date-time>
+                            </div>
+                        </div>
+                        <div class="slds-text-color_waek">
+                            <div lwc:if={prompt.CreatedByName} class="slds-grid slds-m-bottom_x-small">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M20 22H4V20C4 17.2386 6.23858 15 9 15H15C17.7614 15 20 17.2386 20 20V22ZM12 13C8.68629 13 6 10.3137 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 10.3137 15.3137 13 12 13Z"></path></svg>
+                                Last Modified By: {prompt.LastModifiedByName}
+                            </div>
+                            <div lwc:if={prompt.LastModifiedDate} class="slds-grid">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM13 12V7H11V14H17V12H13Z"></path></svg>
+                                <lightning-formatted-date-time class="slds-m-left_xx-small info-text" value={prompt.LastModifiedDate} year="numeric" month="numeric" day="numeric"
+                                                hour="2-digit" minute="2-digit" >
+                                </lightning-formatted-date-time>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template lwc:else>
+                <div class="prompt-container slds-m-bottom_small">
+                    <p class="slds-text-color_weak slds-text-align_center">
+                        <svg class="slds-m-left_x-small" width="16px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22V20H5V4H15V8H19V13H20.9998V7L16 2H3.9985C3.44749 2 3 2.44405 3 2.9918V21.0082C3 21.5447 3.44476 22 3.9934 22H12ZM21.5356 21.1212L19.4143 18.9999L21.5356 16.8786L20.1214 15.4644L18.0001 17.5857L15.8788 15.4644L14.4646 16.8786L16.5859 18.9999L14.4646 21.1212L15.8788 22.5354L18.0001 20.4141L20.1214 22.5354L21.5356 21.1212Z"></path></svg>
+                        No Prompts Found, Click "+ Create New" button to create a new prompt.
+                    </p>
+                </div>
+            </template>
+        </lightning-accordion-section>
+        <lightning-accordion-section name="shift_end_log_summary_prompts" label="Shift End Log Summary Prompts">
+            <div class="slds-grid slds-grid_align-end slds-m-vertical_x-small">
+                <button class="control-btn edit-button" data-type="shift_end_log_summary_prompts" onclick={handleCreate} disabled={isNewDisabled.shift_end_log_summary_prompts}>
+                    <svg viewBox="0 0 24 24"><path d="M11 11V7H13V11H17V13H13V17H11V13H7V11H11ZM12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20Z"></path></svg>
+                    Create New
+                </button>
+            </div>
+            <template lwc:if={shift_end_log_summary_prompts.length} for:each={shift_end_log_summary_prompts} for:item="prompt">
+                <div class="prompt-container slds-m-bottom_small" key={prompt.Id}>
+                    <div class="prompt-header slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                        <div class="prompt-title slds-grow slds-grid slds-grid_vertical-align-center">
+                            <svg viewBox="0 0 24 24" data-not-edit={prompt.isNotEdit}><path d="M15.9991 2.99995C19.3131 2.99995 22 5.69516 22 8.9941V21H8.00099C4.68693 21 2.00001 18.3048 2.00001 15.0058V10.6572C2.62568 10.8784 3.29859 11 4.00001 11C7.31372 11 10 8.31367 10 4.99995C10 4.29854 9.87844 3.62562 9.65724 2.99995H15.9991ZM8.00002 13H10V11H8.00002V13ZM14 13H16V11H14V13ZM3.52931 1.31928C3.70584 0.89349 4.29418 0.893492 4.47071 1.31928L4.72364 1.93061C5.15555 2.9734 5.96155 3.80612 6.97462 4.25679L7.6924 4.57612C8.10268 4.75894 8.10263 5.35615 7.6924 5.53902L6.93263 5.87691C5.94498 6.31619 5.15339 7.11941 4.71388 8.12789L4.46681 8.69332C4.28636 9.10745 3.71366 9.10745 3.53321 8.69332L3.28614 8.12789C2.84661 7.11942 2.05506 6.31619 1.06739 5.87691L0.307623 5.53902C-0.102517 5.35615 -0.102565 4.75894 0.307623 4.57612L1.0254 4.25679C2.03845 3.80613 2.84446 2.97343 3.27638 1.93061L3.52931 1.31928Z"></path></svg>
+                            <lightning-input class="slds-grow" type="text" variant="label-hidden" max="255" value={prompt.prompt_name} placeholder="Enter prompt name..."
+                                data-name="prompt_name" data-id={prompt.Id} data-type="shift_end_log_summary_prompts" onchange={handleEdit} disabled={prompt.isNotEdit}>
+                            </lightning-input>
+                        </div>
+                        <div class="prompt-actions slds-grid slds-grid_align-end">
+                            <button class="control-btn edit-button" data-id={prompt.Id} data-type="shift_end_log_summary_prompts" onclick={toggleEdit} disabled={prompt.isNew}>
+                                <svg lwc:if={prompt.isNotEdit}  viewBox="0 0 24 24"><path d="M15.7279 9.57627L14.3137 8.16206L5 17.4758V18.89H6.41421L15.7279 9.57627ZM17.1421 8.16206L18.5563 6.74785L17.1421 5.33363L15.7279 6.74785L17.1421 8.16206ZM7.24264 20.89H3V16.6473L16.435 3.21231C16.8256 2.82179 17.4587 2.82179 17.8492 3.21231L20.6777 6.04074C21.0682 6.43126 21.0682 7.06443 20.6777 7.45495L7.24264 20.89Z"></path></svg>
+                                <svg lwc:else                   viewBox="0 0 24 24"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM12 10.5858L14.8284 7.75736L16.2426 9.17157L13.4142 12L16.2426 14.8284L14.8284 16.2426L12 13.4142L9.17157 16.2426L7.75736 14.8284L10.5858 12L7.75736 9.17157L9.17157 7.75736L12 10.5858Z"></path></svg>
+                            </button>
+                            <button class="control-btn save-button" data-id={prompt.Id} data-type="shift_end_log_summary_prompts" onclick={handleSave} disabled={prompt.isNotEdit}>
+                                <svg viewBox="0 0 24 24"><path d="M5 5V19H19V7.82843L16.1716 5H5ZM4 3H17L20.7071 6.70711C20.8946 6.89464 21 7.149 21 7.41421V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3ZM12 18C10.3431 18 9 16.6569 9 15C9 13.3431 10.3431 12 12 12C13.6569 12 15 13.3431 15 15C15 16.6569 13.6569 18 12 18ZM6 6H15V10H6V6Z"></path></svg>
+                            </button>
+                            <button class="control-btn delete-btn" data-id={prompt.Id} data-type="shift_end_log_summary_prompts" onclick={handleDeleteConfirm}>
+                                <svg viewBox="0 0 24 24" ><path d="M7 4V2H17V4H22V6H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V6H2V4H7ZM6 6V20H18V6H6ZM9 9H11V17H9V9ZM13 9H15V17H13V9Z"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="prompt-body">
+                        <lightning-textarea class="slds-m-top_x-small" variant="label-hidden" value={prompt.prompt_body} placeholder="Enter prompt..."
+                            data-name="prompt_body" data-id={prompt.Id} data-type="shift_end_log_summary_prompts" onchange={handleEdit} disabled={prompt.isNotEdit}>
+                        </lightning-textarea>
+                    </div>
+                    <div class="prompt-footer slds-grid slds-grid_align-spread slds-m-vertical_small">
+                        <div class="slds-text-color_waek">
+                            <div lwc:if={prompt.CreatedByName} class="slds-grid slds-m-bottom_x-small">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M20 22H4V20C4 17.2386 6.23858 15 9 15H15C17.7614 15 20 17.2386 20 20V22ZM12 13C8.68629 13 6 10.3137 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 10.3137 15.3137 13 12 13Z"></path></svg>
+                                Created By: {prompt.CreatedByName}
+                            </div>
+                            <div lwc:if={prompt.CreatedDate} class="slds-grid">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M7 1V3H3C2.44772 3 2 3.44772 2 4V20C2 20.5523 2.44772 21 3 21H10.7546C9.65672 19.6304 9 17.8919 9 16C9 11.5817 12.5817 8 17 8C18.8919 8 20.6304 8.65672 22 9.75463V4C22 3.44772 21.5523 3 21 3H17V1H15V3H9V1H7ZM23 16C23 19.3137 20.3137 22 17 22C13.6863 22 11 19.3137 11 16C11 12.6863 13.6863 10 17 10C20.3137 10 23 12.6863 23 16ZM16 12V16.4142L18.2929 18.7071L19.7071 17.2929L18 15.5858V12H16Z"></path></svg>
+                                <lightning-formatted-date-time class="slds-m-left_xx-small info-text" value={prompt.CreatedDate} year="numeric" month="numeric" day="numeric"
+                                                hour="2-digit" minute="2-digit" >
+                                </lightning-formatted-date-time>
+                            </div>
+                        </div>
+                        <div class="slds-text-color_waek">
+                            <div lwc:if={prompt.CreatedByName} class="slds-grid slds-m-bottom_x-small">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M20 22H4V20C4 17.2386 6.23858 15 9 15H15C17.7614 15 20 17.2386 20 20V22ZM12 13C8.68629 13 6 10.3137 6 7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7C18 10.3137 15.3137 13 12 13Z"></path></svg>
+                                Last Modified By: {prompt.LastModifiedByName}
+                            </div>
+                            <div lwc:if={prompt.LastModifiedDate} class="slds-grid">
+                                <svg viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM13 12V7H11V14H17V12H13Z"></path></svg>
+                                <lightning-formatted-date-time class="slds-m-left_xx-small info-text" value={prompt.LastModifiedDate} year="numeric" month="numeric" day="numeric"
+                                                hour="2-digit" minute="2-digit" >
+                                </lightning-formatted-date-time>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template lwc:else>
+                <div class="prompt-container slds-m-bottom_small">
+                    <p class="slds-text-color_weak slds-align_absolute-center">
+                        <svg class="slds-m-right_xx-small" width="20px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22V20H5V4H15V8H19V13H20.9998V7L16 2H3.9985C3.44749 2 3 2.44405 3 2.9918V21.0082C3 21.5447 3.44476 22 3.9934 22H12ZM21.5356 21.1212L19.4143 18.9999L21.5356 16.8786L20.1214 15.4644L18.0001 17.5857L15.8788 15.4644L14.4646 16.8786L16.5859 18.9999L14.4646 21.1212L15.8788 22.5354L18.0001 20.4141L20.1214 22.5354L21.5356 21.1212Z"></path></svg>
+                        No Prompts Found, Click "+ Create New" button to create a new prompt.
+                    </p>
+                </div>
+            </template>
+        </lightning-accordion-section>
+
+         <c-generic-confirmation-modal lwc:if={confirmation}
+            show-modal={confirmation.show}
+            title={confirmation.title}
+            message={confirmation.message}
+            confirm-button-label="Delete"
+            confirm-button-variant="destructive"
+            cancel-button-label="Cancel"
+            icon="utility:warning"
+            icon-variant="warning"
+            onconfirm={handleConfirmation}
+            oncancel={handleConfirmation}>
+        </c-generic-confirmation-modal>
+    </lightning-accordion>
+
+</template>

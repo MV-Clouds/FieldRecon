@@ -5,9 +5,10 @@ import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { getPicklistValues } from 'lightning/uiObjectInfoApi';
 import USER_OBJECT from '@salesforce/schema/User';
 import Preferred_Language_Field from '@salesforce/schema/User.Preferred_Native_Language__c';
-import getUserDesignation from '@salesforce/apex/AICalloutController.getUserDesignation';
-import getCrewsByJob from '@salesforce/apex/AICalloutController.getCrewsByJob';
-import getSummaryAsHtml from '@salesforce/apex/AICalloutController.getSummaryAsHtml';
+import getUserDesignation from '@salesforce/apex/GenerateJobSummaryController.getUserDesignation';
+import getCrewsByJob from '@salesforce/apex/GenerateJobSummaryController.getCrewsByJob';
+import getSummaryAsHtml from '@salesforce/apex/GenerateJobSummaryController.getSummaryAsHtml';
+import getJobSummaryPrompts from '@salesforce/apex/GenerateJobSummaryController.getJobSummaryPrompts';
 import userId from '@salesforce/user/Id';
 import { getRecord } from 'lightning/uiRecordApi';
 
@@ -36,6 +37,8 @@ export default class GenerateJobSummary extends LightningElement {
     ttsContent = '';
 
     isJobManager = false;
+
+    @track prompts = [];
 
     @wire(getUserDesignation,{jobId: '$recordId'})
     userDesignation({data, error}){
@@ -84,6 +87,9 @@ export default class GenerateJobSummary extends LightningElement {
         return this.objectInfo.data?.defaultRecordTypeId ?? MASTER_RECORD_TYPE;
     }
 
+    namespace = this.template?.host?.nodeName?.toLowerCase()?.startsWith('wfrecon-') ? 'wfrecon__' : '';
+
+
     // Get object metadata (to access record type ID)
     @wire(getObjectInfo, { objectApiName: USER_OBJECT })
     objectInfo;
@@ -109,22 +115,37 @@ export default class GenerateJobSummary extends LightningElement {
         }
     }
 
+    connectedCallback(){
+        this.namespace = this.template?.host?.nodeName?.toLowerCase()?.startsWith('wfrecon-') ? 'wfrecon__' : '';
+        this.fetchPrompts();
+    }
+
+    fetchPrompts(){
+        getJobSummaryPrompts()
+        .then(result => {
+            if(result.success){
+                this.prompts = result.prompts?.map(ele => {
+                    return {
+                        value : ele.Id, label: ele[this.namespace+'Prompt_Name__c'], description: ele[this.namespace+'Prompt_Body__c']
+                    }
+                }) ?? [];
+            }
+        })
+        .catch(error => {
+            console.log('Error fetching prompts:', error?.body?.message ?? error?.message);
+        })
+    }
+
     
     handleChange (event){
-        if(event.target.name === 'startDate'){
-            this.startDate = event.target.value;
-        }else if(event.target.name === 'endDate'){
-            this.endDate = event.target.value;
-        }else if(event.target.name === 'language'){
-            this.selectedLanguage = event.target.value;
-            this.selectedLanguage_Label = this.languages?.find(option => option.value === event.target.value)?.label;
-        }else if(event.target.name === 'durationType'){
-            this.selectedDurationType = event.target.value;
-        }else if(event.target.name === 'crewGroup'){
-            this.selectedCrews = event.target.value;
-        }else if(event.target.name === 'visibility'){
-            this.selectedVisibility = event.target.value;
+        let value = event.target.value;
+        let name = event.target.name;
+
+        if(event.target.name === 'selectedLanguage'){
+            this.selectedLanguage_Label = this.languages?.find(option => option.value === value)?.label;
         }
+        
+        this[name] = value;
     }
 
     handleClick(event){
@@ -144,26 +165,30 @@ export default class GenerateJobSummary extends LightningElement {
             durationType: this.selectedDurationType,
             language: `${this.selectedLanguage} (${this.selectedLanguage_Label})`,
             workVisibility: this.selectedVisibility,
-            crews: this.selectedCrews
+            crews: this.selectedCrews,
+            promptId: this.selectedPrompt,
         };
-        
-        this.loading = true;
-        if(requestData.durationType === 'custom_Duration'){
-            requestData.startDate = this.startDate;
-            requestData.endDate = this.endDate;
-        }
-
-        const missingKey = Object.keys(requestData).find(key => !requestData[key]);
         
         const errorKeyMapping = {
             jobId: 'Error In Fetching Current Job Id',
-            startDate: 'Please enter Start Date',
-            endDate: 'Please enter End Date',
             language: 'Please Select Language',
             durationType: 'Please Select Interval Type',
             workVisibility: 'Please Select Visibility',
         };
 
+        if(requestData.durationType === 'custom_Duration'){
+            requestData.startDate = this.startDate;
+            requestData.endDate = this.endDate;
+
+            errorKeyMapping = { ...errorKeyMapping,
+                startDate: 'Please enter Start Date',
+                endDate: 'Please enter End Date',
+            }
+        }
+
+
+        const missingKey = Object.keys(errorKeyMapping).find(key => !requestData[key]);
+        
         if (missingKey) {
             this.ShowToastMessage('Error', errorKeyMapping[missingKey], 'error');
             this.loading = false;
@@ -171,13 +196,13 @@ export default class GenerateJobSummary extends LightningElement {
         }
 
         console.log('requestData', requestData);
+        this.loading = true;
 
         let continueProcessing;
         generateJobSummary({inputData: JSON.stringify(requestData)})
         .then(result => {
                 console.log('result', result);
                 try {
-
                     this.jobSummary = JSON.parse(result.ai_Response__c || '[]');
                     console.log('this.jobSummary', this.jobSummary);
 

@@ -48,7 +48,7 @@ export default class CollectWorkLogs extends LightningElement {
                 // Collect Clips, crewLeaderId and mobilizationId for further use
                 this.clips = result.clips.map(clip => { 
                     return { 
-                        ...clip, size_mb: this.calculateSize(clip.ContentSize)?.MB, 
+                        ...clip, size_mb: this.calculateSize(clip.ContentSize)?.MB, type : 'audio/'+clip.FileExtension,
                         createdByName: clip.CreatedBy?.Name, notMyClip: clip.CreatedBy?.Id !== USER_ID 
                     }
                 }) ?? [];

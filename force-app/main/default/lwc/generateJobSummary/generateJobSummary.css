@@ -38,7 +38,7 @@
 }
 
 .lang-dropdown {
-    min-width: 80%;
+    flex-grow: 1;
 }
 
 .button-container {

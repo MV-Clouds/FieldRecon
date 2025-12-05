@@ -7,7 +7,7 @@
         </div>
 
         <div class="section-layout">
-            <lightning-radio-group name="durationType" label="Select Interval Type" options={timeIntervalOptions} value={selectedDurationType} type="radio" onchange={handleChange}></lightning-radio-group>
+            <lightning-radio-group name="selectedDurationType" label="Select Interval Type" options={timeIntervalOptions} value={selectedDurationType} type="radio" onchange={handleChange}></lightning-radio-group>
             
             <div lwc:if={isCustomTimeInterval} class="slds-grid slds-wrap slds-gutters input-container">
                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
@@ -30,16 +30,17 @@
             </div>
 
             <div class="section-layout">        
-                <lightning-radio-group name="visibility" class="slds-m-top_xx-small" label="Select Work Visibility" options={visibilityOptions} value={selectedVisibility} type="radio" onchange={handleChange}></lightning-radio-group>
+                <lightning-radio-group name="selectedVisibility" class="slds-m-top_xx-small" label="Select Work Visibility" options={visibilityOptions} value={selectedVisibility} type="radio" onchange={handleChange}></lightning-radio-group>
                 <div lwc:if={isSpecificCrewSelected} class="section-inner-layout">
-                    <lightning-checkbox-group name="crewGroup" class="slds-m-top_small" label="Select Crew" options={crewsList} value={selectedCrews} onchange={handleChange}></lightning-checkbox-group>
+                    <lightning-checkbox-group name="selectedCrews" class="slds-m-top_small" label="Select Crew" options={crewsList} value={selectedCrews} onchange={handleChange}></lightning-checkbox-group>
                 </div>
             </div>
         </template>
 
 
         <div class="section-layout button-container">
-            <lightning-combobox  label="Preferred Language" class="lang-dropdown" options={languages} name="language" value={selectedLanguage} onchange={handleChange}></lightning-combobox>
+            <lightning-combobox  label="Select Customized Prompt" class="lang-dropdown" options={prompts} name="selectedPrompt" value={selectedPrompt} onchange={handleChange}></lightning-combobox>
+            <lightning-combobox  label="Preferred Language" class="lang-dropdown" options={languages} name="selectedLanguage" value={selectedLanguage} onchange={handleChange}></lightning-combobox>
             <lightning-button variant="brand" label="Summarize" onclick={handleClick} disabled={disableSummarizeBtn}></lightning-button>
         </div>
 
