@@ -189,6 +189,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
         return this.isResourcesEditForm && this.resourceTypeForAssign == 'Crew';
     }
 
+    get isEmployeeAssignOpen(){
+        return this.resourceType == 'Crew';
+    }
+
     get resourceOptionsToShow() {
         let resources = [];
         const search = this.resourceSearchKey?.toLowerCase() || '';
@@ -617,7 +621,7 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     }
                     const dayIso = new Date(item.start)?.toISOString()?.slice(0,10);
                     const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
-                    if (dayObj) dayObj.events.push({ id: item.id, mobId: item.mobId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date() });
+                    if (dayObj) dayObj.events.push({ id: item.id, mobId: item.mobId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date(), clockStatusColorStyle: item.clockStatusColor ? `background-color: ${item.clockStatusColor};` : 'background-color: #ff5e5e;',clockStatusLabel: item.clockStatusLabel || 'Not Clocked In' });
                 });
 
                 this.resources = Object.values(resMap);

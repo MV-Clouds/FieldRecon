@@ -320,6 +320,7 @@
 }
 
 .event {
+  position: relative;
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -404,6 +405,9 @@
 
 .remove-assignment-btn{
   min-width: 12px;
+  position: absolute;
+  TOP: 5px;
+  right: 5px;
 }
 
 .remove-assignment-btn:hover{
@@ -754,6 +758,77 @@
 .record-nav-link:hover{
     color: var(--primary-theme-color, #5a5adb);
     text-decoration: underline;
+}
+
+/* Clock Status Dot */
+
+.clock-status-container {
+    position: absolute;
+    bottom: 5px;
+    right: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Optional: Add a small background/border to make the dot pop on colored event cards */
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 3px;
+    border-radius: 50%;
+    z-index: 15; /* Higher than event content */
+}
+
+.clock-dot {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ff0000; 
+    box-shadow: 0 0 2px rgba(0,0,0,0.2);
+}
+
+.custom-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    
+    /* Appearance */
+    background-color: var(--primary-theme-color, #5e5adb);
+    color: #ffffff;
+    text-align: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    
+    /* Positioning relative to the dot */
+    position: absolute;
+    bottom: 140%; /* Position above the dot */
+    right: -2px;  /* Align right edge roughly with dot */
+    z-index: 20;
+    
+    /* Smooth Fade In */
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+    transform: translateY(5px); /* Start slightly down for animation */
+    pointer-events: none; /* Prevents tooltip from blocking clicks */
+}
+
+/* The little arrow pointing down from the tooltip */
+.custom-tooltip::after {
+    content: " ";
+    position: absolute;
+    top: 100%;
+    right: 6px;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--primary-theme-color, #5e5adb) transparent transparent transparent;
+}
+
+/* Hover Effects */
+.clock-status-container:hover .custom-tooltip {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0); /* Slide up into place */
 }
 
 /* Responsive Design for Access Control */

@@ -395,6 +395,55 @@ public with sharing class MobSchedulerController {
                 ];
             }
 
+            Map<String, String> clockStatusColorMap = new Map<String, String>();
+            Map<String, String> clockStatusLabelMap = new Map<String, String>();
+            
+            if(!fetchAssets) {
+                Set<Id> contactIds = new Set<Id>();
+                
+                // Collect all contacts involved in these mobilizations
+                for(wfrecon__Mobilization__c mob : mobilizations){
+                    for(wfrecon__Mobilization_Member__c mem : mob.wfrecon__Mobilization_Members__r){
+                        if(mem.wfrecon__Contact__c != null) {
+                            contactIds.add(mem.wfrecon__Contact__c);
+                        }
+                    }
+                }
+
+                if(!contactIds.isEmpty()) {
+                    for(wfrecon__Timesheet_Entry__c entry : [
+                        SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Contact__c
+                        FROM wfrecon__Timesheet_Entry__c
+                        WHERE wfrecon__Timesheet__r.wfrecon__Contact__c IN :contactIds
+                        AND wfrecon__Clock_In_Time__c >= :startOfDay
+                        AND wfrecon__Clock_In_Time__c <= :endOfDay
+                        WITH USER_MODE
+                        ORDER BY wfrecon__Clock_In_Time__c ASC
+                    ]) {
+                        // Create a unique key for Contact + Day
+                        String dateKey = entry.wfrecon__Clock_In_Time__c.format('yyyy-MM-dd'); 
+                        String key = entry.wfrecon__Timesheet__r.wfrecon__Contact__c + '_' + dateKey;
+                        
+                        String color = '#ff5e5e'; // Default Red
+                        String label = 'Not Clocked In';
+
+                        if(entry.wfrecon__Clock_In_Time__c != null && entry.wfrecon__Clock_Out_Time__c == null) {
+                            // Currently Clocked In
+                            color = '#ffcc00'; // Yellow
+                            label = 'Clocked In';
+                        } else if (entry.wfrecon__Clock_In_Time__c != null && entry.wfrecon__Clock_Out_Time__c != null) {
+                            // Clocked Out (Completed for this entry)
+                            color = '#83ff83'; // Green
+                            label = 'Clocked Out';
+                        }
+
+                        // Put in map (The loop order ensures the latest entry for the day dictates the final status)
+                        clockStatusColorMap.put(key, color);
+                        clockStatusLabelMap.put(key, label);
+                    }
+                }
+            }
+
             for(wfrecon__Mobilization__c mob : mobilizations){
                 if(fetchAssets){
                     for(wfrecon__Mobilization_Asset__c asset : mob.wfrecon__Mobilization_Assets__r){
@@ -412,7 +461,9 @@ public with sharing class MobSchedulerController {
                             'end' => mob.wfrecon__End_Date__c.format('MM/dd/yyyy, h:mm a'),
                             'bgColor' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000')
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000'),
+                            'clockStatusColor' => null,
+                            'clockStatusLabel' => ''
                         });
                     }
                 } else {
@@ -425,6 +476,21 @@ public with sharing class MobSchedulerController {
                         if (resourceType=='CrewMaster' && !processedCrewIds.contains(mem.wfrecon__Crew__c)) {
                             processedCrewIds.add(mem.wfrecon__Crew__c);
                         }
+
+                        // Determine Clock Status Color
+                        String statusColor = '#ff0000';
+                        String statusLabel = 'Not Clocked In';
+
+                        if(mem.wfrecon__Contact__c != null) {
+                            String dateKey = mob.wfrecon__Start_Date__c.format('yyyy-MM-dd');
+                            String key = mem.wfrecon__Contact__c + '_' + dateKey;
+                            
+                            if(clockStatusColorMap.containsKey(key)) {
+                                statusColor = clockStatusColorMap.get(key);
+                                statusLabel = clockStatusLabelMap.get(key);
+                            }
+                        }
+
                         result.add(new Map<String,Object>{
                             'id' => resourceType=='CrewMaster' ? mem.wfrecon__Crew__c : mem.wfrecon__Contact__c,
                             'name' => resourceType=='CrewMaster' ? mem.wfrecon__Crew__r.Name : mem.wfrecon__Contact__r.Name,
@@ -440,7 +506,9 @@ public with sharing class MobSchedulerController {
                             'end' => mob.wfrecon__End_Date__c.format('MM/dd/yyyy, h:mm a'),
                             'bgColor' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4',
                             'color' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000')
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000'),
+                            'clockStatusColor' => statusColor,
+                            'clockStatusLabel' => statusLabel
                         });
                     }
                 }

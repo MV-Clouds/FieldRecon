@@ -200,6 +200,10 @@
                   <div class="cell day-col" key={day.iso}>
                     <template for:each={day.events} for:item="ev">
                       <div class="event" key={ev.id} style={ev.statusStyle}>
+                        <div if:true={isEmployeeAssignOpen} class="clock-status-container">
+                            <span class="clock-dot" style={ev.clockStatusColorStyle}></span>
+                            <span class="custom-tooltip">{ev.clockStatusLabel}</span>
+                        </div>
                         <div class="job-header-detail">
                             <div class="job-card-name">{ev.jobName}</div>
                             <div class="job-card-description record-nav-link" data-id={ev.jId} onclick={handleRecordNavigation}>{ev.jobId}</div>
