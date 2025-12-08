@@ -12,8 +12,8 @@
                     <div class="empty-state__icon">
                         <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                     </div>
-                    <h3 class="empty-state__message" style="font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">Access Denied</h3>
-                    <p style="color: #5f6368; margin-top: 0.75rem; font-size: 1rem; max-width: 400px; line-height: 1.5;">You do not have permission to view this page. Please contact your System Administrator for access.</p>
+                    <h3 class="empty-state__message access-denied-title">Access Denied</h3>
+                    <p class="access-denied-text">You do not have permission to view this page. Please contact your System Administrator for access.</p>
                 </div>
             </div>
         </div>
@@ -28,10 +28,22 @@
                     onchange={handleSearch} value={searchTerm}></lightning-input>
             </div>
 
-            <div class="date-filter-dropdown">
-                <lightning-combobox name="dateFilter" label="Date Filter" value={selectedDateFilter}
-                    placeholder="Select Date Range" options={dateFilterOptions} onchange={handleDateFilterChange}
-                    variant="label-hidden"></lightning-combobox>
+            <div class="filter-actions">
+                <button class="action-button refresh-btn" onclick={handleRefresh} disabled={isLoading}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4V10H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 20V14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 20L8 16C9 15 10 14 12 14C14 14 15 15 16 16L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 4L16 8C15 9 14 10 12 10C10 10 9 9 8 8L4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Refresh
+                </button>
+
+                <div class="date-filter-dropdown">
+                    <lightning-combobox name="dateFilter" label="Date Filter" value={selectedDateFilter}
+                        placeholder="Select Date Range" options={dateFilterOptions} onchange={handleDateFilterChange}
+                        variant="label-hidden"></lightning-combobox>
+                </div>
             </div>
         </div>
 
@@ -149,7 +161,7 @@
                             <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                         </div>
                         <div class="empty-state__message">No Log Entries Found</div>
-                        <p style="color: #666; margin-top: 0.5rem; text-align: center;">
+                        <p class="no-data-text">
                             There are no log entries matching your current filters. Try adjusting the date range or status filter.
                         </p>
                     </div>
@@ -249,11 +261,11 @@
                                             <table class="timesheet-entries-table">
                                                 <thead>
                                                     <tr>
-                                                        <th style="width: 4rem; text-align: center;">Sr.</th>
-                                                        <th style="width: 14rem; text-align: center;">Contact Name & Actions</th>
-                                                        <th style="width: 10rem; text-align: left;">Field</th>
-                                                        <th style="width: 13rem; text-align: left;">Old Value</th>
-                                                        <th style="width: 13rem; text-align: left;">New Value</th>
+                                                        <th class="th-serial">Sr.</th>
+                                                        <th class="th-contact">Contact Name & Actions</th>
+                                                        <th class="th-field">Field</th>
+                                                        <th class="th-old-value">Old Value</th>
+                                                        <th class="th-new-value">New Value</th>
                                                     </tr>
                                                 </thead>
                                             </table>
@@ -268,11 +280,11 @@
                                                                         <!-- Serial Number & Contact Name Columns (only in first row) -->
                                                                         <template if:false={idx}>
                                                                             <!-- Serial Number Column -->
-                                                                            <td rowspan={ts.approvalFields.length} style="width: 4rem; text-align: center; vertical-align: middle;" class="serial-column">
+                                                                            <td rowspan={ts.approvalFields.length} class="serial-column">
                                                                                 <div class="serial-number">{ts.serialNumber}</div>
                                                                             </td>
                                                                             <!-- Contact Name & Actions Column -->
-                                                                            <td rowspan={ts.approvalFields.length} style="width: 14rem; text-align: center; vertical-align: middle;" class="contact-column">
+                                                                            <td rowspan={ts.approvalFields.length} class="contact-column">
                                                                                 <div class="contact-info-wrapper">
                                                                                     <div class="contact-info">
                                                                                         <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
@@ -300,13 +312,13 @@
                                                                                 </div>
                                                                             </td>
                                                                         </template>
-                                                                        <td style="width: 10rem; text-align: left;" class="field-label-cell">
+                                                                        <td class="field-label-cell">
                                                                             <span class="text-truncate" title={field.fieldLabel}>{field.fieldLabel}</span>
                                                                         </td>
-                                                                        <td style="width: 13rem; text-align: left;" class="old-value-cell">
+                                                                        <td class="old-value-cell">
                                                                             <span class="text-truncate" title={field.oldValueFormatted}>{field.oldValueFormatted}</span>
                                                                         </td>
-                                                                        <td style="width: 13rem; text-align: left;" class="new-value-cell">
+                                                                        <td class="new-value-cell">
                                                                             <template if:true={field.isDateTime}>
                                                                                 <input 
                                                                                     type="datetime-local"
@@ -356,94 +368,147 @@
                             <!-- Tab 2: Location Processes -->
                             <template if:true={isLocationsTab}>
                                 <div class="tab-content">
-                                    <template if:true={logEntryDetails.locationProcesses.length}>
-                                        <div class="bulk-actions">
-                                            <button class="bulk-approve-btn"
-                                                onclick={handleBulkApproveLocations}>Approve All Processes</button>
-                                            <button class="bulk-reject-btn" onclick={handleBulkRejectLocations}>Reject
-                                                All Processes</button>
+                                    <template if:true={allLocationProcesses.length}>
+                                        <!-- Filter and Bulk Actions Row -->
+                                        <div class="location-process-controls">
+                                            <div class="filter-section">
+                                                <lightning-combobox
+                                                    name="locationProcessFilter"
+                                                    variant="label-hidden"
+                                                    value={selectedLocationProcessFilter}
+                                                    placeholder="Select Filter"
+                                                    options={locationProcessFilterOptions}
+                                                    onchange={handleLocationProcessFilterChange}
+                                                    class="location-filter-dropdown">
+                                                </lightning-combobox>
+                                            </div>
+                                            <div class="bulk-actions">
+                                                <button class="bulk-approve-btn"
+                                                    onclick={handleBulkApproveLocations}>Approve All Displayed</button>
+                                                <button class="bulk-reject-btn" onclick={handleBulkRejectLocations}>Reject
+                                                    All Displayed</button>
+                                            </div>
                                         </div>
                                         
-                                        <!-- Location Process Sliders -->
-                                        <template for:each={logEntryDetails.locationProcesses} for:item="lp">
-                                            <div key={lp.id} class="location-slider-container" data-status={lp.approvalStatus}>
-                                                <div class="slider-header">
-                                                    <div class="process-info">
-                                                        <span class="process-name" title={lp.name}>{lp.name}</span>
-                                                        <span class="process-approval-badge">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                                <circle cx="12" cy="12" r="10"></circle>
-                                                                <polyline points="12 6 12 12 16 14"></polyline>
+                                        <!-- Custom Accordion for Location Process Groups -->
+                                        <template for:each={groupedLocationProcesses} for:item="locationGroup">
+                                            <div key={locationGroup.locationId} class="location-accordion">
+                                                <!-- Accordion Header -->
+                                                <div class="location-accordion-header" 
+                                                     onclick={handleToggleLocationGroup}
+                                                     data-location-id={locationGroup.locationId}>
+                                                    <div class="location-header-content">
+                                                        <button class="location-toggle-btn" 
+                                                                data-expanded={locationGroup.isExpanded}
+                                                                data-location-id={locationGroup.locationId}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <template if:true={locationGroup.isExpanded}>
+                                                                    <!-- Chevron Up - Indicates collapse -->
+                                                                    <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </template>
+                                                                <template if:false={locationGroup.isExpanded}>
+                                                                    <!-- Chevron Down - Indicates expand -->
+                                                                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </template>
                                                             </svg>
-                                                            Pending Approval ({lp.oldValue}% → {lp.newValue}%)
-                                                        </span>
-                                                        <span class="status-badge" data-status={lp.approvalStatus}>
-                                                            {lp.approvalStatus}
-                                                        </span>
+                                                        </button>
+                                                        <h3 class="location-name">{locationGroup.locationName}</h3>
                                                     </div>
-                                                    <span class="progress-percentage">{lp.currentPercent}% Complete</span>
+                                                    <span class="process-count-badge">{locationGroup.processes.length} Process(es)</span>
                                                 </div>
                                                 
-                                                <div class="slider-wrapper">
-                                                    <div class="slider-track">
-                                                        <div class="slider-section completed" data-processid={lp.id} lwc:dom="manual"></div>
-                                                        <div class="slider-section today" data-processid={lp.id} lwc:dom="manual"></div>
-                                                        <div class="slider-section remaining" data-processid={lp.id} lwc:dom="manual"></div>
+                                                <!-- Accordion Content -->
+                                                <template if:true={locationGroup.isExpanded}>
+                                                    <div class="location-accordion-content">
+                                                        <!-- Processes for this location -->
+                                                        <template for:each={locationGroup.processes} for:item="lp">
+                                                    <div key={lp.id} class="location-slider-container" data-status={lp.approvalStatus} data-has-changes={lp.hasChanges}>
+                                                        <div class="slider-header">
+                                                            <div class="process-info">
+                                                                <span class="process-name" title={lp.name}>{lp.name}</span>
+                                                                <template if:true={lp.hasChanges}>
+                                                                    <span class="process-approval-badge">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                            <circle cx="12" cy="12" r="10"></circle>
+                                                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                                                        </svg>
+                                                                        Pending Approval ({lp.oldValue}% → {lp.newValue}%)
+                                                                    </span>
+                                                                    <span class="status-badge" data-status={lp.approvalStatus}>
+                                                                        {lp.approvalStatus}
+                                                                    </span>
+                                                                </template>
+                                                            </div>
+                                                            <span class="progress-percentage">{lp.currentPercent}% Complete</span>
+                                                        </div>
+                                                        
+                                                        <div class="slider-wrapper">
+                                                            <div class="slider-track">
+                                                                <div class="slider-section completed" data-processid={lp.id} lwc:dom="manual"></div>
+                                                                <div class="slider-section today" data-processid={lp.id} lwc:dom="manual"></div>
+                                                                <div class="slider-section remaining" data-processid={lp.id} lwc:dom="manual"></div>
+                                                            </div>
+                                                            <input 
+                                                                type="range" 
+                                                                class="progress-slider"
+                                                                min={lp.previousPercent}
+                                                                max="100"
+                                                                value={lp.currentPercent}
+                                                                step="1"
+                                                                data-id={lp.id}
+                                                                data-process-id={lp.id}
+                                                                data-original-value={lp.previousPercent}
+                                                                data-has-changes={lp.hasChanges}
+                                                                oninput={handleSliderInput}
+                                                                onchange={handleSliderChange}>
+                                                        </div>
+                                                        
+                                                        <div class="slider-labels">
+                                                            <span class="label-completed">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Completed: {lp.previousPercent}%
+                                                            </span>
+                                                            <span class="label-today">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Today: {lp.todayPercent}%
+                                                            </span>
+                                                            <span class="label-remaining">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <circle cx="12" cy="12" r="10" />
+                                                                </svg>
+                                                                Remaining: {lp.remainingPercent}%
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        <template if:true={lp.hasChanges}>
+                                                            <div class="location-actions">
+                                                                <button class="approve-btn-location" 
+                                                                    data-recordid={lp.id}
+                                                                    onclick={handleApproveLocation}
+                                                                    disabled={lp.isApproved}>
+                                                                    Approve
+                                                                </button>
+                                                                <button class="reject-btn-location" 
+                                                                    data-recordid={lp.id}
+                                                                    onclick={handleRejectLocation}
+                                                                    disabled={lp.isRejected}>
+                                                                    Reject
+                                                                </button>
+                                                            </div>
+                                                        </template>
                                                     </div>
-                                                    <input 
-                                                        type="range" 
-                                                        class="progress-slider"
-                                                        min={lp.oldValue}
-                                                        max="100"
-                                                        value={lp.currentPercent}
-                                                        step="1"
-                                                        data-id={lp.id}
-                                                        data-process-id={lp.id}
-                                                        data-original-value={lp.oldValue}
-                                                        oninput={handleSliderInput}
-                                                        onchange={handleSliderChange}>
-                                                </div>
-                                                
-                                                <div class="slider-labels">
-                                                    <span class="label-completed">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                            <circle cx="12" cy="12" r="10" />
-                                                        </svg>
-                                                        Completed: {lp.oldValue}%
-                                                    </span>
-                                                    <span class="label-today">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                            <circle cx="12" cy="12" r="10" />
-                                                        </svg>
-                                                        Today: {lp.todayPercent}%
-                                                    </span>
-                                                    <span class="label-remaining">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                            <circle cx="12" cy="12" r="10" />
-                                                        </svg>
-                                                        Remaining: {lp.remainingPercent}%
-                                                    </span>
-                                                </div>
-                                                
-                                                <div class="location-actions">
-                                                    <button class="approve-btn-location" 
-                                                        data-recordid={lp.id}
-                                                        onclick={handleApproveLocation}
-                                                        disabled={lp.isApproved}>
-                                                        Approve
-                                                    </button>
-                                                    <button class="reject-btn-location" 
-                                                        data-recordid={lp.id}
-                                                        onclick={handleRejectLocation}
-                                                        disabled={lp.isRejected}>
-                                                        Reject
-                                                    </button>
-                                                </div>
+                                                </template>
+                                                    </div>
+                                                </template>
                                             </div>
                                         </template>
                                     </template>
-                                    <template if:false={logEntryDetails.locationProcesses.length}>
-                                        <div class="empty-message">No location process changes found</div>
+                                    <template if:false={allLocationProcesses.length}>
+                                        <div class="empty-message">No location processes found</div>
                                     </template>
                                 </div>
                             </template>
@@ -453,13 +518,13 @@
                                 <div class="tab-content">
                                     <div class="log-details-form">
                                         <div class="form-field">
-                                            <label class="field-label">Work Performed <span style="color: red;">*</span></label>
+                                            <label class="field-label">Work Performed <span class="required-asterisk">*</span></label>
                                             <lightning-textarea variant="label-hidden"
                                                 value={logEntryDetails.workPerformed} data-field="workPerformed"
                                                 onchange={handleLogFieldChange} rows="4"></lightning-textarea>
                                         </div>
                                         <div class="form-field">
-                                            <label class="field-label">Plan for Tomorrow <span style="color: red;">*</span></label>
+                                            <label class="field-label">Plan for Tomorrow <span class="required-asterisk">*</span></label>
                                             <lightning-textarea variant="label-hidden"
                                                 value={logEntryDetails.planForTomorrow} data-field="planForTomorrow"
                                                 onchange={handleLogFieldChange} rows="4"></lightning-textarea>
@@ -568,7 +633,7 @@
 
     <!-- Confirmation Modal (shown above main modal with higher z-index) -->
     <template if:true={showConfirmModal}>
-        <section class="slds-modal slds-fade-in-open" role="dialog" aria-modal="true" style="z-index: 10000;">
+        <section class="slds-modal slds-fade-in-open confirmation-modal" role="dialog" aria-modal="true">
             <div class="slds-modal__container">
                 <header class="confirm-modal-header">
                     <h2 class="confirm-modal-title">{confirmModalTitle}</h2>
@@ -582,6 +647,6 @@
                 </footer>
             </div>
         </section>
-        <div class="slds-backdrop slds-backdrop_open" style="z-index: 9999;"></div>
+        <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
     </template>
 </template>
