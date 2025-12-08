@@ -32,6 +32,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track locationProcessApprovals = {}; // { locationProcessId: 'approved' | 'rejected' | 'pending' }
     @track newAttachments = []; // Array of new file IDs uploaded
     @track removedAttachments = []; // Array of removed file IDs
+    @track allLocationProcesses = []; // All location processes for the job
+    @track groupedLocationProcesses = []; // Location processes grouped by location
+    @track selectedLocationProcessFilter = 'pendingApproval'; // Filter: 'pendingApproval', 'unchanged', 'all'
     
     // Confirmation modal state
     @track showConfirmModal = false;
@@ -61,6 +64,12 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         { label: 'Last 15 Days', value: 'last15days' },
         { label: 'Last 30 Days', value: 'last30days' },
         { label: 'All Time', value: 'alltime' }
+    ];
+
+    locationProcessFilterOptions = [
+        { label: 'Processes Pending for Approval', value: 'pendingApproval' },
+        { label: 'Processes Not Updated', value: 'unchanged' },
+        { label: 'All Location Processes', value: 'all' }
     ];
 
     /**
@@ -438,6 +447,25 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     }
 
     /**
+     * Method Name: handleRefresh
+     * @description: Method is used to refresh/reload all data
+     */
+    handleRefresh() {
+        // Reset search and filters
+        this.searchTerm = '';
+        this.currentPage = 1;
+        
+        // Clear the search input
+        const searchInput = this.template.querySelector('lightning-input[type="search"]');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        // Reload data from server
+        this.loadLogEntries();
+    }
+
+    /**
      * Method Name: handleDateFilterChange
      * @description: Method is used to handle the date filter change
      */
@@ -526,18 +554,30 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                     });
                 }
                 
-                // Process location processes to add slider percentages
+                // Store all location processes
+                this.allLocationProcesses = [];
                 if (processedResult.locationProcesses) {
                     processedResult.locationProcesses.forEach(lp => {
-                        // Set current display to newValue (the pending approval value)
-                        lp.currentPercent = parseFloat(lp.newValue);
-                        lp.todayPercent = parseFloat((lp.newValue - lp.oldValue).toFixed(1));
-                        lp.remainingPercent = parseFloat((100 - lp.newValue).toFixed(1));
+                        // Set current display to newValue for changed processes, currentValue for unchanged
+                        const displayValue = lp.hasChanges ? lp.newValue : lp.currentValue;
+                        lp.currentPercent = parseFloat(displayValue);
+                        lp.previousPercent = parseFloat(lp.oldValue);
+                        lp.todayPercent = parseFloat((displayValue - lp.oldValue).toFixed(1));
+                        lp.remainingPercent = parseFloat((100 - displayValue).toFixed(1));
                         lp.approvalStatus = this.getLocationProcessApprovalStatus(lp.id);
                         lp.isApproved = lp.approvalStatus === 'approved';
                         lp.isRejected = lp.approvalStatus === 'rejected';
+                        
+                        this.allLocationProcesses.push(lp);
                     });
                 }
+                
+                // Set initial filter to show pending approval processes if any exist
+                const hasPendingChanges = this.allLocationProcesses.some(lp => lp.hasChanges);
+                this.selectedLocationProcessFilter = hasPendingChanges ? 'pendingApproval' : 'all';
+                
+                // Group location processes by location AFTER setting the filter
+                this.groupLocationProcessesByLocation();
                 
                 // Process attachments to add download URLs and icons
                 if (processedResult.attachments) {
@@ -905,21 +945,35 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     handleSliderChange(event) {
         const slider = event.target;
         const processId = slider.dataset.id;
+        const hasChanges = slider.dataset.hasChanges === 'true';
         const newValue = parseFloat(parseFloat(slider.value).toFixed(1));
 
         this.editedLocationProcesses[processId] = newValue;
         
-        // Update the location process newValue and currentPercent for backend processing and UI binding
-        const lp = this.logEntryDetails.locationProcesses.find(l => l.id === processId);
-        if (lp) {
-            lp.newValue = newValue;
-            lp.currentPercent = newValue; // Update currentPercent so slider value binding updates
-            lp.todayPercent = parseFloat((newValue - lp.oldValue).toFixed(1));
-            lp.remainingPercent = parseFloat((100 - newValue).toFixed(1));
+        // Update in allLocationProcesses array
+        const lpInAll = this.allLocationProcesses.find(l => l.id === processId);
+        if (lpInAll) {
+            const originalValue = hasChanges ? lpInAll.oldValue : lpInAll.currentValue;
+            lpInAll.newValue = newValue;
+            lpInAll.currentPercent = newValue;
+            lpInAll.todayPercent = parseFloat((newValue - originalValue).toFixed(1));
+            lpInAll.remainingPercent = parseFloat((100 - newValue).toFixed(1));
+            
+            // Mark as user-edited if user modified an unchanged process (no approval needed)
+            if (!hasChanges && newValue !== lpInAll.currentValue) {
+                lpInAll.isUserEdited = true;
+                lpInAll.oldValue = lpInAll.currentValue;
+                // Don't set status or hasChanges - no approval needed for user edits
+            }
         }
         
-        // Reset approval status to pending when user makes changes
-        this.resetLocationProcessToPending(processId);
+        // Re-group to update UI
+        this.groupLocationProcessesByLocation();
+        
+        // Only reset approval status if process already had changes
+        if (hasChanges) {
+            this.resetLocationProcessToPending(processId);
+        }
         
         // Trigger final visual update
         this.handleSliderInput(event);
@@ -1110,16 +1164,16 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const recordId = event.target.dataset.recordid;
         this.locationProcessApprovals[recordId] = 'approved';
         
-        // Update UI
-        const lp = this.logEntryDetails.locationProcesses.find(l => l.id === recordId);
+        // Update in allLocationProcesses
+        const lp = this.allLocationProcesses.find(l => l.id === recordId);
         if (lp) {
             lp.approvalStatus = 'approved';
             lp.isApproved = true;
             lp.isRejected = false;
         }
         
-        // Trigger reactivity
-        this.logEntryDetails = { ...this.logEntryDetails };
+        // Re-group to update UI
+        this.groupLocationProcessesByLocation();
         this.showToast('Success', 'Location process marked for approval', 'success');
     }
 
@@ -1131,54 +1185,76 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const recordId = event.target.dataset.recordid;
         this.locationProcessApprovals[recordId] = 'rejected';
         
-        // Update UI
-        const lp = this.logEntryDetails.locationProcesses.find(l => l.id === recordId);
+        // Update in allLocationProcesses
+        const lp = this.allLocationProcesses.find(l => l.id === recordId);
         if (lp) {
             lp.approvalStatus = 'rejected';
             lp.isApproved = false;
             lp.isRejected = true;
         }
         
-        // Trigger reactivity
-        this.logEntryDetails = { ...this.logEntryDetails };
+        // Re-group to update UI
+        this.groupLocationProcessesByLocation();
         this.showToast('Success', 'Location process marked for rejection', 'success');
     }
 
     /**
      * Method Name: handleBulkApproveLocations
-     * @description: Method to approve all location processes
+     * @description: Method to approve all currently displayed location processes
      */
     handleBulkApproveLocations() {
-        if (this.logEntryDetails?.locationProcesses) {
-            this.logEntryDetails.locationProcesses.forEach(lp => {
-                this.locationProcessApprovals[lp.id] = 'approved';
-                lp.approvalStatus = 'approved';
-                lp.isApproved = true;
-                lp.isRejected = false;
+        if (this.groupedLocationProcesses && this.groupedLocationProcesses.length > 0) {
+            // Approve all processes in all displayed location groups
+            this.groupedLocationProcesses.forEach(locationGroup => {
+                locationGroup.processes.forEach(lp => {
+                    // Only approve processes with changes
+                    if (lp.hasChanges) {
+                        this.locationProcessApprovals[lp.id] = 'approved';
+                        
+                        // Update in allLocationProcesses
+                        const lpInAll = this.allLocationProcesses.find(l => l.id === lp.id);
+                        if (lpInAll) {
+                            lpInAll.approvalStatus = 'approved';
+                            lpInAll.isApproved = true;
+                            lpInAll.isRejected = false;
+                        }
+                    }
+                });
             });
             
-            // Trigger reactivity
-            this.logEntryDetails = { ...this.logEntryDetails };
-            this.showToast('Success', 'All location processes marked for approval', 'success');
+            // Re-group to update UI
+            this.groupLocationProcessesByLocation();
+            this.showToast('Success', 'All displayed location processes marked for approval', 'success');
         }
     }
 
     /**
      * Method Name: handleBulkRejectLocations
-     * @description: Method to reject all location processes
+     * @description: Method to reject all currently displayed location processes
      */
     handleBulkRejectLocations() {
-        if (this.logEntryDetails?.locationProcesses) {
-            this.logEntryDetails.locationProcesses.forEach(lp => {
-                this.locationProcessApprovals[lp.id] = 'rejected';
-                lp.approvalStatus = 'rejected';
-                lp.isApproved = false;
-                lp.isRejected = true;
+        if (this.groupedLocationProcesses && this.groupedLocationProcesses.length > 0) {
+            // Reject all processes in all displayed location groups
+            this.groupedLocationProcesses.forEach(locationGroup => {
+                locationGroup.processes.forEach(lp => {
+                    // Only reject processes with changes
+                    if (lp.hasChanges) {
+                        this.locationProcessApprovals[lp.id] = 'rejected';
+                        
+                        // Update in allLocationProcesses
+                        const lpInAll = this.allLocationProcesses.find(l => l.id === lp.id);
+                        if (lpInAll) {
+                            lpInAll.approvalStatus = 'rejected';
+                            lpInAll.isApproved = false;
+                            lpInAll.isRejected = true;
+                        }
+                    }
+                });
             });
             
-            // Trigger reactivity
-            this.logEntryDetails = { ...this.logEntryDetails };
-            this.showToast('Success', 'All location processes marked for rejection', 'success');
+            // Re-group to update UI
+            this.groupLocationProcessesByLocation();
+            this.showToast('Success', 'All displayed location processes marked for rejection', 'success');
         }
     }
 
@@ -1319,12 +1395,15 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             });
         }
         
-        // Check location processes
-        if (this.logEntryDetails?.locationProcesses && this.logEntryDetails.locationProcesses.length > 0) {
-            this.logEntryDetails.locationProcesses.forEach(lp => {
-                const lpStatus = this.locationProcessApprovals[lp.id];
-                if (!lpStatus || lpStatus === 'pending') {
-                    pendingItems.push(`Location Process: ${lp.name}`);
+        // Check location processes (only those with original changes needing approval)
+        if (this.allLocationProcesses && this.allLocationProcesses.length > 0) {
+            this.allLocationProcesses.forEach(lp => {
+                // Only validate processes that had original changes (not user-edited unchanged ones)
+                if (lp.hasChanges) {
+                    const lpStatus = this.locationProcessApprovals[lp.id];
+                    if (!lpStatus || lpStatus === 'pending') {
+                        pendingItems.push(`Location Process: ${lp.name} (${lp.locationName})`);
+                    }
                 }
             });
         }
@@ -1388,23 +1467,31 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             });
         }
         
-        // Process location process approvals
-        if (this.logEntryDetails?.locationProcesses) {
-            this.logEntryDetails.locationProcesses.forEach(lp => {
-                const status = this.locationProcessApprovals[lp.id] || 'Pending';
+        // Process location process approvals and user edits
+        if (this.allLocationProcesses) {
+            this.allLocationProcesses.forEach(lp => {
+                const hasSliderEdit = this.editedLocationProcesses[lp.id] !== undefined;
+                const hasOriginalChange = lp.hasChanges;
+                const isUserEdited = lp.isUserEdited;
                 
-                // Use edited value if available, otherwise use current value
-                const newValue = this.editedLocationProcesses[lp.id] !== undefined ? 
-                              this.editedLocationProcesses[lp.id] : 
-                              (lp.currentPercent !== undefined ? lp.currentPercent : lp.newValue);
-                
-                const lpData = {
-                    id: lp.id,
-                    status: status,
-                    newValue: newValue
-                };
-                
-                data.locationProcesses.push(lpData);
+                // Include: 1) Original changes needing approval, 2) User-edited unchanged processes (auto-approved)
+                if (hasOriginalChange || hasSliderEdit || isUserEdited) {
+                    // Auto-approve user-edited unchanged processes, otherwise use approval status
+                    const status = isUserEdited && !hasOriginalChange ? 'Approved' : (this.locationProcessApprovals[lp.id] || 'Pending');
+                    
+                    // Use edited value if available, otherwise use current value
+                    const newValue = hasSliderEdit ? 
+                                  this.editedLocationProcesses[lp.id] : 
+                                  lp.currentPercent;
+                    
+                    const lpData = {
+                        id: lp.id,
+                        status: status,
+                        newValue: newValue
+                    };
+                    
+                    data.locationProcesses.push(lpData);
+                }
             });
         }
         
@@ -1737,14 +1824,17 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
 
     /**
      * Method Name: hasItemsToReview
-     * @description: Check if there are any timesheet entries or location processes to review
+     * @description: Check if there are any timesheet entries or location processes with original changes to review
      */
     get hasItemsToReview() {
         const hasTimesheets = this.logEntryDetails?.timesheetEntries && 
                             this.logEntryDetails.timesheetEntries.length > 0;
-        const hasLocationProcesses = this.logEntryDetails?.locationProcesses && 
-                                    this.logEntryDetails.locationProcesses.length > 0;
-        return hasTimesheets || hasLocationProcesses;
+        
+        // Check if there are location processes with original changes needing approval
+        const hasLocationProcessChanges = this.allLocationProcesses && 
+                                         this.allLocationProcesses.some(lp => lp.hasChanges);
+        
+        return hasTimesheets || hasLocationProcessChanges;
     }
 
     /**
@@ -2022,5 +2112,89 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             this.currentPage = selectedPage;
             this.updateShownData();
         }
+    }
+
+    /**
+     * Method Name: groupLocationProcessesByLocation
+     * @description: Group all location processes by location and apply filter
+     */
+    groupLocationProcessesByLocation() {
+        if (!this.allLocationProcesses || this.allLocationProcesses.length === 0) {
+            this.groupedLocationProcesses = [];
+            return;
+        }
+
+        // Store current expanded states before re-grouping
+        const expandedStates = new Map();
+        if (this.groupedLocationProcesses && this.groupedLocationProcesses.length > 0) {
+            this.groupedLocationProcesses.forEach(group => {
+                expandedStates.set(group.locationId, group.isExpanded);
+            });
+        }
+
+        // Filter processes based on selected filter
+        let filteredProcesses = [];
+        if (this.selectedLocationProcessFilter === 'pendingApproval') {
+            filteredProcesses = this.allLocationProcesses.filter(lp => lp.hasChanges);
+        } else if (this.selectedLocationProcessFilter === 'unchanged') {
+            filteredProcesses = this.allLocationProcesses.filter(lp => !lp.hasChanges);
+        } else {
+            filteredProcesses = [...this.allLocationProcesses];
+        }
+
+        // Group by location
+        const locationMap = new Map();
+        filteredProcesses.forEach(lp => {
+            if (!locationMap.has(lp.locationId)) {
+                locationMap.set(lp.locationId, {
+                    locationId: lp.locationId,
+                    locationName: lp.locationName,
+                    processes: []
+                });
+            }
+            locationMap.get(lp.locationId).processes.push(lp);
+        });
+
+        // Convert map to array and sort by location name
+        this.groupedLocationProcesses = Array.from(locationMap.values()).sort((a, b) => 
+            a.locationName.localeCompare(b.locationName)
+        ).map((group, index) => {
+            // Restore previous expanded state, or auto-expand first location if no previous state exists
+            const wasExpanded = expandedStates.has(group.locationId) 
+                ? expandedStates.get(group.locationId) 
+                : index === 0;
+            
+            return {
+                ...group,
+                isExpanded: wasExpanded
+            };
+        });
+    }
+
+    /**
+     * Method Name: handleLocationProcessFilterChange
+     * @description: Handle location process filter change
+     */
+    handleLocationProcessFilterChange(event) {
+        this.selectedLocationProcessFilter = event.detail.value;
+        this.groupLocationProcessesByLocation();
+    }
+
+    /**
+     * Method Name: handleToggleLocationGroup
+     * @description: Toggle location group expand/collapse
+     */
+    handleToggleLocationGroup(event) {
+        const locationId = event.currentTarget.dataset.locationId;
+        
+        this.groupedLocationProcesses = this.groupedLocationProcesses.map(group => {
+            if (group.locationId === locationId) {
+                return {
+                    ...group,
+                    isExpanded: !group.isExpanded
+                };
+            }
+            return group;
+        });
     }
 }

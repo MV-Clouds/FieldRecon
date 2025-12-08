@@ -2,6 +2,10 @@
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
+.pop-up {
+    height: 100%;
+}
+
 /* Main Wrapper */
 .wrapper {
     background-color: #ffffff;
@@ -119,6 +123,28 @@
     justify-content: center;
 }
 
+/* Access Denied Styles */
+.empty-state__message.access-denied-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 1rem;
+}
+
+.access-denied-text {
+    color: #5f6368;
+    margin-top: 0.75rem;
+    font-size: 1rem;
+    max-width: 400px;
+    line-height: 1.5;
+}
+
+/* No Data Text */
+.no-data-text {
+    color: #666;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
 /* No records */
 
 /* Pagination Section */
@@ -196,6 +222,12 @@
     flex-wrap: wrap;
 }
 
+.filter-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
 .date-filter-dropdown {
     min-width: 180px;
     width: 180px;
@@ -203,6 +235,54 @@
 
 .date-filter-dropdown lightning-combobox {
     width: 100%;
+}
+
+/* Action Button Styles (matching SovJobScope) */
+.action-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.action-button svg {
+    flex-shrink: 0;
+}
+
+.action-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.action-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.action-button.refresh-btn {
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    border-color: rgba(94, 90, 219, 1);
+}
+
+.action-button.refresh-btn:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+    border-color: rgba(94, 90, 219, 0.9);
+}
+
+.action-button.refresh-btn:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #d8d8d8;
 }
 
 .spinner-container {
@@ -364,9 +444,9 @@
     background: #5f5adc;
     padding: 0.75rem 1.25rem;
     box-shadow: 0 2px 6px rgba(94, 90, 219, 0.25);
-    position: absolute;
+    /* position: absolute; */
     width: 100%;
-    z-index: 99;
+    /* z-index: 99; */
     border-top: 0.1px solid rgba(255, 255, 255, 0.25);
     display: flex;
     justify-content: center;
@@ -445,24 +525,40 @@
     /* overflow-y: auto; */
     padding: 1rem;
     overflow: auto;
-    height: calc(100vh - 25rem);
+    height: 100%;
     scroll-behavior: smooth;
-    padding-bottom: 0;
+    /* padding-bottom: 0; */
     scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
+}
+
+/* Location Process Controls */
+.location-process-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
+}
+
+.filter-section {
+    flex: 0 0 220px;
+}
+
+.location-filter-dropdown {
+    width: 100%;
 }
 
 /* Bulk Actions */
 .bulk-actions {
     display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    gap: 0.5rem;
     justify-content: flex-end;
 }
 
 .bulk-approve-btn,
 .bulk-reject-btn {
-    padding: 0.5rem 1rem;
-    border-radius: 0.25rem;
+    padding: 8px 16px;
+    border-radius: 4px;
     border: none;
     cursor: pointer;
     font-size: 13px;
@@ -738,24 +834,31 @@
     margin-bottom: 0.5rem;
 }
 
+.required-asterisk {
+    color: red;
+}
+
 /* Custom Tab Navigation */
-.tab-container {
+/* .tab-container {
     overflow: hidden;
     height: 90%;
-    margin-top: 3rem;
-}
+    margin-top: 2.8rem;
+} */
 
 .tab-navigation {
     display: flex;
     border-bottom: 2px solid #5e5adb;
     background: white;
+    position: sticky;
+    top: 0;
+    z-index: 99;
 }
 
 .tab-button {
     flex: 1;
     background: transparent;
     border: none;
-    padding: 1rem;
+    padding: 12px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
@@ -914,6 +1017,7 @@
     background: white;
     border-radius: 8px;
     overflow: hidden;
+    margin-top: 1rem;
 }
 
 .timesheet-table-body {
@@ -968,6 +1072,32 @@
     border-bottom: 2px solid rgba(94, 90, 219, 0.8);
 }
 
+/* Specific table header styles */
+.th-serial {
+    width: 4rem;
+    text-align: center;
+}
+
+.th-contact {
+    width: 14rem;
+    text-align: center;
+}
+
+.th-field {
+    width: 10rem;
+    text-align: left;
+}
+
+.th-old-value {
+    width: 13rem;
+    text-align: left;
+}
+
+.th-new-value {
+    width: 13rem;
+    text-align: left;
+}
+
 .timesheet-entries-table td {
     height: 48px;
     border-bottom: 1px solid #e8e8e8;
@@ -988,6 +1118,9 @@
 
 /* Serial Number Column with rowspan */
 .serial-column {
+    width: 4rem;
+    text-align: center;
+    vertical-align: middle;
     background: linear-gradient(135deg, rgba(94, 90, 219, 0.12) 0%, rgba(94, 90, 219, 0.06) 100%) !important;
     border-right: 2px solid rgba(94, 90, 219, 0.3) !important;
     padding: 1rem 0.5rem !important;
@@ -1010,6 +1143,9 @@
 
 /* Contact Column with rowspan */
 .contact-column {
+    width: 14rem;
+    text-align: center;
+    vertical-align: middle;
     background: linear-gradient(135deg, rgba(94, 90, 219, 0.08) 0%, rgba(94, 90, 219, 0.04) 100%) !important;
     border-right: 2px solid rgba(94, 90, 219, 0.2) !important;
     padding: 1rem 0.5rem !important;
@@ -1069,12 +1205,21 @@
 }
 
 .field-label-cell {
+    width: 10rem;
+    text-align: left;
     font-weight: 500;
     color: #444;
 }
 
 .old-value-cell {
+    width: 13rem;
+    text-align: left;
     color: #888;
+}
+
+.new-value-cell {
+    width: 13rem;
+    text-align: left;
 }
 
 .new-value-cell lightning-input {
@@ -1144,21 +1289,101 @@
     cursor: not-allowed;
 }
 
+/* Custom Accordion Styles */
+.location-accordion {
+    margin-bottom: 4px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: white;
+}
+
+.location-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 1rem;
+    background: rgba(94, 90, 219, 0.9);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.location-accordion-header:hover {
+    background: rgba(94, 90, 219, 1);
+}
+
+.location-header-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.location-toggle-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: transform 0.15s ease;
+}
+
+.location-toggle-btn svg {
+    transition: all 0.15s ease;
+}
+
+.location-toggle-btn:hover svg {
+    transform: scale(1.1);
+}
+
+.location-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
+.process-count-badge {
+    font-size: 12px;
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.location-accordion-content {
+    padding: 0.75rem;
+    background: #f8f9fa;
+}
+
 /* Location Slider Styles (matching shiftEndLogEntries) */
 .location-slider-container {
     background: white;
     border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-left: 3px solid rgba(94, 90, 219, 1);
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.location-slider-container:last-child {
+    margin-bottom: 0;
+}
+
+/* Processes not requiring approval - keep purple border */
+.location-slider-container[data-has-changes="false"] {
+    border-left-color: rgba(94, 90, 219, 1) !important;
+    background: white;
 }
 
 .slider-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     flex-wrap: wrap;
     gap: 0.5rem;
 }
@@ -1166,12 +1391,12 @@
 .process-info {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     flex-wrap: wrap;
 }
 
 .process-name {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: #333;
     white-space: nowrap;
@@ -1212,7 +1437,7 @@
     position: relative;
     width: 100%;
     height: 8px;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .slider-track {
@@ -1341,7 +1566,7 @@
     align-items: center;
     font-size: 12px;
     color: #666;
-    margin-top: 0.5rem;
+    /* margin-top: 0.5rem; */
     padding: 0.25rem 0;
 }
 
@@ -1378,7 +1603,7 @@
 .location-actions {
     display: flex;
     gap: 0.75rem;
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     justify-content: flex-end;
 }
 
@@ -1507,6 +1732,14 @@ tr:has(.status-badge[data-status="rejected"]) {
 }
 
 /* Confirmation Modal Custom Styles */
+.confirmation-modal {
+    z-index: 10000;
+}
+
+.confirmation-backdrop {
+    z-index: 9999;
+}
+
 .confirm-modal-header {
     background-color: rgba(94, 90, 219, 1);
     color: white;

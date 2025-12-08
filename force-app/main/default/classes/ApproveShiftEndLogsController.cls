@@ -143,6 +143,18 @@ public with sharing class ApproveShiftEndLogsController {
             details.locationProcesses = new List<LocationProcessWrapper>();
             details.timesheetEntries = new List<TimesheetEntryWrapper>();
             
+            // Fetch all location processes for the job
+            List<wfrecon__Location_Process__c> allLocationProcesses = [
+                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Completed_Percentage__c, 
+                       wfrecon__Location__c, wfrecon__Location__r.Name, wfrecon__Sequence__c
+                FROM wfrecon__Location_Process__c 
+                WHERE wfrecon__Location__r.wfrecon__Job__c = :logEntry.wfrecon__Job__c
+                WITH USER_MODE
+                ORDER BY wfrecon__Location__r.Name ASC, wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
+            ];
+            
+            // Parse approval data to find changes
+            Map<String, Map<String, Object>> changesMap = new Map<String, Map<String, Object>>();
             if (String.isNotBlank(logEntry.wfrecon__Approval_Data__c)) {
                 Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(logEntry.wfrecon__Approval_Data__c);
                 
@@ -152,17 +164,42 @@ public with sharing class ApproveShiftEndLogsController {
                     
                     for (Object lpObj : lpChanges) {
                         Map<String, Object> lpData = (Map<String, Object>) lpObj;
-                        LocationProcessWrapper lpw = new LocationProcessWrapper();
-                        lpw.id = (String) lpData.get('id');
-                        lpw.name = (String) lpData.get('name'); // Name comes from JSON
-                        lpw.oldValue = lpData.get('oldValue') != null ? Integer.valueOf(lpData.get('oldValue')) : 0;
-                        lpw.newValue = lpData.get('newValue') != null ? Integer.valueOf(lpData.get('newValue')) : 0;
-                        lpw.status = 'Pending'; // Default status
-                        details.locationProcesses.add(lpw);
+                        String processId = (String) lpData.get('id');
+                        changesMap.put(processId, lpData);
                     }
                 }
+            }
+            
+            // Add all location processes (both changed and unchanged)
+            for (wfrecon__Location_Process__c lp : allLocationProcesses) {
+                LocationProcessWrapper lpw = new LocationProcessWrapper();
+                lpw.id = lp.Id;
+                lpw.name = String.isNotBlank(lp.wfrecon__Process_Name__c) ? lp.wfrecon__Process_Name__c : lp.Name;
+                lpw.locationId = lp.wfrecon__Location__c;
+                lpw.locationName = lp.wfrecon__Location__r.Name;
+                lpw.sequence = lp.wfrecon__Sequence__c != null ? Integer.valueOf(lp.wfrecon__Sequence__c) : 0;
+                lpw.currentValue = lp.wfrecon__Completed_Percentage__c != null ? Integer.valueOf(lp.wfrecon__Completed_Percentage__c) : 0;
                 
-                // Parse timesheet entry changes - all data comes from JSON
+                // Check if this process has pending changes
+                if (changesMap.containsKey(lp.Id)) {
+                    Map<String, Object> changeData = changesMap.get(lp.Id);
+                    lpw.oldValue = changeData.get('oldValue') != null ? Integer.valueOf(changeData.get('oldValue')) : lpw.currentValue;
+                    lpw.newValue = changeData.get('newValue') != null ? Integer.valueOf(changeData.get('newValue')) : lpw.currentValue;
+                    lpw.hasChanges = true;
+                    lpw.status = 'Pending';
+                } else {
+                    lpw.oldValue = lpw.currentValue;
+                    lpw.newValue = lpw.currentValue;
+                    lpw.hasChanges = false;
+                    lpw.status = null;
+                }
+                
+                details.locationProcesses.add(lpw);
+            }
+            
+            // Parse timesheet entry changes - all data comes from JSON
+            if (String.isNotBlank(logEntry.wfrecon__Approval_Data__c)) {
+                Map<String, Object> approvalData = (Map<String, Object>) JSON.deserializeUntyped(logEntry.wfrecon__Approval_Data__c);
                 if (approvalData.containsKey('timesheetEntryChanges')) {
                     Map<String, Object> tsChangesMap = (Map<String, Object>) approvalData.get('timesheetEntryChanges');
                     
@@ -609,8 +646,13 @@ public with sharing class ApproveShiftEndLogsController {
     public class LocationProcessWrapper {
         @AuraEnabled public String id { get; set; }
         @AuraEnabled public String name { get; set; }
+        @AuraEnabled public String locationId { get; set; }
+        @AuraEnabled public String locationName { get; set; }
+        @AuraEnabled public Integer sequence { get; set; }
+        @AuraEnabled public Integer currentValue { get; set; }
         @AuraEnabled public Integer oldValue { get; set; }
         @AuraEnabled public Integer newValue { get; set; }
+        @AuraEnabled public Boolean hasChanges { get; set; }
         @AuraEnabled public String status { get; set; }
     }
     
