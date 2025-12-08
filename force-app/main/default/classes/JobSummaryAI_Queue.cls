@@ -50,7 +50,7 @@ public with sharing class JobSummaryAI_Queue implements Queueable, Database.Allo
 
     public static void getSummaryAsHtml(String jobSummaryId){
         try {
-            Map<String, Object> ai_result = AICalloutController.getSummaryAsHtml(jobSummaryId);
+            Map<String, Object> ai_result = GenerateJobSummaryController.getSummaryAsHtml(jobSummaryId);
             // Process the HTML content as needed
             
             String htmlContent = (String) ai_result.get('htmlContent');

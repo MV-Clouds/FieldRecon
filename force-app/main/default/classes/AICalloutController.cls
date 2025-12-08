@@ -233,6 +233,15 @@ public with sharing class AICalloutController {
         return result;
     }
 
+    /**
+     * @description This method is used to generate job summary
+     * @param String inputData
+     * 
+     * @return Map<String, Object>
+     * 1. key: ai_Response__c, value: String
+     * 2. key: ai_Response_Error__c, value: String
+     * 
+     */
     public static Map<String,Object> callGeminiAPI(String requestBody) {
         Map<String, Object> result = new Map<String, Object>();
         try {
@@ -256,6 +265,21 @@ public with sharing class AICalloutController {
 
             System.debug('requestBody : '+requestBody);
 
+            if(Gemini_Model == 'gemini-2.5-flash'){
+                Map<String, Object> generationConfig = new Map<String, Object>();
+                Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(requestBody);
+                if (body.containsKey('generationConfig')) {
+                    generationConfig = (Map<String, Object>) body.get('generationConfig');
+                }
+                else{
+                    body.put('generationConfig', generationConfig);
+                }
+                generationConfig.put('thinkingConfig', '{ "includeThoughts": false,"thinkingBudget": 0, }');
+                requestBody = JSON.serialize(body);
+                System.debug('requestBody after adding  thinkingBudget : '+requestBody);
+            }
+
+            
             Http http = new Http();
             HttpResponse res = http.send(req);
 

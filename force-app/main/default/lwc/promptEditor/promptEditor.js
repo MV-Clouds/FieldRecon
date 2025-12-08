@@ -28,6 +28,7 @@ export default class PromptEditor extends LightningElement {
     };
 
     @track confirmation = {};
+    isLoading = false;
 
     connectedCallback(){
         this.namespace = this.template?.host?.nodeName?.toLowerCase()?.startsWith('wfrecon-') ? 'wfrecon__' : '';
@@ -38,6 +39,7 @@ export default class PromptEditor extends LightningElement {
 
     fetchPrompts(){
         try {
+            this.isLoading = true;
             getPrompts()
             .then(result => {
                 console.log('result : ', result);
@@ -62,6 +64,9 @@ export default class PromptEditor extends LightningElement {
             .catch(error => {
                 console.log('error in fetchPrompts : ', error.body?.message ?? error.message);
             })
+            .finally(() => {
+                this.isLoading = false;
+            })
         } catch (error) {
             console.log('error in fetchPrompts : ', error.message);
             
@@ -75,8 +80,8 @@ export default class PromptEditor extends LightningElement {
             prompt.CreatedByName = prompt.CreatedBy?.Name;
             prompt.LastModifiedByName = prompt.LastModifiedBy?.Name;
             prompt.isNotEdit = true;
-            prompt.isEdit = false;
             prompt.isNew = false;
+            prompt.infoMessage = '';
             return prompt;
         } catch (error) {
             console.log('error to setupSinglePrompt : ', error.message);
@@ -90,11 +95,10 @@ export default class PromptEditor extends LightningElement {
             let type = event.currentTarget.dataset.type;
             let prompt = this[type].find(ele => ele.Id === id);
             if(!prompt) return;
-    
-            prompt.isEdit = !prompt.isEdit;
+            
             prompt.isNotEdit = !prompt.isNotEdit;
-    
-            if(!prompt.isNotEdit && prompt.isNew) return;
+            
+            if(!prompt.isNotEdit || prompt.isNew) return;
 
             // when click to cancel edit
             this[type] = JSON.parse(JSON.stringify(this.prompts_backup[type]));
@@ -143,13 +147,15 @@ export default class PromptEditor extends LightningElement {
                 Id : prompt.Id,
                 Prompt_Name__c : prompt.prompt_name,
                 Prompt_Body__c : prompt.prompt_body,
+                Prompt_Type__c : this.promptKeyByType[type],
             }
 
             if(prompt.isNew) {
                 delete promptRecord.Id
-                promptRecord.Prompt_Type__c = this.promptKeyByType[type];
             };
             
+            this.isLoading = true;
+            prompt.infoMessage = '';
             savePrompt({prompt : promptRecord, isCreate: prompt.isNew ? true : false})
             .then(result => {
                 console.log('result : ', result);
@@ -164,6 +170,10 @@ export default class PromptEditor extends LightningElement {
                     if(prompt.isNew) this.isNewDisabled[type] = false; 
                     this.showToast('Success', 'Prompt saved successfully!', 'success');
                 }
+                else if(result.reason_for_invalid){
+                    prompt.infoMessage = result.reason_for_invalid;
+                    this.showToast('Error', result.reason_for_invalid, 'error');
+                }
                 else if(result.error){
                     this.showToast('Error', result.error, 'error')
                 }
@@ -173,6 +183,9 @@ export default class PromptEditor extends LightningElement {
             })
             .catch(error => {
                 console.log('error in savePrompt : ', error.body?.message ?? error.message);
+            })
+            .finally(() => {
+                this.isLoading = false;
             })
         } catch (error) {
             console.log('error in handleSave : ', error.message);
@@ -206,6 +219,7 @@ export default class PromptEditor extends LightningElement {
             }
 
             // If the prompt is exists in system, delete from the system
+            this.isLoading = true;
             deletePrompt({promptId : id})
             .then(result => {
                 console.log('result : ', result);
@@ -224,7 +238,9 @@ export default class PromptEditor extends LightningElement {
             .catch(error => {
                 console.log('error in deletePrompt apex : ', error.body?.message ?? error.message);
             })
-            
+            .finally(() => {
+                this.isLoading = false;
+            })
         } catch (error) {
             console.log('error in handleDelete : ', error.message);
         }
@@ -246,8 +262,9 @@ export default class PromptEditor extends LightningElement {
                 prompt_name : '',
                 prompt_body : '',
                 isNotEdit : false,
-                isEdit: true, isNew: true,
+                isNew: true,
                 Prompt_Type__c : this.promptKeyByType[type],
+                infoMessage: '',
             };
 
             this[type].unshift(newPrompt);
