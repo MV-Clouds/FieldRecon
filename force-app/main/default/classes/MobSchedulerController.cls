@@ -17,7 +17,7 @@
  */
 public with sharing class MobSchedulerController {
     private static final String CLASSNAME = 'MobSchedulerController';
-    private static Map<String, Mobilization_Status_Color__c> statusColorMap = Mobilization_Status_Color__c.getAll();
+    private static Map<String, wfrecon__Mobilization_Status_Color__c> statusColorMap = wfrecon__Mobilization_Status_Color__c.getAll();
 
     /**
      * Description: Returns mobilization entries within the date range for week view.
@@ -35,44 +35,44 @@ public with sharing class MobSchedulerController {
         try{
             // Instruction: Query mobilizations and shape data for LWC consumption.
     
-            List<Mobilization__c> mobilizations = [
-                SELECT Id, Name, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Mobilization_Group__r.Name,
-                       Start_Date__c, End_Date__c, Mobilization_Status__c,
-                       Job__r.Address__c,
-                       (SELECT Id, Contact__r.RecordType.DeveloperName, Contact__c, Contact__r.Name, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
-                        FROM Mobilization_Members__r
-                        WHERE Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
+            List<wfrecon__Mobilization__c> mobilizations = [
+                SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization_Group__r.Name,
+                       wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c,
+                       wfrecon__Job__r.wfrecon__Address__c,
+                       (SELECT Id, wfrecon__Contact__r.RecordType.DeveloperName, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Crew__c, wfrecon__Crew__r.Name, wfrecon__Crew__r.wfrecon__Color_Code__c
+                        FROM wfrecon__Mobilization_Members__r
+                        WHERE wfrecon__Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
                         ORDER BY CreatedDate DESC),
-                       (SELECT Id, Equipment__c, Equipment__r.Name
-                        FROM Mobilization_Assets__r 
+                       (SELECT Id, wfrecon__Equipment__c, wfrecon__Equipment__r.Name
+                        FROM wfrecon__Mobilization_Assets__r 
                         ORDER BY CreatedDate DESC)
-                FROM Mobilization__c
-                WHERE Start_Date__c >= :startOfDay
-                  AND End_Date__c <= :endOfDay
+                FROM wfrecon__Mobilization__c
+                WHERE wfrecon__Start_Date__c >= :startOfDay
+                  AND wfrecon__End_Date__c <= :endOfDay
                 WITH USER_MODE
-                ORDER BY Start_Date__c
+                ORDER BY wfrecon__Start_Date__c
             ];
     
             List<Map<String,Object>> weekEvents = new List<Map<String,Object>>();
     
-            for(Mobilization__c mob : mobilizations){
+            for(wfrecon__Mobilization__c mob : mobilizations){
                 // Instruction: Split members into Crew and SubContractor lists.
                 List<Map<String,Object>> crewMembersList = new List<Map<String,Object>>();
                 List<Map<String,Object>> subContractorsList = new List<Map<String,Object>>();
-                for(Mobilization_Member__c mem : mob.Mobilization_Members__r){
-                    String memberType = mem.Contact__r.RecordType.DeveloperName;
+                for(wfrecon__Mobilization_Member__c mem : mob.wfrecon__Mobilization_Members__r){
+                    String memberType = mem.wfrecon__Contact__r.RecordType.DeveloperName;
                     Map<String,Object> member = new Map<String,Object>{
-                        'id' => mem.Contact__c,
-                        'name' => mem.Contact__r.Name,
+                        'id' => mem.wfrecon__Contact__c,
+                        'name' => mem.wfrecon__Contact__r.Name,
                         'type' => memberType,
                         'junctionId' => mem.Id
                     };
                     if(memberType == 'Employee_WF_Recon'){
-                        if(mem.Crew__c != null){
-                            member.put('crewId', mem.Crew__c);
-                            member.put('crewName', mem.Crew__r.Name);
-                            member.put('crewColor', mem.Crew__r.Color_Code__c);
-                            member.put('bgStyle', 'background-color: color(from ' + mem.Crew__r.Color_Code__c + ' srgb r g b / 0.2); border: 1px solid ' + mem.Crew__r.Color_Code__c + ';');
+                        if(mem.wfrecon__Crew__c != null){
+                            member.put('crewId', mem.wfrecon__Crew__c);
+                            member.put('crewName', mem.wfrecon__Crew__r.Name);
+                            member.put('crewColor', mem.wfrecon__Crew__r.wfrecon__Color_Code__c);
+                            member.put('bgStyle', 'background-color: color(from ' + mem.wfrecon__Crew__r.wfrecon__Color_Code__c + ' srgb r g b / 0.2); border: 1px solid ' + mem.wfrecon__Crew__r.wfrecon__Color_Code__c + ';');
                         }else{
                             member.put('crewName', 'Individual Employees');
                         }
@@ -84,10 +84,10 @@ public with sharing class MobSchedulerController {
     
                 // Process assets if needed
                 List<Map<String,Object>> assetsList = new List<Map<String,Object>>();
-                for(Mobilization_Asset__c asset : mob.Mobilization_Assets__r){
+                for(wfrecon__Mobilization_Asset__c asset : mob.wfrecon__Mobilization_Assets__r){
                     Map<String,Object> assetToUse = new Map<String,Object>{
-                        'id' => asset.Equipment__c,
-                        'name' => asset.Equipment__r.Name,
+                        'id' => asset.wfrecon__Equipment__c,
+                        'name' => asset.wfrecon__Equipment__r.Name,
                         'junctionId' => asset.Id
                     };
                     assetsList.add(assetToUse);
@@ -96,18 +96,18 @@ public with sharing class MobSchedulerController {
                 // Instruction: Build event payload for week view card rendering.
                 weekEvents.add(new Map<String,Object>{
                     'id' => mob.Id,
-                    'jId' => mob.Job__c,
-                    'jobId' => mob.Job__r.Name,
-                    'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
-                    'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
-                    'start' => mob.Start_Date__c.format('MM/dd/yyyy, h:mm a'),
-                    'end' => mob.End_Date__c.format('MM/dd/yyyy, h:mm a'),
-                    'status' => mob.Mobilization_Status__c,
+                    'jId' => mob.wfrecon__Job__c,
+                    'jobId' => mob.wfrecon__Job__r.Name,
+                    'jobName' => mob.wfrecon__Job__r.wfrecon__Job_Name__c != null ? mob.wfrecon__Job__r.wfrecon__Job_Name__c : '--',
+                    'location' => mob.wfrecon__Job__r.wfrecon__Address__c != null ? mob.wfrecon__Job__r.wfrecon__Address__c : '--',
+                    'start' => mob.wfrecon__Start_Date__c.format('MM/dd/yyyy, h:mm a'),
+                    'end' => mob.wfrecon__End_Date__c.format('MM/dd/yyyy, h:mm a'),
+                    'status' => mob.wfrecon__Mobilization_Status__c,
                     'crew' => crewMembersList,
                     'subcontractors' => subContractorsList,
                     'assets' => assetsList,
-                    'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
-                    'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000'
+                    'bgColor' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4',
+                    'color' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000'
                 });
     
             }
@@ -122,26 +122,26 @@ public with sharing class MobSchedulerController {
     /**
      * Description: Fetches default job time configuration.
      * Parameters: none.
-     * Return: Job_Default_Times__c record or null if none found/error.
+     * Return: wfrecon__Job_Default_Times__c record or null if none found/error.
      */
     @AuraEnabled
     public static Map<String, Object> getDefaultValues(Date startDate) {
         Map<String, Object> defaultValues = new Map<String, Object>{'statusOptions' => null, 'time' => null, 'status' => null, 'result' => null};
 
         try {
-            List<Job_Default_Times__c> timeDefaults = [
-                SELECT Id, Name, Start_Time__c, End_Time__c, Include_Saturday__c, Include_Sunday__c 
-                FROM Job_Default_Times__c 
+            List<wfrecon__Job_Default_Times__c> timeDefaults = [
+                SELECT Id, Name, wfrecon__Start_Time__c, wfrecon__End_Time__c, wfrecon__Include_Saturday__c, wfrecon__Include_Sunday__c 
+                FROM wfrecon__Job_Default_Times__c 
                 WITH USER_MODE
             ];
-            List<Mobilization_Status_Color__c> statusDefaults = [
-                SELECT Id, Name, Color__c, Background_Color__c 
-                FROM Mobilization_Status_Color__c 
+            List<wfrecon__Mobilization_Status_Color__c> statusDefaults = [
+                SELECT Id, Name, wfrecon__Color__c, wfrecon__Background_Color__c 
+                FROM wfrecon__Mobilization_Status_Color__c 
                 WITH USER_MODE
             ];
 
             List<Map<String,String>> options = new List<Map<String,String>>();
-            Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+            Schema.DescribeFieldResult fieldResult = wfrecon__Mobilization__c.wfrecon__Mobilization_Status__c.getDescribe();
             List<Schema.PicklistEntry> ple = fieldResult.getPicklistValues();
             for( Schema.PicklistEntry f : ple){
                 options.add(new Map<String,String>{'label' => f.getLabel(), 'value' => f.getValue()});
@@ -154,11 +154,11 @@ public with sharing class MobSchedulerController {
             Map<String, Object> defaultMap = new Map<String, Object>{'start' => null, 'end' => null, 'includeSaturday' => false, 'includeSunday' => false};
             if(timeDefaults != null && !timeDefaults.isEmpty()) {
 
-                defaultMap.put('includeSaturday', timeDefaults[0].Include_Saturday__c);
-                defaultMap.put('includeSunday', timeDefaults[0].Include_Sunday__c);
+                defaultMap.put('includeSaturday', timeDefaults[0].wfrecon__Include_Saturday__c);
+                defaultMap.put('includeSunday', timeDefaults[0].wfrecon__Include_Sunday__c);
                 
                 // Start Time
-                String startTimeStr = timeDefaults[0].Start_Time__c; // e.g., "07:00 AM"
+                String startTimeStr = timeDefaults[0].wfrecon__Start_Time__c; // e.g., "07:00 AM"
                 if(startTimeStr != null) {
                     List<String> startParts = startTimeStr.split(' ');
                     List<String> hm = startParts[0].split(':');
@@ -173,7 +173,7 @@ public with sharing class MobSchedulerController {
                 }
                 
                 // End Time
-                String endTimeStr = timeDefaults[0].End_Time__c; // e.g., "06:00 PM"
+                String endTimeStr = timeDefaults[0].wfrecon__End_Time__c; // e.g., "06:00 PM"
                 if(endTimeStr != null) {
                     List<String> endParts = endTimeStr.split(' ');
                     List<String> hm = endParts[0].split(':');
@@ -245,48 +245,48 @@ public with sharing class MobSchedulerController {
             List<Map<String, Object>> assets = new List<Map<String, Object>>();
 
             // 2️⃣ Query Mobilizations happening on the selected date
-            List<Mobilization__c> activeMobs = [
+            List<wfrecon__Mobilization__c> activeMobs = [
                 SELECT Id,
-                    (SELECT Contact__c, Contact__r.RecordType.DeveloperName 
-                        FROM Mobilization_Members__r),
-                    (SELECT Equipment__c 
-                        FROM Mobilization_Assets__r)
-                FROM Mobilization__c
-                WHERE Start_Date__c >= :startOfDay
-                AND Start_Date__c <= :endOfDay
+                    (SELECT wfrecon__Contact__c, wfrecon__Contact__r.RecordType.DeveloperName 
+                        FROM wfrecon__Mobilization_Members__r),
+                    (SELECT wfrecon__Equipment__c 
+                        FROM wfrecon__Mobilization_Assets__r)
+                FROM wfrecon__Mobilization__c
+                WHERE wfrecon__Start_Date__c >= :startOfDay
+                AND wfrecon__Start_Date__c <= :endOfDay
                 WITH USER_MODE
             ];
 
             // Instruction: Collect all busy resource IDs.
-            for (Mobilization__c mob : activeMobs) {
-                for (Mobilization_Member__c mem : mob.Mobilization_Members__r) {
-                    if (mem.Contact__r.RecordType.DeveloperName == 'Employee_WF_Recon') {
-                        busyCrewIds.add(mem.Contact__c);
-                    } else if (mem.Contact__r.RecordType.DeveloperName == 'Sub_Contractor_WF_Recon') {
-                        busySubcontractorIds.add(mem.Contact__c);
+            for (wfrecon__Mobilization__c mob : activeMobs) {
+                for (wfrecon__Mobilization_Member__c mem : mob.wfrecon__Mobilization_Members__r) {
+                    if (mem.wfrecon__Contact__r.RecordType.DeveloperName == 'Employee_WF_Recon') {
+                        busyCrewIds.add(mem.wfrecon__Contact__c);
+                    } else if (mem.wfrecon__Contact__r.RecordType.DeveloperName == 'Sub_Contractor_WF_Recon') {
+                        busySubcontractorIds.add(mem.wfrecon__Contact__c);
                     }
                 }
-                for (Mobilization_Asset__c asset : mob.Mobilization_Assets__r) {
-                    busyAssetIds.add(asset.Equipment__c);
+                for (wfrecon__Mobilization_Asset__c asset : mob.wfrecon__Mobilization_Assets__r) {
+                    busyAssetIds.add(asset.wfrecon__Equipment__c);
                 }
             }
 
             // 4️⃣ Query all Crew
             for (Contact c : [
-                SELECT Id, Name, (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c FROM Crew_Members__r )
+                SELECT Id, Name, (SELECT Id, wfrecon__Crew__c, wfrecon__Crew__r.Name, wfrecon__Crew__r.wfrecon__Color_Code__c FROM wfrecon__Crew_Members__r )
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
-                AND User__r.IsActive = true
+                AND wfrecon__User__r.IsActive = true
                 WITH USER_MODE
             ]) {
-                if(c.Crew_Members__r != null && c.Crew_Members__r.size() > 0){
-                    for(Crew_Member__c crewMember : c.Crew_Members__r){
+                if(c.wfrecon__Crew_Members__r != null && c.wfrecon__Crew_Members__r.size() > 0){
+                    for(wfrecon__Crew_Member__c crewMember : c.wfrecon__Crew_Members__r){
                         crewMembers.add(new Map<String, Object>{
                             'id' => c.Id,
                             'name' => c.Name,
-                            'crewId' => crewMember.Crew__c != null ? crewMember.Crew__c : null,
-                            'crewName' => crewMember.Crew__r.Name != null ? crewMember.Crew__r.Name : null,
-                            'bgColor' => crewMember.Crew__r.Color_Code__c != null ? crewMember.Crew__r.Color_Code__c : null,
+                            'crewId' => crewMember.wfrecon__Crew__c != null ? crewMember.wfrecon__Crew__c : null,
+                            'crewName' => crewMember.wfrecon__Crew__r.Name != null ? crewMember.wfrecon__Crew__r.Name : null,
+                            'bgColor' => crewMember.wfrecon__Crew__r.wfrecon__Color_Code__c != null ? crewMember.wfrecon__Crew__r.wfrecon__Color_Code__c : null,
                             'isAvailable' => !busyCrewIds.contains(c.Id)
                         });
                     }
@@ -304,7 +304,7 @@ public with sharing class MobSchedulerController {
                 SELECT Id, Name
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Sub_Contractor_WF_Recon'
-                AND User__r.IsActive = true
+                AND wfrecon__User__r.IsActive = true
                 WITH USER_MODE
             ]) {
                 subContractors.add(new Map<String, Object>{
@@ -315,9 +315,9 @@ public with sharing class MobSchedulerController {
             }
 
             // 6️⃣ Query all Assets
-            for (Equipment__c eq : [
+            for (wfrecon__Equipment__c eq : [
                 SELECT Id, Name
-                FROM Equipment__c
+                FROM wfrecon__Equipment__c
                 WITH USER_MODE
             ]) {
                 assets.add(new Map<String, Object>{
@@ -366,81 +366,81 @@ public with sharing class MobSchedulerController {
                 return result; // invalid type
             }
 
-            List<Mobilization__c> mobilizations;
+            List<wfrecon__Mobilization__c> mobilizations;
 
             if(fetchAssets){
                 mobilizations = [
-                    SELECT Id, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c, Mobilization_Status__c,
-                        (SELECT Id, Equipment__c, Equipment__r.Name
-                            FROM Mobilization_Assets__r 
-                            ORDER BY Mobilization__r.Start_Date__c)
-                    FROM Mobilization__c
-                    WHERE Start_Date__c >= :startOfDay
-                    AND End_Date__c <= :endOfDay
+                    SELECT Id, wfrecon__Job__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Description__c, wfrecon__Job__r.wfrecon__Address__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c,
+                        (SELECT Id, wfrecon__Equipment__c, wfrecon__Equipment__r.Name
+                            FROM wfrecon__Mobilization_Assets__r 
+                            ORDER BY wfrecon__Mobilization__r.wfrecon__Start_Date__c)
+                    FROM wfrecon__Mobilization__c
+                    WHERE wfrecon__Start_Date__c >= :startOfDay
+                    AND wfrecon__End_Date__c <= :endOfDay
                     WITH USER_MODE
-                    ORDER BY Start_Date__c
+                    ORDER BY wfrecon__Start_Date__c
                 ];
             } else {
                 mobilizations = [
-                    SELECT Id, Job__c, Job__r.Name, Job__r.Job_Name__c, Job__r.Description__c, Job__r.Address__c, Start_Date__c, End_Date__c, Mobilization_Status__c,
-                        (SELECT Id, Contact__c, Contact__r.Name, Crew__c, Crew__r.Name, Crew__r.Color_Code__c
-                            FROM Mobilization_Members__r
-                            WHERE Contact__r.RecordType.DeveloperName = :memberRecordType
-                            ORDER BY Mobilization__r.Start_Date__c)
-                    FROM Mobilization__c
-                    WHERE Start_Date__c >= :startOfDay
-                    AND End_Date__c <= :endOfDay
+                    SELECT Id, wfrecon__Job__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Description__c, wfrecon__Job__r.wfrecon__Address__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c,
+                        (SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Crew__c, wfrecon__Crew__r.Name, wfrecon__Crew__r.wfrecon__Color_Code__c
+                            FROM wfrecon__Mobilization_Members__r
+                            WHERE wfrecon__Contact__r.RecordType.DeveloperName = :memberRecordType
+                            ORDER BY wfrecon__Mobilization__r.wfrecon__Start_Date__c)
+                    FROM wfrecon__Mobilization__c
+                    WHERE wfrecon__Start_Date__c >= :startOfDay
+                    AND wfrecon__End_Date__c <= :endOfDay
                     WITH USER_MODE
-                    ORDER BY Start_Date__c
+                    ORDER BY wfrecon__Start_Date__c
                 ];
             }
 
-            for(Mobilization__c mob : mobilizations){
+            for(wfrecon__Mobilization__c mob : mobilizations){
                 if(fetchAssets){
-                    for(Mobilization_Asset__c asset : mob.Mobilization_Assets__r){
+                    for(wfrecon__Mobilization_Asset__c asset : mob.wfrecon__Mobilization_Assets__r){
                         result.add(new Map<String,Object>{
-                            'id' => asset.Equipment__c,
-                            'name' => asset.Equipment__r.Name,
-                            'jId' => mob.Job__c,
+                            'id' => asset.wfrecon__Equipment__c,
+                            'name' => asset.wfrecon__Equipment__r.Name,
+                            'jId' => mob.wfrecon__Job__c,
                             'mobId' => mob.id,
-                            'status' => mob.Mobilization_Status__c,
-                            'jobId' => mob.Job__r.Name,
-                            'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
+                            'status' => mob.wfrecon__Mobilization_Status__c,
+                            'jobId' => mob.wfrecon__Job__r.Name,
+                            'jobName' => mob.wfrecon__Job__r.wfrecon__Job_Name__c != null ? mob.wfrecon__Job__r.wfrecon__Job_Name__c : '--',
                             'junctionId' => asset.Id,
-                            'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
-                            'start' => mob.Start_Date__c.format('MM/dd/yyyy, h:mm a'),
-                            'end' => mob.End_Date__c.format('MM/dd/yyyy, h:mm a'),
-                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
-                            'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
+                            'location' => mob.wfrecon__Job__r.wfrecon__Address__c != null ? mob.wfrecon__Job__r.wfrecon__Address__c : '--',
+                            'start' => mob.wfrecon__Start_Date__c.format('MM/dd/yyyy, h:mm a'),
+                            'end' => mob.wfrecon__End_Date__c.format('MM/dd/yyyy, h:mm a'),
+                            'bgColor' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4',
+                            'color' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000',
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000')
                         });
                     }
                 } else {
                     Set<Id> processedCrewIds = new Set<Id>();
 
-                    for(Mobilization_Member__c mem : mob.Mobilization_Members__r){
+                    for(wfrecon__Mobilization_Member__c mem : mob.wfrecon__Mobilization_Members__r){
 
-                        if (resourceType=='CrewMaster' && (mem.Crew__c == null || processedCrewIds.contains(mem.Crew__c))) continue; // skip individuals with no crew
+                        if (resourceType=='CrewMaster' && (mem.wfrecon__Crew__c == null || processedCrewIds.contains(mem.wfrecon__Crew__c))) continue; // skip individuals with no crew
 
-                        if (resourceType=='CrewMaster' && !processedCrewIds.contains(mem.Crew__c)) {
-                            processedCrewIds.add(mem.Crew__c);
+                        if (resourceType=='CrewMaster' && !processedCrewIds.contains(mem.wfrecon__Crew__c)) {
+                            processedCrewIds.add(mem.wfrecon__Crew__c);
                         }
                         result.add(new Map<String,Object>{
-                            'id' => resourceType=='CrewMaster' ? mem.Crew__c : mem.Contact__c,
-                            'name' => resourceType=='CrewMaster' ? mem.Crew__r.Name : mem.Contact__r.Name,
-                            'crewStyle' => mem.Crew__r.Color_Code__c != null ? 'color:' + mem.Crew__r.Color_Code__c + ';' : null,
-                            'jId' => mob.Job__c,
+                            'id' => resourceType=='CrewMaster' ? mem.wfrecon__Crew__c : mem.wfrecon__Contact__c,
+                            'name' => resourceType=='CrewMaster' ? mem.wfrecon__Crew__r.Name : mem.wfrecon__Contact__r.Name,
+                            'crewStyle' => mem.wfrecon__Crew__r.wfrecon__Color_Code__c != null ? 'color:' + mem.wfrecon__Crew__r.wfrecon__Color_Code__c + ';' : null,
+                            'jId' => mob.wfrecon__Job__c,
                             'mobId' => mob.id,
-                            'status' => mob.Mobilization_Status__c,
-                            'jobId' => mob.Job__r.Name,
-                            'jobName' => mob.Job__r.Job_Name__c != null ? mob.Job__r.Job_Name__c : '--',
+                            'status' => mob.wfrecon__Mobilization_Status__c,
+                            'jobId' => mob.wfrecon__Job__r.Name,
+                            'jobName' => mob.wfrecon__Job__r.wfrecon__Job_Name__c != null ? mob.wfrecon__Job__r.wfrecon__Job_Name__c : '--',
                             'junctionId' => mem.Id,
-                            'location' => mob.Job__r.Address__c != null ? mob.Job__r.Address__c : '--',
-                            'start' => mob.Start_Date__c.format('MM/dd/yyyy, h:mm a'),
-                            'end' => mob.End_Date__c.format('MM/dd/yyyy, h:mm a'),
-                            'bgColor' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4',
-                            'color' => statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000',
-                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.Mobilization_Status__c) != null ? statusColorMap.get(mob.Mobilization_Status__c).Color__c : '#000000')
+                            'location' => mob.wfrecon__Job__r.wfrecon__Address__c != null ? mob.wfrecon__Job__r.wfrecon__Address__c : '--',
+                            'start' => mob.wfrecon__Start_Date__c.format('MM/dd/yyyy, h:mm a'),
+                            'end' => mob.wfrecon__End_Date__c.format('MM/dd/yyyy, h:mm a'),
+                            'bgColor' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4',
+                            'color' => statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000',
+                            'statusStyle' => 'background-color: color(from ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Background_Color__c : '#C4C4C4') + ' srgb r g b / 0.2);' + 'color: ' + (statusColorMap.get(mob.wfrecon__Mobilization_Status__c) != null ? statusColorMap.get(mob.wfrecon__Mobilization_Status__c).wfrecon__Color__c : '#000000')
                         });
                     }
                 }
@@ -464,27 +464,27 @@ public with sharing class MobSchedulerController {
     public static string removeJobResource(String id, String type, String mobId, String allUpcoming){
         try {
             // Get Details about the Mobilization Group
-            Mobilization__c currentMob = new Mobilization__c();
+            wfrecon__Mobilization__c currentMob = new wfrecon__Mobilization__c();
             List<SObject> recordsToDelete = new List<SObject>();
 
             if(allUpcoming == 'true'){
-                currentMob = [SELECT Id, Mobilization_Group__c FROM Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
+                currentMob = [SELECT Id, wfrecon__Mobilization_Group__c FROM wfrecon__Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
                 // Delete all upcoming mobilizations under the same Mobilization Group
                 DateTime nowDT = System.now();
                 if(type == 'CrewMaster'){
-                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c > :nowDT WITH USER_MODE];
                 } else if(type == 'Crew' || type == 'SubContractor'){
-                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c > :nowDT WITH USER_MODE];
                 } else if (type == 'Asset'){
-                    recordsToDelete = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__r.Mobilization_Group__c = :currentMob.Mobilization_Group__c AND Mobilization__r.End_Date__c > :nowDT WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Asset__c WHERE wfrecon__Equipment__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c > :nowDT WITH USER_MODE];
                 }
             }else{
                 if(type == 'CrewMaster'){
-                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Crew__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew__c = :id AND wfrecon__Mobilization__c = :mobId WITH USER_MODE];
                 } else if(type == 'Crew' || type == 'SubContractor'){
-                    recordsToDelete = [SELECT Id FROM Mobilization_Member__c WHERE Contact__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__c = :id AND wfrecon__Mobilization__c = :mobId WITH USER_MODE];
                 } else if (type == 'Asset'){
-                    recordsToDelete = [SELECT Id FROM Mobilization_Asset__c WHERE Equipment__c = :id AND Mobilization__c = :mobId WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Asset__c WHERE wfrecon__Equipment__c = :id AND wfrecon__Mobilization__c = :mobId WITH USER_MODE];
                 }
             }
 
@@ -515,54 +515,54 @@ public with sharing class MobSchedulerController {
 
             if(!allowOverlap){
                 // Get the mobilization dates for the new assignment
-                Mobilization__c mob = [
-                    SELECT Id, Start_Date__c, End_Date__c, (SELECT Id, Contact__c FROM Mobilization_Members__r), (SELECT Id, Equipment__c FROM Mobilization_Assets__r)
-                    FROM Mobilization__c
+                wfrecon__Mobilization__c mob = [
+                    SELECT Id, wfrecon__Start_Date__c, wfrecon__End_Date__c, (SELECT Id, wfrecon__Contact__c FROM wfrecon__Mobilization_Members__r), (SELECT Id, wfrecon__Equipment__c FROM wfrecon__Mobilization_Assets__r)
+                    FROM wfrecon__Mobilization__c
                     WHERE Id = :mobId
                     WITH USER_MODE
                     LIMIT 1
                 ];
 
-                if(mob != null && (mob.Mobilization_Members__r?.size() > 0 || mob.Mobilization_Assets__r?.size() > 0)){
-                    List<SObject> ovlRess = (type == 'Asset' ? (List<SObject>) mob.Mobilization_Assets__r : (List<SObject>) mob.Mobilization_Members__r);
+                if(mob != null && (mob.wfrecon__Mobilization_Members__r?.size() > 0 || mob.wfrecon__Mobilization_Assets__r?.size() > 0)){
+                    List<SObject> ovlRess = (type == 'Asset' ? (List<SObject>) mob.wfrecon__Mobilization_Assets__r : (List<SObject>) mob.wfrecon__Mobilization_Members__r);
                     for (SObject ovlRes : ovlRess) {
-                        if((type == 'Asset' ? (ovlRes.get('Equipment__c') == resourceId) : (ovlRes.get('Contact__c') == resourceId))) {
+                        if((type == 'Asset' ? (ovlRes.get('wfrecon__Equipment__c') == resourceId) : (ovlRes.get('wfrecon__Contact__c') == resourceId))) {
                             return 'ASSIGNED';
                         }
                     }
                 }
     
-                Date newStart = mob.Start_Date__c.dateGmt();
-                DateTime newEnd   = mob.End_Date__c;
+                Date newStart = mob.wfrecon__Start_Date__c.dateGmt();
+                DateTime newEnd   = mob.wfrecon__End_Date__c;
     
                 // Query existing mobilizations for the same resource
                 List<sObject> overlappingMobs;
     
                 if (type == 'Crew' || type == 'SubContractor') {
                     overlappingMobs = [
-                        SELECT Id, Mobilization__c
-                        FROM Mobilization_Member__c
-                        WHERE Contact__c = :resourceId
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) = :newStart
-                        AND Mobilization__c != :mobId
+                        SELECT Id, wfrecon__Mobilization__c
+                        FROM wfrecon__Mobilization_Member__c
+                        WHERE wfrecon__Contact__c = :resourceId
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) = :newStart
+                        AND wfrecon__Mobilization__c != :mobId
                         WITH USER_MODE
                     ];
                 } else if (type == 'Asset') {
                     overlappingMobs = [
-                        SELECT Id, Mobilization__c
-                        FROM Mobilization_Asset__c
-                        WHERE Equipment__c = :resourceId
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) = :newStart
-                        AND Mobilization__c != :mobId
+                        SELECT Id, wfrecon__Mobilization__c
+                        FROM wfrecon__Mobilization_Asset__c
+                        WHERE wfrecon__Equipment__c = :resourceId
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) = :newStart
+                        AND wfrecon__Mobilization__c != :mobId
                         WITH USER_MODE
                     ];
                 } else if (type == 'CrewMaster') {
                     overlappingMobs = [
-                        SELECT Id, Mobilization__c
-                        FROM Mobilization_Member__c
-                        WHERE Crew__c = :resourceId
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) = :newStart
-                        AND Mobilization__c != :mobId
+                        SELECT Id, wfrecon__Mobilization__c
+                        FROM wfrecon__Mobilization_Member__c
+                        WHERE wfrecon__Crew__c = :resourceId
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) = :newStart
+                        AND wfrecon__Mobilization__c != :mobId
                         WITH USER_MODE
                     ];
                 }
@@ -575,62 +575,62 @@ public with sharing class MobSchedulerController {
 
             // Insert new assignment
             if (type == 'Crew' || type == 'SubContractor') {
-                List<Mobilization_Member__c> existingMobilizationMember = [
-                    SELECT Mobilization__c FROM Mobilization_Member__c 
-                    WHERE Contact__c = :resourceId AND Mobilization__c = :mobId 
+                List<wfrecon__Mobilization_Member__c> existingMobilizationMember = [
+                    SELECT wfrecon__Mobilization__c FROM wfrecon__Mobilization_Member__c 
+                    WHERE wfrecon__Contact__c = :resourceId AND wfrecon__Mobilization__c = :mobId 
                     WITH USER_MODE
                     LIMIT 1
                 ];
                 if(!existingMobilizationMember.isEmpty()){
                     return 'ASSIGNED';
                 }
-                Mobilization_Member__c mobMember = new Mobilization_Member__c(
-                    Mobilization__c = mobId,
-                    Contact__c = resourceId
+                wfrecon__Mobilization_Member__c mobMember = new wfrecon__Mobilization_Member__c(
+                    wfrecon__Mobilization__c = mobId,
+                    wfrecon__Contact__c = resourceId
                 );
                 insert as user mobMember;
             } else if (type == 'Asset') {
-                List<Mobilization_Asset__c> existingMobilizationAsset = [
-                    SELECT Mobilization__c FROM Mobilization_Asset__c 
-                    WHERE Equipment__c = :resourceId AND Mobilization__c = :mobId 
+                List<wfrecon__Mobilization_Asset__c> existingMobilizationAsset = [
+                    SELECT wfrecon__Mobilization__c FROM wfrecon__Mobilization_Asset__c 
+                    WHERE wfrecon__Equipment__c = :resourceId AND wfrecon__Mobilization__c = :mobId 
                     WITH USER_MODE
                     LIMIT 1
                 ];
                 if(!existingMobilizationAsset.isEmpty()){
                     return 'ASSIGNED';
                 }
-                Mobilization_Asset__c mobAsset = new Mobilization_Asset__c(
-                    Mobilization__c = mobId,
-                    Equipment__c = resourceId
+                wfrecon__Mobilization_Asset__c mobAsset = new wfrecon__Mobilization_Asset__c(
+                    wfrecon__Mobilization__c = mobId,
+                    wfrecon__Equipment__c = resourceId
                 );
                 insert as user mobAsset;
             } else if (type == 'CrewMaster') {
-                List<Crew_Member__c> crewMembers = [SELECT Contact__c FROM Crew_Member__c WHERE Crew__c = :resourceId WITH USER_MODE];
+                List<wfrecon__Crew_Member__c> crewMembers = [SELECT wfrecon__Contact__c FROM wfrecon__Crew_Member__c WHERE wfrecon__Crew__c = :resourceId WITH USER_MODE];
                 Set<String> contactIds = new Set<String>();
-                for(Crew_Member__c cm : crewMembers){
-                    contactIds.add(cm.Contact__c);
+                for(wfrecon__Crew_Member__c cm : crewMembers){
+                    contactIds.add(cm.wfrecon__Contact__c);
                 }
                 // Check for existing assignments to avoid duplicates
-                List<Mobilization_Member__c> existingMembers = [
-                    SELECT Contact__c FROM Mobilization_Member__c 
-                    WHERE Mobilization__c = :mobId AND Contact__c IN :contactIds
+                List<wfrecon__Mobilization_Member__c> existingMembers = [
+                    SELECT wfrecon__Contact__c FROM wfrecon__Mobilization_Member__c 
+                    WHERE wfrecon__Mobilization__c = :mobId AND wfrecon__Contact__c IN :contactIds
                     WITH USER_MODE
                 ];
 
                 // Create a set of existing contact IDs for quick lookup
                 Set<String> existingContactIds = new Set<String>();
-                for(Mobilization_Member__c existingMember : existingMembers){
-                    existingContactIds.add(existingMember.Contact__c);
+                for(wfrecon__Mobilization_Member__c existingMember : existingMembers){
+                    existingContactIds.add(existingMember.wfrecon__Contact__c);
                 }
 
-                List<Mobilization_Member__c> mobMembersToInsert = new List<Mobilization_Member__c>();
-                for (Crew_Member__c crewMember : crewMembers) {
+                List<wfrecon__Mobilization_Member__c> mobMembersToInsert = new List<wfrecon__Mobilization_Member__c>();
+                for (wfrecon__Crew_Member__c crewMember : crewMembers) {
                     // Only create new record if contact is not already assigned
-                    if(!existingContactIds.contains(crewMember.Contact__c)){
-                        Mobilization_Member__c mobMember = new Mobilization_Member__c(
-                            Mobilization__c = mobId,
-                            Crew__c = resourceId,
-                            Contact__c = crewMember.Contact__c
+                    if(!existingContactIds.contains(crewMember.wfrecon__Contact__c)){
+                        wfrecon__Mobilization_Member__c mobMember = new wfrecon__Mobilization_Member__c(
+                            wfrecon__Mobilization__c = mobId,
+                            wfrecon__Crew__c = resourceId,
+                            wfrecon__Contact__c = crewMember.wfrecon__Contact__c
                         );
                         mobMembersToInsert.add(mobMember);
                     }
@@ -674,25 +674,25 @@ public with sharing class MobSchedulerController {
                 });
             }
 
-            Mobilization__c selectedMob = new Mobilization__c();
+            wfrecon__Mobilization__c selectedMob = new wfrecon__Mobilization__c();
 
             // Get mobilization details + parent Job
             if(mobId != null){
                 selectedMob = [
-                    SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
-                    FROM Mobilization__c
+                    SELECT Id, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Group__c, wfrecon__Start_Date__c
+                    FROM wfrecon__Mobilization__c
                     WHERE Id = :mobId
                     WITH USER_MODE
                     LIMIT 1
                 ];
             }else if(mobGroupId != null){
                 selectedMob = [
-                    SELECT Id, Job__c, Job__r.Job_Name__c, Mobilization_Group__c, Start_Date__c
-                    FROM Mobilization__c
-                    WHERE Mobilization_Group__c = :mobGroupId
-                    AND End_Date__c >= :system.now()
+                    SELECT Id, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Group__c, wfrecon__Start_Date__c
+                    FROM wfrecon__Mobilization__c
+                    WHERE wfrecon__Mobilization_Group__c = :mobGroupId
+                    AND wfrecon__End_Date__c >= :system.now()
                     WITH USER_MODE
-                    ORDER BY End_Date__c ASC
+                    ORDER BY wfrecon__End_Date__c ASC
                     LIMIT 1
                 ];
             }
@@ -705,12 +705,12 @@ public with sharing class MobSchedulerController {
             }
 
             // Get all sibling mobilizations
-            List<Mobilization__c> siblingMobs = [
-                SELECT Id, Start_Date__c, Job__r.Job_Name__c
-                FROM Mobilization__c
-                WHERE Job__c = :selectedMob.Job__c
-                AND Mobilization_Group__c = :selectedMob.Mobilization_Group__c
-                AND DAY_ONLY(Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
+            List<wfrecon__Mobilization__c> siblingMobs = [
+                SELECT Id, wfrecon__Start_Date__c, wfrecon__Job__r.wfrecon__Job_Name__c
+                FROM wfrecon__Mobilization__c
+                WHERE wfrecon__Job__c = :selectedMob.wfrecon__Job__c
+                AND wfrecon__Mobilization_Group__c = :selectedMob.wfrecon__Mobilization_Group__c
+                AND DAY_ONLY(wfrecon__Start_Date__c) >= :selectedMob.wfrecon__Start_Date__c.dateGmt()
                 WITH USER_MODE
             ];
 
@@ -724,9 +724,9 @@ public with sharing class MobSchedulerController {
             // 🔹 Prepare for overlap checks
             Set<Id> siblingMobIds = new Set<Id>();
             Set<Date> siblingMobDates = new Set<Date>();
-            for (Mobilization__c mob : siblingMobs) {
+            for (wfrecon__Mobilization__c mob : siblingMobs) {
                 siblingMobIds.add(mob.Id);
-                siblingMobDates.add(mob.Start_Date__c.dateGmt());
+                siblingMobDates.add(mob.wfrecon__Start_Date__c.dateGmt());
             }
 
             List<Map<String, Object>> overlapDetails = new List<Map<String, Object>>();
@@ -738,22 +738,22 @@ public with sharing class MobSchedulerController {
                 
                 if (type == 'Crew' || type == 'SubContractor') {
                     allOverlaps = [
-                        SELECT Id, Mobilization__c, Contact__c
-                        FROM Mobilization_Member__c
-                        WHERE Contact__c IN :resourceIds
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
-                        AND Mobilization__c NOT IN :siblingMobIds
+                        SELECT Id, wfrecon__Mobilization__c, wfrecon__Contact__c
+                        FROM wfrecon__Mobilization_Member__c
+                        WHERE wfrecon__Contact__c IN :resourceIds
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) >= :selectedMob.wfrecon__Start_Date__c.dateGmt()
+                        AND wfrecon__Mobilization__c NOT IN :siblingMobIds
                         WITH USER_MODE
                     ];
                 } else if (type == 'Asset') {
                     allOverlaps = [
-                        SELECT Id, Mobilization__c, Equipment__c
-                        FROM Mobilization_Asset__c
-                        WHERE Equipment__c IN :resourceIds
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
-                        AND Mobilization__c NOT IN :siblingMobIds
+                        SELECT Id, wfrecon__Mobilization__c, wfrecon__Equipment__c
+                        FROM wfrecon__Mobilization_Asset__c
+                        WHERE wfrecon__Equipment__c IN :resourceIds
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) >= :selectedMob.wfrecon__Start_Date__c.dateGmt()
+                        AND wfrecon__Mobilization__c NOT IN :siblingMobIds
                         WITH USER_MODE
                     ];
                 }
@@ -762,8 +762,8 @@ public with sharing class MobSchedulerController {
                 Map<String, Integer> overlapCounts = new Map<String, Integer>();
                 for (SObject overlap : allOverlaps) {
                     String resourceId = (type == 'Crew' || type == 'SubContractor') ? 
-                        String.valueOf(overlap.get('Contact__c')) : 
-                        String.valueOf(overlap.get('Equipment__c'));
+                        String.valueOf(overlap.get('wfrecon__Contact__c')) : 
+                        String.valueOf(overlap.get('wfrecon__Equipment__c'));
                     
                     if (!overlapCounts.containsKey(resourceId)) {
                         overlapCounts.put(resourceId, 0);
@@ -799,18 +799,18 @@ public with sharing class MobSchedulerController {
             
             if (type == 'Crew' || type == 'SubContractor') {
                 existingAssignments = [
-                    SELECT Mobilization__c, Contact__c
-                    FROM Mobilization_Member__c
-                    WHERE Mobilization__c IN :siblingMobIds
-                    AND Contact__c IN :resourceIds
+                    SELECT wfrecon__Mobilization__c, wfrecon__Contact__c
+                    FROM wfrecon__Mobilization_Member__c
+                    WHERE wfrecon__Mobilization__c IN :siblingMobIds
+                    AND wfrecon__Contact__c IN :resourceIds
                     WITH USER_MODE
                 ];
             } else if (type == 'Asset') {
                 existingAssignments = [
-                    SELECT Mobilization__c, Equipment__c
-                    FROM Mobilization_Asset__c
-                    WHERE Mobilization__c IN :siblingMobIds
-                    AND Equipment__c IN :resourceIds
+                    SELECT wfrecon__Mobilization__c, wfrecon__Equipment__c
+                    FROM wfrecon__Mobilization_Asset__c
+                    WHERE wfrecon__Mobilization__c IN :siblingMobIds
+                    AND wfrecon__Equipment__c IN :resourceIds
                     WITH USER_MODE
                 ];
             }
@@ -818,13 +818,13 @@ public with sharing class MobSchedulerController {
             // Process existing assignments
             for (SObject ea : existingAssignments) {
                 String resourceId = (type == 'Crew' || type == 'SubContractor') ? 
-                    String.valueOf(ea.get('Contact__c')) : 
-                    String.valueOf(ea.get('Equipment__c'));
+                    String.valueOf(ea.get('wfrecon__Contact__c')) : 
+                    String.valueOf(ea.get('wfrecon__Equipment__c'));
                 
                 if (!existingAssignmentsMap.containsKey(resourceId)) {
                     existingAssignmentsMap.put(resourceId, new Set<Id>());
                 }
-                existingAssignmentsMap.get(resourceId).add((Id)ea.get('Mobilization__c'));
+                existingAssignmentsMap.get(resourceId).add((Id)ea.get('wfrecon__Mobilization__c'));
             }
 
             // Handle overlapMode == SKIP scenario
@@ -833,19 +833,19 @@ public with sharing class MobSchedulerController {
             if (allowOverlap && overlapMode == 'SKIP') {
                 if (type == 'Crew' || type == 'SubContractor') {
                     // Query for Crew/SubContractor overlaps
-                    List<Mobilization_Member__c> allOverlapsForSkip = [
-                        SELECT Mobilization__c, Mobilization__r.Start_Date__c, Contact__c
-                        FROM Mobilization_Member__c
-                        WHERE Contact__c IN :resourceIds
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
+                    List<wfrecon__Mobilization_Member__c> allOverlapsForSkip = [
+                        SELECT wfrecon__Mobilization__c, wfrecon__Mobilization__r.wfrecon__Start_Date__c, wfrecon__Contact__c
+                        FROM wfrecon__Mobilization_Member__c
+                        WHERE wfrecon__Contact__c IN :resourceIds
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) >= :selectedMob.wfrecon__Start_Date__c.dateGmt()
                         WITH USER_MODE
                     ];
 
                     // Process overlaps for Crew/SubContractor
-                    for (Mobilization_Member__c overlap : allOverlapsForSkip) {
-                        String resourceId = overlap.Contact__c;
-                        Date overlapDate = overlap.Mobilization__r.Start_Date__c.dateGmt();
+                    for (wfrecon__Mobilization_Member__c overlap : allOverlapsForSkip) {
+                        String resourceId = overlap.wfrecon__Contact__c;
+                        Date overlapDate = overlap.wfrecon__Mobilization__r.wfrecon__Start_Date__c.dateGmt();
 
                         if (!overlappingMobDatesMap.containsKey(resourceId)) {
                             overlappingMobDatesMap.put(resourceId, new Set<Date>());
@@ -855,19 +855,19 @@ public with sharing class MobSchedulerController {
 
                 } else if (type == 'Asset') {
                     // Query for Asset overlaps
-                    List<Mobilization_Asset__c> allOverlapsForSkip = [
-                        SELECT Mobilization__c, Mobilization__r.Start_Date__c, Equipment__c
-                        FROM Mobilization_Asset__c
-                        WHERE Equipment__c IN :resourceIds
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) IN :siblingMobDates
-                        AND DAY_ONLY(Mobilization__r.Start_Date__c) >= :selectedMob.Start_Date__c.dateGmt()
+                    List<wfrecon__Mobilization_Asset__c> allOverlapsForSkip = [
+                        SELECT wfrecon__Mobilization__c, wfrecon__Mobilization__r.wfrecon__Start_Date__c, wfrecon__Equipment__c
+                        FROM wfrecon__Mobilization_Asset__c
+                        WHERE wfrecon__Equipment__c IN :resourceIds
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) IN :siblingMobDates
+                        AND DAY_ONLY(wfrecon__Mobilization__r.wfrecon__Start_Date__c) >= :selectedMob.wfrecon__Start_Date__c.dateGmt()
                         WITH USER_MODE
                     ];
 
                     // Process overlaps for Assets
-                    for (Mobilization_Asset__c overlap : allOverlapsForSkip) {
-                        String resourceId = overlap.Equipment__c;
-                        Date overlapDate = overlap.Mobilization__r.Start_Date__c.dateGmt();
+                    for (wfrecon__Mobilization_Asset__c overlap : allOverlapsForSkip) {
+                        String resourceId = overlap.wfrecon__Equipment__c;
+                        Date overlapDate = overlap.wfrecon__Mobilization__r.wfrecon__Start_Date__c.dateGmt();
 
                         if (!overlappingMobDatesMap.containsKey(resourceId)) {
                             overlappingMobDatesMap.put(resourceId, new Set<Date>());
@@ -880,7 +880,7 @@ public with sharing class MobSchedulerController {
 
             // Now process assignments
             for (String resourceId : resourceIds) {
-                for (Mobilization__c mob : siblingMobs) {
+                for (wfrecon__Mobilization__c mob : siblingMobs) {
                     Boolean shouldAssign = true;
 
                     if (existingAssignmentsMap.containsKey(resourceId) && 
@@ -890,21 +890,21 @@ public with sharing class MobSchedulerController {
 
                     if (allowOverlap && overlapMode == 'SKIP' && 
                         overlappingMobDatesMap.containsKey(resourceId) && 
-                        overlappingMobDatesMap.get(resourceId).contains(mob.Start_Date__c.dateGmt())) {
+                        overlappingMobDatesMap.get(resourceId).contains(mob.wfrecon__Start_Date__c.dateGmt())) {
                         shouldAssign = false;
                     }
 
                     if (shouldAssign) {
                         if (type == 'Crew' || type == 'SubContractor') {
-                            newAssignments.add(new Mobilization_Member__c(
-                                Mobilization__c = mob.Id,
-                                Contact__c = resourceId,
-                                Crew__c = (type == 'Crew' && resourceMap != null && resourceMap.containsKey(resourceId)) ? (String) resourceMap.get(resourceId) : null
+                            newAssignments.add(new wfrecon__Mobilization_Member__c(
+                                wfrecon__Mobilization__c = mob.Id,
+                                wfrecon__Contact__c = resourceId,
+                                wfrecon__Crew__c = (type == 'Crew' && resourceMap != null && resourceMap.containsKey(resourceId)) ? (String) resourceMap.get(resourceId) : null
                             ));
                         } else if (type == 'Asset') {
-                            newAssignments.add(new Mobilization_Asset__c(
-                                Mobilization__c = mob.Id,
-                                Equipment__c = resourceId
+                            newAssignments.add(new wfrecon__Mobilization_Asset__c(
+                                wfrecon__Mobilization__c = mob.Id,
+                                wfrecon__Equipment__c = resourceId
                             ));
                         }
                     }
@@ -941,9 +941,9 @@ public with sharing class MobSchedulerController {
     @AuraEnabled
     public static string deleteMobilization(String mobId){
         try {
-            Mobilization__c mob = [SELECT Id, (SELECT Id FROM Mobilization_Members__r), (SELECT Id FROM Mobilization_Assets__r) FROM Mobilization__c WHERE Id =:mobId WITH USER_MODE];
-            List<Mobilization_Member__c> mobMembersToDelete = mob.Mobilization_Members__r;
-            List<Mobilization_Asset__c> mobAssetsToDelete = mob.Mobilization_Assets__r;
+            wfrecon__Mobilization__c mob = [SELECT Id, (SELECT Id FROM wfrecon__Mobilization_Members__r), (SELECT Id FROM wfrecon__Mobilization_Assets__r) FROM wfrecon__Mobilization__c WHERE Id =:mobId WITH USER_MODE];
+            List<wfrecon__Mobilization_Member__c> mobMembersToDelete = mob.wfrecon__Mobilization_Members__r;
+            List<wfrecon__Mobilization_Asset__c> mobAssetsToDelete = mob.wfrecon__Mobilization_Assets__r;
             delete as user mobMembersToDelete;
             delete as user mobAssetsToDelete;
             delete as user mob;
