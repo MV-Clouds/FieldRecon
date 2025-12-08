@@ -399,6 +399,10 @@ public with sharing class JobDetailsPageController {
                 String clockInTimeString = (String)paramsMap.get('clockInTime');
                 Datetime clkInUserTz = convertUtc(clockInTimeString);
 
+                // Get geolocation data
+                Decimal clockInLat = paramsMap.get('clockInLatitude') != null ? Decimal.valueOf(String.valueOf(paramsMap.get('clockInLatitude'))) : null;
+                Decimal clockInLong = paramsMap.get('clockInLongitude') != null ? Decimal.valueOf(String.valueOf(paramsMap.get('clockInLongitude'))) : null;
+
                 // If first clockin for moblization group for contact > Create Timesheet and Timesheet Entry
                 if(paramsMap.get('isTimeSheetNull') == true) {
                     wfrecon__Timesheet__c timesheetRec = new wfrecon__Timesheet__c();
@@ -416,6 +420,11 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                     timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+                    // Set Clock In Location
+                    if(clockInLat != null && clockInLong != null) {
+                        timesheetEntryRec.wfrecon__Clock_In_Location__Latitude__s = clockInLat;
+                        timesheetEntryRec.wfrecon__Clock_In_Location__Longitude__s = clockInLong;
+                    }
                     insert as user timesheetEntryRec;
                 } else {
                     List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
@@ -426,6 +435,11 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                     timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+                    // Set Clock In Location
+                    if(clockInLat != null && clockInLong != null) {
+                        timesheetEntryRec.wfrecon__Clock_In_Location__Latitude__s = clockInLat;
+                        timesheetEntryRec.wfrecon__Clock_In_Location__Longitude__s = clockInLong;
+                    }
                     insert as user timesheetEntryRec;
                 }
             }
@@ -439,6 +453,10 @@ public with sharing class JobDetailsPageController {
                 // Convert clockInTime to UTC to user timezone
                 String clockInTimeString = (String)paramsMap.get('clockInTime');
                 Datetime clkInUserTz  = Datetime.valueOfGmt(clockInTimeString.replace('T',' ').replace('Z',''));
+
+                // Get geolocation data
+                Decimal clockOutLat = paramsMap.get('clockOutLatitude') != null ? Decimal.valueOf(String.valueOf(paramsMap.get('clockOutLatitude'))) : null;
+                Decimal clockOutLong = paramsMap.get('clockOutLongitude') != null ? Decimal.valueOf(String.valueOf(paramsMap.get('clockOutLongitude'))) : null;
 
                 // Helper to check date difference
                 Boolean crossesMidnight = (clkInUserTz.date() != clkOutUserTz.date());
@@ -463,6 +481,11 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Mobilization__c = mobId,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
+                                // Set Clock Out Location for Day 1 (midnight)
+                                if(clockOutLat != null && clockOutLong != null) {
+                                    entryDay1.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                    entryDay1.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                                }
                                 insert as user entryDay1;
 
                                 wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
@@ -471,6 +494,11 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Clock_Out_Time__c = entryDay1.wfrecon__Clock_Out_Time__c,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
+                                // Set Clock Out Location for Item Day 1
+                                if(clockOutLat != null && clockOutLong != null) {
+                                    itemDay1.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                    itemDay1.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                                }
                                 insert as user itemDay1;
 
                                 // 2️⃣ Entry for Day 2 (from 12:00 AM)
@@ -481,6 +509,11 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Mobilization__c = mobId,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
+                                // Set Clock Out Location for Day 2
+                                if(clockOutLat != null && clockOutLong != null) {
+                                    entryDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                    entryDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                                }
                                 insert as user entryDay2;
 
                                 wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
@@ -489,6 +522,11 @@ public with sharing class JobDetailsPageController {
                                     wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
+                                // Set Clock Out Location for Item Day 2
+                                if(clockOutLat != null && clockOutLong != null) {
+                                    itemDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                    itemDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                                }
                                 insert as user itemDay2;
 
                             } else {
@@ -498,6 +536,11 @@ public with sharing class JobDetailsPageController {
                                 timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
                                 timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                                 timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+                                // Set Clock Out Location
+                                if(clockOutLat != null && clockOutLong != null) {
+                                    timesheetEntryRec.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                    timesheetEntryRec.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                                }
                                 insert as user timesheetEntryRec;
         
                                 wfrecon__Timesheet_Entry_Item__c timesheetEntryItemRec = new wfrecon__Timesheet_Entry_Item__c();
@@ -506,12 +549,17 @@ public with sharing class JobDetailsPageController {
                                 timesheetEntryItemRec.wfrecon__Clock_Out_Time__c = timesheetEntryRec.wfrecon__Clock_Out_Time__c;
                                 timesheetEntryItemRec.wfrecon__Cost_Code__c = timesheetEntryRec.wfrecon__Cost_Code__c;
                                 timesheetEntryItemRec.wfrecon__Do_Not_Execute__c = true;
+                                // Set Clock Out Location for Item
+                                if(clockOutLat != null && clockOutLong != null) {
+                                    timesheetEntryItemRec.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                    timesheetEntryItemRec.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                                }
                                 insert as user timesheetEntryItemRec;
                             }
                         }
                     }
                 } else {
-                    List<wfrecon__Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__c, wfrecon__Timesheet__c FROM wfrecon__Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
+                    List<wfrecon__Timesheet_Entry__c> timesheetEntryRecs = [SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__c, wfrecon__Timesheet__c, wfrecon__Clock_In_Location__Latitude__s, wfrecon__Clock_In_Location__Longitude__s FROM wfrecon__Timesheet_Entry__c WHERE Id = :(String)paramsMap.get('timesheetEntryId') WITH USER_MODE];
                     if (!timesheetEntryRecs.isEmpty()) {
                         wfrecon__Timesheet_Entry__c existing = timesheetEntryRecs[0];
                         Boolean crossesMidnightExisting = (existing.wfrecon__Clock_In_Time__c.date() != clkOutUserTz.date());
@@ -522,6 +570,11 @@ public with sharing class JobDetailsPageController {
 
                             // Update existing entry to end at 11:59 PM
                             existing.wfrecon__Clock_Out_Time__c = firstDayEnd;
+                            // Set Clock Out Location
+                            if(clockOutLat != null && clockOutLong != null) {
+                                existing.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                existing.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                            }
                             update existing;
 
                             // Create Timesheet Entry Item for day 1
@@ -532,6 +585,16 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
                                 wfrecon__Do_Not_Execute__c = true
                             );
+                            // Copy Clock In Location from Entry
+                            if(existing.wfrecon__Clock_In_Location__Latitude__s != null && existing.wfrecon__Clock_In_Location__Longitude__s != null) {
+                                itemDay1.wfrecon__Clock_In_Location__Latitude__s = existing.wfrecon__Clock_In_Location__Latitude__s;
+                                itemDay1.wfrecon__Clock_In_Location__Longitude__s = existing.wfrecon__Clock_In_Location__Longitude__s;
+                            }
+                            // Set Clock Out Location
+                            if(clockOutLat != null && clockOutLong != null) {
+                                itemDay1.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                itemDay1.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                            }
                             insert as user itemDay1;
 
                             // Create new entry for next day
@@ -543,6 +606,11 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Mobilization__c = mobId,
                                 wfrecon__Do_Not_Execute__c = true
                             );
+                            // Set Clock Out Location for Day 2
+                            if(clockOutLat != null && clockOutLong != null) {
+                                entryDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                entryDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                            }
                             insert as user entryDay2;
 
                             // Create Timesheet Entry Item for day 2
@@ -553,10 +621,20 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Cost_Code__c = entryDay2.wfrecon__Cost_Code__c,
                                 wfrecon__Do_Not_Execute__c = true
                             );
+                            // Set Clock Out Location for Item Day 2
+                            if(clockOutLat != null && clockOutLong != null) {
+                                itemDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                itemDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                            }
                             insert as user itemDay2;
                         } else {
                             // Normal same-day update
                             existing.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                            // Set Clock Out Location
+                            if(clockOutLat != null && clockOutLong != null) {
+                                existing.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                existing.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                            }
                             update existing;
 
                             wfrecon__Timesheet_Entry_Item__c item = new wfrecon__Timesheet_Entry_Item__c(
@@ -566,6 +644,16 @@ public with sharing class JobDetailsPageController {
                                 wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
                                 wfrecon__Do_Not_Execute__c = true
                             );
+                            // Copy Clock In Location from Entry
+                            if(existing.wfrecon__Clock_In_Location__Latitude__s != null && existing.wfrecon__Clock_In_Location__Longitude__s != null) {
+                                item.wfrecon__Clock_In_Location__Latitude__s = existing.wfrecon__Clock_In_Location__Latitude__s;
+                                item.wfrecon__Clock_In_Location__Longitude__s = existing.wfrecon__Clock_In_Location__Longitude__s;
+                            }
+                            // Set Clock Out Location
+                            if(clockOutLat != null && clockOutLong != null) {
+                                item.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
+                                item.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
+                            }
                             insert as user item;
                         }
                     }
