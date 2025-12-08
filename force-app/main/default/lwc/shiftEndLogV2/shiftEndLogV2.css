@@ -167,6 +167,10 @@
 
 .log-card svg {
     min-width: 16px;
+    fill: grey;
+}
+
+.location-accordion-header svg{
     fill: white;
 }
 
@@ -890,7 +894,7 @@
     background-repeat: no-repeat;
     background-size: cover;
     max-height: 55vh;
-    min-height: 55vh;
+    min-height: 40vh;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-theme-color) #f4f6f9;
