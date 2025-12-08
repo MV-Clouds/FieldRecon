@@ -50,18 +50,18 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         return currentDate;
     }
 
-    get isTodayTabActive(){
+    get isTodayTabActive() {
         return this.activeTab === 'today';
     }
-    
-    get isWeekTabActive(){
+
+    get isWeekTabActive() {
         return this.activeTab === 'week';
     }
 
     get todayTabClass() {
         return this.activeTab === 'today' ? 'active' : '';
     }
-    
+
     get weekTabClass() {
         return this.activeTab === 'week' ? 'active' : '';
     }
@@ -216,36 +216,36 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     formatToAMPM(iso) {
         try {
             if (!iso) return '';
-            
+
             // Extract date and time parts from ISO string
             // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
             const parts = iso.split('T');
             if (parts.length < 2) return iso;
-            
+
             const datePart = parts[0]; // "2025-10-05"
             const timePart = parts[1].substring(0, 5); // "14:30"
-            
+
             // Parse date components
             const [year, month, day] = datePart.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const monthName = monthNames[parseInt(month, 10) - 1];
-            
+
             // Extract hours and minutes
             const [hoursStr, minutesStr] = timePart.split(':');
             let hours = parseInt(hoursStr, 10);
             const minutes = minutesStr;
-            
+
             // Determine AM/PM
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            
+
             // Convert to 12-hour format
             hours = hours % 12;
             hours = hours ? hours : 12; // hour '0' should be '12'
-            
+
             // Pad hours with leading zero if needed
             const paddedHours = String(hours).padStart(2, '0');
-            
+
             // Format: "Nov 12, 2025, 03:45 PM"
             return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
@@ -317,14 +317,14 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     connectedCallback() {
         try {
             this.selectedDate = new Date();
-            let isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent); 
-    
-            if(isMobileDevice) {
+            let isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            if (isMobileDevice) {
                 this.isMobileDevice = true;
             } else {
                 this.isMobileDevice = false;
             }
-    
+
             this.getMobilizationMembers();
             this.getTimesheetDetails();
         } catch (error) {
@@ -337,7 +337,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     * @description: Ensures accordion styling is applied once after the component is rendered.
     */
     renderedCallback() {
-        if(!this.accordionStyleApplied){
+        if (!this.accordionStyleApplied) {
             this.applyAccordionStyling();
         }
     }
@@ -364,14 +364,14 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                     font-size: medium;
                 }
             `;
-            
+
             // Append to component's template
             const accordionContainer = this.template.querySelector('.accordion-container');
             if (accordionContainer) {
                 accordionContainer.appendChild(style);
                 this.accordionStyleApplied = true;
             }
-            
+
         } catch (error) {
             console.error('Error applying accordion styling:', error);
         }
@@ -387,21 +387,21 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             getMobilizationMembers({ filterDate: this.apexFormattedDate, mode: this.activeTab })
                 .then((data) => {
                     console.log('getMobilizationMembers fetched successfully:', JSON.stringify(data));
-                    if(data && !data?.ERROR){
+                    if (data && !data?.ERROR) {
                         this.hasError = false;
                         this.errorMessage = '';
                         if (data && Object.keys(data).length !== 0) {
-                            if(this.activeTab == 'today') {
+                            if (this.activeTab == 'today') {
                                 this.todayJobList = data.dayJobs || [];
                                 this.isTodayJobAvailable = this.todayJobList.length > 0;
-                                
+
                                 this.todayJobList = this.todayJobList.map(job => {
                                     console.log('job :: ', job);
                                     const rawStart = job.jobStartTime;
                                     const rawEnd = job.jobEndTime;
                                     const description = job.jobDescription || '--';
                                     const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
-                                    
+
                                     return {
                                         ...job,
                                         jobStartTimeIso: rawStart,
@@ -428,17 +428,17 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                             description: job.jobDescription ? job.jobDescription.replace(/'/g, '&#39;') : '',
                                             icon: 'standard:account'
                                         }],
-                                        isValidLocation: (job.jobStreet != '--' && job.jobCity != '--' && job.jobState != '--' ) ? true : false
+                                        isValidLocation: (job.jobStreet != '--' && job.jobCity != '--' && job.jobState != '--') ? true : false
                                     };
                                 });
-        
+
                                 const costCodeMap = data.costCodeDetails[0].costCodeDetails;
                                 this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
                                     label: costCodeMap[key], // the name
                                     value: key               // the id
                                 }));
-        
-                            } else if(this.activeTab == 'week') {
+
+                            } else if (this.activeTab == 'week') {
                                 let apexData = data.weekJobs || [];
                                 this.groupWeeklyJobData(apexData);
                                 this.isWeekJobAvailable = apexData.length > 0;
@@ -477,7 +477,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 normalizedApexData[key] = apexData[key].map(job => {
                     const description = job.jobDescription || '--';
                     const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
-                    
+
                     return {
                         ...job,
                         jobStartTimeIso: job.jobStartTime,
@@ -515,8 +515,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
 
                 const start = this.normalizeDate(currentDate);
                 let dateKey = start.toLocaleDateString('en-CA');
-                
-                let jobsForDay = normalizedApexData[dateKey] || []; 
+
+                let jobsForDay = normalizedApexData[dateKey] || [];
 
                 weekSections.push({
                     id: `day-${i}`,
@@ -543,10 +543,10 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 .then(result => {
                     console.log('getTimeSheetEntryItems result :: ', result);
 
-                    if(result && !result?.ERROR){  
+                    if (result && !result?.ERROR) {
                         if (result && result.timesheetEntries.length !== 0) {
                             this.timesheetDetailsRaw = result.timesheetEntries;
-                        } 
+                        }
                     } else {
                         this.hasError = true;
                         this.errorMessage = result.ERROR || 'An error occurred while fetching data.';
@@ -601,7 +601,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         const mobId = event.currentTarget.dataset.id;
         const selectedMob = this.todayJobList.find(job => job.mobId === mobId);
         console.log('selectedMob :: ', selectedMob);
-        if(selectedMob) {
+        if (selectedMob) {
             this.selectedContactId = selectedMob.contactId;
             this.selectedMobilizationId = selectedMob.mobId;
             this.clockInTime = selectedMob.jobStartTime?.slice(0, 16);
@@ -619,7 +619,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         this.showClockOutModal = true;
         const mobId = event.currentTarget.dataset.id;
         const selectedMob = this.todayJobList.find(job => job.mobId === mobId);
-        if(selectedMob) {
+        if (selectedMob) {
             this.selectedContactId = selectedMob.contactId;
             this.selectedMobilizationId = selectedMob.mobId;
             this.clockInTime = selectedMob.jobStartTime?.slice(0, 16);
@@ -638,9 +638,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         let field = event.target.dataset.field;
         let value = event.target.value;
 
-        if(field === 'clockOut') {
+        if (field === 'clockOut') {
             this.clockOutTime = value;
-        } else if(field === 'clockIn') {
+        } else if (field === 'clockIn') {
             this.clockInTime = value;
         } else if (field === 'costCode') {
             this.selectedCostCodeId = value;
@@ -680,19 +680,48 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     }
 
     /** 
+    * Method Name: getCurrentLocation 
+    * @description: Gets the current geolocation with permission handling
+    * @return: Promise that resolves with {latitude, longitude} or null
+    */
+    async getCurrentLocation() {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                console.error('Geolocation is not supported by this browser.');
+                resolve(null);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    resolve({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    });
+                },
+                (error) => {
+                    console.error('Error getting location:', error.message);
+                    // Permission denied or other error
+                    resolve(null);
+                }
+            );
+        });
+    }
+
+    /** 
     * Method Name: saveClockIn 
     * @description: Validates input and submits a Clock In request for the selected mobilization, updating the timesheet and UI accordingly.
     */
-    saveClockIn() {
+    async saveClockIn() {
         try {
-            if(!this.selectedCostCodeId || !this.clockInTime) {
+            if (!this.selectedCostCodeId || !this.clockInTime) {
                 this.showToast('Error', 'Select Cost Code and Time!', 'error');
                 console.error('No cost code/time selected');
                 return;
             }
 
             console.log('this.clockInTime :: ', this.clockInTime);
-            
+
 
             if (!this.isValidDateTime(this.clockInTime)) {
                 this.showToast('Error', 'Please select both date and time for clock in.', 'error');
@@ -716,6 +745,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
 
             this.isLoading = true;
 
+            // Get current location
+            const location = await this.getCurrentLocation();
+
             const params = {
                 actionType: 'clockIn',
                 contactId: this.selectedContactId,
@@ -727,15 +759,18 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
                 timesheetEntryId: selectedRecordDetails ? selectedRecordDetails?.timesheetEntryId : null,
-                mobMemberId: selectedRecordDetails.mobMemberId
+                mobMemberId: selectedRecordDetails.mobMemberId,
+                clockInLatitude: location?.latitude || null,
+                clockInLongitude: location?.longitude || null,
+                canAccessLocation: selectedRecordDetails?.canAccessLocation || false
             };
 
             console.log('createTimesheetRecords params :: ', params);
-            
-            createTimesheetRecords({ params: JSON.stringify(params)})
+
+            createTimesheetRecords({ params: JSON.stringify(params) })
                 .then(result => {
                     console.log('createTimesheetRecords apex result :: ', result);
-                    if(result == true) {
+                    if (result == true) {
                         this.getMobilizationMembers();
                         this.getTimesheetDetails();
                         this.closeClockInModal();
@@ -761,9 +796,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     * Method Name: saveClockOut 
     * @description: Validates input and submits a Clock Out request for the selected mobilization, updating the timesheet and UI accordingly.
     */
-    saveClockOut() {
+    async saveClockOut() {
         try {
-            if(!this.clockOutTime) {
+            if (!this.clockOutTime) {
                 this.showToast('Error', 'No time selected', 'error');
                 console.error('No time selected');
                 return;
@@ -783,7 +818,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            if(new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
+            if (new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
                 this.showToast('Error', 'Clock out time must be greater than clock in time', 'error');
                 return;
             }
@@ -794,6 +829,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
             this.isLoading = true;
+
+            // Get current location
+            const location = await this.getCurrentLocation();
 
             const params = {
                 actionType: 'clockOut',
@@ -807,15 +845,18 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
                 timesheetEntryId: selectedRecordDetails ? selectedRecordDetails?.timesheetEntryId : null,
-                mobMemberId: selectedRecordDetails.mobMemberId
+                mobMemberId: selectedRecordDetails.mobMemberId,
+                clockOutLatitude: location?.latitude || null,
+                clockOutLongitude: location?.longitude || null,
+                canAccessLocation: selectedRecordDetails?.canAccessLocation || false
             };
 
             console.log('createTimesheetRecords params :: ', params);
 
-            createTimesheetRecords({ params: JSON.stringify(params)})
+            createTimesheetRecords({ params: JSON.stringify(params) })
                 .then(result => {
                     console.log('createTimesheetRecords apex :: result', result);
-                    if(result == true) {
+                    if (result == true) {
                         this.getMobilizationMembers();
                         this.getTimesheetDetails();
                         this.closeClockOutModal();
@@ -873,7 +914,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' };
             return date.toLocaleDateString(undefined, options); // Monday 6 Oct, 2025
         } catch (error) {
-            console.error('Error in formatDateLabel :: ' , error);
+            console.error('Error in formatDateLabel :: ', error);
         }
     }
 
@@ -932,7 +973,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     handleToggleDescription(event) {
         const mobId = event.currentTarget.dataset.id;
-        
+
         if (this.activeTab === 'today') {
             this.todayJobList = this.todayJobList.map(job => {
                 if (job.mobId === mobId) {
