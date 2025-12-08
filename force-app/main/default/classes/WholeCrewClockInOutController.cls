@@ -587,7 +587,6 @@ public with sharing class WholeCrewClockInOutController {
                 FROM PermissionSetAssignment 
                 WHERE AssigneeId = :userId 
                 AND PermissionSet.Name = 'FR_Admin'
-                WITH USER_MODE
                 LIMIT 1
             ];
             
