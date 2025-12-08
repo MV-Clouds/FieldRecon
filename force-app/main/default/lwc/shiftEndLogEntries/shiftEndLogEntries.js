@@ -1813,12 +1813,12 @@ export default class ShiftEndLogEntries extends LightningElement {
             // Build locationProcessChanges array
             const locationProcessChanges = Array.from(this.modifiedProcesses.entries()).map(([processId, modification]) => {
                 // Find the process to get its name
-                const process = this.allLocationProcesses.find(p => p.processId === processId);
+                const process = this.allLocationProcesses.find(p => p.id === processId);
                 return {
                     id: processId,
                     oldValue: modification.originalValue,
                     newValue: modification.newValue,
-                    name: process ? process.processName : 'Unknown'
+                    name: process ? process.name : 'Unknown'
                 };
             });
 
