@@ -10,6 +10,8 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
     @track originalSelectedValues = [];
     @track hasUnsavedChanges = false;
     @track allUsersMap = new Map(); // Store user ID to Name mapping
+    @track toggleValue = false;
+    @track originalToggleValue = false;
 
     /**
      * Method Name: get isButtonsDisabled
@@ -56,6 +58,10 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
                         }
                     }
 
+                    // Set toggle value from feature flag
+                    this.toggleValue = result.timesheetApprovalFeature === true;
+                    this.originalToggleValue = this.toggleValue;
+
                     // Set selected values
                     this.selectedValues = [...selectedUserIds];
                     this.originalSelectedValues = [...selectedUserIds];
@@ -90,6 +96,15 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
     }
 
     /**
+     * Method Name: handleToggleChange
+     * @description: Handle changes in toggle value
+     */
+    handleToggleChange(event) {
+        this.toggleValue = event.detail.checked;
+        this.checkForChanges();
+    }
+
+    /**
      * Method Name: checkForChanges
      * @description: Check if there are unsaved changes
      */
@@ -98,13 +113,16 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
         const currentSorted = [...this.selectedValues].sort();
         const originalSorted = [...this.originalSelectedValues].sort();
         
-        // Compare arrays
-        this.hasUnsavedChanges = JSON.stringify(currentSorted) !== JSON.stringify(originalSorted);
+        // Compare arrays and toggle value
+        const hasApproverChanges = JSON.stringify(currentSorted) !== JSON.stringify(originalSorted);
+        const hasToggleChanges = this.toggleValue !== this.originalToggleValue;
+        
+        this.hasUnsavedChanges = hasApproverChanges || hasToggleChanges;
     }
 
     /**
      * Method Name: handleSave
-     * @description: Save the selected approvers
+     * @description: Save the selected approvers and toggle value
      */
     handleSave() {
         if (!this.hasUnsavedChanges) {
@@ -126,20 +144,24 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
         const approversJSON = JSON.stringify(approversObj, null, 2);
         this.generatedJSON = approversJSON;
 
-        saveLogEntryApprovers({ approversJSON })
+        saveLogEntryApprovers({ 
+            approversJSON,
+            timesheetApprovalFeature: this.toggleValue
+        })
             .then(result => {
                 if (result.status === 'SUCCESS') {
-                    this.showToast('Success', result.message || 'Approvers updated successfully. The changes will be deployed shortly.', 'success');
+                    this.showToast('Success', result.message || 'Changes saved successfully. The updates will be deployed shortly.', 'success');
                     this.originalSelectedValues = [...this.selectedValues];
+                    this.originalToggleValue = this.toggleValue;
                     this.hasUnsavedChanges = false;
                 } else {
-                    this.showToast('Error', result.message || 'Error saving approvers', 'error');
+                    this.showToast('Error', result.message || 'Error saving changes', 'error');
                 }
                 this.isLoading = false;
             })
             .catch(error => {
-                console.error('Error saving approvers:', error);
-                this.showToast('Error', 'Error saving approvers: ' + (error.body?.message || error.message), 'error');
+                console.error('Error saving changes:', error);
+                this.showToast('Error', 'Error saving changes: ' + (error.body?.message || error.message), 'error');
                 this.isLoading = false;
             });
     }
@@ -150,6 +172,7 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
      */
     handleCancel() {
         this.selectedValues = [...this.originalSelectedValues];
+        this.toggleValue = this.originalToggleValue;
         this.hasUnsavedChanges = false;
     }
 

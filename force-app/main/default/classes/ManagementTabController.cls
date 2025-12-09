@@ -1197,20 +1197,24 @@ public with sharing class ManagementTabController {
             'status' => 'SUCCESS',
             'message' => '',
             'approversJSON' => '',
+            'timesheetApprovalFeature' => false,
             'allActiveUsers' => new List<Map<String, String>>()
         };
 
         try {
             // Query the metadata
             List<Log_Entry_Approver__mdt> approverMetadata = [
-                SELECT Id, Label, Approvers_JSON__c 
+                SELECT Id, Label, Approvers_JSON__c, Timesheet_Entries_Approval_Feature__c
                 FROM Log_Entry_Approver__mdt 
                 WHERE DeveloperName = 'Approvers_JSON' 
                 LIMIT 1
             ];
 
-            if (!approverMetadata.isEmpty() && approverMetadata[0].Approvers_JSON__c != null) {
-                response.put('approversJSON', approverMetadata[0].Approvers_JSON__c);
+            if (!approverMetadata.isEmpty()) {
+                if (approverMetadata[0].Approvers_JSON__c != null) {
+                    response.put('approversJSON', approverMetadata[0].Approvers_JSON__c);
+                }
+                response.put('timesheetApprovalFeature', approverMetadata[0].Timesheet_Entries_Approval_Feature__c == true);
             }
 
             // Get all active users
@@ -1249,7 +1253,7 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static Map<String, Object> saveLogEntryApprovers(String approversJSON) {
+    public static Map<String, Object> saveLogEntryApprovers(String approversJSON, Boolean timesheetApprovalFeature) {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'ERROR',
             'message' => 'Unable to save approvers.'
@@ -1282,6 +1286,12 @@ public with sharing class ManagementTabController {
             approversValue.value = approversJSON;
             mdata.values.add(approversValue);
 
+            // Add the timesheet approval feature checkbox field
+            Metadata.CustomMetadataValue featureValue = new Metadata.CustomMetadataValue();
+            featureValue.field = 'wfrecon__Timesheet_Entries_Approval_Feature__c';
+            featureValue.value = timesheetApprovalFeature != null ? timesheetApprovalFeature : false;
+            mdata.values.add(featureValue);
+
             // Deploy the metadata
             Metadata.DeployContainer container = new Metadata.DeployContainer();
             container.addMetadata(mdata);
@@ -1289,8 +1299,9 @@ public with sharing class ManagementTabController {
             Metadata.Operations.enqueueDeployment(container, null);
 
             response.put('status', 'SUCCESS');
-            response.put('message', 'Approvers saved successfully. The changes will be deployed shortly.');
+            response.put('message', 'Changes saved successfully. The updates will be deployed shortly.');
             response.put('approversJSON', approversJSON);
+            response.put('timesheetApprovalFeature', timesheetApprovalFeature);
             
         } catch (Exception e) {
             response.put('message', 'Error saving approvers: ' + e.getMessage());

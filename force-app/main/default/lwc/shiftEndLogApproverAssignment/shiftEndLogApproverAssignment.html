@@ -12,6 +12,33 @@
             <p class="header-subtitle">Select users who can approve shift end logs</p>
         </div>
 
+        <!-- Toggle Section -->
+        <div class="toggle-section">
+            <div class="toggle-container">
+                <div class="toggle-label-container">
+                    <label class="toggle-label">Enable Timesheet Entries Approval</label>
+                    <div class="info-icon-wrapper">
+                        <lightning-icon 
+                            icon-name="utility:info" 
+                            size="x-small" 
+                            class="info-icon"
+                            title="When enabled, timesheet entries will require approval before being finalized">
+                        </lightning-icon>
+                        <div class="tooltip">When enabled, timesheet entries will require approval before being finalized</div>
+                    </div>
+                </div>
+                <div class="custom-toggle-wrapper">
+                    <input 
+                        type="checkbox" 
+                        id="approval-toggle"
+                        class="custom-toggle-input"
+                        checked={toggleValue}
+                        onchange={handleToggleChange} />
+                    <label for="approval-toggle" class="custom-toggle-slider"></label>
+                </div>
+            </div>
+        </div>
+
         <!-- Dual Listbox Container -->
         <div class="dual-listbox-wrapper">
             <lightning-dual-listbox
