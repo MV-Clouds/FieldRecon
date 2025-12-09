@@ -1,7 +1,10 @@
 import { LightningElement, api } from 'lwc';
 
 // Note: Change namespace "c" to relevant namespace before moving to package
-let NAMESPACE = 'c';
+let NAMESPACE = 'wfrecon';
+// set namespace from url parameter in emergency cases or for development purpose...
+let params = new URLSearchParams(window.location.search);
+if(params.get('fr_ai_namespace') === 'c' || window.location.hash == '#fr_ai_namespace=c') NAMESPACE = 'c';
 
 export default class AiComponentPlaceholder extends LightningElement {
 

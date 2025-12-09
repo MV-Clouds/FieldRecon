@@ -2,6 +2,8 @@ public with sharing class GeminiResponseWrapper {
     
     public List<Candidate> candidates;
     public UsageMetadata usageMetadata;
+    public String modelVersion;
+    public String responseId;
 
     public class Candidate {
         public Content content;
@@ -22,11 +24,12 @@ public with sharing class GeminiResponseWrapper {
         public Integer promptTokenCount;
         public Integer candidatesTokenCount;
         public Integer totalTokenCount;
-        public List<PromptTokenDetail> promptTokensDetails;
+        public List<TokenDetail> promptTokensDetails;
+        public List<TokenDetail> candidatesTokensDetails;
         public Integer thoughtsTokenCount;
     }
 
-    public class PromptTokenDetail {
+    public class TokenDetail {
         public String modality;
         public Integer tokenCount;
     }

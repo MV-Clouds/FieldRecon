@@ -112,3 +112,10 @@
 .hr-line{
     border-block-start: 2px solid var(--primary-color);
 }
+
+.input-section {
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid grey;
+    background: whitesmoke;
+}

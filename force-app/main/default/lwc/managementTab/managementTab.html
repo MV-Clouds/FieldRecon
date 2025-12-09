@@ -64,7 +64,11 @@
                             </template>
 
                             <template if:true={tab.isShiftEndLogApprover}>
-                                <c-shift-end-log-approver-assignment></c-shift-end-log-approver-assignment>
+                                <!-- <c-shift-end-log-approver-assignment></c-shift-end-log-approver-assignment> -->
+                            </template>
+
+                            <template if:true={tab.aiAdminDashboard}>
+                                <c-ai-component-placeholder component-name="aIAdminDashboard"></c-ai-component-placeholder>
                             </template>
                         </div>
                     </template>

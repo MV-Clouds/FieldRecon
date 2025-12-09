@@ -14,6 +14,7 @@ export default class ManagementTab extends LightningElement {
         { label: 'Mobilization Status Color ', value: 'isMobStatusColorConfig' },
         { label: 'Employee', value: 'employee' },
         { label: 'Shift End Log Approver', value: 'shiftEndLogApprover' },
+        { label: 'AI Admin Dashboard', value: 'aiAdminDashboard' },
     ];
 
     connectedCallback() {
@@ -57,7 +58,8 @@ export default class ManagementTab extends LightningElement {
             isProcessLibrary: tab.value === 'processlibrary',
             isEmployee: tab.value === 'employee',
             isMobStatusColorConfig: tab.value === 'isMobStatusColorConfig',
-            isShiftEndLogApprover: tab.value === 'shiftEndLogApprover'
+            isShiftEndLogApprover: tab.value === 'shiftEndLogApprover',
+            aiAdminDashboard: tab.value === 'aiAdminDashboard',
         }));
     }
 
