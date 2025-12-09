@@ -32,12 +32,13 @@ public with sharing class TimeCardManagerController {
                        wfrecon__Mobilization__c, wfrecon__Mobilization__r.wfrecon__Job__c, wfrecon__Mobilization__r.wfrecon__Job__r.Name, 
                        wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization__r.wfrecon__Start_Date__c, 
                        wfrecon__Mobilization__r.wfrecon__End_Date__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c,
-                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Status__c
+                       wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Status__c,
+                       wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.Start_Date__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.End_Date__c 
                 FROM wfrecon__Mobilization_Member__c 
                 WHERE wfrecon__Contact__c != null 
                 AND wfrecon__Contact__r.RecordType.DeveloperName IN ('Employee_WF_Recon','Sub_Contractor_WF_Recon')
-                AND wfrecon__Mobilization__r.wfrecon__Start_Date__c <= :endOfDay
-                AND (wfrecon__Mobilization__r.wfrecon__End_Date__c = null OR wfrecon__Mobilization__r.wfrecon__End_Date__c >= :startOfDay)
+                AND wfrecon__Mobilization__r.wfrecon__Start_Date__c >= :startOfDay
+                AND (wfrecon__Mobilization__r.wfrecon__End_Date__c = null OR wfrecon__Mobilization__r.wfrecon__End_Date__c <= :endOfDay)
                 WITH USER_MODE
             ];
 
@@ -67,23 +68,22 @@ public with sharing class TimeCardManagerController {
                 }
 
                 // Create unique key for contact + job combination to prevent duplicates across different sources
-                String uniqueKey = member.wfrecon__Contact__c + '_' + member.wfrecon__Mobilization__r.wfrecon__Job__c;
+                String uniqueKey = member.wfrecon__Contact__c + '_' + member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c;
                 
                 if (!globalUniqueMobilizationsMap.containsKey(uniqueKey)) {
                     MobilizationGroupWrapper mg = new MobilizationGroupWrapper();
-                    mg.mobilizationId = member.wfrecon__Mobilization__c; // Individual mobilization ID
-                    mg.mobilizationGroupId = null; // Will be set if we have group information
+                    mg.mobilizationGroupId = member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c;
                     mg.jobId = member.wfrecon__Mobilization__r.wfrecon__Job__c;
                     mg.jobName = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c;
                     mg.jobNumber = member.wfrecon__Mobilization__r.wfrecon__Job__r.Name;
                     mg.jobAddress = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c;
                     mg.jobDescription = member.wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c;
-                    mg.startDate = member.wfrecon__Mobilization__r.wfrecon__Start_Date__c != null 
-                        ? member.wfrecon__Mobilization__r.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(member.wfrecon__Mobilization__r.wfrecon__Start_Date__c)/1000)
+                    mg.startDate = member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.Start_Date__c != null 
+                        ? member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.Start_Date__c.addSeconds(userTz.getOffset(member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.Start_Date__c)/1000)
                         : null;
                         
-                    mg.endDate = member.wfrecon__Mobilization__r.wfrecon__End_Date__c != null 
-                        ? member.wfrecon__Mobilization__r.wfrecon__End_Date__c.addSeconds(userTz.getOffset(member.wfrecon__Mobilization__r.wfrecon__End_Date__c)/1000)
+                    mg.endDate = member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.End_Date__c != null 
+                        ? member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.End_Date__c.addSeconds(userTz.getOffset(member.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.End_Date__c)/1000)
                         : null;
                     mg.totalManHours = 0;
                     mg.totalManHoursWithTravel = 0;
@@ -109,27 +109,29 @@ public with sharing class TimeCardManagerController {
                 mobGroupToMobilizationsMap.put(mobGroup.Id, mobGroup.wfrecon__Mobilizations__r);
             }
 
-            List<wfrecon__Timesheet__c> manualTimesheets = [
-                SELECT Id, wfrecon__Contact__c, wfrecon__Mobilization_Group__c,
-                       wfrecon__Mobilization_Group__r.wfrecon__Job__c,
-                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Job_Name__c,
-                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.Name,
-                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Address__c,
-                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Description__c,
-                       wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Status__c
-                FROM wfrecon__Timesheet__c
-                WHERE wfrecon__Contact__c != null
-                AND CreatedDate >= :startOfDay 
-                AND CreatedDate <= :endOfDay
-                AND wfrecon__Mobilization_Group__c != null
+            List<wfrecon__Timesheet_Entry__c> manualTimesheets = [
+                SELECT Id, wfrecon__TimeSheet__r.wfrecon__Contact__c, wfrecon__TimeSheet__c, wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__c,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__c,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Job_Name__c,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.Name,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Address__c,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Description__c,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Status__c,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.Start_Date__c,
+                       wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.End_Date__c
+                FROM wfrecon__Timesheet_Entry__c
+                WHERE wfrecon__TimeSheet__r.wfrecon__Contact__c != null
+                AND wfrecon__Clock_In_Time__c >= :startOfDay 
+                AND wfrecon__Clock_Out_Time__c <= :endOfDay
+                AND wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__c != null
                 WITH USER_MODE
             ];
 
             Set<Id> manualContactIds = new Set<Id>();
-            for (wfrecon__Timesheet__c ts : manualTimesheets) {
-                manualContactIds.add(ts.wfrecon__Contact__c);
-                contactIds.add(ts.wfrecon__Contact__c);
-                jobIds.add(ts.wfrecon__Mobilization_Group__r.wfrecon__Job__c);
+            for (wfrecon__Timesheet_Entry__c tse : manualTimesheets) {
+                manualContactIds.add(tse.wfrecon__TimeSheet__r.wfrecon__Contact__c);
+                contactIds.add(tse.wfrecon__TimeSheet__r.wfrecon__Contact__c);
+                jobIds.add(tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__c);
             }
 
 
@@ -139,9 +141,9 @@ public with sharing class TimeCardManagerController {
                     FROM Contact WHERE Id IN :manualContactIds WITH USER_MODE
                 ]);
 
-                for (wfrecon__Timesheet__c ts : manualTimesheets) {
-                    if (!contactMap.containsKey(ts.wfrecon__Contact__c)) {
-                        Contact c = contactDetails.get(ts.wfrecon__Contact__c);
+                for (wfrecon__Timesheet_Entry__c tse : manualTimesheets) {
+                    if (!contactMap.containsKey(tse.wfrecon__TimeSheet__r.wfrecon__Contact__c)) {
+                        Contact c = contactDetails.get(tse.wfrecon__TimeSheet__r.wfrecon__Contact__c);
                         if (c == null){
                             continue;
                         }
@@ -160,41 +162,28 @@ public with sharing class TimeCardManagerController {
                     }
 
                     // Use the same global unique key for contact + job combination
-                    String globalUniqueKey = ts.wfrecon__Contact__c + '_' + ts.wfrecon__Mobilization_Group__r.wfrecon__Job__c;
+                    String globalUniqueKey = tse.wfrecon__TimeSheet__r.wfrecon__Contact__c + '_' + tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__c;
                     
                     if (!globalUniqueMobilizationsMap.containsKey(globalUniqueKey)) {
                         // Create MobilizationGroupWrapper for the group
                         MobilizationGroupWrapper mg = new MobilizationGroupWrapper();
-                        mg.mobilizationGroupId = ts.wfrecon__Mobilization_Group__c; // Store the group ID
-                        
-                        // Set mobilization ID from related mobilizations if available
-                        if (mobGroupToMobilizationsMap.containsKey(ts.wfrecon__Mobilization_Group__c)) {
-                            List<wfrecon__Mobilization__c> mobilizations = mobGroupToMobilizationsMap.get(ts.wfrecon__Mobilization_Group__c);
-                            if (!mobilizations.isEmpty()) {
-                                mg.mobilizationId = mobilizations[0].Id; // Use first mobilization ID
-                                mg.startDate = mobilizations[0].wfrecon__Start_Date__c != null 
-                                    ? mobilizations[0].wfrecon__Start_Date__c.addSeconds(userTz.getOffset(mobilizations[0].wfrecon__Start_Date__c)/1000)
-                                    : null;
-                                mg.endDate = mobilizations[0].wfrecon__End_Date__c != null 
-                                    ? mobilizations[0].wfrecon__End_Date__c.addSeconds(userTz.getOffset(mobilizations[0].wfrecon__End_Date__c)/1000)
-                                    : null;
-                            } else {
-                                mg.mobilizationId = ts.wfrecon__Mobilization_Group__c; 
-                            }
-                        } else {
-                            mg.mobilizationId = ts.wfrecon__Mobilization_Group__c; 
-                        }
-                        
-                        mg.jobId = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__c;
-                        mg.jobName = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Job_Name__c;
-                        mg.jobNumber = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.Name;
-                        mg.jobAddress = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Address__c;
-                        mg.jobDescription = ts.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Description__c;
+                        mg.mobilizationGroupId = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__c; // Store the group ID
+                        mg.startDate = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.Start_Date__c != null 
+                            ? tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.Start_Date__c.addSeconds(userTz.getOffset(tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.Start_Date__c)/1000)
+                            : null;
+                        mg.endDate = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.End_Date__c != null 
+                            ? tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.End_Date__c.addSeconds(userTz.getOffset(tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.End_Date__c)/1000)
+                            : null;
+                        mg.jobId = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__c;
+                        mg.jobName = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Job_Name__c;
+                        mg.jobNumber = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.Name;
+                        mg.jobAddress = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Address__c;
+                        mg.jobDescription = tse.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__r.wfrecon__Job__r.wfrecon__Description__c;
                         mg.totalManHours = 0;
                         mg.totalManHoursWithTravel = 0;
                         
                         globalUniqueMobilizationsMap.put(globalUniqueKey, mg);
-                        contactMap.get(ts.wfrecon__Contact__c).mobilizationGroups.add(mg);
+                        contactMap.get(tse.wfrecon__TimeSheet__r.wfrecon__Contact__c).mobilizationGroups.add(mg);
                     }
                 }
             }
@@ -207,6 +196,7 @@ public with sharing class TimeCardManagerController {
                 SELECT wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c contactId,
                        wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c timesheetJobId,
                        wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c mobilizationJobId,
+                       wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c mobilizationGroupId,
                        SUM(wfrecon__Total_Time__c) totalHours,
                        SUM(wfrecon__Travel_Time__c) travelTime
                 FROM wfrecon__Timesheet_Entry_Item__c
@@ -216,11 +206,13 @@ public with sharing class TimeCardManagerController {
                 WITH USER_MODE
                 GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c, 
                          wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c,
-                         wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c
+                         wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Job__c,
+                         wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c
             ]) {
                 Id contactId = (Id)ar.get('contactId');
                 Id timesheetJobId = (Id)ar.get('timesheetJobId');
                 Id mobilizationJobId = (Id)ar.get('mobilizationJobId');
+                Id mobilizationGroupId = (Id)ar.get('mobilizationGroupId');
                 Decimal totalHours = (Decimal)ar.get('totalHours');
                 Decimal travelTime = (Decimal)ar.get('travelTime');
                 
@@ -228,7 +220,7 @@ public with sharing class TimeCardManagerController {
                 Id effectiveJobId = mobilizationJobId != null ? mobilizationJobId : timesheetJobId;
                 
                 if (effectiveJobId != null) {
-                    String key = contactId + '_' + effectiveJobId;
+                    String key = contactId + '_' + mobilizationGroupId;
                     Decimal existing = contactJobManHoursMap.containsKey(key) ? contactJobManHoursMap.get(key) : 0;
                     contactJobManHoursMap.put(key, existing + totalHours);
                     
@@ -250,7 +242,7 @@ public with sharing class TimeCardManagerController {
                 System.debug('Processing contact: ' + contact.contactName + ' (' + contact.contactId + ')');
                 
                 for (MobilizationGroupWrapper mob : contact.mobilizationGroups) {
-                    String key = contact.contactId + '_' + mob.jobId;
+                    String key = contact.contactId + '_' + mob.mobilizationGroupId;
                     if (contactJobManHoursMap.containsKey(key)) {
                         mob.totalManHours = contactJobManHoursMap.get(key);
                         System.debug('  Job: ' + mob.jobName + ' (' + mob.jobId + ') - Hours: ' + mob.totalManHours);
@@ -274,6 +266,7 @@ public with sharing class TimeCardManagerController {
                 List<wfrecon__Timesheet_Entry_Item__c> entryItems = [
                     SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__r.Name,
                            wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Total_Time__c, wfrecon__Premium__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__c,
                            wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c,
                            wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c,
                            wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__r.wfrecon__Job_Name__c,
@@ -296,6 +289,7 @@ public with sharing class TimeCardManagerController {
 
                     TimesheetEntryWrapper tw = new TimesheetEntryWrapper();
                     tw.entryId = item.Id;
+                    tw.mobilizationGroupId = item.wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Mobilization_Group__c;
                     tw.clockInTime = item.wfrecon__Clock_In_Time__c != null 
                         ? item.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(item.wfrecon__Clock_In_Time__c)/1000)
                         : null;
@@ -326,13 +320,7 @@ public with sharing class TimeCardManagerController {
             return contactMap.values();
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getAllContactsWithDetails',
-                'isApiException' => false,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching mobilization & manual timesheet data'
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getAllContactsWithDetails','isApiException' => false,'exceptionObj' => e,'moreDetails' => 'Error fetching mobilization & manual timesheet data'});
             return new List<ContactWrapper>();
         }
     }
@@ -351,7 +339,6 @@ public with sharing class TimeCardManagerController {
 
     public class MobilizationGroupWrapper {
         @AuraEnabled public Id mobilizationGroupId { get; set; }
-        @AuraEnabled public Id mobilizationId { get; set; }
         @AuraEnabled public Id jobId { get; set; }
         @AuraEnabled public String jobName { get; set; }
         @AuraEnabled public String jobNumber { get; set; }
@@ -365,6 +352,7 @@ public with sharing class TimeCardManagerController {
 
     public class TimesheetEntryWrapper {
         @AuraEnabled public Id entryId { get; set; }
+        @AuraEnabled public Id mobilizationGroupId { get; set; }
         @AuraEnabled public DateTime clockInTime { get; set; }
         @AuraEnabled public DateTime clockOutTime { get; set; }
         @AuraEnabled public Id jobId { get; set; }

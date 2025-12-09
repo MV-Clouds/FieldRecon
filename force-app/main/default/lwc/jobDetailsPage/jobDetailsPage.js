@@ -1354,6 +1354,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     const selectedContact = this.clockInList.find(
                         item => item.contactId === this.selectedContactId
                     );
+                    console.log('selectedContact for clockIn :: ', selectedContact);
             
                     if (selectedContact) {
                         this.isSelectedContactClockedIn = selectedContact.isAgain;  

@@ -31,8 +31,8 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
         { label: 'Actions', fieldName: 'actions' },
         { label: 'Job Number', fieldName: 'jobNumber', isJobLink: true },
         { label: 'Job Name', fieldName: 'jobName' },
-        { label: 'Start Date Time', fieldName: 'startDate', isDateTime: true },
-        { label: 'End Date Time', fieldName: 'endDate', isDateTime: true },
+        { label: 'Scheduled Start Date', fieldName: 'startDate', isDateTime: true },
+        { label: 'Scheduled End Date', fieldName: 'endDate', isDateTime: true },
         { label: 'Man Hours Per Job', fieldName: 'totalManHours', isNumber: true },
         { label: 'Man Hours + Travel Time', fieldName: 'totalManHoursWithTravel', isNumber: true },
         { label: 'Job Address', fieldName: 'jobAddress' },
@@ -162,6 +162,8 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             customEndDate: endDate 
         })
         .then(result => {
+            console.log('getAllContactsWithDetails result ::', result);
+            
             if (result && Array.isArray(result)) {
                 this.contactDetails = result.map(contact => ({
                     ...contact,
@@ -485,17 +487,16 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
      */
     handleViewTimesheet(event) {
         const contactId = event.currentTarget.dataset.contactId;
-        const mobilizationId = event.currentTarget.dataset.mobilizationId;
+        const mobilizationGroupId = event.currentTarget.dataset.mobilizationgroupId;
         const jobId = event.currentTarget.dataset.jobId;
         
         // Find the contact and mobilization
         const contact = this.contactDetails.find(c => c.contactId === contactId);
         
-        // Try to find mobilization by either mobilizationId, mobilizationGroupId, or by jobId
+        // Try to find mobilization by either mobilizationGroupId, or by jobId
         const mobilization = contact?.mobilizationGroups?.find(m => 
-            (m.mobilizationId === mobilizationId) || 
-            (m.mobilizationGroupId === mobilizationId) ||
-            (m.jobId === jobId && (!mobilizationId || mobilizationId === 'undefined' || mobilizationId === 'null'))
+            (m.mobilizationGroupId === mobilizationGroupId) || 
+            (m.jobId === jobId && (!mobilizationGroupId || mobilizationGroupId === 'undefined' || mobilizationGroupId === 'null'))
         );
         
         if (contact && mobilization) {
@@ -509,7 +510,8 @@ export default class TimeCardManager extends NavigationMixin(LightningElement) {
             const customEndDate = new Date(Date.UTC(eYear, eMonth - 1, eDay, 23, 59, 59, 999));
             
             const filteredEntries = contact.timesheetEntries.filter(entry => {
-                if (entry.jobId !== jobId) {
+                
+                if (entry.mobilizationGroupId !== mobilizationGroupId) {
                     return false;
                 }
                 
