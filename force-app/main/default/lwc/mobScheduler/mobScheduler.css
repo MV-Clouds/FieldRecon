@@ -764,22 +764,19 @@
 
 .clock-status-container {
     position: absolute;
-    bottom: 5px;
-    right: 4px;
+    bottom: 2px;
+    right: 3px;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Optional: Add a small background/border to make the dot pop on colored event cards */
-    background-color: rgba(255, 255, 255, 0.8);
     padding: 3px;
     border-radius: 50%;
-    z-index: 15; /* Higher than event content */
 }
 
 .clock-dot {
     display: block;
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background-color: #ff0000; 
     box-shadow: 0 0 2px rgba(0,0,0,0.2);
