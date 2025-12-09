@@ -18,8 +18,6 @@
     flex-direction: column;
     padding: 24px;
     height: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
 }
 
 /* Header Section */
@@ -32,13 +30,6 @@
     font-size: 24px;
     font-weight: 600;
     color: rgba(94, 90, 219, 1);
-    margin-bottom: 8px;
-}
-
-.header-subtitle {
-    font-size: 14px;
-    color: #666;
-    margin: 0;
 }
 
 /* Toggle Section */
@@ -79,40 +70,49 @@
 
 .info-icon {
     color: rgba(94, 90, 219, 1);
+    transition: color 0.2s ease;
+}
+
+.info-icon-wrapper:hover .info-icon {
+    color: rgba(84, 80, 199, 1);
 }
 
 .tooltip {
     visibility: hidden;
     opacity: 0;
     position: absolute;
-    left: 50%;
-    bottom: calc(100% + 8px);
-    transform: translateX(-50%);
-    background-color: #333;
+    right: -20px;
+    top: calc(100% + 10px);
+    transform: translateY(-10px);
+    background: linear-gradient(135deg, rgba(94, 90, 219, 0.98), rgba(84, 80, 199, 0.98));
     color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 14px 18px;
+    border-radius: 10px;
     font-size: 12px;
-    white-space: nowrap;
-    z-index: 1000;
-    transition: opacity 0.2s ease;
+    line-height: 1.6;
+    white-space: normal;
+    width: 280px;
+    z-index: 9999;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 24px rgba(94, 90, 219, 0.25), 
+                0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.tooltip::after {
+.tooltip::before {
     content: '';
     position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-top-color: #333;
+    bottom: 100%;
+    right: 20px;
+    border: 7px solid transparent;
+    border-bottom-color: rgba(94, 90, 219, 0.98);
 }
 
 .info-icon-wrapper:hover .tooltip {
     visibility: visible;
     opacity: 1;
+    transform: translateY(0);
 }
 
 /* Custom Toggle Switch */
@@ -176,6 +176,24 @@
     margin-bottom: 24px;
     display: flex;
     flex-direction: column;
+}
+
+.dual-listbox-label {
+    margin-bottom: 16px;
+}
+
+.listbox-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 4px 0;
+    display: block;
+}
+
+.listbox-description {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
 }
 
 /* Custom Dual Listbox Styling */
@@ -280,71 +298,15 @@ lightning-dual-listbox {
     border-color: #d8d8d8;
 }
 
-/* Info Message */
-.info-message {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background-color: rgba(94, 90, 219, 0.1);
-    border-left: 4px solid rgba(94, 90, 219, 1);
-    border-radius: 4px;
-    margin-top: 16px;
-}
-
 .info-icon {
     flex-shrink: 0;
 }
 
-.info-text {
-    font-size: 13px;
-    color: #333;
-    line-height: 1.5;
-}
-
-/* JSON Output Section */
-.json-output-section {
-    margin-top: 24px;
-    border: 1px solid rgba(94, 90, 219, 0.3);
-    border-radius: 8px;
-    padding: 16px;
+.dl-wrapper {
+    padding: 20px;
     background-color: #f9f9ff;
-}
-
-.json-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: rgba(94, 90, 219, 1);
-    margin-bottom: 12px;
-}
-
-.json-container {
-    background-color: #282c34;
-    border-radius: 4px;
-    padding: 16px;
-    margin-bottom: 12px;
-    overflow-x: auto;
-}
-
-.json-content {
-    color: #61dafb;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    margin: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-}
-
-/* Copy Button */
-.copy-button {
-    background-color: rgba(94, 90, 219, 1);
-    border-color: rgba(94, 90, 219, 1);
-    color: white;
-    min-width: 120px;
-}
-
-.copy-button:hover:not(:disabled) {
-    background-color: rgba(84, 80, 199, 1);
+    border: 1px solid rgba(94, 90, 219, 0.2);
+    border-radius: 8px;
 }
 
 /* Responsive Design */
@@ -355,10 +317,6 @@ lightning-dual-listbox {
 
     .header-title {
         font-size: 20px;
-    }
-
-    .header-subtitle {
-        font-size: 13px;
     }
 
     .toggle-section {
@@ -389,10 +347,6 @@ lightning-dual-listbox {
         width: 100%;
         min-width: unset;
     }
-
-    .json-content {
-        font-size: 11px;
-    }
 }
 
 @media only screen and (max-width: 480px) {
@@ -402,10 +356,6 @@ lightning-dual-listbox {
 
     .header-title {
         font-size: 18px;
-    }
-
-    .header-subtitle {
-        font-size: 12px;
     }
 
     .toggle-section {
@@ -423,9 +373,5 @@ lightning-dual-listbox {
 
     .json-container {
         padding: 12px;
-    }
-
-    .json-content {
-        font-size: 10px;
     }
 }

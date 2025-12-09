@@ -100,7 +100,7 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
      * @description: Handle changes in toggle value
      */
     handleToggleChange(event) {
-        this.toggleValue = event.detail.checked;
+        this.toggleValue = event.target.checked;
         this.checkForChanges();
     }
 

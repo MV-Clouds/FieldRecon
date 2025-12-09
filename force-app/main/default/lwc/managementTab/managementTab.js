@@ -13,7 +13,7 @@ export default class ManagementTab extends LightningElement {
         { label: 'Process Library', value: 'processlibrary' },
         { label: 'Mobilization Status Color ', value: 'isMobStatusColorConfig' },
         { label: 'Employee', value: 'employee' },
-        { label: 'Shift End Log Approver', value: 'shiftEndLogApprover' },
+        { label: 'Shift End Log Configuration', value: 'shiftEndLogApprover' },
     ];
 
     connectedCallback() {
