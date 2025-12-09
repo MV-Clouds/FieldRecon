@@ -1214,7 +1214,7 @@ public with sharing class ManagementTabController {
                 if (approverMetadata[0].Approvers_JSON__c != null) {
                     response.put('approversJSON', approverMetadata[0].Approvers_JSON__c);
                 }
-                response.put('timesheetApprovalFeature', approverMetadata[0].Timesheet_Entries_Approval_Feature__c == true);
+                response.put('timesheetApprovalFeature', approverMetadata[0].Timesheet_Entries_Approval_Feature__c);
             }
 
             // Get all active users
