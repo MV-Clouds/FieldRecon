@@ -404,7 +404,9 @@ public with sharing class MobSchedulerController {
                 
                 // Collect all contacts involved in these mobilizations
                 for(wfrecon__Mobilization__c mob : mobilizations){
-                    jobIds.add(mob.wfrecon__Job__c);
+                    if(mob.wfrecon__Job__c != null){
+                        jobIds.add(mob.wfrecon__Job__c);
+                    }
                     for(wfrecon__Mobilization_Member__c mem : mob.wfrecon__Mobilization_Members__r){
                         if(mem.wfrecon__Contact__c != null) {
                             contactIds.add(mem.wfrecon__Contact__c);
