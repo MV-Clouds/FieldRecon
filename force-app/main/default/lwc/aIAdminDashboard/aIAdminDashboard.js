@@ -7,6 +7,10 @@ import updateAIPrompts from '@salesforce/apex/AIAdminDashboardController.updateA
 
 export default class AIAdminDashboard extends LightningElement {
 
+    shiftEndLogV2Props = {
+        recordId : 'a0KC300000DBu7UMAT',
+    }
+
 
     @track activeSectionName = ['Gemini_Settings', 'Prompt_Editor'];
     namespace = this.template?.host?.nodeName?.toLowerCase()?.startsWith('wfrecon-') ? 'wfrecon__' : '';

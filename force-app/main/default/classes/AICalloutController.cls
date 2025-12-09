@@ -285,28 +285,20 @@ public with sharing class AICalloutController {
 
             System.debug('Gemini API Response: ' + res.getBody());
 
+            GeminiResponseWrapper response = (GeminiResponseWrapper) JSON.deserialize(res.getBody(), GeminiResponseWrapper.class);
+            System.debug('GeminiResponseWrapper : '+ response);
+
             if (res.getStatusCode() == 200) {
-                Map<String, Object> resMap = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
-                if (resMap.containsKey('candidates')) {
-                    List<Object> candidates = (List<Object>) resMap.get('candidates');
-                    if (!candidates.isEmpty()) {
-                        Map<String, Object> firstCandidate = (Map<String, Object>) candidates[0];
-                        if (firstCandidate.containsKey('content')) {
-                            Map<String, Object> content = (Map<String, Object>) firstCandidate.get('content');
-                            if (content.containsKey('parts')) {
-                                List<Object> parts = (List<Object>) content.get('parts');
-                                if (!parts.isEmpty()) {
-                                    Map<String, Object> firstPart = (Map<String, Object>) parts[0];
-                                    result.put('ai_Response__c', (String) firstPart.get('text'));
-                                    return result;
-                                }
-                            }
-                        }
-                    }
+                if(response?.candidates?.size() > 0 && response.candidates[0]?.content?.parts?.size() > 0) {
+                    String responseText = response.candidates[0].content.parts[0]?.text;
+                    result.put('ai_Response__c', responseText);
+                }
+                else{
+                    result.put('ai_Response_Error__c', 'Error: No Response Found');
                 }
             } else {
                 System.debug('Gemini API Error - Status: ' + res.getStatusCode() + ', Body: ' + res.getBody());
-                result.put('ai_Response_Error__c', 'Error : Response Error. ');
+                result.put('ai_Response_Error__c', 'Error: Response Error. ');
             }
         } catch (Exception e) {
             System.debug('Error in callGeminiAPI: ' + e.getMessage() + ' at line ' + e.getLineNumber());

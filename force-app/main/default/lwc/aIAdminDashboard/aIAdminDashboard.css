@@ -90,11 +90,19 @@
 
 .info-class{
     width: 100%;
-    border: 1px solid var(--primary-color);
     border-radius: 8px;
-    padding: 0.5rem 1rem;
+    padding: 1rem;
     color: var(--primary-color);
-    background: var(--primary-color-fade-1);
+    background: linear-gradient(to right, #D9D8FF66, #BFD6FF66);
+
+    h2{
+        font-weight: 600;
+    }
+
+    p{
+        font-weight: 500;
+        color: #6d6e70;
+    }
 }
 
 .btn-section{

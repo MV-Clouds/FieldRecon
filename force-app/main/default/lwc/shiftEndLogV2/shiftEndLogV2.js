@@ -17,7 +17,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track showEditModal = false;
     @track editLogId = null;
     @track showEntryPopup = false;
-    @track expandedCardId = null; // Track which card is expanded
     
     // Edit Modal Multi-Step Properties
     @track editCurrentStep = 'step1';
@@ -27,8 +26,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track editOriginalCompletionPercentages = new Map(); // Store original percentages separately
     @track editLocationOptions = [];
     @track editSelectedLocationId = '';
-    @track editActiveAccordionSections = []; // Track active accordion sections for edit modal
-    @track editGroupedLocationProcesses = []; // Grouped processes by location for edit modal
 
     // Confirmation Modal Properties
     @track showConfirmationModal = false;
@@ -188,81 +185,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.isLoading = true;
         this.loadShiftEndLogsWithCrewInfo();
     }
-    
-    renderedCallback() {
-        // Open first accordion in view mode by default for each expanded card
-        if (this.expandedCardId) {
-            const firstAccordionContent = this.template.querySelector(
-                `.location-accordion-content[data-log-id="${this.expandedCardId}"]`
-            );
-            const firstAccordionHeader = this.template.querySelector(
-                `.location-accordion-header[data-log-id="${this.expandedCardId}"]`
-            );
-            
-            if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
-                firstAccordionContent.classList.add('open');
-                if (firstAccordionHeader) {
-                    firstAccordionHeader.classList.add('active');
-                }
-            }
-        }
-        
-        // Open first accordion in edit mode by default for Step 2
-        if (this.showEditModal && this.editCurrentStep === 'step2') {
-            const firstEditContent = this.template.querySelector('.edit-location-accordion-content');
-            const firstEditHeader = this.template.querySelector('.edit-location-accordion-header');
-            
-            if (firstEditContent && !firstEditContent.classList.contains('open')) {
-                firstEditContent.classList.add('open');
-                if (firstEditHeader) {
-                    firstEditHeader.classList.add('active');
-                }
-            }
-            // Always update sliders when on step 2 (regardless of accordion state)
-            setTimeout(() => this.updateEditSliderVisuals(), 100);
-        }
-    }
-
-    // Helper to group location processes for accordion view
-    groupLocationProcessesForView(locationProcesses, locationProcessChanges, isApprovedStatus) {
-        const locationMap = new Map();
-        
-        locationProcesses.forEach(proc => {
-            let approvalDataForProcess = null;
-            let isPendingApproval = false;
-            
-            // Parse approval data - locationProcessChanges is now an array from the new structure
-            // Only show as pending if status is 'Pending' (not approved/auto-approved)
-            if (locationProcessChanges && locationProcessChanges.length > 0 && !isApprovedStatus) {
-                approvalDataForProcess = locationProcessChanges.find(item => item.id === proc.processId);
-                isPendingApproval = !!approvalDataForProcess;
-            }
-            
-            const approvalOldValue = approvalDataForProcess?.oldValue || 0;
-            const approvalNewValue = approvalDataForProcess?.newValue || 0;
-            const yesterdayPercent = proc.yesterdayPercentage || 0;
-            
-            const processWithApproval = {
-                ...proc,
-                isPendingApproval: isPendingApproval,
-                approvalOldValue: approvalOldValue,
-                approvalNewValue: approvalNewValue,
-                displayYesterdayPercentage: yesterdayPercent,
-                displayApprovalPercentage: isPendingApproval ? (approvalNewValue - yesterdayPercent) : 0
-            };
-            
-            if (!locationMap.has(proc.locationName)) {
-                locationMap.set(proc.locationName, {
-                    locationName: proc.locationName,
-                    sectionName: proc.locationName.replace(/\s+/g, '_'),
-                    processes: []
-                });
-            }
-            locationMap.get(proc.locationName).processes.push(processWithApproval);
-        });
-        
-        return Array.from(locationMap.values());
-    }
 
     // Helper to update progress bars after DOM is ready
     updateProgressBars() {
@@ -349,29 +271,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         };
                     });
                     
-                    // Parse approval data if present - now using new structure
+                    // Parse approval data if present
                     let approvalData = null;
-                    let locationProcessChanges = [];
                     let hasPendingApproval = false;
                     if (log.wfrecon__Approval_Data__c) {
                         try {
-                            const parsedData = JSON.parse(log.wfrecon__Approval_Data__c);
-                            
-                            // Check if it's the new structure or old structure
-                            if (parsedData.locationProcessChanges) {
-                                // New structure
-                                approvalData = parsedData;
-                                locationProcessChanges = parsedData.locationProcessChanges || [];
-                                hasPendingApproval = locationProcessChanges.length > 0 || Object.keys(parsedData.timesheetEntryChanges || {}).length > 0;
-                            } else if (Array.isArray(parsedData)) {
-                                // Old structure - convert to new structure for backwards compatibility
-                                locationProcessChanges = parsedData;
-                                approvalData = {
-                                    locationProcessChanges: parsedData,
-                                    timesheetEntryChanges: {}
-                                };
-                                hasPendingApproval = parsedData.length > 0;
-                            }
+                            approvalData = JSON.parse(log.wfrecon__Approval_Data__c);
+                            hasPendingApproval = approvalData && Object.keys(approvalData).length > 0;
                         } catch (e) {
                             console.error('Error parsing approval data:', e);
                         }
@@ -396,7 +302,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         formattedDate: this.formatDate(log.wfrecon__Work_Performed_Date__c),
                         hasExceptions: log.wfrecon__Exceptions__c && log.wfrecon__Exceptions__c.trim() !== '',
                         createdByName: log.CreatedBy?.Name || 'Unknown User',
-                        status: status || 'Pending',
                         statusVariant: this.getStatusVariant(log.wfrecon__Log_Type__c),
                         // Approval-related properties
                         approvalData: approvalData,
@@ -435,10 +340,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                             let approvalDataForProcess = null;
                             let isPendingApproval = false;
                             
-                            // Parse approval data - now using locationProcessChanges array from new structure
+                            // Parse approval data - it's stored as JSON array [{ id, oldValue, newValue }]
                             // Only show as pending if status is 'Pending' (not approved/auto-approved)
-                            if (locationProcessChanges && locationProcessChanges.length > 0 && !isApprovedStatus) {
-                                approvalDataForProcess = locationProcessChanges.find(item => item.id === proc.processId);
+                            if (approvalData && Array.isArray(approvalData) && !isApprovedStatus) {
+                                approvalDataForProcess = approvalData.find(item => item.id === proc.processId);
                                 isPendingApproval = !!approvalDataForProcess;
                             }
                             
@@ -456,9 +361,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                                 displayApprovalPercentage: isPendingApproval ? (approvalNewValue - yesterdayPercent) : 0
                             };
                         }),
-                        hasLocationProcesses: locationProcesses.length > 0,
-                        // Group location processes by location name for accordion view
-                        groupedLocationProcesses: this.groupLocationProcessesForView(locationProcesses, locationProcessChanges, isApprovedStatus)
+                        hasLocationProcesses: locationProcesses.length > 0
                     };
                 });
                 
@@ -488,21 +391,12 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     filterLogs() {
         let logs = [...this.shiftEndLogs];
 
-        // Apply search filter (Person name and Work Performed Date in YYYY-MM-DD format)
+        // Apply search filter (Name and Person only)
         if (this.searchTerm) {
-            logs = logs.filter(log => {
-                // Search by person name
-                const matchesPerson = log.createdByName && log.createdByName.toLowerCase().includes(this.searchTerm);
-                
-                // Search by work performed date in YYYY-MM-DD format
-                let matchesDate = false;
-                if (log.wfrecon__Work_Performed_Date__c) {
-                    const workPerformedDate = new Date(log.wfrecon__Work_Performed_Date__c).toISOString().split('T')[0];
-                    matchesDate = workPerformedDate.includes(this.searchTerm);
-                }
-                
-                return matchesPerson || matchesDate;
-            });
+            logs = logs.filter(log => 
+                (log.Name && log.Name.toLowerCase().includes(this.searchTerm)) ||
+                (log.createdByName && log.createdByName.toLowerCase().includes(this.searchTerm))
+            );
         }
 
         // Apply date filter
@@ -516,7 +410,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         this.filteredLogs = logs;
         this.currentPage = 1; // Reset to first page when filtering
-        this.expandedCardId = null; // Reset expanded card when filtering
         this.updateDisplayedLogs();
     }
 
@@ -524,14 +417,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     updateDisplayedLogs() {
         const startIndex = (this.currentPage - 1) * this.pageSize;
         const endIndex = startIndex + this.pageSize;
-        this.displayedLogs = this.filteredLogs.slice(startIndex, endIndex).map(log => {
-            const isExpanded = log.Id === this.expandedCardId;
-            return {
-                ...log,
-                isExpanded: isExpanded,
-                cardClass: isExpanded ? 'log-card expanded' : 'log-card'
-            };
-        });
+        this.displayedLogs = this.filteredLogs.slice(startIndex, endIndex);
         this.updateProgressBars(); // Update progress bars after changing displayed logs
     }
 
@@ -539,7 +425,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handlePrevious() {
         if (this.currentPage > 1) {
             this.currentPage--;
-            this.expandedCardId = null; // Reset expanded card on page change
             this.updateDisplayedLogs();
         }
     }
@@ -547,7 +432,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleNext() {
         if (this.currentPage < this.totalPages) {
             this.currentPage++;
-            this.expandedCardId = null; // Reset expanded card on page change
             this.updateDisplayedLogs();
         }
     }
@@ -555,7 +439,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handlePageChange(event) {
         const pageNumber = parseInt(event.currentTarget.dataset.page, 10);
         this.currentPage = pageNumber;
-        this.expandedCardId = null; // Reset expanded card on page change
         this.updateDisplayedLogs();
     }
 
@@ -570,57 +453,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Check if a record was created and refresh data
         if (event && event.detail && event.detail.isRecordCreated) {
             this.loadShiftEndLogsWithCrewInfo();
-        }
-    }
-
-    // Handle View More / View Less toggle
-    handleToggleCard(event) {
-        const logId = event.currentTarget.dataset.id;
-        
-        // If clicking on already expanded card, collapse it
-        if (this.expandedCardId === logId) {
-            this.expandedCardId = null;
-        } else {
-            // Expand the clicked card and collapse any other
-            this.expandedCardId = logId;
-        }
-        
-        // Update displayed logs to reflect the change
-        this.updateDisplayedLogs();
-    }
-    
-    // Handle accordion toggle in view mode
-    handleViewAccordionToggle(event) {
-        event.stopPropagation();
-        const sectionName = event.currentTarget.dataset.section;
-        const logId = event.currentTarget.dataset.logId;
-        const headerElement = event.currentTarget;
-        const contentElement = this.template.querySelector(
-            `.location-accordion-content[data-section="${sectionName}"][data-log-id="${logId}"]`
-        );
-        
-        if (contentElement) {
-            const isOpen = contentElement.classList.contains('open');
-            
-            // Close all accordions for this log first
-            const allContents = this.template.querySelectorAll(
-                `.location-accordion-content[data-log-id="${logId}"]`
-            );
-            const allHeaders = this.template.querySelectorAll(
-                `.location-accordion-header[data-log-id="${logId}"]`
-            );
-            
-            allContents.forEach(content => content.classList.remove('open'));
-            allHeaders.forEach(header => header.classList.remove('active'));
-            
-            // If it wasn't open, open it
-            if (!isOpen) {
-                contentElement.classList.add('open');
-                headerElement.classList.add('active');
-            }
-            
-            // Update progress bars after DOM settles
-            setTimeout(() => this.updateProgressBars(), 50);
         }
     }
 
@@ -660,9 +492,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Reset to step 1
         this.editCurrentStep = 'step1';
         this.showEditModal = true;
-        
-        // Update slider visuals after modal renders (increased timeout for modal animation)
-        setTimeout(() => this.updateEditSliderVisuals(), 300);
     }
 
     // Handle close modal
@@ -745,8 +574,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
             
             this.editCurrentStep = 'step2';
-            // Update slider visuals after DOM renders (increased timeout for render)
-            setTimeout(() => this.updateEditSliderVisuals(), 300);
+            // Update slider visuals after DOM renders
+            setTimeout(() => this.updateEditSliderVisuals(), 100);
         } else if (this.editCurrentStep === 'step2') {
             this.editCurrentStep = 'step3';
         }
@@ -769,20 +598,11 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // Clear the original percentages map at the start
             this.editOriginalCompletionPercentages.clear();
             
-            // Check if there's approval data - handle both new and old structure
+            // Check if there's approval data - parse the JSON array format
             let approvalDataArray = [];
             if (logToEdit.wfrecon__Approval_Data__c) {
                 try {
-                    const parsedData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
-                    
-                    // Check if it's the new structure or old structure
-                    if (parsedData.locationProcessChanges) {
-                        // New structure
-                        approvalDataArray = parsedData.locationProcessChanges;
-                    } else if (Array.isArray(parsedData)) {
-                        // Old structure
-                        approvalDataArray = parsedData;
-                    }
+                    approvalDataArray = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
                 } catch (e) {
                     console.error('Error parsing approval data in edit modal:', e);
                 }
@@ -865,69 +685,12 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
         });
         this.editLocationOptions = Array.from(locationMap.values());
-        
-        // Group processes by location for accordion view
-        this.groupEditLocationProcesses();
     }
 
     setEditDefaultLocation() {
         if (this.editLocationOptions.length > 0) {
             this.editSelectedLocationId = this.editLocationOptions[0].value;
-            // Set first accordion as active by default
-            if (this.editGroupedLocationProcesses.length > 0) {
-                this.editActiveAccordionSections = [this.editGroupedLocationProcesses[0].sectionName];
-            }
-        }
-    }
-    
-    groupEditLocationProcesses() {
-        const locationMap = new Map();
-        
-        this.editAllLocationProcesses.forEach(proc => {
-            if (!locationMap.has(proc.locationName)) {
-                locationMap.set(proc.locationName, {
-                    locationName: proc.locationName,
-                    sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name
-                    processes: []
-                });
-            }
-            locationMap.get(proc.locationName).processes.push(proc);
-        });
-        
-        this.editGroupedLocationProcesses = Array.from(locationMap.values());
-        
-        // Set first accordion as active by default
-        if (this.editGroupedLocationProcesses.length > 0) {
-            this.editActiveAccordionSections = [this.editGroupedLocationProcesses[0].sectionName];
-        }
-    }
-    
-    handleEditViewAccordionToggle(event) {
-        event.stopPropagation();
-        const sectionName = event.currentTarget.dataset.section;
-        const headerElement = event.currentTarget;
-        const contentElement = this.template.querySelector(
-            `.edit-location-accordion-content[data-section="${sectionName}"]`
-        );
-        
-        if (contentElement) {
-            const isOpen = contentElement.classList.contains('open');
-            
-            // Close all accordions first (only one open at a time)
-            const allContents = this.template.querySelectorAll('.edit-location-accordion-content');
-            const allHeaders = this.template.querySelectorAll('.edit-location-accordion-header');
-            
-            allContents.forEach(content => content.classList.remove('open'));
-            allHeaders.forEach(header => header.classList.remove('active'));
-            
-            // If it wasn't open, open it
-            if (!isOpen) {
-                contentElement.classList.add('open');
-                headerElement.classList.add('active');
-            }
-            
-            // Update slider visuals after DOM settles
-            setTimeout(() => this.updateEditSliderVisuals(), 100);
+            this.filterEditProcessesByLocation();
         }
     }
 
@@ -972,8 +735,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     // Update slider visuals manually in DOM
     updateEditSliderVisuals() {
-        // Iterate over ALL processes in editAllLocationProcesses (not just filtered ones)
-        this.editAllLocationProcesses.forEach(processData => {
+        this.editLocationProcesses.forEach(processData => {
             const sliderElement = this.template.querySelector(`input[data-process-id="${processData.processId}"]`);
             if (sliderElement) {
                 // Set the slider value to reflect current completion percentage
@@ -991,27 +753,25 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         if (completed && today && approval && remaining) {
                             const yesterday = processData.yesterdayPercentage || 0;
                             const current = processData.completionPercentage || 0;
+                            const approvalValue = processData.approvalNewValue || 0;
+                            const isInApproval = processData.isPendingApproval;
                             
                             // Always hide approval section (no orange)
                             approval.style.width = '0%';
                             approval.style.display = 'none';
                             
-                            // Green = yesterday/base completed (previous completed)
+                            // Green = yesterday/base completed
                             completed.style.width = `${yesterday}%`;
-                            completed.style.display = yesterday > 0 ? 'block' : 'none';
-                            completed.style.background = '#28a745'; // Green
                             
                             // Purple = today's changes (from yesterday to current)
+                            // If in approval: shows approval changes + any modifications after
                             const todayChange = Math.max(0, current - yesterday);
                             today.style.width = `${todayChange}%`;
                             today.style.display = todayChange > 0 ? 'block' : 'none';
-                            today.style.background = 'rgba(94, 90, 219, 1)'; // Purple
+                            today.style.background = 'linear-gradient(90deg, rgba(94, 90, 219, 0.9) 0%, rgba(94, 90, 219, 1) 100%)';
                             
                             // Gray = remaining
-                            const remainingPercent = Math.max(0, 100 - current);
-                            remaining.style.width = `${remainingPercent}%`;
-                            remaining.style.display = remainingPercent > 0 ? 'block' : 'none';
-                            remaining.style.background = '#e0e0e0'; // Gray
+                            remaining.style.width = `${Math.max(0, 100 - current)}%`;
                         }
                     }
                 }
@@ -1038,8 +798,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         const newValue = parseInt(event.target.value, 10);
         const sliderElement = event.target;
         
-        // Find process data from ALL processes (not just filtered)
-        const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
+        // Find process data
+        const processData = this.editLocationProcesses.find(p => p.processId === processId);
         if (!processData) return;
 
         // Update visual progress in real-time
@@ -1047,7 +807,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         if (sliderContainer) {
             const sliderTrack = sliderContainer.querySelector('.slider-track');
             if (sliderTrack) {
-                const proc = this.editAllLocationProcesses.find(p => p.processId === processId);
+                const proc = this.editLocationProcesses.find(p => p.processId === processId);
                 if (proc) {
                     const yesterday = proc.yesterdayPercentage || 0;
                     const approvalValue = proc.approvalNewValue || 0;
@@ -1065,20 +825,15 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         
                         // Green = yesterday/base completed
                         completed.style.width = `${yesterday}%`;
-                        completed.style.display = yesterday > 0 ? 'block' : 'none';
-                        completed.style.background = '#28a745';
                         
                         // Purple = today's changes (from yesterday to current)
                         const todayProgress = Math.max(0, newValue - yesterday);
                         today.style.width = `${todayProgress}%`;
                         today.style.display = todayProgress > 0 ? 'block' : 'none';
-                        today.style.background = 'rgba(94, 90, 219, 1)';
+                        today.style.background = 'linear-gradient(90deg, rgba(94, 90, 219, 0.9) 0%, rgba(94, 90, 219, 1) 100%)';
                         
                         // Gray = remaining
-                        const remainingProgress = Math.max(0, 100 - newValue);
-                        remaining.style.width = `${remainingProgress}%`;
-                        remaining.style.display = remainingProgress > 0 ? 'block' : 'none';
-                        remaining.style.background = '#e0e0e0';
+                        remaining.style.width = `${Math.max(0, 100 - newValue)}%`;
                     }
 
                     // Update labels
@@ -1291,58 +1046,39 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         // Get existing approval data from the current log entry
         const currentLog = this.shiftEndLogs.find(log => log.Id === this.editLogId);
-        let existingApprovalData = {
-            locationProcessChanges: [],
-            timesheetEntryChanges: {}
-        };
+        let existingApprovalData = [];
         
         if (currentLog && currentLog.wfrecon__Approval_Data__c) {
             try {
-                const parsedData = JSON.parse(currentLog.wfrecon__Approval_Data__c);
-                
-                // Check if it's the new structure or old structure
-                if (parsedData.locationProcessChanges) {
-                    // New structure
-                    existingApprovalData = parsedData;
-                } else if (Array.isArray(parsedData)) {
-                    // Old structure - convert to new structure
-                    existingApprovalData = {
-                        locationProcessChanges: parsedData,
-                        timesheetEntryChanges: {}
-                    };
+                existingApprovalData = JSON.parse(currentLog.wfrecon__Approval_Data__c);
+                if (!Array.isArray(existingApprovalData)) {
+                    existingApprovalData = [];
                 }
             } catch (e) {
                 console.error('Error parsing existing approval data:', e);
-                existingApprovalData = {
-                    locationProcessChanges: [],
-                    timesheetEntryChanges: {}
-                };
+                existingApprovalData = [];
             }
         }
 
-        // Create a map starting with existing location process changes
+        // Create a map starting with existing approval data
         const approvalDataMap = new Map();
-        existingApprovalData.locationProcessChanges.forEach(item => {
+        existingApprovalData.forEach(item => {
             approvalDataMap.set(item.id, item);
         });
 
         // Add or update with new modifications
         Array.from(this.editModifiedProcesses.entries()).forEach(([processId, modification]) => {
-            // Find the process to get its name
-            const process = this.editAllLocationProcesses.find(p => p.processId === processId);
-            
             approvalDataMap.set(processId, {
                 id: processId,
                 oldValue: modification.originalValue,
-                newValue: modification.newValue,
-                name: process ? process.processName : 'Unknown'
+                newValue: modification.newValue
             });
         });
 
         // Only remove processes that were in the current edit session and were reset back
         // Don't touch processes that were already in approval but not modified in this session
         this.editAllLocationProcesses.forEach(proc => {
-            const wasInExistingApproval = existingApprovalData.locationProcessChanges.some(item => item.id === proc.processId);
+            const wasInExistingApproval = existingApprovalData.some(item => item.id === proc.processId);
             const wasModifiedNow = this.editModifiedProcesses.has(proc.processId);
             
             // Only remove if it was modified in THIS session and then reset back
@@ -1360,11 +1096,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // If IN existing approval and NOT modified now, keep it (already in map)
         });
 
-        // Build the merged approval data structure
-        const mergedApprovalData = {
-            locationProcessChanges: Array.from(approvalDataMap.values()),
-            timesheetEntryChanges: existingApprovalData.timesheetEntryChanges || {}
-        };
+        // Convert map back to array
+        const mergedApprovalData = Array.from(approvalDataMap.values());
 
         const formData = {
             Id: this.editLogId,
@@ -1375,8 +1108,8 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             wfrecon__Notes_to_Office__c: this.editFormData.notesToOffice,
         };
 
-        // Only set approval data if there are any updates (location process changes or timesheet changes)
-        if(mergedApprovalData.locationProcessChanges.length > 0 || Object.keys(mergedApprovalData.timesheetEntryChanges).length > 0) {
+        // Only set approval data if there are any updates (existing or new)
+        if(mergedApprovalData.length > 0) {
             formData.wfrecon__Approval_Data__c = JSON.stringify(mergedApprovalData);
         }
 
@@ -1454,7 +1187,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     get isEditStep3() { return this.editCurrentStep === 'step3'; }
 
     get hasEditLocationOptions() {
-        return this.editGroupedLocationProcesses && this.editGroupedLocationProcesses.length > 0;
+        return this.editLocationOptions && this.editLocationOptions.length > 0;
     }
 
     get hasEditLocationProcesses() {

@@ -1971,3 +1971,8 @@
         padding: 0.75rem;
     }
 }
+
+.prompt-dropdown{
+    min-width: min(100%, 200px);
+    width: min(100%, 200px);
+}

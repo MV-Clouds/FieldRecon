@@ -30,6 +30,8 @@ export default class PromptEditor extends LightningElement {
     @track confirmation = {};
     isLoading = false;
 
+    COMPONENT_CONSTRUCTOR;
+
     connectedCallback(){
         this.namespace = this.template?.host?.nodeName?.toLowerCase()?.startsWith('wfrecon-') ? 'wfrecon__' : '';
         this.overrideSLDS();

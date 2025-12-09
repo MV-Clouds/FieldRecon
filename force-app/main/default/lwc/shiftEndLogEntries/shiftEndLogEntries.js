@@ -10,6 +10,7 @@ import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesControll
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
 import fetchShiftLogInfo from '@salesforce/apex/CollectWorkLogsController.collectShiftLogInfo';
+import getShiftEndLogPrompts from '@salesforce/apex/GenerateJobSummaryController.getShiftEndLogPrompts';
 import { subscribe, unsubscribe, onError, setDebugFlag, isEmpEnabled } from 'lightning/empApi';
 
 export default class ShiftEndLogEntries extends LightningElement {
@@ -170,6 +171,9 @@ export default class ShiftEndLogEntries extends LightningElement {
     connectedCallback() {
         this.loadMobilizationList();
         this.loadLocationProcesses();
+        this.namespace = this.template?.host?.nodeName?.toLowerCase()?.startsWith('wfrecon-') ? 'wfrecon__' : '';
+        this.fetchPrompts();
+        this.overrideSLDS();
     }
 
     renderedCallback() {
@@ -1810,7 +1814,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         let params = {
             jobId: this.jobId,
             crewLeaderId: this.crewLeaderId,
-            mobilizationId: this.selectedMobilizationId
+            mobilizationId: this.selectedMobilizationId,
+            promptId: this.selectedPrompt
         }
 
         fetchShiftLogInfo({paramString : JSON.stringify(params)})
@@ -1883,4 +1888,52 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.isLoading = false;
         })
     }
+
+    // new variable for prompts selections
+    @track prompts = [];
+    selectedPrompt = '';
+    
+    fetchPrompts(){
+        getShiftEndLogPrompts()
+        .then(result => {
+            if(result.success){
+                this.prompts = result.prompts?.map(ele => {
+                    return {
+                        value : ele.Id, label: ele[this.namespace+'Prompt_Name__c'], description: ele[this.namespace+'Prompt_Body__c']
+                    }
+                }) ?? [];
+            }
+            console.log('Prompts => ',this.prompts);
+        })
+        .catch(error => {
+            console.log('Error fetching prompts:', error?.body?.message ?? error?.message);
+        })
+    }
+
+    handleChange(event) {
+        let eventName = event.target.name;
+        let eventValue = event.target.value;
+        this[eventName] = eventValue;
+    }
+
+    overrideSLDS(){
+        let style = document.createElement('style');
+        style.innerHTML =  `
+            .sele-override-slds{
+                .prompt-dropdown .slds-combobox__form-element{
+                    --slds-s-icon-color-foreground: var(--primary-theme-color)
+                }
+                .prompt-dropdown .slds-combobox__input{
+                    height: 41px;
+                    align-items: center;
+                    color: var(--primary-theme-color);
+                    border-color: var(--primary-theme-color);
+                }
+            }
+        `;
+        this.template.host.classList.add('sele-override-slds');
+        this.template.host.appendChild(style);
+
+    }
+
 }
