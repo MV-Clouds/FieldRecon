@@ -418,7 +418,7 @@ public with sharing class MobSchedulerController {
                         AND wfrecon__Clock_In_Time__c >= :startOfDay
                         AND wfrecon__Clock_In_Time__c <= :endOfDay
                         WITH USER_MODE
-                        ORDER BY wfrecon__Clock_In_Time__c ASC
+                        ORDER BY CreatedDate ASC
                     ]) {
                         // Create a unique key for Contact + Day
                         String dateKey = entry.wfrecon__Clock_In_Time__c.format('yyyy-MM-dd'); 
