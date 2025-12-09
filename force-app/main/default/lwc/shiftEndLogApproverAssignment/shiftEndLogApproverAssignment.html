@@ -8,23 +8,54 @@
     <div class="main-card">
         <!-- Header Section -->
         <div class="header-section">
-            <h2 class="header-title">Shift End Log Approver Assignment</h2>
-            <p class="header-subtitle">Select users who can approve shift end logs</p>
+            <h2 class="header-title">Shift End Log Configuration</h2>
+        </div>
+
+        <!-- Toggle Section -->
+        <div class="toggle-section">
+            <div class="toggle-container">
+                <div class="toggle-label-container">
+                    <label class="toggle-label">Enable Timesheet Approval Workflow</label>
+                    <div class="info-icon-wrapper">
+                        <lightning-icon 
+                            icon-name="utility:info" 
+                            size="x-small" 
+                            class="info-icon">
+                        </lightning-icon>
+                        <div class="tooltip">When enabled, edited timesheet entries from Create Shift End Log page will require approval and the timesheet approval section will appear on the Shift End Log Approval page. When disabled, timesheet edits will not require approval and the timesheet approval section will be hidden.</div>
+                    </div>
+                </div>
+                <div class="custom-toggle-wrapper">
+                    <input 
+                        type="checkbox" 
+                        id="approval-toggle"
+                        class="custom-toggle-input"
+                        checked={toggleValue}
+                        onchange={handleToggleChange} />
+                    <label for="approval-toggle" class="custom-toggle-slider"></label>
+                </div>
+            </div>
         </div>
 
         <!-- Dual Listbox Container -->
         <div class="dual-listbox-wrapper">
-            <lightning-dual-listbox
-                name="approvers"
-                label="Manage Approvers"
-                variant="label-hidden"
-                source-label="Available Users"
-                selected-label="Selected Approvers"
-                options={availableOptions}
-                value={selectedValues}
-                onchange={handleSelectionChange}
-                class="custom-dual-listbox">
-            </lightning-dual-listbox>
+            <div class="dl-wrapper">
+                <div class="dual-listbox-label">
+                    <label class="listbox-label">Shift End Log Approvers</label>
+                    <p class="listbox-description">Select users who can access and approve shift end logs</p>
+                </div>
+                <lightning-dual-listbox
+                    name="approvers"
+                    label="Manage Approvers"
+                    variant="label-hidden"
+                    source-label="Available Users"
+                    selected-label="Selected Approvers"
+                    options={availableOptions}
+                    value={selectedValues}
+                    onchange={handleSelectionChange}
+                    class="custom-dual-listbox">
+                </lightning-dual-listbox>
+            </div>
         </div>
 
         <!-- Action Buttons -->

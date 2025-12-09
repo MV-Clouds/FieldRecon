@@ -18,8 +18,6 @@
     flex-direction: column;
     padding: 24px;
     height: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
 }
 
 /* Header Section */
@@ -32,13 +30,144 @@
     font-size: 24px;
     font-weight: 600;
     color: rgba(94, 90, 219, 1);
-    margin-bottom: 8px;
 }
 
-.header-subtitle {
-    font-size: 14px;
-    color: #666;
+/* Toggle Section */
+.toggle-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    background-color: #f9f9ff;
+    border: 1px solid rgba(94, 90, 219, 0.2);
+    border-radius: 8px;
+}
+
+.toggle-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.toggle-label-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toggle-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
     margin: 0;
+}
+
+.info-icon-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+}
+
+.info-icon {
+    color: rgba(94, 90, 219, 1);
+    transition: color 0.2s ease;
+}
+
+.info-icon-wrapper:hover .info-icon {
+    color: rgba(84, 80, 199, 1);
+}
+
+.tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    right: -20px;
+    top: calc(100% + 10px);
+    transform: translateY(-10px);
+    background: linear-gradient(135deg, rgba(94, 90, 219, 0.98), rgba(84, 80, 199, 0.98));
+    color: white;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: normal;
+    width: 280px;
+    z-index: 9999;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(94, 90, 219, 0.25), 
+                0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    right: 20px;
+    border: 7px solid transparent;
+    border-bottom-color: rgba(94, 90, 219, 0.98);
+}
+
+.info-icon-wrapper:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Custom Toggle Switch */
+.custom-toggle-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.custom-toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.custom-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 34px;
+}
+
+.custom-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.custom-toggle-input:checked + .custom-toggle-slider {
+    background-color: rgba(94, 90, 219, 1);
+}
+
+.custom-toggle-input:focus + .custom-toggle-slider {
+    box-shadow: 0 0 1px rgba(94, 90, 219, 1);
+}
+
+.custom-toggle-input:checked + .custom-toggle-slider:before {
+    transform: translateX(24px);
+}
+
+.custom-toggle-input:disabled + .custom-toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Dual Listbox Wrapper */
@@ -47,6 +176,24 @@
     margin-bottom: 24px;
     display: flex;
     flex-direction: column;
+}
+
+.dual-listbox-label {
+    margin-bottom: 16px;
+}
+
+.listbox-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 4px 0;
+    display: block;
+}
+
+.listbox-description {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
 }
 
 /* Custom Dual Listbox Styling */
@@ -151,71 +298,15 @@ lightning-dual-listbox {
     border-color: #d8d8d8;
 }
 
-/* Info Message */
-.info-message {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background-color: rgba(94, 90, 219, 0.1);
-    border-left: 4px solid rgba(94, 90, 219, 1);
-    border-radius: 4px;
-    margin-top: 16px;
-}
-
 .info-icon {
     flex-shrink: 0;
 }
 
-.info-text {
-    font-size: 13px;
-    color: #333;
-    line-height: 1.5;
-}
-
-/* JSON Output Section */
-.json-output-section {
-    margin-top: 24px;
-    border: 1px solid rgba(94, 90, 219, 0.3);
-    border-radius: 8px;
-    padding: 16px;
+.dl-wrapper {
+    padding: 20px;
     background-color: #f9f9ff;
-}
-
-.json-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: rgba(94, 90, 219, 1);
-    margin-bottom: 12px;
-}
-
-.json-container {
-    background-color: #282c34;
-    border-radius: 4px;
-    padding: 16px;
-    margin-bottom: 12px;
-    overflow-x: auto;
-}
-
-.json-content {
-    color: #61dafb;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    margin: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-}
-
-/* Copy Button */
-.copy-button {
-    background-color: rgba(94, 90, 219, 1);
-    border-color: rgba(94, 90, 219, 1);
-    color: white;
-    min-width: 120px;
-}
-
-.copy-button:hover:not(:disabled) {
-    background-color: rgba(84, 80, 199, 1);
+    border: 1px solid rgba(94, 90, 219, 0.2);
+    border-radius: 8px;
 }
 
 /* Responsive Design */
@@ -228,8 +319,24 @@ lightning-dual-listbox {
         font-size: 20px;
     }
 
-    .header-subtitle {
-        font-size: 13px;
+    .toggle-section {
+        padding: 16px;
+    }
+
+    .toggle-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .toggle-label {
+        font-size: 14px;
+    }
+
+    .tooltip {
+        white-space: normal;
+        max-width: 200px;
+        left: 0;
+        transform: translateX(0);
     }
 
     .action-buttons-container {
@@ -239,10 +346,6 @@ lightning-dual-listbox {
     .action-button {
         width: 100%;
         min-width: unset;
-    }
-
-    .json-content {
-        font-size: 11px;
     }
 }
 
@@ -255,8 +358,12 @@ lightning-dual-listbox {
         font-size: 18px;
     }
 
-    .header-subtitle {
-        font-size: 12px;
+    .toggle-section {
+        padding: 12px;
+    }
+
+    .toggle-label {
+        font-size: 13px;
     }
 
     .action-button {
@@ -266,9 +373,5 @@ lightning-dual-listbox {
 
     .json-container {
         padding: 12px;
-    }
-
-    .json-content {
-        font-size: 10px;
     }
 }
