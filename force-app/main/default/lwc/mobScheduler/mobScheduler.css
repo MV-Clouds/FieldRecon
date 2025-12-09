@@ -416,9 +416,9 @@
   cursor: pointer;
 }
 
-.remove-assignment-btn[data-past="true"]{
+/* .remove-assignment-btn[data-past="true"]{
   display: none !important;
-}
+} */
 /* 
 .assign-resource-btn{
     width: 100%;
