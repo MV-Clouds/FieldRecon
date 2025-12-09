@@ -400,9 +400,11 @@ public with sharing class MobSchedulerController {
             
             if(!fetchAssets) {
                 Set<Id> contactIds = new Set<Id>();
+                Set<Id> jobIds = new Set<Id>();
                 
                 // Collect all contacts involved in these mobilizations
                 for(wfrecon__Mobilization__c mob : mobilizations){
+                    jobIds.add(mob.wfrecon__Job__c);
                     for(wfrecon__Mobilization_Member__c mem : mob.wfrecon__Mobilization_Members__r){
                         if(mem.wfrecon__Contact__c != null) {
                             contactIds.add(mem.wfrecon__Contact__c);
@@ -412,17 +414,20 @@ public with sharing class MobSchedulerController {
 
                 if(!contactIds.isEmpty()) {
                     for(wfrecon__Timesheet_Entry__c entry : [
-                        SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Contact__c
+                        SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, 
+                               wfrecon__Timesheet__r.wfrecon__Contact__c,
+                               wfrecon__Timesheet__r.wfrecon__Job__c 
                         FROM wfrecon__Timesheet_Entry__c
                         WHERE wfrecon__Timesheet__r.wfrecon__Contact__c IN :contactIds
+                        AND wfrecon__Timesheet__r.wfrecon__Job__c IN :jobIds 
                         AND wfrecon__Clock_In_Time__c >= :startOfDay
                         AND wfrecon__Clock_In_Time__c <= :endOfDay
                         WITH USER_MODE
                         ORDER BY CreatedDate ASC
                     ]) {
-                        // Create a unique key for Contact + Day
+                        // Create a unique key for Contact + job + Day
                         String dateKey = entry.wfrecon__Clock_In_Time__c.format('yyyy-MM-dd'); 
-                        String key = entry.wfrecon__Timesheet__r.wfrecon__Contact__c + '_' + dateKey;
+                        String key = entry.wfrecon__Timesheet__r.wfrecon__Contact__c + '_' + entry.wfrecon__Timesheet__r.wfrecon__Job__c + '_' + dateKey;
                         
                         String color = '#ff5e5e'; // Default Red
                         String label = 'Not Clocked In';
@@ -482,8 +487,9 @@ public with sharing class MobSchedulerController {
                         String statusLabel = 'Not Clocked In';
 
                         if(mem.wfrecon__Contact__c != null) {
+                            // NEW LOOKUP LOGIC: Key = ContactId + '_' + JobId + '_' + Date
                             String dateKey = mob.wfrecon__Start_Date__c.format('yyyy-MM-dd');
-                            String key = mem.wfrecon__Contact__c + '_' + dateKey;
+                            String key = mem.wfrecon__Contact__c + '_' + mob.wfrecon__Job__c + '_' + dateKey;
                             
                             if(clockStatusColorMap.containsKey(key)) {
                                 statusColor = clockStatusColorMap.get(key);

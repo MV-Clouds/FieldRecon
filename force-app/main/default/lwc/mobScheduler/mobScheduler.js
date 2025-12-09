@@ -597,12 +597,14 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
     // Load Resource-specific data
     loadResourceData(resourceType = 'Crew', selectedDate = null) {
         this.showLoading(true);
-        const start = this.currentWeekStart;
         const end = new Date(this.currentWeekStart);
         end.setDate(end.getDate() + 6);
 
-        const startDateStr = start.toISOString().slice(0,10);
-        const endDateStr = (selectedDate || end).toISOString().slice(0,10);
+        const startNormalize = this.normalizeDate(new Date(this.currentWeekStart));
+        const startDateStr = startNormalize.toLocaleDateString('en-CA');
+
+        const endNormalize = this.normalizeDate(end);
+        const endDateStr = endNormalize.toLocaleDateString('en-CA');
 
         getResourceDetails({ startDate: startDateStr, endDate: endDateStr, resourceType })
             .then(data => {
@@ -619,7 +621,9 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
                     if (!resMap[item.id]) {
                         resMap[item.id] = { id: item.id, name: item.name, days: this.weekDays.map(d => ({ iso: d.iso, events: [] })), crewStyle: item.crewStyle};
                     }
-                    const dayIso = new Date(item.start)?.toISOString()?.slice(0,10);
+
+                    const startNormalize = this.normalizeDate(new Date(item.start));
+                    const dayIso = startNormalize.toLocaleDateString('en-CA');
                     const dayObj = resMap[item.id].days.find(d => d.iso === dayIso);
                     if (dayObj) dayObj.events.push({ id: item.id, mobId: item.mobId, jobName: item.jobName, jobId: item.jobId, jId: item.jId, status: item.status, statusStyle: item.statusStyle, isPast: new Date(item.end) < new Date(), clockStatusColorStyle: item.clockStatusColor ? `background-color: ${item.clockStatusColor};` : 'background-color: #ff5e5e;',clockStatusLabel: item.clockStatusLabel || 'Not Clocked In' });
                 });
