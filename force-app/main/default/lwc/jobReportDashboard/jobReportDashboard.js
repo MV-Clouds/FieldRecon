@@ -40,7 +40,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
     @track totalPaid = 0;
     @track totalBalance = 0;
     @track totalRetainage = 0;
-    @track averageCompletion = 0;
 
     @track chartConfig = {
         valueType: 'totalContract',
@@ -575,7 +574,6 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             this.totalRetainage += job.retainageHeld || 0;
         });
 
-        this.averageCompletion = this.totalContract > 0 ? (this.totalCompletedValue / this.totalContract) : 0;
     }
 
     switchToTableView() {
