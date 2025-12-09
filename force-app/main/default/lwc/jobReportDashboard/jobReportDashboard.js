@@ -751,8 +751,13 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         }
 
         container.innerHTML = '';
+        // Add unique keys to chart data to handle duplicate job names
         const chartData = [...this.paginatedFinanceData]
-            .sort((a, b) => (b[this.chartConfig.valueType] || 0) - (a[this.chartConfig.valueType] || 0));
+            .sort((a, b) => (b[this.chartConfig.valueType] || 0) - (a[this.chartConfig.valueType] || 0))
+            .map((d, index) => ({
+                ...d,
+                uniqueKey: `${index}-${d.jobName || 'Unnamed Job'}`
+            }));
 
         if (chartData.length === 0) {
             container.innerHTML = '<div class="no-chart-data">No data available for chart</div>';
@@ -802,8 +807,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .range([0, width])
             .nice();
 
+        // Use unique keys for the y-axis domain to prevent duplicate names from collapsing
         const y = window.d3.scaleBand()
-            .domain(chartData.map(d => d.jobName || 'Unnamed Job'))
+            .domain(chartData.map(d => d.uniqueKey))
             .range([0, height])
             .padding(0.4);
 
@@ -850,9 +856,13 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .style('fill', '#666')
             .text('Job Name');
 
-        // Y-axis
+        // Y-axis with custom tick format to show job names instead of unique keys
         const yAxis = svg.append('g')
-            .call(window.d3.axisLeft(y));
+            .call(window.d3.axisLeft(y).tickFormat((uniqueKey) => {
+                // Extract job name from unique key (format: "index-jobName")
+                const jobData = chartData.find(d => d.uniqueKey === uniqueKey);
+                return jobData ? (jobData.jobName || 'Unnamed Job') : uniqueKey;
+            }));
 
         yAxis.select('.domain')
             .attr('stroke', '#666')
@@ -885,7 +895,9 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             .style('pointer-events', 'all')
             .each(function (d) {
                 const text = window.d3.select(this);
-                const jobName = d || 'Unnamed Job';
+                // Extract actual job name from unique key
+                const jobData = chartData.find(item => item.uniqueKey === d);
+                const jobName = jobData ? (jobData.jobName || 'Unnamed Job') : 'Unnamed Job';
 
                 if (jobName.length <= 10) {
                     // Single line if 10 characters or less
@@ -1027,7 +1039,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
         // Add rectangle bars
         bars.append('rect')
             .attr('class', 'bar')
-            .attr('y', d => y(d.jobName || 'Unnamed Job'))
+            .attr('y', d => y(d.uniqueKey))
             .attr('x', 0)
             .attr('height', y.bandwidth())
             .attr('width', d => {
@@ -1062,7 +1074,7 @@ export default class JobReportDashboard extends NavigationMixin(LightningElement
             const barGroup = window.d3.select(this);
             const value = d[currentValueType] || 0;
             const barWidth = x(value);
-            const yPos = y(d.jobName || 'Unnamed Job');
+            const yPos = y(d.uniqueKey);
             const bandwidth = y.bandwidth();
 
             // Format value for display
