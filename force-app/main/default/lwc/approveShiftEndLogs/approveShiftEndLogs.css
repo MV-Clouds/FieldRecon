@@ -1794,3 +1794,261 @@ tr:has(.status-badge[data-status="rejected"]) {
 .confirm-yes-button:hover {
     background-color: rgba(74, 70, 199, 1);
 }
+
+/* =============================================
+   BUTTONS & ACTIONS
+   ============================================= */
+.upload-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    width: 100%;
+    align-items: end;
+}
+
+.upload-button-wrapper {
+    flex: 0 0 auto;
+}
+
+.upload-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    background: linear-gradient(135deg, #5e5adb 0%, #7c78ed 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(94, 90, 219, 0.3);
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.upload-action-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.4);
+}
+
+.upload-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   MODAL STYLING
+   ============================================= */
+.sub-modal { z-index: 10001; }
+.camera-sub-backdrop { z-index: 10000; }
+
+.edit-modal-header {
+    background: #5e5adb;
+    color: white;
+    border: none;
+}
+.edit-modal-header h2 { color: white; }
+
+/* =============================================
+   CAMERA MODAL SPECIFIC
+   ============================================= */
+.camera-modal-container {
+    max-width: 800px;
+    width: 90vw;
+}
+
+.camera-modal-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: black; /* Better contrast for camera */
+}
+
+.camera-video, .captured-preview {
+    width: 100%;
+    max-height: 60vh;
+    border-radius: 0.5rem;
+    background: #000;
+    object-fit: contain;
+}
+
+.camera-capture-btn {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #5e5adb;
+    border: 4px solid white;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.camera-capture-btn:hover {
+    transform: translateX(-50%) scale(1.1);
+}
+
+.camera-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    justify-content: center;
+    width: 100%;
+}
+
+.retake-btn, .save-photo-btn {
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.retake-btn { background: #706e6b; color: white; }
+.save-photo-btn { background: #5e5adb; color: white; }
+
+/* =============================================
+   CHATTER MODAL SPECIFIC
+   ============================================= */
+.chatter-modal-content {
+    padding: 0 !important;
+    max-height: 60vh;
+    min-height: 50vh;
+    overflow-y: auto;
+}
+
+.no-data-message-chatter {
+    padding: 4rem;
+    text-align: center;
+    color: #666;
+}
+
+.chatter-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.chatter-feed-item {
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.feed-item-header {
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.feed-item-attachments {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+}
+
+.attachment-card {
+    border: 2px solid transparent;
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #f9f9f9;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.attachment-card:hover {
+    border-color: #5e5adb;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.attachment-card.selected {
+    border-color: #5e5adb;
+    background: #f0f0ff;
+}
+
+.attachment-card.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.attachment-selected-badge, .attachment-uploaded-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 2;
+}
+
+.attachment-selected-badge {
+    background: #5e5adb;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attachment-thumbnail {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.attachment-file-icon {
+    width: 100%;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eee;
+    border-radius: 4px;
+}
+
+.load-more-container {
+    padding: 1rem;
+    text-align: center;
+    border-top: 1px solid #eee;
+}
+
+.load-more-btn {
+    background: white;
+    border: 1px solid #5e5adb;
+    color: #5e5adb;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.bottom-footer-btn {
+    position: sticky;
+    bottom: 0;
+    background: white;
+    padding: 1rem;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: center;
+}
+
+.save-btn {
+    background: #5e5adb;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+}
+.save-btn:disabled { background: #ccc; cursor: not-allowed; }

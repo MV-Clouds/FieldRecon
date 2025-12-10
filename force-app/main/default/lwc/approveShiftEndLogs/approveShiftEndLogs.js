@@ -4,6 +4,9 @@ import getUnapprovedLogEntries from '@salesforce/apex/ApproveShiftEndLogsControl
 import getLogEntryDetails from '@salesforce/apex/ApproveShiftEndLogsController.getLogEntryDetails';
 import deleteContentDocument from '@salesforce/apex/ApproveShiftEndLogsController.deleteContentDocument';
 import processLogEntryApproval from '@salesforce/apex/ApproveShiftEndLogsController.processLogEntryApproval';
+import getChatterFeedItems from '@salesforce/apex/ShiftEndLogEntriesController.getChatterFeedItems';
+import saveCameraPhoto from '@salesforce/apex/ApproveShiftEndLogsController.saveCameraPhoto';
+import linkChatterFiles from '@salesforce/apex/ApproveShiftEndLogsController.linkChatterFiles';
 import checkUserAccess from '@salesforce/apex/ApproveShiftEndLogsController.checkUserAccess';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
@@ -42,6 +45,18 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track confirmModalMessage = '';
     @track confirmModalAction = null;
     @track confirmModalContext = null;
+
+    // Image chatter state
+    @track showChatterModal = false;
+    @track chatterFeedItems = [];
+    @track isLoadingChatter = false;
+    @track isLoadingMoreChatter = false;
+    @track chatterDaysOffset = 0;
+    @track hasMoreChatterItems = true;
+
+    @track showCameraModal = false;
+    @track cameraStream = null;
+    @track capturedPhoto = null;
 
     @track logColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -520,6 +535,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         this.isLoading = true;
         getLogEntryDetails({ logEntryId: logId })
             .then(result => {
+                console.log('Log Entry Details Result:', JSON.stringify(result));
                 const processedResult = JSON.parse(JSON.stringify(result)); // Deep clone
                 
                 // Process timesheet entries to add formatted fields
@@ -2196,5 +2212,253 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             }
             return group;
         });
+    }
+
+    handleChooseFromChatter() {
+        this.showChatterModal = true;
+        this.chatterDaysOffset = 0;
+        this.hasMoreChatterItems = true;
+        this.loadChatterFeedItems();
+    }
+
+    closeChatterModal() {
+        this.showChatterModal = false;
+        this.chatterFeedItems = [];
+    }
+
+    loadChatterFeedItems() {
+        try {
+            // Prevent concurrent loads if already loading more
+            if (this.isLoadingChatter && this.chatterDaysOffset > 0) return;
+
+            this.isLoadingChatter = true;
+            
+            console.log('Loading Chatter feed items for Job ID:', this.logEntryDetails.jobId);
+
+            // Fetch data
+            getChatterFeedItems({ 
+                jobId: this.logEntryDetails.jobId, 
+                daysOffset: this.chatterDaysOffset 
+            })
+            .then(result => {
+                console.log('Chatter Feed Items Result:', JSON.stringify(result));
+                
+                if (!result) {
+                    this.hasMoreChatterItems = false;
+                    if (this.chatterDaysOffset === 0) this.chatterFeedItems = [];
+                    return;
+                }
+
+                this.hasMoreChatterItems = result.hasMore;
+                
+                // Explicitly map the items to ensure clean Objects for the HTML template
+                const newItems = (result.feedItems || []).map(item => {
+                    return {
+                        id: item.id,
+                        body: item.body || '',
+                        formattedDate: item.createdDate ? new Date(item.createdDate).toLocaleDateString() : '',
+                        attachments: (item.attachments || []).map(att => {
+                            // Check if this file is already attached to the main log entry
+                            const isAlreadyUploaded = this.logEntryDetails.attachments && 
+                                this.logEntryDetails.attachments.some(ex => ex.id === att.contentDocumentId);
+
+                            return {
+                                id: att.id,
+                                contentDocumentId: att.contentDocumentId,
+                                title: att.title,
+                                isImage: att.isImage === true, // Ensure boolean
+                                thumbnailUrl: att.thumbnailUrl || '', // Ensure string
+                                selected: false,
+                                alreadyUploaded: isAlreadyUploaded,
+                                // Set CSS class based on status
+                                cardClass: isAlreadyUploaded 
+                                    ? 'attachment-card disabled' 
+                                    : 'attachment-card'
+                            };
+                        })
+                    };
+                });
+
+                // If initial load, replace array. If loading more, append.
+                if (this.chatterDaysOffset === 0) {
+                    this.chatterFeedItems = newItems;
+                } else {
+                    this.chatterFeedItems = [...this.chatterFeedItems, ...newItems];
+                }
+            })
+            .catch(error => {
+                console.error('Error in loadChatterFeedItems promise:', error);
+                this.showToast('Error', 'Failed to load Chatter posts', 'error');
+            })
+            .finally(() => {
+                this.isLoadingChatter = false;
+                this.isLoadingMoreChatter = false;
+            });
+        } catch (error) {
+            console.error('Error initializing loadChatterFeedItems:', error);
+            this.showToast('Error', 'Failed to initialize Chatter load', 'error');
+            this.isLoadingChatter = false;
+            this.isLoadingMoreChatter = false;
+        }
+    }
+
+    handleLoadMoreChatter() {
+        this.chatterDaysOffset += 3;
+        this.isLoadingMoreChatter = true;
+        this.loadChatterFeedItems();
+    }
+
+    handleAttachmentSelection(event) {
+        const id = event.currentTarget.dataset.id;
+        this.chatterFeedItems = this.chatterFeedItems.map(item => ({
+            ...item,
+            attachments: item.attachments.map(att => {
+                if (att.id === id && !att.alreadyUploaded) {
+                    return { 
+                        ...att, 
+                        selected: !att.selected, 
+                        cardClass: !att.selected ? 'attachment-card selected' : 'attachment-card' 
+                    };
+                }
+                return att;
+            })
+        }));
+    }
+
+    get hasNoSelectedAttachments() {
+        return !this.chatterFeedItems.some(item => item.attachments.some(a => a.selected));
+    }
+
+    handleAddSelectedAttachments() {
+        const selectedIds = [];
+        const selectedFiles = [];
+        
+        this.chatterFeedItems.forEach(item => {
+            item.attachments.forEach(att => {
+                if(att.selected) {
+                    selectedIds.push(att.contentDocumentId);
+                    selectedFiles.push(att);
+                }
+            });
+        });
+
+        if(selectedIds.length > 0) {
+            this.isLoading = true;
+            // Use NEW local method to link to existing Log Entry
+            linkChatterFiles({ parentId: this.logEntryDetails.Id, contentDocumentIds: selectedIds })
+                .then(() => {
+                    selectedFiles.forEach(f => {
+                        // Add to newAttachments for potential rollback on Cancel
+                        this.newAttachments.push(f.contentDocumentId); 
+                        
+                        // Update UI
+                        this.logEntryDetails.attachments.push({
+                            id: f.contentDocumentId,
+                            title: f.title,
+                            isImage: f.isImage,
+                            downloadUrl: f.thumbnailUrl || `/sfc/servlet.shepherd/document/download/${f.contentDocumentId}`,
+                            name: f.title,
+                            isNewUpload: true
+                        });
+                    });
+                    this.showToast('Success', 'Files added from Chatter', 'success');
+                    this.closeChatterModal();
+                })
+                .catch(error => {
+                    this.showToast('Error', 'Failed to link files: ' + (error.body?.message || error.message), 'error');
+                })
+                .finally(() => this.isLoading = false);
+        }
+    }
+
+    handleOpenCamera() {
+        this.showCameraModal = true;
+        this.capturedPhoto = null;
+        // Delay to allow DOM to render video element
+        setTimeout(() => this.startCamera(), 100);
+    }
+
+    closeCameraModal() {
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+        }
+        this.showCameraModal = false;
+        this.capturedPhoto = null;
+    }
+
+    async startCamera() {
+        try {
+            const videoElement = this.template.querySelector('.camera-video');
+            if (videoElement) {
+                // Request camera access
+                this.cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } // Prefer back camera on mobile
+                });
+                videoElement.srcObject = this.cameraStream;
+            }
+        } catch (error) {
+            console.error('Camera Error', error);
+            this.showToast('Error', 'Unable to access camera. Please check permissions.', 'error');
+            this.closeCameraModal();
+        }
+    }
+
+    handleCapturePhoto() {
+        const video = this.template.querySelector('.camera-video');
+        const canvas = this.template.querySelector('.camera-canvas');
+        if (video && canvas) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            this.capturedPhoto = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Stop stream to freeze/save resources
+            if (this.cameraStream) {
+                this.cameraStream.getTracks().forEach(track => track.stop());
+                this.cameraStream = null;
+            }
+        }
+    }
+
+    handleRetakePhoto() {
+        this.capturedPhoto = null;
+        setTimeout(() => this.startCamera(), 100);
+    }
+
+    handleSaveCapturedPhoto() {
+        if (!this.capturedPhoto) return;
+        
+        this.isLoading = true;
+        const base64 = this.capturedPhoto.split(',')[1];
+        const filename = 'Camera_Capture_' + new Date().getTime() + '.jpg';
+
+        // Use NEW local method to save to existing Log Entry
+        saveCameraPhoto({ 
+            parentId: this.logEntryDetails.Id, 
+            fileName: filename, 
+            base64Data: base64 
+        })
+        .then(docId => {
+            // Add to newAttachments for potential rollback
+            this.newAttachments.push(docId); 
+            
+            // Update UI
+            this.logEntryDetails.attachments.push({
+                id: docId,
+                title: filename,
+                isImage: true,
+                downloadUrl: this.capturedPhoto, // Use base64 for immediate preview without server roundtrip
+                name: filename,
+                isNewUpload: true
+            });
+            
+            this.showToast('Success', 'Photo saved', 'success');
+            this.closeCameraModal();
+        })
+        .catch(error => {
+            this.showToast('Error', 'Failed to save photo: ' + (error.body?.message || error.message), 'error');
+        })
+        .finally(() => this.isLoading = false);
     }
 }

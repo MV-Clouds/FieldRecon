@@ -139,6 +139,7 @@ public with sharing class ApproveShiftEndLogsController {
             details.submittedBy = logEntry.CreatedBy.Name;
             details.submittedDate = logEntry.wfrecon__Work_Performed_Date__c != null ? 
                                    logEntry.wfrecon__Work_Performed_Date__c.format() : '';
+            details.jobId = logEntry.wfrecon__Job__c;
 
             details.locationProcesses = new List<LocationProcessWrapper>();
             details.timesheetEntries = new List<TimesheetEntryWrapper>();
@@ -566,6 +567,56 @@ public with sharing class ApproveShiftEndLogsController {
     }
     
     /**
+     * @description: Save camera photo as ContentVersion and link to the EXISTING Log Entry
+     * @param parentId: The Log Entry ID
+     * @param fileName: Name of the file
+     * @param base64Data: Image data
+     */
+    @AuraEnabled
+    public static String saveCameraPhoto(Id parentId, String fileName, String base64Data) {
+        try {
+            ContentVersion cv = new ContentVersion();
+            cv.Title = fileName;
+            cv.PathOnClient = fileName;
+            cv.VersionData = EncodingUtil.base64Decode(base64Data);
+            cv.FirstPublishLocationId = parentId; // Automatically links to the record
+            insert as user cv;
+            
+            return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'saveCameraPhoto', 'exceptionObj' => e});
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    /**
+     * @description: Link existing Chatter files to the EXISTING Log Entry
+     * @param parentId: The Log Entry ID
+     * @param contentDocumentIds: List of file IDs to link
+     */
+    @AuraEnabled
+    public static void linkChatterFiles(Id parentId, List<String> contentDocumentIds) {
+        try {
+            List<ContentDocumentLink> links = new List<ContentDocumentLink>();
+            for(String docId : contentDocumentIds) {
+                ContentDocumentLink link = new ContentDocumentLink();
+                link.ContentDocumentId = docId;
+                link.LinkedEntityId = parentId;
+                link.ShareType = 'V';
+                link.Visibility = 'AllUsers';
+                links.add(link);
+            }
+            insert as user links;
+        } catch (Exception e) {
+            // Ignore duplicate errors if file is already linked
+            if(!e.getMessage().contains('DUPLICATE_VALUE')) {
+                ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'linkChatterFiles', 'exceptionObj' => e});
+                throw new AuraHandledException(e.getMessage());
+            }
+        }
+    }
+    
+    /**
      * @description: Wrapper class for Log Entry Response
      */
     public class LogEntryResponse {
@@ -604,6 +655,7 @@ public with sharing class ApproveShiftEndLogsController {
         @AuraEnabled public List<TimesheetEntryWrapper> timesheetEntries { get; set; }
         @AuraEnabled public List<LocationProcessWrapper> locationProcesses { get; set; }
         @AuraEnabled public List<AttachmentWrapper> attachments { get; set; }
+        @AuraEnabled public Id jobId { get; set; }
     }
     
     /**
