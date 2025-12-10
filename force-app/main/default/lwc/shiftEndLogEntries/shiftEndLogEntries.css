@@ -115,11 +115,9 @@
    ============================================= */
 .mobilization-selector,
 .location-selector {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     background: white;
-    padding: 1rem;
     border-radius: 8px;
-    box-shadow: rgba(67, 71, 85, 0.27) 0px 0px 0.25em, rgba(90, 125, 188, 0.05) 0px 0.25em 1em;
 }
 
 .form-label,
@@ -167,322 +165,30 @@
     background: #dad4d4;
 }
 
-.clock-status-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
-    overflow-y: auto;
-    scroll-behavior: auto;
-    scrollbar-width: thin !important;
-    scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
-}
-
-.clock-status-container::-webkit-scrollbar-thumb {
-    background: rgba(94, 90, 219, 0.5);
-    border-radius: 4px;
-}
-
-.clock-status-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(94, 90, 219, 0.8);
-}
-
-.crew-member-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    height: 250px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    transition: all 0.2s ease;
-}
-
-.crew-member-card:hover {
-    box-shadow: 0 6px 16px rgba(94, 90, 219, 0.15);
-    border-color: rgba(94, 90, 219, 0.3);
-    transform: translateY(-2px);
-}
-
-.member-info {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
-}
-
-.member-info::-webkit-scrollbar,
+/* =============================================
+   STEP 1: TIMESHEET TABLE
+   ============================================= */
 .timesheet-table-body::-webkit-scrollbar {
     width: 4px;
     height: 8px;
 }
 
-.member-info::-webkit-scrollbar-track,
 .timesheet-table-body::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
 }
 
-.member-info::-webkit-scrollbar-thumb,
 .timesheet-table-body::-webkit-scrollbar-thumb {
     background: rgba(94, 90, 219, 0.3);
     border-radius: 4px;
 }
 
-.member-info::-webkit-scrollbar-thumb:hover,
 .timesheet-table-body::-webkit-scrollbar-thumb:hover {
     background: rgba(94, 90, 219, 0.5);
 }
 
-.member-header {
-    margin-bottom: 0.625rem;
-}
-
-.member-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1a1a1a;
-    margin-bottom: 0.4rem;
-    letter-spacing: -0.2px;
-    line-height: 1.3;
-}
-
-.member-status-row {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.status-not-clocked {
-    font-size: 11px;
-    color: #666;
-    background: #f4f4f4;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-}
-
-.status-clocked-in {
-    font-size: 11px;
-    color: white;
-    background: #28a745;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-}
-
-.hours-worked {
-    font-size: 11px;
-    color: #666;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    background: rgba(94, 90, 219, 0.08);
-    padding: 4px 10px;
-    border-radius: 12px;
-}
-
-.hours-worked svg {
-    stroke: rgba(94, 90, 219, 1);
-}
-
-/* Recent Times Section */
-.recent-times-section {
-    padding: 0.625rem;
-    background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
-    border-radius: 6px;
-    border: 1px solid rgba(94, 90, 219, 0.15);
-}
-
-.recent-times-header {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(94, 90, 219, 1);
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-}
-
-.recent-times-header svg {
-    stroke: rgba(94, 90, 219, 1);
-    width: 14px;
-    height: 14px;
-}
-
-.recent-times-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.time-card {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.625rem;
-    background: white;
-    border-radius: 5px;
-    border: 1px solid #e0e0e0;
-    transition: all 0.15s ease;
-}
-
-.time-card:hover {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.clock-in-card {
-    border-left: 2.5px solid rgba(94, 90, 219, 1);
-}
-
-.clock-out-card {
-    border-left: 2.5px solid #28a745;
-}
-
-.time-card-icon {
-    flex-shrink: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-}
-
-.clock-in-card .time-card-icon {
-    background: rgba(94, 90, 219, 0.1);
-}
-
-.clock-in-card .time-card-icon svg {
-    stroke: rgba(94, 90, 219, 1);
-    width: 16px;
-    height: 16px;
-}
-
-.clock-out-card .time-card-icon {
-    background: rgba(40, 167, 69, 0.1);
-}
-
-.clock-out-card .time-card-icon svg {
-    stroke: #28a745;
-    width: 16px;
-    height: 16px;
-}
-
-.time-card-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.time-card-label {
-    font-size: 9px;
-    font-weight: 700;
-    color: #777;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-bottom: 0.2rem;
-}
-
-.time-card-value {
-    font-size: 11.5px;
-    font-weight: 600;
-    color: #1a1a1a;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.3;
-}
-
-.no-times-section {
-    padding: 1rem;
-    background: #fafafa;
-    border-radius: 6px;
-    border: 1px dashed #e0e0e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    font-size: 12px;
-    color: #999;
-    font-style: italic;
-}
-
-.no-times-section svg {
-    stroke: #ccc;
-    flex-shrink: 0;
-    width: 14px;
-    height: 14px;
-}
-
-.member-actions {
-    display: flex;
-    flex-wrap: wrap;
-    padding-top: 8px;
-    border-top: 1px solid #f3f3f3;
-    justify-content: center;
-}
-
-.clock-btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    white-space: nowrap;
-    justify-content: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.clock-btn svg {
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-}
-
-.clock-in-btn {
-    background: rgba(94, 90, 219, 1);
-    color: white;
-}
-
-.clock-in-btn:hover {
-    background: rgba(84, 80, 209, 1);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(94, 90, 219, 0.35);
-}
-
-.clock-in-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(94, 90, 219, 0.25);
-}
-
-.clock-out-btn {
-    background: #28a745;
-    color: white;
-}
-
-.clock-out-btn:hover {
-    background: #239d3f;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.35);
-}
-
-.clock-out-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.25);
-}
-
 /* =============================================
-   STEP 2: TIMESHEET TABLE
+   TIMESHEET TABLE
    ============================================= */
 .tab-container {
     overflow-y: auto;
@@ -544,7 +250,8 @@
 }
 
 .timesheet-entries-table.pending-table {
-    min-width: 1050px;
+    min-width: 1000px;
+    table-layout: auto;
 }
 
 .timesheet-entries-table th,
@@ -602,39 +309,67 @@
     width: 100%;
 }
 
-.edit-icon-btn,
-.move-back-btn {
-    background-color: transparent;
-    border: 1px solid rgba(94, 90, 219, 0.8);
-    border-radius: 0.25rem;
-    padding: 0.25rem;
+.icon-button {
+    padding: 0.4rem;
+    background: transparent;
+    border: 1px solid rgba(94, 90, 219, 0.3);
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    color: rgba(94, 90, 219, 0.8);
+    min-width: 30px;
+    height: 30px;
 }
 
-.edit-icon-btn:hover,
-.move-back-btn:hover {
+.icon-button svg {
+    stroke: rgba(94, 90, 219, 0.7);
+}
+
+.icon-button:hover {
     background: rgba(94, 90, 219, 0.1);
-    border-color: rgba(94, 90, 219, 1);
-    color: rgba(94, 90, 219, 1);
+    border-color: rgba(94, 90, 219, 0.6);
+    transform: scale(1.05);
 }
 
-.edit-icon-btn.disabled {
-    opacity: 0.4;
+.icon-button:hover svg {
+    stroke: rgba(94, 90, 219, 1);
+}
+
+.icon-button.edit-icon-btn svg path {
+    stroke: rgba(94, 90, 219, 0.7);
+}
+
+.icon-button.edit-icon-btn:hover svg path {
+    stroke: rgba(94, 90, 219, 1);
+}
+
+.icon-button.move-back-btn svg path,
+.icon-button.move-back-btn svg polyline {
+    stroke: rgba(94, 90, 219, 0.7);
+}
+
+.icon-button.move-back-btn:hover svg path,
+.icon-button.move-back-btn:hover svg polyline {
+    stroke: rgba(94, 90, 219, 1);
+}
+
+.icon-button:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
-    border-color: #ccc;
-    color: #999;
+    pointer-events: none;
 }
 
-.edit-icon-btn.disabled:hover {
+.icon-button:disabled:hover {
     background: transparent;
-    border-color: #ccc;
+    transform: none;
+}
+
+/* Legacy class support */
+.edit-icon-btn,
+.move-back-btn {
+    /* Inherits from .icon-button */
 }
 
 .value-changed {
@@ -784,12 +519,6 @@
     box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
 }
 
-.location-progress-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e0e0e0;
-}
-
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -852,69 +581,8 @@
 }
 
 /* =============================================
-   LOCATION ACCORDION
+   LOCATION ACCORDION (Using Lightning Standard)
    ============================================= */
-.location-accordion {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1rem;
-}
-
-.location-accordion-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.location-accordion-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    background: linear-gradient(135deg, #5e5adb 0%, #7c78ed 100%);
-    color: #ffffff;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 600;
-    font-size: 1rem;
-}
-
-.location-accordion-header:hover,
-.location-accordion-header.active {
-    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
-}
-
-.location-accordion-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-}
-
-.accordion-icon {
-    transition: transform 0.3s ease;
-    fill: white;
-}
-
-.location-accordion-header.active .accordion-icon {
-    transform: rotate(180deg);
-}
-
-.location-accordion-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    background: #ffffff;
-}
-
-.location-accordion-content.open {
-    max-height: 3000px;
-    padding: 1.25rem;
-    overflow-y: auto;
-}
 
 .location-group-title {
     font-size: 16px;

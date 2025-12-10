@@ -226,8 +226,12 @@ public with sharing class ShiftEndLogEntriesController {
     }
 
     @AuraEnabled
-    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String jobStartDate, String mobId, String crewLeaderId){
+    public static Map<String, Object> getTimeSheetEntryItems(String jobId, String jobStartDate, String mobId, String crewLeaderId){
         try {
+            // Check custom setting for approval feature
+            wfrecon__Shift_End_Log_Configuration__c config = wfrecon__Shift_End_Log_Configuration__c.getOrgDefaults();
+            Boolean approvalFeatureEnabled = config != null && config.wfrecon__Timesheet_Entries_Approval_Feature__c == true;
+
             List<wfrecon__Mobilization_Member__c> members = [SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
                                                     FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Mobilization__c = :mobId AND wfrecon__Contact__c != null
                                                     AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
@@ -249,7 +253,7 @@ public with sharing class ShiftEndLogEntriesController {
 
             Date startDate = Date.valueOf(jobStartDate);
 
-            // Query timesheet entry items (no longer need Approval_Data__c from records)
+            // Query timesheet entry items
             List<wfrecon__Timesheet_Entry_Item__c> items = [SELECT Id, wfrecon__Timesheet_Entry__c, wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__c, 
                                                     wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__r.Name, 
                                                     wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
@@ -258,22 +262,23 @@ public with sharing class ShiftEndLogEntriesController {
                                                     AND wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__c IN :contactIds
                                                     WITH USER_MODE ORDER BY wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__r.wfrecon__Contact__r.Name ASC];
 
-            // No need to query log entries - all edits are handled in JavaScript
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
             for(wfrecon__Timesheet_Entry_Item__c item : items) {
                 result.add(new TimesheetEntryItemWrapper(item));
             }
 
-            return result;
+            // Return map with both items and approval feature flag
+            Map<String, Object> response = new Map<String, Object>();
+            response.put('items', result);
+            response.put('approvalFeatureEnabled', approvalFeatureEnabled);
+
+            return response;
 
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController', 'methodName' => 'getTimeSheetEntryItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return null;
         }
     }
-
-    // Removed - No longer needed as all editing is handled in JavaScript
-    // Timesheet edits are managed locally until log entry creation
 
     @AuraEnabled
     public static Map<String, Object> getJobLocationProcesses(Id jobId) {

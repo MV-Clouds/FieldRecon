@@ -1,9 +1,8 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getMobilizationList from '@salesforce/apex/ShiftEndLogEntriesController.getMobilizationList';
-import getMobilizationMembersWithStatus from '@salesforce/apex/ShiftEndLogEntriesController.getMobilizationMembersWithStatus';
-import createTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createTimesheetRecords';
 import getTimeSheetEntryItems from '@salesforce/apex/ShiftEndLogEntriesController.getTimeSheetEntryItems';
+import saveTimesheetEntryInlineEdits from '@salesforce/apex/JobDetailsPageController.saveTimesheetEntryInlineEdits';
 import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
@@ -19,8 +18,6 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track currentStep = 'step1';
     @track selectedMobilizationId;
     @track mobilizationOptions = [];
-    @track crewMembers = [];
-    @track costCodeOptions = [];
     @track timesheetEntries = [];
     @track regularTimesheetEntries = [];
     @track pendingTimesheetEntries = [];
@@ -40,19 +37,6 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track selectedLocationId;
     @track activeAccordionSections = []; // Track active accordion sections
 
-    // Clock In/Out Modal
-    @track showClockInModal = false;
-    @track showClockOutModal = false;
-    @track selectedContactId;
-    @track selectedCostCodeId;
-    @track clockInTime;
-    @track clockOutTime;
-    @track previousClockInTime;
-    @track currentJobStartDateTime;
-    @track currentJobEndDateTime;
-
-    @track modalJobStartTime = '';
-    @track modalJobEndTime = '';
     // Edit Timesheet Modal
     @track showEditTimesheetModal = false;
     @track editTimesheetData = {};
@@ -75,7 +59,8 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track hasMoreChatterItems = true;
 
     @track activeTab = 'approved';
-
+    @track approvalFeatureEnabled = true; // Default to true, will be set from custom setting
+    @track accordionStyleApplied = false;
     // Approval status tracking
     @track approvalStatus = {
         approvalMessage: '',
@@ -95,10 +80,6 @@ export default class ShiftEndLogEntries extends LightningElement {
     get isStep2() { return this.currentStep === 'step2'; }
     get isStep3() { return this.currentStep === 'step3'; }
     get isStep4() { return this.currentStep === 'step4'; }
-
-    get hasCrewMembers() {
-        return this.crewMembers && this.crewMembers.length > 0;
-    }
 
     get hasTimesheetEntries() {
         return this.timesheetEntries && this.timesheetEntries.length > 0;
@@ -144,30 +125,12 @@ export default class ShiftEndLogEntries extends LightningElement {
         return this.activeTab === 'pending' ? 'tab-button active' : 'tab-button';
     }
 
-    get clockInMinBoundary() {
-        const reference = this.currentJobStartDateTime || this.clockInTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
+    get showTabs() {
+        return this.approvalFeatureEnabled;
     }
 
-    get clockInMaxBoundary() {
-        const reference = this.currentJobStartDateTime || this.clockInTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T23:59` : null;
-    }
-
-    get clockOutMinBoundary() {
-        const reference = this.currentJobEndDateTime || this.clockOutTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
-    }
-
-    get clockOutMaxBoundary() {
-        const reference = this.currentJobEndDateTime || this.clockOutTime;
-        const dateKey = this.extractDateKey(reference);
-        if (!dateKey) return null;
-        const nextDay = this.addDaysToDateKey(dateKey, 1);
-        return nextDay ? `${nextDay}T23:59` : null;
+    get showSingleTable() {
+        return !this.approvalFeatureEnabled;
     }
 
     get editClockInMinBoundary() {
@@ -229,14 +192,10 @@ export default class ShiftEndLogEntries extends LightningElement {
         const oldClkOut = this.editTimesheetData.oldclockOutTime ? this.editTimesheetData.oldclockOutTime.slice(0, 16) : '';
         const newClkOut = this.editTimesheetData.newclockOutTime ? this.editTimesheetData.newclockOutTime.slice(0, 16) : '';
 
-        const oldTravel = parseFloat(this.editTimesheetData.oldTravelTime || 0);
-        const newTravel = parseFloat(this.editTimesheetData.travelTime || 0);
-
         const isClockInChanged = oldClkIn !== newClkIn;
         const isClockOutChanged = oldClkOut !== newClkOut;
-        const isTravelChanged = oldTravel !== newTravel;
 
-        return !(isClockInChanged || isClockOutChanged || isTravelChanged);
+        return !(isClockInChanged || isClockOutChanged);
     }
 
     connectedCallback() {
@@ -249,16 +208,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         if (this.isStep3 && this.groupedLocationProcesses.length > 0) {
             this.updateSliderStyles();
             this.updateRowHighlighting();
-
-            // Open first accordion by default
-            const firstAccordionContent = this.template.querySelector('.location-accordion-content');
-            const firstAccordionHeader = this.template.querySelector('.location-accordion-header');
-
-            if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
-                firstAccordionContent.classList.add('open');
-                if (firstAccordionHeader) {
-                    firstAccordionHeader.classList.add('active');
-                }
+            if (!this.accordionStyleApplied) {
+                this.applyAccordionStyling();
             }
         }
     }
@@ -355,7 +306,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     // Auto-select the most recent (first) mobilization
                     if (this.mobilizationOptions.length > 0) {
                         this.selectedMobilizationId = this.mobilizationOptions[0].value;
-                        this.loadCrewMembersAndApprovalStatus();
+                        this.loadTimesheetEntriesAndApprovalStatus();
                     }
                 }
             })
@@ -384,294 +335,51 @@ export default class ShiftEndLogEntries extends LightningElement {
     handleMobilizationChange(event) {
         this.selectedMobilizationId = event.detail.value;
         if (this.selectedMobilizationId) {
-            this.loadCrewMembersAndApprovalStatus();
+            this.loadTimesheetEntriesAndApprovalStatus();
         }
     }
 
-    loadCrewMembersAndApprovalStatus() {
+    loadTimesheetEntriesAndApprovalStatus() {
+        if (!this.selectedMobilizationId) return;
+        
+        const selectedMob = this.mobilizationOptions.find(m => m.value === this.selectedMobilizationId);
+        if (!selectedMob) return;
+        
         this.isLoading = true;
-        getMobilizationMembersWithStatus({ mobId: this.selectedMobilizationId, jobId: this.jobId, crewLeaderId: this.crewLeaderId })
-            .then(result => {
-                console.log('getMobilizationMembersWithStatus result:', result);
-
-                if (result) {
-                    // Process approval status
-                    const approvalStatusList = result.approvalStatus || [];
-                    if (approvalStatusList.length > 0) {
-                        const approvalData = approvalStatusList[0];
-                        this.approvalStatus = {
-                            approvalMessage: approvalData.approvalMessage || '',
-                            canEditTimesheet: approvalData.canEditTimesheet !== false
-                        };
-                    } else {
-                        this.approvalStatus = {
-                            approvalMessage: '',
-                            canEditTimesheet: true
-                        };
-                    }
-
-                    // Process clock in members
-                    const clockInList = result.clockIn || [];
-                    const clockOutList = result.clockOut || [];
-
-                    // Combine and process all members
-                    const allMembers = new Map();
-
-                    clockInList.forEach(member => {
-                        allMembers.set(member.contactId, {
-                            contactId: member.contactId,
-                            contactName: member.contactName,
-                            canClockIn: this.approvalStatus.canEditTimesheet,
-                            canClockOut: false,
-                            statusText: member.isAgain ? 'Ready to Clock In Again' : 'Not Clocked In',
-                            statusClass: 'status-not-clocked',
-                            hoursWorked: null,
-                            jobStartTime: member.jobStartTime,
-                            jobEndTime: member.jobEndTime,
-                            timesheetId: member.timesheetId,
-                            isTimesheetNull: member.isTimesheetNull,
-                            isTimesheetEntryNull: member.isTimesheetEntryNull,
-                            mobMemberId: member.mobMemberId,
-                            recentClockIn: member.recentClockIn ? this.formatToAMPM(member.recentClockIn) : null,
-                            recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null,
-                            hasRecentTimes: !!(member.recentClockIn || member.recentClockOut)
-                        });
-                    });
-
-                    clockOutList.forEach(member => {
-                        allMembers.set(member.contactId, {
-                            contactId: member.contactId,
-                            contactName: member.contactName,
-                            canClockIn: false,
-                            canClockOut: this.approvalStatus.canEditTimesheet,
-                            statusText: 'Clocked In',
-                            statusClass: 'status-clocked-in',
-                            // hoursWorked: this.calculateHours(member.clockInTime),
-                            clockInTime: member.clockInTime,
-                            jobStartTime: member.jobStartTime,
-                            jobEndTime: member.jobEndTime,
-                            timesheetId: member.timesheetId,
-                            isTimesheetNull: member.isTimesheetNull,
-                            isTimesheetEntryNull: member.isTimesheetEntryNull,
-                            timesheetEntryId: member.timesheetEntryId,
-                            mobMemberId: member.mobMemberId,
-                            recentClockIn: member.clockInTime ? this.formatToAMPM(member.clockInTime) : null,
-                            recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null,
-                            hasRecentTimes: !!(member.clockInTime || member.recentClockOut)
-                        });
-                    });
-
-                    this.crewMembers = Array.from(allMembers.values());
-
-                    // Sort crew members by contact name in ascending order
-                    this.crewMembers.sort((a, b) => {
-                        const nameA = a.contactName ? a.contactName.toLowerCase() : '';
-                        const nameB = b.contactName ? b.contactName.toLowerCase() : '';
-                        return nameA.localeCompare(nameB);
-                    });
-
-                    // Store cost code options
-                    if (result.costCodeDetails && result.costCodeDetails.length > 0) {
-                        const costCodeMap = result.costCodeDetails[0].costCodeDetails;
-                        this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
-                            label: costCodeMap[key],
-                            value: key
-                        }));
-                    }
-
-                    // Store job times
-                    if (this.crewMembers.length > 0) {
-                        this.currentJobStartDateTime = this.crewMembers[0].jobStartTime;
-                        this.currentJobEndDateTime = this.crewMembers[0].jobEndTime;
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error loading crew members:', error);
-                this.showToast('Error', 'Failed to load crew members', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
+        this.loadTimesheetEntries();
     }
 
-    handleClockInClick(event) {
-        console.log('enter in clock in');
-        const contactId = event.currentTarget.dataset.id;
-        const member = this.crewMembers.find(m => m.contactId === contactId);
-
-        console.log('members ==> ', contactId, ' ', member)
-        if (member) {
-            this.selectedContactId = contactId;
-            this.clockInTime = member.jobStartTime ? member.jobStartTime.slice(0, 16) : new Date().toISOString().slice(0, 16);
-            this.modalJobStartTime = member.jobStartTime ? this.formatToAMPM(member.jobStartTime) : '';
-            this.modalJobEndTime = member.jobEndTime ? this.formatToAMPM(member.jobEndTime) : '';
-            this.showClockInModal = true;
-        }
-    }
-
-    handleClockOutClick(event) {
-        const contactId = event.currentTarget.dataset.id;
-        const member = this.crewMembers.find(m => m.contactId === contactId);
-
-        if (member) {
-            this.selectedContactId = contactId;
-            this.clockOutTime = member.jobEndTime ? member.jobEndTime.slice(0, 16) : new Date().toISOString().slice(0, 16);
-            this.modalJobStartTime = member.jobStartTime ? this.formatToAMPM(member.jobStartTime) : '';
-            this.modalJobEndTime = member.jobEndTime ? this.formatToAMPM(member.jobEndTime) : '';
-            this.previousClockInTime = member.clockInTime ? this.formatToAMPM(member.clockInTime) : null;
-            this.showClockOutModal = true;
-        }
-    }
-
-    handleInputChange(event) {
-        const field = event.target.dataset.field;
-        const value = event.target.value;
-
-        if (field === 'costCode') {
-            this.selectedCostCodeId = value;
-        } else if (field === 'clockIn') {
-            this.clockInTime = value;
-        } else if (field === 'clockOut') {
-            this.clockOutTime = value;
-        }
-    }
-
-    saveClockIn() {
-        if (!this.selectedCostCodeId || !this.clockInTime) {
-            this.showToast('Error', 'Please fill all required fields', 'error');
-            return;
-        }
-
-        const member = this.crewMembers.find(m => m.contactId === this.selectedContactId);
-        if (!member) return;
-
-        const jobStartReference = member.jobStartTime;
-        if (!this.validateClockInDate(this.clockInTime, jobStartReference)) {
-            return;
-        }
-
-        this.isLoading = true;
-
-        const params = {
-            actionType: 'clockIn',
-            contactId: this.selectedContactId,
-            costCodeId: this.selectedCostCodeId,
-            mobId: this.selectedMobilizationId,
-            jobId: this.jobId,
-            clockInTime: this.clockInTime.replace(' ', 'T'),
-            isTimeSheetNull: member.isTimesheetNull,
-            timesheetId: member.timesheetId,
-            isTimeSheetEntryNull: member.isTimesheetEntryNull,
-            mobMemberId: member.mobMemberId
-        };
-
-        createTimesheetRecords({ params: JSON.stringify(params) })
-            .then(result => {
-                if (result) {
-                    this.showToast('Success', 'Clocked In Successfully', 'success');
-                    this.closeClockInModal();
-                    this.loadCrewMembersAndApprovalStatus();
-                } else {
-                    this.showToast('Error', 'Failed to Clock In', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error clock in:', error);
-                this.showToast('Error', 'Something went wrong', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
-    }
-
-    saveClockOut() {
-        if (!this.clockOutTime) {
-            this.showToast('Error', 'Please select clock out time', 'error');
-            return;
-        }
-
-        const member = this.crewMembers.find(m => m.contactId === this.selectedContactId);
-        if (!member) return;
-
-        if (new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(member.clockInTime.slice(0, 16).replace('T', ' '))) {
-            this.showToast('Error', 'Clock Out must be greater than Clock In time', 'error');
-            return;
-        }
-
-        const jobStartReference = member.jobStartTime;
-        const jobEndReference = member.jobEndTime;
-        if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
-            return;
-        }
-
-        this.isLoading = true;
-
-        const params = {
-            actionType: 'clockOut',
-            contactId: this.selectedContactId,
-            mobId: this.selectedMobilizationId,
-            jobId: this.jobId,
-            clockInTime: member.clockInTime,
-            clockOutTime: this.clockOutTime.replace(' ', 'T'),
-            isTimeSheetNull: member.isTimesheetNull,
-            timesheetId: member.timesheetId,
-            isTimeSheetEntryNull: member.isTimesheetEntryNull,
-            timesheetEntryId: member.timesheetEntryId,
-            mobMemberId: member.mobMemberId
-        };
-
-        createTimesheetRecords({ params: JSON.stringify(params) })
-            .then(result => {
-                if (result) {
-                    this.showToast('Success', 'Clocked Out Successfully', 'success');
-                    this.closeClockOutModal();
-                    this.loadCrewMembersAndApprovalStatus();
-                } else {
-                    this.showToast('Error', 'Failed to Clock Out', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error clock out:', error);
-                this.showToast('Error', 'Something went wrong', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
-    }
-
-    closeClockInModal() {
-        try {
-            this.showClockInModal = false;
-            this.selectedContactId = null;
-            this.selectedCostCodeId = null;
-            this.clockInTime = null;
-        } catch (error) {
-            // Error handling
-        }
-    }
-
-    closeClockOutModal() {
-        this.showClockOutModal = false;
-        this.selectedContactId = null;
-        this.clockOutTime = null;
-        this.previousClockInTime = null;
-    }
-
-    // Step 2: Timesheet Entries
+    // Step 1: Timesheet Entries
     loadTimesheetEntries() {
         this.isLoading = true;
 
-        // Get job start date for query
-        const jobStartDate = this.currentJobStartDateTime ?
-            new Date(this.currentJobStartDateTime).toISOString().split('T')[0] :
-            new Date().toISOString().split('T')[0];
+        // Get job start date from selected mobilization
+        const selectedMob = this.mobilizationOptions.find(m => m.value === this.selectedMobilizationId);
+        console.log('Selected Mobilization:', selectedMob);
+        
+        const jobStartDate = selectedMob ? selectedMob.dateStr : new Date().toISOString().split('T')[0];
+        console.log('Job Start Date:', jobStartDate);
 
+        // log apex parameters
+        console.log('Loading timesheet entries with params:', {
+            jobId: this.jobId,
+            jobStartDate: jobStartDate,
+            mobId: this.selectedMobilizationId,
+            crewLeaderId: this.crewLeaderId
+        });
+        
         getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: jobStartDate, mobId: this.selectedMobilizationId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 console.log('Timesheet Entries Result:', result);
-                if (result && result.length > 0) {
-                    const allEntries = result.map((entry) => {
+                
+                // Extract approval feature flag and items from result
+                this.approvalFeatureEnabled = result && result.approvalFeatureEnabled !== undefined ? result.approvalFeatureEnabled : true;
+                const items = result && result.items ? result.items : [];
+                
+                console.log('Approval Feature Enabled:', this.approvalFeatureEnabled);
+                
+                if (items && items.length > 0) {
+                    const allEntries = items.map((entry) => {
                         // Check if there's a local pending edit for this entry
                         const localEdit = this.localPendingEdits.get(entry.id);
                         const isPendingLocally = localEdit !== undefined;
@@ -712,6 +420,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                             TSEId: entry.TSEId,
                             rawClockIn: entry.clockInTime,
                             rawClockOut: entry.clockOutTime,
+                            perDiem: entry.perDiem || 0,
+                            premium: entry.premium || false,
                             canEdit: this.approvalStatus.canEditTimesheet
                         };
                     });
@@ -743,32 +453,17 @@ export default class ShiftEndLogEntries extends LightningElement {
                         // Get old and new values from local edits
                         const clockInChange = changesMap.get('wfrecon__Clock_In_Time__c');
                         const clockOutChange = changesMap.get('wfrecon__Clock_Out_Time__c');
-                        const travelTimeChange = changesMap.get('wfrecon__Travel_Time__c');
 
                         // Get old and new values (keep ISO format for accurate comparison and formatting)
                         const oldClockInVal = clockInChange ? clockInChange.oldValue : entry.rawClockIn;
                         const oldClockOutVal = clockOutChange ? clockOutChange.oldValue : entry.rawClockOut;
-                        const oldTravelTimeVal = travelTimeChange ? travelTimeChange.oldValue : (entry.travelTime || '0.00');
 
                         const newClockInVal = clockInChange ? clockInChange.newValue : entry.rawClockIn;
                         const newClockOutVal = clockOutChange ? clockOutChange.newValue : entry.rawClockOut;
-                        const newTravelTimeVal = travelTimeChange ? travelTimeChange.newValue : (entry.travelTime || '0.00');
-
-                        // Calculate old total hours using old values
-                        const oldWorkHours = this.calculateWorkHours(oldClockInVal, oldClockOutVal);
-                        const oldTravelHours = parseFloat(oldTravelTimeVal || 0);
-                        const oldTotalHours = (oldWorkHours + oldTravelHours).toFixed(2);
-
-                        // Calculate new total hours using new values
-                        const newWorkHours = this.calculateWorkHours(newClockInVal, newClockOutVal);
-                        const newTravelHours = parseFloat(newTravelTimeVal || 0);
-                        const newTotalHours = (newWorkHours + newTravelHours).toFixed(2);
 
                         // Check if values actually changed (compare ISO strings for clock times)
                         const isClockInChanged = oldClockInVal !== newClockInVal;
                         const isClockOutChanged = oldClockOutVal !== newClockOutVal;
-                        const isTravelTimeChanged = parseFloat(oldTravelTimeVal) !== parseFloat(newTravelTimeVal);
-                        const isTotalHoursChanged = parseFloat(oldTotalHours) !== parseFloat(newTotalHours);
 
                         return {
                             ...entry,
@@ -781,23 +476,26 @@ export default class ShiftEndLogEntries extends LightningElement {
                             // Old values (from current database state or approval data oldValue) - formatted
                             oldClockIn: this.formatToAMPM(oldClockInVal),
                             oldClockOut: this.formatToAMPM(oldClockOutVal),
-                            oldTravelTime: oldTravelTimeVal,
-                            oldTotalHours: oldTotalHours,
                             // New values (from approval data newValue) - formatted
                             newClockIn: this.formatToAMPM(newClockInVal),
                             newClockOut: this.formatToAMPM(newClockOutVal),
-                            newTravelTime: newTravelTimeVal,
-                            newTotalHours: newTotalHours,
                             // Highlight classes - only for NEW columns where value actually changed
                             hasClockInChange: isClockInChanged ? 'value-changed' : '',
-                            hasClockOutChange: isClockOutChanged ? 'value-changed' : '',
-                            hasTravelTimeChange: isTravelTimeChanged ? 'value-changed' : '',
-                            hasTotalHoursChange: isTotalHoursChanged ? 'value-changed' : ''
+                            hasClockOutChange: isClockOutChanged ? 'value-changed' : ''
                         };
                     });
 
-                    // Keep all entries for reference (with mixed serial numbers)
-                    this.timesheetEntries = [...this.regularTimesheetEntries, ...this.pendingTimesheetEntries];
+                    // Keep all entries for reference
+                    if (this.approvalFeatureEnabled) {
+                        // In approval mode, combine with mixed serial numbers
+                        this.timesheetEntries = [...this.regularTimesheetEntries, ...this.pendingTimesheetEntries];
+                    } else {
+                        // In direct update mode, use all entries with sequential serial numbers
+                        this.timesheetEntries = allEntries.map((entry, index) => ({
+                            ...entry,
+                            srNo: index + 1
+                        }));
+                    }
 
                     console.log('Total entries:', this.timesheetEntries.length);
                     console.log('Regular entries:', this.regularTimesheetEntries);
@@ -875,7 +573,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     }
 
-    saveEditedTimesheet() {
+    async saveEditedTimesheet() {
         try {
             if (!this.editTimesheetData.newclockInTime || !this.editTimesheetData.newclockOutTime) {
                 this.showToast('Error', 'Clock In and Clock Out times are required', 'error');
@@ -902,38 +600,35 @@ export default class ShiftEndLogEntries extends LightningElement {
             const newClkOut = this.editTimesheetData.newclockOutTime.slice(0, 16) + ':00.000Z';
             const oldClkIn = this.editTimesheetData.oldclockInTime.slice(0, 16) + ':00.000Z';
             const oldClkOut = this.editTimesheetData.oldclockOutTime.slice(0, 16) + ':00.000Z';
-            const travelTime = this.editTimesheetData.travelTime || '0.00';
-            const oldTravelTime = this.editTimesheetData.oldTravelTime || '0.00';
 
-            // Build changes array
-            const changes = [];
+            // Check if there are actual changes
+            const hasChanges = (oldClkIn !== newClkIn) || (oldClkOut !== newClkOut);
 
-            if (oldClkIn !== newClkIn) {
-                changes.push({
-                    fieldApiName: 'wfrecon__Clock_In_Time__c',
-                    oldValue: oldClkIn,
-                    newValue: newClkIn
-                });
+            if (!hasChanges) {
+                this.showToast('Info', 'No changes detected', 'info');
+                return;
             }
 
-            if (oldClkOut !== newClkOut) {
-                changes.push({
-                    fieldApiName: 'wfrecon__Clock_Out_Time__c',
-                    oldValue: oldClkOut,
-                    newValue: newClkOut
-                });
-            }
+            if (this.approvalFeatureEnabled) {
+                // APPROVAL MODE: Store changes locally for approval
+                const changes = [];
 
-            if (oldTravelTime !== travelTime) {
-                changes.push({
-                    fieldApiName: 'wfrecon__Travel_Time__c',
-                    oldValue: parseFloat(oldTravelTime),
-                    newValue: parseFloat(travelTime)
-                });
-            }
+                if (oldClkIn !== newClkIn) {
+                    changes.push({
+                        fieldApiName: 'wfrecon__Clock_In_Time__c',
+                        oldValue: oldClkIn,
+                        newValue: newClkIn
+                    });
+                }
 
-            // Only proceed if there are changes
-            if (changes.length > 0) {
+                if (oldClkOut !== newClkOut) {
+                    changes.push({
+                        fieldApiName: 'wfrecon__Clock_Out_Time__c',
+                        oldValue: oldClkOut,
+                        newValue: newClkOut
+                    });
+                }
+
                 // Store locally - no database update
                 this.localPendingEdits.set(this.editTimesheetData.id, {
                     changes: changes,
@@ -945,10 +640,50 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.showToast('Success', 'Timesheet entry marked as pending locally', 'success');
                 this.closeEditTimesheetModal();
                 this.loadTimesheetEntries();
+            } else {
+                this.isLoading = true;
+                
+                // Format times for Apex (append seconds if needed)
+                const cleanClockIn = this.editTimesheetData.newclockInTime.length === 16 
+                    ? this.editTimesheetData.newclockInTime + ':00' 
+                    : this.editTimesheetData.newclockInTime;
+                const cleanClockOut = this.editTimesheetData.newclockOutTime.length === 16 
+                    ? this.editTimesheetData.newclockOutTime + ':00' 
+                    : this.editTimesheetData.newclockOutTime;
+
+                // Get original entry to preserve travel time, per diem, and premium
+                const originalEntry = this.timesheetEntries.find(e => e.id === this.editTimesheetData.id);
+                
+                // Build payload matching JobDetailsPageController.saveTimesheetEntryInlineEdits format
+                const payload = [{
+                    Id: this.editTimesheetData.id,
+                    TSEId: this.editTimesheetData.TSEId,
+                    clockInTime: cleanClockIn,
+                    clockOutTime: cleanClockOut,
+                    travelTime: String(originalEntry?.travelTime || '0.00'),
+                    perDiem: String(originalEntry?.perDiem || '0'),
+                    premium: String(originalEntry?.premium || false)
+                }];
+
+                const updatedTimesheetsJson = JSON.stringify(payload);
+
+                const result = await saveTimesheetEntryInlineEdits({ 
+                    updatedTimesheetEntriesJson: updatedTimesheetsJson 
+                });
+
+                if (result.startsWith('Success')) {
+                    this.showToast('Success', 'Timesheet entry updated successfully', 'success');
+                    this.closeEditTimesheetModal();
+                    this.loadTimesheetEntries();
+                } else {
+                    this.showToast('Error', 'Failed to update timesheet entry: ' + result, 'error');
+                }
             }
         } catch (error) {
             console.error('Error saving timesheet edit:', error);
-            this.showToast('Error', 'Something went wrong', 'error');
+            this.showToast('Error', error.body?.message || error.message || 'Something went wrong', 'error');
+        } finally {
+            this.isLoading = false;
         }
     }
 
@@ -1001,8 +736,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         this.activeTab = 'pending';
     }
 
-    // Step 3: Log Details
-    handleStep3InputChange(event) {
+    // Step 2: Log Details
+    handleStep2InputChange(event) {
         const field = event.target.dataset.field;
         const value = event.target.value;
         this.step3Data[field] = value;
@@ -1150,39 +885,18 @@ export default class ShiftEndLogEntries extends LightningElement {
 
         this.groupedLocationProcesses = Array.from(locationMap.values());
 
-        // Set first accordion as active by default
-        if (this.groupedLocationProcesses.length > 0) {
+        // Set first accordion as active by default (only if not already set)
+        if (this.groupedLocationProcesses.length > 0 && this.activeAccordionSections.length === 0) {
             this.activeAccordionSections = [this.groupedLocationProcesses[0].sectionName];
         }
     }
 
-    handleAccordionToggle(event) {
-        event.stopPropagation();
-        const sectionName = event.currentTarget.dataset.section;
-        const headerElement = event.currentTarget;
-        const contentElement = this.template.querySelector(
-            `.location-accordion-content[data-section="${sectionName}"]`
-        );
-
-        if (contentElement) {
-            const isOpen = contentElement.classList.contains('open');
-
-            // Close all accordions first (only one open at a time)
-            const allContents = this.template.querySelectorAll('.location-accordion-content');
-            const allHeaders = this.template.querySelectorAll('.location-accordion-header');
-
-            allContents.forEach(content => content.classList.remove('open'));
-            allHeaders.forEach(header => header.classList.remove('active'));
-
-            // If it wasn't open, open it
-            if (!isOpen) {
-                contentElement.classList.add('open');
-                headerElement.classList.add('active');
-            }
-
-            // Update slider visuals after DOM settles
-            setTimeout(() => this.updateSliderStyles(), 100);
-        }
+    handleSectionToggle(event) {
+        // Update slider visuals when accordion section is toggled
+        requestAnimationFrame(() => {
+            this.updateSliderStyles();
+            this.updateRowHighlighting();
+        });
     }
 
     handleSliderInput(event) {
@@ -1249,9 +963,6 @@ export default class ShiftEndLogEntries extends LightningElement {
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(parseFloat(event.target.value).toFixed(1));
 
-        // Note: Process may have pending approval (shown with badge), but users can still edit it
-        // The badge provides visibility that there's a pending change, but doesn't block new modifications
-
         console.log('Slider changed - Process ID:', processId, 'Original:', originalValue, 'New:', newValue);
 
         // Track the modification
@@ -1265,43 +976,24 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.modifiedProcesses.delete(processId);
         }
 
-        // Update in allLocationProcesses to persist across location changes
-        const allProcessIndex = this.allLocationProcesses.findIndex(p => p.id === processId);
-        if (allProcessIndex !== -1) {
-            // Create a new object to trigger reactivity
-            this.allLocationProcesses = this.allLocationProcesses.map((proc, index) => {
-                if (index === allProcessIndex) {
-                    return {
-                        ...proc,
-                        completedPercent: newValue,
-                        previousPercent: originalValue,
-                        todayPercent: Math.max(0, newValue - originalValue),
-                        remainingPercent: Math.max(0, 100 - newValue)
-                    };
-                }
-                return proc;
-            });
-        }
+        // SIMPLE: Just update completedPercent. Keep previousPercent unchanged.
+        // todayPercent = completedPercent - previousPercent (calculated automatically)
+        this.allLocationProcesses = this.allLocationProcesses.map(proc => {
+            if (proc.id === processId) {
+                const prevPercent = proc.previousPercent || originalValue;
+                return {
+                    ...proc,
+                    completedPercent: newValue,
+                    todayPercent: newValue - prevPercent,
+                    remainingPercent: 100 - newValue,
+                    previousPercent: prevPercent // Keep it fixed
+                };
+            }
+            return proc;
+        });
 
-        // Update in locationProcesses for current display
-        const processIndex = this.locationProcesses.findIndex(p => p.id === processId);
-        if (processIndex !== -1) {
-            this.locationProcesses = this.locationProcesses.map((proc, index) => {
-                if (index === processIndex) {
-                    return {
-                        ...proc,
-                        completedPercent: newValue,
-                        previousPercent: originalValue,
-                        todayPercent: Math.max(0, newValue - originalValue),
-                        remainingPercent: Math.max(0, 100 - newValue)
-                    };
-                }
-                return proc;
-            });
-
-            // Rebuild grouped processes
-            this.groupProcessesByLocation();
-        }
+        // Rebuild the grouped view
+        this.groupProcessesByLocation();
 
         // Update visual feedback
         this.handleSliderInput(event);
@@ -1732,39 +1424,21 @@ export default class ShiftEndLogEntries extends LightningElement {
     // Navigation
     handleNext() {
         if (this.currentStep === 'step1') {
-            if (!this.selectedMobilizationId) {
-                this.showToast('Error', 'Please select a mobilization', 'error');
+            if (!this.hasTimesheetEntries) {
+                this.showToast('Warning', 'No timesheet entries found for the selected date.', 'warning');
                 return;
             }
-
-            // Check if there are any crew members
-            if (!this.crewMembers || this.crewMembers.length === 0) {
-                this.showToast('Error', 'No crew members found for the selected mobilization', 'error');
-                return;
-            }
-
-            // Validate that at least one crew member has clock in and clock out
-            const hasAtLeastOneEntry = this.crewMembers.some(member => {
-                return member.recentClockIn && member.recentClockOut;
-            });
-
-            if (!hasAtLeastOneEntry) {
-                this.showToast('Error', 'At least one crew member must have a clock in and clock out before proceeding', 'error');
-                return;
-            }
-
             this.currentStep = 'step2';
-            this.loadTimesheetEntries();
         } else if (this.currentStep === 'step2') {
+            if (!this.step3Data.whatWeDone?.trim() || !this.step3Data.planForTomorrow?.trim()) {
+                this.showToast('Error', 'Please fill required fields', 'error');
+                return;
+            }
             this.currentStep = 'step3';
         } else if (this.currentStep === 'step3') {
             // Check for unsaved progress bar changes
             if (this.hasModifications) {
                 this.showToast('Warning', 'Please save or discard your progress changes before proceeding', 'warning');
-                return;
-            }
-            if (!this.step3Data.whatWeDone?.trim() || !this.step3Data.planForTomorrow?.trim()) {
-                this.showToast('Error', 'Please fill required fields', 'error');
                 return;
             }
             this.currentStep = 'step4';
@@ -1822,16 +1496,20 @@ export default class ShiftEndLogEntries extends LightningElement {
                 };
             });
 
-            // Build timesheetEntryChanges object from local pending edits
+            // Build timesheetEntryChanges object from local pending edits (only if approval is enabled)
             const timesheetEntryChanges = {};
 
-            this.localPendingEdits.forEach((editData, itemId) => {
-                timesheetEntryChanges[editData.TSEId] = {
-                    changes: editData.changes,
-                    contactId: editData.contactId,
-                    contactName: editData.contactName
-                };
-            });
+            if (this.approvalFeatureEnabled) {
+                // Include timesheet changes only if approval feature is enabled
+                this.localPendingEdits.forEach((editData, itemId) => {
+                    timesheetEntryChanges[editData.TSEId] = {
+                        changes: editData.changes,
+                        contactId: editData.contactId,
+                        contactName: editData.contactName
+                    };
+                });
+            }
+            // If approval is disabled, timesheetEntryChanges remains empty {}
 
             // Build media metadata with source info for all files
             const mediaMetadata = [];
@@ -1860,7 +1538,7 @@ export default class ShiftEndLogEntries extends LightningElement {
             if (locationProcessChanges.length > 0 || Object.keys(timesheetEntryChanges).length > 0 || mediaMetadata.length > 0 || cameraPhotos.length > 0) {
                 const approvalDataStructure = {
                     locationProcessChanges: locationProcessChanges,
-                    timesheetEntryChanges: timesheetEntryChanges,
+                    timesheetEntryChanges: timesheetEntryChanges, // Will be empty {} if approval disabled
                     uploadedContentDocumentIds: chatterFiles.map(file => file.id), // Track Chatter files for preventing re-selection in edit mode
                     mediaMetadata: mediaMetadata // Track all media with source info
                 };
@@ -2057,6 +1735,41 @@ export default class ShiftEndLogEntries extends LightningElement {
         } catch (error) {
             console.error('Error parsing approval data:', error);
             return [];
+        }
+    }
+
+    /** 
+    * Method Name: applyAccordionStyling 
+    * @description: Dynamically injects custom CSS to style the accordion sections within the component.
+    */
+    applyAccordionStyling() {
+        try {
+            // Create style element if it doesn't exist
+            const style = document.createElement('style');
+            style.textContent = `
+                .location-progress-section .section-control {
+                    background: rgba(94, 90, 219, 0.9) !important;
+                    color: white !important;
+                    margin-bottom: 4px;
+                    --slds-c-icon-color-foreground-default: #ffffff !important;
+                    font-weight: 600 !important;
+                    border-radius: 4px;
+                }
+
+                .location-progress-section .slds-accordion__summary-content{
+                    font-size: medium;
+                }
+            `;
+
+            // Append to component's template
+            const accordionContainer = this.template.querySelector('.location-progress-section');
+            if (accordionContainer) {
+                accordionContainer.appendChild(style);
+                this.accordionStyleApplied = true;
+            }
+
+        } catch (error) {
+            console.error('Error applying accordion styling:', error);
         }
     }
 
