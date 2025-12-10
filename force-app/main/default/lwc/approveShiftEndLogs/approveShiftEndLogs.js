@@ -305,6 +305,10 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         });
     }
 
+    get hasChatterFeedItems() {
+        return this.chatterFeedItems && this.chatterFeedItems.length > 0;
+    }
+
     /**
      * Method Name: renderedCallback
      * @description: Initialize slider visuals after render
