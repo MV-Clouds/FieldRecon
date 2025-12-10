@@ -60,7 +60,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     @track activeTab = 'approved';
     @track approvalFeatureEnabled = true; // Default to true, will be set from custom setting
-
+    @track accordionStyleApplied = false;
     // Approval status tracking
     @track approvalStatus = {
         approvalMessage: '',
@@ -79,6 +79,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     get isStep1() { return this.currentStep === 'step1'; }
     get isStep2() { return this.currentStep === 'step2'; }
     get isStep3() { return this.currentStep === 'step3'; }
+    get isStep4() { return this.currentStep === 'step4'; }
 
     get hasTimesheetEntries() {
         return this.timesheetEntries && this.timesheetEntries.length > 0;
@@ -204,19 +205,11 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     renderedCallback() {
         // Apply slider styles manually in DOM for dynamic progress bars
-        if (this.isStep2 && this.groupedLocationProcesses.length > 0) {
+        if (this.isStep3 && this.groupedLocationProcesses.length > 0) {
             this.updateSliderStyles();
             this.updateRowHighlighting();
-
-            // Open first accordion by default
-            const firstAccordionContent = this.template.querySelector('.location-accordion-content');
-            const firstAccordionHeader = this.template.querySelector('.location-accordion-header');
-
-            if (firstAccordionContent && !firstAccordionContent.classList.contains('open')) {
-                firstAccordionContent.classList.add('open');
-                if (firstAccordionHeader) {
-                    firstAccordionHeader.classList.add('active');
-                }
+            if (!this.accordionStyleApplied) {
+                this.applyAccordionStyling();
             }
         }
     }
@@ -892,39 +885,18 @@ export default class ShiftEndLogEntries extends LightningElement {
 
         this.groupedLocationProcesses = Array.from(locationMap.values());
 
-        // Set first accordion as active by default
-        if (this.groupedLocationProcesses.length > 0) {
+        // Set first accordion as active by default (only if not already set)
+        if (this.groupedLocationProcesses.length > 0 && this.activeAccordionSections.length === 0) {
             this.activeAccordionSections = [this.groupedLocationProcesses[0].sectionName];
         }
     }
 
-    handleAccordionToggle(event) {
-        event.stopPropagation();
-        const sectionName = event.currentTarget.dataset.section;
-        const headerElement = event.currentTarget;
-        const contentElement = this.template.querySelector(
-            `.location-accordion-content[data-section="${sectionName}"]`
-        );
-
-        if (contentElement) {
-            const isOpen = contentElement.classList.contains('open');
-
-            // Close all accordions first (only one open at a time)
-            const allContents = this.template.querySelectorAll('.location-accordion-content');
-            const allHeaders = this.template.querySelectorAll('.location-accordion-header');
-
-            allContents.forEach(content => content.classList.remove('open'));
-            allHeaders.forEach(header => header.classList.remove('active'));
-
-            // If it wasn't open, open it
-            if (!isOpen) {
-                contentElement.classList.add('open');
-                headerElement.classList.add('active');
-            }
-
-            // Update slider visuals after DOM settles
-            setTimeout(() => this.updateSliderStyles(), 100);
-        }
+    handleSectionToggle(event) {
+        // Update slider visuals when accordion section is toggled
+        requestAnimationFrame(() => {
+            this.updateSliderStyles();
+            this.updateRowHighlighting();
+        });
     }
 
     handleSliderInput(event) {
@@ -991,9 +963,6 @@ export default class ShiftEndLogEntries extends LightningElement {
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(parseFloat(event.target.value).toFixed(1));
 
-        // Note: Process may have pending approval (shown with badge), but users can still edit it
-        // The badge provides visibility that there's a pending change, but doesn't block new modifications
-
         console.log('Slider changed - Process ID:', processId, 'Original:', originalValue, 'New:', newValue);
 
         // Track the modification
@@ -1007,43 +976,24 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.modifiedProcesses.delete(processId);
         }
 
-        // Update in allLocationProcesses to persist across location changes
-        const allProcessIndex = this.allLocationProcesses.findIndex(p => p.id === processId);
-        if (allProcessIndex !== -1) {
-            // Create a new object to trigger reactivity
-            this.allLocationProcesses = this.allLocationProcesses.map((proc, index) => {
-                if (index === allProcessIndex) {
-                    return {
-                        ...proc,
-                        completedPercent: newValue,
-                        previousPercent: originalValue,
-                        todayPercent: Math.max(0, newValue - originalValue),
-                        remainingPercent: Math.max(0, 100 - newValue)
-                    };
-                }
-                return proc;
-            });
-        }
+        // SIMPLE: Just update completedPercent. Keep previousPercent unchanged.
+        // todayPercent = completedPercent - previousPercent (calculated automatically)
+        this.allLocationProcesses = this.allLocationProcesses.map(proc => {
+            if (proc.id === processId) {
+                const prevPercent = proc.previousPercent || originalValue;
+                return {
+                    ...proc,
+                    completedPercent: newValue,
+                    todayPercent: newValue - prevPercent,
+                    remainingPercent: 100 - newValue,
+                    previousPercent: prevPercent // Keep it fixed
+                };
+            }
+            return proc;
+        });
 
-        // Update in locationProcesses for current display
-        const processIndex = this.locationProcesses.findIndex(p => p.id === processId);
-        if (processIndex !== -1) {
-            this.locationProcesses = this.locationProcesses.map((proc, index) => {
-                if (index === processIndex) {
-                    return {
-                        ...proc,
-                        completedPercent: newValue,
-                        previousPercent: originalValue,
-                        todayPercent: Math.max(0, newValue - originalValue),
-                        remainingPercent: Math.max(0, 100 - newValue)
-                    };
-                }
-                return proc;
-            });
-
-            // Rebuild grouped processes
-            this.groupProcessesByLocation();
-        }
+        // Rebuild the grouped view
+        this.groupProcessesByLocation();
 
         // Update visual feedback
         this.handleSliderInput(event);
@@ -1480,16 +1430,18 @@ export default class ShiftEndLogEntries extends LightningElement {
             }
             this.currentStep = 'step2';
         } else if (this.currentStep === 'step2') {
-            // Check for unsaved progress bar changes
-            if (this.hasModifications) {
-                this.showToast('Warning', 'Please save or discard your progress changes before proceeding', 'warning');
-                return;
-            }
             if (!this.step3Data.whatWeDone?.trim() || !this.step3Data.planForTomorrow?.trim()) {
                 this.showToast('Error', 'Please fill required fields', 'error');
                 return;
             }
             this.currentStep = 'step3';
+        } else if (this.currentStep === 'step3') {
+            // Check for unsaved progress bar changes
+            if (this.hasModifications) {
+                this.showToast('Warning', 'Please save or discard your progress changes before proceeding', 'warning');
+                return;
+            }
+            this.currentStep = 'step4';
         }
     }
 
@@ -1498,6 +1450,8 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.currentStep = 'step1';
         } else if (this.currentStep === 'step3') {
             this.currentStep = 'step2';
+        } else if (this.currentStep === 'step4') {
+            this.currentStep = 'step3';
         }
     }
 
@@ -1781,6 +1735,41 @@ export default class ShiftEndLogEntries extends LightningElement {
         } catch (error) {
             console.error('Error parsing approval data:', error);
             return [];
+        }
+    }
+
+    /** 
+    * Method Name: applyAccordionStyling 
+    * @description: Dynamically injects custom CSS to style the accordion sections within the component.
+    */
+    applyAccordionStyling() {
+        try {
+            // Create style element if it doesn't exist
+            const style = document.createElement('style');
+            style.textContent = `
+                .location-progress-section .section-control {
+                    background: rgba(94, 90, 219, 0.9) !important;
+                    color: white !important;
+                    margin-bottom: 4px;
+                    --slds-c-icon-color-foreground-default: #ffffff !important;
+                    font-weight: 600 !important;
+                    border-radius: 4px;
+                }
+
+                .location-progress-section .slds-accordion__summary-content{
+                    font-size: medium;
+                }
+            `;
+
+            // Append to component's template
+            const accordionContainer = this.template.querySelector('.location-progress-section');
+            if (accordionContainer) {
+                accordionContainer.appendChild(style);
+                this.accordionStyleApplied = true;
+            }
+
+        } catch (error) {
+            console.error('Error applying accordion styling:', error);
         }
     }
 

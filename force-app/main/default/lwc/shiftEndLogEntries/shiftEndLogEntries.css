@@ -519,12 +519,6 @@
     box-shadow: 0 0 0 2px rgba(94, 90, 219, 0.1);
 }
 
-.location-progress-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e0e0e0;
-}
-
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -587,69 +581,8 @@
 }
 
 /* =============================================
-   LOCATION ACCORDION
+   LOCATION ACCORDION (Using Lightning Standard)
    ============================================= */
-.location-accordion {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1rem;
-}
-
-.location-accordion-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.location-accordion-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    background: linear-gradient(135deg, #5e5adb 0%, #7c78ed 100%);
-    color: #ffffff;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 600;
-    font-size: 1rem;
-}
-
-.location-accordion-header:hover,
-.location-accordion-header.active {
-    background: linear-gradient(135deg, #4e4acb 0%, #6c68dd 100%);
-}
-
-.location-accordion-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-}
-
-.accordion-icon {
-    transition: transform 0.3s ease;
-    fill: white;
-}
-
-.location-accordion-header.active .accordion-icon {
-    transform: rotate(180deg);
-}
-
-.location-accordion-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    background: #ffffff;
-}
-
-.location-accordion-content.open {
-    max-height: 3000px;
-    padding: 1.25rem;
-    overflow-y: auto;
-}
 
 .location-group-title {
     font-size: 16px;
