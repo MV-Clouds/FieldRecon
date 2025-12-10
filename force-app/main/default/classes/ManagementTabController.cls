@@ -3,13 +3,13 @@ public with sharing class ManagementTabController {
     public static final String CLASSNAME = 'ManagementTabController';
 
     @AuraEnabled
-    public static List<Process__c> getProcessLibraries() {
-        List<Process__c> processLibraries = new List<Process__c>();
+    public static List<wfrecon__Process__c> getProcessLibraries() {
+        List<wfrecon__Process__c> processLibraries = new List<wfrecon__Process__c>();
         
         try {
             processLibraries = [
-                SELECT Id, Name, Process_Name__c, Weight__c, Unit_of_Measure__c, Process_Type__c
-                FROM Process__c
+                SELECT Id, Name, wfrecon__Process_Name__c, wfrecon__Weight__c, wfrecon__Unit_of_Measure__c, wfrecon__Process_Type__c
+                FROM wfrecon__Process__c
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC
             ];
@@ -21,16 +21,16 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static List<Crew__c> getCrewMembers() {
-        List<Crew__c> crewMembers = new List<Crew__c>();
+    public static List<wfrecon__Crew__c> getCrewMembers() {
+        List<wfrecon__Crew__c> crewMembers = new List<wfrecon__Crew__c>();
         
         try {
             crewMembers = [
-                SELECT Id, Name, Description__c, Color_Code__c, Crew_Member_Count__c,
-                       Crew_Leader__c,
-                       Crew_Leader__r.Contact__c,
-                       Crew_Leader__r.Contact__r.Name
-                FROM Crew__c
+                SELECT Id, Name, wfrecon__Description__c, wfrecon__Color_Code__c, wfrecon__Crew_Member_Count__c,
+                       wfrecon__Crew_Leader__c,
+                       wfrecon__Crew_Leader__r.wfrecon__Contact__c,
+                       wfrecon__Crew_Leader__r.wfrecon__Contact__r.Name
+                FROM wfrecon__Crew__c
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC
             ];
@@ -49,15 +49,15 @@ public with sharing class ManagementTabController {
 
         try {
             Set<Id> mobilizationIds = new Set<Id>();
-            for (Mobilization_Member__c member : [
-                SELECT Mobilization__c
-                FROM Mobilization_Member__c
-                WHERE Crew__c = :crewId
-                AND Mobilization__r.Start_Date__c >= TODAY
-                AND Mobilization__c != null
+            for (wfrecon__Mobilization_Member__c member : [
+                SELECT wfrecon__Mobilization__c
+                FROM wfrecon__Mobilization_Member__c
+                WHERE wfrecon__Crew__c = :crewId
+                AND wfrecon__Mobilization__r.wfrecon__Start_Date__c >= TODAY
+                AND wfrecon__Mobilization__c != null
                 WITH USER_MODE
             ]) {
-                mobilizationIds.add(member.Mobilization__c);
+                mobilizationIds.add(member.wfrecon__Mobilization__c);
             }
             return mobilizationIds.size();
         } catch (Exception e) {
@@ -95,22 +95,22 @@ public with sharing class ManagementTabController {
                 return response;
             }
 
-            Crew__c crewRecord = new Crew__c();
+            wfrecon__Crew__c crewRecord = new wfrecon__Crew__c();
             crewRecord.Name = crewName;
             if (crewId != null) {
                 crewRecord.Id = crewId;
             }
 
-            if (crewData.containsKey('Description__c')) {
-                crewRecord.Description__c = (String)crewData.get('Description__c');
+            if (crewData.containsKey('wfrecon__Description__c')) {
+                crewRecord.wfrecon__Description__c = (String)crewData.get('wfrecon__Description__c');
             }
 
-            if (crewData.containsKey('Color_Code__c')) {
-                String colorCode = (String)crewData.get('Color_Code__c');
+            if (crewData.containsKey('wfrecon__Color_Code__c')) {
+                String colorCode = (String)crewData.get('wfrecon__Color_Code__c');
                 if (!String.isBlank(colorCode) && !colorCode.startsWith('#')) {
                     colorCode = '#' + colorCode;
                 }
-                crewRecord.Color_Code__c = colorCode;
+                crewRecord.wfrecon__Color_Code__c = colorCode;
             }
 
             // Extract member IDs to add
@@ -186,17 +186,17 @@ public with sharing class ManagementTabController {
             crewId = crewRecord.Id;
 
             if (!memberRecordIdsToRemove.isEmpty()) {
-                List<Crew_Member__c> membersToDelete = [
-                    SELECT Id, Contact__c
-                    FROM Crew_Member__c
+                List<wfrecon__Crew_Member__c> membersToDelete = [
+                    SELECT Id, wfrecon__Contact__c
+                    FROM wfrecon__Crew_Member__c
                     WHERE Id IN :memberRecordIdsToRemove
                     WITH USER_MODE
                 ];
 
                 Set<Id> removedContactIds = new Set<Id>();
-                for (Crew_Member__c memberToDelete : membersToDelete) {
-                    if (memberToDelete.Contact__c != null) {
-                        removedContactIds.add(memberToDelete.Contact__c);
+                for (wfrecon__Crew_Member__c memberToDelete : membersToDelete) {
+                    if (memberToDelete.wfrecon__Contact__c != null) {
+                        removedContactIds.add(memberToDelete.wfrecon__Contact__c);
                     }
                 }
 
@@ -206,12 +206,12 @@ public with sharing class ManagementTabController {
 
                 if (removeFromFutureMobilizations && !removedContactIds.isEmpty()) {
                     Date today = Date.today();
-                    List<Mobilization_Member__c> futureAssignments = [
+                    List<wfrecon__Mobilization_Member__c> futureAssignments = [
                         SELECT Id
-                        FROM Mobilization_Member__c
-                        WHERE Contact__c IN :removedContactIds
-                        AND Crew__c = :crewId
-                        AND Mobilization__r.Start_Date__c >= :today
+                        FROM wfrecon__Mobilization_Member__c
+                        WHERE wfrecon__Contact__c IN :removedContactIds
+                        AND wfrecon__Crew__c = :crewId
+                        AND wfrecon__Mobilization__r.wfrecon__Start_Date__c >= :today
                         WITH USER_MODE
                     ];
 
@@ -224,21 +224,21 @@ public with sharing class ManagementTabController {
             if (!membersToAdd.isEmpty()) {
                 Set<Id> contactIdsToInsert = new Set<Id>(membersToAdd);
 
-                List<Crew_Member__c> existingMembers = [
-                    SELECT Id, Contact__c
-                    FROM Crew_Member__c
-                    WHERE Crew__c = :crewId AND Contact__c IN :contactIdsToInsert
+                List<wfrecon__Crew_Member__c> existingMembers = [
+                    SELECT Id, wfrecon__Contact__c
+                    FROM wfrecon__Crew_Member__c
+                    WHERE wfrecon__Crew__c = :crewId AND wfrecon__Contact__c IN :contactIdsToInsert
                     WITH USER_MODE
                 ];
 
-                for (Crew_Member__c existingMember : existingMembers) {
-                    contactIdsToInsert.remove(existingMember.Contact__c);
+                for (wfrecon__Crew_Member__c existingMember : existingMembers) {
+                    contactIdsToInsert.remove(existingMember.wfrecon__Contact__c);
                 }
 
                 if (!contactIdsToInsert.isEmpty()) {
-                    List<Crew_Member__c> membersToInsert = new List<Crew_Member__c>();
+                    List<wfrecon__Crew_Member__c> membersToInsert = new List<wfrecon__Crew_Member__c>();
                     for (Id contactId : contactIdsToInsert) {
-                        membersToInsert.add(new Crew_Member__c(Crew__c = crewId, Contact__c = contactId));
+                        membersToInsert.add(new wfrecon__Crew_Member__c(wfrecon__Crew__c = crewId, wfrecon__Contact__c = contactId));
                     }
                     insert membersToInsert;
 
@@ -252,33 +252,33 @@ public with sharing class ManagementTabController {
             }
 
             if (crewId != null) {
-                List<Crew_Member__c> crewMembersForLeaderSync = [
-                    SELECT Id, Contact__c, Member_Type__c
-                    FROM Crew_Member__c
-                    WHERE Crew__c = :crewId
+                List<wfrecon__Crew_Member__c> crewMembersForLeaderSync = [
+                    SELECT Id, wfrecon__Contact__c, wfrecon__Member_Type__c
+                    FROM wfrecon__Crew_Member__c
+                    WHERE wfrecon__Crew__c = :crewId
                     WITH USER_MODE
                 ];
 
-                List<Crew_Member__c> memberTypeUpdates = new List<Crew_Member__c>();
+                List<wfrecon__Crew_Member__c> memberTypeUpdates = new List<wfrecon__Crew_Member__c>();
                 Id assignedLeaderCrewMemberId;
 
-                for (Crew_Member__c crewMemberRecord : crewMembersForLeaderSync) {
+                for (wfrecon__Crew_Member__c crewMemberRecord : crewMembersForLeaderSync) {
                     if (crewMemberRecord == null) {
                         continue;
                     }
 
-                    Boolean isLeader = leaderContactId != null && crewMemberRecord.Contact__c == leaderContactId;
+                    Boolean isLeader = leaderContactId != null && crewMemberRecord.wfrecon__Contact__c == leaderContactId;
                     String desiredType = isLeader ? 'Leader' : 'Member';
-                    String currentType = crewMemberRecord.Member_Type__c;
+                    String currentType = crewMemberRecord.wfrecon__Member_Type__c;
 
                     if (isLeader) {
                         assignedLeaderCrewMemberId = crewMemberRecord.Id;
                     }
 
                     if ((currentType == null && desiredType != null) || (currentType != null && desiredType != null && currentType != desiredType)) {
-                        memberTypeUpdates.add(new Crew_Member__c(
+                        memberTypeUpdates.add(new wfrecon__Crew_Member__c(
                             Id = crewMemberRecord.Id,
-                            Member_Type__c = desiredType
+                            wfrecon__Member_Type__c = desiredType
                         ));
                     }
                 }
@@ -289,7 +289,7 @@ public with sharing class ManagementTabController {
 
                 Boolean shouldUpdateCrewLeader = assignedLeaderCrewMemberId != null || leaderContactId != null || isExistingCrew;
                 if (shouldUpdateCrewLeader) {
-                    Crew__c crewLeaderUpdate = new Crew__c(Id = crewId, Crew_Leader__c = assignedLeaderCrewMemberId);
+                    wfrecon__Crew__c crewLeaderUpdate = new wfrecon__Crew__c(Id = crewId, wfrecon__Crew_Leader__c = assignedLeaderCrewMemberId);
                     update crewLeaderUpdate;
 
                     if (leaderContactId != null && assignedLeaderCrewMemberId == null) {
@@ -327,25 +327,25 @@ public with sharing class ManagementTabController {
             }
 
             Map<Id, MobilizationTimeWindow> targetMobilizations = new Map<Id, MobilizationTimeWindow>();
-            for (Mobilization_Member__c crewMobilization : [
-                SELECT Mobilization__c, Mobilization__r.Name, Mobilization__r.Start_Date__c, Mobilization__r.End_Date__c
-                FROM Mobilization_Member__c
-                WHERE Crew__c = :crewId
-                AND Mobilization__r.Start_Date__c >= :today
-                AND Mobilization__c != null
+            for (wfrecon__Mobilization_Member__c crewMobilization : [
+                SELECT wfrecon__Mobilization__c, wfrecon__Mobilization__r.Name, wfrecon__Mobilization__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__End_Date__c
+                FROM wfrecon__Mobilization_Member__c
+                WHERE wfrecon__Crew__c = :crewId
+                AND wfrecon__Mobilization__r.wfrecon__Start_Date__c >= :today
+                AND wfrecon__Mobilization__c != null
                 WITH USER_MODE
             ]) {
-                Id mobilizationId = crewMobilization.Mobilization__c;
+                Id mobilizationId = crewMobilization.wfrecon__Mobilization__c;
                 if (mobilizationId == null || targetMobilizations.containsKey(mobilizationId)) {
                     continue;
                 }
 
                 MobilizationTimeWindow window = new MobilizationTimeWindow();
                 window.mobilizationId = mobilizationId;
-                if (crewMobilization.Mobilization__r != null) {
-                    window.name = crewMobilization.Mobilization__r.Name;
-                    window.startDateTime = crewMobilization.Mobilization__r.Start_Date__c;
-                    window.endDateTime = crewMobilization.Mobilization__r.End_Date__c;
+                if (crewMobilization.wfrecon__Mobilization__r != null) {
+                    window.name = crewMobilization.wfrecon__Mobilization__r.Name;
+                    window.startDateTime = crewMobilization.wfrecon__Mobilization__r.wfrecon__Start_Date__c;
+                    window.endDateTime = crewMobilization.wfrecon__Mobilization__r.wfrecon__End_Date__c;
                 }
 
                 if (window.startDateTime == null) {
@@ -360,37 +360,37 @@ public with sharing class ManagementTabController {
             }
 
             Map<Id, List<MobilizationAssignmentInfo>> assignmentsByContact = new Map<Id, List<MobilizationAssignmentInfo>>();
-            for (Mobilization_Member__c assignment : [
-                SELECT Id, Contact__c, Contact__r.Name, Mobilization__c, Mobilization__r.Name,
-                       Mobilization__r.Start_Date__c, Mobilization__r.End_Date__c,
-                       Crew__c, Crew__r.Name
-                FROM Mobilization_Member__c
-                WHERE Contact__c IN :uniqueContactIds
-                AND Mobilization__r.Start_Date__c >= :today
-                AND Mobilization__c != null
+            for (wfrecon__Mobilization_Member__c assignment : [
+                SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Mobilization__c, wfrecon__Mobilization__r.Name,
+                       wfrecon__Mobilization__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__End_Date__c,
+                       wfrecon__Crew__c, wfrecon__Crew__r.Name
+                FROM wfrecon__Mobilization_Member__c
+                WHERE wfrecon__Contact__c IN :uniqueContactIds
+                AND wfrecon__Mobilization__r.wfrecon__Start_Date__c >= :today
+                AND wfrecon__Mobilization__c != null
                 WITH USER_MODE
             ]) {
-                if (assignment.Contact__c == null) {
+                if (assignment.wfrecon__Contact__c == null) {
                     continue;
                 }
 
-                List<MobilizationAssignmentInfo> contactAssignments = assignmentsByContact.get(assignment.Contact__c);
+                List<MobilizationAssignmentInfo> contactAssignments = assignmentsByContact.get(assignment.wfrecon__Contact__c);
                 if (contactAssignments == null) {
                     contactAssignments = new List<MobilizationAssignmentInfo>();
-                    assignmentsByContact.put(assignment.Contact__c, contactAssignments);
+                    assignmentsByContact.put(assignment.wfrecon__Contact__c, contactAssignments);
                 }
 
                 MobilizationAssignmentInfo info = new MobilizationAssignmentInfo();
-                info.contactId = assignment.Contact__c;
-                info.contactName = assignment.Contact__r != null ? assignment.Contact__r.Name : null;
-                info.mobilizationId = assignment.Mobilization__c;
-                if (assignment.Mobilization__r != null) {
-                    info.mobilizationName = assignment.Mobilization__r.Name;
-                    info.startDateTime = assignment.Mobilization__r.Start_Date__c;
-                    info.endDateTime = assignment.Mobilization__r.End_Date__c;
+                info.contactId = assignment.wfrecon__Contact__c;
+                info.contactName = assignment.wfrecon__Contact__r != null ? assignment.wfrecon__Contact__r.Name : null;
+                info.mobilizationId = assignment.wfrecon__Mobilization__c;
+                if (assignment.wfrecon__Mobilization__r != null) {
+                    info.mobilizationName = assignment.wfrecon__Mobilization__r.Name;
+                    info.startDateTime = assignment.wfrecon__Mobilization__r.wfrecon__Start_Date__c;
+                    info.endDateTime = assignment.wfrecon__Mobilization__r.wfrecon__End_Date__c;
                 }
-                info.crewId = assignment.Crew__c;
-                info.crewName = assignment.Crew__r != null ? assignment.Crew__r.Name : null;
+                info.crewId = assignment.wfrecon__Crew__c;
+                info.crewName = assignment.wfrecon__Crew__r != null ? assignment.wfrecon__Crew__r.Name : null;
 
                 contactAssignments.add(info);
             }
@@ -448,7 +448,7 @@ public with sharing class ManagementTabController {
         try {
             
             if (processId != null) {
-                delete as user (new Process__c(Id = processId));
+                delete as user (new wfrecon__Process__c(Id = processId));
                 return 'Success';
             } else {
                 return 'Process not found';
@@ -460,7 +460,7 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static Process__c upsertProcess(Process__c processRecord) {
+    public static wfrecon__Process__c upsertProcess(wfrecon__Process__c processRecord) {
         try {
             if (processRecord != null) {
                 upsert as user processRecord;
@@ -488,26 +488,26 @@ public with sharing class ManagementTabController {
             // Get current crew leader member ID for comparison
             Id crewLeaderMemberId;
             if (crewId != null) {
-                List<Crew__c> crews = [
-                    SELECT Crew_Leader__c
-                    FROM Crew__c
+                List<wfrecon__Crew__c> crews = [
+                    SELECT wfrecon__Crew_Leader__c
+                    FROM wfrecon__Crew__c
                     WHERE Id = :crewId
                     WITH USER_MODE
                     LIMIT 1
                 ];
                 if (!crews.isEmpty()) {
-                    crewLeaderMemberId = crews[0].Crew_Leader__c;
+                    crewLeaderMemberId = crews[0].wfrecon__Crew_Leader__c;
                 }
             }
 
             Id crewLeaderContactId;
             List<Contact> crewCandidates = [
                 SELECT Id, Name,
-                    (SELECT Id, Crew__c, Crew__r.Name, Crew__r.Color_Code__c, Member_Type__c
-                     FROM Crew_Members__r)
+                    (SELECT Id, wfrecon__Crew__c, wfrecon__Crew__r.Name, wfrecon__Crew__r.wfrecon__Color_Code__c, wfrecon__Member_Type__c
+                     FROM wfrecon__Crew_Members__r)
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
-                AND User__r.IsActive = true
+                AND wfrecon__User__r.IsActive = true
                 WITH USER_MODE
                 ORDER BY Name
             ];
@@ -521,32 +521,32 @@ public with sharing class ManagementTabController {
                 contactDto.isCurrentCrewLeader = false;
                 contactDto.currentCrewMemberType = null;
 
-                if (contactRecord.Crew_Members__r != null && !contactRecord.Crew_Members__r.isEmpty()) {
+                if (contactRecord.wfrecon__Crew_Members__r != null && !contactRecord.wfrecon__Crew_Members__r.isEmpty()) {
                     List<String> crewNames = new List<String>();
 
-                    for (Crew_Member__c member : contactRecord.Crew_Members__r) {
+                    for (wfrecon__Crew_Member__c member : contactRecord.wfrecon__Crew_Members__r) {
                         CrewMemberDTO memberDto = new CrewMemberDTO();
                         memberDto.memberId = member.Id;
-                        memberDto.crewId = member.Crew__c;
-                        memberDto.crewName = member.Crew__r != null ? member.Crew__r.Name : null;
-                        memberDto.colorCode = member.Crew__r != null ? member.Crew__r.Color_Code__c : null;
-                        memberDto.memberType = member.Member_Type__c;
+                        memberDto.crewId = member.wfrecon__Crew__c;
+                        memberDto.crewName = member.wfrecon__Crew__r != null ? member.wfrecon__Crew__r.Name : null;
+                        memberDto.colorCode = member.wfrecon__Crew__r != null ? member.wfrecon__Crew__r.wfrecon__Color_Code__c : null;
+                        memberDto.memberType = member.wfrecon__Member_Type__c;
                         contactDto.members.add(memberDto);
 
                         if (!String.isBlank(memberDto.crewName)) {
                             crewNames.add(memberDto.crewName);
                         }
 
-                        if (crewId != null && member.Crew__c == crewId) {
+                        if (crewId != null && member.wfrecon__Crew__c == crewId) {
                             contactDto.isAssignedToCurrentCrew = true;
                             contactDto.currentCrewMemberId = member.Id;
-                            contactDto.currentCrewMemberType = member.Member_Type__c;
-                        } else if (member.Crew__c != null) {
+                            contactDto.currentCrewMemberType = member.wfrecon__Member_Type__c;
+                        } else if (member.wfrecon__Crew__c != null) {
                             contactDto.isAssignedElsewhere = true;
                         }
 
                         if ((crewLeaderMemberId != null && member.Id == crewLeaderMemberId)
-                            || ('Leader'.equalsIgnoreCase(member.Member_Type__c) && crewId != null && member.Crew__c == crewId)) {
+                            || ('Leader'.equalsIgnoreCase(member.wfrecon__Member_Type__c) && crewId != null && member.wfrecon__Crew__c == crewId)) {
                             contactDto.isCurrentCrewLeader = true;
                             crewLeaderContactId = contactRecord.Id;
                         }
@@ -581,7 +581,7 @@ public with sharing class ManagementTabController {
     public static String deleteCrew(String crewId) {
         try {
             if (crewId != null) {
-                delete as user (new Crew__c(Id = crewId));  
+                delete as user (new wfrecon__Crew__c(Id = crewId));  
                 return 'Success';
             } else {
                 return 'Crew not found';
@@ -593,13 +593,13 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static List<Cost_Code__c> getCostCodes() {
-        List<Cost_Code__c> costCodes = new List<Cost_Code__c>();
+    public static List<wfrecon__Cost_Code__c> getCostCodes() {
+        List<wfrecon__Cost_Code__c> costCodes = new List<wfrecon__Cost_Code__c>();
         
         try {
             costCodes = [
-                SELECT Id, Name, Classification_Type__c, Code__c, Level_Code__c
-                FROM Cost_Code__c
+                SELECT Id, Name, wfrecon__Classification_Type__c, wfrecon__Code__c, wfrecon__Level_Code__c
+                FROM wfrecon__Cost_Code__c
                 WITH USER_MODE
                 ORDER BY CreatedDate DESC
             ];
@@ -614,7 +614,7 @@ public with sharing class ManagementTabController {
     public static String deleteCostCode(String costCodeId) {
         try {
             if (costCodeId != null) {
-                delete as user (new Cost_Code__c(Id = costCodeId));
+                delete as user (new wfrecon__Cost_Code__c(Id = costCodeId));
                 return 'Success';
             } else {
                 return 'Cost Code not found';
@@ -626,7 +626,7 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static Cost_Code__c upsertCostCode(Cost_Code__c costCodeRecord) {
+    public static wfrecon__Cost_Code__c upsertCostCode(wfrecon__Cost_Code__c costCodeRecord) {
         try {
             if (costCodeRecord != null) {
                 upsert as user costCodeRecord;
@@ -654,19 +654,19 @@ public with sharing class ManagementTabController {
         }
 
         Date today = Date.today();
-        List<Mobilization_Member__c> crewMobilizations = [
-            SELECT Mobilization__c
-            FROM Mobilization_Member__c
-            WHERE Crew__c = :crewId
-            AND Mobilization__r.Start_Date__c >= :today
-            AND Mobilization__c != null
+        List<wfrecon__Mobilization_Member__c> crewMobilizations = [
+            SELECT wfrecon__Mobilization__c
+            FROM wfrecon__Mobilization_Member__c
+            WHERE wfrecon__Crew__c = :crewId
+            AND wfrecon__Mobilization__r.wfrecon__Start_Date__c >= :today
+            AND wfrecon__Mobilization__c != null
             WITH USER_MODE
         ];
 
         Set<Id> mobilizationIds = new Set<Id>();
-        for (Mobilization_Member__c crewMob : crewMobilizations) {
-            if (crewMob.Mobilization__c != null) {
-                mobilizationIds.add(crewMob.Mobilization__c);
+        for (wfrecon__Mobilization_Member__c crewMob : crewMobilizations) {
+            if (crewMob.wfrecon__Mobilization__c != null) {
+                mobilizationIds.add(crewMob.wfrecon__Mobilization__c);
             }
         }
 
@@ -677,28 +677,28 @@ public with sharing class ManagementTabController {
         }
 
         Map<Id, Set<Id>> existingAssignments = new Map<Id, Set<Id>>();
-        for (Mobilization_Member__c existingAssignment : [
-            SELECT Mobilization__c, Contact__c
-            FROM Mobilization_Member__c
-            WHERE Mobilization__c IN :mobilizationIds
-            AND Contact__c IN :contactIdsToInsert
+        for (wfrecon__Mobilization_Member__c existingAssignment : [
+            SELECT wfrecon__Mobilization__c, wfrecon__Contact__c
+            FROM wfrecon__Mobilization_Member__c
+            WHERE wfrecon__Mobilization__c IN :mobilizationIds
+            AND wfrecon__Contact__c IN :contactIdsToInsert
             WITH USER_MODE
         ]) {
-            if (existingAssignment.Mobilization__c == null || existingAssignment.Contact__c == null) {
+            if (existingAssignment.wfrecon__Mobilization__c == null || existingAssignment.wfrecon__Contact__c == null) {
                 continue;
             }
 
-            if (!existingAssignments.containsKey(existingAssignment.Mobilization__c)) {
-                existingAssignments.put(existingAssignment.Mobilization__c, new Set<Id>());
+            if (!existingAssignments.containsKey(existingAssignment.wfrecon__Mobilization__c)) {
+                existingAssignments.put(existingAssignment.wfrecon__Mobilization__c, new Set<Id>());
             }
-            existingAssignments.get(existingAssignment.Mobilization__c).add(existingAssignment.Contact__c);
+            existingAssignments.get(existingAssignment.wfrecon__Mobilization__c).add(existingAssignment.wfrecon__Contact__c);
         }
 
         Map<Id, Set<Id>> safeAssignmentsToSkip = assignmentsToSkip == null
             ? new Map<Id, Set<Id>>()
             : assignmentsToSkip;
 
-        List<Mobilization_Member__c> mobilizationInserts = new List<Mobilization_Member__c>();
+        List<wfrecon__Mobilization_Member__c> mobilizationInserts = new List<wfrecon__Mobilization_Member__c>();
         for (Id mobilizationId : mobilizationIds) {
             Set<Id> alreadyAssigned = existingAssignments.containsKey(mobilizationId)
                 ? existingAssignments.get(mobilizationId)
@@ -718,10 +718,10 @@ public with sharing class ManagementTabController {
                     continue;
                 }
 
-                mobilizationInserts.add(new Mobilization_Member__c(
-                    Mobilization__c = mobilizationId,
-                    Contact__c = contactId,
-                    Crew__c = crewId
+                mobilizationInserts.add(new wfrecon__Mobilization_Member__c(
+                    wfrecon__Mobilization__c = mobilizationId,
+                    wfrecon__Contact__c = contactId,
+                    wfrecon__Crew__c = crewId
                 ));
             }
         }
@@ -745,30 +745,30 @@ public with sharing class ManagementTabController {
 
         Date threshold = startDateThreshold == null ? Date.today() : startDateThreshold;
 
-        for (Mobilization_Member__c assignment : [
-            SELECT Contact__c, Contact__r.Name,
-                   Mobilization__c, Mobilization__r.Name, Mobilization__r.Start_Date__c, Mobilization__r.End_Date__c,
-                   Crew__c, Crew__r.Name
-            FROM Mobilization_Member__c
-            WHERE Contact__c IN :contactIds
-            AND Mobilization__r.Start_Date__c >= :threshold
-            AND Mobilization__r.Start_Date__c != null
-            AND Mobilization__c != null
+        for (wfrecon__Mobilization_Member__c assignment : [
+            SELECT wfrecon__Contact__c, wfrecon__Contact__r.Name,
+                   wfrecon__Mobilization__c, wfrecon__Mobilization__r.Name, wfrecon__Mobilization__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__End_Date__c,
+                   wfrecon__Crew__c, wfrecon__Crew__r.Name
+            FROM wfrecon__Mobilization_Member__c
+            WHERE wfrecon__Contact__c IN :contactIds
+            AND wfrecon__Mobilization__r.wfrecon__Start_Date__c >= :threshold
+            AND wfrecon__Mobilization__r.wfrecon__Start_Date__c != null
+            AND wfrecon__Mobilization__c != null
             WITH USER_MODE
-            ORDER BY Mobilization__r.Start_Date__c ASC
+            ORDER BY wfrecon__Mobilization__r.wfrecon__Start_Date__c ASC
         ]) {
             MobilizationOverlapConflictDTO conflict = new MobilizationOverlapConflictDTO();
-            conflict.contactId = assignment.Contact__c;
-            conflict.contactName = assignment.Contact__r != null ? assignment.Contact__r.Name : null;
+            conflict.contactId = assignment.wfrecon__Contact__c;
+            conflict.contactName = assignment.wfrecon__Contact__r != null ? assignment.wfrecon__Contact__r.Name : null;
             conflict.targetMobilizationId = null;
             conflict.targetMobilizationName = 'New crew mobilizations';
-            conflict.targetStart = assignment.Mobilization__r != null ? assignment.Mobilization__r.Start_Date__c : null;
-            conflict.targetEnd = assignment.Mobilization__r != null ? assignment.Mobilization__r.End_Date__c : null;
-            conflict.conflictingMobilizationId = assignment.Mobilization__c;
-            conflict.conflictingMobilizationName = assignment.Mobilization__r != null ? assignment.Mobilization__r.Name : null;
+            conflict.targetStart = assignment.wfrecon__Mobilization__r != null ? assignment.wfrecon__Mobilization__r.wfrecon__Start_Date__c : null;
+            conflict.targetEnd = assignment.wfrecon__Mobilization__r != null ? assignment.wfrecon__Mobilization__r.wfrecon__End_Date__c : null;
+            conflict.conflictingMobilizationId = assignment.wfrecon__Mobilization__c;
+            conflict.conflictingMobilizationName = assignment.wfrecon__Mobilization__r != null ? assignment.wfrecon__Mobilization__r.Name : null;
             conflict.conflictingStart = conflict.targetStart;
             conflict.conflictingEnd = conflict.targetEnd;
-            conflict.conflictingCrewName = assignment.Crew__r != null ? assignment.Crew__r.Name : null;
+            conflict.conflictingCrewName = assignment.wfrecon__Crew__r != null ? assignment.wfrecon__Crew__r.Name : null;
 
             conflicts.add(conflict);
         }
@@ -810,7 +810,7 @@ public with sharing class ManagementTabController {
 
     @AuraEnabled
     public static List<String> getMobilizationPicklistValues() {
-        Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+        Schema.DescribeFieldResult fieldResult = wfrecon__Mobilization__c.wfrecon__Mobilization_Status__c.getDescribe();
         List<String> picklistValues = new List<String>();
         for (Schema.PicklistEntry entry : fieldResult.getPicklistValues()) {
             if (entry.isActive()) {
@@ -1030,10 +1030,10 @@ public with sharing class ManagementTabController {
         
         try {
             // Get all custom setting records
-            Map<String, Mobilization_Status_Color__c> customSettingsMap = Mobilization_Status_Color__c.getAll();
+            Map<String, wfrecon__Mobilization_Status_Color__c> customSettingsMap = wfrecon__Mobilization_Status_Color__c.getAll();
             
-            // Get picklist values from Mobilization__c.Mobilization_Status__c field
-            Schema.DescribeFieldResult fieldResult = Mobilization__c.Mobilization_Status__c.getDescribe();
+            // Get picklist values from wfrecon__Mobilization__c.wfrecon__Mobilization_Status__c field
+            Schema.DescribeFieldResult fieldResult = wfrecon__Mobilization__c.wfrecon__Mobilization_Status__c.getDescribe();
             List<Schema.PicklistEntry> picklistValues = fieldResult.getPicklistValues();
             
             for (Schema.PicklistEntry entry : picklistValues) {
@@ -1049,14 +1049,14 @@ public with sharing class ManagementTabController {
         return statusColorList;
     }
     
-    private static StatusColorWrapper createStatusColorWrapper(Schema.PicklistEntry entry, Map<String, Mobilization_Status_Color__c> customSettingsMap) {
+    private static StatusColorWrapper createStatusColorWrapper(Schema.PicklistEntry entry, Map<String, wfrecon__Mobilization_Status_Color__c> customSettingsMap) {
         StatusColorWrapper wrapper = new StatusColorWrapper();
         wrapper.picklistValue = entry.getLabel();
         wrapper.apiValue = entry.getValue();
         
         // Check if custom setting exists for this picklist value
         // Try both the label and API value as keys
-        Mobilization_Status_Color__c customSetting = null;
+        wfrecon__Mobilization_Status_Color__c customSetting = null;
         if (customSettingsMap.containsKey(entry.getLabel())) {
             customSetting = customSettingsMap.get(entry.getLabel());
         } else if (customSettingsMap.containsKey(entry.getValue())) {
@@ -1081,7 +1081,7 @@ public with sharing class ManagementTabController {
     
     
     @AuraEnabled
-    public static Map<String, Object> saveStatusColors(List<Mobilization_Status_Color__c> recordsToSave) {
+    public static Map<String, Object> saveStatusColors(List<wfrecon__Mobilization_Status_Color__c> recordsToSave) {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'ERROR',
             'message' => 'Unable to save status colors.'
@@ -1096,7 +1096,7 @@ public with sharing class ManagementTabController {
             System.debug('Records received for upsert: ' + JSON.serializePretty(recordsToSave));
 
             // Perform upsert using Name as key (required for Custom Setting)
-            upsert recordsToSave Mobilization_Status_Color__c.Name;
+            upsert recordsToSave wfrecon__Mobilization_Status_Color__c.Name;
 
             response.put('status', 'SUCCESS');
             response.put('message', 'Status colors saved successfully.');
@@ -1196,25 +1196,32 @@ public with sharing class ManagementTabController {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'SUCCESS',
             'message' => '',
-            'approversJSON' => '',
+            'approversList' => new List<String>(),
             'timesheetApprovalFeature' => false,
             'allActiveUsers' => new List<Map<String, String>>()
         };
 
         try {
-            // Query the metadata
-            List<Log_Entry_Approver__mdt> approverMetadata = [
-                SELECT Id, Label, Approvers_JSON__c, Timesheet_Entries_Approval_Feature__c
-                FROM Log_Entry_Approver__mdt 
-                WHERE DeveloperName = 'Approvers_JSON' 
-                LIMIT 1
-            ];
-
-            if (!approverMetadata.isEmpty()) {
-                if (approverMetadata[0].Approvers_JSON__c != null) {
-                    response.put('approversJSON', approverMetadata[0].Approvers_JSON__c);
+            // 1. Fetch Custom Setting (Org Defaults)
+            Shift_End_Log_Configuration__c config = Shift_End_Log_Configuration__c.getOrgDefaults();
+            
+            if (config != null && config.Id != null) {
+                response.put('timesheetApprovalFeature', config.Timesheet_Entries_Approval_Feature__c);
+                
+                String jsonString = config.Approvers_JSON__c;
+                if (String.isNotBlank(jsonString)) {
+                    try {
+                        // We store IDs as a JSON array ["005...", "005..."] to match the field name 'JSON'
+                        List<Object> rawList = (List<Object>) JSON.deserializeUntyped(jsonString);
+                        List<String> idList = new List<String>();
+                        for(Object obj : rawList) {
+                            idList.add((String)obj);
+                        }
+                        response.put('approversList', idList);
+                    } catch (Exception e) {
+                        System.debug('Error parsing stored JSON: ' + e.getMessage());
+                    }
                 }
-                response.put('timesheetApprovalFeature', approverMetadata[0].Timesheet_Entries_Approval_Feature__c);
             }
 
             // Get all active users
@@ -1222,6 +1229,7 @@ public with sharing class ManagementTabController {
                 SELECT Id, Name 
                 FROM User 
                 WHERE IsActive = true 
+                AND Profile.Name != 'System Administrator'
                 WITH USER_MODE
                 ORDER BY Name ASC
             ];
@@ -1237,7 +1245,7 @@ public with sharing class ManagementTabController {
             response.put('allActiveUsers', userList);
         } catch (Exception e) {
             response.put('status', 'ERROR');
-            response.put('message', 'Error fetching approvers: ' + e.getMessage());
+            response.put('message', 'Error fetching configuration: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME, 
                 'methodName' => 'getLogEntryApprovers', 
@@ -1253,55 +1261,40 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static Map<String, Object> saveLogEntryApprovers(String approversJSON, Boolean timesheetApprovalFeature) {
+    public static Map<String, Object> saveLogEntryApprovers(List<String> approverIds, Boolean timesheetApprovalFeature) {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'ERROR',
-            'message' => 'Unable to save approvers.'
+            'message' => 'Unable to save settings.'
         };
 
         try {
-            String metadataType = 'wfrecon__Log_Entry_Approver__mdt';
-            String developerName = 'Approvers_JSON';
-            String masterLabel = 'Approvers JSON';
-
-            // Query existing metadata record to get the developer name if it exists
-            String query = 'SELECT MasterLabel, DeveloperName FROM ' + String.escapeSingleQuotes(metadataType) + ' WHERE DeveloperName = :developerName LIMIT 1';
-            List<SObject> metaList = Database.query(query, AccessLevel.USER_MODE);
-
-            // If record exists, use its details
-            if (!metaList.isEmpty()) {
-                wfrecon__Log_Entry_Approver__mdt config = (wfrecon__Log_Entry_Approver__mdt) metaList[0];
-                developerName = config.DeveloperName;
-                masterLabel = config.MasterLabel;
+            // 1. Validation: Max 10 Users
+            if (approverIds != null && approverIds.size() > 10) {
+                response.put('message', 'You cannot select more than 10 approvers.');
+                return response;
             }
 
-            // Create metadata deployment
-            Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
-            mdata.fullName = metadataType + '.' + developerName;
-            mdata.label = masterLabel;
+            // 2. Get or Create Org Defaults
+            Shift_End_Log_Configuration__c config = Shift_End_Log_Configuration__c.getOrgDefaults();
+            if (config == null) {
+                config = new Shift_End_Log_Configuration__c();
+            }
 
-            // Add the approvers JSON field
-            Metadata.CustomMetadataValue approversValue = new Metadata.CustomMetadataValue();
-            approversValue.field = 'wfrecon__Approvers_JSON__c';
-            approversValue.value = approversJSON;
-            mdata.values.add(approversValue);
+            // 3. Update Fields (Using same field names as Metadata)
+            config.Timesheet_Entries_Approval_Feature__c = timesheetApprovalFeature;
+            
+            // Serialize List<Id> to JSON String to store in 'Approvers_JSON__c'
+            if (approverIds != null && !approverIds.isEmpty()) {
+                config.Approvers_JSON__c = JSON.serialize(approverIds);
+            } else {
+                config.Approvers_JSON__c = '[]';
+            }
 
-            // Add the timesheet approval feature checkbox field
-            Metadata.CustomMetadataValue featureValue = new Metadata.CustomMetadataValue();
-            featureValue.field = 'wfrecon__Timesheet_Entries_Approval_Feature__c';
-            featureValue.value = timesheetApprovalFeature != null ? timesheetApprovalFeature : false;
-            mdata.values.add(featureValue);
-
-            // Deploy the metadata
-            Metadata.DeployContainer container = new Metadata.DeployContainer();
-            container.addMetadata(mdata);
-
-            Metadata.Operations.enqueueDeployment(container, null);
+            // 4. Save
+            upsert as user config;
 
             response.put('status', 'SUCCESS');
-            response.put('message', 'Changes saved successfully. The updates will be deployed shortly.');
-            response.put('approversJSON', approversJSON);
-            response.put('timesheetApprovalFeature', timesheetApprovalFeature);
+            response.put('message', 'Configuration saved successfully.');
             
         } catch (Exception e) {
             response.put('message', 'Error saving approvers: ' + e.getMessage());

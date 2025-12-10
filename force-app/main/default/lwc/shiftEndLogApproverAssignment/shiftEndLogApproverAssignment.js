@@ -9,9 +9,10 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
     @track selectedValues = [];
     @track originalSelectedValues = [];
     @track hasUnsavedChanges = false;
-    @track allUsersMap = new Map(); // Store user ID to Name mapping
     @track toggleValue = false;
     @track originalToggleValue = false;
+    
+    MAX_APPROVERS = 10;
 
     /**
      * Method Name: get isButtonsDisabled
@@ -39,32 +40,16 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
         getLogEntryApprovers()
             .then(result => {
                 if (result.status === 'SUCCESS') {
-                    // Process all active users
                     const allUsers = result.allActiveUsers || [];
-                    this.allUsersMap.clear();
                     
-                    allUsers.forEach(user => {
-                        this.allUsersMap.set(user.value, user.label);
-                    });
-
-                    // Process existing approvers JSON
-                    let selectedUserIds = [];
-                    if (result.approversJSON) {
-                        try {
-                            const approversObj = JSON.parse(result.approversJSON);
-                            selectedUserIds = Object.values(approversObj);
-                        } catch (e) {
-                            console.error('Error parsing approvers JSON:', e);
-                        }
-                    }
-
-                    // Set toggle value from feature flag
+                    // Set toggle value
                     this.toggleValue = result.timesheetApprovalFeature === true;
                     this.originalToggleValue = this.toggleValue;
 
-                    // Set selected values
-                    this.selectedValues = [...selectedUserIds];
-                    this.originalSelectedValues = [...selectedUserIds];
+                    // Set selected values (Apex now returns a List of IDs)
+                    const savedIds = result.approversList || [];
+                    this.selectedValues = [...savedIds];
+                    this.originalSelectedValues = [...savedIds];
 
                     // Create options for dual listbox
                     this.availableOptions = allUsers.map(user => ({
@@ -91,6 +76,20 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
      */
     handleSelectionChange(event) {
         const newSelectedValues = event.detail.value;
+
+        // Validation: Limit to 10 users
+        if (newSelectedValues.length > this.MAX_APPROVERS) {
+            this.showToast('Warning', `You can only select up to ${this.MAX_APPROVERS} approvers.`, 'warning');
+            
+            // Revert changes immediately
+            const allowedValues = [...this.selectedValues]; 
+            this.selectedValues = []; 
+            setTimeout(() => {
+                this.selectedValues = allowedValues;
+            }, 0);
+            return;
+        }
+
         this.selectedValues = newSelectedValues;
         this.checkForChanges();
     }
@@ -130,22 +129,16 @@ export default class ShiftEndLogApproverAssignment extends LightningElement {
             return;
         }
 
+        // Final safety check
+        if(this.selectedValues.length > this.MAX_APPROVERS) {
+             this.showToast('Error', `Limit exceeded. Please select max ${this.MAX_APPROVERS} users.`, 'error');
+             return;
+        }
+
         this.isLoading = true;
 
-        // Build the JSON object with Name as key and ID as value
-        const approversObj = {};
-        this.selectedValues.forEach(userId => {
-            const userName = this.allUsersMap.get(userId);
-            if (userName) {
-                approversObj[userName] = userId;
-            }
-        });
-
-        const approversJSON = JSON.stringify(approversObj, null, 2);
-        this.generatedJSON = approversJSON;
-
         saveLogEntryApprovers({ 
-            approversJSON,
+            approverIds: this.selectedValues,
             timesheetApprovalFeature: this.toggleValue
         })
             .then(result => {
