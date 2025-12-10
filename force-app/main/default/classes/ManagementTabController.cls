@@ -1196,25 +1196,32 @@ public with sharing class ManagementTabController {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'SUCCESS',
             'message' => '',
-            'approversJSON' => '',
+            'approversList' => new List<String>(),
             'timesheetApprovalFeature' => false,
             'allActiveUsers' => new List<Map<String, String>>()
         };
 
         try {
-            // Query the metadata
-            List<Log_Entry_Approver__mdt> approverMetadata = [
-                SELECT Id, Label, Approvers_JSON__c, Timesheet_Entries_Approval_Feature__c
-                FROM Log_Entry_Approver__mdt 
-                WHERE DeveloperName = 'Approvers_JSON' 
-                LIMIT 1
-            ];
-
-            if (!approverMetadata.isEmpty()) {
-                if (approverMetadata[0].Approvers_JSON__c != null) {
-                    response.put('approversJSON', approverMetadata[0].Approvers_JSON__c);
+            // 1. Fetch Custom Setting (Org Defaults)
+            Shift_End_Log_Configuration__c config = Shift_End_Log_Configuration__c.getOrgDefaults();
+            
+            if (config != null && config.Id != null) {
+                response.put('timesheetApprovalFeature', config.Timesheet_Entries_Approval_Feature__c);
+                
+                String jsonString = config.Approvers_JSON__c;
+                if (String.isNotBlank(jsonString)) {
+                    try {
+                        // We store IDs as a JSON array ["005...", "005..."] to match the field name 'JSON'
+                        List<Object> rawList = (List<Object>) JSON.deserializeUntyped(jsonString);
+                        List<String> idList = new List<String>();
+                        for(Object obj : rawList) {
+                            idList.add((String)obj);
+                        }
+                        response.put('approversList', idList);
+                    } catch (Exception e) {
+                        System.debug('Error parsing stored JSON: ' + e.getMessage());
+                    }
                 }
-                response.put('timesheetApprovalFeature', approverMetadata[0].Timesheet_Entries_Approval_Feature__c);
             }
 
             // Get all active users
@@ -1222,6 +1229,7 @@ public with sharing class ManagementTabController {
                 SELECT Id, Name 
                 FROM User 
                 WHERE IsActive = true 
+                AND Profile.Name != 'System Administrator'
                 WITH USER_MODE
                 ORDER BY Name ASC
             ];
@@ -1237,7 +1245,7 @@ public with sharing class ManagementTabController {
             response.put('allActiveUsers', userList);
         } catch (Exception e) {
             response.put('status', 'ERROR');
-            response.put('message', 'Error fetching approvers: ' + e.getMessage());
+            response.put('message', 'Error fetching configuration: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME, 
                 'methodName' => 'getLogEntryApprovers', 
@@ -1253,55 +1261,40 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static Map<String, Object> saveLogEntryApprovers(String approversJSON, Boolean timesheetApprovalFeature) {
+    public static Map<String, Object> saveLogEntryApprovers(List<String> approverIds, Boolean timesheetApprovalFeature) {
         Map<String, Object> response = new Map<String, Object>{
             'status' => 'ERROR',
-            'message' => 'Unable to save approvers.'
+            'message' => 'Unable to save settings.'
         };
 
         try {
-            String metadataType = 'wfrecon__Log_Entry_Approver__mdt';
-            String developerName = 'Approvers_JSON';
-            String masterLabel = 'Approvers JSON';
-
-            // Query existing metadata record to get the developer name if it exists
-            String query = 'SELECT MasterLabel, DeveloperName FROM ' + String.escapeSingleQuotes(metadataType) + ' WHERE DeveloperName = :developerName LIMIT 1';
-            List<SObject> metaList = Database.query(query, AccessLevel.USER_MODE);
-
-            // If record exists, use its details
-            if (!metaList.isEmpty()) {
-                wfrecon__Log_Entry_Approver__mdt config = (wfrecon__Log_Entry_Approver__mdt) metaList[0];
-                developerName = config.DeveloperName;
-                masterLabel = config.MasterLabel;
+            // 1. Validation: Max 10 Users
+            if (approverIds != null && approverIds.size() > 10) {
+                response.put('message', 'You cannot select more than 10 approvers.');
+                return response;
             }
 
-            // Create metadata deployment
-            Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
-            mdata.fullName = metadataType + '.' + developerName;
-            mdata.label = masterLabel;
+            // 2. Get or Create Org Defaults
+            Shift_End_Log_Configuration__c config = Shift_End_Log_Configuration__c.getOrgDefaults();
+            if (config == null) {
+                config = new Shift_End_Log_Configuration__c();
+            }
 
-            // Add the approvers JSON field
-            Metadata.CustomMetadataValue approversValue = new Metadata.CustomMetadataValue();
-            approversValue.field = 'wfrecon__Approvers_JSON__c';
-            approversValue.value = approversJSON;
-            mdata.values.add(approversValue);
+            // 3. Update Fields (Using same field names as Metadata)
+            config.Timesheet_Entries_Approval_Feature__c = timesheetApprovalFeature;
+            
+            // Serialize List<Id> to JSON String to store in 'Approvers_JSON__c'
+            if (approverIds != null && !approverIds.isEmpty()) {
+                config.Approvers_JSON__c = JSON.serialize(approverIds);
+            } else {
+                config.Approvers_JSON__c = '[]';
+            }
 
-            // Add the timesheet approval feature checkbox field
-            Metadata.CustomMetadataValue featureValue = new Metadata.CustomMetadataValue();
-            featureValue.field = 'wfrecon__Timesheet_Entries_Approval_Feature__c';
-            featureValue.value = timesheetApprovalFeature != null ? timesheetApprovalFeature : false;
-            mdata.values.add(featureValue);
-
-            // Deploy the metadata
-            Metadata.DeployContainer container = new Metadata.DeployContainer();
-            container.addMetadata(mdata);
-
-            Metadata.Operations.enqueueDeployment(container, null);
+            // 4. Save
+            upsert as user config;
 
             response.put('status', 'SUCCESS');
-            response.put('message', 'Changes saved successfully. The updates will be deployed shortly.');
-            response.put('approversJSON', approversJSON);
-            response.put('timesheetApprovalFeature', timesheetApprovalFeature);
+            response.put('message', 'Configuration saved successfully.');
             
         } catch (Exception e) {
             response.put('message', 'Error saving approvers: ' + e.getMessage());
