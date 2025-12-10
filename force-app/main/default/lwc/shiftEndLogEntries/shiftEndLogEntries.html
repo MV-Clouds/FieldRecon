@@ -61,15 +61,16 @@
                             </template>
     
                             <template if:true={hasTimesheetEntries}>
-                                <!-- Tab Navigation -->
-                                <div class="tab-container">
-                                    <div class="tab-navigation">
-                                        <button class={approvedTabClass} onclick={handleApprovedTab}>Approved</button>
-                                        <button class={pendingTabClass} onclick={handlePendingTab}>Pending</button>
-                                    </div>
-    
-                                    <!-- Approved Tab Content -->
-                                    <template if:true={showApprovedTab}>
+                                <!-- Show Tabs (Approval Mode) -->
+                                <template if:true={showTabs}>
+                                    <div class="tab-container">
+                                        <div class="tab-navigation">
+                                            <button class={approvedTabClass} onclick={handleApprovedTab}>Approved</button>
+                                            <button class={pendingTabClass} onclick={handlePendingTab}>Pending</button>
+                                        </div>
+        
+                                        <!-- Approved Tab Content -->
+                                        <template if:true={showApprovedTab}>
                                         <template if:true={hasRegularTimesheetEntries}>
                                             <div class="timesheet-table-wrapper">
                                                 <div class="timesheet-table-body">
@@ -193,6 +194,53 @@
                                         </template>
                                     </template>
                                 </div>
+                                </template>
+
+                                <!-- Show Single Table (Direct Update Mode) -->
+                                <template if:true={showSingleTable}>
+                                    <div class="timesheet-table-wrapper">
+                                        <div class="timesheet-table-body">
+                                            <table class="timesheet-entries-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 60px;">Sr No.</th>
+                                                        <th style="width: 80px;">Action</th>
+                                                        <th>Name</th>
+                                                        <th>Cost Code</th>
+                                                        <th>Clock In</th>
+                                                        <th>Clock Out</th>
+                                                        <th>Work Hours</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template for:each={timesheetEntries} for:item="entry" for:index="index">
+                                                        <tr key={entry.id}>
+                                                            <td>{entry.srNo}</td>
+                                                            <td>
+                                                                <div class="action-buttons">
+                                                                    <button class="icon-button edit-icon-btn"
+                                                                        data-id={entry.id}
+                                                                        onclick={handleEditTimesheetEntry}
+                                                                        disabled={isFormDisabled}>
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                            <td>{entry.contactName}</td>
+                                                            <td>{entry.costCodeName}</td>
+                                                            <td>{entry.clockInTime}</td>
+                                                            <td>{entry.clockOutTime}</td>
+                                                            <td>{entry.workHours}</td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </template>
                             </template>
                             <template if:false={hasTimesheetEntries}>
                                 <div class="no-data-message">

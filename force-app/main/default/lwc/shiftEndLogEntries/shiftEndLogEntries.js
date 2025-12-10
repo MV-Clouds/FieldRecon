@@ -2,6 +2,7 @@ import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getMobilizationList from '@salesforce/apex/ShiftEndLogEntriesController.getMobilizationList';
 import getTimeSheetEntryItems from '@salesforce/apex/ShiftEndLogEntriesController.getTimeSheetEntryItems';
+import saveTimesheetEntryInlineEdits from '@salesforce/apex/JobDetailsPageController.saveTimesheetEntryInlineEdits';
 import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
@@ -58,6 +59,7 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track hasMoreChatterItems = true;
 
     @track activeTab = 'approved';
+    @track approvalFeatureEnabled = true; // Default to true, will be set from custom setting
 
     // Approval status tracking
     @track approvalStatus = {
@@ -120,6 +122,14 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     get pendingTabClass() {
         return this.activeTab === 'pending' ? 'tab-button active' : 'tab-button';
+    }
+
+    get showTabs() {
+        return this.approvalFeatureEnabled;
+    }
+
+    get showSingleTable() {
+        return !this.approvalFeatureEnabled;
     }
 
     get editClockInMinBoundary() {
@@ -368,8 +378,15 @@ export default class ShiftEndLogEntries extends LightningElement {
         getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: jobStartDate, mobId: this.selectedMobilizationId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 console.log('Timesheet Entries Result:', result);
-                if (result && result.length > 0) {
-                    const allEntries = result.map((entry) => {
+                
+                // Extract approval feature flag and items from result
+                this.approvalFeatureEnabled = result && result.approvalFeatureEnabled !== undefined ? result.approvalFeatureEnabled : true;
+                const items = result && result.items ? result.items : [];
+                
+                console.log('Approval Feature Enabled:', this.approvalFeatureEnabled);
+                
+                if (items && items.length > 0) {
+                    const allEntries = items.map((entry) => {
                         // Check if there's a local pending edit for this entry
                         const localEdit = this.localPendingEdits.get(entry.id);
                         const isPendingLocally = localEdit !== undefined;
@@ -410,6 +427,8 @@ export default class ShiftEndLogEntries extends LightningElement {
                             TSEId: entry.TSEId,
                             rawClockIn: entry.clockInTime,
                             rawClockOut: entry.clockOutTime,
+                            perDiem: entry.perDiem || 0,
+                            premium: entry.premium || false,
                             canEdit: this.approvalStatus.canEditTimesheet
                         };
                     });
@@ -473,8 +492,17 @@ export default class ShiftEndLogEntries extends LightningElement {
                         };
                     });
 
-                    // Keep all entries for reference (with mixed serial numbers)
-                    this.timesheetEntries = [...this.regularTimesheetEntries, ...this.pendingTimesheetEntries];
+                    // Keep all entries for reference
+                    if (this.approvalFeatureEnabled) {
+                        // In approval mode, combine with mixed serial numbers
+                        this.timesheetEntries = [...this.regularTimesheetEntries, ...this.pendingTimesheetEntries];
+                    } else {
+                        // In direct update mode, use all entries with sequential serial numbers
+                        this.timesheetEntries = allEntries.map((entry, index) => ({
+                            ...entry,
+                            srNo: index + 1
+                        }));
+                    }
 
                     console.log('Total entries:', this.timesheetEntries.length);
                     console.log('Regular entries:', this.regularTimesheetEntries);
@@ -552,7 +580,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     }
 
-    saveEditedTimesheet() {
+    async saveEditedTimesheet() {
         try {
             if (!this.editTimesheetData.newclockInTime || !this.editTimesheetData.newclockOutTime) {
                 this.showToast('Error', 'Clock In and Clock Out times are required', 'error');
@@ -579,38 +607,35 @@ export default class ShiftEndLogEntries extends LightningElement {
             const newClkOut = this.editTimesheetData.newclockOutTime.slice(0, 16) + ':00.000Z';
             const oldClkIn = this.editTimesheetData.oldclockInTime.slice(0, 16) + ':00.000Z';
             const oldClkOut = this.editTimesheetData.oldclockOutTime.slice(0, 16) + ':00.000Z';
-            const travelTime = this.editTimesheetData.travelTime || '0.00';
-            const oldTravelTime = this.editTimesheetData.oldTravelTime || '0.00';
 
-            // Build changes array
-            const changes = [];
+            // Check if there are actual changes
+            const hasChanges = (oldClkIn !== newClkIn) || (oldClkOut !== newClkOut);
 
-            if (oldClkIn !== newClkIn) {
-                changes.push({
-                    fieldApiName: 'wfrecon__Clock_In_Time__c',
-                    oldValue: oldClkIn,
-                    newValue: newClkIn
-                });
+            if (!hasChanges) {
+                this.showToast('Info', 'No changes detected', 'info');
+                return;
             }
 
-            if (oldClkOut !== newClkOut) {
-                changes.push({
-                    fieldApiName: 'wfrecon__Clock_Out_Time__c',
-                    oldValue: oldClkOut,
-                    newValue: newClkOut
-                });
-            }
+            if (this.approvalFeatureEnabled) {
+                // APPROVAL MODE: Store changes locally for approval
+                const changes = [];
 
-            if (oldTravelTime !== travelTime) {
-                changes.push({
-                    fieldApiName: 'wfrecon__Travel_Time__c',
-                    oldValue: parseFloat(oldTravelTime),
-                    newValue: parseFloat(travelTime)
-                });
-            }
+                if (oldClkIn !== newClkIn) {
+                    changes.push({
+                        fieldApiName: 'wfrecon__Clock_In_Time__c',
+                        oldValue: oldClkIn,
+                        newValue: newClkIn
+                    });
+                }
 
-            // Only proceed if there are changes
-            if (changes.length > 0) {
+                if (oldClkOut !== newClkOut) {
+                    changes.push({
+                        fieldApiName: 'wfrecon__Clock_Out_Time__c',
+                        oldValue: oldClkOut,
+                        newValue: newClkOut
+                    });
+                }
+
                 // Store locally - no database update
                 this.localPendingEdits.set(this.editTimesheetData.id, {
                     changes: changes,
@@ -622,10 +647,50 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.showToast('Success', 'Timesheet entry marked as pending locally', 'success');
                 this.closeEditTimesheetModal();
                 this.loadTimesheetEntries();
+            } else {
+                this.isLoading = true;
+                
+                // Format times for Apex (append seconds if needed)
+                const cleanClockIn = this.editTimesheetData.newclockInTime.length === 16 
+                    ? this.editTimesheetData.newclockInTime + ':00' 
+                    : this.editTimesheetData.newclockInTime;
+                const cleanClockOut = this.editTimesheetData.newclockOutTime.length === 16 
+                    ? this.editTimesheetData.newclockOutTime + ':00' 
+                    : this.editTimesheetData.newclockOutTime;
+
+                // Get original entry to preserve travel time, per diem, and premium
+                const originalEntry = this.timesheetEntries.find(e => e.id === this.editTimesheetData.id);
+                
+                // Build payload matching JobDetailsPageController.saveTimesheetEntryInlineEdits format
+                const payload = [{
+                    Id: this.editTimesheetData.id,
+                    TSEId: this.editTimesheetData.TSEId,
+                    clockInTime: cleanClockIn,
+                    clockOutTime: cleanClockOut,
+                    travelTime: String(originalEntry?.travelTime || '0.00'),
+                    perDiem: String(originalEntry?.perDiem || '0'),
+                    premium: String(originalEntry?.premium || false)
+                }];
+
+                const updatedTimesheetsJson = JSON.stringify(payload);
+
+                const result = await saveTimesheetEntryInlineEdits({ 
+                    updatedTimesheetEntriesJson: updatedTimesheetsJson 
+                });
+
+                if (result.startsWith('Success')) {
+                    this.showToast('Success', 'Timesheet entry updated successfully', 'success');
+                    this.closeEditTimesheetModal();
+                    this.loadTimesheetEntries();
+                } else {
+                    this.showToast('Error', 'Failed to update timesheet entry: ' + result, 'error');
+                }
             }
         } catch (error) {
             console.error('Error saving timesheet edit:', error);
-            this.showToast('Error', 'Something went wrong', 'error');
+            this.showToast('Error', error.body?.message || error.message || 'Something went wrong', 'error');
+        } finally {
+            this.isLoading = false;
         }
     }
 
@@ -1477,16 +1542,20 @@ export default class ShiftEndLogEntries extends LightningElement {
                 };
             });
 
-            // Build timesheetEntryChanges object from local pending edits
+            // Build timesheetEntryChanges object from local pending edits (only if approval is enabled)
             const timesheetEntryChanges = {};
 
-            this.localPendingEdits.forEach((editData, itemId) => {
-                timesheetEntryChanges[editData.TSEId] = {
-                    changes: editData.changes,
-                    contactId: editData.contactId,
-                    contactName: editData.contactName
-                };
-            });
+            if (this.approvalFeatureEnabled) {
+                // Include timesheet changes only if approval feature is enabled
+                this.localPendingEdits.forEach((editData, itemId) => {
+                    timesheetEntryChanges[editData.TSEId] = {
+                        changes: editData.changes,
+                        contactId: editData.contactId,
+                        contactName: editData.contactName
+                    };
+                });
+            }
+            // If approval is disabled, timesheetEntryChanges remains empty {}
 
             // Build media metadata with source info for all files
             const mediaMetadata = [];
@@ -1515,7 +1584,7 @@ export default class ShiftEndLogEntries extends LightningElement {
             if (locationProcessChanges.length > 0 || Object.keys(timesheetEntryChanges).length > 0 || mediaMetadata.length > 0 || cameraPhotos.length > 0) {
                 const approvalDataStructure = {
                     locationProcessChanges: locationProcessChanges,
-                    timesheetEntryChanges: timesheetEntryChanges,
+                    timesheetEntryChanges: timesheetEntryChanges, // Will be empty {} if approval disabled
                     uploadedContentDocumentIds: chatterFiles.map(file => file.id), // Track Chatter files for preventing re-selection in edit mode
                     mediaMetadata: mediaMetadata // Track all media with source info
                 };
