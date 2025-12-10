@@ -544,15 +544,15 @@ public with sharing class MobSchedulerController {
             List<SObject> recordsToDelete = new List<SObject>();
 
             if(allUpcoming == 'true'){
-                currentMob = [SELECT Id, wfrecon__Mobilization_Group__c FROM wfrecon__Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
+                currentMob = [SELECT Id, wfrecon__Mobilization_Group__c, wfrecon__End_Date__c FROM wfrecon__Mobilization__c WHERE Id = :mobId WITH USER_MODE LIMIT 1];
                 // Delete all upcoming mobilizations under the same Mobilization Group
                 DateTime nowDT = System.now();
                 if(type == 'CrewMaster'){
-                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c > :nowDT WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c >= :currentMob.wfrecon__End_Date__c WITH USER_MODE];
                 } else if(type == 'Crew' || type == 'SubContractor'){
-                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c > :nowDT WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c >= :currentMob.wfrecon__End_Date__c WITH USER_MODE];
                 } else if (type == 'Asset'){
-                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Asset__c WHERE wfrecon__Equipment__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c > :nowDT WITH USER_MODE];
+                    recordsToDelete = [SELECT Id FROM wfrecon__Mobilization_Asset__c WHERE wfrecon__Equipment__c = :id AND wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c = :currentMob.wfrecon__Mobilization_Group__c AND wfrecon__Mobilization__r.wfrecon__End_Date__c >= :currentMob.wfrecon__End_Date__c WITH USER_MODE];
                 }
             }else{
                 if(type == 'CrewMaster'){
