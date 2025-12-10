@@ -570,13 +570,32 @@
                                 <div class="tab-content gallery-section">
                                     <!-- File Upload Section -->
                                     <div class="upload-actions">
-                                        <lightning-file-upload 
-                                            label="Upload Files" 
-                                            accept={acceptedFormats} 
-                                            multiple
-                                            record-id={logEntryDetails.Id}
-                                            onuploadfinished={handleUploadFinished}>
-                                        </lightning-file-upload>
+                                        <div class="upload-buttons-container">
+                                            <div class="upload-button-wrapper">
+                                                <lightning-file-upload 
+                                                    label="Upload Files" 
+                                                    accept={acceptedFormats} 
+                                                    multiple
+                                                    record-id={logEntryDetails.Id}
+                                                    onuploadfinished={handleUploadFinished}
+                                                    variant="label-hidden">
+                                                </lightning-file-upload>
+                                            </div>
+
+                                            <button type="button" class="upload-action-btn chatter-btn" onclick={handleChooseFromChatter}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                                </svg>
+                                                Choose from Chatter
+                                            </button>
+
+                                            <button type="button" class="upload-action-btn camera-btn" onclick={handleOpenCamera}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 512 512" fill="currentColor">
+                                                    <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
+                                                </svg>
+                                                Capture Photo
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <!-- Empty State when no files -->
@@ -668,5 +687,98 @@
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
+    </template>
+
+    <template if:true={showChatterModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container chatter-modal-container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" onclick={closeChatterModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" size="small"></lightning-icon>
+                </button>
+                <header class="slds-modal__header edit-modal-header">
+                    <h2 class="slds-text-heading_medium">Choose from Chatter</h2>
+                </header>
+                <div class="slds-modal__content chatter-modal-content">
+                    <template if:true={isLoadingChatter}>
+                        <div class="chatter-loading"><lightning-spinner alternative-text="Loading..." size="small"></lightning-spinner></div>
+                    </template>
+                    <template if:false={isLoadingChatter}>
+                        <template if:false={hasChatterFeedItems}>
+                            <div class="no-data-message-chatter">
+                                <h3 class="no-data-title">No Chatter Posts</h3>
+                                <p class="no-data-description">No posts with attachments found.</p>
+                            </div>
+                        </template>
+                        <template if:true={hasChatterFeedItems}>
+                            <div class="chatter-feed-list">
+                                <template for:each={chatterFeedItems} for:item="feedItem">
+                                    <div key={feedItem.id} class="chatter-feed-item">
+                                        <div class="feed-item-header"><div class="feed-item-date">{feedItem.formattedDate}</div></div>
+                                        <div class="feed-item-attachments">
+                                            <template for:each={feedItem.attachments} for:item="attachment">
+                                                <div key={attachment.id} class={attachment.cardClass} data-id={attachment.id} onclick={handleAttachmentSelection}>
+                                                    <template if:true={attachment.selected}>
+                                                        <div class="attachment-selected-badge"><lightning-icon icon-name="utility:check" size="xx-small" variant="inverse"></lightning-icon></div>
+                                                    </template>
+                                                    <template if:true={attachment.isImage}>
+                                                        <img src={attachment.thumbnailUrl} class="attachment-thumbnail">
+                                                    </template>
+                                                    <template if:false={attachment.isImage}>
+                                                        <div class="attachment-file-icon"><lightning-icon icon-name="doctype:attachment" size="medium"></lightning-icon></div>
+                                                    </template>
+                                                    <div class="attachment-title">{attachment.title}</div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <template if:true={hasMoreChatterItems}>
+                                <div class="load-more-container">
+                                    <button class="load-more-btn" onclick={handleLoadMoreChatter} disabled={isLoadingMoreChatter}>Load More</button>
+                                </div>
+                            </template>
+                        </template>
+                    </template>
+                </div>
+                <div class="bottom-footer-btn">
+                    <button class="retake-btn" onclick={closeChatterModal}>Cancel</button>
+                    <button class="save-btn nav-btn slds-m-left--medium" onclick={handleAddSelectedAttachments} disabled={hasNoSelectedAttachments}>Add Selected</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open camera-sub-backdrop"></div>
+    </template>
+
+    <template if:true={showCameraModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container camera-modal-container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" onclick={closeCameraModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" size="small"></lightning-icon>
+                </button>
+                <header class="slds-modal__header edit-modal-header">
+                    <h2 class="slds-text-heading_medium">Capture Photo</h2>
+                </header>
+                <div class="slds-modal__content camera-modal-content">
+                    <template if:false={capturedPhoto}>
+                        <video class="camera-video" autoplay playsinline></video>
+                        <button type="button" class="camera-capture-btn" onclick={handleCapturePhoto}>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="24" height="24" fill="white">
+                                <path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z" />
+                            </svg>
+                        </button>
+                    </template>
+                    <template if:true={capturedPhoto}>
+                        <img src={capturedPhoto} class="captured-preview" />
+                        <div class="camera-actions">
+                            <button class="retake-btn" onclick={handleRetakePhoto}>Retake</button>
+                            <button class="save-photo-btn" onclick={handleSaveCapturedPhoto}>Save Photo</button>
+                        </div>
+                    </template>
+                    <canvas class="camera-canvas" style="display: none;"></canvas>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open camera-sub-backdrop"></div>
     </template>
 </template>
