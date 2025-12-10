@@ -311,7 +311,7 @@ public with sharing class CollectWorkLogsController {
 
             // if totalTranscriptSize is less than 5 MB, then call AI to summarize the clips
             if(totalTranscriptSize <= (5 * 1024 * 1024)){
-                return ProcessShiftLogsByAI(clipIds); 
+                return ProcessShiftLogsByAI(clipIds, params.promptId); 
             }
             else{
                 // process recorded shift log in future method to increase the limit
@@ -329,10 +329,12 @@ public with sharing class CollectWorkLogsController {
         return result;
     }
 
-    public static Map<String, Object> ProcessShiftLogsByAI(List<String> clipIds){
+    public static Map<String, Object> ProcessShiftLogsByAI(List<String> clipIds, String promptId){
         try {
 
             List<ContentVersion> clipList = [SELECT Id, Transcript_English__c FROM ContentVersion WHERE Id IN : clipIds ORDER BY CreatedDate];
+
+            List<AI_Prompt_Library__c> userPrompt = [SELECT Id, Prompt_Body__c, Prompt_Type__c, Prompt_Name__c FROM AI_Prompt_Library__c WHERE Id =: promptId];
 
             String audioData = '';
             String transcript_en = '';
@@ -341,7 +343,7 @@ public with sharing class CollectWorkLogsController {
                 transcript_en += clip.Transcript_English__c;
             }
             
-            return AICalloutController.generateRecordingSummary(new Map<String, Object>{ 'audio' => audioData, 'transcript_en' => transcript_en});
+            return AICalloutController.generateRecordingSummary(new Map<String, Object>{ 'audio' => audioData, 'transcript_en' => transcript_en, 'userSpecifiedPrompt' => userPrompt.isEmpty() ? null : userPrompt[0].Prompt_Body__c });
             
         } catch (Exception e) {
             System.debug('Error in ProcessShiftLogsByAI: ' + e.getMessage());
@@ -358,7 +360,7 @@ public with sharing class CollectWorkLogsController {
         }
 
         // Call AI to summarize the clips
-        Map<String, Object> ai_result = ProcessShiftLogsByAI(actualClipIds);
+        Map<String, Object> ai_result = ProcessShiftLogsByAI(actualClipIds, '');
 
         System.debug('AI Response: ' + ai_result);
 
@@ -400,5 +402,6 @@ public with sharing class CollectWorkLogsController {
         @AuraEnabled public String clipId;
         @AuraEnabled public String clipDocumentId;
         @AuraEnabled public String translation_en;
+        @AuraEnabled public String promptId;
     }
 }

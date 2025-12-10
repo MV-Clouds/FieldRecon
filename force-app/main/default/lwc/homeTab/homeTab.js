@@ -939,19 +939,12 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         this.dispatchEvent(event);
     }
 
-
-
     // ===== ##AI - Work Log Recording =====
-    @track workLogRecodingInfo = {
-        show: false,
-        mobilizationId: null,
-        jobId: null,
-    }
+    @track workLogRecodingInfo = { show: false, mobilizationId: null, jobId: null, }
     toggleWorkLogRecord(event){
         this.workLogRecodingInfo.show = !this.workLogRecodingInfo.show;
         this.workLogRecodingInfo.mobilizationId = event.currentTarget.dataset.id;
-        this.workLogRecodingInfo.jobId = event.currentTarget.dataset.jobId;
-        console.log('this.workLogRecodingInfo.jobId : ', this.workLogRecodingInfo.jobId);
+        this.workLogRecodingInfo.recordId = event.currentTarget.dataset.jobId;
     }
 
 

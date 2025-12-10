@@ -45,7 +45,7 @@ public with sharing class AICalloutController {
                 '"generationConfig": '+generationConfig+'' + 
             '}';
 
-            result = callGeminiAPI(requestBody);
+            result = callGeminiAPI(requestBody,'Recording_Transcript_Tokens__c');
             // result = {'ai_Response__c' : 'summary'}
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'AICalloutController', 'methodName' => 'generateSingleRecordingTranscript', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
@@ -184,7 +184,7 @@ public with sharing class AICalloutController {
                 '"generationConfig": ' + String.escapeSingleQuotes(generateConfig) +
             '}';
 
-            result = callGeminiAPI(requestBody);
+            result = callGeminiAPI(requestBody, 'Job_Summary_Tokens__c');
             String aiResponse = (String) result.get('ai_Response__c');
 
             if(String.isBlank(aiResponse)) return result;
@@ -235,7 +235,147 @@ public with sharing class AICalloutController {
 
     /**
      * @description This method is used to generate job summary
-     * @param String inputData
+     * @param String requestBody
+     * @param String generationPurposeField
+     * 
+     * @return Map<String, Object>
+     * 1. key: ai_Response__c, value: String
+     * 2. key: ai_Response_Error__c, value: String
+     * 
+     */
+    public static Map<String,Object> callGeminiAPI(String requestBody, String generationPurposeField) {
+        Map<String, Object> result = new Map<String, Object>();
+        try {
+            
+            FR_Job_AI_Settings__c aiSettings = FR_Job_AI_Settings__c.getOrgDefaults();
+            String Gemini_API_Domain = aiSettings.Gemini_API_Domain__c;
+            String Gemini_API_Relative_Path = aiSettings.Gemini_API_Relative_Path__c;
+            String Gemini_API_Key = aiSettings.Gemini_API_Key__c;
+            String Gemini_Model = aiSettings.Gemini_Model__c;
+
+            String endpoint = Gemini_API_Domain + Gemini_API_Relative_Path + Gemini_Model + ':generateContent?key=' + Gemini_API_Key;
+
+            // Prepare request
+            HttpRequest req = new HttpRequest();
+            req.setEndpoint(endpoint);
+            req.setMethod('POST');
+            req.setHeader('Content-Type', 'application/json');
+
+            req.setBody(requestBody);
+            req.setTimeout(120000);
+
+            System.debug('requestBody : '+requestBody);
+
+            if(Gemini_Model == 'gemini-2.5-flash'){
+                Map<String, Object> generationConfig = new Map<String, Object>();
+                Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(requestBody);
+                if (body.containsKey('generationConfig')) {
+                    generationConfig = (Map<String, Object>) body.get('generationConfig');
+                }
+                else{
+                    body.put('generationConfig', generationConfig);
+                }
+                generationConfig.put('thinkingConfig', '{ "includeThoughts": false,"thinkingBudget": 0, }');
+                requestBody = JSON.serialize(body);
+                System.debug('requestBody after adding  thinkingBudget : '+requestBody);
+            }
+
+            
+            Http http = new Http();
+            HttpResponse res = http.send(req);
+
+            System.debug('Gemini API Response: ' + res.getBody());
+
+            GeminiResponseWrapper response = (GeminiResponseWrapper) JSON.deserialize(res.getBody(), GeminiResponseWrapper.class);
+            System.debug('GeminiResponseWrapper : '+ response);
+
+            if (res.getStatusCode() == 200) {
+                if(response?.candidates?.size() > 0 && response.candidates[0]?.content?.parts?.size() > 0) {
+                    String responseText = response.candidates[0].content.parts[0]?.text;
+                    result.put('ai_Response__c', responseText);
+
+                    String queryForModelStats = 'SELECT Id, Name, Gemini_Model__c, ' + generationPurposeField + ' FROM FR_AI_Models__c WHERE Gemini_Model__c = :Gemini_Model LIMIT 1';
+
+                    Map<String, String> modelNameMapping = new Map<String, String>{
+                        'gemini-2.5-flash' => 'Gemini 2.5 Flash',
+                        'gemini-2.0-flash' => 'Gemini 2.0 Flash',
+                        'gemini-2.5-pro'   => 'Gemini 2.5 Pro'
+                    };
+
+                    List<FR_AI_Models__c> modelList = Database.query(queryForModelStats);
+                    FR_AI_Models__c modelRecord = modelList.isEmpty() ? new FR_AI_Models__c(
+                        Gemini_Model__c = Gemini_Model,
+                        Name = modelNameMapping.get(Gemini_Model)
+                    ) : modelList[0];
+
+                    Map<String, Object> usage = new Map<String, Object>();
+
+                    if (modelRecord.get(generationPurposeField) != null) {
+                        usage = (Map<String, Object>) JSON.deserializeUntyped(
+                            (String) modelRecord.get(generationPurposeField)
+                        );
+                    }
+
+                    // Integer audioTokens = getAudioPromptTokenCount(response);
+
+                    usage.put('promptTokenCount',
+                        sumSafe((Integer) usage.get('promptTokenCount'), response.UsageMetadata.promptTokenCount)
+                    );
+                    usage.put('candidatesTokenCount',
+                        sumSafe((Integer) usage.get('candidatesTokenCount'), response.UsageMetadata.candidatesTokenCount)
+                    );
+                    usage.put('totalTokenCount',
+                        sumSafe((Integer) usage.get('totalTokenCount'), response.UsageMetadata.totalTokenCount)
+                    );
+                    usage.put('audioPromptTokenCount',
+                        sumSafe((Integer) usage.get('audioPromptTokenCount'), getAudioPromptTokenCount(response.UsageMetadata.promptTokensDetails))
+                    );
+                    usage.put('thoughtsTokenCount',
+                        sumSafe((Integer) usage.get('thoughtsTokenCount'), response.UsageMetadata.thoughtsTokenCount)
+                    );
+
+                    // if (response.UsageMetadata.thoughtsTokenCount != null) {
+                    // }
+
+                    modelRecord.put(generationPurposeField, JSON.serialize(usage));
+
+                    if (modelRecord.Id == null) {
+                        insert modelRecord;
+                    } else {
+                        update modelRecord;
+                    }
+                }
+                else{
+                    result.put('ai_Response_Error__c', 'Error: No Response Found');
+                }
+            } else {
+                System.debug('Gemini API Error - Status: ' + res.getStatusCode() + ', Body: ' + res.getBody());
+                result.put('ai_Response_Error__c', 'Error: Response Error. ');
+            }
+        } catch (Exception e) {
+            System.debug('Error in callGeminiAPI: ' + e.getMessage() + ' at line ' + e.getLineNumber());
+            result.put('ai_Response_Error__c', 'Error : Failed to get response from Gemini API. ' + e.getMessage());
+        }
+        return result;
+    }
+
+    public static Integer sumSafe(Integer currentCount, Integer newCount) {
+        return (currentCount == null ? 0 : currentCount) + (newCount == null ? 0 : newCount);
+    }
+
+    public static Integer getAudioPromptTokenCount(List<GeminiResponseWrapper.TokenDetail> tokenDetails) {
+        Integer total = 0;
+        for (GeminiResponseWrapper.TokenDetail tokenDetail : tokenDetails) {
+            if (tokenDetail.modality != null && tokenDetail.modality.toLowerCase() == 'audio') {
+                total += tokenDetail.tokenCount;
+            }
+        }
+        return total;
+    }
+
+    /**
+     * @description This method is used to generate job summary
+     * @param String requestBody
      * 
      * @return Map<String, Object>
      * 1. key: ai_Response__c, value: String

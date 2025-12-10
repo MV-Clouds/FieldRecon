@@ -1,0 +1,47 @@
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.next-btn,
+.done-btn,
+.prev-btn {
+    background: rgba(94, 90, 219, 1);
+    color: white;
+}
+
+.next-btn:hover,
+.done-btn:hover,
+.prev-btn:hover {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+
+.ai-logs-section{
+    background: #eeedff;
+    border-radius: 12px;
+    margin-inline: 1rem;
+    padding: 1rem 2rem;
+}
+
+.ai-logs-section .title{
+    font-size: 24px;
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+}
+
+.prompt-dropdown{
+    min-width: min(100%, 200px);
+    width: min(100%, 200px);
+}

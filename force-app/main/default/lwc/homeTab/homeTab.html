@@ -378,13 +378,9 @@
                     <div class="pop-heading">Work Log Record</div>
                     <div class="slds-modal__content pop-up ">
                         <div class="popUpBody slds-m-bottom_small">
-                            <!-- <c-collect-shift-recordings record-id={workLogRecodingInfo.jobId} mobilization-id={workLogRecodingInfo.mobilizationId} ></c-collect-shift-recordings> -->
-                            <c-collect-work-logs record-id={workLogRecodingInfo.jobId} mobilization-id={workLogRecodingInfo.mobilizationId} ></c-collect-work-logs>
+                            <c-ai-component-placeholder component-name="collectWorkLogs" props={workLogRecodingInfo}></c-ai-component-placeholder>
                         </div>
                     </div>
-                    <!-- <div class="popUpFooter">
-                        <button class="clock-in-button" onclick={saveClockIn}>Clock In</button>
-                    </div> -->
                 </div>
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>

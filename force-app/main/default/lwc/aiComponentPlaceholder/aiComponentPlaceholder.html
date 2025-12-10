@@ -1,14 +1,20 @@
 <template>
 
     <template lwc:if={COMPONENT_CONSTRUCTOR}>
-        <!-- ignore error is appears -->
-        <lwc:component lwc:is={COMPONENT_CONSTRUCTOR} component-name={componentName} is-managed={isManaged} props={props} ></lwc:component>
+        <!-- Ignore error is appears -->
+        <lwc:component lwc:is={COMPONENT_CONSTRUCTOR} component-name={componentName} props={props} onmessage={handleAIComponentMessage}></lwc:component>
     </template>
     <template lwc:else>
-        <div class="slds-align_absolute-center">
-            <div class="slds-p-around_medium slds-text-color_error slds-text-title_caps">
-                AI is not enabled for your organization. Please contact your administrator to enable it.
+        <!-- Customize UI when AI is disabled -->
+        <template lwc:if={component.aIAdminDashboard}>
+            <div class="slds-align_absolute-center">
+                <div class="slds-p-around_medium slds-text-color_error slds-text-title_caps">
+                    AI is not enabled for your organization. Please contact your administrator to enable it.
+                </div>
             </div>
-        </div>
+        </template>
+        <template lwc:elseif={component.collectWorkLogs}>
+            <!-- ADD UI Based on your requirement when component name is "collectWorkLogs" -->
+        </template>
     </template>
 </template>

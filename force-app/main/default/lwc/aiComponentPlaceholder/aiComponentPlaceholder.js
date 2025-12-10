@@ -1,7 +1,7 @@
 import { LightningElement, api } from 'lwc';
 
 // Note: Change namespace "c" to relevant namespace before moving to package
-let NAMESPACE = 'wfrecon';
+let NAMESPACE = 'c';
 // set namespace from url parameter in emergency cases or for development purpose...
 let params = new URLSearchParams(window.location.search);
 if(params.get('fr_ai_namespace') === 'c' || window.location.hash == '#fr_ai_namespace=c') NAMESPACE = 'c';
@@ -13,6 +13,10 @@ export default class AiComponentPlaceholder extends LightningElement {
 
     // Constructor
     COMPONENT_CONSTRUCTOR;
+
+    get component(){
+        return {[this.componentName] : true};
+    }
 
     connectedCallback(){
 
@@ -29,6 +33,13 @@ export default class AiComponentPlaceholder extends LightningElement {
     importStatement(){
         // Please change the namespace to relevant namespace before moving to package
         return NAMESPACE != 'c' ? import('wfrecon/aiComponentInjector') : import('c/aiComponentInjector'); 
+    }
+
+    // Send "onmessage" to field recon component...
+    // Always send message with onmessage....
+    handleAIComponentMessage(event){
+        let detail = event.detail ?? {};
+        this.dispatchEvent(new CustomEvent('message', { detail }));
     }
 
 }

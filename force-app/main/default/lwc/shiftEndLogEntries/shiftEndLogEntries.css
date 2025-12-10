@@ -1947,19 +1947,6 @@
     overflow-y: auto;
 }
 
-.ai-logs-section{
-    background: #eeedff;
-    border-radius: 12px;
-    margin-inline: 1rem;
-    padding: 1rem 2rem;
-}
-
-.ai-logs-section .title{
-    font-size: 24px;
-    font-weight: 600;
-    color: rgba(94, 90, 219, 1);
-}
-
 /* Mobile responsiveness for accordions */
 @media screen and (max-width: 768px) {
     .location-accordion-header {
@@ -1970,9 +1957,4 @@
     .location-accordion-content.open {
         padding: 0.75rem;
     }
-}
-
-.prompt-dropdown{
-    min-width: min(100%, 200px);
-    width: min(100%, 200px);
 }

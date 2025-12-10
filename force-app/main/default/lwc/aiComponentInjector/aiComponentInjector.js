@@ -31,7 +31,14 @@ export default class AiComponentInjector extends LightningElement {
         'collectWorkLogs' :     NAMESPACE != 'c' ? (() => import('wfrecon/collectWorkLogs')) : (() => import('c/collectWorkLogs')) ,
         'aIAdminDashboard' :    NAMESPACE != 'c' ? (() => import('wfrecon/aIAdminDashboard')) : (() => import('c/aIAdminDashboard')) ,
         'promptEditor' :        NAMESPACE != 'c' ? (() => import('wfrecon/promptEditor')) : (() => import('c/promptEditor')) ,
-        'shiftEndLogV2' :       NAMESPACE != 'c' ? (() => import('wfrecon/shiftEndLogV2')) : (() => import('c/shiftEndLogV2')) ,
+        'shiftEndLogAISummary': NAMESPACE != 'c' ? (() => import('wfrecon/shiftEndLogAISummary')) : (() => import('c/shiftEndLogAISummary')) ,
+    }
+
+    // Send "onmessage" to field recon component...
+    // Always send message with onmessage....
+    handleDispatchToParent(event){
+        let detail = event.detail ?? {};
+        this.dispatchEvent(new CustomEvent('message', { detail } ));
     }
 
 

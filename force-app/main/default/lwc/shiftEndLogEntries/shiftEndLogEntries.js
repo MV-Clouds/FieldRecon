@@ -9,9 +9,6 @@ import updateTimesheets from '@salesforce/apex/ShiftEndLogEntriesController.upda
 import getJobLocationProcesses from '@salesforce/apex/ShiftEndLogEntriesController.getJobLocationProcesses';
 import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.createLogEntry';
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
-import fetchShiftLogInfo from '@salesforce/apex/CollectWorkLogsController.collectShiftLogInfo';
-import getShiftEndLogPrompts from '@salesforce/apex/GenerateJobSummaryController.getShiftEndLogPrompts';
-import { subscribe, unsubscribe, onError, setDebugFlag, isEmpEnabled } from 'lightning/empApi';
 
 export default class ShiftEndLogEntries extends LightningElement {
     @api jobId = '';
@@ -171,9 +168,6 @@ export default class ShiftEndLogEntries extends LightningElement {
     connectedCallback() {
         this.loadMobilizationList();
         this.loadLocationProcesses();
-        this.namespace = this.template?.host?.nodeName?.toLowerCase()?.startsWith('wfrecon-') ? 'wfrecon__' : '';
-        this.fetchPrompts();
-        this.overrideSLDS();
     }
 
     renderedCallback() {
@@ -1794,146 +1788,14 @@ export default class ShiftEndLogEntries extends LightningElement {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
 
-    isRecordingSummarized = false;
-    noLogRecordings = false;
-
-    get generateSummaryBtnLabel(){
-        return this.isRecordingSummarized && !this.noLogRecordings ? 'Re-Generate' : 'Generate'
-    }
-
-    infoMessages = {
-        ai_error : 'Something went wrong while generating the summary. Please try again.',
-        ai_success : 'Summary is ready. Review it and make edits if needed.',
-        is_async : 'Shift Log Info is being processed. Please wait for a few seconds.',
-        no_recording: 'No recordings found. Please add recordings and try again.'
-    }
-
-    collectShiftLogInfo(){
-        this.isLoading = true;
-
-        let params = {
-            jobId: this.jobId,
-            crewLeaderId: this.crewLeaderId,
-            mobilizationId: this.selectedMobilizationId,
-            promptId: this.selectedPrompt
+    get shiftEndLogAISummaryProps(){
+        return {
+            jobId : this.jobId, 
+            crewLeaderId: this.crewLeaderId, 
+            selectedMobilizationId: this.selectedMobilizationId,
+            handleLoading : (isLoading) => { this.isLoading = isLoading},           // to handle loading from ai component without dispatching event to this component
+            setupStep2Data: (data) => { this.step3Data = data ?? {}; }              // to set step3Data from ai component without dispatching event to this component
         }
-
-        fetchShiftLogInfo({paramString : JSON.stringify(params)})
-        .then(result => {
-            console.log('result : ', result);
-            this.isLoading = false;
-            if(result.error){
-                this.showToast('Error', result.error, 'error');
-                return;
-            }
-            if(result.ai_Response_Error__c){
-                this.showToast('Error', this.infoMessages.ai_error, 'error');
-            }
-            else if(result.no_recording){
-                this.noLogRecordings = true;
-                this.showToast('Error', this.infoMessages.no_recording, 'error');
-            }
-            else if(result.ai_Response__c){
-                // Collect AI Response and match fill to input fields
-                try {
-                    this.step3Data = JSON.parse(result.ai_Response__c);
-                } catch (error) {}
-                this.isRecordingSummarized = true;
-                this.showToast('Success', this.infoMessages.ai_success, 'success');
-            }
-            else if(result.is_async){
-                this.isLoading = true;
-                // When Total Clips Size exceed the 10MB, Recoding Process Method will move to asynchronous apex and
-                // AI response will be collected using platform event
-                // Subscribe to event
-                this.subscribeEvent();
-                this.showToast('Success', this.infoMessages.is_async, 'success');
-            }
-        })
-        .catch(error => {
-            console.log('error : ', error?.body?.message ?? error?.message);
-            this.isLoading = false;
-        })
-
-    }
-
-    subscribeEvent(){
-        subscribe('/event/AI_Response__e', -1, (response)=>{
-            console.log('Async Response: ',response);
-
-            let ai_result = response.data.payload;
-
-            if(ai_result.ai_Response_Error__c?.trim()){
-                this.showToast('Error', this.infoMessages.ai_error, 'error');
-            }
-            if(ai_result.ai_Response__c?.trim()){
-                try {
-                    this.step3Data = JSON.parse(response.data.payload.ai_Response__c) ?? {};
-                    this.showToast('Success', this.infoMessages.ai_success, 'success');
-                } catch (error) {}
-            }
-
-            this.isRecordingSummarized = true;
-            this.isLoading = false;
-
-            // Unsubscribe event once response received
-            unsubscribe(this.subscription,()=>{
-                console.log('Unsubscribed');
-            });
-        }).then((result)=>{
-            this.subscription = result;
-        })
-        .catch(error => {
-            this.showToast('Error', 'Error to process shift log recordings', 'error')
-            this.isLoading = false;
-        })
-    }
-
-    // new variable for prompts selections
-    @track prompts = [];
-    selectedPrompt = '';
-    
-    fetchPrompts(){
-        getShiftEndLogPrompts()
-        .then(result => {
-            if(result.success){
-                this.prompts = result.prompts?.map(ele => {
-                    return {
-                        value : ele.Id, label: ele[this.namespace+'Prompt_Name__c'], description: ele[this.namespace+'Prompt_Body__c']
-                    }
-                }) ?? [];
-            }
-            console.log('Prompts => ',this.prompts);
-        })
-        .catch(error => {
-            console.log('Error fetching prompts:', error?.body?.message ?? error?.message);
-        })
-    }
-
-    handleChange(event) {
-        let eventName = event.target.name;
-        let eventValue = event.target.value;
-        this[eventName] = eventValue;
-    }
-
-    overrideSLDS(){
-        let style = document.createElement('style');
-        style.innerHTML =  `
-            .sele-override-slds{
-                .prompt-dropdown .slds-combobox__form-element{
-                    --slds-s-icon-color-foreground: var(--primary-theme-color)
-                }
-                .prompt-dropdown .slds-combobox__input{
-                    height: 41px;
-                    align-items: center;
-                    color: var(--primary-theme-color);
-                    border-color: var(--primary-theme-color);
-                }
-            }
-        `;
-        this.template.host.classList.add('sele-override-slds');
-        this.template.host.appendChild(style);
-
     }
 
 }

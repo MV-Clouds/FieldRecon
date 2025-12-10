@@ -1,0 +1,23 @@
+<template>
+    <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread ai-logs-section">
+        <div class="slds-size_8-of-12 slds-col_bump-right">
+            <div class="title slds-grid slds-grid_vertical-align-center slds-m-bottom_xx-small">
+                <svg class="slds-m-right_x-small" viewBox="0 0 24 24" width="28px" height="28px" fill="rgba(94, 90, 219, 1)"><path d="M16.4356 3.21188C16.8261 2.82185 17.4592 2.82157 17.8496 3.21188L20.6777 6.04099C21.0681 6.43152 21.0682 7.06457 20.6777 7.45505L7.2422 20.8896H3.00001V16.6475L16.4356 3.21188ZM5.00001 17.4756V18.8896H6.41407L15.7276 9.57615L14.3135 8.16208L5.00001 17.4756ZM4.5293 1.3193C4.70583 0.893505 5.29418 0.893508 5.47071 1.3193L5.72364 1.93063C6.15555 2.97342 6.96155 3.80613 7.97462 4.2568L8.69239 4.57614C9.10267 4.75896 9.10262 5.35616 8.69239 5.53903L7.93263 5.87692C6.94497 6.3162 6.15339 7.11943 5.71387 8.1279L5.4668 8.69334C5.28636 9.10747 4.71366 9.10747 4.53321 8.69334L4.28614 8.1279C3.84661 7.11943 3.05506 6.3162 2.06739 5.87692L1.30762 5.53903C0.897483 5.35617 0.897435 4.75896 1.30762 4.57614L2.0254 4.2568C3.03845 3.80614 3.84446 2.97344 4.27637 1.93063L4.5293 1.3193ZM15.7276 6.74802L17.1426 8.16208L18.5567 6.74802L17.1426 5.33395L15.7276 6.74802Z"></path></svg>
+                <p>Generate a summary of all shift log recordings so far.</p>
+            </div>
+            <p class="slds-p-right_small slds-text-color_weak">Click to generate a summary of all recorded shift logs. AI will compile all your shift log recording entries into a clear summary for review and insert.</p>
+            <p lwc:if={noLogRecordings} class="slds-grid slds-grid_vertical-align-center slds-m-vertical_small">
+                <svg class="slds-m-right_x-small" width="36px" viewBox="0 0 24 24" fill="rgb(255, 83, 138)"><path d="M12 22C6.47715 22 2 17.5228 2 12 2 6.47715 6.47715 2 12 2 17.5228 2 22 6.47715 22 12 22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12 20 7.58172 16.4183 4 12 4 7.58172 4 4 7.58172 4 12 4 16.4183 7.58172 20 12 20ZM13 10.5V15H14V17H10V15H11V12.5H10V10.5H13ZM13.5 8C13.5 8.82843 12.8284 9.5 12 9.5 11.1716 9.5 10.5 8.82843 10.5 8 10.5 7.17157 11.1716 6.5 12 6.5 12.8284 6.5 13.5 7.17157 13.5 8Z"></path></svg>
+                You haven't recorded any shift logs today. </br>
+                Record your shift log using voice command and try generating a summary with AI.
+            </p>
+        </div>
+        <template if:false={noLogRecordings}>
+            <lightning-combobox placeholder="Select Prompt" variant="label-hidden" class="prompt-dropdown slds-m-right_x-small" options={prompts} name="selectedPrompt" value={selectedPrompt} onchange={handleChange}></lightning-combobox>
+            <button class="nav-btn next-btn" onclick={collectShiftLogInfo}>
+                <svg width="20px" viewBox="0 0 24 24" fill="#fff" ><path d="M16.4356 3.21188C16.8261 2.82185 17.4592 2.82157 17.8496 3.21188L20.6777 6.04099C21.0681 6.43152 21.0682 7.06457 20.6777 7.45505L7.2422 20.8896H3.00001V16.6475L16.4356 3.21188ZM5.00001 17.4756V18.8896H6.41407L15.7276 9.57615L14.3135 8.16208L5.00001 17.4756ZM4.5293 1.3193C4.70583 0.893505 5.29418 0.893508 5.47071 1.3193L5.72364 1.93063C6.15555 2.97342 6.96155 3.80613 7.97462 4.2568L8.69239 4.57614C9.10267 4.75896 9.10262 5.35616 8.69239 5.53903L7.93263 5.87692C6.94497 6.3162 6.15339 7.11943 5.71387 8.1279L5.4668 8.69334C5.28636 9.10747 4.71366 9.10747 4.53321 8.69334L4.28614 8.1279C3.84661 7.11943 3.05506 6.3162 2.06739 5.87692L1.30762 5.53903C0.897483 5.35617 0.897435 4.75896 1.30762 4.57614L2.0254 4.2568C3.03845 3.80614 3.84446 2.97344 4.27637 1.93063L4.5293 1.3193ZM15.7276 6.74802L17.1426 8.16208L18.5567 6.74802L17.1426 5.33395L15.7276 6.74802Z"></path></svg>
+                {generateSummaryBtnLabel}
+            </button>
+        </template>
+    </div>
+</template>
