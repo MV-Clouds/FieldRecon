@@ -196,10 +196,15 @@ public with sharing class ShiftEndLogV2Controller {
                 ];
 
                 Set<Id> versionIds = new Set<Id>();
-                Map<Id, Id> versionToLogMap = new Map<Id, Id>();
+                Map<Id, List<Id>> versionToLogListMap = new Map<Id, List<Id>>();
                 for(ContentDocumentLink cdl : contentLinks) {
                     versionIds.add(cdl.ContentDocument.LatestPublishedVersionId);
-                    versionToLogMap.put(cdl.ContentDocument.LatestPublishedVersionId, cdl.LinkedEntityId);
+                    
+                    // Support multiple log entries linked to the same version
+                    if(!versionToLogListMap.containsKey(cdl.ContentDocument.LatestPublishedVersionId)) {
+                        versionToLogListMap.put(cdl.ContentDocument.LatestPublishedVersionId, new List<Id>());
+                    }
+                    versionToLogListMap.get(cdl.ContentDocument.LatestPublishedVersionId).add(cdl.LinkedEntityId);
                 }
 
                 if(!versionIds.isEmpty()) {
@@ -213,9 +218,15 @@ public with sharing class ShiftEndLogV2Controller {
                     ];
 
                     for(ContentVersion cv : versions) {
-                        Id logId = versionToLogMap.get(cv.Id);
-                        if(!logImagesMap.containsKey(logId)) logImagesMap.put(logId, new List<ContentVersion>());
-                        logImagesMap.get(logId).add(cv);
+                        List<Id> linkedLogIds = versionToLogListMap.get(cv.Id);
+                        if(linkedLogIds != null) {
+                            for(Id logId : linkedLogIds) {
+                                if(!logImagesMap.containsKey(logId)) {
+                                    logImagesMap.put(logId, new List<ContentVersion>());
+                                }
+                                logImagesMap.get(logId).add(cv);
+                            }
+                        }
                     }
                 }
             }
