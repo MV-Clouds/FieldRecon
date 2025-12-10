@@ -9,6 +9,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class ApproveShiftEndLogs extends NavigationMixin(LightningElement) {
     @track hasAccess = false;
+    @track timesheetApprovalEnabled = false;
     @track logEntriesRaw = [];
     @track filteredLogEntriesRaw = [];
     @track shownLogEntriesRaw = [];
@@ -19,7 +20,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     @track selectedLog = null;
     @track modalNotes = '';
     @track logEntryDetails = null;
-    @track activeTab = 'timesheets';
+    @track activeTab = 'locations'; // Default to locations, will be set to 'timesheets' if enabled
     @track editedFields = {};
     @track editedLocationProcesses = {};
     @track currentPage = 1;
@@ -88,7 +89,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         this.isLoading = true;
         checkUserAccess()
             .then(result => {
-                this.hasAccess = result;
+                this.hasAccess = result.hasAccess;
+                this.timesheetApprovalEnabled = result.timesheetApprovalEnabled;
                 if (this.hasAccess) {
                     this.loadLogEntries();
                 } else {
@@ -108,6 +110,22 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      */
     get hasAttachments() {
         return this.logEntryDetails?.attachments && this.logEntryDetails.attachments.length > 0;
+    }
+
+    /**
+     * Method Name: hasFilteredLocationProcesses
+     * @description: Check if there are any location processes after filtering
+     */
+    get hasFilteredLocationProcesses() {
+        return this.groupedLocationProcesses && this.groupedLocationProcesses.length > 0;
+    }
+
+    /**
+     * Method Name: hasTimesheetEntries
+     * @description: Check if there are any timesheet entries
+     */
+    get hasTimesheetEntries() {
+        return this.logEntryDetails?.timesheetEntries && this.logEntryDetails.timesheetEntries.length > 0;
     }
 
     // Tab visibility getters
@@ -599,6 +617,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 this.locationProcessApprovals = {};
                 this.newAttachments = [];
                 this.removedAttachments = [];
+                // Set default active tab based on configuration
+                this.activeTab = this.timesheetApprovalEnabled ? 'timesheets' : 'locations';
                 this.showModal = true;
                 this.isLoading = false;
             })
@@ -712,12 +732,10 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         // Add field label
         formattedField.fieldLabel = this.getFieldLabel(field.fieldApiName);
         
-        // Determine field type
+        // Determine field type - only datetime fields for timesheet entries
         const dateTimeFields = ['wfrecon__Clock_In_Time__c', 'wfrecon__Clock_Out_Time__c'];
-        const numberFields = ['wfrecon__Travel_Time__c', 'wfrecon__Per_Diem__c', 'wfrecon__Premium__c'];
         
         formattedField.isDateTime = dateTimeFields.includes(field.fieldApiName);
-        formattedField.isNumber = numberFields.includes(field.fieldApiName);
         
         // Format old value for display
         if (formattedField.isDateTime) {
@@ -753,7 +771,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         this.locationProcessApprovals = {};
         this.newAttachments = [];
         this.removedAttachments = [];
-        this.activeTab = 'timesheets';
+        this.activeTab = this.timesheetApprovalEnabled ? 'timesheets' : 'locations';
     }
 
     /**
@@ -802,15 +820,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             newValue = newValue.replace('T', ' ') + ':00';
         }
 
-        // Validate travel time is non-negative
-        if (fieldName === 'wfrecon__Travel_Time__c' && newValue) {
-            const travelTime = parseFloat(newValue);
-            if (isNaN(travelTime) || travelTime < 0) {
-                this.showToast('Error', 'Travel time must be a positive number', 'error');
-                return;
-            }
-            newValue = travelTime; // Convert to number
-        }
+
 
         // Track the edit with key format: {recordId}.{fieldName}
         const editKey = `${recordId}.${fieldName}`;
@@ -1353,7 +1363,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                 this.timesheetItemApprovals = {};
                 this.locationProcessApprovals = {};
                 this.removedAttachments = [];
-                this.activeTab = 'timesheets';
+                this.activeTab = this.timesheetApprovalEnabled ? 'timesheets' : 'locations';
                 
                 this.loadLogEntries(); // Refresh the list
             })
@@ -1374,8 +1384,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         const result = { isValid: true, message: '' };
         const pendingItems = [];
         
-        // Check timesheets and their items
-        if (this.logEntryDetails?.timesheetEntries && this.logEntryDetails.timesheetEntries.length > 0) {
+        // Check timesheets and their items (only if timesheet approval is enabled)
+        if (this.timesheetApprovalEnabled && this.logEntryDetails?.timesheetEntries && this.logEntryDetails.timesheetEntries.length > 0) {
             this.logEntryDetails.timesheetEntries.forEach(ts => {
                 // If timesheet has items, validate items individually
                 if (ts.items && ts.items.length > 0) {
@@ -1420,7 +1430,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * Method Name: prepareApprovalData
      * @description: Prepare all approval data for backend processing using new structure
      * Returns: { timesheets: [...], locationProcesses: [...], removedAttachments: [...] }
-     * Timesheet format: { id, status, fieldUpdates: { Clock_In_Time__c, Clock_Out_Time__c, Travel_Time__c } }
+     * Timesheet format: { id, status, fieldUpdates: { Clock_In_Time__c, Clock_Out_Time__c } }
      * Location format: { id, status, newValue }
      */
     prepareApprovalData() {
@@ -1430,8 +1440,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             removedAttachments: this.removedAttachments
         };
         
-        // Process timesheet approvals
-        if (this.logEntryDetails?.timesheetEntries) {
+        // Process timesheet approvals (only if timesheet approval is enabled)
+        if (this.timesheetApprovalEnabled && this.logEntryDetails?.timesheetEntries) {
             this.logEntryDetails.timesheetEntries.forEach(ts => {
                 const status = this.timesheetApprovals[ts.id] || 'Pending';
                 const fieldUpdates = {};
@@ -1451,8 +1461,6 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
                             // field.newValue is in format: 2025-11-19T13:02:00.000Z
                             // Convert to: 2025-11-19 13:02:00
                             fieldUpdates[field.fieldApiName] = this.convertISOToApexFormat(field.newValue);
-                        } else if (field.fieldApiName === 'wfrecon__Travel_Time__c') {
-                            fieldUpdates[field.fieldApiName] = parseFloat(field.newValue) || 0;
                         }
                     }
                 });
@@ -1508,8 +1516,8 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
         let allRejected = true;
         let hasItems = false;
         
-        // Check timesheets (compare in lowercase since we store lowercase values)
-        if (approvalData.timesheets && approvalData.timesheets.length > 0) {
+        // Check timesheets (compare in lowercase since we store lowercase values, only if timesheet approval is enabled)
+        if (this.timesheetApprovalEnabled && approvalData.timesheets && approvalData.timesheets.length > 0) {
             hasItems = true;
             approvalData.timesheets.forEach(ts => {
                 const statusLower = ts.status ? ts.status.toLowerCase() : 'pending';
@@ -1622,7 +1630,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             this.locationProcessApprovals = {};
             this.newAttachments = [];
             this.removedAttachments = [];
-            this.activeTab = 'timesheets';
+            this.activeTab = this.timesheetApprovalEnabled ? 'timesheets' : 'locations';
             
             this.loadLogEntries();
         })
@@ -1696,7 +1704,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
             this.locationProcessApprovals = {};
             this.newAttachments = [];
             this.removedAttachments = [];
-            this.activeTab = 'timesheets';
+            this.activeTab = this.timesheetApprovalEnabled ? 'timesheets' : 'locations';
             
             this.loadLogEntries();
         })
@@ -1827,7 +1835,9 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
      * @description: Check if there are any timesheet entries or location processes with original changes to review
      */
     get hasItemsToReview() {
-        const hasTimesheets = this.logEntryDetails?.timesheetEntries && 
+        // Only check timesheets if timesheet approval is enabled
+        const hasTimesheets = this.timesheetApprovalEnabled && 
+                            this.logEntryDetails?.timesheetEntries && 
                             this.logEntryDetails.timesheetEntries.length > 0;
         
         // Check if there are location processes with original changes needing approval
@@ -1917,10 +1927,7 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     getFieldLabel(apiName) {
         const labelMap = {
             'wfrecon__Clock_In_Time__c': 'Clock In Time',
-            'wfrecon__Clock_Out_Time__c': 'Clock Out Time',
-            'wfrecon__Travel_Time__c': 'Travel Time',
-            'wfrecon__Per_Diem__c': 'Per Diem',
-            'wfrecon__Premium__c': 'Premium'
+            'wfrecon__Clock_Out_Time__c': 'Clock Out Time'
         };
         return labelMap[apiName] || apiName;
     }

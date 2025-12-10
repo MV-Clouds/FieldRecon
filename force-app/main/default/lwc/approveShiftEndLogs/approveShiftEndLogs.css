@@ -874,8 +874,7 @@
 
 .tab-button.active {
     color: #5e5adb;
-    border-top: 3px solid #5e5adb;
-    background: rgba(94, 90, 219, 0.05);
+    background: rgba(94, 90, 219, 0.1);
 }
 
 /* Gallery */

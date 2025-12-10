@@ -231,9 +231,11 @@
                         <!-- Custom Tab Navigation -->
                         <div class="tab-container">
                             <div class="tab-navigation">
-                                <button class={timesheetsTabClass} data-tab="timesheets" onclick={handleTabClick}>
-                                    Timesheet Entries
-                                </button>
+                                <template if:true={timesheetApprovalEnabled}>
+                                    <button class={timesheetsTabClass} data-tab="timesheets" onclick={handleTabClick}>
+                                        Timesheet Entries
+                                    </button>
+                                </template>
                                 <button class={locationsTabClass} data-tab="locations" onclick={handleTabClick}>
                                     Location Processes
                                 </button>
@@ -245,81 +247,81 @@
                                 </button>
                             </div>
 
-                            <!-- Tab 1: Timesheet Entries -->
-                            <template if:true={isTimesheetsTab}>
-                                <div class="tab-content">
-                                    <template if:true={logEntryDetails.timesheetEntries.length}>
-                                        <div class="bulk-actions">
-                                            <button class="bulk-approve-btn"
-                                                onclick={handleBulkApproveTimesheets}>Approve All Timesheets</button>
-                                            <button class="bulk-reject-btn" onclick={handleBulkRejectTimesheets}>Reject
-                                                All Timesheets</button>
-                                        </div>
-                                        
-                                        <!-- Timesheet Table -->
-                                        <div class="timesheet-table-wrapper">
-                                            <table class="timesheet-entries-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th class="th-serial">Sr.</th>
-                                                        <th class="th-contact">Contact Name & Actions</th>
-                                                        <th class="th-field">Field</th>
-                                                        <th class="th-old-value">Old Value</th>
-                                                        <th class="th-new-value">New Value</th>
-                                                    </tr>
-                                                </thead>
-                                            </table>
-                                            <div class="timesheet-table-body">
+                            <template if:true={timesheetApprovalEnabled}>
+                                <!-- Tab 1: Timesheet Entries -->
+                                <template if:true={isTimesheetsTab}>
+                                    <div class="tab-content">
+                                        <template if:true={hasTimesheetEntries}>
+                                            <div class="bulk-actions">
+                                                <button class="bulk-approve-btn"
+                                                    onclick={handleBulkApproveTimesheets}>Approve All Timesheets</button>
+                                                <button class="bulk-reject-btn" onclick={handleBulkRejectTimesheets}>Reject
+                                                    All Timesheets</button>
+                                            </div>
+                                            
+                                            <!-- Timesheet Table -->
+                                            <div class="timesheet-table-wrapper">
                                                 <table class="timesheet-entries-table">
-                                                    <tbody>
-                                                        <template for:each={logEntryDetails.timesheetEntries} for:item="ts">
-                                                            <!-- Field Rows with rowspan for contact column -->
-                                                            <template if:true={ts.approvalFields.length}>
-                                                                <template for:each={ts.approvalFields} for:item="field" for:index="idx">
-                                                                    <tr key={field.fieldApiName} class="field-data-row">
-                                                                        <!-- Serial Number & Contact Name Columns (only in first row) -->
-                                                                        <template if:false={idx}>
-                                                                            <!-- Serial Number Column -->
-                                                                            <td rowspan={ts.approvalFields.length} class="serial-column">
-                                                                                <div class="serial-number">{ts.serialNumber}</div>
-                                                                            </td>
-                                                                            <!-- Contact Name & Actions Column -->
-                                                                            <td rowspan={ts.approvalFields.length} class="contact-column">
-                                                                                <div class="contact-info-wrapper">
-                                                                                    <div class="contact-info">
-                                                                                        <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
-                                                                                        <span class="contact-name-truncate" title={ts.memberName}>{ts.memberName}</span>
-                                                                                        <span class="status-badge" data-status={ts.approvalStatus}>
-                                                                                            {ts.approvalStatus}
-                                                                                        </span>
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="th-serial">Sr.</th>
+                                                            <th class="th-contact">Contact Name & Actions</th>
+                                                            <th class="th-field">Field</th>
+                                                            <th class="th-old-value">Old Value</th>
+                                                            <th class="th-new-value">New Value</th>
+                                                        </tr>
+                                                    </thead>
+                                                </table>
+                                                <div class="timesheet-table-body">
+                                                    <table class="timesheet-entries-table">
+                                                        <tbody>
+                                                            <template for:each={logEntryDetails.timesheetEntries} for:item="ts">
+                                                                <!-- Field Rows with rowspan for contact column -->
+                                                                <template if:true={ts.approvalFields.length}>
+                                                                    <template for:each={ts.approvalFields} for:item="field" for:index="idx">
+                                                                        <tr key={field.fieldApiName} class="field-data-row">
+                                                                            <!-- Serial Number & Contact Name Columns (only in first row) -->
+                                                                            <template if:false={idx}>
+                                                                                <!-- Serial Number Column -->
+                                                                                <td rowspan={ts.approvalFields.length} class="serial-column">
+                                                                                    <div class="serial-number">{ts.serialNumber}</div>
+                                                                                </td>
+                                                                                <!-- Contact Name & Actions Column -->
+                                                                                <td rowspan={ts.approvalFields.length} class="contact-column">
+                                                                                    <div class="contact-info-wrapper">
+                                                                                        <div class="contact-info">
+                                                                                            <lightning-icon icon-name="standard:user" size="x-small"></lightning-icon>
+                                                                                            <span class="contact-name-truncate" title={ts.memberName}>{ts.memberName}</span>
+                                                                                            <span class="status-badge" data-status={ts.approvalStatus}>
+                                                                                                {ts.approvalStatus}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <div class="action-buttons">
+                                                                                            <button class="approve-btn-timesheet" 
+                                                                                                data-recordid={ts.id}
+                                                                                                onclick={handleApproveTimesheet}
+                                                                                                disabled={ts.isApproved}
+                                                                                                title="Approve">
+                                                                                                Approve
+                                                                                            </button>
+                                                                                            <button class="reject-btn-timesheet" 
+                                                                                                data-recordid={ts.id}
+                                                                                                onclick={handleRejectTimesheet}
+                                                                                                disabled={ts.isRejected}
+                                                                                                title="Reject">
+                                                                                                Reject
+                                                                                            </button>
+                                                                                        </div>
                                                                                     </div>
-                                                                                    <div class="action-buttons">
-                                                                                        <button class="approve-btn-timesheet" 
-                                                                                            data-recordid={ts.id}
-                                                                                            onclick={handleApproveTimesheet}
-                                                                                            disabled={ts.isApproved}
-                                                                                            title="Approve">
-                                                                                            Approve
-                                                                                        </button>
-                                                                                        <button class="reject-btn-timesheet" 
-                                                                                            data-recordid={ts.id}
-                                                                                            onclick={handleRejectTimesheet}
-                                                                                            disabled={ts.isRejected}
-                                                                                            title="Reject">
-                                                                                            Reject
-                                                                                        </button>
-                                                                                    </div>
-                                                                                </div>
+                                                                                </td>
+                                                                            </template>
+                                                                            <td class="field-label-cell">
+                                                                                <span class="text-truncate" title={field.fieldLabel}>{field.fieldLabel}</span>
                                                                             </td>
-                                                                        </template>
-                                                                        <td class="field-label-cell">
-                                                                            <span class="text-truncate" title={field.fieldLabel}>{field.fieldLabel}</span>
-                                                                        </td>
-                                                                        <td class="old-value-cell">
-                                                                            <span class="text-truncate" title={field.oldValueFormatted}>{field.oldValueFormatted}</span>
-                                                                        </td>
-                                                                        <td class="new-value-cell">
-                                                                            <template if:true={field.isDateTime}>
+                                                                            <td class="old-value-cell">
+                                                                                <span class="text-truncate" title={field.oldValueFormatted}>{field.oldValueFormatted}</span>
+                                                                            </td>
+                                                                            <td class="new-value-cell">
                                                                                 <input 
                                                                                     type="datetime-local"
                                                                                     class="custom-datetime"
@@ -327,42 +329,31 @@
                                                                                     data-recordid={field.recordId}
                                                                                     data-fieldname={field.fieldApiName}
                                                                                     onchange={handleFieldEdit}>
-                                                                            </template>
-                                                                            <template if:true={field.isNumber}>
-                                                                                <input 
-                                                                                    type="number"
-                                                                                    class="custom-datetime"
-                                                                                    value={field.newValue}
-                                                                                    data-recordid={field.recordId}
-                                                                                    data-fieldname={field.fieldApiName}
-                                                                                    onchange={handleFieldEdit}
-                                                                                    step="0.01">
-                                                                            </template>
-                                                                            <template if:false={field.isDateTime}>
-                                                                                <template if:false={field.isNumber}>
-                                                                                    <input 
-                                                                                        type="text"
-                                                                                        class="custom-datetime"
-                                                                                        value={field.newValue}
-                                                                                        data-recordid={field.recordId}
-                                                                                        data-fieldname={field.fieldApiName}
-                                                                                        onchange={handleFieldEdit}>
-                                                                                </template>
-                                                                            </template>
-                                                                        </td>
-                                                                    </tr>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </template>
                                                                 </template>
                                                             </template>
-                                                        </template>
-                                                    </tbody>
-                                                </table>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </template>
-                                    <template if:false={logEntryDetails.timesheetEntries.length}>
-                                        <div class="empty-message">No timesheet entries found</div>
-                                    </template>
-                                </div>
+                                        </template>
+                                        <template if:false={hasTimesheetEntries}>
+                                            <div class="empty-state">
+                                                <div class="empty-state__content">
+                                                    <div class="empty-state__icon">
+                                                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                                    </div>
+                                                    <h3 class="empty-state__message">No Timesheet Entries Found</h3>
+                                                    <p class="no-data-text">
+                                                        There are no timesheet entries requiring approval for this log entry.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
                             </template>
 
                             <!-- Tab 2: Location Processes -->
@@ -507,8 +498,37 @@
                                             </div>
                                         </template>
                                     </template>
-                                    <template if:false={allLocationProcesses.length}>
-                                        <div class="empty-message">No location processes found</div>
+                                    
+                                    <!-- Show empty state when no processes match the filter -->
+                                    <template if:false={hasFilteredLocationProcesses}>
+                                        <template if:true={allLocationProcesses.length}>
+                                            <!-- Has processes but none match filter -->
+                                            <div class="empty-state">
+                                                <div class="empty-state__content">
+                                                    <div class="empty-state__icon">
+                                                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                                    </div>
+                                                    <h3 class="empty-state__message">No Matching Location Processes</h3>
+                                                    <p class="no-data-text">
+                                                        No location processes match the selected filter. Try adjusting the filter to view other processes.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <template if:false={allLocationProcesses.length}>
+                                            <!-- No processes at all -->
+                                            <div class="empty-state">
+                                                <div class="empty-state__content">
+                                                    <div class="empty-state__icon">
+                                                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                                    </div>
+                                                    <h3 class="empty-state__message">No Location Processes Found</h3>
+                                                    <p class="no-data-text">
+                                                        There are no location processes for this job.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </template>
                                 </div>
                             </template>

@@ -7,40 +7,47 @@ public with sharing class ApproveShiftEndLogsController {
     
     /**
      * @description: Check if current user has access to view log entries
-     * User has access if they are System Administrator or listed in wfrecon__Log_Entry_Approver__mdt
+     * User has access if they are System Administrator or listed in wfrecon__Shift_End_Log_Configuration__c
      * @return: Boolean indicating if user has access
      */
     @AuraEnabled
-    public static Boolean checkUserAccess() {
+    public static Map<String, Boolean> checkUserAccess() {
         try {
-            Id userId = UserInfo.getUserId();
-            String userName = UserInfo.getName();
-            String profileName = [SELECT Id, Name FROM Profile WHERE Id = :UserInfo.getProfileId() WITH USER_MODE LIMIT 1].Name;
-            
-            // Check if user is System Administrator
+            Map<String, Boolean> accessMap = new Map<String, Boolean>();
+            accessMap.put('hasAccess', false);
+            accessMap.put('timesheetApprovalEnabled', false);
+
+            String userId = UserInfo.getUserId();
+            String profileName = [SELECT Id, Name FROM Profile WHERE Id = :UserInfo.getProfileId() LIMIT 1].Name;
+
             if (profileName == 'System Administrator') {
-                return true;
+                accessMap.put('hasAccess', true);
             }
+
+            List<wfrecon__Shift_End_Log_Configuration__c> approverMetadata = [SELECT wfrecon__Approvers_JSON__c, wfrecon__Timesheet_Entries_Approval_Feature__c FROM wfrecon__Shift_End_Log_Configuration__c WITH USER_MODE LIMIT 1];
             
-            // Check custom metadata for approved users
-            List<wfrecon__Log_Entry_Approver__mdt> approverMetadata = [SELECT wfrecon__Approvers_JSON__c FROM wfrecon__Log_Entry_Approver__mdt WITH USER_MODE LIMIT 1];
-            
-            if (!approverMetadata.isEmpty() && String.isNotBlank(approverMetadata[0].wfrecon__Approvers_JSON__c)) {
-                Map<String, Object> approversMap = (Map<String, Object>) JSON.deserializeUntyped(approverMetadata[0].wfrecon__Approvers_JSON__c);
-                
-                // Check if user ID or name is in the approvers list
-                for (String approverName : approversMap.keySet()) {
-                    String approverId = (String) approversMap.get(approverName);
-                    if (approverId == userId || approverName == userName) {
-                        return true;
+            if (approverMetadata != null && !approverMetadata.isEmpty()) {
+                wfrecon__Shift_End_Log_Configuration__c config = approverMetadata[0];
+
+                accessMap.put('timesheetApprovalEnabled', config.wfrecon__Timesheet_Entries_Approval_Feature__c);
+
+                if (String.isNotBlank(config.wfrecon__Approvers_JSON__c)) {
+                    List<Object> approversList = (List<Object>) JSON.deserializeUntyped(config.wfrecon__Approvers_JSON__c);
+                    
+                    for (Object approverObj : approversList) {
+                        String approverId = (String) approverObj;
+                        if (approverId == userId) {
+                            accessMap.put('hasAccess', true);
+                            break;
+                        }
                     }
                 }
             }
             
-            return false;
+            return accessMap;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'checkUserAccess', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
-            return false;
+            return new Map<String, Boolean>{ 'hasAccess' => false, 'timesheetApprovalEnabled' => false};
         }
     }
 
@@ -284,7 +291,7 @@ public with sharing class ApproveShiftEndLogsController {
     /**
      * @description: Process log entry approval with all updates
      * Uses IDs from JSON to update records directly (no queries needed)
-     * Clock In/Out updated on BOTH timesheet entry and item, Travel Time ONLY on item
+     * Clock In/Out updated on BOTH timesheet entry and item
      * Only updates log entry status (no clearing of Approval_Data__c)
      * @param logEntryId: ID of the log entry
      * @param approvalData: JSON string containing all approval decisions and field updates with IDs
@@ -329,10 +336,9 @@ public with sharing class ApproveShiftEndLogsController {
      * This method handles:
      * 1. On Rejection: ONLY updates Status__c in BOTH Timesheet_Entry__c (parent) and Timesheet_Entry_Item__c (child)
      * 2. On Approval: Updates Clock_In_Time__c and Clock_Out_Time__c in BOTH Timesheet_Entry__c (parent) and Timesheet_Entry_Item__c (child)
-     * 3. On Approval: Updates Travel_Time__c ONLY in Timesheet_Entry_Item__c (field doesn't exist on parent)
-     * 4. Updates Status__c in BOTH Timesheet_Entry__c and Timesheet_Entry_Item__c (Approved/Rejected/Pending)
-     * 5. NO clearing of Approval_Data__c
-     * 6. Each timesheet entry has exactly ONE child timesheet entry item
+     * 3. Updates Status__c in BOTH Timesheet_Entry__c and Timesheet_Entry_Item__c (Approved/Rejected/Pending)
+     * 4. NO clearing of Approval_Data__c
+     * 5. Each timesheet entry has exactly ONE child timesheet entry item
      * @param timesheets: List of timesheet approval data with IDs and field updates
      * @param logEntryStatus: Final status for the log entry (Approved/Rejected/Pending)
      */
@@ -402,9 +408,6 @@ public with sharing class ApproveShiftEndLogsController {
                     if (fieldUpdates.containsKey('wfrecon__Clock_Out_Time__c')) {
                         String clockOutStr = (String) fieldUpdates.get('wfrecon__Clock_Out_Time__c');
                         item.wfrecon__Clock_Out_Time__c = convertUtc(clockOutStr);
-                    }
-                    if (fieldUpdates.containsKey('wfrecon__Travel_Time__c')) {
-                        item.wfrecon__Travel_Time__c = (Decimal) fieldUpdates.get('wfrecon__Travel_Time__c');
                     }
                 }
                 
