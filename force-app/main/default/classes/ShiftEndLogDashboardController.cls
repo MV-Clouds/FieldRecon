@@ -22,7 +22,7 @@ public with sharing class ShiftEndLogDashboardController {
                           'wfrecon__Status__c, wfrecon__Travel_Log_Complete__c, wfrecon__Work_Performed_Date__c, ' +
                           'wfrecon__Approval_Data__c, wfrecon__Approved_Date__c, wfrecon__Approved_By__c, ' +
                           'wfrecon__Approved_By__r.Name, CreatedDate, CreatedBy.Name, CreatedBy.Id ' +
-                          'FROM wfrecon__Log_Entry__c ' +
+                          'FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c != null ' +
                           'ORDER BY CreatedDate DESC';
             
             List<wfrecon__Log_Entry__c> logEntries = Database.query(query);
