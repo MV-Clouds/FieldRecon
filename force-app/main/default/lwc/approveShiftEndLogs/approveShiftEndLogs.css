@@ -2051,3 +2051,9 @@ tr:has(.status-badge[data-status="rejected"]) {
     font-weight: 600;
 }
 .save-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+.attachment-title {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
