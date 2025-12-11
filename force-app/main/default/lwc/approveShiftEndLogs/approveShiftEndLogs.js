@@ -136,6 +136,21 @@ export default class ApproveShiftEndLogs extends NavigationMixin(LightningElemen
     }
 
     /**
+     * Method Name: hasPendingLocationProcesses
+     * @description: Check if there are any location processes pending for approval in displayed groups
+     */
+    get hasPendingLocationProcesses() {
+        if (!this.groupedLocationProcesses || this.groupedLocationProcesses.length === 0) {
+            return false;
+        }
+        
+        // Check if any displayed process has changes (pending approval)
+        return this.groupedLocationProcesses.some(locationGroup => 
+            locationGroup.processes.some(process => process.hasChanges)
+        );
+    }
+
+    /**
      * Method Name: hasTimesheetEntries
      * @description: Check if there are any timesheet entries
      */
