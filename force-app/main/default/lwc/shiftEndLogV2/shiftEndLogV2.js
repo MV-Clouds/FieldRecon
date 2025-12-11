@@ -320,9 +320,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
             .then(result => {
-                const assignedMap = result.assignedMap || {};                
+                const assignedMap = result.assignedMap || {};
                 const isAdmin = result.isAdmin || false;
-                
+
                 const hasFRAdmin = assignedMap['FR_Admin'] || false;
 
                 // Set both flags
@@ -357,7 +357,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 }
 
                 this.hasAccess = this.isCurrentUserCrewLeader || this.isAdminUser;
-console.log('has access ',this.hasAccess);
+                console.log('has access ', this.hlogasAccess);
 
                 // Extract and process shift end logs
                 this.shiftEndLogs = data.shiftEndLogs.map(wrapper => {
@@ -854,7 +854,7 @@ console.log('has access ',this.hasAccess);
                         // Old structure
                         approvalDataArray = parsedData;
                     }
-                    
+
                     // Build a map for quick lookup
                     approvalDataArray.forEach(item => {
                         approvalDataMap.set(item.id, item);
@@ -902,8 +902,8 @@ console.log('has access ',this.hasAccess);
                 // Store the BASELINE completion percentage in the separate Map
                 // If this process has an existing approval entry, use its oldValue as baseline
                 // Otherwise, use the current completionPercentage
-                const baselinePercentage = approvalDataMap.has(processId) 
-                    ? approvalDataMap.get(processId).oldValue 
+                const baselinePercentage = approvalDataMap.has(processId)
+                    ? approvalDataMap.get(processId).oldValue
                     : completionPercentage;
                 this.editOriginalCompletionPercentages.set(processId, baselinePercentage);
 
@@ -1433,7 +1433,7 @@ console.log('has access ',this.hasAccess);
 
             // Check if this process already exists in approval data
             const existingApproval = approvalDataMap.get(processId);
-            
+
             if (existingApproval) {
                 // Update existing approval entry - keep the original oldValue, update newValue
                 approvalDataMap.set(processId, {
@@ -1459,8 +1459,11 @@ console.log('has access ',this.hasAccess);
             const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
 
             if (processData) {
-                // If the process was in approval but now reset back to the original oldValue, remove it
-                if (processData.completionPercentage === existingApproval.oldValue) {
+                // Only delete if:
+                // 1. The process was reset back to the original oldValue, AND
+                // 2. The process is NOT in editModifiedProcesses (which means it wasn't intentionally preserved)
+                if (processData.completionPercentage === existingApproval.oldValue &&
+                    !this.editModifiedProcesses.has(processId)) {
                     approvalDataMap.delete(processId);
                 }
                 // If it was modified again in this session, editModifiedProcesses already updated it above

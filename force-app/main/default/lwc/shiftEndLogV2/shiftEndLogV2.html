@@ -164,7 +164,19 @@
                                                             <div key={process.processId} class="process-item" data-changed={process.changedToday} data-has-approval={process.isPendingApproval}>
                                                                 <div class="process-header">
                                                                     <div class="process-percentage-container">
-                                                                        <span class="process-percentage">{process.completionPercentage}%</span>
+                                                                        <!-- <span class="process-percentage">{process.completionPercentage}%</span> -->
+                                                                          <template if:true={process.isPendingApproval}>
+                                                                            <span
+                                                                                class="process-percentage">{process.approvalNewValue}%</span>
+                                                                        </template>
+                                                                        <template if:false={process.isPendingApproval}>
+                                                                            <span
+                                                                                class="process-percentage">{process.completionPercentage}%</span>
+                                                                        </template>
+                                                                        <template if:true={process.changedToday}>
+                                                                            <span class="process-changed-badge">Updated
+                                                                                Today</span>
+                                                                        </template>
                                                                         <template if:true={process.changedToday}>
                                                                             <span class="process-changed-badge">Updated Today</span>
                                                                         </template>
