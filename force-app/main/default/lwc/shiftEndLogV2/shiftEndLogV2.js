@@ -320,9 +320,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
         checkPermissionSetsAssigned({ psNames: permissionSetsToCheck })
             .then(result => {
-                const assignedMap = result.assignedMap || {};                
+                const assignedMap = result.assignedMap || {};
                 const isAdmin = result.isAdmin || false;
-                
+
                 const hasFRAdmin = assignedMap['FR_Admin'] || false;
 
                 // Set both flags
@@ -357,7 +357,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 }
 
                 this.hasAccess = this.isCurrentUserCrewLeader || this.isAdminUser;
-console.log('has access ',this.hasAccess);
+                console.log('has access ', this.hlogasAccess);
 
                 // Extract and process shift end logs
                 this.shiftEndLogs = data.shiftEndLogs.map(wrapper => {
@@ -841,6 +841,7 @@ console.log('has access ',this.hasAccess);
 
             // Check if there's approval data - handle both new and old structure
             let approvalDataArray = [];
+            let approvalDataMap = new Map(); // Map processId to approval entry
             if (logToEdit.wfrecon__Approval_Data__c) {
                 try {
                     const parsedData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
@@ -853,6 +854,11 @@ console.log('has access ',this.hasAccess);
                         // Old structure
                         approvalDataArray = parsedData;
                     }
+
+                    // Build a map for quick lookup
+                    approvalDataArray.forEach(item => {
+                        approvalDataMap.set(item.id, item);
+                    });
                 } catch (e) {
                     console.error('Error parsing approval data in edit modal:', e);
                 }
@@ -893,8 +899,24 @@ console.log('has access ',this.hasAccess);
                     ? Math.max(0, completionPercentage - yesterdayPercentage) // Show total change from yesterday
                     : todayProgress;
 
-                // Store the original completion percentage in the separate Map
-                this.editOriginalCompletionPercentages.set(processId, completionPercentage);
+                // Store the BASELINE completion percentage in the separate Map
+                // If this process has an existing approval entry, use its oldValue as baseline
+                // Otherwise, use the current completionPercentage
+                const baselinePercentage = approvalDataMap.has(processId)
+                    ? approvalDataMap.get(processId).oldValue
+                    : completionPercentage;
+                this.editOriginalCompletionPercentages.set(processId, baselinePercentage);
+
+                // Pre-populate editModifiedProcesses with existing approval data
+                // This ensures existing changes are preserved even if not touched in this edit session
+                if (approvalDataMap.has(processId)) {
+                    const existingApproval = approvalDataMap.get(processId);
+                    this.editModifiedProcesses.set(processId, {
+                        processId: processId,
+                        originalValue: existingApproval.oldValue, // yesterdayPercentage
+                        newValue: existingApproval.newValue // Current value from approval
+                    });
+                }
 
                 return {
                     processId: processId,
@@ -1407,14 +1429,28 @@ console.log('has access ',this.hasAccess);
         // Add or update with new modifications
         Array.from(this.editModifiedProcesses.entries()).forEach(([processId, modification]) => {
             // Find the process to get its name
-            const process = this.editAllLocationProcesses.find(p => p.processId === processId);
+            const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
 
-            approvalDataMap.set(processId, {
-                id: processId,
-                oldValue: modification.originalValue,
-                newValue: modification.newValue,
-                name: process ? process.processName : 'Unknown'
-            });
+            // Check if this process already exists in approval data
+            const existingApproval = approvalDataMap.get(processId);
+
+            if (existingApproval) {
+                // Update existing approval entry - keep the original oldValue, update newValue
+                approvalDataMap.set(processId, {
+                    id: processId,
+                    oldValue: existingApproval.oldValue, // Preserve original oldValue
+                    newValue: modification.newValue, // Update to latest newValue
+                    name: processData ? processData.processName : existingApproval.name
+                });
+            } else {
+                // New approval entry - use yesterdayPercentage as oldValue
+                approvalDataMap.set(processId, {
+                    id: processId,
+                    oldValue: modification.originalValue, // yesterdayPercentage
+                    newValue: modification.newValue,
+                    name: processData ? processData.processName : 'Unknown'
+                });
+            }
         });
 
         // Handle processes that were in existing approval but reset/reverted in this session
@@ -1423,8 +1459,11 @@ console.log('has access ',this.hasAccess);
             const processData = this.editAllLocationProcesses.find(p => p.processId === processId);
 
             if (processData) {
-                // If the process was in approval but now reset back to yesterdayPercentage, remove it
-                if (processData.completionPercentage === processData.yesterdayPercentage) {
+                // Only delete if:
+                // 1. The process was reset back to the original oldValue, AND
+                // 2. The process is NOT in editModifiedProcesses (which means it wasn't intentionally preserved)
+                if (processData.completionPercentage === existingApproval.oldValue &&
+                    !this.editModifiedProcesses.has(processId)) {
                     approvalDataMap.delete(processId);
                 }
                 // If it was modified again in this session, editModifiedProcesses already updated it above

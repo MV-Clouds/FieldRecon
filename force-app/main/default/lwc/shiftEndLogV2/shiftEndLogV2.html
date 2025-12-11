@@ -164,7 +164,19 @@
                                                             <div key={process.processId} class="process-item" data-changed={process.changedToday} data-has-approval={process.isPendingApproval}>
                                                                 <div class="process-header">
                                                                     <div class="process-percentage-container">
-                                                                        <span class="process-percentage">{process.completionPercentage}%</span>
+                                                                        <!-- <span class="process-percentage">{process.completionPercentage}%</span> -->
+                                                                          <template if:true={process.isPendingApproval}>
+                                                                            <span
+                                                                                class="process-percentage">{process.approvalNewValue}%</span>
+                                                                        </template>
+                                                                        <template if:false={process.isPendingApproval}>
+                                                                            <span
+                                                                                class="process-percentage">{process.completionPercentage}%</span>
+                                                                        </template>
+                                                                        <template if:true={process.changedToday}>
+                                                                            <span class="process-changed-badge">Updated
+                                                                                Today</span>
+                                                                        </template>
                                                                         <template if:true={process.changedToday}>
                                                                             <span class="process-changed-badge">Updated Today</span>
                                                                         </template>
@@ -320,6 +332,7 @@
                                         value={editFormData.workPerformedDate}
                                         data-field="workPerformedDate"
                                         onchange={handleEditInputChange}
+                                        disabled="true"
                                         required>
                                     </lightning-input>
                                 </div>
@@ -582,7 +595,7 @@
                 </div>
                 
                 <!-- Control buttons - Sticky Footer -->
-                <div class="bottom-footer-btn">
+                <div class="bottom-footer-btn slds-modal__footer">
                     <!-- Previous Button - Always visible, disabled on step 1 -->
                     <button class="nav-btn prev-btn" type="button" onclick={handleEditPrevious} disabled={isEditStep1}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
