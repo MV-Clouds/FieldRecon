@@ -373,12 +373,14 @@
                                                     class="location-filter-dropdown">
                                                 </lightning-combobox>
                                             </div>
-                                            <div class="bulk-actions">
-                                                <button class="bulk-approve-btn"
-                                                    onclick={handleBulkApproveLocations}>Approve All Displayed</button>
-                                                <button class="bulk-reject-btn" onclick={handleBulkRejectLocations}>Reject
-                                                    All Displayed</button>
-                                            </div>
+                                            <template if:true={hasPendingLocationProcesses}>
+                                                <div class="bulk-actions">
+                                                    <button class="bulk-approve-btn"
+                                                        onclick={handleBulkApproveLocations}>Approve All Displayed</button>
+                                                    <button class="bulk-reject-btn" onclick={handleBulkRejectLocations}>Reject
+                                                        All Displayed</button>
+                                                </div>
+                                            </template>
                                         </div>
                                         
                                         <!-- Custom Accordion for Location Process Groups -->
