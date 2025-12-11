@@ -100,7 +100,7 @@ public with sharing class BillingAndPaymentTabController {
                 SELECT Id, Name
                 FROM Billing__c
                 WHERE Job__c = :jobId
-                AND Status__c = 'Approved'
+                AND Status__c = 'Accepted'
                 WITH USER_MODE
             ];
 
@@ -434,6 +434,77 @@ public with sharing class BillingAndPaymentTabController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'approveBilling', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return e.getMessage();
         }
+    }
+
+    /*
+    *********************************************************
+    @description     : Update Billing Status
+    @param           : {String} billingUpdatesJson - JSON string containing list of billing updates with ID and new status
+    @return          : String - SUCCESS or error message
+    ********************************************************
+    */
+    @AuraEnabled
+    public static String updateBillingStatus(String billingUpdatesJson){
+        try {
+            if (String.isBlank(billingUpdatesJson)) {
+                return 'No updates provided';
+            }
+
+            // Deserialize JSON to List of BillingStatusUpdate
+            List<BillingStatusUpdate> billingUpdates = (List<BillingStatusUpdate>) JSON.deserialize(
+                billingUpdatesJson, 
+                List<BillingStatusUpdate>.class
+            );
+
+            if (billingUpdates == null || billingUpdates.isEmpty()) {
+                return 'No updates provided';
+            }
+
+            // Extract billing IDs
+            Set<Id> billingIds = new Set<Id>();
+            for (BillingStatusUpdate updateItem : billingUpdates) {
+                billingIds.add(updateItem.billingId);
+            }
+
+            // Fetch all billing records
+            Map<Id, Billing__c> billingsMap = new Map<Id, Billing__c>(
+                [SELECT Id, Status__c FROM Billing__c WHERE Id IN :billingIds WITH USER_MODE]
+            );
+
+            // Update statuses
+            List<Billing__c> billingsToUpdate = new List<Billing__c>();
+            for (BillingStatusUpdate updateItem : billingUpdates) {
+                if (String.isBlank(updateItem.newStatus)) {
+                    continue;
+                }
+                
+                Billing__c billing = billingsMap.get(updateItem.billingId);
+                if (billing != null) {
+                    billing.Status__c = updateItem.newStatus;
+                    billingsToUpdate.add(billing);
+                }
+            }
+
+            if (!billingsToUpdate.isEmpty()) {
+                update as user billingsToUpdate;
+            }
+            
+            return 'SUCCESS';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'BillingAndPaymentTabController', 
+                'methodName' => 'updateBillingStatus', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
+            return e.getMessage();
+        }
+    }
+
+    // Wrapper class for billing status updates
+    public class BillingStatusUpdate {
+        @AuraEnabled public Id billingId;
+        @AuraEnabled public String newStatus;
     }
 
     /*

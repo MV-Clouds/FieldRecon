@@ -29,10 +29,29 @@
                                     </div>
         
                                     <div class="status-filter">
-                                        <lightning-combobox name="statusFilter" class="slds-m-left--medium" variant="label-hidden" value={selectedStatus} placeholder="Filter by Status" options={statusOptions} onchange={handleStatusChange}></lightning-combobox>
+                                        <lightning-combobox name="statusFilter" class="slds-m-left--medium" variant="label-hidden" value={selectedStatus} placeholder="Filter by Status" options={statusOptions} onchange={handleStatusFilterChange}></lightning-combobox>
                                     </div>
         
                                     <div class="btnContainer">
+                                        <template if:true={hasUnsavedChanges}>
+                                            <button class="action-button discard-button" onclick={cancelEditStatus}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </svg>
+                                                Discard Changes
+                                            </button>
+                                            <button class="action-button save-button" onclick={handleSaveStatus}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </svg>
+                                                Save Changes
+                                            </button>
+                                        </template>
                                         <button class="createBillingBtn" onclick={handleCreateBilling}>
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
@@ -59,21 +78,16 @@
                                                     <tr key={billing.key}>
                                                         <template for:each={billing.values} for:item="val">
                                                             <td key={val} style={val.style}>
+                                                                <!-- Actions Column -->
                                                                 <template if:true={val.isActions}>
                                                                     <div class="action-button-container">
-                                                                        <template if:false={billing.disableApprove}>
-                                                                            <button class="clone-icon-btn" title="Clone Billing" data-id={billing.billId} data-action="cloneBilling" onclick={handleActionClick}>
-                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
-                                                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                </svg>
-                                                                            </button>
-                                                                            <button class="approve-icon-btn" title="Approve Billing" data-id={billing.billId} data-action="approveBilling" onclick={handleActionClick}>
-                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                </svg>
-                                                                            </button>
-                                                                            <button class="delete-icon-btn" title="Delete Billing" data-id={billing.billId} data-action="deleteBilling" onclick={handleActionClick}>
+                                                                        <button class="clone-icon-btn" title="Clone Billing" data-id={billing.billId} data-action="cloneBilling" onclick={handleActionClick}>
+                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+                                                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                            </svg>
+                                                                        </button>
+                                                                        <button class="delete-icon-btn" title="Delete Billing" data-id={billing.billId} data-action="deleteBilling" onclick={handleActionClick}>
                                                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                                 <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                                                                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -81,44 +95,74 @@
                                                                                 <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                                                             </svg>
                                                                         </button>
-                                                                        </template>
-                                                                        <template if:true={billing.disableApprove}>
-                                                                            <!-- Clone button always enabled -->
-                                                                            <button class="clone-icon-btn" title="Clone Billing" data-id={billing.billId} data-action="cloneBilling" onclick={handleActionClick}>
-                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
-                                                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                </svg>
-                                                                            </button>
-                                                                            <!-- Disabled approve button when billing is already approved -->
-                                                                            <button class="approve-icon-btn disabled" title="Already Approved" aria-disabled="true" disabled>
-                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                </svg>
-                                                                            </button>
-                                                                            <button class="delete-icon-btn disabled" title="Delete Billing" aria-disabled="true" disabled>
-                                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                    <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                    <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                                                </svg>
-                                                                            </button>
-                                                                        </template>
                                                                     </div>
-                                                                </template>                                            
+                                                                </template>
+                                                                
+                                                                <!-- Status Column with Inline Edit -->
                                                                 <template if:false={val.isActions}>
-                                                                    <template if:true={val.recordLink}>
-                                                                        <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
+                                                                    <template if:true={val.isStatusField}>
+                                                                        <template if:true={billing.isEditing}>
+                                                                            <div class="inline-edit-container">
+                                                                                <select class="custom-select" 
+                                                                                        data-id={billing.billId}
+                                                                                        onchange={handleStatusOptionClick}
+                                                                                        onblur={handleDropdownBlur}>
+                                                                                    <template for:each={billing.statusOptionsForRow} for:item="option">
+                                                                                        <option key={option.value} 
+                                                                                                value={option.value}
+                                                                                                selected={option.isSelected}>
+                                                                                            {option.label}
+                                                                                        </option>
+                                                                                    </template>
+                                                                                </select>
+                                                                            </div>
+                                                                        </template>
+                                                                        <template if:false={billing.isEditing}>
+                                                                            <template if:true={billing.isChanged}>
+                                                                                <div class="status-cell-container changed-status">
+                                                                                    <div class="cell-changed" title={val.value}>
+                                                                                        {val.value}
+                                                                                    </div>
+                                                                                    <template if:false={billing.isAccepted}>
+                                                                                        <button class="edit-icon-btn" data-id={billing.billId} onclick={handleEditStatus}>
+                                                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                    </template>
+                                                                                </div>
+                                                                            </template>
+                                                                            <template if:false={billing.isChanged}>
+                                                                                <div class="status-cell-container">
+                                                                                    <div class="cell-content" title={val.value}>
+                                                                                        {val.value}
+                                                                                    </div>
+                                                                                    <template if:false={billing.isAccepted}>
+                                                                                        <button class="edit-icon-btn" data-id={billing.billId} onclick={handleEditStatus}>
+                                                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                    </template>
+                                                                                </div>
+                                                                            </template>
+                                                                        </template>
+                                                                    </template>
+                                                                    
+                                                                    <!-- Other Columns -->
+                                                                    <template if:false={val.isStatusField}>
+                                                                        <template if:true={val.recordLink}>
+                                                                            <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={val.recordLink}>
+                                                                                <div class="cell-content" title={val.value}>
+                                                                                    {val.value}
+                                                                                </div>
+                                                                            </a>
+                                                                        </template>
+                                                                        <template if:false={val.recordLink}>
                                                                             <div class="cell-content" title={val.value}>
                                                                                 {val.value}
                                                                             </div>
-                                                                        </a>
-                                                                    </template>
-                                                                    <template if:false={val.recordLink}>
-                                                                        <div class="cell-content" title={val.value}>
-                                                                            {val.value}
-                                                                        </div>
+                                                                        </template>
                                                                     </template>
                                                                 </template>
                                                             </td>
@@ -242,7 +286,7 @@
                                 <div class="empty-state-container">
                                     <div class="empty-state-content">
                                         <div class="empty-state-title">Payment creation is not allowed.</div>
-                                        <div class="empty-state-message">No approved billing records found for this job.</div>
+                                        <div class="empty-state-message">No accepted billing records found for this job.</div>
                                     </div>
                                 </div>
                             </template>
@@ -273,7 +317,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Job Name</label>
                                             <div class="select-wrapper">
-                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
+                                                <lightning-input type="text" class="width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
                                             </div>
                                         </div>
                                     </div>
@@ -282,16 +326,16 @@
                                         <div class="input-column">
                                             <label class="select-label">Job Retainage</label>
                                             <div class="select-wrapper">
-                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobRetainage} read-only></lightning-input>
+                                                <lightning-input type="text" class="width-100" variant="label-hidden" value={jobDetailsMap.jobRetainage} read-only></lightning-input>
                                             </div>
                                         </div>
                                     </div>
                                     
                                     <div class="form-group">
                                         <div class="input-column">
-                                            <label class="select-label">Select Previous Approved Billing (Optional)</label>
+                                            <label class="select-label">Select Previous Accepted Billing (Optional)</label>
                                             <div class="select-wrapper">
-                                                <lightning-combobox name="prevBillId" label="Select Previous Approved Billing" variant="label-hidden" placeholder="Select a Previous Billing" value={newBill.prevBillId} options={approvedBillingOptionsForNew} onchange={handleNewBillChange}></lightning-combobox>
+                                                <lightning-combobox name="prevBillId" label="Select Previous Accepted Billing" variant="label-hidden" placeholder="Select a Previous Billing" value={newBill.prevBillId} options={approvedBillingOptionsForNew} onchange={handleNewBillChange}></lightning-combobox>
                                             </div>
                                         </div>
                                     </div>
@@ -309,7 +353,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Start Date</label>
                                             <div class="select-wrapper">
-                                                <lightning-input type="date" class="custom-select width-100" variant="label-hidden" name="Start_Date__c" value={newBill.Start_Date__c} onchange={handleNewBillChange}></lightning-input>
+                                                <lightning-input type="date" class="width-100" variant="label-hidden" name="Start_Date__c" value={newBill.Start_Date__c} onchange={handleNewBillChange}></lightning-input>
                                             </div>
                                         </div>
                                     </div>
@@ -318,7 +362,7 @@
                                         <div class="input-column">
                                             <label class="select-label">End Date</label>
                                             <div class="select-wrapper">
-                                                <lightning-input type="date" class="custom-select width-100" variant="label-hidden" name="End_Date__c" value={newBill.End_Date__c} onchange={handleNewBillChange}></lightning-input>
+                                                <lightning-input type="date" class="width-100" variant="label-hidden" name="End_Date__c" value={newBill.End_Date__c} onchange={handleNewBillChange}></lightning-input>
                                             </div>
                                         </div>
                                     </div>
@@ -356,16 +400,16 @@
                                         <div class="input-column">
                                             <label class="select-label">Job Name</label>
                                             <div class="select-wrapper">
-                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
+                                                <lightning-input type="text" class="width-100" variant="label-hidden" value={jobDetailsMap.jobName} read-only></lightning-input>
                                             </div>
                                         </div>
                                     </div>
     
                                     <div class="form-group">
                                         <div class="input-column">
-                                            <label class="select-label required">Select Approved Billing</label>
+                                            <label class="select-label required">Select Accepted Billing</label>
                                             <div class="select-wrapper">
-                                                <lightning-combobox name="billId" label="Select Approved Billing" variant="label-hidden" placeholder="Select a Billing" value={newPayment.billId} options={approvedBillingOptions} onchange={handleNewPaymentChange}></lightning-combobox>
+                                                <lightning-combobox name="billId" label="Select Accepted Billing" variant="label-hidden" placeholder="Select a Billing" value={newPayment.billId} options={approvedBillingOptions} onchange={handleNewPaymentChange}></lightning-combobox>
                                             </div>
                                         </div>
                                     </div>
@@ -374,7 +418,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Payment Reference</label>
                                             <div class="select-wrapper">
-                                                <lightning-input type="text" class="custom-select width-100" variant="label-hidden" name="Payment_Reference__c" value={newPayment.Payment_Reference__c} onchange={handleNewPaymentChange}></lightning-input>
+                                                <lightning-input type="text" class="width-100" variant="label-hidden" name="Payment_Reference__c" value={newPayment.Payment_Reference__c} onchange={handleNewPaymentChange}></lightning-input>
                                             </div>
                                         </div>
                                     </div>
@@ -383,7 +427,7 @@
                                         <div class="input-column">
                                             <label class="select-label">Payment Received Date</label>
                                             <div class="select-wrapper">
-                                                <lightning-input type="date" class="custom-select width-100 payment-date-input" variant="label-hidden" name="Payment_Received_Date__c" value={newPayment.Payment_Received_Date__c} onchange={handleNewPaymentChange}></lightning-input>
+                                                <lightning-input type="date" class="width-100 payment-date-input" variant="label-hidden" name="Payment_Received_Date__c" value={newPayment.Payment_Received_Date__c} onchange={handleNewPaymentChange}></lightning-input>
                                             </div>
                                         </div>
                                     </div>

@@ -10,7 +10,7 @@ import getBillingsData from '@salesforce/apex/BillingAndPaymentTabController.get
 import getPaymentsData from '@salesforce/apex/BillingAndPaymentTabController.getPaymentsData';
 import createBilling from '@salesforce/apex/BillingAndPaymentTabController.createBilling';
 import deleteRecordApex from '@salesforce/apex/BillingAndPaymentTabController.deleteRecord';
-import approveBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.approveBilling';
+import updateBillingStatus from '@salesforce/apex/BillingAndPaymentTabController.updateBillingStatus';
 import createPayment from '@salesforce/apex/BillingAndPaymentTabController.createPayment';
 import cloneBillingRecord from '@salesforce/apex/BillingAndPaymentTabController.cloneBilling';
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
@@ -28,6 +28,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     @track paymentListRaw = [];
     @track filteredPaymentList = [];
     @track approvedBillingOptions = [];
+    @track focusBillingId = null; // Track which billing dropdown should be focused
     @track approvedBillingOptionsForNew = [];
     @track statusOptions = [];
     @track billingTypeOptions = [
@@ -65,6 +66,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         buttonLabel: '',
         action: ''
     }
+    @track editedBillings = new Map();
+    @track hasUnsavedChanges = false;
 
     @track billingsColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
@@ -151,6 +154,14 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         return this.activeTab === 'payments' ? 'active' : '';
     }
 
+    /**
+     * Method Name: statusOptionsFiltered
+     * @description: Filters status options to exclude 'All' for inline editing dropdown
+     */
+    get statusOptionsFiltered() {
+        return this.statusOptions.filter(option => option.value !== 'All');
+    }
+
     /** 
      * Method Name: billDetails
      * @description: Getter that transforms filtered billing list into a table-friendly structure.
@@ -169,13 +180,26 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             });
 
             return this.filteredBillingList.map((bill, index) => {
-                // determine if approve should be disabled for this billing
-                const isApproved = bill.wfrecon__Status__c ? String(bill.wfrecon__Status__c).trim().toLowerCase() === 'approved' : false;
+                const editedBill = this.editedBillings.get(bill.Id);
+                const isEditing = editedBill?.isEditing || false;
+                const isChanged = editedBill?.isChanged || false;
+                const currentStatus = editedBill ? editedBill.newStatus : bill.wfrecon__Status__c;
+                const isAccepted = bill.wfrecon__Status__c === 'Accepted'; // Check original status, not edited
+
+                // Create status options with selected flag for this specific row
+                const statusOptionsForRow = this.statusOptionsFiltered.map(opt => ({
+                    ...opt,
+                    isSelected: opt.value === currentStatus
+                }));
 
                 return {
                     key: bill.Id,
                     billId: bill.Id,
-                    disableApprove: isApproved,
+                    isEditing: isEditing,
+                    isChanged: isChanged,
+                    editingStatus: currentStatus,
+                    isAccepted: isAccepted,
+                    statusOptionsForRow: statusOptionsForRow,
                     values: visibleColumns.map(col => {
                         let cell = {
                             key: col.fieldName,
@@ -189,6 +213,12 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                             cell.value = index + 1;
                         } else if (col.fieldName === 'actions') {
                             cell.isActions = true;
+                        } else if (col.fieldName === 'wfrecon__Status__c') {
+                            cell.value = currentStatus || '';
+                            cell.isStatusField = true;
+                            cell.isEditing = isEditing;
+                            cell.isChanged = isChanged ? 'cell-content cell-changed' : 'cell-content';
+                            cell.originalValue = bill.wfrecon__Status__c;
                         } else if (col.fieldName.includes('.')) {
                             let parts = col.fieldName.split('.');
                             let value = bill;
@@ -335,6 +365,26 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     }
 
     /** 
+     * Method Name: renderedCallback
+     * @description: LWC lifecycle hook to focus on dropdown after rendering
+     */
+    renderedCallback() {
+        try {
+            if (this.focusBillingId) {
+                // Find and focus the select element for the specific billing
+                const selectElement = this.template.querySelector(`select.custom-select[data-id="${this.focusBillingId}"]`);
+                if (selectElement) {
+                    selectElement.focus();
+                    // Clear the focus ID to prevent re-focusing on subsequent renders
+                    this.focusBillingId = null;
+                }
+            }
+        } catch (error) {
+            console.error('Error in renderedCallback:', error);
+        }
+    }
+
+    /** 
      * Method Name: checkUserPermissions
      * @description: Checks user permissions based on permission sets.
      */
@@ -442,7 +492,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         ];
                         if (result.billings && result.billings.length > 0) {
                             const approvedBillings = result.billings.filter(bill => 
-                                bill.wfrecon__Status__c === 'Approved'
+                                bill.wfrecon__Status__c === 'Accepted'
                             );
                             approvedBillings.forEach(bill => {
                                 this.approvedBillingOptionsForNew.push({
@@ -512,15 +562,15 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     }
 
     /** 
-     * Method Name: handleStatusChange
-     * @description: Updates selected status and re-filters billing list.
+     * Method Name: handleStatusFilterChange
+     * @description: Updates selected status filter and re-filters billing list.
      */
-    handleStatusChange(event) {
+    handleStatusFilterChange(event) {
         try {
             this.selectedStatus = event.detail.value;
             this.filterBills();
         } catch (error) {
-            console.error('Error in handleStatusChange :: ', error);
+            console.error('Error in handleStatusFilterChange :: ', error);
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
         }
     }
@@ -564,7 +614,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
     /** 
      * Method Name: handleActionClick
-     * @description: Handles row action clicks for edit/delete/approve/clone on billing and payment records.
+     * @description: Handles row action clicks for edit/delete/clone on billing and payment records.
      */
     handleActionClick(event) {
         try {
@@ -590,15 +640,6 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                     body: 'Are you sure you want to delete this payment record? This action cannot be undone.',
                     buttonLabel: 'Confirm Delete',
                     action: 'deletePayment'
-                };
-            } else if (actionType === 'approveBilling') {
-                this.billId = recordId;
-                this.showConfirmModal = true;
-                this.popupProperties = {
-                    heading: 'Approve Billing',
-                    body: 'Are you sure you want to approve this billing record?',
-                    buttonLabel: 'Approve',
-                    action: 'approveBilling'
                 };
             } else if (actionType === 'cloneBilling') {
                 this.billId = recordId;
@@ -641,8 +682,6 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         try {
             if(this.popupProperties.action === 'deleteBilling' || this.popupProperties.action === 'deletePayment'){
                 this.handleDeleteRecord();
-            } else if(this.popupProperties.action === 'approveBilling'){
-                this.handleApproveBilling();
             } else if(this.popupProperties.action === 'cloneBilling'){
                 this.handleCloneBilling();
             }
@@ -652,62 +691,173 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     }
 
     /** 
-     * Method Name: handleApproveBilling
-     * @description: Placeholder method for handling approve billing action.
+     * Method Name: handleEditStatus
+     * @description: Enables inline editing for billing status
      */
-    handleApproveBilling() {
+    handleEditStatus(event) {
         try {
-            const bill = this.billDetails.find(b => b.billId === this.billId);
-            if (!bill) {
-                console.error('Bill not found with id:', this.billId);
+            const billingId = event.currentTarget.dataset.id;
+            const bill = this.filteredBillingList.find(b => b.Id === billingId);
+            if (bill) {
+                // Check if already in map (meaning it was changed before)
+                if (this.editedBillings.has(billingId)) {
+                    const existing = this.editedBillings.get(billingId);
+                    // Set isEditing to true to show dropdown again
+                    this.editedBillings.set(billingId, {
+                        ...existing,
+                        isEditing: true
+                    });
+                } else {
+                    // New edit - add to map
+                    this.editedBillings.set(billingId, {
+                        originalStatus: bill.wfrecon__Status__c,
+                        newStatus: bill.wfrecon__Status__c,
+                        isChanged: false,
+                        isEditing: true
+                    });
+                }
+                
+                // Set focus billing ID for renderedCallback
+                this.focusBillingId = billingId;
+                
+                // Trigger reactivity by creating a new Map
+                this.editedBillings = new Map(this.editedBillings);
+            }
+        } catch (error) {
+            console.error('Error in handleEditStatus ::', error);
+            this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
+        }
+    }
+
+    /** 
+     * Method Name: handleStatusOptionClick
+     * @description: Handles selection in select dropdown for billing status
+     */
+    handleStatusOptionClick(event) {
+        try {
+            const billingId = event.currentTarget.dataset.id;
+            const newStatus = event.target.value;
+            
+            if (this.editedBillings.has(billingId)) {
+                const editedBill = this.editedBillings.get(billingId);
+                const originalStatus = editedBill.originalStatus;
+                const isChanged = originalStatus !== newStatus;
+                
+                if (isChanged) {
+                    // Keep in map with changed flag - but mark as not editing to close dropdown
+                    this.editedBillings.set(billingId, {
+                        originalStatus: originalStatus,
+                        newStatus: newStatus,
+                        isChanged: true,
+                        isEditing: false
+                    });
+                } else {
+                    // If reverted to original, remove from map
+                    this.editedBillings.delete(billingId);
+                }
+                
+                // Update hasUnsavedChanges based on actual changes
+                this.hasUnsavedChanges = Array.from(this.editedBillings.values())
+                    .some(bill => bill.isChanged);
+                
+                // Trigger reactivity by creating a new Map
+                this.editedBillings = new Map(this.editedBillings);
+            }
+        } catch (error) {
+            console.error('Error in handleStatusOptionClick ::', error);
+        }
+    }
+
+    /** 
+     * Method Name: handleDropdownBlur
+     * @description: Closes dropdown when clicking outside without changing value
+     */
+    handleDropdownBlur(event) {
+        try {
+            const billingId = event.currentTarget.dataset.id;
+            
+            if (this.editedBillings.has(billingId)) {
+                const editedBill = this.editedBillings.get(billingId);
+                
+                // Close dropdown by setting isEditing to false
+                this.editedBillings.set(billingId, {
+                    ...editedBill,
+                    isEditing: false
+                });
+                
+                // Trigger reactivity by creating a new Map
+                this.editedBillings = new Map(this.editedBillings);
+            }
+        } catch (error) {
+            console.error('Error in handleDropdownBlur ::', error);
+        }
+    }
+
+    /** 
+     * Method Name: handleSaveStatus
+     * @description: Saves all updated billing statuses
+     */
+    handleSaveStatus() {
+        try {
+            if (this.editedBillings.size === 0) {
                 return;
             }
 
-            const startDate = bill.values.find(v => v.key === 'wfrecon__Start_Date__c')?.value;
-            const endDate = bill.values.find(v => v.key === 'wfrecon__End_Date__c')?.value;
+            this.isLoading = true;
+            
+            // Create array of updates to process
+            const updates = Array.from(this.editedBillings.entries())
+                .filter(([id, data]) => data.originalStatus !== data.newStatus)
+                .map(([id, data]) => ({
+                    billingId: id,
+                    newStatus: data.newStatus
+                }));
 
-            // Check if dates are valid
-            if (!startDate || startDate === '--' || !endDate || endDate === '--') {
-                this.showToast('Error', 'Please fill both Start and End dates before approving.', 'error');
-                return; // Stop further execution
+            if (updates.length === 0) {
+                this.showToast('Info', 'No changes to save', 'info');
+                this.cancelEditStatus();
+                this.isLoading = false;
+                return;
             }
 
-            this.isLoading = true;
-            approveBillingRecord({ billingId: this.billId })
-                .then((result) => {
-                    if(result === 'SUCCESS') {
-                        this.showToast('Success', 'Billing approved successfully', 'success');
-                        this.closeConfirmModal();
-                        this.loadBillingData();
-                        this.popupProperties = {
-                            heading: '',
-                            body: '',
-                            buttonLabel: '',
-                            action: ''
-                        };
-                        this.billId = null;
-                    } else {
-                        const message = result || 'Failed to approve billing. Please contact system admin.';
-                        this.showToast('Error', message, 'error');
-                    }
+            // Stringify updates for Apex
+            const updatesJson = JSON.stringify(updates);
+
+            // Single Apex call with all updates
+            updateBillingStatus({ billingUpdatesJson: updatesJson })
+                .then(() => {
+                    const count = updates.length;
+                    this.showToast('Success', `${count} billing status${count > 1 ? 'es' : ''} updated successfully`, 'success');
+                    this.cancelEditStatus();
+                    this.loadBillingData();
                 })
                 .catch((error) => {
-                    console.error('Error approving billing:', error);
-                    let message = 'Failed to approve billing. Please contact system admin.';
-                    if (error && error.body && error.body.message) {
-                        message = error.body.message;
-                    } else if (error && error.message) {
-                        message = error.message;
-                    }
-                    this.showToast('Error', message, 'error');
+                    console.error('Error updating statuses ::', error);
+                    this.showToast('Error', error.body?.message || 'Failed to update statuses', 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
-            console.error('Error in handleApproveBilling ::', error);
+            console.error('Error in handleSaveStatus ::', error);
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             this.isLoading = false;
+        }
+    }
+
+    /** 
+     * Method Name: cancelEditStatus
+     * @description: Cancels inline editing and resets state
+     */
+    cancelEditStatus() {
+        try {
+            this.editedBillings.clear();
+            this.hasUnsavedChanges = false;
+            
+            // Trigger reactivity by creating a new Map
+            this.editedBillings = new Map(this.editedBillings);
+        } catch (error) {
+            console.error('Error in cancelEditStatus ::', error);
         }
     }
 
