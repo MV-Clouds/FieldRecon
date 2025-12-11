@@ -240,6 +240,7 @@
     max-height: 400px;
     overflow: auto;
     position: relative;
+    scrollbar-width: unset !important;
 }
 
 .timesheet-entries-table {
@@ -706,7 +707,7 @@
 }
 
 .slider-section.pending-approval {
-    background: linear-gradient(90deg, rgba(255, 179, 71, 0.8) 0%, rgba(255, 152, 0, 1) 100%);
+    background: linear-gradient(90deg, rgba(94, 90, 219, 0.8) 0%, rgba(94, 90, 219, 1) 100%);
     box-shadow: 0 0 8px rgba(255, 152, 0, 0.4);
 }
 

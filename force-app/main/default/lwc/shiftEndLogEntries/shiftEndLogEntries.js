@@ -250,15 +250,6 @@ export default class ShiftEndLogEntries extends LightningElement {
                     slider.style.left = `${proc.previousPercent}%`;
                     slider.style.width = `${sliderWidth}%`;
 
-                    // Disable slider only if 100% complete
-                    // Pending approval badge is shown for visibility but doesn't block editing
-                    if (proc.completedPercent >= 100) {
-                        slider.disabled = true;
-                        slider.style.cursor = 'not-allowed';
-                    } else {
-                        slider.disabled = false;
-                        slider.style.cursor = 'pointer';
-                    }
                 }
             });
         });
@@ -341,10 +332,10 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     loadTimesheetEntriesAndApprovalStatus() {
         if (!this.selectedMobilizationId) return;
-        
+
         const selectedMob = this.mobilizationOptions.find(m => m.value === this.selectedMobilizationId);
         if (!selectedMob) return;
-        
+
         this.isLoading = true;
         this.loadTimesheetEntries();
     }
@@ -356,7 +347,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         // Get job start date from selected mobilization
         const selectedMob = this.mobilizationOptions.find(m => m.value === this.selectedMobilizationId);
         console.log('Selected Mobilization:', selectedMob);
-        
+
         const jobStartDate = selectedMob ? selectedMob.dateStr : new Date().toISOString().split('T')[0];
         console.log('Job Start Date:', jobStartDate);
 
@@ -367,17 +358,17 @@ export default class ShiftEndLogEntries extends LightningElement {
             mobId: this.selectedMobilizationId,
             crewLeaderId: this.crewLeaderId
         });
-        
+
         getTimeSheetEntryItems({ jobId: this.jobId, jobStartDate: jobStartDate, mobId: this.selectedMobilizationId, crewLeaderId: this.crewLeaderId })
             .then(result => {
                 console.log('Timesheet Entries Result:', result);
-                
+
                 // Extract approval feature flag and items from result
                 this.approvalFeatureEnabled = result && result.approvalFeatureEnabled !== undefined ? result.approvalFeatureEnabled : true;
                 const items = result && result.items ? result.items : [];
-                
+
                 console.log('Approval Feature Enabled:', this.approvalFeatureEnabled);
-                
+
                 if (items && items.length > 0) {
                     const allEntries = items.map((entry) => {
                         // Check if there's a local pending edit for this entry
@@ -642,18 +633,18 @@ export default class ShiftEndLogEntries extends LightningElement {
                 this.loadTimesheetEntries();
             } else {
                 this.isLoading = true;
-                
+
                 // Format times for Apex (append seconds if needed)
-                const cleanClockIn = this.editTimesheetData.newclockInTime.length === 16 
-                    ? this.editTimesheetData.newclockInTime + ':00' 
+                const cleanClockIn = this.editTimesheetData.newclockInTime.length === 16
+                    ? this.editTimesheetData.newclockInTime + ':00'
                     : this.editTimesheetData.newclockInTime;
-                const cleanClockOut = this.editTimesheetData.newclockOutTime.length === 16 
-                    ? this.editTimesheetData.newclockOutTime + ':00' 
+                const cleanClockOut = this.editTimesheetData.newclockOutTime.length === 16
+                    ? this.editTimesheetData.newclockOutTime + ':00'
                     : this.editTimesheetData.newclockOutTime;
 
                 // Get original entry to preserve travel time, per diem, and premium
                 const originalEntry = this.timesheetEntries.find(e => e.id === this.editTimesheetData.id);
-                
+
                 // Build payload matching JobDetailsPageController.saveTimesheetEntryInlineEdits format
                 const payload = [{
                     Id: this.editTimesheetData.id,
@@ -667,8 +658,8 @@ export default class ShiftEndLogEntries extends LightningElement {
 
                 const updatedTimesheetsJson = JSON.stringify(payload);
 
-                const result = await saveTimesheetEntryInlineEdits({ 
-                    updatedTimesheetEntriesJson: updatedTimesheetsJson 
+                const result = await saveTimesheetEntryInlineEdits({
+                    updatedTimesheetEntriesJson: updatedTimesheetsJson
                 });
 
                 if (result.startsWith('Success')) {
