@@ -357,7 +357,6 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 }
 
                 this.hasAccess = this.isCurrentUserCrewLeader || this.isAdminUser;
-                console.log('has access ', this.hlogasAccess);
 
                 // Extract and process shift end logs
                 this.shiftEndLogs = data.shiftEndLogs.map(wrapper => {
