@@ -740,11 +740,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      * Method Name: preloadTimesheetData
      * @description: Pre-loads timesheet data for all jobs (like sovJobLocations pre-loads process data)
      */
-    async preloadTimesheetData() {
+       async preloadTimesheetData() {
         try {
-            const expandedIds = new Set(this.expandedJobs);
             this.timesheetDataMap = new Map();
-            this.expandedJobs = new Set();
             
             if (!this.jobDetailsRaw || this.jobDetailsRaw.length === 0) {
                 return;
@@ -756,13 +754,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
             await Promise.all(loadPromises);
             
-            this.expandedJobs = expandedIds;
             this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
             
         } catch (error) {
             console.error('Error in preloadTimesheetData:', error);
         }
     }
+
 
     /**
      * Method Name: loadTimesheetDataForJob
@@ -950,6 +948,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.selectedDate.setDate(this.selectedDate.getDate() - 7);
                 this.calculateWeekRange();
             }
+            // Reset accordion state when navigating to a different date
+            this.expandedJobs = new Set();
             this.getJobRelatedMoblizationDetails();
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
@@ -970,6 +970,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 this.selectedDate.setDate(this.selectedDate.getDate() + 7);
                 this.calculateWeekRange();
             }
+            // Reset accordion state when navigating to a different date
+            this.expandedJobs = new Set();
             this.getJobRelatedMoblizationDetails();
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
