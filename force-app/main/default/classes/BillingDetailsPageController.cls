@@ -149,8 +149,11 @@ public with sharing class BillingDetailsPageController {
     }
 
     @AuraEnabled
-    public static String saveBillingLineItems(String billingId, List<Map<String, Object>> lineItemUpdates) {
+    public static Map<String, String> saveBillingLineItems(String billingId, List<Map<String, Object>> lineItemUpdates) {
         try {
+            Map<String, String> result = new Map<String, String>();
+            result.put('status', 'SUCCESS');
+            result.put('message', 'Line item changes saved successfully.');
             // Collect record Ids from updates
             Set<Id> recordIds = new Set<Id>();
             Map<Id, Map<String, Object>> updateMap = new Map<Id, Map<String, Object>>();
@@ -164,7 +167,9 @@ public with sharing class BillingDetailsPageController {
             }
 
             if (recordIds.isEmpty()) {
-                return 'No records to update';
+                result.put('status', 'ERROR');
+                result.put('message', 'No records to update');
+                return result;
             }
 
             // Query existing Billing Line Items with all necessary fields for calculations
@@ -243,7 +248,9 @@ public with sharing class BillingDetailsPageController {
                 }
 
                 if (retainagePercent < 0 || retainagePercent > 100) {
-                    throw new AuraHandledException('Retainage % must be between 0 and 100.');
+                    result.put('status', 'ERROR');
+                    result.put('message', 'Retainage % must be between 0 and 100.');
+                    return result;
                 }
 
                 Decimal thisBillingAmount = item.wfrecon__This_Billing_Value__c != null ? item.wfrecon__This_Billing_Value__c : 0;
@@ -317,13 +324,19 @@ public with sharing class BillingDetailsPageController {
 
                 if (hasAmountUpdate) {
                     if (thisBillingAmount < 0) {
-                        throw new AuraHandledException('This Billing Amount cannot be negative.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Amount cannot be negative.');
+                        return result;
                     }
                     if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
-                        throw new AuraHandledException('This Billing Amount plus retainage exceeds the contract value. Adjust the amount or retainage percentage.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Amount plus retainage exceeds the contract value. Adjust the amount or retainage percentage.');
+                        return result;
                     }
                     if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
-                        throw new AuraHandledException('This Billing Amount results in completion below the required minimum. Increase the amount or review retainage.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Amount results in completion below the required minimum. Increase the amount or review retainage.');
+                        return result;
                     }
 
                     thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
@@ -332,22 +345,32 @@ public with sharing class BillingDetailsPageController {
                     grossToDate = totalBilledAmount + totalRetainageAmount;
 
                     if (enforceLimits && grossToDate > contractAmount + tolerance) {
-                        throw new AuraHandledException('This Billing Amount and retainage exceed the contract value.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Amount and retainage exceed the contract value.');
+                        return result;
                     }
 
                     thisBillingPercent = enforceLimits ? (grossToDate / contractAmount) * 100 : 0;
                     if (thisBillingPercent > 100 + tolerance) {
-                        throw new AuraHandledException('This Billing Complete % cannot exceed 100%.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Complete % cannot exceed 100%.');
+                        return result;
                     }
                 } else if (hasPercentUpdate) {
                     if (thisBillingPercent < 0) {
-                        throw new AuraHandledException('This Billing Complete % cannot be negative.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Complete % cannot be negative.');
+                        return result;
                     }
                     if (thisBillingPercent > 100) {
-                        throw new AuraHandledException('This Billing Complete % cannot exceed 100%.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Complete % cannot exceed 100%.');
+                        return result;
                     }
                     if (thisBillingPercent < minRequiredPercent - tolerance) {
-                        throw new AuraHandledException('This Billing Complete % must be at least ' + String.valueOf(minRequiredPercent.setScale(2, roundingMode)) + '%.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Complete % must be at least ' + String.valueOf(minRequiredPercent.setScale(2, roundingMode)) + '%.');
+                        return result;
                     }
 
                     grossToDate = enforceLimits ? (contractAmount * thisBillingPercent) / 100 : 0;
@@ -359,10 +382,14 @@ public with sharing class BillingDetailsPageController {
                     thisBillingAmount = factor != 0 ? grossContribution / factor : grossContribution;
 
                     if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
-                        throw new AuraHandledException('The requested Billing % would exceed the contract value. Reduce the percentage or adjust retainage.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'The requested Billing % would exceed the contract value. Reduce the percentage or adjust retainage.');
+                        return result;
                     }
                     if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
-                        throw new AuraHandledException('The requested Billing % results in completion below the required minimum. Increase the percentage.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'The requested Billing % results in completion below the required minimum. Increase the percentage.');
+                        return result;
                     }
 
                     thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
@@ -371,13 +398,19 @@ public with sharing class BillingDetailsPageController {
                     grossToDate = totalBilledAmount + totalRetainageAmount;
                 } else {
                     if (thisBillingAmount < 0) {
-                        throw new AuraHandledException('This Billing Amount cannot be negative.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'This Billing Amount cannot be negative.');
+                        return result;
                     }
                     if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
-                        throw new AuraHandledException('Retainage % change makes the current Billing Amount exceed the contract value. Adjust the amount before saving.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'Retainage % change makes the current Billing Amount exceed the contract value. Adjust the amount before saving.');
+                        return result;
                     }
                     if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
-                        throw new AuraHandledException('Retainage % change requires a higher Billing Amount to meet completion minimums. Adjust the amount before saving.');
+                        result.put('status', 'ERROR');
+                        result.put('message', 'Retainage % change causes the current Billing Amount to fall below completion minimums. Adjust the amount before saving.');
+                        return result;
                     }
 
                     thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
@@ -396,7 +429,9 @@ public with sharing class BillingDetailsPageController {
                 roundedPercent = roundedPercent.setScale(2, roundingMode);
 
                 if (roundedPercent > 100 + tolerance) {
-                    throw new AuraHandledException('This Billing Complete % cannot exceed 100%.');
+                    result.put('status', 'ERROR');
+                    result.put('message', 'This Billing Complete % cannot exceed 100%.');
+                    return result;
                 }
 
                 Decimal dueThisBilling = roundedAmount - roundedRetainage;
@@ -420,11 +455,11 @@ public with sharing class BillingDetailsPageController {
                 update itemsToUpdate;
             }
 
-            return 'SUCCESS';
+            return result;
         } catch (Exception e) {
             System.debug('Error saving billing line items: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingDetailsPageController', 'methodName' => 'saveBillingLineItems', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return null;
+            return new Map<String, String>{'status' => 'ERROR', 'message' => 'An error occurred while saving line items.'};
         }
     }
 

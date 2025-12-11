@@ -1184,16 +1184,20 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 billingId: this.recordId,
                 lineItemUpdates: lineItemUpdates
             })
-                .then(() => {
-                    this.modifiedContractItems.clear();
-                    this.hasContractModifications = false;
-                    this.modifiedChangeOrderItems.clear();
-                    this.hasChangeOrderModifications = false;
-                    this.editingCells.clear();
-                    this.clearModifiedStyling('contract');
-                    this.clearModifiedStyling('changeorder');
-                    this.showToast('Success', 'Line item changes saved successfully', 'success');
-                    this.loadBillingData();
+                .then(result => {
+                    if(result.status === 'SUCCESS') {
+                        this.modifiedContractItems.clear();
+                        this.hasContractModifications = false;
+                        this.modifiedChangeOrderItems.clear();
+                        this.hasChangeOrderModifications = false;
+                        this.editingCells.clear();
+                        this.clearModifiedStyling('contract');
+                        this.clearModifiedStyling('changeorder');
+                        this.showToast('Success', result.message, 'success');
+                        this.loadBillingData();
+                    } else {
+                        this.showToast('Error', result.message, 'error');
+                    }
                 })
                 .catch(error => {
                     console.error('Error saving line item changes:', error);
