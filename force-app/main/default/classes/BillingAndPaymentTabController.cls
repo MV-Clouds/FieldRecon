@@ -106,7 +106,7 @@ public with sharing class BillingAndPaymentTabController {
 
             if (approvedBillings.isEmpty()) {
                 response.hasApprovedBillings = false;
-                response.message = 'No approved billing records found for this job. Payment creation is not allowed.';
+                response.message = 'No accepted billing records found for this job. Payment creation is not allowed.';
                 response.payments = new List<Payment__c>();
                 response.approvedBillings = new List<Billing__c>();
                 return response;
@@ -234,7 +234,7 @@ public with sharing class BillingAndPaymentTabController {
 
             if (isRetainageBill) {
                 if (String.isBlank(prevBill)) {
-                    return 'Select a previous approved billing before creating a retainage bill.';
+                    return 'Select a previous accepted billing before creating a retainage bill.';
                 }
 
                 if (!hasScopedLines) {
@@ -409,29 +409,6 @@ public with sharing class BillingAndPaymentTabController {
             return 'SUCCESS';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'createPayment', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return e.getMessage();
-        }
-    }
-
-    /*
-    *********************************************************
-    @description     : Approve Billing Record
-    @param           : {String} billingId - Billing Record Id
-    @return          : String - SUCCESS
-    ********************************************************
-    */
-    @AuraEnabled
-    public static String approveBilling(Id billingId){
-        try {
-            Billing__c billing = [SELECT Id, Status__c FROM Billing__c WHERE Id = :billingId LIMIT 1];
-
-            if (billing.Status__c != 'Approved') {
-                billing.Status__c = 'Approved';
-                update billing;
-            }
-            return 'SUCCESS';
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'approveBilling', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return e.getMessage();
         }
     }
