@@ -100,13 +100,13 @@ public with sharing class BillingAndPaymentTabController {
                 SELECT Id, Name
                 FROM Billing__c
                 WHERE Job__c = :jobId
-                AND Status__c = 'Approved'
+                AND Status__c = 'Accepted'
                 WITH USER_MODE
             ];
 
             if (approvedBillings.isEmpty()) {
                 response.hasApprovedBillings = false;
-                response.message = 'No approved billing records found for this job. Payment creation is not allowed.';
+                response.message = 'No accepted billing records found for this job. Payment creation is not allowed.';
                 response.payments = new List<Payment__c>();
                 response.approvedBillings = new List<Billing__c>();
                 return response;
@@ -234,7 +234,7 @@ public with sharing class BillingAndPaymentTabController {
 
             if (isRetainageBill) {
                 if (String.isBlank(prevBill)) {
-                    return 'Select a previous approved billing before creating a retainage bill.';
+                    return 'Select a previous accepted billing before creating a retainage bill.';
                 }
 
                 if (!hasScopedLines) {
@@ -415,25 +415,73 @@ public with sharing class BillingAndPaymentTabController {
 
     /*
     *********************************************************
-    @description     : Approve Billing Record
-    @param           : {String} billingId - Billing Record Id
-    @return          : String - SUCCESS
+    @description     : Update Billing Status
+    @param           : {String} billingUpdatesJson - JSON string containing list of billing updates with ID and new status
+    @return          : String - SUCCESS or error message
     ********************************************************
     */
     @AuraEnabled
-    public static String approveBilling(Id billingId){
+    public static String updateBillingStatus(String billingUpdatesJson){
         try {
-            Billing__c billing = [SELECT Id, Status__c FROM Billing__c WHERE Id = :billingId LIMIT 1];
-
-            if (billing.Status__c != 'Approved') {
-                billing.Status__c = 'Approved';
-                update billing;
+            if (String.isBlank(billingUpdatesJson)) {
+                return 'No updates provided';
             }
+
+            // Deserialize JSON to List of BillingStatusUpdate
+            List<BillingStatusUpdate> billingUpdates = (List<BillingStatusUpdate>) JSON.deserialize(
+                billingUpdatesJson, 
+                List<BillingStatusUpdate>.class
+            );
+
+            if (billingUpdates == null || billingUpdates.isEmpty()) {
+                return 'No updates provided';
+            }
+
+            // Extract billing IDs
+            Set<Id> billingIds = new Set<Id>();
+            for (BillingStatusUpdate updateItem : billingUpdates) {
+                billingIds.add(updateItem.billingId);
+            }
+
+            // Fetch all billing records
+            Map<Id, Billing__c> billingsMap = new Map<Id, Billing__c>(
+                [SELECT Id, Status__c FROM Billing__c WHERE Id IN :billingIds WITH USER_MODE]
+            );
+
+            // Update statuses
+            List<Billing__c> billingsToUpdate = new List<Billing__c>();
+            for (BillingStatusUpdate updateItem : billingUpdates) {
+                if (String.isBlank(updateItem.newStatus)) {
+                    continue;
+                }
+                
+                Billing__c billing = billingsMap.get(updateItem.billingId);
+                if (billing != null) {
+                    billing.Status__c = updateItem.newStatus;
+                    billingsToUpdate.add(billing);
+                }
+            }
+
+            if (!billingsToUpdate.isEmpty()) {
+                update as user billingsToUpdate;
+            }
+            
             return 'SUCCESS';
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BillingAndPaymentTabController', 'methodName' => 'approveBilling', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'BillingAndPaymentTabController', 
+                'methodName' => 'updateBillingStatus', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
             return e.getMessage();
         }
+    }
+
+    // Wrapper class for billing status updates
+    public class BillingStatusUpdate {
+        @AuraEnabled public Id billingId;
+        @AuraEnabled public String newStatus;
     }
 
     /*

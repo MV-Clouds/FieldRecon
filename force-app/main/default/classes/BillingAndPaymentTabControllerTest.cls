@@ -56,6 +56,32 @@ private class BillingAndPaymentTabControllerTest {
             Retainage_Percent_on_Bill_Line_Item__c   = 10.00
         );
         insert prevLine;
+
+        Billing__c prevBill1 = new Billing__c(
+            Job__c               = job.Id,
+            Account__c           = acc.Id,
+            Status__c            = 'Accepted',
+            Bill_Type__c         = 'Regular',
+            Retainage_on_Bill__c = 10.00,
+            Start_Date__c        = Date.today().addDays(-60),
+            End_Date__c          = Date.today().addDays(-30)
+        );
+        insert prevBill1;
+
+        Billing_Line_Item__c prevLine1 = new Billing_Line_Item__c(
+            Billing__c                               = prevBill1.Id,
+            Scope_Entry__c                           = se1.Id,
+            Scope_Contract_Amount__c                 = 100000.00,
+            Scope_Complete__c                        = 50.00,      // this is a normal decimal field
+            This_Billing_Percent__c                  = 50.00,
+            This_Billing_Value__c                    = 45000.00,
+            This_Retainage_Amount__c                 = 5000.00,
+            Total_Billed_Value__c                    = 45000.00,
+            Total_Retainage_Amount__c                = 5000.00,
+            Previous_Billed_Value__c                 = 0.00,
+            Retainage_Percent_on_Bill_Line_Item__c   = 10.00
+        );
+        insert prevLine1;
     }
 
     /* ==============================================================
@@ -148,7 +174,7 @@ private class BillingAndPaymentTabControllerTest {
         String r = BillingAndPaymentTabController.createBilling(
             job.Id, Date.today(), Date.today().addDays(30), 'Retainage Bill', null
         );
-        System.assert(r.contains('previous approved billing'));
+        System.assert(r.contains('previous accepted billing'));
     }
 
     @IsTest static void testCreateBilling_PreventRegularWhenFullyComplete() {
@@ -174,14 +200,6 @@ private class BillingAndPaymentTabControllerTest {
             job.Id, b.Id, 'PAY-001', Date.today(), job.Account__c
         );
         System.assertEquals('SUCCESS', r);
-    }
-
-    @IsTest static void testApproveBilling() {
-        Job__c job = [SELECT Id, Account__c FROM Job__c LIMIT 1];
-        Billing__c draft = new Billing__c(Job__c = job.Id, Account__c = job.Account__c, Status__c = 'Draft');
-        insert draft;
-
-        System.assertEquals('SUCCESS', BillingAndPaymentTabController.approveBilling(draft.Id));
     }
 
     @IsTest static void testDeleteRecord() {

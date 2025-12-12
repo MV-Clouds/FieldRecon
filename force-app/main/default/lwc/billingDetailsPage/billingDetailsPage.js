@@ -53,7 +53,6 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             this.statusOptions = [
                 { label: 'All', value: 'All' },
                 ...data.values
-                    .filter(item => item.value !== 'Approved')
                     .map(item => ({
                         label: item.label,
                         value: item.value
@@ -90,12 +89,12 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
     get isBillingApproved() {
         const status = this.billingDetails && this.billingDetails.Status ? this.billingDetails.Status : '';
-        return status === 'Approved';
+        return status === 'Approved' || status === 'Accepted';
     }
 
     get isBillingApprovedOrRegular() {
         const status = this.billingDetails && this.billingDetails.Status ? this.billingDetails.Status : '';
-        return status === 'Approved' || this.isRegularBilling === false;
+        return status === 'Approved' || status === 'Accepted' || this.isRegularBilling === false;
     }
 
     get lineItemActionsClass() {
@@ -110,20 +109,9 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return this.isBillingApproved ? 'data-table-container read-only-table' : 'data-table-container';
     }
 
-    get isDraftSelected() {
-        return this.billingDetails.wfrecon__Status__c === 'Draft';
-    }
-
-    get isSentSelected() {
-        return this.billingDetails.wfrecon__Status__c === 'Sent';
-    }
-
-    get isApprovedSelected() {
-        return this.billingDetails.wfrecon__Status__c === 'Approved';
-    }
-
-    get isPaidSelected() {
-        return this.billingDetails.wfrecon__Status__c === 'Paid';
+    get isBillingAccepted() {
+        const status = this.originalBillingDetails && this.originalBillingDetails.Status ? this.originalBillingDetails.Status : '';
+        return status === 'Accepted';
     }
 
     get formattedCurrentPaymentDue() {
@@ -506,6 +494,9 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             })
                 .then(() => {
                     this.showToast('Success', 'Billing information updated successfully', 'success');
+                    // Reset changes tracking and update original values
+                    this.hasBillingChanges = false;
+                    this.originalBillingDetails = { ...this.billingDetails };
                     this.loadBillingData(); // Refresh data
                 })
                 .catch(error => {
@@ -1184,16 +1175,20 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
                 billingId: this.recordId,
                 lineItemUpdates: lineItemUpdates
             })
-                .then(() => {
-                    this.modifiedContractItems.clear();
-                    this.hasContractModifications = false;
-                    this.modifiedChangeOrderItems.clear();
-                    this.hasChangeOrderModifications = false;
-                    this.editingCells.clear();
-                    this.clearModifiedStyling('contract');
-                    this.clearModifiedStyling('changeorder');
-                    this.showToast('Success', 'Line item changes saved successfully', 'success');
-                    this.loadBillingData();
+                .then(result => {
+                    if(result.status === 'SUCCESS') {
+                        this.modifiedContractItems.clear();
+                        this.hasContractModifications = false;
+                        this.modifiedChangeOrderItems.clear();
+                        this.hasChangeOrderModifications = false;
+                        this.editingCells.clear();
+                        this.clearModifiedStyling('contract');
+                        this.clearModifiedStyling('changeorder');
+                        this.showToast('Success', result.message, 'success');
+                        this.loadBillingData();
+                    } else {
+                        this.showToast('Error', result.message, 'error');
+                    }
                 })
                 .catch(error => {
                     console.error('Error saving line item changes:', error);
