@@ -294,25 +294,31 @@ public with sharing class BillingDetailsPageController {
                 Decimal minRequiredPercent = previousBilledPercent > currentCompletePercent ? previousBilledPercent : currentCompletePercent;
 
                 Decimal previousGross = previousTotalBilled + previousTotalRetainage;
-                Decimal factor = 1 + (retainagePercent / 100);
 
                 Boolean enforceLimits = contractAmount > 0;
                 Decimal maxAmount = 0;
                 Decimal minAmount = 0;
 
                 if (enforceLimits) {
+                    // Available gross billing for this period
                     Decimal availableGross = contractAmount - previousGross;
                     if (availableGross < 0) {
                         availableGross = 0;
                     }
-                    maxAmount = factor != 0 ? availableGross / factor : availableGross;
+                    
+                    // Max net amount = Gross × (1 - Retainage%/100)
+                    Decimal retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
+                    maxAmount = availableGross * (1 - retainageFactor);
 
+                    // Minimum required gross to date
                     Decimal requiredGross = contractAmount * (minRequiredPercent / 100);
                     Decimal remainingGrossNeeded = requiredGross - previousGross;
                     if (remainingGrossNeeded < 0) {
                         remainingGrossNeeded = 0;
                     }
-                    minAmount = factor != 0 ? remainingGrossNeeded / factor : remainingGrossNeeded;
+                    
+                    // Min net amount = Gross × (1 - Retainage%/100)
+                    minAmount = remainingGrossNeeded * (1 - retainageFactor);
 
                     maxAmount = maxAmount.setScale(2, roundingMode);
                     minAmount = minAmount.setScale(2, roundingMode);
@@ -340,9 +346,24 @@ public with sharing class BillingDetailsPageController {
                         return result;
                     }
 
-                    thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
+                    // thisBillingAmount is the NET amount (after retainage)
+                    // Calculate GROSS billing amount: Gross = Net / (1 - Retainage%/100)
+                    Decimal retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
+                    Decimal grossBillingAmount = retainageFactor < 1 
+                        ? thisBillingAmount / (1 - retainageFactor)
+                        : thisBillingAmount;
+                    grossBillingAmount = grossBillingAmount.setScale(2, roundingMode);
+                    
+                    // Calculate retainage on GROSS billing amount
+                    thisRetainageAmount = grossBillingAmount * retainageFactor;
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, roundingMode);
+                    
+                    // Verify net amount
+                    Decimal verifiedNetAmount = grossBillingAmount - thisRetainageAmount;
+                    verifiedNetAmount = verifiedNetAmount.setScale(2, roundingMode);
+                    
                     totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
-                    totalBilledAmount = previousTotalBilled + thisBillingAmount;
+                    totalBilledAmount = previousTotalBilled + verifiedNetAmount;
                     grossToDate = totalBilledAmount + totalRetainageAmount;
 
                     if (enforceLimits && grossToDate > contractAmount + tolerance) {
@@ -357,6 +378,9 @@ public with sharing class BillingDetailsPageController {
                         result.put('message', 'This Billing Complete % cannot exceed 100%.');
                         return result;
                     }
+                    
+                    // Use verified net amount
+                    thisBillingAmount = verifiedNetAmount;
                 } else if (hasPercentUpdate) {
                     if (thisBillingPercent < 0) {
                         result.put('status', 'ERROR');
@@ -374,13 +398,24 @@ public with sharing class BillingDetailsPageController {
                         return result;
                     }
 
+                    // Total gross amount to date (including all retainage)
                     grossToDate = enforceLimits ? (contractAmount * thisBillingPercent) / 100 : 0;
-                    Decimal grossContribution = grossToDate - previousGross;
-                    if (grossContribution < 0) {
-                        grossContribution = 0;
+                    grossToDate = grossToDate.setScale(2, roundingMode);
+                    
+                    // Gross billing for THIS period
+                    Decimal grossBillingAmount = grossToDate - previousGross;
+                    if (grossBillingAmount < 0) {
+                        grossBillingAmount = 0;
                     }
+                    grossBillingAmount = grossBillingAmount.setScale(2, roundingMode);
 
-                    thisBillingAmount = factor != 0 ? grossContribution / factor : grossContribution;
+                    // Calculate retainage on GROSS billing amount for this period
+                    thisRetainageAmount = (grossBillingAmount * retainagePercent) / 100;
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, roundingMode);
+                    
+                    // Net billing amount = Gross - Retainage
+                    thisBillingAmount = grossBillingAmount - thisRetainageAmount;
+                    thisBillingAmount = thisBillingAmount.setScale(2, roundingMode);
 
                     if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
                         result.put('status', 'ERROR');
@@ -393,7 +428,6 @@ public with sharing class BillingDetailsPageController {
                         return result;
                     }
 
-                    thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
                     totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
                     totalBilledAmount = previousTotalBilled + thisBillingAmount;
                     grossToDate = totalBilledAmount + totalRetainageAmount;
@@ -414,11 +448,29 @@ public with sharing class BillingDetailsPageController {
                         return result;
                     }
 
-                    thisRetainageAmount = (thisBillingAmount * retainagePercent) / 100;
+                    // thisBillingAmount is NET - recalculate with new retainage %
+                    // Calculate GROSS billing amount: Gross = Net / (1 - Retainage%/100)
+                    Decimal retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
+                    Decimal grossBillingAmount = retainageFactor < 1 
+                        ? thisBillingAmount / (1 - retainageFactor)
+                        : thisBillingAmount;
+                    grossBillingAmount = grossBillingAmount.setScale(2, roundingMode);
+                    
+                    // Calculate retainage on GROSS billing amount
+                    thisRetainageAmount = grossBillingAmount * retainageFactor;
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, roundingMode);
+                    
+                    // Verify net amount
+                    Decimal verifiedNetAmount = grossBillingAmount - thisRetainageAmount;
+                    verifiedNetAmount = verifiedNetAmount.setScale(2, roundingMode);
+                    
                     totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
-                    totalBilledAmount = previousTotalBilled + thisBillingAmount;
+                    totalBilledAmount = previousTotalBilled + verifiedNetAmount;
                     grossToDate = totalBilledAmount + totalRetainageAmount;
                     thisBillingPercent = enforceLimits ? (grossToDate / contractAmount) * 100 : thisBillingPercent;
+                    
+                    // Use verified net amount
+                    thisBillingAmount = verifiedNetAmount;
                 }
 
                 Decimal roundedAmount = thisBillingAmount.setScale(2, roundingMode);
