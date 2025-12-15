@@ -1,3 +1,5 @@
 <aura:component implements="force:lightningQuickAction,force:hasRecordId" access="global">
-    <c:wholeCrewClockInOut />
+    <aura:attribute name="recordId" type="String" />
+    <aura:attribute name="isHomePage" type="Boolean" default="false" />
+    <c:wholeCrewClockInOut recordId="{!v.recordId}" isHomePage="{!v.isHomePage}" />
 </aura:component>

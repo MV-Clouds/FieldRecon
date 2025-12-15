@@ -336,7 +336,7 @@
                                             <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
                                             <td class="data-cell center-trancate-text">{item.contractValue}</td>
                                             <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
-                                            <td class="data-cell center-trancate-text">{item.previousBilledAmount}</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledAmountWithRetainage}</td>
                                             <template if:true={isRegularBilling}>
                                                 <td class="data-cell center-trancate-text">{item.currentCompletePercent}%</td>
                                                 <td class="data-cell editable-cell" 
@@ -442,7 +442,7 @@
                                         <td class="data-cell totals-label"><strong>Total</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{contractTotals.contractValue}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
-                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.previousBilledAmount}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{contractTotals.previousBilledAmountWithRetainage}</strong></td>
                                         <template if:true={isRegularBilling}>
                                             <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                             <td class="data-cell center-trancate-text"><strong>-</strong></td>
@@ -508,7 +508,7 @@
                                             <td class="data-cell center-trancate-text">{item.scopeEntryName}</td>
                                             <td class="data-cell center-trancate-text">{item.contractValue}</td>
                                             <td class="data-cell center-trancate-text">{item.previousBilledPercent}%</td>
-                                            <td class="data-cell center-trancate-text">{item.previousBilledAmount}</td>
+                                            <td class="data-cell center-trancate-text">{item.previousBilledAmountWithRetainage}</td>
                                             <template if:true={isRegularBilling}>
                                                 <td class="data-cell center-trancate-text">{item.currentCompletePercent}%</td>
                                                 <td class={item.thisBillingPercentCellClass} 
@@ -616,7 +616,7 @@
                                         <td class="data-cell totals-label"><strong>Total</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.contractValue}</strong></td>
                                         <td class="data-cell center-trancate-text"><strong>-</strong></td>
-                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.previousBilledAmount}</strong></td>
+                                        <td class="data-cell center-trancate-text"><strong>{changeOrderTotals.previousBilledAmountWithRetainage}</strong></td>
                                         <template if:true={isRegularBilling}>
                                             <td class="data-cell center-trancate-text"><strong>-</strong></td>
                                             <td class="data-cell center-trancate-text"><strong>-</strong></td>

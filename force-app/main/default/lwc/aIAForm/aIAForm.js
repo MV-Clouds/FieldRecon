@@ -43,7 +43,6 @@ export default class aIAForm extends LightningElement {
 	totalD;
 	totalE;
 	totalF;
-    totalG;
     totalH;
     totalI;
     totalJ;
@@ -210,7 +209,7 @@ export default class aIAForm extends LightningElement {
                 // Format all currency values with proper null checks
                 this.totalContractValue = this.formatCurrency((job && job.wfrecon__Total_Contract_Value__c) || 0.00);
                 this.contractSumToDate = this.formatCurrency((br && br.wfrecon__Contract_Sum_to_Date__c) || 0.00);
-                this.totalBilledAmount = this.formatCurrency((br && br.wfrecon__Total_Billed_Amount__c) || 0.00);
+                this.totalBilledAmount = this.formatCurrency((br && br.wfrecon__Total_Completed_And_Stored_To_Date__c) || 0.00);
                 this.wfreconRetainageOnBill = this.formatCurrency((br && br.wfrecon__Retainage_on_Bill__c) || 0.00);
                 this.retainageCompletedToDate = this.formatCurrency((br && br.wfrecon__Retainage_Completed_to_Date__c) || 0.00);
                 this.totalAmountEarnedLessRetainage = this.formatCurrency((br && br.wfrecon__Total_Amount_Earned_Less_Retainage__c) || 0.00);
@@ -223,7 +222,6 @@ export default class aIAForm extends LightningElement {
                 this.totalD = this.formatCurrency(conSum.totalD);
                 this.totalE = this.formatCurrency(conSum.totalE);
                 this.totalF = this.formatCurrency(conSum.totalF);
-                this.totalG = this.formatCurrency(conSum.totalG);
                 this.totalH = this.formatCurrency(conSum.totalH);
                 this.totalI = this.formatCurrency(conSum.totalI);
                 this.totalJ = this.formatCurrency(conSum.totalJ);
@@ -277,8 +275,8 @@ export default class aIAForm extends LightningElement {
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E || '0.00'}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G || '0.00'}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H || '0.00'}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || '0.00'}%</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Retainage_Amount__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Prev_Total_Retainage_Amount__c || '0.00'}</td>
                                 </tr>`;
                         });
 
@@ -355,10 +353,10 @@ export default class aIAForm extends LightningElement {
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Previous_Billed_Value__c || '0.00'}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Billing_Value__c || '0.00'}</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.sumD_E || '0.00'}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G || '0'}%</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.vlueOf_G || '0.00'}%</td>
                                     <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.vlueof_H || '0.00'}</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || '0'}%</td>
-                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Retainage_Percent_on_Bill_Line_Item__r || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__This_Retainage_Amount__c || '0.00'}</td>
+                                    <td style="border:1pt solid #000; padding:4pt; font-size:8pt; font-weight:bold;">$${item.wfrecon__Prev_Total_Retainage_Amount__c || '0.00'}</td>
                                 </tr>`;
                         });
 
@@ -528,7 +526,6 @@ export default class aIAForm extends LightningElement {
             this.totalD = "0.00";
             this.totalE = "0.00";
             this.totalF = "0.00";
-            this.totalG = "0.00";
             this.totalH = "0.00";
             this.totalI = "0.00";
             this.totalJ = "0.00";
