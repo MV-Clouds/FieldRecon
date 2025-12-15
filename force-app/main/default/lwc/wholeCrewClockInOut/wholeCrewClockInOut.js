@@ -8,7 +8,8 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
 
 export default class WholeCrewClockInOut extends LightningElement {
-    @track recordId; // Job Id from quick action context
+    @api recordId;
+    @api isHomePage = false;
     @track isLoading = false;
     @track hasAccess = false;
     @track accessErrorMessage = '';
