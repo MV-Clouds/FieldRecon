@@ -494,6 +494,12 @@
     border-radius: 4px;
 }
 
+.input-disabled{
+    cursor: not-allowed;
+    pointer-events: all !important;
+    background: #dad4d4;
+}
+
 /* Desktop - 2 cards per row */
 @media (min-width: 1025px) {
     .modal-wrapper {

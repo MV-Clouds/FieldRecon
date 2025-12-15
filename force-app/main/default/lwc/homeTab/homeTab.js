@@ -32,6 +32,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     @track timesheetDetailsRaw = [];
     @track currentModalJobStartDateTime;
     @track currentModalJobEndDateTime;
+    @track currentDisplayTime;
+    @track currentDateTimeForApex;
+    @track timeUpdateInterval;
     @track timesheetColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
         { label: 'Job Number', fieldName: 'jobNumber', style: 'width: 10rem', isLink: true, recordIdField: 'jobId' },
@@ -66,130 +69,6 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         return this.activeTab === 'week' ? 'active' : '';
     }
 
-    extractDateKey(value) {
-        if (!value) {
-            return null;
-        }
-
-        if (value instanceof Date) {
-            return value.toISOString().slice(0, 10);
-        }
-
-        const str = value.toString().trim();
-        if (!str) {
-            return null;
-        }
-
-        if (str.length >= 10) {
-            return str.slice(0, 10);
-        }
-
-        return null;
-    }
-
-    addDaysToDateKey(dateKey, days) {
-        if (!dateKey || typeof dateKey !== 'string') {
-            return null;
-        }
-
-        const [year, month, day] = dateKey.split('-').map(Number);
-        if ([year, month, day].some(num => Number.isNaN(num))) {
-            return null;
-        }
-
-        const utcDate = new Date(Date.UTC(year, month - 1, day));
-        utcDate.setUTCDate(utcDate.getUTCDate() + days);
-        return utcDate.toISOString().slice(0, 10);
-    }
-
-    validateClockInDate(clockInValue, jobStartValue, jobEndValue) {
-        const clockInDate = this.extractDateKey(clockInValue);
-        const jobStartDate = this.extractDateKey(jobStartValue);
-        const jobEndDate = this.extractDateKey(jobEndValue);
-
-        console.log(clockInDate, jobStartDate, jobEndDate);
-
-        if (clockInDate && jobStartDate) {
-            if (clockInDate !== jobStartDate && clockInDate !== jobEndDate) {
-                this.showToast('Error', 'Clock In time must be on the job start date or job end date', 'error');
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
-        const clockOutDate = this.extractDateKey(clockOutValue);
-        const jobStartDate = this.extractDateKey(jobStartValue);
-        const jobEndDate = this.extractDateKey(jobEndValue);
-
-        if (clockOutDate && jobEndDate) {
-            const nextDay = this.addDaysToDateKey(jobEndDate, 1);
-            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
-                this.showToast('Error', 'Clock Out time must be on the job start date, job end date, or the following day', 'error');
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    getCurrentModalJobRecord() {
-        if (!this.selectedMobilizationId || !Array.isArray(this.todayJobList)) {
-            return null;
-        }
-
-        return this.todayJobList.find(job => job.mobId === this.selectedMobilizationId);
-    }
-
-    get clockInMinBoundary() {
-        const jobRecord = this.getCurrentModalJobRecord();
-        const reference = this.currentModalJobStartDateTime
-            || jobRecord?.jobStartTimeIso
-            || jobRecord?.jobStartTime
-            || this.clockInTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
-    }
-
-    get clockInMaxBoundary() {
-        const jobRecord = this.getCurrentModalJobRecord();
-        const reference = this.currentModalJobEndDateTime
-            || jobRecord?.jobEndTimeIso
-            || jobRecord?.jobEndTime
-            || this.clockOutTime
-            || this.clockInTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T23:59` : null;
-    }
-
-    get clockOutMinBoundary() {
-        const jobRecord = this.getCurrentModalJobRecord();
-        const reference = this.currentModalJobStartDateTime
-            || jobRecord?.jobStartTimeIso
-            || jobRecord?.jobStartTime
-            || this.clockInTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
-    }
-
-    get clockOutMaxBoundary() {
-        const jobRecord = this.getCurrentModalJobRecord();
-        const reference = this.currentModalJobEndDateTime
-            || jobRecord?.jobEndTimeIso
-            || jobRecord?.jobEndTime
-            || this.clockOutTime
-            || this.clockInTime;
-        const dateKey = this.extractDateKey(reference);
-        if (!dateKey) {
-            return null;
-        }
-        const nextDay = this.addDaysToDateKey(dateKey, 1);
-        const boundaryKey = nextDay || dateKey;
-        return `${boundaryKey}T23:59`;
-    }
-
     get modalJobStartTime() {
         const job = this.getCurrentModalJobRecord();
         return job ? job.jobStartTime : '';
@@ -198,60 +77,6 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     get modalJobEndTime() {
         const job = this.getCurrentModalJobRecord();
         return job ? job.jobEndTime : '';
-    }
-
-    normalizeDate(date) {
-        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    }
-
-    isValidDateTime(dateTimeString) {
-        const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-        return regex.test(dateTimeString);
-    }
-
-    /** 
-    * Method Name: formatToAMPM
-    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
-    */
-    formatToAMPM(iso) {
-        try {
-            if (!iso) return '';
-
-            // Extract date and time parts from ISO string
-            // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
-            const parts = iso.split('T');
-            if (parts.length < 2) return iso;
-
-            const datePart = parts[0]; // "2025-10-05"
-            const timePart = parts[1].substring(0, 5); // "14:30"
-
-            // Parse date components
-            const [year, month, day] = datePart.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const monthName = monthNames[parseInt(month, 10) - 1];
-
-            // Extract hours and minutes
-            const [hoursStr, minutesStr] = timePart.split(':');
-            let hours = parseInt(hoursStr, 10);
-            const minutes = minutesStr;
-
-            // Determine AM/PM
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-
-            // Convert to 12-hour format
-            hours = hours % 12;
-            hours = hours ? hours : 12; // hour '0' should be '12'
-
-            // Pad hours with leading zero if needed
-            const paddedHours = String(hours).padStart(2, '0');
-
-            // Format: "Nov 12, 2025, 03:45 PM"
-            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
-        } catch (error) {
-            console.error('Error in formatToAMPM:', error);
-            return iso;
-        }
     }
 
     /** 
@@ -324,6 +149,11 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             } else {
                 this.isMobileDevice = false;
             }
+
+            this.updateCurrentTime();
+            this.timeUpdateInterval = setInterval(() => {
+                this.updateCurrentTime();
+            }, 1000);
 
             this.getMobilizationMembers();
             this.getTimesheetDetails();
@@ -566,6 +396,90 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         }
     }
 
+    /** 
+    * Method Name: updateCurrentTime 
+    * @description: Updates the current date and time in both Apex-compatible and display formats.
+    */
+    updateCurrentTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        // Format for Apex: 2025-12-15T13:00
+        this.currentDateTimeForApex = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        // Format for Display: Dec 15, 2025, 01:00 PM
+        this.currentDisplayTime = this.formatToAMPM(this.currentDateTimeForApex);
+    }
+
+    /** 
+    * Method Name: getCurrentModalJobRecord 
+    * @description: Retrieves the current job record based on the selected mobilization ID.
+    */
+    getCurrentModalJobRecord() {
+        if (!this.selectedMobilizationId || !Array.isArray(this.todayJobList)) {
+            return null;
+        }
+
+        return this.todayJobList.find(job => job.mobId === this.selectedMobilizationId);
+    }
+
+    /** 
+    * Method Name: normalizeDate 
+    * @description: Normalizes a date by stripping time components, returning a date set to midnight.
+    */
+    normalizeDate(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    /** 
+    * Method Name: formatToAMPM
+    * @description: Formats ISO datetime string to 12-hour AM/PM format for display (e.g., "Nov 12, 2025, 03:45 PM")
+    */
+    formatToAMPM(iso) {
+        try {
+            if (!iso) return '';
+
+            // Extract date and time parts from ISO string
+            // Format: "2025-10-05T14:30:00.000Z" or "2025-10-05T14:30"
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+
+            const datePart = parts[0]; // "2025-10-05"
+            const timePart = parts[1].substring(0, 5); // "14:30"
+
+            // Parse date components
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+
+            // Extract hours and minutes
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+
+            // Determine AM/PM
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+
+            // Convert to 12-hour format
+            hours = hours % 12;
+            hours = hours ? hours : 12; // hour '0' should be '12'
+
+            // Pad hours with leading zero if needed
+            const paddedHours = String(hours).padStart(2, '0');
+
+            // Format: "Nov 12, 2025, 03:45 PM"
+            return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToAMPM:', error);
+            return iso;
+        }
+    }
+
     /**
     * Method Name: handleSectionToggle
     * @description: Handle accordion section toggle - Allow multiple sections to be open
@@ -604,10 +518,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         if (selectedMob) {
             this.selectedContactId = selectedMob.contactId;
             this.selectedMobilizationId = selectedMob.mobId;
-            this.clockInTime = selectedMob.jobStartTime?.slice(0, 16);
-            this.clockOutTime = selectedMob.jobEndTime?.slice(0, 16);
             this.currentModalJobStartDateTime = selectedMob.jobStartTimeIso || selectedMob.jobStartTime;
             this.currentModalJobEndDateTime = selectedMob.jobEndTimeIso || selectedMob.jobEndTime;
+            this.updateCurrentTime();
         }
     }
 
@@ -622,11 +535,10 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         if (selectedMob) {
             this.selectedContactId = selectedMob.contactId;
             this.selectedMobilizationId = selectedMob.mobId;
-            this.clockInTime = selectedMob.jobStartTime?.slice(0, 16);
-            this.clockOutTime = selectedMob.jobEndTime?.slice(0, 16);
             this.previousClockInTime = this.formatToAMPM(selectedMob.clockInTime);
             this.currentModalJobStartDateTime = selectedMob.jobStartTimeIso || selectedMob.jobStartTime;
             this.currentModalJobEndDateTime = selectedMob.jobEndTimeIso || selectedMob.jobEndTime;
+            this.updateCurrentTime();
         }
     }
 
@@ -638,11 +550,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         let field = event.target.dataset.field;
         let value = event.target.value;
 
-        if (field === 'clockOut') {
-            this.clockOutTime = value;
-        } else if (field === 'clockIn') {
-            this.clockInTime = value;
-        } else if (field === 'costCode') {
+        if (field === 'costCode') {
             this.selectedCostCodeId = value;
         }
     }
@@ -714,17 +622,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     async saveClockIn() {
         try {
-            if (!this.selectedCostCodeId || !this.clockInTime) {
-                this.showToast('Error', 'Select Cost Code and Time!', 'error');
-                console.error('No cost code/time selected');
-                return;
-            }
-
-            console.log('this.clockInTime :: ', this.clockInTime);
-
-
-            if (!this.isValidDateTime(this.clockInTime)) {
-                this.showToast('Error', 'Please select both date and time for clock in.', 'error');
+            if (!this.selectedCostCodeId) {
+                this.showToast('Error', 'Select Cost Code!', 'error');
                 return;
             }
 
@@ -737,15 +636,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            const jobStartReference = selectedRecordDetails?.jobStartTimeIso || selectedRecordDetails?.jobStartTime;
-            const jobEndReference = selectedRecordDetails?.jobEndTimeIso || selectedRecordDetails?.jobEndTime;
-            if (!this.validateClockInDate(this.clockInTime, jobStartReference, jobEndReference)) {
-                return;
-            }
-
             this.isLoading = true;
+            this.updateCurrentTime();
 
-            // Get current location
             const location = await this.getCurrentLocation();
 
             const params = {
@@ -754,7 +647,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 costCodeId: this.selectedCostCodeId,
                 mobId: this.selectedMobilizationId,
                 jobId: selectedRecordDetails.jobId,
-                clockInTime: this.clockInTime.replace(' ', 'T'),
+                clockInTime: this.currentDateTimeForApex,
                 isTimeSheetNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetNull : true,
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
@@ -798,17 +691,6 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     async saveClockOut() {
         try {
-            if (!this.clockOutTime) {
-                this.showToast('Error', 'No time selected', 'error');
-                console.error('No time selected');
-                return;
-            }
-
-            if (!this.isValidDateTime(this.clockOutTime)) {
-                this.showToast('Error', 'Please select both date and time for clock out.', 'error');
-                return;
-            }
-
             const selectedRecordDetails = this.todayJobList.find(
                 record => record.mobId === this.selectedMobilizationId
             );
@@ -818,19 +700,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return;
             }
 
-            if (new Date(this.clockOutTime.replace(' ', 'T')) <= new Date(selectedRecordDetails.clockInTime.slice(0, 16).replace('T', ' '))) {
-                this.showToast('Error', 'Clock out time must be greater than clock in time', 'error');
-                return;
-            }
-
-            const jobStartReference = selectedRecordDetails?.jobStartTimeIso || selectedRecordDetails?.jobStartTime;
-            const jobEndReference = selectedRecordDetails?.jobEndTimeIso || selectedRecordDetails?.jobEndTime;
-            if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
-                return;
-            }
             this.isLoading = true;
+            this.updateCurrentTime();
 
-            // Get current location
             const location = await this.getCurrentLocation();
 
             const params = {
@@ -840,7 +712,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 mobId: this.selectedMobilizationId,
                 jobId: selectedRecordDetails.jobId,
                 clockInTime: selectedRecordDetails.clockInTime,
-                clockOutTime: this.clockOutTime.replace(' ', 'T'),
+                clockOutTime: this.currentDateTimeForApex,
                 isTimeSheetNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetNull : true,
                 timesheetId: selectedRecordDetails ? selectedRecordDetails?.timesheetId : null,
                 isTimeSheetEntryNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetEntryNull : true,
@@ -1020,4 +892,15 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         });
         this.dispatchEvent(event);
     }
+
+    /** 
+    * Method Name: disconnectedCallback 
+    * @description: Cleans up the interval timer when the component is removed from the DOM.
+    */
+    disconnectedCallback() {
+        if (this.timeUpdateInterval) {
+            clearInterval(this.timeUpdateInterval);
+        }
+    }
+
 }
