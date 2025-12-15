@@ -2,13 +2,10 @@
     <div class="component-wrapper" data-home-page={isHomePage}>
         <!-- Header with Close Icon (Only for Home Page) -->
         <template if:true={isHomePage}>
-            <div class="popup-header">
-                <h2 class="popup-title">Whole Crew Clock In/Out</h2>
-                <button class="close-btn" onclick={handleClosePopup} aria-label="Close">
-                    <svg class="close-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+            <div class="pop-heading">
+                Whole Crew Clock In/Out
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleClosePopup}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="create-close-icon" size="small"></lightning-icon>
                 </button>
             </div>
         </template>
@@ -16,312 +13,312 @@
         <!-- Main Content -->
         <!-- Access Denied -->
         <template if:false={hasAccess}>
-        <div class="modal-wrapper">
-            <div class="no-prop">
-                <div class="empty-state">
-                    <div class="empty-state__content">
-                        <div class="empty-state__icon">
-                            <img src="/resource/wfrecon__emptyState" alt="Access Denied" draggable="false">
-                        </div>
-                        <div class="empty-state__message">Access Denied</div>
-                        <div class="empty-state__subtitle">{accessErrorMessage}</div>
-                    </div>
-                </div>
-            </div>
-            <!-- Spinner -->
-            <template if:true={isLoading}>
-                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
-            </template>
-        </div>
-    </template>
-
-    <!-- Main Content -->
-    <template if:true={hasAccess}>
-        <div class="modal-wrapper">
-            <!-- Mobilization Selection -->
-            <template if:true={hasMobilizations}>
-                <template if:true={showMobilizationSelector}>
-                    <div class="content-section">
-                    <!-- Mobilization Date Selection -->
-                        <div class="selector-card">
-                            <label class="form-label">Select Scheduled Job</label>
-                            <lightning-combobox 
-                                name="mobilization" 
-                                placeholder="-- Select Scheduled Job --" 
-                                options={mobilizationOptions} 
-                                value={selectedMobilizationId} 
-                                onchange={handleMobilizationChange} 
-                                variant="label-hidden">
-                            </lightning-combobox>
-                        </div>
-                    </div>
-                </template>
-            </template>
-
-            <!-- No Mobilizations Message -->
-            <template if:false={hasMobilizations}>
+            <div class="modal-wrapper">
                 <div class="no-prop">
                     <div class="empty-state">
                         <div class="empty-state__content">
                             <div class="empty-state__icon">
-                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                <img src="/resource/wfrecon__emptyState" alt="Access Denied" draggable="false">
                             </div>
-                            <div class="empty-state__message">No Data to Display</div>
-                            <div class="empty-state__subtitle">{errorMessage}</div>
+                            <div class="empty-state__message">Access Denied</div>
+                            <div class="empty-state__subtitle">{accessErrorMessage}</div>
                         </div>
                     </div>
                 </div>
-            </template>
-
-            <!-- Main Content with Tabset -->
-            <template if:true={hasData}>
-                <!-- Tab Navigation -->
-                <div class="tab-navigation">
-                    <button class={clockInTabClass} onclick={handleClockInTab}>
-                        <svg class="tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
-                        </svg>
-                        Clock In
-                        <template if:true={hasClockInMembers}>
-                            <span class="tab-count">{clockInMembersCount}</span>
-                        </template>
-                    </button>
-                    <button class={clockOutTabClass} onclick={handleClockOutTab}>
-                        <svg class="tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M15 9l-6 6m0-6l6 6"></path>
-                        </svg>
-                        Clock Out
-                        <template if:true={hasClockOutMembers}>
-                            <span class="tab-count">{clockOutMembersCount}</span>
-                        </template>
-                    </button>
-                </div>
-
-                <!-- Scrollable Body -->
-                <div class="modal-body">
-                    <!-- Clock In Tab -->
-                    <template if:true={isClockInActive}>
-                        <template if:true={hasClockInMembers}>
-                            <!-- Member Cards Grid -->
-                            <div class="members-grid">
-                                <template for:each={clockInMembers} for:item="member">
-                                    <div key={member.mobMemberId} class="member-card" data-selected={member.isSelected}>
-                                        <div class="member-card-content">
-                                            <input 
-                                                type="checkbox" 
-                                                class="member-checkbox"
-                                                data-member-id={member.mobMemberId}
-                                                checked={member.isSelected}
-                                                onchange={handleMemberSelection}
-                                            />
-                                            <div class="member-info">
-                                                <div class="member-name">{member.contactName}</div>
-                                                <div class="member-crew">
-                                                    <svg class="crew-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                                        <circle cx="9" cy="7" r="4"></circle>
-                                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"></path>
-                                                    </svg>
-                                                    <span>{member.crewName}</span>
-                                                </div>
-                                                <div class="member-status">
-                                                    <template if:false={member.isAgain}>
-                                                        <span class="status-badge status-new">First Clock In</span>
-                                                    </template>
-                                                    <template if:true={member.isAgain}>
-                                                        <span class="status-badge status-again">Clock In Again</span>
-                                                        <template if:false={member.hasRecentTimes}>
-                                                            <template if:true={member.recentClockIn}>
-                                                                <span class="time-info">Last: {member.recentClockIn}</span>
-                                                            </template>
-                                                        </template>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Recent Completed Session -->
-                                        <template if:true={member.hasRecentTimes}>
-                                            <div class="recent-session">
-                                                <div class="session-label">Previous Session</div>
-                                                <div class="session-times">
-                                                    <span class="session-in">In: {member.recentClockIn}</span>
-                                                    <span class="session-separator">→</span>
-                                                    <span class="session-out">Out: {member.recentClockOut}</span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                        <template if:false={hasClockInMembers}>
-                            <div class="empty-section">
-                                <div class="empty-icon">✓</div>
-                                <div class="empty-title">All Crew Clocked In</div>
-                                <div class="empty-text">All assigned crew members have clocked in for this job.</div>
-                            </div>
-                        </template>
-                    </template>
-
-                    <!-- Clock Out Tab -->
-                    <template if:true={isClockOutActive}>
-                        <template if:true={hasClockOutMembers}>
-                            <!-- Member Cards Grid -->
-                            <div class="members-grid">
-                                <template for:each={clockOutMembers} for:item="member">
-                                    <div key={member.mobMemberId} class="member-card" data-selected={member.isSelected}>
-                                        <div class="member-card-content">
-                                            <input 
-                                                type="checkbox" 
-                                                class="member-checkbox"
-                                                data-member-id={member.mobMemberId}
-                                                checked={member.isSelected}
-                                                onchange={handleMemberSelection}
-                                            />
-                                            <div class="member-info">
-                                                <div class="member-name">{member.contactName}</div>
-                                                <div class="member-crew">
-                                                    <svg class="crew-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                                        <circle cx="9" cy="7" r="4"></circle>
-                                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"></path>
-                                                    </svg>
-                                                    <span>{member.crewName}</span>
-                                                </div>
-                                                <div class="member-status">
-                                                    <template if:true={member.formattedClockInTime}>
-                                                        <span class="time-info">Clock In: {member.formattedClockInTime}</span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Recent Completed Session -->
-                                        <template if:true={member.hasRecentTimes}>
-                                            <div class="recent-session">
-                                                <div class="session-label">Previous Session</div>
-                                                <div class="session-times">
-                                                    <span class="session-in">In: {member.recentClockIn}</span>
-                                                    <span class="session-separator">→</span>
-                                                    <span class="session-out">Out: {member.recentClockOut}</span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                        <template if:false={hasClockOutMembers}>
-                            <div class="empty-section">
-                                <div class="empty-icon">✓</div>
-                                <div class="empty-title">No Active Clock Ins</div>
-                                <div class="empty-text">No crew members are currently clocked in.</div>
-                            </div>
-                        </template>
-                    </template>
-                </div>
-
-                <!-- Fixed Footer with Actions -->
-                <template if:true={isClockInActive}>
-                    <template if:true={hasClockInMembers}>
-                        <template if:true={hasSelectedMembers}>
-                            <footer class="action-panel">
-                                <div class="action-form">
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label class="input-label">Cost Code <span class="required">*</span></label>
-                                            <select 
-                                                class="input-field" 
-                                                data-field="bulkCostCode" 
-                                                onchange={handleBulkInputChange}>
-                                                <option value="">-- Select --</option>
-                                                <template for:each={costCodeOptions} for:item="costCode">
-                                                    <option key={costCode.value} value={costCode.value}>{costCode.label}</option>
-                                                </template>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="input-label">Clock In Time <span class="required">*</span></label>
-                                            <input 
-                                                type="datetime-local" 
-                                                class="input-field" 
-                                                data-field="bulkClockInTime"
-                                                value={bulkClockInTime}
-                                                min={clockInMinBoundary}
-                                                max={clockInMaxBoundary}
-                                                onchange={handleBulkInputChange}
-                                            />
-                                        </div>
-                                    </div>
-                                    <button class="btn-primary" onclick={handleConfirmBulkClockIn} disabled={isLoading}>
-                                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
-                                        </svg>
-                                        Clock In Selected ({selectedClockInCount})
-                                    </button>
-                                </div>
-                            </footer>
-                        </template>
-                    </template>
+                <!-- Spinner -->
+                <template if:true={isLoading}>
+                    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
                 </template>
+            </div>
+        </template>
 
-                <template if:true={isClockOutActive}>
-                    <template if:true={hasClockOutMembers}>
-                        <template if:true={hasSelectedMembers}>
-                            <footer class="action-panel">
-                                <div class="action-form">
-                                    <div class="form-row">
-                                        <div class="form-group form-group-full">
-                                            <label class="input-label">Clock Out Time <span class="required">*</span></label>
-                                            <input 
-                                                type="datetime-local" 
-                                                class="input-field" 
-                                                data-field="bulkClockOutTime"
-                                                value={bulkClockOutTime}
-                                                min={clockOutMinBoundary}
-                                                max={clockOutMaxBoundary}
-                                                onchange={handleBulkInputChange}
-                                            />
-                                        </div>
-                                    </div>
-                                    <button class="btn-danger" onclick={handleBulkClockOut} disabled={isLoading}>
-                                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="10"></circle>
-                                            <path d="M15 9l-6 6m0-6l6 6"></path>
-                                        </svg>
-                                        Clock Out Selected ({selectedClockOutCount})
-                                    </button>
-                                </div>
-                            </footer>
-                        </template>
-                    </template>
-                </template>
-            </template>
-
-            <!-- No Data Message -->
-            <template if:false={hasData}>
+        <!-- Main Content -->
+        <template if:true={hasAccess}>
+            <div class="modal-wrapper">
+                <!-- Mobilization Selection -->
                 <template if:true={hasMobilizations}>
+                    <template if:true={showMobilizationSelector}>
+                        <div class="content-section">
+                        <!-- Mobilization Date Selection -->
+                            <div class="selector-card">
+                                <label class="form-label">Select Scheduled Job</label>
+                                <lightning-combobox 
+                                    name="mobilization" 
+                                    placeholder="-- Select Scheduled Job --" 
+                                    options={mobilizationOptions} 
+                                    value={selectedMobilizationId} 
+                                    onchange={handleMobilizationChange} 
+                                    variant="label-hidden">
+                                </lightning-combobox>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+
+                <!-- No Mobilizations Message -->
+                <template if:false={hasMobilizations}>
                     <div class="no-prop">
                         <div class="empty-state">
                             <div class="empty-state__content">
                                 <div class="empty-state__icon">
                                     <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                                 </div>
-                                <div class="empty-state__message">No Members Found</div>
+                                <div class="empty-state__message">No Data to Display</div>
                                 <div class="empty-state__subtitle">{errorMessage}</div>
                             </div>
                         </div>
                     </div>
                 </template>
-            </template>
 
-            <!-- Spinner -->
-            <template if:true={isLoading}>
-                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
-            </template>
-        </div>
-    </template>
+                <!-- Main Content with Tabset -->
+                <template if:true={hasData}>
+                    <!-- Tab Navigation -->
+                    <div class="tab-navigation">
+                        <button class={clockInTabClass} onclick={handleClockInTab}>
+                            <svg class="tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
+                            </svg>
+                            Clock In
+                            <template if:true={hasClockInMembers}>
+                                <span class="tab-count">{clockInMembersCount}</span>
+                            </template>
+                        </button>
+                        <button class={clockOutTabClass} onclick={handleClockOutTab}>
+                            <svg class="tab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M15 9l-6 6m0-6l6 6"></path>
+                            </svg>
+                            Clock Out
+                            <template if:true={hasClockOutMembers}>
+                                <span class="tab-count">{clockOutMembersCount}</span>
+                            </template>
+                        </button>
+                    </div>
+
+                    <!-- Scrollable Body -->
+                    <div class="modal-body">
+                        <!-- Clock In Tab -->
+                        <template if:true={isClockInActive}>
+                            <template if:true={hasClockInMembers}>
+                                <!-- Member Cards Grid -->
+                                <div class="members-grid">
+                                    <template for:each={clockInMembers} for:item="member">
+                                        <div key={member.mobMemberId} class="member-card" data-selected={member.isSelected}>
+                                            <div class="member-card-content">
+                                                <input 
+                                                    type="checkbox" 
+                                                    class="member-checkbox"
+                                                    data-member-id={member.mobMemberId}
+                                                    checked={member.isSelected}
+                                                    onchange={handleMemberSelection}
+                                                />
+                                                <div class="member-info">
+                                                    <div class="member-name">{member.contactName}</div>
+                                                    <div class="member-crew">
+                                                        <svg class="crew-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                                            <circle cx="9" cy="7" r="4"></circle>
+                                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"></path>
+                                                        </svg>
+                                                        <span>{member.crewName}</span>
+                                                    </div>
+                                                    <div class="member-status">
+                                                        <template if:false={member.isAgain}>
+                                                            <span class="status-badge status-new">First Clock In</span>
+                                                        </template>
+                                                        <template if:true={member.isAgain}>
+                                                            <span class="status-badge status-again">Clock In Again</span>
+                                                            <template if:false={member.hasRecentTimes}>
+                                                                <template if:true={member.recentClockIn}>
+                                                                    <span class="time-info">Last: {member.recentClockIn}</span>
+                                                                </template>
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Recent Completed Session -->
+                                            <template if:true={member.hasRecentTimes}>
+                                                <div class="recent-session">
+                                                    <div class="session-label">Previous Session</div>
+                                                    <div class="session-times">
+                                                        <span class="session-in">In: {member.recentClockIn}</span>
+                                                        <span class="session-separator">→</span>
+                                                        <span class="session-out">Out: {member.recentClockOut}</span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template if:false={hasClockInMembers}>
+                                <div class="empty-section">
+                                    <div class="empty-icon">✓</div>
+                                    <div class="empty-title">All Crew Clocked In</div>
+                                    <div class="empty-text">All assigned crew members have clocked in for this job.</div>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Clock Out Tab -->
+                        <template if:true={isClockOutActive}>
+                            <template if:true={hasClockOutMembers}>
+                                <!-- Member Cards Grid -->
+                                <div class="members-grid">
+                                    <template for:each={clockOutMembers} for:item="member">
+                                        <div key={member.mobMemberId} class="member-card" data-selected={member.isSelected}>
+                                            <div class="member-card-content">
+                                                <input 
+                                                    type="checkbox" 
+                                                    class="member-checkbox"
+                                                    data-member-id={member.mobMemberId}
+                                                    checked={member.isSelected}
+                                                    onchange={handleMemberSelection}
+                                                />
+                                                <div class="member-info">
+                                                    <div class="member-name">{member.contactName}</div>
+                                                    <div class="member-crew">
+                                                        <svg class="crew-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                                            <circle cx="9" cy="7" r="4"></circle>
+                                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"></path>
+                                                        </svg>
+                                                        <span>{member.crewName}</span>
+                                                    </div>
+                                                    <div class="member-status">
+                                                        <template if:true={member.formattedClockInTime}>
+                                                            <span class="time-info">Clock In: {member.formattedClockInTime}</span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Recent Completed Session -->
+                                            <template if:true={member.hasRecentTimes}>
+                                                <div class="recent-session">
+                                                    <div class="session-label">Previous Session</div>
+                                                    <div class="session-times">
+                                                        <span class="session-in">In: {member.recentClockIn}</span>
+                                                        <span class="session-separator">→</span>
+                                                        <span class="session-out">Out: {member.recentClockOut}</span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template if:false={hasClockOutMembers}>
+                                <div class="empty-section">
+                                    <div class="empty-icon">✓</div>
+                                    <div class="empty-title">No Active Clock Ins</div>
+                                    <div class="empty-text">No crew members are currently clocked in.</div>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+
+                    <!-- Fixed Footer with Actions -->
+                    <template if:true={isClockInActive}>
+                        <template if:true={hasClockInMembers}>
+                            <template if:true={hasSelectedMembers}>
+                                <footer class="action-panel">
+                                    <div class="action-form">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label class="input-label">Cost Code <span class="required">*</span></label>
+                                                <select 
+                                                    class="input-field" 
+                                                    data-field="bulkCostCode" 
+                                                    onchange={handleBulkInputChange}>
+                                                    <option value="">-- Select --</option>
+                                                    <template for:each={costCodeOptions} for:item="costCode">
+                                                        <option key={costCode.value} value={costCode.value}>{costCode.label}</option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="input-label">Clock In Time <span class="required">*</span></label>
+                                                <input 
+                                                    type="datetime-local" 
+                                                    class="input-field" 
+                                                    data-field="bulkClockInTime"
+                                                    value={bulkClockInTime}
+                                                    min={clockInMinBoundary}
+                                                    max={clockInMaxBoundary}
+                                                    onchange={handleBulkInputChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <button class="btn-primary" onclick={handleConfirmBulkClockIn} disabled={isLoading}>
+                                            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
+                                            </svg>
+                                            Clock In Selected ({selectedClockInCount})
+                                        </button>
+                                    </div>
+                                </footer>
+                            </template>
+                        </template>
+                    </template>
+
+                    <template if:true={isClockOutActive}>
+                        <template if:true={hasClockOutMembers}>
+                            <template if:true={hasSelectedMembers}>
+                                <footer class="action-panel">
+                                    <div class="action-form">
+                                        <div class="form-row">
+                                            <div class="form-group form-group-full">
+                                                <label class="input-label">Clock Out Time <span class="required">*</span></label>
+                                                <input 
+                                                    type="datetime-local" 
+                                                    class="input-field" 
+                                                    data-field="bulkClockOutTime"
+                                                    value={bulkClockOutTime}
+                                                    min={clockOutMinBoundary}
+                                                    max={clockOutMaxBoundary}
+                                                    onchange={handleBulkInputChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <button class="btn-danger" onclick={handleBulkClockOut} disabled={isLoading}>
+                                            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <path d="M15 9l-6 6m0-6l6 6"></path>
+                                            </svg>
+                                            Clock Out Selected ({selectedClockOutCount})
+                                        </button>
+                                    </div>
+                                </footer>
+                            </template>
+                        </template>
+                    </template>
+                </template>
+
+                <!-- No Data Message -->
+                <template if:false={hasData}>
+                    <template if:true={hasMobilizations}>
+                        <div class="no-prop">
+                            <div class="empty-state">
+                                <div class="empty-state__content">
+                                    <div class="empty-state__icon">
+                                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                    </div>
+                                    <div class="empty-state__message">No Members Found</div>
+                                    <div class="empty-state__subtitle">{errorMessage}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+
+                <!-- Spinner -->
+                <template if:true={isLoading}>
+                    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+                </template>
+            </div>
+        </template>
     </div>
 </template>
