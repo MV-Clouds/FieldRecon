@@ -42,44 +42,6 @@
     width: 100%;
 }
 
-/* ===== Home Page Popup Styles (Applied via data attribute) ===== */
-.component-wrapper[data-home-page="true"] {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    padding: 1rem;
-}
-
-.component-wrapper[data-home-page="true"] .modal-wrapper {
-    background: white;
-    border-bottom-left-radius: var(--border-radius-lg);
-    border-bottom-right-radius: var(--border-radius-lg);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    width: 90%;
-    max-width: 840px;
-    max-height: calc(100vh - 20%);
-    overflow-y: auto;
-}
-
-/* ===== Spinner ===== */
-.spinner-container {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.95);
-    z-index: 9999;
-    border-radius: var(--border-radius-lg);
-}
-
 /* ===== Content Section ===== */
 .content-section {
     background: white;
@@ -168,7 +130,7 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    background: var(--gray-50);
+    /* background: var(--gray-50); */
     min-height: 0;
 }
 
@@ -195,7 +157,7 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 0.875rem;
     padding: 1rem;
-    background: var(--gray-50);
+    /* background: var(--gray-50); */
 }
 
 /* ===== Member Card ===== */
@@ -643,8 +605,6 @@
     border-radius: 1.25rem 1.25rem 0 0;
     flex-shrink: 0;
     position: relative;
-    width: 90%;
-    max-width: 840px;
 }
 
 /* Close button positioning - floats above header */
@@ -659,3 +619,14 @@
     max-width: 840px;
 }
 
+.wizard-content {
+    flex: 1;
+    overflow-y: auto;
+    /* padding: 0rem 1rem; */
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
+    /* min-height: 45vh;
+    max-height: 45vh; */
+    position: relative;
+}

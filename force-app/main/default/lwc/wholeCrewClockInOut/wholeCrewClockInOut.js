@@ -115,6 +115,29 @@ export default class WholeCrewClockInOut extends LightningElement {
         return nextDay ? `${nextDay}T23:59` : null;
     }
 
+    get isDesktopDevice() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /iphone|ipad|ipod|android|blackberry|windows phone|mobile/i.test(userAgent);
+        const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent);
+        return !isMobile && !isTablet;
+    }
+
+    get popupCSS() {
+        return this.isHomePage ? (this.isDesktopDevice ? 'slds-modal slds-fade-in-open slds-modal_medium' : 'slds-modal slds-fade-in-open slds-modal_full') : '';
+    }
+
+    get backdropCSS() {
+        return this.isHomePage ? 'slds-backdrop slds-backdrop_open sub-backdrop' : '';
+    }
+
+    get containerCSS() {
+        return this.isHomePage ? 'slds-modal__container' : '';
+    }
+
+    get subContainerCSS() {
+        return this.isHomePage ? 'slds-modal__content wizard-content' : 'wizard-content';
+    }
+
     /** 
     * Method Name: connectedCallback
     * @description: Lifecycle hook called when component is inserted into the DOM. Initiates permission check first
