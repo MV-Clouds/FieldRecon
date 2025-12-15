@@ -56,9 +56,8 @@ public with sharing class BillingDetailsPageController {
             List<wfrecon__Billing_Line_Item__c> billLineItems = [
                 SELECT Id, wfrecon__Billing__c, wfrecon__Scope_Entry__c, wfrecon__Scope_Entry__r.Name, wfrecon__Scope_Entry_Type__c, wfrecon__Scope_Contract_Amount__c,
                        Previous_Billed_Value__c, Previous_Billed_Percent__c, wfrecon__This_Billing_Percent__c, wfrecon__Total_Retainage_Amount__c,
-                       Scope_Complete__c, wfrecon__Total_Billing_Value_Retainage__c, This_Billing_Value__c,
-                       wfrecon__Due_This_Billing__c, wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
-                       wfrecon__This_Retainage_Amount__c
+                       Scope_Complete__c, wfrecon__Total_Billing_Value_Retainage__c, This_Billing_Value__c, wfrecon__This_Retainage_Amount__c,
+                       wfrecon__Due_This_Billing__c, wfrecon__Retainage_Percent_on_Bill_Line_Item__c, wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Billed_Amount__c
                 FROM wfrecon__Billing_Line_Item__c
                 WHERE wfrecon__Billing__c = :billingId
             ];

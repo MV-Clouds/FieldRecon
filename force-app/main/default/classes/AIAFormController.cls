@@ -57,9 +57,11 @@ public with sharing class AIAFormController {
                            wfrecon__Previous_Billed_Value__c,
                            wfrecon__Scope_Entry_Type__c,
                            wfrecon__This_Billing_Value__c,
+                           wfrecon__Total_Billing_Value_Retainage__c,
                            wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
                            wfrecon__This_Retainage_Amount__c,
                            wfrecon__Total_Retainage_Amount__c,
+                           wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Billed_Amount__c,
                            wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Retainage_Amount__c,
                            wfrecon__Previous_Bill_Line_Item__r.wfrecon__Retainage_Percent_on_Bill_Line_Item__c
                     FROM wfrecon__Billing_Line_Items__r)
@@ -99,16 +101,12 @@ public with sharing class AIAFormController {
         
         // Query ALL Billing Line Items for ALL billings on this Job (to get cumulative change order amounts)
         List<wfrecon__Billing_Line_Item__c> allJobBillingLines = [
-            SELECT Id,
-                   Name,
-                   wfrecon__Scope_Entry_Type__c,
-                   wfrecon__This_Billing_Value__c,
-                   wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c,
-                   wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c
+            SELECT Id, Name, wfrecon__Scope_Entry_Type__c, wfrecon__This_Billing_Value__c, wfrecon__Total_Billed_Amount__c,
+                   wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c, wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c
             FROM wfrecon__Billing_Line_Item__c
-            WHERE wfrecon__Billing__r.wfrecon__Job__c = :jobId
+            WHERE wfrecon__Billing__c = :billingRecord.Id
             AND wfrecon__Scope_Entry_Type__c = 'Change Order'
-            AND wfrecon__Scope_Entry__r.wfrecon__Approved_Date__c != null
+            AND wfrecon__Scope_Entry__r.wfrecon__Scope_Entry_Status__c = 'Approved'
         ];
         
         System.debug('Found ' + allJobBillingLines.size() + ' change order billing line items for Job: ' + jobId);
@@ -118,6 +116,7 @@ public with sharing class AIAFormController {
             String changeOrderType = '';
             Date approvedDate = null;
             Decimal thisBillingValue = line.wfrecon__This_Billing_Value__c != null ? line.wfrecon__This_Billing_Value__c : 0;
+            Decimal totalBilledAmount = line.wfrecon__Total_Billed_Amount__c != null ? line.wfrecon__Total_Billed_Amount__c : 0;
             
             if (line.wfrecon__Scope_Entry__r != null) {
                 changeOrderType = line.wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c;
@@ -129,19 +128,19 @@ public with sharing class AIAFormController {
                 isThisMonth = (approvedDate >= billingStartDate);
             }
             
-            System.debug('Billing Line: ' + line.Name + ', Type: ' + changeOrderType + ', Approved: ' + approvedDate + ', This Billing Value: ' + thisBillingValue + ', isThisMonth: ' + isThisMonth);
+            System.debug('Billing Line: ' + line.Name + ', Type: ' + changeOrderType + ', Approved: ' + approvedDate + ', This Billing Value: ' + totalBilledAmount + ', isThisMonth: ' + isThisMonth);
             
             if (changeOrderType == 'Addition') {
                 if (isThisMonth) {
-                    thisMonthAddition += thisBillingValue;
+                    thisMonthAddition += totalBilledAmount;
                 } else {
-                    previousAddition += thisBillingValue;
+                    previousAddition += totalBilledAmount;
                 }
             } else if (changeOrderType == 'Deduction') {
                 if (isThisMonth) {
-                    thisMonthDeduction += Math.abs(thisBillingValue);
+                    thisMonthDeduction += Math.abs(totalBilledAmount);
                 } else {
-                    previousDeduction += Math.abs(thisBillingValue);
+                    previousDeduction += Math.abs(totalBilledAmount);
                 }
             }
         }
@@ -155,18 +154,18 @@ public with sharing class AIAFormController {
                 String billType = billingRecord.wfrecon__Bill_Type__c;
                 
                 Decimal contractAmt = line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00;
-                Decimal prevBilledValue = line.wfrecon__Previous_Billed_Value__c != null ? line.wfrecon__Previous_Billed_Value__c : 0.00;
+                Decimal prevBilledValue = line.wfrecon__Previous_Bill_Line_Item__r != null ? line.wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Billed_Amount__c : 0.00;
                 Decimal retainagePercent = line.wfrecon__Retainage_Percent_on_Bill_Line_Item__c != null ? line.wfrecon__Retainage_Percent_on_Bill_Line_Item__c : 0.00;
                 Decimal thisRetainageAmount = line.wfrecon__This_Retainage_Amount__c != null ? line.wfrecon__This_Retainage_Amount__c : 0.00;
                 Decimal totalRetainageAmount = line.wfrecon__Total_Retainage_Amount__c != null ? line.wfrecon__Total_Retainage_Amount__c : 0.00;
                 Decimal prevTotalRetainageAmount = line.wfrecon__Previous_Bill_Line_Item__r != null ? line.wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Retainage_Amount__c : 0.00;
                 Decimal thisBillingValueDecimal = (billType == 'Regular') ? line.wfrecon__This_Billing_Value__c : prevTotalRetainageAmount;
-                String thisBillingValue = formatCurrency(thisBillingValueDecimal);
+                Decimal thisBillingValueWithRetainageDecimal = (billType == 'Regular') ? (thisBillingValueDecimal + thisRetainageAmount) : prevTotalRetainageAmount;
 
                 // Safely compute value of G
                 Decimal valueOfG = 0.00;
                 if (contractAmt != 0.00) {
-                    valueOfG = ((prevBilledValue + thisBillingValueDecimal) / contractAmt)*100;
+                    valueOfG = ((prevBilledValue + thisBillingValueWithRetainageDecimal) / contractAmt)*100;
                 }
 
                 Map<String, Object> lineMap = new Map<String, Object>{
@@ -176,10 +175,10 @@ public with sharing class AIAFormController {
                     'wfrecon__Scope_Entry__r' => line.wfrecon__Scope_Entry__r != null ? line.wfrecon__Scope_Entry__r.Name : '',
                     'wfrecon__Scope_Contract_Amount__c' => formatCurrency(contractAmt),
                     'wfrecon__Previous_Billed_Value__c' => formatCurrency(prevBilledValue),
-                    'wfrecon__This_Billing_Value__c' => thisBillingValue,
-                    'sumD_E' => formatCurrency(prevBilledValue + thisBillingValueDecimal),
+                    'wfrecon__This_Billing_Value__c' => formatCurrency(thisBillingValueWithRetainageDecimal),
+                    'sumD_E' => formatCurrency(prevBilledValue + thisBillingValueWithRetainageDecimal),
                     'vlueOf_G' => formatCurrency(valueOfG),
-                    'vlueof_H' => formatCurrency(contractAmt - (prevBilledValue + thisBillingValueDecimal)),
+                    'vlueof_H' => formatCurrency(contractAmt - (prevBilledValue + thisBillingValueWithRetainageDecimal)),
                     'wfrecon__Retainage_Percent_on_Bill_Line_Item__c' => formatCurrency(retainagePercent),
                     'wfrecon__This_Retainage_Amount__c' => formatCurrency(thisRetainageAmount),
                     'wfrecon__Total_Retainage_Amount__c' => formatCurrency(totalRetainageAmount),
@@ -194,9 +193,9 @@ public with sharing class AIAFormController {
 
                     contractSums.put('totalC', contractSums.get('totalC') + (contractAmt));
                     contractSums.put('totalD', contractSums.get('totalD') + (prevBilledValue));
-                    contractSums.put('totalE', contractSums.get('totalE') + (thisBillingValueDecimal));
-                    contractSums.put('totalF', contractSums.get('totalF') + (prevBilledValue + thisBillingValueDecimal));
-                    contractSums.put('totalH', contractSums.get('totalH') + (contractAmt - (prevBilledValue + thisBillingValueDecimal)));
+                    contractSums.put('totalE', contractSums.get('totalE') + (thisBillingValueWithRetainageDecimal));
+                    contractSums.put('totalF', contractSums.get('totalF') + (prevBilledValue + thisBillingValueWithRetainageDecimal));
+                    contractSums.put('totalH', contractSums.get('totalH') + (contractAmt - (prevBilledValue + thisBillingValueWithRetainageDecimal)));
                     contractSums.put('totalI', contractSums.get('totalI') + (thisRetainageAmount));
                     contractSums.put('totalJ', contractSums.get('totalJ') + (prevTotalRetainageAmount));
                 } 
@@ -206,9 +205,9 @@ public with sharing class AIAFormController {
 
                     contractSums.put('totalC', contractSums.get('totalC') + (contractAmt));
                     contractSums.put('totalD', contractSums.get('totalD') + (prevBilledValue));
-                    contractSums.put('totalE', contractSums.get('totalE') + (thisBillingValueDecimal));
-                    contractSums.put('totalF', contractSums.get('totalF') + (prevBilledValue + thisBillingValueDecimal));
-                    contractSums.put('totalH', contractSums.get('totalH') + (contractAmt - (prevBilledValue + thisBillingValueDecimal)));
+                    contractSums.put('totalE', contractSums.get('totalE') + (thisBillingValueWithRetainageDecimal));
+                    contractSums.put('totalF', contractSums.get('totalF') + (prevBilledValue + thisBillingValueWithRetainageDecimal));
+                    contractSums.put('totalH', contractSums.get('totalH') + (contractAmt - (prevBilledValue + thisBillingValueWithRetainageDecimal)));
                     contractSums.put('totalI', contractSums.get('totalI') + (thisRetainageAmount));
                     contractSums.put('totalJ', contractSums.get('totalJ') + (prevTotalRetainageAmount));
                 }

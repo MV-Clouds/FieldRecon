@@ -275,6 +275,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     processLineItem(item) {
         const contractValue = item.wfrecon__Scope_Contract_Amount__c || 0;
         const previousBilledAmount = item.wfrecon__Previous_Billed_Value__c || 0;
+        const previousBilledAmountWithRetainage = item?.wfrecon__Previous_Bill_Line_Item__r?.wfrecon__Total_Billed_Amount__c || 0;
         const thisBillingAmountValue = item.wfrecon__This_Billing_Value__c || 0;
         const retainagePercentValue = item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0;
         const thisRetainageAmountValue = item.wfrecon__This_Retainage_Amount__c || 0;
@@ -296,6 +297,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             contractValue: this.formatCurrency(contractValue),
             previousBilledPercent: this.formatPercent(item.wfrecon__Previous_Billed_Percent__c),
             previousBilledAmount: this.formatCurrency(previousBilledAmount),
+            previousBilledAmountWithRetainage: this.formatCurrency(previousBilledAmountWithRetainage),
             currentCompletePercent: this.formatPercent(item.wfrecon__Scope_Complete__c),
             thisBillingCompletePercent: this.formatPercent(billingPercentValue),
             totalCompleteAmount: this.formatCurrency(totalCompleteAmountValue),
@@ -315,6 +317,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             // Raw values for calculations
             rawScopeContractValue: contractValue,
             rawPreviousBilledAmount: previousBilledAmount,
+            rawPreviousBilledAmountWithRetainage: previousBilledAmountWithRetainage,
             rawTotalCompleteAmount: totalCompleteAmountValue,
             rawThisBillingAmount: thisBillingAmountValue,
             rawThisBillRetainageAmount: totalRetainageAmountValue,
@@ -352,6 +355,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         const totals = items.reduce((acc, item) => {
             acc.contractValue += item.rawScopeContractValue;
             acc.previousBilledAmount += item.rawPreviousBilledAmount;
+            acc.previousBilledAmountWithRetainage += item.rawPreviousBilledAmountWithRetainage;
             acc.totalCompleteAmount += item.rawTotalCompleteAmount;
             acc.thisBillingAmount += item.rawThisBillingAmount;
             acc.thisBillRetainageAmount += item.rawThisBillRetainageAmount;
@@ -361,6 +365,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         }, {
             contractValue: 0,
             previousBilledAmount: 0,
+            previousBilledAmountWithRetainage: 0,
             totalCompleteAmount: 0,
             thisBillingAmount: 0,
             thisBillRetainageAmount: 0,
@@ -372,6 +377,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return {
             contractValue: this.formatCurrency(totals.contractValue),
             previousBilledAmount: this.formatCurrency(totals.previousBilledAmount),
+            previousBilledAmountWithRetainage: this.formatCurrency(totals.previousBilledAmountWithRetainage),
             totalCompleteAmount: this.formatCurrency(totals.totalCompleteAmount),
             thisBillingAmount: this.formatCurrency(totals.thisBillingAmount),
             thisBillRetainageAmount: this.formatCurrency(totals.thisBillRetainageAmount),
@@ -820,6 +826,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     getItemBaseline(item) {
         const contractValue = item.rawScopeContractValue || 0;
         const previousBilledAmount = item.rawPreviousBilledAmount || 0;
+        const previousBilledAmountWithRetainage = item.rawPreviousBilledAmountWithRetainage || 0;
         const previousRetainage = item.baseRetainageBeforeCurrent != null
             ? item.baseRetainageBeforeCurrent
             : Math.max(0, (item.rawThisBillRetainageAmount || 0) - (item.rawRetainageAmount || 0));
@@ -831,6 +838,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return {
             contractValue,
             previousBilledAmount,
+            previousBilledAmountWithRetainage,
             previousRetainage,
             minPercent: Math.max(item.rawPreviousBilledPercent || 0, item.rawCurrentCompletePercent || 0)
         };
