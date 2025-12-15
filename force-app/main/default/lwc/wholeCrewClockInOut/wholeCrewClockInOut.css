@@ -620,7 +620,7 @@
 }
 
 .wizard-content {
-    flex: 1;
+    /* flex: 1; */
     overflow-y: auto;
     /* padding: 0rem 1rem; */
     background-image: url('/resource/wfrecon__FieldReconBG');

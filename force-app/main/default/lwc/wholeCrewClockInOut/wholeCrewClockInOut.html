@@ -12,7 +12,6 @@
             </template>
 
             <div class={subContainerCSS}>
-
                 <!-- Access Denied -->
                 <template if:false={hasAccess}>
                     <div class="modal-wrapper">
@@ -55,21 +54,6 @@
                                     </div>
                                 </div>
                             </template>
-                        </template>
-
-                        <!-- No Mobilizations Message -->
-                        <template if:false={hasMobilizations}>
-                            <div class="no-prop">
-                                <div class="empty-state">
-                                    <div class="empty-state__content">
-                                        <div class="empty-state__icon">
-                                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
-                                        </div>
-                                        <div class="empty-state__message">No Data to Display</div>
-                                        <div class="empty-state__subtitle">{errorMessage}</div>
-                                    </div>
-                                </div>
-                            </div>
                         </template>
 
                         <!-- Main Content with Tabset -->
