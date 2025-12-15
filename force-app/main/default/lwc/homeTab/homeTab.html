@@ -43,62 +43,64 @@
                             <template if:true={isTodayTabActive}>
                                 <div class="tab-panel">
                                     <template if:true={isTodayJobAvailable}>
-                                        <div class="job-card">
-                                            <template for:each={todayJobList} for:item="job" for:index="index">
-                                                <div key={job.mobId} class="job-entry">
-                                                    <!-- Left Side -->
-                                                    <div class="job-left">
-                                                        <div class="job-header">
+                                        <div class="cards-list-container">
+                                            <template for:each={todayJobList} for:item="job">
+                                                <div key={job.mobId} class="custom-job-card">
+                                                    <div class="card-header">
+                                                        <div class="header-info">
                                                             <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
-                                                                <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                                <h3 class="job-title">{job.jobName}</h3>
+                                                                <span class="job-number">#{job.jobNumber}</span>
                                                             </a>
-                                                            <div class="job-actions-inline">
-                                                                <template if:true={job.isClockedIn}>
-                                                                    <button class="clock-in-button" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
-                                                                </template>
-                                                                <template if:false={job.isClockedIn}>
-                                                                    <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
-                                                                </template>
-                                                            </div>
                                                         </div>
-                                                        
-                                                        <div class="job-description-text">
-                                                            <span class="label">Description: </span> 
+                                                        <div class="header-actions">
+                                                            <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">
+                                                                <lightning-icon icon-name="utility:checkin" size="x-small" class="btn-icon"></lightning-icon>
+                                                                Maps
+                                                            </button>
+                                                            <template if:true={job.isClockedIn}>
+                                                                <button class="action-btn clock-out-btn" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
+                                                            </template>
+                                                            <template if:false={job.isClockedIn}>
+                                                                <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="card-body">
+                                                        <div class="description-section">
+                                                            <span class="label">Description:</span> 
                                                             <span class={job.descriptionClass} data-full-text={job.jobDescription}>
                                                                 {job.displayDescription}
                                                             </span>
                                                             <template if:true={job.showReadMore}>
-                                                                <button class="read-more-btn" data-id={job.mobId} onclick={handleToggleDescription}>
+                                                                <button class="read-more-link" data-id={job.mobId} onclick={handleToggleDescription}>
                                                                     {job.readMoreText}
                                                                 </button>
                                                             </template>
                                                         </div>
 
-                                                        <div class="job-time">
-                                                            <p class="job-start-time">
-                                                                <span class="label">Start:</span> {job.jobStartTime} 
-                                                            </p>
-                                                            <p class="job-end-time">
-                                                                <span class="label">End:</span> {job.jobEndTime}
-                                                            </p>
+                                                        <div class="info-grid">
+                                                            <div class="info-item">
+                                                                <span class="label">Job Start Date:</span>
+                                                                <span class="value">{job.jobStartTime}</span>
+                                                            </div>
+                                                            <div class="info-item">
+                                                                <span class="label">Job End Date:</span>
+                                                                <span class="value">{job.jobEndTime}</span>
+                                                            </div>
                                                         </div>
 
-                                                        <p><span class="label">Location:</span> {job.jobAddress}</p>
+                                                        <div class="location-section">
+                                                            <lightning-icon icon-name="utility:location" size="xx-small" class="loc-icon"></lightning-icon>
+                                                            <span class="value">{job.jobAddress}</span>
+                                                        </div>
 
                                                         <template if:true={job.isAgain}>
-                                                            <div class="info-message info-style">
-                                                                You already logged one entry for the day.
+                                                            <div class="info-message warning">
+                                                                Entry already logged for this job today.
                                                             </div>
                                                         </template>
-                                                    </div>
-
-                                                    <div class="separator"></div>
-                                                        
-                                                    <!-- Right Side -->
-                                                    <div class="job-right">
-                                                        <p class="location-title">Location</p>
-                                                        <lightning-map map-markers={job.mapMarkers} zoom-level="15" class="map-container"></lightning-map>
-                                                        <button class="clock-in-button" data-id={job.mobId} onclick={handleOpenInMaps}>Open in Maps</button>
                                                     </div>
                                                 </div>
                                             </template>
@@ -112,55 +114,59 @@
     
                             <template if:true={isWeekTabActive}>
                                 <div class="tab-panel">
-                                    <div class="week-accordian-container">
+                                    <div class="week-accordion-container">
                                         <lightning-accordion allow-multiple-sections-open>
                                             <template for:each={weekJobList} for:item="daySection">
                                                 <lightning-accordion-section key={daySection.id} label={daySection.label}>
                                                     <template if:true={daySection.jobs.length}>
-                                                        <div class="weekly-job-cards">
-                                                            <div class="job-card">
-                                                                <template for:each={daySection.jobs} for:item="job">
-                                                                    <div key={job.mobId} class="job-entry">
-                                                                        <!-- Left Side -->
-                                                                        <div class="job-left">
+                                                        <div class="cards-list-container">
+                                                            <template for:each={daySection.jobs} for:item="job">
+                                                                <div key={job.mobId} class="custom-job-card">
+                                                                    <div class="card-header">
+                                                                        <div class="header-info">
                                                                             <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
-                                                                                <h3 class="job-title">{job.jobName} ({job.jobNumber})</h3>
+                                                                                <h3 class="job-title">{job.jobName}</h3>
+                                                                                <span class="job-number">#{job.jobNumber}</span>
                                                                             </a>
-                                                                            <div class="job-description-text">
-                                                                                <span class="label">Description:</span> 
-                                                                                <span class={job.descriptionClass} data-full-text={job.jobDescription}>
-                                                                                    {job.displayDescription}
-                                                                                </span>
-                                                                                <template if:true={job.showReadMore}>
-                                                                                    <button class="read-more-btn" data-id={job.mobId} onclick={handleToggleDescription}>
-                                                                                        {job.readMoreText}
-                                                                                    </button>
-                                                                                </template>
-                                                                            </div>
-        
-                                                                            <div class="job-time">
-                                                                                <p class="job-start-time">
-                                                                                    <span class="label">Start:</span> {job.jobStartTime} 
-                                                                                </p>
-                                                                                <p class="job-end-time">
-                                                                                    <span class="label">End:</span> {job.jobEndTime}
-                                                                                </p>
-                                                                            </div>
-        
-                                                                            <p><span class="label">Location:</span> {job.jobAddress}</p>
                                                                         </div>
-        
-                                                                        <div class="separator"></div>
-        
-                                                                        <!-- Right Side -->
-                                                                        <div class="job-right">
-                                                                            <p class="location-title">Location</p>
-                                                                            <lightning-map map-markers={job.mapMarkers} zoom-level="15" class="map-container"></lightning-map>
-                                                                            <button class="clock-in-button" data-id={job.mobId} onclick={handleOpenInMaps}>Open in Maps</button>
+                                                                        <div class="header-actions">
+                                                                            <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">
+                                                                                <lightning-icon icon-name="utility:checkin" size="x-small" class="btn-icon"></lightning-icon> Maps
+                                                                            </button>
                                                                         </div>
                                                                     </div>
-                                                                </template>
-                                                            </div>
+                                                                    
+                                                                    <div class="card-body">
+                                                                        <div class="description-section">
+                                                                            <span class="label">Description:</span> 
+                                                                            <span class={job.descriptionClass} data-full-text={job.jobDescription}>
+                                                                                {job.displayDescription}
+                                                                            </span>
+                                                                            <template if:true={job.showReadMore}>
+                                                                                <button class="read-more-link" data-id={job.mobId} onclick={handleToggleDescription}>
+                                                                                    {job.readMoreText}
+                                                                                </button>
+                                                                            </template>
+                                                                        </div>
+
+                                                                        <div class="info-grid">
+                                                                            <div class="info-item">
+                                                                                <span class="label">Start:</span>
+                                                                                <span class="value">{job.jobStartTime}</span>
+                                                                            </div>
+                                                                            <div class="info-item">
+                                                                                <span class="label">End:</span>
+                                                                                <span class="value">{job.jobEndTime}</span>
+                                                                            </div>
+                                                                        </div>
+                
+                                                                        <div class="location-section">
+                                                                            <lightning-icon icon-name="utility:location" size="xx-small" class="loc-icon"></lightning-icon>
+                                                                            <span class="value">{job.jobAddress}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
                                                         </div>
                                                     </template>
                                                     <template if:false={daySection.jobs.length}>
@@ -175,6 +181,7 @@
                         </div>
                     </div>
                 </lightning-accordion-section>
+                
                 <lightning-accordion-section name="timesheetDetails" label="Current Week's Timesheet Details">
                     <div class="timesheet-details">
                         <template if:true={timesheetDetailsRaw.length}>
@@ -198,32 +205,25 @@
                                     <div class="summary-card-subtitle"></div>
                                 </div>
                             </div>
-                            <div class="table-content timesheet-table">
-                                <table class="slds-table">
-                                    <thead>
-                                        <tr>
-                                            <template for:each={timesheetColumns} for:item="col">
-                                                <th key={col.fieldName} scope="col" style={col.style}>
-                                                    <div class="slds-truncate" title={col.label}>{col.label}</div>
-                                                </th>
-                                            </template>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template for:each={timesheetDetails} for:item="timesheet" for:index="index">
-                                            <tr key={timesheet.id}>
-                                                <template for:each={timesheet.values} for:item="val">
-                                                    <td key={val} style={val.style}>
-                                                        <div class="slds-truncate cell-wrapper" title={val.value}>
-                                                            <template if:true={val.isActions}>
-                                                                <div class="action-button-container">
-                                                                    <div class="timesheet-icon">
-                                                                        <lightning-button-icon icon-name="utility:edit" alternative-text="Edit Action" variant="bare" data-id={timesheet.id} onclick={handleEditTimesheetClick}></lightning-button-icon>
-                                                                    </div>
-                                                                </div>
-                                                            </template>
-
-                                                            <template if:false={val.isActions}>
+                            
+                            <template if:false={isMobileDevice}>
+                                <div class="table-content timesheet-table">
+                                    <table class="slds-table">
+                                        <thead>
+                                            <tr>
+                                                <template for:each={timesheetColumns} for:item="col">
+                                                    <th key={col.fieldName} scope="col" style={col.style}>
+                                                        <div class="slds-truncate" title={col.label}>{col.label}</div>
+                                                    </th>
+                                                </template>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={timesheetDetails} for:item="timesheet" for:index="index">
+                                                <tr key={timesheet.id}>
+                                                    <template for:each={timesheet.values} for:item="val">
+                                                        <td key={val} style={val.style}>
+                                                            <div class="slds-truncate cell-wrapper" title={val.value}>
                                                                 <template if:true={val.recordLink}>
                                                                     <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={timesheet.jobId}>
                                                                         <div class="cell-content" title={val.value}>
@@ -236,16 +236,51 @@
                                                                         {val.value}
                                                                     </div>
                                                                 </template>
-                                                            </template>
+                                                            </div>
+                                                        </td>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+
+                            <template if:true={isMobileDevice}>
+                                <div class="mobile-timesheet-container">
+                                    <lightning-accordion allow-multiple-sections-open>
+                                        <template for:each={dailyTimesheetSummary} for:item="day">
+                                            <lightning-accordion-section key={day.date} label={day.label} class="mobile-timesheet-section">
+                                                
+                                                <div class="ts-entries-list">
+                                                    <template for:each={day.entries} for:item="entry">
+                                                        <div key={entry.id} class="summary-card">
+                                                            <div class="ts-card-header">
+                                                                <div class="ts-job-name">{entry.jobName}</div>
+                                                                <div class="ts-job-num">#{entry.jobNumber}</div>
+                                                            </div>
+                                                            <div class="ts-card-body">
+                                                                <div class="ts-stat">
+                                                                    <span class="ts-label">Work</span>
+                                                                    <span class="ts-val">{entry.workHours}</span>
+                                                                </div>
+                                                                <div class="ts-stat">
+                                                                    <span class="ts-label">Travel</span>
+                                                                    <span class="ts-val">{entry.travelTime}</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </td>
-                                                </template>
-                                            </tr>
+                                                    </template>
+                                                </div>
+
+                                            </lightning-accordion-section>
                                         </template>
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </lightning-accordion>
+                                </div>
+                            </template>
+
                         </template>
+
                         <template if:false={timesheetDetailsRaw.length}>
                             <div class="no-records-message">
                                 <div class="empty-state">
