@@ -237,7 +237,8 @@ export default class WholeCrewClockInOut extends LightningElement {
             if (result.hasMembers) {
                 this.hasData = true;
                 this.clockInMembers = (result.clockInMembers || []).map(member => {
-                    const hasRecentTimes = member.isAgain && (member.recentClockIn || member.recentClockOut);
+                    // Only show recent times if both clock in and clock out exist (completed session)
+                    const hasRecentTimes = member.isAgain && member.recentClockIn && member.recentClockOut;
                     return {
                         ...member,
                         isSelected: false,
@@ -249,7 +250,8 @@ export default class WholeCrewClockInOut extends LightningElement {
                 
                 // Format clockInTime for display in clockOutMembers with AM/PM
                 this.clockOutMembers = (result.clockOutMembers || []).map(member => {
-                    const hasRecentTimes = member.recentClockIn || member.recentClockOut;
+                    // Only show recent times if both clock in and clock out exist (completed session)
+                    const hasRecentTimes = member.recentClockIn && member.recentClockOut;
                     return {
                         ...member,
                         formattedClockInTime: member.clockInTime ? this.formatToAMPM(member.clockInTime) : '',
@@ -287,38 +289,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             this.showToast('Error', this.errorMessage, 'error');
         } finally {
             this.isLoading = false;
-        }
-    }
-
-    /** 
-    * Method Name: handleSelectAll
-    * @description: Selects or deselects all members in the active tab
-    */
-    handleSelectAll(event) {
-        const isChecked = event.target.checked;
-        const currentList = this.isClockInActive ? this.clockInMembers : this.clockOutMembers;
-        
-        if (isChecked) {
-            // Add all current tab members to selection
-            currentList.forEach(member => {
-                this.selectedMemberIds.add(member.mobMemberId);
-                member.isSelected = true;
-            });
-        } else {
-            // Remove all current tab members from selection
-            currentList.forEach(member => {
-                this.selectedMemberIds.delete(member.mobMemberId);
-                member.isSelected = false;
-            });
-        }
-        
-        // Force reactivity
-        this.selectedMemberIds = new Set(this.selectedMemberIds);
-        
-        if (this.isClockInActive) {
-            this.clockInMembers = [...this.clockInMembers];
-        } else {
-            this.clockOutMembers = [...this.clockOutMembers];
         }
     }
 
@@ -583,9 +553,8 @@ export default class WholeCrewClockInOut extends LightningElement {
                 // Reset form
                 this.selectedBulkCostCodeId = '';
                 this.selectedMemberIds = new Set();
-                // Reload members and switch to clock out tab
+                // Reload members
                 await this.loadMembers();
-                this.activeTab = 'clockout';
             } else {
                 this.showToast('Error', clockInResult.message || 'Failed to clock in', 'error');
             }
@@ -662,9 +631,8 @@ export default class WholeCrewClockInOut extends LightningElement {
             if (result.success) {
                 this.showToast('Success', 'Successfully clocked out ' + members.length + ' member(s)', 'success');
                 this.selectedMemberIds = new Set();
-                // Reload members and switch back to clock in tab
+                // Reload members
                 await this.loadMembers();
-                this.activeTab = 'clockin';
             } else {
                 this.showToast('Error', result.message || 'Failed to clock out', 'error');
             }

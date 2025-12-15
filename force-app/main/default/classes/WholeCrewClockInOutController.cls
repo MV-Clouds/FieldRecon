@@ -56,6 +56,146 @@ public with sharing class WholeCrewClockInOutController {
     }
     
     /**
+     * Get mobilization members with clock in/out status - shows only completed sessions in recent times
+     */
+    private static Map<String, List<JobDetailsPageController.WrapperMember>> getMobilizationMembersWithCompletedSessions(String mobId) {
+        Map<String, List<JobDetailsPageController.WrapperMember>> result = new Map<String, List<JobDetailsPageController.WrapperMember>>();
+        result.put('clockIn', new List<JobDetailsPageController.WrapperMember>());
+        result.put('clockOut', new List<JobDetailsPageController.WrapperMember>());
+        
+        // Query mobilization members
+        List<wfrecon__Mobilization_Member__c> mobMembers = [
+            SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Mobilization__c 
+            FROM wfrecon__Mobilization_Member__c 
+            WHERE wfrecon__Mobilization__c = :mobId 
+            WITH USER_MODE
+        ];
+        
+        if (mobMembers.isEmpty()) {
+            return result;
+        }
+        
+        Set<Id> contactIds = new Set<Id>();
+        for (wfrecon__Mobilization_Member__c mm : mobMembers) {
+            contactIds.add(mm.wfrecon__Contact__c);
+        }
+        
+        // Query timesheets
+        Map<Id, wfrecon__Timesheet__c> contactToTimesheetMap = new Map<Id, wfrecon__Timesheet__c>();
+        for (wfrecon__Timesheet__c ts : [
+            SELECT Id, wfrecon__Contact__c 
+            FROM wfrecon__Timesheet__c 
+            WHERE wfrecon__Contact__c IN :contactIds 
+            WITH USER_MODE
+        ]) {
+            contactToTimesheetMap.put(ts.wfrecon__Contact__c, ts);
+        }
+        
+        // Query all timesheet entries for these contacts
+        Map<Id, List<wfrecon__Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<wfrecon__Timesheet_Entry__c>>();
+        for (wfrecon__Timesheet_Entry__c entry : [
+            SELECT Id, wfrecon__Timesheet__c, wfrecon__Timesheet__r.wfrecon__Contact__c,
+                   wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c 
+            FROM wfrecon__Timesheet_Entry__c 
+            WHERE wfrecon__Timesheet__r.wfrecon__Contact__c IN :contactIds 
+            WITH USER_MODE 
+            ORDER BY CreatedDate DESC
+        ]) {
+            Id contactId = entry.wfrecon__Timesheet__r.wfrecon__Contact__c;
+            if (!contactEntriesMap.containsKey(contactId)) {
+                contactEntriesMap.put(contactId, new List<wfrecon__Timesheet_Entry__c>());
+            }
+            contactEntriesMap.get(contactId).add(entry);
+        }
+        
+        // Process each mobilization member
+        for (wfrecon__Mobilization_Member__c m : mobMembers) {
+            JobDetailsPageController.WrapperMember wrap = new JobDetailsPageController.WrapperMember();
+            wrap.mobMemberId = m.Id;
+            wrap.contactId = m.wfrecon__Contact__c;
+            wrap.contactName = m.wfrecon__Contact__r.Name;
+            
+            wfrecon__Timesheet__c ts = contactToTimesheetMap.get(m.wfrecon__Contact__c);
+            List<wfrecon__Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.wfrecon__Contact__c);
+            
+            if (ts == null) {
+                wrap.isTimesheetNull = true;
+                wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = false;
+                result.get('clockIn').add(wrap);
+                continue;
+            }
+            
+            if (userEntries == null || userEntries.isEmpty()) {
+                wrap.timesheetId = ts.Id;
+                wrap.isTimeSheetNull = false;
+                wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = false;
+                result.get('clockIn').add(wrap);
+                continue;
+            }
+            
+            Boolean hasOpenEntry = false;
+            Boolean hasCompletedEntry = false;
+            wfrecon__Timesheet_Entry__c latestOpen;
+            wfrecon__Timesheet_Entry__c latestCompleted;
+            DateTime mostRecentCompletedClockIn;
+            DateTime mostRecentCompletedClockOut;
+            
+            for (wfrecon__Timesheet_Entry__c e : userEntries) {
+                // Track most recent completed session (both clock in and out)
+                if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) {
+                    if (mostRecentCompletedClockIn == null || e.wfrecon__Clock_In_Time__c > mostRecentCompletedClockIn) {
+                        mostRecentCompletedClockIn = e.wfrecon__Clock_In_Time__c;
+                        mostRecentCompletedClockOut = e.wfrecon__Clock_Out_Time__c;
+                    }
+                }
+                
+                if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) {
+                    hasOpenEntry = true;
+                    latestOpen = e;
+                } else if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) {
+                    hasCompletedEntry = true;
+                    latestCompleted = e;
+                } else if (e.wfrecon__Clock_In_Time__c == null && e.wfrecon__Clock_Out_Time__c != null) {
+                    hasOpenEntry = true;
+                    latestOpen = e;
+                }
+            }
+            
+            if (hasOpenEntry) {
+                wrap.timesheetId = ts.Id;
+                wrap.isTimeSheetNull = false;
+                wrap.isTimeSheetEntryNull = false;
+                wrap.timesheetEntryId = latestOpen.Id;
+                wrap.clockInTime = (latestOpen.wfrecon__Clock_In_Time__c != null)
+                    ? latestOpen.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.wfrecon__Clock_In_Time__c)/1000)
+                    : null;
+                wrap.isAgain = false;
+                wrap.recentClockIn = mostRecentCompletedClockIn != null ? mostRecentCompletedClockIn.addSeconds(userTz.getOffset(mostRecentCompletedClockIn)/1000) : null;
+                wrap.recentClockOut = mostRecentCompletedClockOut != null ? mostRecentCompletedClockOut.addSeconds(userTz.getOffset(mostRecentCompletedClockOut)/1000) : null;
+                result.get('clockOut').add(wrap);
+            } else if (hasCompletedEntry) {
+                wrap.timesheetId = ts.Id;
+                wrap.isTimeSheetNull = false;
+                wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = true;
+                wrap.recentClockIn = mostRecentCompletedClockIn != null ? mostRecentCompletedClockIn.addSeconds(userTz.getOffset(mostRecentCompletedClockIn)/1000) : null;
+                wrap.recentClockOut = mostRecentCompletedClockOut != null ? mostRecentCompletedClockOut.addSeconds(userTz.getOffset(mostRecentCompletedClockOut)/1000) : null;
+                result.get('clockIn').add(wrap);
+            } else {
+                wrap.timesheetId = ts.Id;
+                wrap.isTimeSheetNull = false;
+                wrap.isTimesheetEntryNull = true;
+                wrap.isAgain = false;
+                result.get('clockIn').add(wrap);
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
      * Get mobilization members with clock in/out status for whole crew selection
      */
     @AuraEnabled
@@ -79,7 +219,7 @@ public with sharing class WholeCrewClockInOutController {
             }
             
             Map<String, List<JobDetailsPageController.WrapperMember>> membersWithStatus = 
-                JobDetailsPageController.getMobilizationMembersWithStatus(mobId);
+                getMobilizationMembersWithCompletedSessions(mobId);
             
             List<JobDetailsPageController.WrapperMember> allClockInMembers = membersWithStatus.get('clockIn');
             List<JobDetailsPageController.WrapperMember> allClockOutMembers = membersWithStatus.get('clockOut');
