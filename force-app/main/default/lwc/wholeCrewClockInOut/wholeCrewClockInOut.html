@@ -1,6 +1,21 @@
 <template>
-    <!-- Access Denied -->
-    <template if:false={hasAccess}>
+    <div class="component-wrapper" data-home-page={isHomePage}>
+        <!-- Header with Close Icon (Only for Home Page) -->
+        <template if:true={isHomePage}>
+            <div class="popup-header">
+                <h2 class="popup-title">Whole Crew Clock In/Out</h2>
+                <button class="close-btn" onclick={handleClosePopup} aria-label="Close">
+                    <svg class="close-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </template>
+
+        <!-- Main Content -->
+        <!-- Access Denied -->
+        <template if:false={hasAccess}>
         <div class="modal-wrapper">
             <div class="no-prop">
                 <div class="empty-state">
@@ -308,4 +323,5 @@
             </template>
         </div>
     </template>
+    </div>
 </template>

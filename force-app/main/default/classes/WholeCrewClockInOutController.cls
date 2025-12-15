@@ -273,12 +273,19 @@ public with sharing class WholeCrewClockInOutController {
             DateTime jobStartWithTz = mobilizationRecord[0].wfrecon__Start_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].wfrecon__Start_Date__c)/1000);
             DateTime jobEndWithTz = mobilizationRecord[0].wfrecon__End_Date__c.addSeconds(userTz.getOffset(mobilizationRecord[0].wfrecon__End_Date__c)/1000);
             
-            response.put('hasMembers', true);
+            // Check if there are actually any members in either list
+            Boolean hasMembersInLists = (!clockInMembers.isEmpty() || !clockOutMembers.isEmpty());
+            
+            response.put('hasMembers', hasMembersInLists);
             response.put('clockInMembers', clockInMembers);
             response.put('clockOutMembers', clockOutMembers);
             response.put('costCodes', costCodeList);
             response.put('jobStartDateTime', jobStartWithTz);
             response.put('jobEndDateTime', jobEndWithTz);
+            
+            if (!hasMembersInLists) {
+                response.put('message', 'No crew members found for this mobilization. Please ensure crew members are assigned.');
+            }
             
         } catch (Exception e) {
             response.put('hasMembers', false);

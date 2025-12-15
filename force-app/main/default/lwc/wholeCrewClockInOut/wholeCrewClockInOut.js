@@ -1,5 +1,4 @@
-import { LightningElement, api, track, wire } from 'lwc';
-import { CurrentPageReference } from 'lightning/navigation';
+import { LightningElement, api, track } from 'lwc';
 import getMobilizationsForJob from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationsForJob';
 import getMobilizationMembersForSelection from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationMembersForSelection';
 import bulkClockInOut from '@salesforce/apex/WholeCrewClockInOutController.bulkClockInOut';
@@ -8,7 +7,8 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
 
 export default class WholeCrewClockInOut extends LightningElement {
-    @track recordId; // Job Id from quick action context
+    @api recordId; // Job Id passed from Aura wrapper
+    @api isHomePage = false; // Flag to indicate if component is on home page
     @track isLoading = false;
     @track hasAccess = false;
     @track accessErrorMessage = '';
@@ -113,21 +113,6 @@ export default class WholeCrewClockInOut extends LightningElement {
         if (!dateKey) return null;
         const nextDay = this.addDaysToDateKey(dateKey, 1);
         return nextDay ? `${nextDay}T23:59` : null;
-    }
-
-    /** 
-    * Method Name: setCurrentPageReference
-    * @description: Wire method to set the current page reference and extract recordId from page state
-    */
-    @wire(CurrentPageReference)
-    setCurrentPageReference(pageRef) {
-        try {
-            console.log(pageRef);
-            this.recordId = pageRef.attributes.recordId || pageRef.state.recordId || this.recordId;
-            console.log(this.recordId);
-        } catch (error) {
-            console.error('Error in setCurrentPageReference:', error);
-        }
     }
 
     /** 
@@ -685,6 +670,19 @@ export default class WholeCrewClockInOut extends LightningElement {
             this.dispatchEvent(new CloseActionScreenEvent());
         } catch (error) {
             console.error('Error in handleClose:', error);
+        }
+    }
+
+    /** 
+    * Method Name: handleClosePopup
+    * @description: Dispatches custom event to parent component to close the popup (for home page)
+    */
+    handleClosePopup() {
+        try {
+            const closeEvent = new CustomEvent('closepopup');
+            this.dispatchEvent(closeEvent);
+        } catch (error) {
+            console.error('Error in handleClosePopup:', error);
         }
     }
 
