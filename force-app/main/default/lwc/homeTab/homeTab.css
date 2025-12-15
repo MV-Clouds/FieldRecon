@@ -229,7 +229,7 @@
 /* Job Card */
 .job-card {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     padding: 0.5rem;
     width: 100%;
@@ -238,7 +238,7 @@
 
 /* Single card - full width */
 .job-card:has(.job-entry:only-child) {
-    grid-template-columns: 1fr;
+    grid-template-columns: 3fr;
     max-width: 90%;
     margin: 0 auto;
 }
@@ -383,7 +383,11 @@
 /* Tablet Responsive */
 @media screen and (max-width: 1024px) {
     .job-card {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .custom-job-container {
+        grid-template-columns: repeat(2, 1fr);
     }
     
     .job-card:has(.job-entry:only-child) {
@@ -861,7 +865,7 @@
 
 .cards-list-container {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     padding: 0.5rem;
     width: 100%;
@@ -998,7 +1002,6 @@
 .info-item .label {
     font-size: 0.75rem;
     color: #777;
-    text-transform: uppercase;
     font-weight: 600;
 }
 
@@ -1044,8 +1047,8 @@
     padding: 0.5rem;
     background: #f8f9fb;
     border-radius: 0 0 6px 6px;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
 }
 
@@ -1145,5 +1148,13 @@
 
     .summary-card-subtitle {
         font-size: 0.65rem;
+    }
+
+    .cards-list-container{
+        grid-template-columns: 1fr;
+    }
+
+    .ts-entries-list{
+        grid-template-columns: 1fr;
     }
 }
