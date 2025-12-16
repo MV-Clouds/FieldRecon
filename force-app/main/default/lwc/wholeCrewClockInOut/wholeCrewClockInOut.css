@@ -623,3 +623,9 @@
     background-size: cover;
     position: relative;
 }
+
+.input-disabled{
+    cursor: not-allowed;
+    pointer-events: all !important;
+    background: #dad4d4;
+}
