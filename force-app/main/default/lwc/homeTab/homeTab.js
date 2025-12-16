@@ -32,6 +32,26 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     @track timesheetDetailsRaw = [];
     @track currentModalJobStartDateTime;
     @track currentModalJobEndDateTime;
+    @track groupedTimesheets = [];
+
+    // Main Table Columns (Desktop)
+    mainTableColumns = [
+        { label: '', fieldName: 'action', style: 'width: 4rem;' }, // Expand Button
+        { label: 'Date', fieldName: 'dateLabel', style: '' },
+        { label: 'Job Names', fieldName: 'jobNames', style: '' },
+        { label: 'Total Work Hours', fieldName: 'totalHours', style: '' },
+        { label: 'Total Travel Hours', fieldName: 'totalTravelHours', style: '' }
+    ];
+
+    // Sub Table Columns (Desktop)
+    subTableColumns = [
+        { label: 'Job Name', fieldName: 'jobName', style: 'width: 20%'  },
+        { label: 'Clock In Time', fieldName: 'clockInTime' , style: 'width: 20%' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime' , style: 'width: 20%' },
+        { label: 'Work Hours', fieldName: 'workHours' , style: 'width: 20%' },
+        { label: 'Travel Hours', fieldName: 'travelTime' , style: 'width: 20%' }
+    ];
+
     @track currentDisplayTime;
     @track currentDateTimeForApex;
     @track timeUpdateInterval;
@@ -49,8 +69,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
 
     get apexFormattedDate() {
         const start = this.normalizeDate(new Date(this.selectedDate));
-        let currentDate = start.toLocaleDateString('en-CA');
-        return currentDate;
+        return start.toLocaleDateString('en-CA');;
     }
 
     get isTodayTabActive() {
@@ -110,18 +129,11 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                             }
                         }
 
-                        // Format dates nicely
+                        // Format dates nicely for the table
                         if (col.fieldName === 'clockInTime' || col.fieldName === 'clockOutTime') {
                             cell.value = this.formatToAMPM(cell.value);
                         }
 
-                        // Sum travelTime and totalTime dynamically based on column name
-                        if (col.fieldName === 'travelTime' && ts[col.fieldName]) {
-                            this.currentWeekTravelTime += cell.value;
-                        }
-                        if (col.fieldName === 'workHours' && ts[col.fieldName]) {
-                            this.currentTotalWorkHours += cell.value;
-                        }
 
                         return cell;
                     })
@@ -135,10 +147,63 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         }
     }
 
-    /** 
-    * Method Name: connectedCallback 
-    * @description: Initializes component state, detects if the user is on a mobile device, and triggers fetching of mobilization members and timesheet details.
-    */
+    /**
+     * Method Name: dailyTimesheetSummary
+     * @description: Groups timesheet data by day for Mobile Card View.
+     */
+    get dailyTimesheetSummary() {
+        if (!this.timesheetDetailsRaw || this.timesheetDetailsRaw.length === 0) {
+            return [];
+        }
+
+        const groups = {};
+
+        this.timesheetDetailsRaw.forEach(entry => {
+            // Group by Date (Assume clockInTime exists and is ISO)
+            let dateKey = 'Unknown Date';
+            let displayDate = 'Unknown Date';
+
+            if (entry.clockInTime) {
+                // Extract YYYY-MM-DD
+                dateKey = entry.clockInTime.split('T')[0];
+                const dateObj = new Date(dateKey);
+                // Format: Monday, Oct 6
+                displayDate = this.formatDateLabel(dateObj);
+            }
+
+            if (!groups[dateKey]) {
+                groups[dateKey] = {
+                    date: dateKey,
+                    labelDate: displayDate,
+                    totalHours: 0,
+                    entries: []
+                };
+            }
+
+            // Sum up total time (Work + Travel) for the daily summary header
+            const work = entry.workHours || 0;
+            const travel = entry.travelTime || 0;
+            groups[dateKey].totalHours += (work + travel);
+
+            groups[dateKey].entries.push({
+                id: entry.id,
+                jobName: entry.jobName || 'Unknown Job',
+                jobNumber: entry.jobNumber || '--',
+                workHours: work ? work.toFixed(2) + ' Hrs' : '0 Hrs',
+                travelTime: travel ? travel.toFixed(2) + ' Hrs' : '0 Hrs'
+            });
+        });
+
+        // Convert object to array and format the label
+        return Object.values(groups).map(day => {
+            return {
+                ...day,
+                // Label format: "Monday, Oct 6: 8.5 Hours"
+                label: `${day.labelDate} | Total Hours: ${day.totalHours.toFixed(2)} Hours`
+            };
+        }).sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
+    }
+
     connectedCallback() {
         try {
             this.selectedDate = new Date();
@@ -189,13 +254,18 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                     font-weight: 600 !important;
                     border-radius: 4px;
                 }
-
                 .accordion-container .slds-accordion__summary-content{
                     font-size: medium;
                 }
+                /* Mobile Timesheet Accordion Headers */
+                .mobile-timesheet-container .section-control {
+                    background: rgb(94 90 219 / 18%) !important; 
+                    color: #333 !important;
+                    border-left: 5px solid rgba(94, 90, 219, 0.9);
+                    border-bottom: 1px solid #ddd;
+                    --slds-c-icon-color-foreground-default: #5e5adb !important;
+                }
             `;
-
-            // Append to component's template
             const accordionContainer = this.template.querySelector('.accordion-container');
             if (accordionContainer) {
                 accordionContainer.appendChild(style);
@@ -232,6 +302,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                     const description = job.jobDescription || '--';
                                     const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
 
+                                    const lastIn = job.lastClockInTime ? this.formatToAMPM(job.lastClockInTime) : null;
+                                    const lastOut = job.lastClockOutTime ? this.formatToAMPM(job.lastClockOutTime) : null;
+
                                     return {
                                         ...job,
                                         jobStartTimeIso: rawStart,
@@ -245,6 +318,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                         showReadMore: needsReadMore,
                                         readMoreText: 'Read more...',
                                         isExpanded: false,
+                                        lastClockInFormatted: lastIn,
+                                        lastClockOutFormatted: lastOut,
+                                        hasLastEntry: !!(lastIn && lastOut),
                                         mapMarkers: [{
                                             location: {
                                                 Street: job.jobStreet || '',
@@ -368,14 +444,22 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     getTimesheetDetails() {
         try {
             this.isLoading = true;
-
             getTimeSheetEntryItems()
                 .then(result => {
                     console.log('getTimeSheetEntryItems result :: ', result);
 
                     if (result && !result?.ERROR) {
                         if (result && result.timesheetEntries.length !== 0) {
+                            // 1. Store the raw data
                             this.timesheetDetailsRaw = result.timesheetEntries;
+                            
+                            this.calculateTotals();
+                            this.processGroupedTimesheets(); // Process for Desktop View
+                        } else {
+                            this.timesheetDetailsRaw = [];
+                            this.groupedTimesheets = [];
+                            this.currentWeekTravelTime = 0;
+                            this.currentTotalWorkHours = 0;
                         }
                     } else {
                         this.hasError = true;
@@ -478,6 +562,111 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             console.error('Error in formatToAMPM:', error);
             return iso;
         }
+    }
+
+    /**
+     * Method Name: calculateTotals
+     * @description: Iterates through raw data to sum up work and travel hours.
+     * This separates the calculation logic from the UI rendering logic.
+     */
+    calculateTotals() {
+        try {
+            let totalTravel = 0;
+            let totalWork = 0;
+
+            if (this.timesheetDetailsRaw && this.timesheetDetailsRaw.length > 0) {
+                this.timesheetDetailsRaw.forEach(entry => {
+                    // Safety check to ensure we are adding numbers
+                    if (entry.travelTime) {
+                        totalTravel += parseFloat(entry.travelTime);
+                    }
+                    if (entry.workHours) {
+                        totalWork += parseFloat(entry.workHours);
+                    }
+                });
+            }
+
+            // Assign to tracked variables to update the Summary Cards
+            this.currentWeekTravelTime = totalTravel;
+            this.currentTotalWorkHours = totalWork;
+        } catch (error) {
+            console.error('Error calculating totals:', error);
+        }
+    }
+
+    /**
+     * Method Name: processGroupedTimesheets
+     * @description: Groups raw timesheet entries by Date for the Desktop Nested Table.
+     */
+    processGroupedTimesheets() {
+        if (!this.timesheetDetailsRaw || this.timesheetDetailsRaw.length === 0) {
+            this.groupedTimesheets = [];
+            return;
+        }
+
+        const groups = {};
+
+        this.timesheetDetailsRaw.forEach(entry => {
+            // Key by YYYY-MM-DD
+            let dateKey = entry.clockInTime ? entry.clockInTime.split('T')[0] : 'Unknown';
+            
+            if (!groups[dateKey]) {
+                const dateObj = new Date(dateKey);
+                groups[dateKey] = {
+                    id: dateKey,
+                    dateLabel: this.formatDateLabel(dateObj),
+                    jobNamesSet: new Set(),
+                    totalHours: 0,
+                    totalTravelHours: 0, // Initialize Travel Sum
+                    isExpanded: false,
+                    entries: []
+                };
+            }
+
+            // Aggregate Data
+            groups[dateKey].jobNamesSet.add(entry.jobName || 'Unknown');
+            
+            // Calc Hours
+            const work = entry.workHours || 0;
+            const travel = entry.travelTime || 0; // Get Travel Time
+
+            groups[dateKey].totalHours += work;
+            groups[dateKey].totalTravelHours += travel; // Sum Travel Time
+
+            // Add Child Entry
+            groups[dateKey].entries.push({
+                id: entry.id,
+                jobName: entry.jobName,
+                clockInTime: this.formatToAMPM(entry.clockInTime),
+                clockOutTime: this.formatToAMPM(entry.clockOutTime),
+                workHours: work.toFixed(2),
+                travelTime: travel.toFixed(2) // Map formatted Travel Time
+            });
+        });
+
+        // Convert Map to Array and Sort Descending by Date
+        this.groupedTimesheets = Object.values(groups).map(group => {
+            return {
+                ...group,
+                jobNames: Array.from(group.jobNamesSet).join(', '),
+                totalHours: group.totalHours.toFixed(2),
+                totalTravelHours: group.totalTravelHours.toFixed(2) // Format Total Travel
+            };
+        }).sort((a, b) => new Date(b.id) - new Date(a.id));
+    }
+
+    /**
+     * Method Name: handleToggleTimesheetRow
+     * @description: Toggles the sub-table visibility for a specific date row.
+     */
+    handleToggleTimesheetRow(event) {
+        const rowId = event.currentTarget.dataset.id;
+        this.groupedTimesheets = this.groupedTimesheets.map(row => {
+            if (row.id === rowId) {
+                return { ...row, isExpanded: !row.isExpanded };
+            }
+            return row;
+        });
     }
 
     /**
@@ -662,12 +851,18 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
 
             createTimesheetRecords({ params: JSON.stringify(params) })
                 .then(result => {
-                    console.log('createTimesheetRecords apex result :: ', result);
                     if (result == true) {
+                        this.showToast('Success', 'Clocked In Successfully', 'success');
+                        this.closeClockInModal();
+                        this[NavigationMixin.Navigate]({
+                            type: 'standard__recordPage',
+                            attributes: {
+                                recordId: selectedRecordDetails.jobId,
+                                actionName: 'view'
+                            }
+                        });
                         this.getMobilizationMembers();
                         this.getTimesheetDetails();
-                        this.closeClockInModal();
-                        this.showToast('Success', 'Clocked In Successfully', 'success');
                     } else {
                         this.showToast('Error', 'Failed to Clock In User', 'error');
                     }
@@ -783,8 +978,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     formatDateLabel(date) {
         try {
-            const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' };
-            return date.toLocaleDateString(undefined, options); // Monday 6 Oct, 2025
+            const options = { weekday: 'long', day: 'numeric', month: 'short'};
+            return date.toLocaleDateString(undefined, options); 
         } catch (error) {
             console.error('Error in formatDateLabel :: ', error);
         }
