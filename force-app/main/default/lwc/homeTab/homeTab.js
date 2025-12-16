@@ -285,18 +285,11 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                             }
                         }
 
-                        // Format dates nicely
+                        // Format dates nicely for the table
                         if (col.fieldName === 'clockInTime' || col.fieldName === 'clockOutTime') {
                             cell.value = this.formatToAMPM(cell.value);
                         }
 
-                        // Sum travelTime and totalTime dynamically based on column name
-                        if (col.fieldName === 'travelTime' && ts[col.fieldName]) {
-                            this.currentWeekTravelTime += cell.value;
-                        }
-                        if (col.fieldName === 'workHours' && ts[col.fieldName]) {
-                            this.currentTotalWorkHours += cell.value;
-                        }
 
                         return cell;
                     })
@@ -362,7 +355,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             return {
                 ...day,
                 // Label format: "Monday, Oct 6: 8.5 Hours"
-                label: `${day.labelDate}, Total Work:${day.totalHours.toFixed(2)} Hours`
+                label: `${day.labelDate}, Total Hours: ${day.totalHours.toFixed(2)} Hours`
             };
         }).sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
     }
@@ -603,7 +596,15 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
 
                     if (result && !result?.ERROR) {
                         if (result && result.timesheetEntries.length !== 0) {
+                            // 1. Store the raw data
                             this.timesheetDetailsRaw = result.timesheetEntries;
+                            
+                            this.calculateTotals();
+                        } else {
+                            // Handle empty state
+                            this.timesheetDetailsRaw = [];
+                            this.currentWeekTravelTime = 0;
+                            this.currentTotalWorkHours = 0;
                         }
                     } else {
                         this.hasError = true;
@@ -621,6 +622,36 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             console.error('Error in getTimeSheetEntryItems ::', error);
             this.showToast('Error', 'Failed to load data!', 'error');
             this.isLoading = false;
+        }
+    }
+
+    /**
+     * Method Name: calculateTotals
+     * @description: Iterates through raw data to sum up work and travel hours.
+     * This separates the calculation logic from the UI rendering logic.
+     */
+    calculateTotals() {
+        try {
+            let totalTravel = 0;
+            let totalWork = 0;
+
+            if (this.timesheetDetailsRaw && this.timesheetDetailsRaw.length > 0) {
+                this.timesheetDetailsRaw.forEach(entry => {
+                    // Safety check to ensure we are adding numbers
+                    if (entry.travelTime) {
+                        totalTravel += parseFloat(entry.travelTime);
+                    }
+                    if (entry.workHours) {
+                        totalWork += parseFloat(entry.workHours);
+                    }
+                });
+            }
+
+            // Assign to tracked variables to update the Summary Cards
+            this.currentWeekTravelTime = totalTravel;
+            this.currentTotalWorkHours = totalWork;
+        } catch (error) {
+            console.error('Error calculating totals:', error);
         }
     }
 
