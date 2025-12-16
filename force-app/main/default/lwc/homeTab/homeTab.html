@@ -98,7 +98,11 @@
 
                                                         <template if:true={job.isAgain}>
                                                             <div class="info-message warning">
-                                                                Entry already logged for this job today.
+                                                                <template if:true={job.hasLastEntry}>
+                                                                    <div style="font-size: 0.8rem; margin-top: 4px; font-weight: 500;">
+                                                                        Recent Time Log: {job.lastClockInFormatted} - {job.lastClockOutFormatted}
+                                                                    </div>
+                                                                </template>
                                                             </div>
                                                         </template>
                                                     </div>

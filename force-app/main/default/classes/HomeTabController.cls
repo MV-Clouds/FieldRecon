@@ -108,20 +108,28 @@ public with sharing class HomeTabController {
                       AND wfrecon__Clock_In_Time__c >= :startDateTime
                       AND wfrecon__Clock_In_Time__c <= :endDateTime
                     WITH USER_MODE
+                    ORDER BY CreatedDate DESC 
                 ];
 
                 Map<Id,wfrecon__Timesheet_Entry__c> openEntryMap = new Map<Id, wfrecon__Timesheet_Entry__c>(); 
                 Map<Id, Integer> completedCountMap = new Map<Id, Integer>();
+                
+                Map<Id, wfrecon__Timesheet_Entry__c> latestCompletedMap = new Map<Id, wfrecon__Timesheet_Entry__c>();
+
                 for(wfrecon__Timesheet_Entry__c e : entries) { 
                     if(e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) { 
                         openEntryMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, e); 
                     } else if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) { 
-                        // Count completed entries
                         completedCountMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, 
                             completedCountMap.containsKey(e.wfrecon__Timesheet__r.wfrecon__Job__c) 
-                                ? completedCountMap.get(e.wfrecon__Timesheet__r.wfrecon__Job__c) 
+                                ? completedCountMap.get(e.wfrecon__Timesheet__r.wfrecon__Job__c) + 1 // Fixed logic: +1
                                 : 1
                         );
+
+                        // Capture the first one found (latest due to DESC sort)
+                        if(!latestCompletedMap.containsKey(e.wfrecon__Timesheet__r.wfrecon__Job__c)){
+                            latestCompletedMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, e);
+                        }
                     }
                 }
 
@@ -159,6 +167,13 @@ public with sharing class HomeTabController {
                         ? completedCountMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c) 
                         : 0;
                     wrap.isAgain = (completedCount > 0);
+
+                    // POPULATE LAST ENTRY TIMES IF AVAILABLE
+                    if(wrap.isAgain && latestCompletedMap.containsKey(m.wfrecon__Mobilization__r.wfrecon__Job__c)){
+                        wfrecon__Timesheet_Entry__c lastEntry = latestCompletedMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c);
+                        wrap.lastClockInTime = lastEntry.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(lastEntry.wfrecon__Clock_In_Time__c)/1000);
+                        wrap.lastClockOutTime = lastEntry.wfrecon__Clock_Out_Time__c.addSeconds(userTz.getOffset(lastEntry.wfrecon__Clock_Out_Time__c)/1000);
+                    }
 
                     dayJobs.add(wrap);
                 }
@@ -318,6 +333,8 @@ public with sharing class HomeTabController {
         @AuraEnabled public String mobMemberId;
         @AuraEnabled public Map<Id, String> costCodeDetails;
         @AuraEnabled public Boolean isAgain;
+        @AuraEnabled public DateTime lastClockInTime;
+        @AuraEnabled public DateTime lastClockOutTime;
     }
 
     public class TimesheetEntryItemWrapper {

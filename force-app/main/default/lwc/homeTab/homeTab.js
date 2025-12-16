@@ -453,6 +453,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                     const description = job.jobDescription || '--';
                                     const needsReadMore = this.checkIfDescriptionNeedsReadMore(description);
 
+                                    const lastIn = job.lastClockInTime ? this.formatToAMPM(job.lastClockInTime) : null;
+                                    const lastOut = job.lastClockOutTime ? this.formatToAMPM(job.lastClockOutTime) : null;
+
                                     return {
                                         ...job,
                                         jobStartTimeIso: rawStart,
@@ -466,6 +469,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                         showReadMore: needsReadMore,
                                         readMoreText: 'Read more...',
                                         isExpanded: false,
+                                        lastClockInFormatted: lastIn,
+                                        lastClockOutFormatted: lastOut,
+                                        hasLastEntry: !!(lastIn && lastOut),
                                         mapMarkers: [{
                                             location: {
                                                 Street: job.jobStreet || '',
