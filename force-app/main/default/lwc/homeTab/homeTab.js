@@ -32,6 +32,26 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     @track timesheetDetailsRaw = [];
     @track currentModalJobStartDateTime;
     @track currentModalJobEndDateTime;
+    @track groupedTimesheets = [];
+
+    // Main Table Columns (Desktop)
+    mainTableColumns = [
+        { label: '', fieldName: 'action', style: 'width: 4rem;' }, // Expand Button
+        { label: 'Date', fieldName: 'dateLabel', style: '' },
+        { label: 'Job Names', fieldName: 'jobNames', style: '' },
+        { label: 'Total Work Hours', fieldName: 'totalHours', style: '' },
+        { label: 'Total Travel Hours', fieldName: 'totalTravelHours', style: '' }
+    ];
+
+    // Sub Table Columns (Desktop)
+    subTableColumns = [
+        { label: 'Job Name', fieldName: 'jobName', style: 'width: 20%'  },
+        { label: 'Clock In Time', fieldName: 'clockInTime' , style: 'width: 20%' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime' , style: 'width: 20%' },
+        { label: 'Work Hours', fieldName: 'workHours' , style: 'width: 20%' },
+        { label: 'Travel Hours', fieldName: 'travelTime' , style: 'width: 20%' }
+    ];
+
     @track timesheetColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
         { label: 'Job Number', fieldName: 'jobNumber', style: 'width: 10rem', isLink: true, recordIdField: 'jobId' },
@@ -46,8 +66,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
 
     get apexFormattedDate() {
         const start = this.normalizeDate(new Date(this.selectedDate));
-        let currentDate = start.toLocaleDateString('en-CA');
-        return currentDate;
+        return start.toLocaleDateString('en-CA');;
     }
 
     get isTodayTabActive() {
@@ -355,7 +374,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             return {
                 ...day,
                 // Label format: "Monday, Oct 6: 8.5 Hours"
-                label: `${day.labelDate}, Total Hours: ${day.totalHours.toFixed(2)} Hours`
+                label: `${day.labelDate} | Total Hours: ${day.totalHours.toFixed(2)} Hours`
             };
         }).sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
     }
@@ -368,7 +387,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             if (isMobileDevice) {
                 this.isMobileDevice = true;
             } else {
-                this.isMobileDevice = true;
+                this.isMobileDevice = false;
             }
 
             this.getMobilizationMembers();
@@ -595,7 +614,6 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     getTimesheetDetails() {
         try {
             this.isLoading = true;
-
             getTimeSheetEntryItems()
                 .then(result => {
                     console.log('getTimeSheetEntryItems result :: ', result);
@@ -606,9 +624,10 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                             this.timesheetDetailsRaw = result.timesheetEntries;
                             
                             this.calculateTotals();
+                            this.processGroupedTimesheets(); // Process for Desktop View
                         } else {
-                            // Handle empty state
                             this.timesheetDetailsRaw = [];
+                            this.groupedTimesheets = [];
                             this.currentWeekTravelTime = 0;
                             this.currentTotalWorkHours = 0;
                         }
@@ -659,6 +678,81 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         } catch (error) {
             console.error('Error calculating totals:', error);
         }
+    }
+
+    /**
+     * Method Name: processGroupedTimesheets
+     * @description: Groups raw timesheet entries by Date for the Desktop Nested Table.
+     */
+    processGroupedTimesheets() {
+        if (!this.timesheetDetailsRaw || this.timesheetDetailsRaw.length === 0) {
+            this.groupedTimesheets = [];
+            return;
+        }
+
+        const groups = {};
+
+        this.timesheetDetailsRaw.forEach(entry => {
+            // Key by YYYY-MM-DD
+            let dateKey = entry.clockInTime ? entry.clockInTime.split('T')[0] : 'Unknown';
+            
+            if (!groups[dateKey]) {
+                const dateObj = new Date(dateKey);
+                groups[dateKey] = {
+                    id: dateKey,
+                    dateLabel: this.formatDateLabel(dateObj),
+                    jobNamesSet: new Set(),
+                    totalHours: 0,
+                    totalTravelHours: 0, // Initialize Travel Sum
+                    isExpanded: false,
+                    entries: []
+                };
+            }
+
+            // Aggregate Data
+            groups[dateKey].jobNamesSet.add(entry.jobName || 'Unknown');
+            
+            // Calc Hours
+            const work = entry.workHours || 0;
+            const travel = entry.travelTime || 0; // Get Travel Time
+
+            groups[dateKey].totalHours += work;
+            groups[dateKey].totalTravelHours += travel; // Sum Travel Time
+
+            // Add Child Entry
+            groups[dateKey].entries.push({
+                id: entry.id,
+                jobName: entry.jobName,
+                clockInTime: this.formatToAMPM(entry.clockInTime),
+                clockOutTime: this.formatToAMPM(entry.clockOutTime),
+                workHours: work.toFixed(2),
+                travelTime: travel.toFixed(2) // Map formatted Travel Time
+            });
+        });
+
+        // Convert Map to Array and Sort Descending by Date
+        this.groupedTimesheets = Object.values(groups).map(group => {
+            return {
+                ...group,
+                jobNames: Array.from(group.jobNamesSet).join(', '),
+                totalHours: group.totalHours.toFixed(2),
+                totalTravelHours: group.totalTravelHours.toFixed(2) // Format Total Travel
+            };
+        }).sort((a, b) => new Date(b.id) - new Date(a.id));
+    }
+
+    /**
+     * Method Name: handleToggleTimesheetRow
+     * @description: Toggles the sub-table visibility for a specific date row.
+     */
+    handleToggleTimesheetRow(event) {
+        const rowId = event.currentTarget.dataset.id;
+        this.groupedTimesheets = this.groupedTimesheets.map(row => {
+            if (row.id === rowId) {
+                return { ...row, isExpanded: !row.isExpanded };
+            }
+            return row;
+        });
     }
 
     /**
@@ -1012,7 +1106,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     formatDateLabel(date) {
         try {
-            const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' };
+            const options = { weekday: 'long', day: 'numeric', month: 'short'};
             return date.toLocaleDateString(undefined, options); 
         } catch (error) {
             console.error('Error in formatDateLabel :: ', error);

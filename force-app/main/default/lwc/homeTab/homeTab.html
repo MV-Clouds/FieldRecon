@@ -99,7 +99,7 @@
                                                         <template if:true={job.isAgain}>
                                                             <div class="info-message warning">
                                                                 <template if:true={job.hasLastEntry}>
-                                                                    <div style="font-size: 0.8rem; margin-top: 4px; font-weight: 500;">
+                                                                    <div class="warning-message">
                                                                         Recent Time Log: {job.lastClockInFormatted} - {job.lastClockOutFormatted}
                                                                     </div>
                                                                 </template>
@@ -215,7 +215,7 @@
                                     <table class="slds-table">
                                         <thead>
                                             <tr>
-                                                <template for:each={timesheetColumns} for:item="col">
+                                                <template for:each={mainTableColumns} for:item="col">
                                                     <th key={col.fieldName} scope="col" style={col.style}>
                                                         <div class="slds-truncate" title={col.label}>{col.label}</div>
                                                     </th>
@@ -223,27 +223,64 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <template for:each={timesheetDetails} for:item="timesheet" for:index="index">
-                                                <tr key={timesheet.id}>
-                                                    <template for:each={timesheet.values} for:item="val">
-                                                        <td key={val} style={val.style}>
-                                                            <div class="slds-truncate cell-wrapper" title={val.value}>
-                                                                <template if:true={val.recordLink}>
-                                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={timesheet.jobId}>
-                                                                        <div class="cell-content" title={val.value}>
-                                                                            {val.value}
-                                                                        </div>
-                                                                    </a>
+                                            <template for:each={groupedTimesheets} for:item="day">
+                                                <tr key={day.id} class="main-row">
+                                                    <td class="action-column">
+                                                        <button 
+                                                            class="icon-button child-records-btn" 
+                                                            title="View Details" 
+                                                            data-id={day.id} 
+                                                            data-expanded={day.isExpanded}
+                                                            onclick={handleToggleTimesheetRow}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <template if:true={day.isExpanded}>
+                                                                    <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                                 </template>
-                                                                <template if:false={val.recordLink}>
-                                                                    <div class="cell-content" title={val.value}>
-                                                                        {val.value}
+                                                                <template if:false={day.isExpanded}>
+                                                                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </template>
+                                                            </svg>
+                                                        </button>
+                                                    </td>
+                                                    <td><div class="slds-truncate" title={day.dateLabel}>{day.dateLabel}</div></td>
+                                                    <td><div class="slds-truncate" title={day.jobNames}>{day.jobNames}</div></td>
+                                                    <td><div class="slds-truncate" title={day.totalHours}>{day.totalHours}</div></td>
+                                                    <td><div class="slds-truncate" title={day.totalTravelHours}>{day.totalTravelHours}</div></td>
+                                                </tr>
+
+                                                <template if:true={day.isExpanded}>
+                                                    <tr key={day.id} class="nested-row">
+                                                        <td colspan="5">
+                                                            <div class="nested-table-container">
+                                                                <div class="nested-table-wrapper">
+                                                                    <div class="nested-table-header">
+                                                                        <h4 class="nested-table-title">Timesheet Entry for {day.dateLabel}</h4>
                                                                     </div>
-                                                                </template>
+                                                                    <table class="nested-table">
+                                                                        <thead>
+                                                                            <tr>
+                                                                                <template for:each={subTableColumns} for:item="subCol">
+                                                                                    <th key={subCol.fieldName} style={subCol.style}>{subCol.label}</th>
+                                                                                </template>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            <template for:each={day.entries} for:item="entry">
+                                                                                <tr key={entry.id} class="nested-table-row">
+                                                                                    <td>{entry.jobName}</td>
+                                                                                    <td>{entry.clockInTime}</td>
+                                                                                    <td>{entry.clockOutTime}</td>
+                                                                                    <td>{entry.workHours}</td>
+                                                                                    <td>{entry.travelTime}</td>
+                                                                                </tr>
+                                                                            </template>
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
                                                             </div>
                                                         </td>
-                                                    </template>
-                                                </tr>
+                                                    </tr>
+                                                </template>
                                             </template>
                                         </tbody>
                                     </table>
