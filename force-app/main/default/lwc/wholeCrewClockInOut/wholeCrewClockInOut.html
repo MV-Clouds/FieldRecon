@@ -3,11 +3,12 @@
         <div class={containerCSS}>
             <!-- Header with Close Icon (Only for Home Page) -->
             <template if:true={isHomePage}>
+                <div class="slds-modal__close closs_icon_css" onclick={handleClosePopup}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="create-close-icon" size="small"></lightning-icon>
+                </div>
+
                 <div class="pop-heading">
-                    Whole Crew Clock In/Out
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleClosePopup}>
-                        <lightning-icon icon-name="utility:close" alternative-text="Close" class="create-close-icon" size="small"></lightning-icon>
-                    </button>
+                    <h1 id="modal-heading-01" class="slds-modal__title slds-hyphenate" tabindex="-1">Upload File</h1>
                 </div>
             </template>
 
@@ -37,23 +38,21 @@
                 <template if:true={hasAccess}>
                     <div class="modal-wrapper">
                         <!-- Mobilization Selection -->
-                        <template if:true={hasMobilizations}>
-                            <template if:true={showMobilizationSelector}>
-                                <div class="content-section">
-                                <!-- Mobilization Date Selection -->
-                                    <div class="selector-card">
-                                        <label class="form-label">Select Scheduled Job</label>
-                                        <lightning-combobox 
-                                            name="mobilization" 
-                                            placeholder="-- Select Scheduled Job --" 
-                                            options={mobilizationOptions} 
-                                            value={selectedMobilizationId} 
-                                            onchange={handleMobilizationChange} 
-                                            variant="label-hidden">
-                                        </lightning-combobox>
-                                    </div>
+                        <template if:true={showMobilizationSelector}>
+                            <div class="content-section">
+                            <!-- Mobilization Date Selection -->
+                                <div class="selector-card">
+                                    <label class="form-label">Select Scheduled Job</label>
+                                    <lightning-combobox 
+                                        name="mobilization" 
+                                        placeholder="-- Select Scheduled Job --" 
+                                        options={mobilizationOptions} 
+                                        value={selectedMobilizationId} 
+                                        onchange={handleMobilizationChange} 
+                                        variant="label-hidden">
+                                    </lightning-combobox>
                                 </div>
-                            </template>
+                            </div>
                         </template>
 
                         <!-- Main Content with Tabset -->
@@ -285,19 +284,17 @@
 
                         <!-- No Data Message -->
                         <template if:false={hasData}>
-                            <template if:true={hasMobilizations}>
-                                <div class="no-prop">
-                                    <div class="empty-state">
-                                        <div class="empty-state__content">
-                                            <div class="empty-state__icon">
-                                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
-                                            </div>
-                                            <div class="empty-state__message">No Members Found</div>
-                                            <div class="empty-state__subtitle">{errorMessage}</div>
+                            <div class="no-prop">
+                                <div class="empty-state">
+                                    <div class="empty-state__content">
+                                        <div class="empty-state__icon">
+                                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
                                         </div>
+                                        <div class="empty-state__message">No Members Found</div>
+                                        <div class="empty-state__subtitle">{errorMessage}</div>
                                     </div>
                                 </div>
-                            </template>
+                            </div>
                         </template>
 
                         <!-- Spinner -->

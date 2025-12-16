@@ -366,6 +366,7 @@
     font-size: 0.875rem;
     color: var(--gray-900);
     transition: all 0.2s ease;
+    width: 100%;
 }
 
 .input-field:focus {
@@ -607,26 +608,18 @@
     position: relative;
 }
 
-/* Close button positioning - floats above header */
-.pop-heading .slds-modal__close {
-    position: absolute !important;
-    top: -2.5rem !important;
-    right: 0 !important;
-    width: 2rem !important;
-    height: 2rem;
-    visibility: visible;
-    width: 90%;
-    max-width: 840px;
+.closs_icon_css {
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
 }
 
 .wizard-content {
-    /* flex: 1; */
     overflow-y: auto;
-    /* padding: 0rem 1rem; */
     background-image: url('/resource/wfrecon__FieldReconBG');
     background-repeat: no-repeat;
     background-size: cover;
-    /* min-height: 45vh;
-    max-height: 45vh; */
     position: relative;
 }
