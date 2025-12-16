@@ -417,9 +417,9 @@ export default class WholeCrewClockInOut extends LightningElement {
                 contactId: member.contactId,
                 costCodeId: this.selectedBulkCostCodeId,
                 clockInTime: this.currentDateTimeForApex,
-                isTimeSheetNull: member.isTimesheetNull,
+                isTimeSheetNull: member.isTimeSheetNull,
                 timesheetId: member.timesheetId,
-                isTimeSheetEntryNull: member.isTimesheetEntryNull,
+                isTimeSheetEntryNull: member.isTimeSheetEntryNull,
                 timesheetEntryId: member.timesheetEntryId,
                 mobMemberId: member.mobMemberId
             }));
@@ -474,9 +474,9 @@ export default class WholeCrewClockInOut extends LightningElement {
                 contactId: member.contactId,
                 clockInTime: member.clockInTime || null,
                 clockOutTime: this.currentDateTimeForApex,
-                isTimeSheetNull: member.isTimesheetNull,
+                isTimeSheetNull: member.isTimeSheetNull,
                 timesheetId: member.timesheetId,
-                isTimeSheetEntryNull: member.isTimesheetEntryNull,
+                isTimeSheetEntryNull: member.isTimeSheetEntryNull,
                 timesheetEntryId: member.timesheetEntryId,
                 mobMemberId: member.mobMemberId
             }));

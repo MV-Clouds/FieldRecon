@@ -71,6 +71,7 @@ public with sharing class WholeCrewClockInOutController {
                         SELECT wfrecon__Mobilization__c, wfrecon__Crew__c 
                         FROM wfrecon__Mobilization_Member__c 
                         WHERE wfrecon__Mobilization__c IN :mobilizationIds
+                        AND wfrecon__Mobilization__r.wfrecon__Job__c = :jobId
                         AND wfrecon__Crew__c != null
                         WITH USER_MODE
                     ]) {
@@ -132,16 +133,17 @@ public with sharing class WholeCrewClockInOutController {
     /**
      * Get mobilization members with clock in/out status - shows only completed sessions in recent times
      */
-    private static Map<String, List<JobDetailsPageController.WrapperMember>> getMobilizationMembersWithCompletedSessions(String mobId) {
-        Map<String, List<JobDetailsPageController.WrapperMember>> result = new Map<String, List<JobDetailsPageController.WrapperMember>>();
-        result.put('clockIn', new List<JobDetailsPageController.WrapperMember>());
-        result.put('clockOut', new List<JobDetailsPageController.WrapperMember>());
+    private static Map<String, List<WrapperMember>> getMobilizationMembersWithCompletedSessions(String mobId, String jobId) {
+        Map<String, List<WrapperMember>> result = new Map<String, List<WrapperMember>>();
+        result.put('clockIn', new List<WrapperMember>());
+        result.put('clockOut', new List<WrapperMember>());
         
         // Query mobilization members
         List<wfrecon__Mobilization_Member__c> mobMembers = [
             SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Mobilization__c 
             FROM wfrecon__Mobilization_Member__c 
             WHERE wfrecon__Mobilization__c = :mobId 
+            AND wfrecon__Mobilization__r.wfrecon__Job__c = :jobId
             WITH USER_MODE
         ];
         
@@ -165,13 +167,14 @@ public with sharing class WholeCrewClockInOutController {
             contactToTimesheetMap.put(ts.wfrecon__Contact__c, ts);
         }
         
-        // Query all timesheet entries for these contacts
+        // Query timesheet entries for these contacts filtered by current mobilization
         Map<Id, List<wfrecon__Timesheet_Entry__c>> contactEntriesMap = new Map<Id, List<wfrecon__Timesheet_Entry__c>>();
         for (wfrecon__Timesheet_Entry__c entry : [
             SELECT Id, wfrecon__Timesheet__c, wfrecon__Timesheet__r.wfrecon__Contact__c,
                    wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c 
             FROM wfrecon__Timesheet_Entry__c 
             WHERE wfrecon__Timesheet__r.wfrecon__Contact__c IN :contactIds 
+            AND wfrecon__Mobilization__c = :mobId
             WITH USER_MODE 
             ORDER BY CreatedDate DESC
         ]) {
@@ -184,7 +187,7 @@ public with sharing class WholeCrewClockInOutController {
         
         // Process each mobilization member
         for (wfrecon__Mobilization_Member__c m : mobMembers) {
-            JobDetailsPageController.WrapperMember wrap = new JobDetailsPageController.WrapperMember();
+            WrapperMember wrap = new WrapperMember();
             wrap.mobMemberId = m.Id;
             wrap.contactId = m.wfrecon__Contact__c;
             wrap.contactName = m.wfrecon__Contact__r.Name;
@@ -193,8 +196,8 @@ public with sharing class WholeCrewClockInOutController {
             List<wfrecon__Timesheet_Entry__c> userEntries = contactEntriesMap.get(m.wfrecon__Contact__c);
             
             if (ts == null) {
-                wrap.isTimesheetNull = true;
-                wrap.isTimesheetEntryNull = true;
+                wrap.isTimeSheetNull = true;
+                wrap.isTimeSheetEntryNull = true;
                 wrap.isAgain = false;
                 result.get('clockIn').add(wrap);
                 continue;
@@ -203,7 +206,7 @@ public with sharing class WholeCrewClockInOutController {
             if (userEntries == null || userEntries.isEmpty()) {
                 wrap.timesheetId = ts.Id;
                 wrap.isTimeSheetNull = false;
-                wrap.isTimesheetEntryNull = true;
+                wrap.isTimeSheetEntryNull = true;
                 wrap.isAgain = false;
                 result.get('clockIn').add(wrap);
                 continue;
@@ -217,27 +220,28 @@ public with sharing class WholeCrewClockInOutController {
             DateTime mostRecentCompletedClockOut;
             
             for (wfrecon__Timesheet_Entry__c e : userEntries) {
-                // Track most recent completed session (both clock in and out)
-                if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) {
-                    if (mostRecentCompletedClockIn == null || e.wfrecon__Clock_In_Time__c > mostRecentCompletedClockIn) {
-                        mostRecentCompletedClockIn = e.wfrecon__Clock_In_Time__c;
-                        mostRecentCompletedClockOut = e.wfrecon__Clock_Out_Time__c;
-                    }
-                }
-                
                 if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) {
                     hasOpenEntry = true;
                     latestOpen = e;
                 } else if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c != null) {
                     hasCompletedEntry = true;
-                    latestCompleted = e;
+                    if (latestCompleted == null) {
+                        latestCompleted = e;
+                    }
+                    // Track most recent completed session for display (only if both times exist)
+                    if (mostRecentCompletedClockIn == null || e.wfrecon__Clock_In_Time__c > mostRecentCompletedClockIn) {
+                        mostRecentCompletedClockIn = e.wfrecon__Clock_In_Time__c;
+                        mostRecentCompletedClockOut = e.wfrecon__Clock_Out_Time__c;
+                    }
                 } else if (e.wfrecon__Clock_In_Time__c == null && e.wfrecon__Clock_Out_Time__c != null) {
+                    // Edge case → treat as open
                     hasOpenEntry = true;
                     latestOpen = e;
                 }
             }
             
             if (hasOpenEntry) {
+                // ClockOut case → must pass the ClockIn time
                 wrap.timesheetId = ts.Id;
                 wrap.isTimeSheetNull = false;
                 wrap.isTimeSheetEntryNull = false;
@@ -245,22 +249,24 @@ public with sharing class WholeCrewClockInOutController {
                 wrap.clockInTime = (latestOpen.wfrecon__Clock_In_Time__c != null)
                     ? latestOpen.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(latestOpen.wfrecon__Clock_In_Time__c)/1000)
                     : null;
-                wrap.isAgain = false;
+                wrap.isAgain = false; // Not a new shift yet, finishing current one
                 wrap.recentClockIn = mostRecentCompletedClockIn != null ? mostRecentCompletedClockIn.addSeconds(userTz.getOffset(mostRecentCompletedClockIn)/1000) : null;
                 wrap.recentClockOut = mostRecentCompletedClockOut != null ? mostRecentCompletedClockOut.addSeconds(userTz.getOffset(mostRecentCompletedClockOut)/1000) : null;
                 result.get('clockOut').add(wrap);
             } else if (hasCompletedEntry) {
+                // Only completed entries → eligible for ClockIn again
                 wrap.timesheetId = ts.Id;
                 wrap.isTimeSheetNull = false;
-                wrap.isTimesheetEntryNull = true;
-                wrap.isAgain = true;
+                wrap.isTimeSheetEntryNull = true;
+                wrap.isAgain = true;  // ✅ Contact is clocking in AGAIN
                 wrap.recentClockIn = mostRecentCompletedClockIn != null ? mostRecentCompletedClockIn.addSeconds(userTz.getOffset(mostRecentCompletedClockIn)/1000) : null;
                 wrap.recentClockOut = mostRecentCompletedClockOut != null ? mostRecentCompletedClockOut.addSeconds(userTz.getOffset(mostRecentCompletedClockOut)/1000) : null;
                 result.get('clockIn').add(wrap);
             } else {
+                // Default → treat as new ClockIn
                 wrap.timesheetId = ts.Id;
                 wrap.isTimeSheetNull = false;
-                wrap.isTimesheetEntryNull = true;
+                wrap.isTimeSheetEntryNull = true;
                 wrap.isAgain = false;
                 result.get('clockIn').add(wrap);
             }
@@ -292,11 +298,11 @@ public with sharing class WholeCrewClockInOutController {
                 return response;
             }
             
-            Map<String, List<JobDetailsPageController.WrapperMember>> membersWithStatus = 
-                getMobilizationMembersWithCompletedSessions(mobId);
+            Map<String, List<WrapperMember>> membersWithStatus = 
+                getMobilizationMembersWithCompletedSessions(mobId, jobId);
             
-            List<JobDetailsPageController.WrapperMember> allClockInMembers = membersWithStatus.get('clockIn');
-            List<JobDetailsPageController.WrapperMember> allClockOutMembers = membersWithStatus.get('clockOut');
+            List<WrapperMember> allClockInMembers = membersWithStatus.get('clockIn');
+            List<WrapperMember> allClockOutMembers = membersWithStatus.get('clockOut');
             
             // Query crew information for all members
             Map<Id, String> contactToCrewMap = new Map<Id, String>();
@@ -311,17 +317,17 @@ public with sharing class WholeCrewClockInOutController {
             }
             
             // Enhance members with crew name
-            List<JobDetailsPageController.WrapperMember> clockInMembers = new List<JobDetailsPageController.WrapperMember>();
+            List<WrapperMember> clockInMembers = new List<WrapperMember>();
             if (allClockInMembers != null) {
-                for (JobDetailsPageController.WrapperMember member : allClockInMembers) {
+                for (WrapperMember member : allClockInMembers) {
                     member.crewName = contactToCrewMap.get(member.contactId);
                     clockInMembers.add(member);
                 }
             }
             
-            List<JobDetailsPageController.WrapperMember> clockOutMembers = new List<JobDetailsPageController.WrapperMember>();
+            List<WrapperMember> clockOutMembers = new List<WrapperMember>();
             if (allClockOutMembers != null) {
-                for (JobDetailsPageController.WrapperMember member : allClockOutMembers) {
+                for (WrapperMember member : allClockOutMembers) {
                     member.crewName = contactToCrewMap.get(member.contactId);
                     clockOutMembers.add(member);
                 }
@@ -685,7 +691,7 @@ public with sharing class WholeCrewClockInOutController {
         
         // Create timesheet entry items
         for (Map<String, Object> memberData : membersList) {
-            Boolean isTimesheetEntryNull = (Boolean) memberData.get('isTimesheetEntryNull');
+            Boolean isTimeSheetEntryNull = (Boolean) memberData.get('isTimeSheetEntryNull');
             
             if (isTimesheetEntryNull == true) {
                 // Check if midnight split happened
@@ -898,5 +904,23 @@ public with sharing class WholeCrewClockInOutController {
         }
         
         return response;
+    }
+
+    public class WrapperMember {
+        @AuraEnabled public Id contactId;
+        @AuraEnabled public String contactName;
+        @AuraEnabled public DateTime jobStartTime;
+        @AuraEnabled public DateTime jobEndTime;
+        @AuraEnabled public DateTime clockInTime;
+        @AuraEnabled public Boolean isTimesheetNull;
+        @AuraEnabled public String timesheetId;
+        @AuraEnabled public Boolean isTimeSheetEntryNull;
+        @AuraEnabled public String timesheetEntryId;
+        @AuraEnabled public String mobMemberId;
+        @AuraEnabled public Map<Id, String> costCodeDetails;
+        @AuraEnabled public Boolean isAgain;
+        @AuraEnabled public String crewName;
+        @AuraEnabled public DateTime recentClockIn;
+        @AuraEnabled public DateTime recentClockOut;
     }
 }
