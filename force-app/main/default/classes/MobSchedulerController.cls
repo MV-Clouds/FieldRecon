@@ -766,7 +766,6 @@ public with sharing class MobSchedulerController {
                     SELECT Id, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Group__c, wfrecon__Start_Date__c
                     FROM wfrecon__Mobilization__c
                     WHERE wfrecon__Mobilization_Group__c = :mobGroupId
-                    AND wfrecon__End_Date__c >= :system.now()
                     WITH USER_MODE
                     ORDER BY wfrecon__End_Date__c ASC
                     LIMIT 1

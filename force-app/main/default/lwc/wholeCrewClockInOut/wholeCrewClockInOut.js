@@ -1,5 +1,4 @@
-import { LightningElement, api, track, wire } from 'lwc';
-import { CurrentPageReference } from 'lightning/navigation';
+import { LightningElement, api, track } from 'lwc';
 import getMobilizationsForJob from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationsForJob';
 import getMobilizationMembersForSelection from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationMembersForSelection';
 import bulkClockInOut from '@salesforce/apex/WholeCrewClockInOutController.bulkClockInOut';
@@ -8,8 +7,8 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
 
 export default class WholeCrewClockInOut extends LightningElement {
-    @api recordId;
-    @api isHomePage = false;
+    @api recordId; // Job Id passed from Aura wrapper
+    @api isHomePage = false; // Flag to indicate if component is on home page
     @track isLoading = false;
     @track hasAccess = false;
     @track accessErrorMessage = '';
@@ -23,8 +22,6 @@ export default class WholeCrewClockInOut extends LightningElement {
     @track mobilizationOptions = [];
     @track hasMobilizations = false;
     @track selectedBulkCostCodeId = '';
-    @track currentJobStartDateTime;
-    @track currentJobEndDateTime;
     @track activeTab = 'clockin'; // Track active tab
     @track selectedMemberIds = new Set(); // Track selected member IDs
     @track currentDisplayTime;
@@ -91,19 +88,27 @@ export default class WholeCrewClockInOut extends LightningElement {
         return this.activeTab === 'clockout' ? 'active' : '';
     }
 
-    /** 
-    * Method Name: setCurrentPageReference
-    * @description: Wire method to set the current page reference and extract recordId from page state
-    */
-    @wire(CurrentPageReference)
-    setCurrentPageReference(pageRef) {
-        try {
-            console.log(pageRef);
-            this.recordId = pageRef.attributes.recordId || pageRef.state.recordId || this.recordId;
-            console.log(this.recordId);
-        } catch (error) {
-            console.error('Error in setCurrentPageReference:', error);
-        }
+    get isDesktopDevice() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /iphone|ipad|ipod|android|blackberry|windows phone|mobile/i.test(userAgent);
+        const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent);
+        return !isMobile && !isTablet;
+    }
+
+    get popupCSS() {
+        return this.isHomePage ? (this.isDesktopDevice ? 'slds-modal slds-fade-in-open slds-modal_medium' : 'slds-modal slds-fade-in-open slds-modal_full') : '';
+    }
+
+    get backdropCSS() {
+        return this.isHomePage ? 'slds-backdrop slds-backdrop_open sub-backdrop' : '';
+    }
+
+    get containerCSS() {
+        return this.isHomePage ? 'slds-modal__container' : '';
+    }
+
+    get subContainerCSS() {
+        return this.isHomePage ? 'slds-modal__content wizard-content' : 'wizard-content';
     }
 
     /** 
@@ -122,6 +127,25 @@ export default class WholeCrewClockInOut extends LightningElement {
         } catch (error) {
             console.error('Error in connectedCallback:', error);
         }
+    }
+
+    /** 
+    * Method Name: updateCurrentTime
+    * @description: Updates the current date and time in both Apex-compatible and display formats.
+    */
+    updateCurrentTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        // Format for Apex: 2025-12-15T13:00
+        this.currentDateTimeForApex = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        // Format for Display: Dec 15, 2025, 01:00 PM
+        this.currentDisplayTime = this.formatToAMPM(this.currentDateTimeForApex);
     }
 
     /** 
@@ -218,7 +242,8 @@ export default class WholeCrewClockInOut extends LightningElement {
             if (result.hasMembers) {
                 this.hasData = true;
                 this.clockInMembers = (result.clockInMembers || []).map(member => {
-                    const hasRecentTimes = member.isAgain && (member.recentClockIn || member.recentClockOut);
+                    // Only show recent times if both clock in and clock out exist (completed session)
+                    const hasRecentTimes = member.isAgain && member.recentClockIn && member.recentClockOut;
                     return {
                         ...member,
                         isSelected: false,
@@ -230,7 +255,8 @@ export default class WholeCrewClockInOut extends LightningElement {
                 
                 // Format clockInTime for display in clockOutMembers with AM/PM
                 this.clockOutMembers = (result.clockOutMembers || []).map(member => {
-                    const hasRecentTimes = member.recentClockIn || member.recentClockOut;
+                    // Only show recent times if both clock in and clock out exist (completed session)
+                    const hasRecentTimes = member.recentClockIn && member.recentClockOut;
                     return {
                         ...member,
                         formattedClockInTime: member.clockInTime ? this.formatToAMPM(member.clockInTime) : '',
@@ -243,19 +269,7 @@ export default class WholeCrewClockInOut extends LightningElement {
                 });
                 
                 this.costCodes = result.costCodes || [];
-                this.currentJobStartDateTime = result.jobStartDateTime;
-                this.currentJobEndDateTime = result.jobEndDateTime;
                 this.errorMessage = '';
-                
-                // Set default clock in time
-                if (this.currentJobStartDateTime) {
-                    this.bulkClockInTime = this.parseLiteral(this.currentJobStartDateTime);
-                }
-                
-                // Set default clock out time
-                if (this.currentJobEndDateTime) {
-                    this.bulkClockOutTime = this.parseLiteral(this.currentJobEndDateTime);
-                }
             } else {
                 this.hasData = false;
                 this.errorMessage = result.message || 'No members found for selected mobilization';
@@ -268,57 +282,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             this.showToast('Error', this.errorMessage, 'error');
         } finally {
             this.isLoading = false;
-        }
-    }
-
-    /** 
-    * Method Name: updateCurrentTime
-    * @description: Updates the current date and time in both Apex-compatible and display formats.
-    */
-    updateCurrentTime() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        
-        // Format for Apex: 2025-12-15T13:00
-        this.currentDateTimeForApex = `${year}-${month}-${day}T${hours}:${minutes}`;
-        
-        // Format for Display: Dec 15, 2025, 01:00 PM
-        this.currentDisplayTime = this.formatToAMPM(this.currentDateTimeForApex);
-    }
-
-    /** 
-    * Method Name: handleSelectAll
-    * @description: Selects or deselects all members in the active tab
-    */
-    handleSelectAll(event) {
-        const isChecked = event.target.checked;
-        const currentList = this.isClockInActive ? this.clockInMembers : this.clockOutMembers;
-        
-        if (isChecked) {
-            // Add all current tab members to selection
-            currentList.forEach(member => {
-                this.selectedMemberIds.add(member.mobMemberId);
-                member.isSelected = true;
-            });
-        } else {
-            // Remove all current tab members from selection
-            currentList.forEach(member => {
-                this.selectedMemberIds.delete(member.mobMemberId);
-                member.isSelected = false;
-            });
-        }
-        
-        // Force reactivity
-        this.selectedMemberIds = new Set(this.selectedMemberIds);
-        
-        if (this.isClockInActive) {
-            this.clockInMembers = [...this.clockInMembers];
-        } else {
-            this.clockOutMembers = [...this.clockOutMembers];
         }
     }
 
@@ -350,19 +313,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             this.clockInMembers = [...this.clockInMembers];
         } else {
             this.clockOutMembers = [...this.clockOutMembers];
-        }
-    }
-
-    /** 
-    * Method Name: parseLiteral
-    * @description: Parses ISO date string to "YYYY-MM-DDTHH:MM" format for datetime-local input
-    */
-    parseLiteral(iso) {
-        try {
-            return iso ? iso.substring(0, 16) : '';
-        } catch (error) {
-            console.error('Error in parseLiteral:', error);
-            return '';
         }
     }
 
@@ -488,9 +438,8 @@ export default class WholeCrewClockInOut extends LightningElement {
                 // Reset form
                 this.selectedBulkCostCodeId = '';
                 this.selectedMemberIds = new Set();
-                // Reload members and switch to clock out tab
+                // Reload members
                 await this.loadMembers();
-                this.activeTab = 'clockout';
             } else {
                 this.showToast('Error', clockInResult.message || 'Failed to clock in', 'error');
             }
@@ -544,9 +493,8 @@ export default class WholeCrewClockInOut extends LightningElement {
             if (result.success) {
                 this.showToast('Success', 'Successfully clocked out ' + members.length + ' member(s)', 'success');
                 this.selectedMemberIds = new Set();
-                // Reload members and switch back to clock in tab
+                // Reload members
                 await this.loadMembers();
-                this.activeTab = 'clockin';
             } else {
                 this.showToast('Error', result.message || 'Failed to clock out', 'error');
             }
@@ -599,6 +547,19 @@ export default class WholeCrewClockInOut extends LightningElement {
             this.dispatchEvent(new CloseActionScreenEvent());
         } catch (error) {
             console.error('Error in handleClose:', error);
+        }
+    }
+
+    /** 
+    * Method Name: handleClosePopup
+    * @description: Dispatches custom event to parent component to close the popup (for home page)
+    */
+    handleClosePopup() {
+        try {
+            const closeEvent = new CustomEvent('closepopup');
+            this.dispatchEvent(closeEvent);
+        } catch (error) {
+            console.error('Error in handleClosePopup:', error);
         }
     }
 
