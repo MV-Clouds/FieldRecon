@@ -410,7 +410,6 @@ export default class WholeCrewClockInOut extends LightningElement {
 
             this.updateCurrentTime();
 
-            // Prepare members data matching jobDetailsPage format
             const clockInMembers = selectedMembers.map(member => ({
                 actionType: 'clockIn',
                 jobId: this.recordId,
