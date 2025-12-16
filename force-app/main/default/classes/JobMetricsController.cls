@@ -215,7 +215,7 @@ public with sharing class JobMetricsController {
 
         /*
     *********************************************************
-    @description     : Method to get job metrics for dashboard cards with custom metadata
+    @description     : Method to get job metrics for dashboard cards with custom setting
     @return          : Map<String, MetricData> - Status related data
     ********************************************************
     */

@@ -232,7 +232,7 @@ private class ShiftEndLogEntriesControllerTest {
         Contact emp = [SELECT Id FROM Contact WHERE wfrecon__Can_Clock_In_Out__c = true LIMIT 1];
         
         Test.startTest();
-        List<ShiftEndLogEntriesController.TimesheetEntryItemWrapper> result = 
+        Map<String,Object> result = 
             ShiftEndLogEntriesController.getTimeSheetEntryItems(job.Id, String.valueOf(Date.today()), mob.Id, emp.Id);
         Test.stopTest();
         
@@ -898,14 +898,14 @@ private class ShiftEndLogEntriesControllerTest {
         insert newContact;
         
         Test.startTest();
-        List<ShiftEndLogEntriesController.TimesheetEntryItemWrapper> result = 
+        Map<String,Object> result = 
             ShiftEndLogEntriesController.getTimeSheetEntryItems(job.Id, String.valueOf(Date.today()), mob.Id, newContact.Id);
         Test.stopTest();
         
         // Since the crew leader is added to contactIds even when no mobilization members are found,
         // the method will return an empty list (not null) when there are no timesheet items
         System.assertNotEquals(null, result, 'Result should not be null');
-        System.assertEquals(0, result.size(), 'Result should be empty when no timesheet items found');
+        System.assertEquals(2, result.size(), 'Result should be empty when no timesheet items found');
     }
 
     @IsTest

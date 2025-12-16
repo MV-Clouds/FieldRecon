@@ -7,12 +7,14 @@
     <testClassName>wfrecon.GlobalClockInOutControllerTest</testClassName>
     <testClassName>wfrecon.HomeTabControllerTest</testClassName>
     <testClassName>wfrecon.JobDetailsPageControllerTest</testClassName>
+    <testClassName>wfrecon.JobMetricsControllerTest</testClassName>
     <testClassName>wfrecon.ManagementTabControllerTest</testClassName>
     <testClassName>wfrecon.MobSchedulerControllerTest</testClassName>
     <testClassName>wfrecon.MockHttpResponseGenerator</testClassName>
     <testClassName>wfrecon.NewMobilizationCalendarControllerTest</testClassName>
     <testClassName>wfrecon.PaymentDetailsPageControllerTest</testClassName>
     <testClassName>wfrecon.ShiftEndLogEntriesControllerTest</testClassName>
+    <testClassName>wfrecon.ShiftEndLogV2ControllerTest</testClassName>
     <testClassName>wfrecon.SovJobLocationProcessesControllerTest</testClassName>
     <testClassName>wfrecon.SovJobLocationsControllerTest</testClassName>
     <testClassName>wfrecon.SovJobScopeControllerTest</testClassName>
