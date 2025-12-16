@@ -1,8 +1,8 @@
 /* ===== Theme Colors ===== */
 :host {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-light: #dbeafe;
+    --primary-color: #5e5adb;
+    --primary-hover: #4a46c4;
+    --primary-light: rgb(244, 244, 255);
     --danger-color: #dc2626;
     --danger-hover: #b91c1c;
     --danger-light: #fee2e2;
@@ -95,7 +95,7 @@
 }
 
 .tab-navigation button:hover {
-    background: var(--gray-50);
+    background: var(--primary-light);
     color: var(--primary-color);
 }
 
@@ -103,6 +103,7 @@
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
     background: var(--primary-light);
+    font-weight: 700;
 }
 
 .tab-icon {
@@ -131,7 +132,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     /* background: var(--gray-50); */
-    min-height: 0;
+    min-height: 15rem;
 }
 
 .modal-body::-webkit-scrollbar {
@@ -398,7 +399,7 @@
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    background: var(--primary-color);
     color: white;
 }
 
@@ -408,7 +409,7 @@
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+    background: var(--danger-color);
     color: white;
 }
 
