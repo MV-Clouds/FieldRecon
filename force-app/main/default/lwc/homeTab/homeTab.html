@@ -52,6 +52,19 @@
                                                                 <h3 class="job-title">{job.jobName}</h3>
                                                                 <span class="job-number">#{job.jobNumber}</span>
                                                             </a>
+                                                            <div class="job-actions-inline">
+                                                                <template if:true={job.isClockedIn}>
+                                                                    <button class="clock-in-button" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
+                                                                </template>
+                                                                <template if:false={job.isClockedIn}>
+                                                                    <template if:true={job.isAgain}>
+                                                                        <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In Again</button>
+                                                                    </template>
+                                                                    <template if:false={job.isAgain}>
+                                                                        <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                                    </template>
+                                                                </template>
+                                                            </div>
                                                         </div>
                                                         <div class="header-actions">
                                                             <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">
@@ -358,7 +371,7 @@
                             <div class="clock-in-container">
                                 <div class="input-column">
                                     <div class="datetime-container">
-                                        <label class="datetime-label">Job Start Date</label>
+                                        <label class="datetime-label">Job Start Time</label>
                                         <div class="datetime-wrapper">
                                             <input type="text" class="custom-datetime input-disabled" value={modalJobStartTime} disabled />
                                         </div>
@@ -366,7 +379,7 @@
                                 </div>
                                 <div class="input-column">
                                     <div class="datetime-container">
-                                        <label class="datetime-label">Job End Date</label>
+                                        <label class="datetime-label">Job End Time</label>
                                         <div class="datetime-wrapper">
                                             <input type="text" class="custom-datetime input-disabled" value={modalJobEndTime} disabled />
                                         </div>
@@ -388,9 +401,9 @@
                                 
                                 <div class="input-column">
                                     <div class="datetime-container">
-                                        <label class="datetime-label required">Clock In DateTime</label>
+                                        <label class="datetime-label">Clock In Time</label>
                                         <div class="datetime-wrapper">
-                                            <input type="datetime-local" class="custom-datetime" data-field="clockIn" value={clockInTime} onchange={handleInputChange} min={clockInMinBoundary} max={clockInMaxBoundary} />
+                                            <input type="text" class="custom-datetime input-disabled" value={currentDisplayTime} disabled />
                                         </div>
                                     </div>
                                 </div>
@@ -426,7 +439,7 @@
                             <div class="clock-in-container">
                                 <div class="input-column">
                                     <div class="datetime-container">
-                                        <label class="datetime-label">Job Start Date</label>
+                                        <label class="datetime-label">Job Start Time</label>
                                         <div class="datetime-wrapper">
                                             <input type="text" class="custom-datetime input-disabled" value={modalJobStartTime} disabled />
                                         </div>
@@ -434,7 +447,7 @@
                                 </div>
                                 <div class="input-column">
                                     <div class="datetime-container">
-                                        <label class="datetime-label">Job End Date</label>
+                                        <label class="datetime-label">Job End Time</label>
                                         <div class="datetime-wrapper">
                                             <input type="text" class="custom-datetime input-disabled" value={modalJobEndTime} disabled />
                                         </div>
@@ -443,7 +456,7 @@
                                 <template if:true={previousClockInTime}>
                                     <div class="input-column">
                                         <div class="datetime-container">
-                                            <label class="datetime-label">Clock In DateTime</label>
+                                            <label class="datetime-label">Previous Clock In Time</label>
                                             <div class="datetime-wrapper">
                                                 <input type="text" class="custom-datetime input-disabled" value={previousClockInTime} disabled />
                                             </div>
@@ -453,9 +466,9 @@
                                 <div class="form-wrapper">
                                     <div class="input-column">
                                         <div class="datetime-container">
-                                            <label class="datetime-label required">Clock Out DateTime</label>
+                                            <label class="datetime-label">Clock Out Time</label>
                                             <div class="datetime-wrapper">
-                                                <input type="datetime-local" class="custom-datetime" data-field="clockOut" value={clockOutTime} onchange={handleInputChange} min={clockOutMinBoundary} max={clockOutMaxBoundary} />
+                                                <input type="text" class="custom-datetime input-disabled" value={currentDisplayTime} disabled />
                                             </div>
                                         </div>
                                     </div>

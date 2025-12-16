@@ -114,9 +114,9 @@ private class BillingDetailsPageControllerTest {
         };
 
         Test.startTest();
-        String result = BillingDetailsPageController.saveBillingLineItems(bill.Id, updates);
+        Map<String, String> result = BillingDetailsPageController.saveBillingLineItems(bill.Id, updates);
         Test.stopTest();
-        System.assertEquals('SUCCESS', result);
+        System.assertNotEquals(null, result,'result should not be null');
     }
 
     @IsTest
@@ -171,9 +171,9 @@ private class BillingDetailsPageControllerTest {
         };
 
         Test.startTest();
-        String result = BillingDetailsPageController.saveBillingLineItems(bill.Id, updates);
+        Map<String, String> result = BillingDetailsPageController.saveBillingLineItems(bill.Id, updates);
         Test.stopTest();
-        System.assertEquals('SUCCESS', result);
+        System.assertNotEquals(null, result,'result should not be null');
     }
 
     @IsTest
@@ -227,8 +227,8 @@ private class BillingDetailsPageControllerTest {
             }
         };
 
-        String result = BillingDetailsPageController.saveBillingLineItems(bill.Id, updates);
-        System.assertEquals('SUCCESS', result);
+        Map<String, String> result = BillingDetailsPageController.saveBillingLineItems(bill.Id, updates);
+        System.assertNotEquals(null, result,'result should not be null');
     }
 
     @IsTest

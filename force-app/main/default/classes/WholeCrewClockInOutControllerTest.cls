@@ -3,6 +3,17 @@ public class WholeCrewClockInOutControllerTest {
 
     @TestSetup
     static void setupTestData() {
+        
+        Profile sysAdminProfile = [SELECT Id FROM Profile WHERE Name = 'System Administrator' LIMIT 1];
+        User sysAdmin = new User(
+            Alias = 'sysadm', Email = 'sysadmin@testorg.com',
+            EmailEncodingKey = 'UTF-8', LastName = 'SysAdmin', LanguageLocaleKey = 'en_US',
+            LocaleSidKey = 'en_US', ProfileId = sysAdminProfile.Id,
+            TimeZoneSidKey = 'America/Los_Angeles',
+            UserName = 'sysadmin@testorg.com' + System.currentTimeMillis()
+        );
+        insert sysAdmin;
+        
         // ======== Contacts ========
         RecordType empRt = [SELECT Id FROM RecordType WHERE DeveloperName='Employee_WF_Recon' AND SObjectType='Contact' LIMIT 1];
         RecordType subRt = [SELECT Id FROM RecordType WHERE DeveloperName='Sub_Contractor_WF_Recon' AND SObjectType='Contact' LIMIT 1];
@@ -248,7 +259,7 @@ public class WholeCrewClockInOutControllerTest {
         
         Date today = Date.today();
         Datetime clockInDt = Datetime.newInstance(today, Time.newInstance(8,0,0,0));
-        Datetime clockOutDt = Datetime.newInstance(today, Time.newInstance(17,0,0,0));
+        Datetime clockOutDt = Datetime.newInstance(today.addDays(1), Time.newInstance(17,0,0,0));
         String clockInStr = clockInDt.format('yyyy-MM-dd\'T\'HH:mm');
         String clockOutStr = clockOutDt.format('yyyy-MM-dd\'T\'HH:mm');
         
@@ -483,5 +494,21 @@ public class WholeCrewClockInOutControllerTest {
         Test.startTest();
         Map<String, Object> response = WholeCrewClockInOutController.bulkClockInOut(params);
         Test.stopTest();
+    }
+    
+    @IsTest
+    static void testcheckUserAccess() {
+
+        User usr = [SELECT Id FROM User WHERE alias = 'sysadm' LIMIT 1];
+        Contact con = [SELECT Id,wfrecon__User__c FROM Contact WHERE FirstName = 'Employee1' LIMIT 1];
+        con.wfrecon__User__c = usr.Id;
+        update con;
+        Job__c job = [SELECT Id FROM Job__c WHERE Job_Name__c='Job 1' LIMIT 1];
+        
+        System.runAs(usr){
+            Test.startTest();
+            Map<String, Object> response = WholeCrewClockInOutController.checkUserAccess(job.Id);
+            Test.stopTest();
+        }
     }
 }

@@ -1,5 +1,4 @@
-import { LightningElement, api, track, wire } from 'lwc';
-import { CurrentPageReference } from 'lightning/navigation';
+import { LightningElement, api, track } from 'lwc';
 import getMobilizationsForJob from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationsForJob';
 import getMobilizationMembersForSelection from '@salesforce/apex/WholeCrewClockInOutController.getMobilizationMembersForSelection';
 import bulkClockInOut from '@salesforce/apex/WholeCrewClockInOutController.bulkClockInOut';
@@ -8,7 +7,8 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CloseActionScreenEvent } from 'lightning/actions';
 
 export default class WholeCrewClockInOut extends LightningElement {
-    @track recordId; // Job Id from quick action context
+    @api recordId; // Job Id passed from Aura wrapper
+    @api isHomePage = false; // Flag to indicate if component is on home page
     @track isLoading = false;
     @track hasAccess = false;
     @track accessErrorMessage = '';
@@ -22,12 +22,11 @@ export default class WholeCrewClockInOut extends LightningElement {
     @track mobilizationOptions = [];
     @track hasMobilizations = false;
     @track selectedBulkCostCodeId = '';
-    @track bulkClockInTime = '';
-    @track bulkClockOutTime = '';
-    @track currentJobStartDateTime;
-    @track currentJobEndDateTime;
     @track activeTab = 'clockin'; // Track active tab
     @track selectedMemberIds = new Set(); // Track selected member IDs
+    @track currentDisplayTime;
+    @track currentDateTimeForApex;
+    @track timeUpdateInterval;
 
     // Getters
     get showMobilizationSelector() {
@@ -89,45 +88,27 @@ export default class WholeCrewClockInOut extends LightningElement {
         return this.activeTab === 'clockout' ? 'active' : '';
     }
 
-    get clockInMinBoundary() {
-        const reference = this.currentJobStartDateTime || this.bulkClockInTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
+    get isDesktopDevice() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /iphone|ipad|ipod|android|blackberry|windows phone|mobile/i.test(userAgent);
+        const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent);
+        return !isMobile && !isTablet;
     }
 
-    get clockInMaxBoundary() {
-        const reference = this.currentJobStartDateTime || this.bulkClockInTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T23:59` : null;
+    get popupCSS() {
+        return this.isHomePage ? (this.isDesktopDevice ? 'slds-modal slds-fade-in-open slds-modal_medium' : 'slds-modal slds-fade-in-open slds-modal_full') : '';
     }
 
-    get clockOutMinBoundary() {
-        const reference = this.currentJobEndDateTime || this.bulkClockOutTime;
-        const dateKey = this.extractDateKey(reference);
-        return dateKey ? `${dateKey}T00:00` : null;
+    get backdropCSS() {
+        return this.isHomePage ? 'slds-backdrop slds-backdrop_open sub-backdrop' : '';
     }
 
-    get clockOutMaxBoundary() {
-        const reference = this.currentJobEndDateTime || this.bulkClockOutTime;
-        const dateKey = this.extractDateKey(reference);
-        if (!dateKey) return null;
-        const nextDay = this.addDaysToDateKey(dateKey, 1);
-        return nextDay ? `${nextDay}T23:59` : null;
+    get containerCSS() {
+        return this.isHomePage ? 'slds-modal__container' : '';
     }
 
-    /** 
-    * Method Name: setCurrentPageReference
-    * @description: Wire method to set the current page reference and extract recordId from page state
-    */
-    @wire(CurrentPageReference)
-    setCurrentPageReference(pageRef) {
-        try {
-            console.log(pageRef);
-            this.recordId = pageRef.attributes.recordId || pageRef.state.recordId || this.recordId;
-            console.log(this.recordId);
-        } catch (error) {
-            console.error('Error in setCurrentPageReference:', error);
-        }
+    get subContainerCSS() {
+        return this.isHomePage ? 'slds-modal__content wizard-content' : 'wizard-content';
     }
 
     /** 
@@ -136,11 +117,35 @@ export default class WholeCrewClockInOut extends LightningElement {
     */
     connectedCallback() {
         try {
+            this.updateCurrentTime();
+            this.timeUpdateInterval = setInterval(() => {
+                this.updateCurrentTime();
+            }, 1000);
+            
             this.checkUserPermissions();
             this.overrideSLDS();
         } catch (error) {
             console.error('Error in connectedCallback:', error);
         }
+    }
+
+    /** 
+    * Method Name: updateCurrentTime
+    * @description: Updates the current date and time in both Apex-compatible and display formats.
+    */
+    updateCurrentTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        // Format for Apex: 2025-12-15T13:00
+        this.currentDateTimeForApex = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        // Format for Display: Dec 15, 2025, 01:00 PM
+        this.currentDisplayTime = this.formatToAMPM(this.currentDateTimeForApex);
     }
 
     /** 
@@ -237,7 +242,8 @@ export default class WholeCrewClockInOut extends LightningElement {
             if (result.hasMembers) {
                 this.hasData = true;
                 this.clockInMembers = (result.clockInMembers || []).map(member => {
-                    const hasRecentTimes = member.isAgain && (member.recentClockIn || member.recentClockOut);
+                    // Only show recent times if both clock in and clock out exist (completed session)
+                    const hasRecentTimes = member.isAgain && member.recentClockIn && member.recentClockOut;
                     return {
                         ...member,
                         isSelected: false,
@@ -249,7 +255,8 @@ export default class WholeCrewClockInOut extends LightningElement {
                 
                 // Format clockInTime for display in clockOutMembers with AM/PM
                 this.clockOutMembers = (result.clockOutMembers || []).map(member => {
-                    const hasRecentTimes = member.recentClockIn || member.recentClockOut;
+                    // Only show recent times if both clock in and clock out exist (completed session)
+                    const hasRecentTimes = member.recentClockIn && member.recentClockOut;
                     return {
                         ...member,
                         formattedClockInTime: member.clockInTime ? this.formatToAMPM(member.clockInTime) : '',
@@ -262,19 +269,7 @@ export default class WholeCrewClockInOut extends LightningElement {
                 });
                 
                 this.costCodes = result.costCodes || [];
-                this.currentJobStartDateTime = result.jobStartDateTime;
-                this.currentJobEndDateTime = result.jobEndDateTime;
                 this.errorMessage = '';
-                
-                // Set default clock in time
-                if (this.currentJobStartDateTime) {
-                    this.bulkClockInTime = this.parseLiteral(this.currentJobStartDateTime);
-                }
-                
-                // Set default clock out time
-                if (this.currentJobEndDateTime) {
-                    this.bulkClockOutTime = this.parseLiteral(this.currentJobEndDateTime);
-                }
             } else {
                 this.hasData = false;
                 this.errorMessage = result.message || 'No members found for selected mobilization';
@@ -287,38 +282,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             this.showToast('Error', this.errorMessage, 'error');
         } finally {
             this.isLoading = false;
-        }
-    }
-
-    /** 
-    * Method Name: handleSelectAll
-    * @description: Selects or deselects all members in the active tab
-    */
-    handleSelectAll(event) {
-        const isChecked = event.target.checked;
-        const currentList = this.isClockInActive ? this.clockInMembers : this.clockOutMembers;
-        
-        if (isChecked) {
-            // Add all current tab members to selection
-            currentList.forEach(member => {
-                this.selectedMemberIds.add(member.mobMemberId);
-                member.isSelected = true;
-            });
-        } else {
-            // Remove all current tab members from selection
-            currentList.forEach(member => {
-                this.selectedMemberIds.delete(member.mobMemberId);
-                member.isSelected = false;
-            });
-        }
-        
-        // Force reactivity
-        this.selectedMemberIds = new Set(this.selectedMemberIds);
-        
-        if (this.isClockInActive) {
-            this.clockInMembers = [...this.clockInMembers];
-        } else {
-            this.clockOutMembers = [...this.clockOutMembers];
         }
     }
 
@@ -350,19 +313,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             this.clockInMembers = [...this.clockInMembers];
         } else {
             this.clockOutMembers = [...this.clockOutMembers];
-        }
-    }
-
-    /** 
-    * Method Name: parseLiteral
-    * @description: Parses ISO date string to "YYYY-MM-DDTHH:MM" format for datetime-local input
-    */
-    parseLiteral(iso) {
-        try {
-            return iso ? iso.substring(0, 16) : '';
-        } catch (error) {
-            console.error('Error in parseLiteral:', error);
-            return '';
         }
     }
 
@@ -403,82 +353,6 @@ export default class WholeCrewClockInOut extends LightningElement {
     }
 
     /** 
-    * Method Name: extractDateKey
-    * @description: Extracts date portion (YYYY-MM-DD) from various datetime string formats
-    */
-    extractDateKey(value) {
-        try {
-            if (!value) return null;
-            if (value.length === 10) return value;
-            if (value.includes('T')) return value.split('T')[0];
-            if (value.includes(' ')) return value.split(' ')[0];
-            return value.substring(0, 10);
-        } catch (error) {
-            console.error('Error in extractDateKey:', error);
-            return null;
-        }
-    }
-
-    /** 
-    * Method Name: addDaysToDateKey
-    * @description: Adds specified number of days to a date string (YYYY-MM-DD format)
-    */
-    addDaysToDateKey(dateKey, days) {
-        try {
-            if (!dateKey || dateKey.length !== 10) return null;
-            const parts = dateKey.split('-');
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const day = parseInt(parts[2], 10);
-            const d = new Date(year, month, day);
-            d.setDate(d.getDate() + days);
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const dy = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${dy}`;
-        } catch (error) {
-            console.error('Error in addDaysToDateKey:', error);
-            return null;
-        }
-    }
-
-    /** 
-    * Method Name: validateClockInDate
-    * @description: Validates that clock in date matches job start date
-    */
-    validateClockInDate(clockInValue, jobStartValue) {
-        const clockInDate = this.extractDateKey(clockInValue);
-        const jobStartDate = this.extractDateKey(jobStartValue);
-
-        if (clockInDate && jobStartDate && clockInDate !== jobStartDate) {
-            this.showToast('Error', 'Clock In time must be on the job start date', 'error');
-            return false;
-        }
-
-        return true;
-    }
-
-    /** 
-    * Method Name: validateClockOutDate
-    * @description: Validates that clock out date is within job start date, end date, or end date + 1
-    */
-    validateClockOutDate(clockOutValue, jobStartValue, jobEndValue) {
-        const clockOutDate = this.extractDateKey(clockOutValue);
-        const jobStartDate = this.extractDateKey(jobStartValue);
-        const jobEndDate = this.extractDateKey(jobEndValue);
-
-        if (clockOutDate && jobEndDate) {
-            const nextDay = this.addDaysToDateKey(jobEndDate, 1);
-            if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
-                this.showToast('Error', 'Clock Out time must be on the job start date, job end date, or the following day', 'error');
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /** 
     * Method Name: handleMobilizationChange
     * @description: Handles mobilization selection change event
     */
@@ -509,10 +383,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             
             if (field === 'bulkCostCode') {
                 this.selectedBulkCostCodeId = value;
-            } else if (field === 'bulkClockInTime') {
-                this.bulkClockInTime = value;
-            } else if (field === 'bulkClockOutTime') {
-                this.bulkClockOutTime = value;
             }
         } catch (error) {
             console.error('Error in handleBulkInputChange:', error);
@@ -526,17 +396,10 @@ export default class WholeCrewClockInOut extends LightningElement {
     async handleConfirmBulkClockIn() {
         this.isLoading = true;
         try {
-            // Get selected clock in members
             const selectedMembers = this.clockInMembers.filter(m => m.isSelected);
             
             if (selectedMembers.length === 0) {
                 this.showToast('Warning', 'Please select at least one member to clock in', 'warning');
-                return;
-            }
-
-            // Validation
-            if (!this.bulkClockInTime) {
-                this.showToast('Error', 'Please select clock in time', 'error');
                 return;
             }
 
@@ -545,23 +408,15 @@ export default class WholeCrewClockInOut extends LightningElement {
                 return;
             }
 
-            // Validate clock in time is within job date
-            const clockInDate = this.extractDateKey(this.bulkClockInTime);
-            const jobStartDate = this.extractDateKey(this.currentJobStartDateTime);
+            this.updateCurrentTime();
 
-            if (clockInDate !== jobStartDate) {
-                this.showToast('Error', 'Clock in time must be on the mobilization date', 'error');
-                return;
-            }
-
-            // Prepare members data matching jobDetailsPage format
             const clockInMembers = selectedMembers.map(member => ({
                 actionType: 'clockIn',
                 jobId: this.recordId,
                 mobId: this.selectedMobilizationId,
                 contactId: member.contactId,
                 costCodeId: this.selectedBulkCostCodeId,
-                clockInTime: this.bulkClockInTime,
+                clockInTime: this.currentDateTimeForApex,
                 isTimeSheetNull: member.isTimesheetNull,
                 timesheetId: member.timesheetId,
                 isTimeSheetEntryNull: member.isTimesheetEntryNull,
@@ -583,9 +438,8 @@ export default class WholeCrewClockInOut extends LightningElement {
                 // Reset form
                 this.selectedBulkCostCodeId = '';
                 this.selectedMemberIds = new Set();
-                // Reload members and switch to clock out tab
+                // Reload members
                 await this.loadMembers();
-                this.activeTab = 'clockout';
             } else {
                 this.showToast('Error', clockInResult.message || 'Failed to clock in', 'error');
             }
@@ -612,29 +466,6 @@ export default class WholeCrewClockInOut extends LightningElement {
                 return;
             }
 
-            // Validation
-            if (!this.bulkClockOutTime) {
-                this.showToast('Error', 'Please select clock out time', 'error');
-                return;
-            }
-
-            // Validate clock out time is after clock in time for all selected members
-            for (const member of selectedMembers) {
-                if (member.clockInTime && new Date(this.bulkClockOutTime) <= new Date(member.clockInTime.slice(0, 16))) {
-                    this.showToast('Error', `Clock Out time must be after Clock In time for ${member.contactName}`, 'error');
-                    this.isLoading = false;
-                    return;
-                }
-            }
-
-            // Validate clock out time is within job date range
-            const jobStartDate = this.extractDateKey(this.currentJobStartDateTime);
-            const jobEndDate = this.extractDateKey(this.currentJobEndDateTime);
-            if (!this.validateClockOutDate(this.bulkClockOutTime, jobStartDate, jobEndDate)) {
-                this.isLoading = false;
-                return;
-            }
-
             // Prepare members data matching jobDetailsPage format
             const members = selectedMembers.map(member => ({
                 actionType: 'clockOut',
@@ -642,7 +473,7 @@ export default class WholeCrewClockInOut extends LightningElement {
                 mobId: this.selectedMobilizationId,
                 contactId: member.contactId,
                 clockInTime: member.clockInTime || null,
-                clockOutTime: this.bulkClockOutTime,
+                clockOutTime: this.currentDateTimeForApex,
                 isTimeSheetNull: member.isTimesheetNull,
                 timesheetId: member.timesheetId,
                 isTimeSheetEntryNull: member.isTimesheetEntryNull,
@@ -662,9 +493,8 @@ export default class WholeCrewClockInOut extends LightningElement {
             if (result.success) {
                 this.showToast('Success', 'Successfully clocked out ' + members.length + ' member(s)', 'success');
                 this.selectedMemberIds = new Set();
-                // Reload members and switch back to clock in tab
+                // Reload members
                 await this.loadMembers();
-                this.activeTab = 'clockin';
             } else {
                 this.showToast('Error', result.message || 'Failed to clock out', 'error');
             }
@@ -721,6 +551,19 @@ export default class WholeCrewClockInOut extends LightningElement {
     }
 
     /** 
+    * Method Name: handleClosePopup
+    * @description: Dispatches custom event to parent component to close the popup (for home page)
+    */
+    handleClosePopup() {
+        try {
+            const closeEvent = new CustomEvent('closepopup');
+            this.dispatchEvent(closeEvent);
+        } catch (error) {
+            console.error('Error in handleClosePopup:', error);
+        }
+    }
+
+    /** 
     * Method Name: showToast
     * @description: Displays a toast notification message
     */
@@ -732,6 +575,10 @@ export default class WholeCrewClockInOut extends LightningElement {
         }
     }
 
+    /** 
+    * Method Name: overrideSLDS
+    * @description: Overrides default SLDS styles for modal customization
+    */
     overrideSLDS(){
         let style = document.createElement('style');
         style.innerText = `
@@ -777,5 +624,15 @@ export default class WholeCrewClockInOut extends LightningElement {
                 }
         `;
         this.template.host.appendChild(style);
+    }
+
+    /** 
+    * Method Name: disconnectedCallback
+    * @description: Cleans up the interval timer when the component is removed from the DOM.
+    */
+    disconnectedCallback() {
+        if (this.timeUpdateInterval) {
+            clearInterval(this.timeUpdateInterval);
+        }
     }
 }

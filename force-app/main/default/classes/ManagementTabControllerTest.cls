@@ -804,9 +804,34 @@ private class ManagementTabControllerTest {
     @IsTest
     static void testSaveLogEntryApprovers_SuccessPath() {
         // enqueueDeployment runs synchronously in test context → full coverage
+        List<User> usrlist = [SELECT Id FROM USER limit 2];
+        List<String> userIds = new List<String>();
+
+        for (User u : usrlist) {
+            userIds.add(u.Id);
+        }
         Test.startTest();
-        Map<String, Object> result = ManagementTabController.saveLogEntryApprovers('{"users":["005xxxxxxxxxxxxxxx"]}');
+        Map<String, Object> result = ManagementTabController.saveLogEntryApprovers(userIds,true);
         Test.stopTest();
+    }
+    
+    @IsTest
+    static void testgetLogEntryApprovers() {
+     
+        Test.startTest();
+        Map<String, Object> result = ManagementTabController.getLogEntryApprovers();
+        Test.stopTest();
+    }
+    
+    @IsTest
+    static void testcheckUserHasSalesforceLicense() {
+     
+        User usr = [SELECT Id FROM USER WHERE alias = 'tuser1' LIMIT 1];
+        System.runAs(usr){
+            Test.startTest();
+            Boolean result = ManagementTabController.checkUserHasSalesforceLicense();
+            Test.stopTest();
+        }
     }
 
     @IsTest

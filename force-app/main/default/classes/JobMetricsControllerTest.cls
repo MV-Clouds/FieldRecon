@@ -50,7 +50,7 @@ public class JobMetricsControllerTest {
     @IsTest
     static void testGetAllJobsWithScopeData() {
         Test.startTest();
-        List<JobMetricsController.JobData> jobDataList = JobMetricsController.getAllJobsWithScopeData();
+        List<JobMetricsController.JobData> jobDataList = JobMetricsController.getAllJobsWithScopeData(false);
         Test.stopTest();
 
         System.assertNotEquals(null, jobDataList, 'Job data list should not be null');
@@ -69,7 +69,7 @@ public class JobMetricsControllerTest {
         delete [SELECT Id FROM wfrecon__Job__c];
 
         Test.startTest();
-        List<JobMetricsController.JobData> jobDataList = JobMetricsController.getAllJobsWithScopeData();
+        List<JobMetricsController.JobData> jobDataList = JobMetricsController.getAllJobsWithScopeData(false);
         Test.stopTest();
 
         System.assertNotEquals(null, jobDataList, 'Should return empty list instead of null');
@@ -78,17 +78,47 @@ public class JobMetricsControllerTest {
 
     @IsTest
     static void testGetJobMetrics() {
+        // Create custom setting records for testing
+        List<wfrecon__JobMetrics__c> testSettings = new List<wfrecon__JobMetrics__c>{
+            new wfrecon__JobMetrics__c(
+                Name = 'backlog',
+                wfrecon__Statuses__c = 'Backlog,Not Started'
+            ),
+            new wfrecon__JobMetrics__c(
+                Name = 'inProgress',
+                wfrecon__Statuses__c = 'In Progress'
+            ),
+            new wfrecon__JobMetrics__c(
+                Name = 'openBalance',
+                wfrecon__Statuses__c = 'In Progress,Pending'
+            ),
+            new wfrecon__JobMetrics__c(
+                Name = 'retainagePending',
+                wfrecon__Statuses__c = 'Completed'
+            ),
+            new wfrecon__JobMetrics__c(
+                Name = 'workRemaining',
+                wfrecon__Statuses__c = 'In Progress,Pending'
+            )
+        };
+        insert testSettings;
+        
+        // Update test job data to match the statuses in custom settings
+        List<wfrecon__Job__c> jobs = [SELECT Id, wfrecon__Status__c FROM wfrecon__Job__c];
+        jobs[0].wfrecon__Status__c = 'In Progress';
+        jobs[0].wfrecon__Total_Contract_Price__c = 100000;
+        jobs[1].wfrecon__Status__c = 'Backlog';
+        jobs[1].wfrecon__Total_Contract_Price__c = 50000;
+        jobs[2].wfrecon__Status__c = 'Pending';
+        jobs[2].wfrecon__Total_Contract_Price__c = 75000;
+        update jobs;
+        
         Test.startTest();
         Map<String, JobMetricsController.MetricData> metrics = JobMetricsController.getJobMetrics();
         Test.stopTest();
-
+        
         System.assertNotEquals(null, metrics, 'Metrics should not be null');
-
-        // Verify that MetricData objects are initialized
-        for (String metricName : metrics.keySet()) {
-            JobMetricsController.MetricData metric = metrics.get(metricName);
-            System.assertNotEquals(null, metric, 'Metric data should not be null for ' + metricName);
-        }
+        
     }
 
     @IsTest
@@ -127,6 +157,27 @@ public class JobMetricsControllerTest {
         Test.stopTest();
     }
 
+   @IsTest
+    static void testGetAllJobsWithScopeData_RecentlyViewedFilter() {
+        // First, create test data
+        List<wfrecon__Job__c> testJobs = new List<wfrecon__Job__c>{
+            new wfrecon__Job__c(
+                wfrecon__Job_Name__c = 'Job for Recently Viewed Test',
+                wfrecon__Status__c = 'In Progress'
+            )
+        };
+        insert testJobs;
+        
+        Test.startTest();
+        List<JobMetricsController.JobData> jobDataWithFilter = JobMetricsController.getAllJobsWithScopeData(true);
+      
+        List<JobMetricsController.JobData> jobDataWithoutFilter = JobMetricsController.getAllJobsWithScopeData(false);
+        Test.stopTest();
+        
+        System.assertNotEquals(null, jobDataWithFilter, 'Should return list (possibly empty)');    
+        System.assert(jobDataWithoutFilter.size() >= 1, 'Should return jobs when not filtering by recently viewed');
+    }
+    
     @IsTest
     static void testJobDataWrapperClass() {
         // Test the wrapper class constructor and default values

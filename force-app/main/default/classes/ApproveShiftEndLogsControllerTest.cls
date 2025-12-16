@@ -135,7 +135,9 @@ private class ApproveShiftEndLogsControllerTest {
     static void testCheckUserAccess_SystemAdmin() {
         User admin = [SELECT Id FROM User WHERE Alias = 'sysadm' LIMIT 1];
         System.runAs(admin) {
-            System.assert(ApproveShiftEndLogsController.checkUserAccess());
+            Map<String, Boolean> result = ApproveShiftEndLogsController.checkUserAccess();
+            System.assertEquals(true, result.get('hasAccess'), 'System Admin should have access');
+            System.assertEquals(false, result.get('timesheetApprovalEnabled'));
         }
     }
 
@@ -143,7 +145,9 @@ private class ApproveShiftEndLogsControllerTest {
     static void testCheckUserAccess_NoAccess() {
         User u = [SELECT Id FROM User WHERE Alias = 'tstusr' LIMIT 1];
         System.runAs(u) {
-            System.assert(!ApproveShiftEndLogsController.checkUserAccess());
+            Map<String, Boolean> result = ApproveShiftEndLogsController.checkUserAccess();
+            System.assertEquals(false, result.get('hasAccess'), 'Normal user should not have access');
+            System.assertEquals(false, result.get('timesheetApprovalEnabled'));
         }
     }
 
@@ -219,14 +223,32 @@ private class ApproveShiftEndLogsControllerTest {
         User u = [SELECT Id FROM User WHERE Alias = 'sysadm' LIMIT 1];
         wfrecon__Log_Entry__c log = [SELECT Id FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c = 'Pending' LIMIT 1];
         Timesheet_Entry__c ts = [SELECT Id FROM Timesheet_Entry__c LIMIT 1];
+        
+        ContentVersion contentVersionInsert = new ContentVersion(
+            Title = 'Test',
+            PathOnClient = 'Test.jpg',
+            VersionData = Blob.valueOf('Test Content Data'),
+            IsMajorVersion = true
+        );
+        insert contentVersionInsert;
+ 
+        ContentVersion contentVersionSelect = [SELECT Id, Title, ContentDocumentId FROM ContentVersion WHERE Id = :contentVersionInsert.Id LIMIT 1];
 
         Map<String, Object> payload = new Map<String, Object>{
             'timesheets' => new List<Object>{ new Map<String, Object>{ 'id' => ts.Id, 'status' => 'Rejected' }}
         };
+       
+        Map<String, Object> payload1 = new Map<String, Object>{           
+            'removedAttachments' => new List<Object>{ new Map<String, Object>{
+                'id' => contentVersionSelect.ContentDocumentId
+            }}
+        };     
+            
 
         System.runAs(u) {
             Test.startTest();
             ApproveShiftEndLogsController.processLogEntryApproval(log.Id, JSON.serialize(payload), 'Rejected', '{}');
+            ApproveShiftEndLogsController.processLogEntryApproval(log.Id, JSON.serialize(payload1), 'Approved', '{}');
             Test.stopTest();
         }
 
@@ -253,5 +275,58 @@ private class ApproveShiftEndLogsControllerTest {
         }
         // Should not crash
         System.assert(true);
+    }
+    
+     @IsTest
+    static void testdeleteContentDocument() {
+        User admin = [SELECT Id FROM User WHERE Alias = 'sysadm' LIMIT 1];
+        System.runAs(admin) {
+            
+            ContentVersion contentVersionInsert = new ContentVersion(
+            Title = 'Test',
+            PathOnClient = 'Test.jpg',
+            VersionData = Blob.valueOf('Test Content Data'),
+            IsMajorVersion = true
+            );
+            insert contentVersionInsert;
+ 
+        	ContentVersion contentVersionSelect = [SELECT Id, Title, ContentDocumentId FROM ContentVersion WHERE Id = :contentVersionInsert.Id LIMIT 1];
+
+            ApproveShiftEndLogsController.deleteContentDocument(contentVersionSelect.ContentDocumentId);
+            
+        }
+    }
+    
+    @IsTest
+    static void testsaveCameraPhoto() {
+        User admin = [SELECT Id FROM User WHERE Alias = 'sysadm' LIMIT 1];
+        wfrecon__Log_Entry__c log = [SELECT Id FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c = 'Pending' LIMIT 1];
+        
+        System.runAs(admin) {
+                       
+            ApproveShiftEndLogsController.saveCameraPhoto(log.Id,'testfile.jpg','testbase64');
+        }
+    }
+    
+    @IsTest
+    static void testlinkChatterFiles() {
+        User admin = [SELECT Id FROM User WHERE Alias = 'sysadm' LIMIT 1];
+        wfrecon__Log_Entry__c log = [SELECT Id FROM wfrecon__Log_Entry__c WHERE wfrecon__Status__c = 'Pending' LIMIT 1];
+        
+        System.runAs(admin) { 
+            List<String> contentDocIds = new List<String>();
+
+            ContentVersion contentVersionInsert = new ContentVersion(
+                Title = 'Test',
+                PathOnClient = 'Test.jpg',
+                VersionData = Blob.valueOf('Test Content Data'),
+                IsMajorVersion = true
+            );
+            insert contentVersionInsert;
+            ContentVersion contentVersionSelect = [SELECT Id, Title, ContentDocumentId FROM ContentVersion WHERE Id = :contentVersionInsert.Id LIMIT 1];
+            contentDocIds.add(contentVersionSelect.ContentDocumentId);
+            	                       
+            ApproveShiftEndLogsController.linkChatterFiles(log.Id,contentDocIds);
+        }
     }
 }
