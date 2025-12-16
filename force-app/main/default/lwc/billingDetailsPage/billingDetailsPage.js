@@ -275,6 +275,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     processLineItem(item) {
         const contractValue = item.wfrecon__Scope_Contract_Amount__c || 0;
         const previousBilledAmount = item.wfrecon__Previous_Billed_Value__c || 0;
+        const previousBilledAmountWithRetainage = item?.wfrecon__Previous_Bill_Line_Item__r?.wfrecon__Total_Billed_Amount__c || 0;
         const thisBillingAmountValue = item.wfrecon__This_Billing_Value__c || 0;
         const retainagePercentValue = item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0;
         const thisRetainageAmountValue = item.wfrecon__This_Retainage_Amount__c || 0;
@@ -296,6 +297,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             contractValue: this.formatCurrency(contractValue),
             previousBilledPercent: this.formatPercent(item.wfrecon__Previous_Billed_Percent__c),
             previousBilledAmount: this.formatCurrency(previousBilledAmount),
+            previousBilledAmountWithRetainage: this.formatCurrency(previousBilledAmountWithRetainage),
             currentCompletePercent: this.formatPercent(item.wfrecon__Scope_Complete__c),
             thisBillingCompletePercent: this.formatPercent(billingPercentValue),
             totalCompleteAmount: this.formatCurrency(totalCompleteAmountValue),
@@ -315,6 +317,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             // Raw values for calculations
             rawScopeContractValue: contractValue,
             rawPreviousBilledAmount: previousBilledAmount,
+            rawPreviousBilledAmountWithRetainage: previousBilledAmountWithRetainage,
             rawTotalCompleteAmount: totalCompleteAmountValue,
             rawThisBillingAmount: thisBillingAmountValue,
             rawThisBillRetainageAmount: totalRetainageAmountValue,
@@ -352,6 +355,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         const totals = items.reduce((acc, item) => {
             acc.contractValue += item.rawScopeContractValue;
             acc.previousBilledAmount += item.rawPreviousBilledAmount;
+            acc.previousBilledAmountWithRetainage += item.rawPreviousBilledAmountWithRetainage;
             acc.totalCompleteAmount += item.rawTotalCompleteAmount;
             acc.thisBillingAmount += item.rawThisBillingAmount;
             acc.thisBillRetainageAmount += item.rawThisBillRetainageAmount;
@@ -361,6 +365,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         }, {
             contractValue: 0,
             previousBilledAmount: 0,
+            previousBilledAmountWithRetainage: 0,
             totalCompleteAmount: 0,
             thisBillingAmount: 0,
             thisBillRetainageAmount: 0,
@@ -372,6 +377,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return {
             contractValue: this.formatCurrency(totals.contractValue),
             previousBilledAmount: this.formatCurrency(totals.previousBilledAmount),
+            previousBilledAmountWithRetainage: this.formatCurrency(totals.previousBilledAmountWithRetainage),
             totalCompleteAmount: this.formatCurrency(totals.totalCompleteAmount),
             thisBillingAmount: this.formatCurrency(totals.thisBillingAmount),
             thisBillRetainageAmount: this.formatCurrency(totals.thisBillRetainageAmount),
@@ -820,6 +826,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
     getItemBaseline(item) {
         const contractValue = item.rawScopeContractValue || 0;
         const previousBilledAmount = item.rawPreviousBilledAmount || 0;
+        const previousBilledAmountWithRetainage = item.rawPreviousBilledAmountWithRetainage || 0;
         const previousRetainage = item.baseRetainageBeforeCurrent != null
             ? item.baseRetainageBeforeCurrent
             : Math.max(0, (item.rawThisBillRetainageAmount || 0) - (item.rawRetainageAmount || 0));
@@ -831,6 +838,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return {
             contractValue,
             previousBilledAmount,
+            previousBilledAmountWithRetainage,
             previousRetainage,
             minPercent: Math.max(item.rawPreviousBilledPercent || 0, item.rawCurrentCompletePercent || 0)
         };
@@ -841,24 +849,28 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      * @description: Calculates minimum and maximum allowable amounts for a line item.
      */
     calculateAmountBounds(baseline, retainagePercent) {
-        const factor = 1 + (retainagePercent / 100);
-
         let maxAmount = Number.POSITIVE_INFINITY;
         let minAmount = 0;
 
         if (baseline.contractValue > 0) {
+            // Available gross billing for this period
             const availableGross = baseline.contractValue - baseline.previousBilledAmount - baseline.previousRetainage;
-            maxAmount = availableGross > 0 ? availableGross / factor : 0;
+            
+            // Max net amount = Gross - (Gross × Retainage%) = Gross × (1 - Retainage%/100)
+            const retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
+            maxAmount = availableGross > 0 ? availableGross * (1 - retainageFactor) : 0;
 
+            // Minimum required gross to date
             const requiredGross = baseline.contractValue * (baseline.minPercent / 100);
             const remainingGrossNeeded = requiredGross - baseline.previousBilledAmount - baseline.previousRetainage;
-            minAmount = remainingGrossNeeded > 0 ? remainingGrossNeeded / factor : 0;
+            
+            // Min net amount = Gross - (Gross × Retainage%) = Gross × (1 - Retainage%/100)
+            minAmount = remainingGrossNeeded > 0 ? remainingGrossNeeded * (1 - retainageFactor) : 0;
         }
 
         return {
             minAmount: this.roundCurrency(Math.max(0, minAmount)),
-            maxAmount: baseline.contractValue > 0 ? this.roundCurrency(Math.max(0, maxAmount)) : Number.POSITIVE_INFINITY,
-            factor
+            maxAmount: baseline.contractValue > 0 ? this.roundCurrency(Math.max(0, maxAmount)) : Number.POSITIVE_INFINITY
         };
     }
 
@@ -867,15 +879,29 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      * @description: Computes derived values when using This Billing Amount as source of truth.
      */
     computeValuesFromAmount(baseline, amount, retainagePercent) {
+        // This Billing Amount is the net amount (after retainage deduction)
+        // To find the gross billing for this period: Gross = Net / (1 - Retainage%/100)
         const roundedAmount = this.roundCurrency(amount);
-        const retainageValue = this.roundCurrency(roundedAmount * retainagePercent / 100);
+        const retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
+        
+        // Calculate gross billing for this period
+        const grossBillingAmount = retainageFactor < 1 
+            ? this.roundCurrency(roundedAmount / (1 - retainageFactor))
+            : roundedAmount;
+        
+        // Retainage is calculated on the gross billing amount
+        const retainageValue = this.roundCurrency(grossBillingAmount * retainageFactor);
+        
+        // Verify: net amount should equal gross - retainage
+        const verifiedNetAmount = this.roundCurrency(grossBillingAmount - retainageValue);
+        
         const totalRetainage = this.roundCurrency(baseline.previousRetainage + retainageValue);
-        const totalBilled = this.roundCurrency(baseline.previousBilledAmount + roundedAmount);
+        const totalBilled = this.roundCurrency(baseline.previousBilledAmount + verifiedNetAmount);
         const grossToDate = this.roundCurrency(totalBilled + totalRetainage);
         const percent = baseline.contractValue > 0 ? this.roundPercent((grossToDate / baseline.contractValue) * 100) : 0;
 
         return {
-            amount: roundedAmount,
+            amount: verifiedNetAmount,
             retainageValue,
             totalRetainage,
             totalBilled,
@@ -895,17 +921,34 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             return this.computeValuesFromAmount(baseline, 0, retainagePercent);
         }
 
+        // Total gross amount to date (including all retainage)
         const grossToDate = this.roundCurrency((baseline.contractValue * safePercent) / 100);
         const previousGross = this.roundCurrency(baseline.previousBilledAmount + baseline.previousRetainage);
-        let grossContribution = this.roundCurrency(grossToDate - previousGross);
-        if (grossContribution < 0) {
-            grossContribution = 0;
+        
+        // Gross billing for this period
+        let grossBillingAmount = this.roundCurrency(grossToDate - previousGross);
+        if (grossBillingAmount < 0) {
+            grossBillingAmount = 0;
         }
 
-        const factor = 1 + (retainagePercent / 100);
-        const amount = factor !== 0 ? grossContribution / factor : grossContribution;
+        // Calculate retainage on the gross billing amount for this period
+        const retainageValue = this.roundCurrency(grossBillingAmount * (retainagePercent / 100));
+        
+        // Net billing amount = Gross billing - Retainage
+        const netBillingAmount = this.roundCurrency(grossBillingAmount - retainageValue);
+        
+        // Calculate all other values
+        const totalRetainage = this.roundCurrency(baseline.previousRetainage + retainageValue);
+        const totalBilled = this.roundCurrency(baseline.previousBilledAmount + netBillingAmount);
 
-        return this.computeValuesFromAmount(baseline, amount, retainagePercent);
+        return {
+            amount: netBillingAmount,
+            retainageValue,
+            totalRetainage,
+            totalBilled,
+            grossToDate,
+            percent: safePercent
+        };
     }
 
     /**

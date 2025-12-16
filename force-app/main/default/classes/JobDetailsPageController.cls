@@ -244,6 +244,7 @@ public with sharing class JobDetailsPageController {
                 AND (wfrecon__Clock_In_Time__c >= :startDate
                 OR wfrecon__Clock_In_Time__c <= :endDate.addDays(1))
                 WITH USER_MODE
+                ORDER BY CreatedDate DESC
             ];
             System.debug('entries: ' + entries.size());
 
@@ -290,22 +291,13 @@ public with sharing class JobDetailsPageController {
                 Boolean hasCompletedEntry = false;
                 wfrecon__Timesheet_Entry__c latestOpen;
                 wfrecon__Timesheet_Entry__c latestCompleted;
-                DateTime mostRecentClockIn;
-                DateTime mostRecentClockOut;
+                
+                // Get most recent entry (first in list since ordered by CreatedDate DESC)
+                wfrecon__Timesheet_Entry__c mostRecentEntry = userEntries[0];
+                DateTime mostRecentClockIn = mostRecentEntry.wfrecon__Clock_In_Time__c;
+                DateTime mostRecentClockOut = mostRecentEntry.wfrecon__Clock_Out_Time__c;
     
                 for (wfrecon__Timesheet_Entry__c e : userEntries) {
-                    // Track most recent clock in/out times
-                    if (e.wfrecon__Clock_In_Time__c != null) {
-                        if (mostRecentClockIn == null || e.wfrecon__Clock_In_Time__c > mostRecentClockIn) {
-                            mostRecentClockIn = e.wfrecon__Clock_In_Time__c;
-                        }
-                    }
-                    if (e.wfrecon__Clock_Out_Time__c != null) {
-                        if (mostRecentClockOut == null || e.wfrecon__Clock_Out_Time__c > mostRecentClockOut) {
-                            mostRecentClockOut = e.wfrecon__Clock_Out_Time__c;
-                        }
-                    }
-                    
                     if (e.wfrecon__Clock_In_Time__c != null && e.wfrecon__Clock_Out_Time__c == null) {
                         hasOpenEntry = true;
                         latestOpen = e;
