@@ -92,7 +92,9 @@ public with sharing class HomeTabController {
                 Set<Id> associatedCrewIds = new Set<Id>();
 
                 for(wfrecon__Mobilization_Member__c m : mobMembers) {
-                    jobIds.add(m.wfrecon__Mobilization__r.wfrecon__Job__c);
+                    if(m.wfrecon__Mobilization__r.wfrecon__Job__c != null) {
+                        jobIds.add(m.wfrecon__Mobilization__r.wfrecon__Job__c);
+                    }
                     if(m.wfrecon__Crew__c != null) {
                         associatedCrewIds.add(m.wfrecon__Crew__c);
                     }
