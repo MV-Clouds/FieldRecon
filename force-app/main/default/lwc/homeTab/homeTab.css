@@ -736,6 +736,7 @@
 .map-btn {
     background: #ffffff;
     color: #555;
+    padding: 0.55rem 0.55rem;
 }
 .map-btn:hover { background: #e0e0e0; }
 

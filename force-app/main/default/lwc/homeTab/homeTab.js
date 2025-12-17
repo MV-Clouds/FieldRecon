@@ -33,6 +33,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     @track currentModalJobStartDateTime;
     @track currentModalJobEndDateTime;
     @track groupedTimesheets = [];
+    @track showCrewModal = false;
+    @track selectedJobId;
 
     // Main Table Columns (Desktop)
     mainTableColumns = [
@@ -321,6 +323,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                         lastClockInFormatted: lastIn,
                                         lastClockOutFormatted: lastOut,
                                         hasLastEntry: !!(lastIn && lastOut),
+                                        isCrewLeader: job.isCrewLeader || false,
                                         mapMarkers: [{
                                             location: {
                                                 Street: job.jobStreet || '',
@@ -984,7 +987,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     handleOpenInMaps(event) {
         try {
-            const mobId = event.target.dataset.id;
+            const mobId = event.currentTarget.dataset.id;
             let selectedMob;
 
             if (this.activeTab === 'today') {
@@ -1066,6 +1069,34 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 };
             });
         }
+    }
+
+    /**
+     * Method Name: handleCrewClockInOut
+     * @description: Handles the Crew Clock In/Out action
+     * @param {*} event 
+     */
+    handleCrewClockInOut(event) {
+        const mobId = event.currentTarget.dataset.id;
+        const selectedMob = this.todayJobList.find(job => job.mobId === mobId);
+        
+        if (selectedMob) {
+            this.selectedJobId = selectedMob.jobId;
+            this.showCrewModal = true;
+        }
+    }
+
+    /**
+     * Method Name: closeCrewModal
+     * @description: Closes the Crew Clock In/Out modal
+     */
+    closeCrewModal() {
+        this.showCrewModal = false;
+        this.selectedJobId = null;
+        
+        // Refresh the data to show updated status after crew action
+        this.getMobilizationMembers();
+        this.getTimesheetDetails();
     }
 
     /** 
