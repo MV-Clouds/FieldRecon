@@ -52,19 +52,6 @@
                                                                 <h3 class="job-title">{job.jobName}</h3>
                                                                 <span class="job-number">#{job.jobNumber}</span>
                                                             </a>
-                                                            <div class="job-actions-inline">
-                                                                <template if:true={job.isClockedIn}>
-                                                                    <button class="clock-in-button" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
-                                                                </template>
-                                                                <template if:false={job.isClockedIn}>
-                                                                    <template if:true={job.isAgain}>
-                                                                        <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In Again</button>
-                                                                    </template>
-                                                                    <template if:false={job.isAgain}>
-                                                                        <button class="clock-in-button" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
-                                                                    </template>
-                                                                </template>
-                                                            </div>
                                                         </div>
                                                         <div class="header-actions">
                                                             <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">

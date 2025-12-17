@@ -854,13 +854,6 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                     if (result == true) {
                         this.showToast('Success', 'Clocked In Successfully', 'success');
                         this.closeClockInModal();
-                        this[NavigationMixin.Navigate]({
-                            type: 'standard__recordPage',
-                            attributes: {
-                                recordId: selectedRecordDetails.jobId,
-                                actionName: 'view'
-                            }
-                        });
                         this.getMobilizationMembers();
                         this.getTimesheetDetails();
                     } else {
