@@ -56,15 +56,26 @@
                                                         <div class="header-actions">
                                                             <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">
                                                                 <lightning-icon icon-name="utility:checkin" size="x-small" class="btn-icon"></lightning-icon>
-                                                                Maps
                                                             </button>
-                                                            <template if:true={job.isClockedIn}>
-                                                                <button class="action-btn clock-out-btn" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
+                                                            
+                                                            <template if:true={job.isCrewLeader}>
+                                                                <!-- <template if:true={job.isClockedIn}>
+                                                                    <button class="action-btn clock-out-btn" data-id={job.mobId} onclick={handleClockOut}>Crew Clock Out</button>
+                                                                </template> -->
+                                                                <!-- <template if:false={job.isClockedIn}> -->
+                                                                    <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleCrewClockInOut}>Crew Clock In/out</button>
+                                                                <!-- </template> -->
                                                             </template>
-                                                            <template if:false={job.isClockedIn}>
-                                                                <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+
+                                                            <template if:false={job.isCrewLeader}>
+                                                                <template if:true={job.isClockedIn}>
+                                                                    <button class="action-btn clock-out-btn" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
+                                                                </template>
+                                                                <template if:false={job.isClockedIn}>
+                                                                    <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                                </template>
                                                             </template>
-                                                        </div>
+                                                            </div>
                                                     </div>
                                                     
                                                     <div class="card-body">
@@ -471,6 +482,14 @@
                 </div>
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <template if:true={showCrewModal}>
+            <c-whole-crew-clock-in-out 
+                record-id={selectedJobId} 
+                is-home-page="true" 
+                onclosepopup={closeCrewModal}>
+            </c-whole-crew-clock-in-out>
         </template>
     </div>
 </template>

@@ -68,7 +68,7 @@ public with sharing class HomeTabController {
 
             // Fetch mobilization members in range
             List<wfrecon__Mobilization_Member__c> mobMembers = [ 
-                SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Mobilization__c,
+                SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Mobilization__c, wfrecon__Crew__c,
                        wfrecon__Mobilization__r.wfrecon__Job__c, wfrecon__Mobilization__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__End_Date__c,
                        wfrecon__Mobilization__r.wfrecon__Job__r.Name, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Address__c,
                        wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__Street__c, wfrecon__Mobilization__r.wfrecon__Job__r.wfrecon__City__c, 
@@ -87,7 +87,31 @@ public with sharing class HomeTabController {
                 WrapperMember wrap; 
                 Map<Id, wfrecon__Timesheet__c> jobTimesheetMap = new Map<Id, wfrecon__Timesheet__c>(); 
                 List<Id> jobIds = new List<Id>();
-                for(wfrecon__Mobilization_Member__c m : mobMembers) jobIds.add(m.wfrecon__Mobilization__r.wfrecon__Job__c); 
+                
+                // Set to store Crew IDs linked to these mobilizations
+                Set<Id> associatedCrewIds = new Set<Id>();
+
+                for(wfrecon__Mobilization_Member__c m : mobMembers) {
+                    jobIds.add(m.wfrecon__Mobilization__r.wfrecon__Job__c);
+                    if(m.wfrecon__Crew__c != null) {
+                        associatedCrewIds.add(m.wfrecon__Crew__c);
+                    }
+                }
+
+                // Check for Crew Leadership
+                Set<Id> leaderCrewIds = new Set<Id>();
+                if(!associatedCrewIds.isEmpty()) {
+                    for(wfrecon__Crew_Member__c cm : [
+                        SELECT wfrecon__Crew__c 
+                        FROM wfrecon__Crew_Member__c 
+                        WHERE wfrecon__Crew__c IN :associatedCrewIds 
+                        AND wfrecon__Contact__c = :currentUserContact.Id 
+                        AND wfrecon__Member_Type__c = 'Leader'
+                        WITH USER_MODE
+                    ]) {
+                        leaderCrewIds.add(cm.wfrecon__Crew__c);
+                    }
+                }
 
                 List<wfrecon__Timesheet__c> tsList = [ 
                     SELECT Id, wfrecon__Contact__c, wfrecon__Job__c
@@ -173,6 +197,13 @@ public with sharing class HomeTabController {
                         wfrecon__Timesheet_Entry__c lastEntry = latestCompletedMap.get(m.wfrecon__Mobilization__r.wfrecon__Job__c);
                         wrap.lastClockInTime = lastEntry.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(lastEntry.wfrecon__Clock_In_Time__c)/1000);
                         wrap.lastClockOutTime = lastEntry.wfrecon__Clock_Out_Time__c.addSeconds(userTz.getOffset(lastEntry.wfrecon__Clock_Out_Time__c)/1000);
+                    }
+
+                    // DETERMINE IF USER IS LEADER FOR THIS JOB'S CREW
+                    if (m.wfrecon__Crew__c != null && leaderCrewIds.contains(m.wfrecon__Crew__c)) {
+                        wrap.isCrewLeader = true;
+                    } else {
+                        wrap.isCrewLeader = false;
                     }
 
                     dayJobs.add(wrap);
@@ -335,6 +366,7 @@ public with sharing class HomeTabController {
         @AuraEnabled public Boolean isAgain;
         @AuraEnabled public DateTime lastClockInTime;
         @AuraEnabled public DateTime lastClockOutTime;
+        @AuraEnabled public Boolean isCrewLeader;
     }
 
     public class TimesheetEntryItemWrapper {
