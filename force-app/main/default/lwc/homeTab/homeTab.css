@@ -746,10 +746,10 @@
 .clock-in-btn:hover { background: #4a47b8; }
 
 .clock-out-btn {
-    background: #d94545;
+    background: #5e5adb;
     color: white;
 }
-.clock-out-btn:hover { background: #b83636; }
+.clock-out-btn:hover { background: #4a47b8; }
 
 /* Body */
 .card-body {
