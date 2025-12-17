@@ -27,6 +27,20 @@ public with sharing class HomeTabController {
             Map<String, Object> result = new Map<String, Object>();
 
             String userId = UserInfo.getUserId();
+            
+            Boolean hasAdminPermissions = false;
+            List<PermissionSetAssignment> adminAssignments = [
+                SELECT Id
+                FROM PermissionSetAssignment
+                WHERE AssigneeId = :userId
+                AND PermissionSet.Name IN ('FR_Admin', 'FR_Crew_Boss')
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            if (!adminAssignments.isEmpty()) {
+                hasAdminPermissions = true;
+            }
+
             List<Contact> currentUserContactList = new List<Contact>();
             if(Test.isRunningTest()) {
                 currentUserContactList = [SELECT Id, Name FROM Contact WITH USER_MODE LIMIT 1];
@@ -202,7 +216,7 @@ public with sharing class HomeTabController {
                     }
 
                     // DETERMINE IF USER IS LEADER FOR THIS JOB'S CREW
-                    if (m.wfrecon__Crew__c != null && leaderCrewIds.contains(m.wfrecon__Crew__c)) {
+                    if (hasAdminPermissions || (m.wfrecon__Crew__c != null && leaderCrewIds.contains(m.wfrecon__Crew__c))) {
                         wrap.isCrewLeader = true;
                     } else {
                         wrap.isCrewLeader = false;
