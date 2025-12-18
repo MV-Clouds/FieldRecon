@@ -168,9 +168,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             if (entry.clockInTime) {
                 // Extract YYYY-MM-DD
                 dateKey = entry.clockInTime.split('T')[0];
-                const dateObj = new Date(dateKey);
                 // Format: Monday, Oct 6
-                displayDate = this.formatDateLabel(dateObj);
+                displayDate = this.formatToAMPM(entry.clockInTime).split(',').slice(0, 2).join(', ');
             }
 
             if (!groups[dateKey]) {
@@ -203,7 +202,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 // Label format: "Monday, Oct 6: 8.5 Hours"
                 label: `${day.labelDate} | Total Hours: ${day.totalHours.toFixed(2)} Hours`
             };
-        }).sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
+        }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date
     }
 
     connectedCallback() {
@@ -614,10 +613,9 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             let dateKey = entry.clockInTime ? entry.clockInTime.split('T')[0] : 'Unknown';
             
             if (!groups[dateKey]) {
-                const dateObj = new Date(dateKey);
                 groups[dateKey] = {
                     id: dateKey,
-                    dateLabel: this.formatDateLabel(dateObj),
+                    dateLabel: this.formatToAMPM(entry.clockInTime).split(',').slice(0, 2).join(', '),
                     jobNamesSet: new Set(),
                     totalHours: 0,
                     totalTravelHours: 0, // Initialize Travel Sum

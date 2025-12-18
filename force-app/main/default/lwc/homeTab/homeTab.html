@@ -59,12 +59,7 @@
                                                             </button>
                                                             
                                                             <template if:true={job.isCrewLeader}>
-                                                                <!-- <template if:true={job.isClockedIn}>
-                                                                    <button class="action-btn clock-out-btn" data-id={job.mobId} onclick={handleClockOut}>Crew Clock Out</button>
-                                                                </template> -->
-                                                                <!-- <template if:false={job.isClockedIn}> -->
-                                                                    <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleCrewClockInOut}>Crew Clock In/out</button>
-                                                                <!-- </template> -->
+                                                                <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleCrewClockInOut}>Crew Clock In/out</button>
                                                             </template>
 
                                                             <template if:false={job.isCrewLeader}>
@@ -72,7 +67,12 @@
                                                                     <button class="action-btn clock-out-btn" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
                                                                 </template>
                                                                 <template if:false={job.isClockedIn}>
-                                                                    <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                                    <template if:true={job.isAgain}>
+                                                                        <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In Again</button>
+                                                                    </template>
+                                                                    <template if:false={job.isAgain}>
+                                                                        <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                                    </template>
                                                                 </template>
                                                             </template>
                                                             </div>
@@ -108,13 +108,16 @@
                                                         </div>
 
                                                         <template if:true={job.isAgain}>
-                                                            <div class="info-message warning">
-                                                                <template if:true={job.hasLastEntry}>
-                                                                    <div class="warning-message">
-                                                                        Recent Time Log: {job.lastClockInFormatted} - {job.lastClockOutFormatted}
+                                                            <template if:true={job.hasLastEntry}>
+                                                                <div class="recent-session">
+                                                                    <div class="session-label">Previous Session</div>
+                                                                    <div class="session-times">
+                                                                        <span class="session-in">In: {job.lastClockInFormatted}</span>
+                                                                        <span class="session-separator">→</span>
+                                                                        <span class="session-out">Out: {job.lastClockOutFormatted}</span>
                                                                     </div>
-                                                                </template>
-                                                            </div>
+                                                                </div>
+                                                            </template>
                                                         </template>
                                                     </div>
                                                 </div>
@@ -146,7 +149,7 @@
                                                                         </div>
                                                                         <div class="header-actions">
                                                                             <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">
-                                                                                <lightning-icon icon-name="utility:checkin" size="x-small" class="btn-icon"></lightning-icon> Maps
+                                                                                <lightning-icon icon-name="utility:checkin" size="x-small" class="btn-icon"></lightning-icon>
                                                                             </button>
                                                                         </div>
                                                                     </div>

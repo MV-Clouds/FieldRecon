@@ -384,17 +384,6 @@
     text-align: center;
 }
 
-.info-message {
-    background-color: rgb(208,208,255);
-    border: 2px solid rgba(94, 90, 219, 1);
-    color: black;
-    padding: 10px;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    text-align: center;
-}
-
-
 /* Responsive adjustments */
 @media (max-width: 480px) {
     .form-wrapper {
@@ -689,12 +678,20 @@
     background-color: rgb(244, 244, 255);
 }
 
+.header-info{
+    flex: 1;
+    overflow: hidden;
+}
+
 .header-info .job-title {
     font-size: 1.1rem;
     font-weight: 700;
     color: #717cdf;
     margin: 0;
     text-decoration: underline;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    text-wrap-mode: nowrap;
 }
 
 .header-info .job-number {
@@ -821,15 +818,6 @@
     --slds-c-icon-color-foreground-default: #5e5adb;
 }
 
-.info-message.warning {
-    margin-top: 0.75rem;
-    padding: 0.5rem;
-    background-color: #fff4e5;
-    color: #946c00;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    border: 1px solid #ffeebb;
-}
 
 /* --- Timesheet Summary Cards (Top of Section) --- */
 .timesheet-details {
@@ -917,12 +905,6 @@
 .input-disabled {
     background-color: #ecebea;
     color: #3e3e3c;
-}
-
-.warning-message{
-    font-size: 0.8rem; 
-    margin-top: 4px; 
-    font-weight: 500;
 }
 
 /* Main Table styling adjustments */
@@ -1069,8 +1051,49 @@
     text-align: center;
 }
 
-.slds-truncate {
+.timesheet-details .slds-truncate {
     display: block; /* Ensure truncation works in nested tables */
+}
+
+/* ===== Recent Session ===== */
+.recent-session {
+    padding: 0.75rem 1rem;
+    background: #fff4e5;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 0.5rem;
+    border-radius: 8px;
+}
+
+.session-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.session-times {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+}
+
+.session-in {
+    color: #374151;
+    font-weight: 600;
+}
+
+.session-separator {
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.session-out {
+    color: #374151;
+    font-weight: 600;
 }
 
 /* Tablet Responsive */
@@ -1087,7 +1110,7 @@
 /* 📱 Responsive for phones */
 @media (max-width: 768px) {
     .wrapper{
-        padding: 1rem 0rem 0rem 0rem;
+        padding: 1rem 0.5rem 0rem 0.5rem;
     }
 
     .summary-card {
