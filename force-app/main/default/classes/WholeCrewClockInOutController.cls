@@ -810,10 +810,11 @@ public with sharing class WholeCrewClockInOutController {
             
             // Check if user is System Admin
             List<PermissionSetAssignment> adminAssignments = [
-                SELECT Id 
-                FROM PermissionSetAssignment 
-                WHERE AssigneeId = :userId 
-                AND PermissionSet.Name = 'FR_Admin'
+                SELECT Id
+                FROM PermissionSetAssignment
+                WHERE AssigneeId = :userId
+                AND PermissionSet.Name IN ('FR_Admin', 'FR_Crew_Boss')
+                WITH USER_MODE
                 LIMIT 1
             ];
             

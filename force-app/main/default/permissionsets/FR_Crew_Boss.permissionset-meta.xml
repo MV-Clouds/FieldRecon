@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>This is used to grant additional permissions to users for performing crew clock-in and clock-out actions.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>FR Crew Boss</label>
+</PermissionSet>
