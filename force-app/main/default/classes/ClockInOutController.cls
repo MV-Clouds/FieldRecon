@@ -136,7 +136,8 @@ public with sharing class ClockInOutController {
             return defaultData.Need_Location__c;
             
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ClockInOutController', 'methodName' => 'getLocationDefault', 'exceptionObj' => e});
+            return null;
         }
     }
     @AuraEnabled

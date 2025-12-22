@@ -1003,17 +1003,26 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                     this.showToast('Error', 'Invalid Location', 'error');
                     return;
                 }
-                const street = selectedMob?.jobStreet || '';
-                const city = selectedMob?.jobCity || '';
-                const state = selectedMob?.jobState || '';
-                const postalCode = selectedMob?.jobPostalCode || '';
-                const country = selectedMob?.jobCountry || '';
+                const street = selectedMob?.jobStreet == '--' ? '' : selectedMob?.jobStreet || '';
+                const city = selectedMob?.jobCity == '--' ? '' : selectedMob?.jobCity || '';
+                const state = selectedMob?.jobState == '--' ? '' : selectedMob?.jobState|| '';
+                const postalCode = selectedMob?.jobPostalCode == '--' ? '' : selectedMob?.jobPostalCode|| '';
+                const country = selectedMob?.jobCountry == '--' ? '' : selectedMob?.jobCountry|| '';
 
-                const query = encodeURIComponent(`${street} ${city} ${state} ${postalCode} ${country}`.trim());
-                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`);
+                const encodedQuery = encodeURIComponent(`${street} ${city} ${state} ${postalCode} ${country}`.trim());
+                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`;
+
+                // 4. Use NavigationMixin to open the URL
+                this[NavigationMixin.Navigate]({
+                    type: 'standard__webPage',
+                    attributes: {
+                        url: mapUrl
+                    }
+                });
             }
         } catch (error) {
             console.error('Error in handleOpenInMaps :: ', error);
+            this.showToast('Error', 'Something went wrong while opening maps', 'error');
         }
     }
 

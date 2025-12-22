@@ -404,7 +404,7 @@ public with sharing class JobDetailsPageController {
                     timesheetRec.wfrecon__Timesheet_End_Date__c = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c.date();
                     timesheetRec.wfrecon__Mobilization_Group__c = mobGroupId;
                     timesheetRec.wfrecon__Do_Not_Execute__c = true;
-                    insert as user timesheetRec;
+                    insert timesheetRec;
     
                     wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
                     timesheetEntryRec.wfrecon__Timesheet__c = timesheetRec.Id;
@@ -417,7 +417,7 @@ public with sharing class JobDetailsPageController {
                         timesheetEntryRec.wfrecon__Clock_In_Location__Latitude__s = clockInLat;
                         timesheetEntryRec.wfrecon__Clock_In_Location__Longitude__s = clockInLong;
                     }
-                    insert as user timesheetEntryRec;
+                    insert timesheetEntryRec;
                 } else {
                     List<wfrecon__Timesheet__c> timesheetRecs = [SELECT Id FROM wfrecon__Timesheet__c WHERE Id = :(String)paramsMap.get('timesheetId') WITH USER_MODE];
                     
@@ -432,7 +432,7 @@ public with sharing class JobDetailsPageController {
                         timesheetEntryRec.wfrecon__Clock_In_Location__Latitude__s = clockInLat;
                         timesheetEntryRec.wfrecon__Clock_In_Location__Longitude__s = clockInLong;
                     }
-                    insert as user timesheetEntryRec;
+                    insert timesheetEntryRec;
                 }
             }
 
@@ -478,7 +478,7 @@ public with sharing class JobDetailsPageController {
                                     entryDay1.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                     entryDay1.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                                 }
-                                insert as user entryDay1;
+                                insert entryDay1;
 
                                 wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
                                     wfrecon__Timesheet_Entry__c = entryDay1.Id,
@@ -491,7 +491,7 @@ public with sharing class JobDetailsPageController {
                                     itemDay1.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                     itemDay1.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                                 }
-                                insert as user itemDay1;
+                                insert itemDay1;
 
                                 // 2️⃣ Entry for Day 2 (from 12:00 AM)
                                 wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
@@ -506,7 +506,7 @@ public with sharing class JobDetailsPageController {
                                     entryDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                     entryDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                                 }
-                                insert as user entryDay2;
+                                insert entryDay2;
 
                                 wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
                                     wfrecon__Timesheet_Entry__c = entryDay2.Id,
@@ -519,7 +519,7 @@ public with sharing class JobDetailsPageController {
                                     itemDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                     itemDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                                 }
-                                insert as user itemDay2;
+                                insert itemDay2;
 
                             } else {
                                 wfrecon__Timesheet_Entry__c timesheetEntryRec = new wfrecon__Timesheet_Entry__c();
@@ -533,7 +533,7 @@ public with sharing class JobDetailsPageController {
                                     timesheetEntryRec.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                     timesheetEntryRec.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                                 }
-                                insert as user timesheetEntryRec;
+                                insert timesheetEntryRec;
         
                                 wfrecon__Timesheet_Entry_Item__c timesheetEntryItemRec = new wfrecon__Timesheet_Entry_Item__c();
                                 timesheetEntryItemRec.wfrecon__Timesheet_Entry__c = timesheetEntryRec.Id;
@@ -546,7 +546,7 @@ public with sharing class JobDetailsPageController {
                                     timesheetEntryItemRec.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                     timesheetEntryItemRec.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                                 }
-                                insert as user timesheetEntryItemRec;
+                                insert timesheetEntryItemRec;
                             }
                         }
                     }
@@ -587,7 +587,7 @@ public with sharing class JobDetailsPageController {
                                 itemDay1.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                 itemDay1.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                             }
-                            insert as user itemDay1;
+                            insert itemDay1;
 
                             // Create new entry for next day
                             wfrecon__Timesheet_Entry__c entryDay2 = new wfrecon__Timesheet_Entry__c(
@@ -603,7 +603,7 @@ public with sharing class JobDetailsPageController {
                                 entryDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                 entryDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                             }
-                            insert as user entryDay2;
+                            insert entryDay2;
 
                             // Create Timesheet Entry Item for day 2
                             wfrecon__Timesheet_Entry_Item__c itemDay2 = new wfrecon__Timesheet_Entry_Item__c(
@@ -618,7 +618,7 @@ public with sharing class JobDetailsPageController {
                                 itemDay2.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                 itemDay2.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                             }
-                            insert as user itemDay2;
+                            insert itemDay2;
                         } else {
                             // Normal same-day update
                             existing.wfrecon__Clock_Out_Time__c = clkOutUserTz;
@@ -646,7 +646,7 @@ public with sharing class JobDetailsPageController {
                                 item.wfrecon__Clock_Out_Location__Latitude__s = clockOutLat;
                                 item.wfrecon__Clock_Out_Location__Longitude__s = clockOutLong;
                             }
-                            insert as user item;
+                            insert item;
                         }
                     }
                 }

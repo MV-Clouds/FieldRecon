@@ -12,7 +12,8 @@ public with sharing class JobTeamMembersController {
             return JSON.serialize(JobTeamMemberService.getTeamMembersForJob(jobId));
         } catch (Exception e) {
             System.debug('exception here: ' + e.getMessage());
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobTeamMembersController', 'methodName' => 'getJobTeamMembers', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 }

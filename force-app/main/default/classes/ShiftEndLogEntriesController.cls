@@ -572,8 +572,7 @@ public with sharing class ShiftEndLogEntriesController {
             sendCustomNotification('New Shift End Log Entry Created', logEntry.Id, notificationContent, 'Tab');
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'createLogEntry','exceptionObj' => e,'moreDetails' => e.getMessage()});
-            throw new AuraHandledException('Error creating Log Entry: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'createLogEntry','exceptionObj' => e,'moreDetails' => e.getMessage()});            
         }
     }    
     
@@ -587,8 +586,7 @@ public with sharing class ShiftEndLogEntriesController {
             List<ContentDocument> docsToDelete = [SELECT Id FROM ContentDocument WHERE Id IN :contentDocumentIds WITH USER_MODE];
             delete as user docsToDelete;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'deleteContentDocuments','exceptionObj' => e,'moreDetails' => e.getMessage()});
-            throw new AuraHandledException('Error deleting content documents: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'deleteContentDocuments','exceptionObj' => e,'moreDetails' => e.getMessage()});            
         }
     }
     
