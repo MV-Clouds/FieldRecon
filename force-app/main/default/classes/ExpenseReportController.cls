@@ -19,7 +19,8 @@ public with sharing class ExpenseReportController {
             }
             return getExpenseDataList(flt); 
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ExpenseReportController', 'methodName' => 'getExpenseData', 'exceptionObj' => e});
+            return null;
         }
     }
     @AuraEnabled

@@ -148,6 +148,20 @@ export default class WholeCrewClockInOut extends LightningElement {
         this.currentDisplayTime = this.formatToAMPM(this.currentDateTimeForApex);
     }
 
+    /**
+     * Method Name: getClientDateString
+     * Get the client date string in YYYY-MM-DD format
+     * @returns {string} Client date string in YYYY-MM-DD format
+     */
+    getClientDateString() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const clientDateString = `${year}-${month}-${day}`;
+        return clientDateString;
+    }
+
     /** 
     * Method Name: checkUserPermissions
     * @description: Check if user has required permissions to access this component (Admin or Crew Leader)
@@ -163,7 +177,7 @@ export default class WholeCrewClockInOut extends LightningElement {
             return;
         }
         
-        checkUserAccess({ jobId: this.recordId })
+        checkUserAccess({ jobId: this.recordId, clientDate: this.getClientDateString() })
             .then(result => {
                 console.log('checkAccess result ::', result);
                 
@@ -192,7 +206,11 @@ export default class WholeCrewClockInOut extends LightningElement {
     async loadMobilizations() {
         this.isLoading = true;
         try {
-            const result = await getMobilizationsForJob({ jobId: this.recordId });
+            const result = await getMobilizationsForJob({ 
+                jobId: this.recordId,
+                clientDate: this.getClientDateString() 
+            });
+
             console.log('Mobilization result:', result);
             
             this.hasMobilizations = result.hasMobilizations || false;

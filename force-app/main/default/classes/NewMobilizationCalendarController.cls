@@ -212,18 +212,24 @@ public with sharing class NewMobilizationCalendarController {
 
     @AuraEnabled
     public static String SaveJobSchedule(Map<String, String> mgMap) {
-        wfrecon__Mobilization_Group__c mg = new wfrecon__Mobilization_Group__c(
-            Id = mgMap.get('id'),
-            wfrecon__Start_Date__c = Datetime.valueOf(mgMap.get('startDate').replace('T',' ').replace('Z','')),
-            wfrecon__End_Date__c = Datetime.valueOf(mgMap.get('endDate').replace('T',' ').replace('Z','')),
-            wfrecon__Job__c = mgMap.get('job'),
-            wfrecon__Include_Saturday__c = Boolean.valueOf(mgMap.get('includeSaturday')),
-            wfrecon__Include_Sunday__c = Boolean.valueOf(mgMap.get('includeSunday')),
-            wfrecon__Mobilization_Status__c = mgMap.get('mobilizationStatus'),
-            wfrecon__Description__c = mgMap.get('description')
-        );
-        upsert mg;
-        return 'SUCCESS';
+
+        try{
+            wfrecon__Mobilization_Group__c mg = new wfrecon__Mobilization_Group__c(
+                Id = mgMap.get('id'),
+                wfrecon__Start_Date__c = Datetime.valueOf(mgMap.get('startDate').replace('T',' ').replace('Z','')),
+                wfrecon__End_Date__c = Datetime.valueOf(mgMap.get('endDate').replace('T',' ').replace('Z','')),
+                wfrecon__Job__c = mgMap.get('job'),
+                wfrecon__Include_Saturday__c = Boolean.valueOf(mgMap.get('includeSaturday')),
+                wfrecon__Include_Sunday__c = Boolean.valueOf(mgMap.get('includeSunday')),
+                wfrecon__Mobilization_Status__c = mgMap.get('mobilizationStatus'),
+                wfrecon__Description__c = mgMap.get('description')
+            );
+            upsert mg;
+            return 'SUCCESS';
+        }catch(Exception e){
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME , 'methodName' => 'SaveJobSchedule', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
+        }        
     }
 
     @AuraEnabled

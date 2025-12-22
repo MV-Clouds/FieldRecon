@@ -588,7 +588,7 @@ public with sharing class ApproveShiftEndLogsController {
             return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'saveCameraPhoto', 'exceptionObj' => e});
-            throw new AuraHandledException(e.getMessage());
+            return null;
         }
     }
 
@@ -614,7 +614,6 @@ public with sharing class ApproveShiftEndLogsController {
             // Ignore duplicate errors if file is already linked
             if(!e.getMessage().contains('DUPLICATE_VALUE')) {
                 ExceptionHandler.logException(new Map<String, Object>{'className' => 'ApproveShiftEndLogsController', 'methodName' => 'linkChatterFiles', 'exceptionObj' => e});
-                throw new AuraHandledException(e.getMessage());
             }
         }
     }

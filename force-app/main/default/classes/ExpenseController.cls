@@ -6,7 +6,8 @@ public with sharing class ExpenseController {
             Expense__c expenseResult = ExpenseService.saveExpense(expenseMsg);
             return JSON.serialize(new ExpenseMsg(expenseResult));
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ExpenseController', 'methodName' => 'saveExpense', 'exceptionObj' => e});
+            return null;
         }
     }
 }

@@ -470,7 +470,7 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertProcess', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Process : ' + e.getMessage(), 'apiResponse' => null});
-            throw new AuraHandledException('Error saving process: ' + e.getMessage());
+            return null;
         }
     }
 
@@ -636,7 +636,7 @@ public with sharing class ManagementTabController {
             }
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'upsertCostCode', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});
-            throw new AuraHandledException('Error saving cost code: ' + e.getMessage());
+            return null;
         }
     }
 
@@ -916,7 +916,7 @@ public with sharing class ManagementTabController {
             ];
         } catch (Exception e) {
             System.debug('Error in getContacts: ' + e.getMessage());
-            throw new AuraHandledException('Error retrieving contacts: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});            
         }
 
         return contacts;
@@ -938,6 +938,7 @@ public with sharing class ManagementTabController {
             return licenseName == 'Salesforce';
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, CLASSNAME + '.checkUserHasSalesforceLicense - Exception: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME , 'methodName' => 'checkUserHasSalesforceLicense', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             // Default to false for security - if we can't determine license, restrict access
             return false;
         }
@@ -1008,7 +1009,8 @@ public with sharing class ManagementTabController {
             ];
         } catch (Exception e) {
             System.debug('Error in upsertContact: ' + e.getMessage());
-            throw new AuraHandledException('Error saving contact: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME , 'methodName' => 'upsertContact', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;            
         }
     }
 

@@ -1415,10 +1415,10 @@ export default class ShiftEndLogEntries extends LightningElement {
     // Navigation
     handleNext() {
         if (this.currentStep === 'step1') {
-            if (!this.hasTimesheetEntries) {
-                this.showToast('Warning', 'No timesheet entries found for the selected date.', 'warning');
-                return;
-            }
+            // if (!this.hasTimesheetEntries) {
+            //     this.showToast('Warning', 'No timesheet entries found for the selected date.', 'warning');
+            //     return;
+            // }
             this.currentStep = 'step2';
         } else if (this.currentStep === 'step2') {
             if (!this.step3Data.whatWeDone?.trim() || !this.step3Data.planForTomorrow?.trim()) {

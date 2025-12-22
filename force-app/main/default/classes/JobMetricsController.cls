@@ -416,8 +416,7 @@ public static void saveMetricSettings(Map<String, List<String>> metricStatusMap)
         }
         
     } catch (Exception e) {
-        ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'saveMetricSettings', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-        throw new AuraHandledException('Error saving metric settings: ' + e.getMessage());
+        ExceptionHandler.logException(new Map<String, Object>{'className' => 'JobMetricsController', 'methodName' => 'saveMetricSettings', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});        
     }
 }
     
