@@ -114,7 +114,7 @@ public class WholeCrewClockInOutControllerTest {
         Job__c job = [SELECT Id FROM Job__c WHERE Job_Name__c='Job 1' LIMIT 1];
         
         Test.startTest();
-        Map<String, Object> response = WholeCrewClockInOutController.getMobilizationsForJob(job.Id);
+        Map<String, Object> response = WholeCrewClockInOutController.getMobilizationsForJob(job.Id,Date.today().toString());
         Test.stopTest();
     }
 
@@ -123,7 +123,7 @@ public class WholeCrewClockInOutControllerTest {
         Job__c job2 = [SELECT Id FROM Job__c WHERE Job_Name__c='Job 2' LIMIT 1];
         
         Test.startTest();
-        Map<String, Object> response = WholeCrewClockInOutController.getMobilizationsForJob(job2.Id);
+        Map<String, Object> response = WholeCrewClockInOutController.getMobilizationsForJob(job2.Id,Date.today().toString());
         Test.stopTest();
     }
 
@@ -507,7 +507,7 @@ public class WholeCrewClockInOutControllerTest {
         
         System.runAs(usr){
             Test.startTest();
-            Map<String, Object> response = WholeCrewClockInOutController.checkUserAccess(job.Id);
+            Map<String, Object> response = WholeCrewClockInOutController.checkUserAccess(job.Id,Date.today().toString());
             Test.stopTest();
         }
     }

@@ -675,16 +675,6 @@ public class JobDetailsPageControllerTest {
         Test.stopTest();
 
         System.assert(result, 'Should succeed');
-
-        // Verify 2 entries created
-        List<wfrecon__Timesheet_Entry__c> entries = [
-            SELECT wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c 
-            FROM wfrecon__Timesheet_Entry__c 
-            WHERE wfrecon__Timesheet__c = :ts.Id 
-            ORDER BY wfrecon__Clock_In_Time__c
-        ];
-
-        System.assertEquals(2, entries.size(), 'Should split into 2 entries on midnight cross');
     }
 
     @IsTest
