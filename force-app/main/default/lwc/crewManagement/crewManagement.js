@@ -398,7 +398,7 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
     
             let value = event.target.value;
     
-            if (field === 'Color_Code__c') {
+            if (field === 'wfrecon__Color_Code__c') {
                 value = this.normalizeColorCode(value);
                 event.target.value = value;
             }
@@ -442,8 +442,8 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
             }
 
             payload.Name = (payload.Name || '').trim();
-            payload.Description__c = payload.Description__c ? payload.Description__c.trim() : '';
-            payload.Color_Code__c = this.normalizeColorCode(payload.Color_Code__c);
+            payload.wfrecon__Description__c = payload.wfrecon__Description__c ? payload.wfrecon__Description__c.trim() : '';
+            payload.wfrecon__Color_Code__c = this.normalizeColorCode(payload.wfrecon__Color_Code__c);
             payload.membersToAdd = Array.from(new Set(this.getMembersToAdd()));
             payload.membersToRemove = Array.from(new Set(this.getMembersToRemove()));
             payload.selectedMemberIds = Array.from(new Set(this.getSelectedMemberIds()));
@@ -590,8 +590,8 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
                 this.crewData = {
                     Id: crewRecord.Id,
                     Name: this.getFieldValue(crewRecord, 'Name') || '',
-                    Description__c: this.getFieldValue(crewRecord, 'wfrecon__Description__c') || '',
-                    Color_Code__c: this.normalizeColorCode(this.getFieldValue(crewRecord, 'wfrecon__Color_Code__c') || '#FFFFFF')
+                    wfrecon__Description__c: this.getFieldValue(crewRecord, 'wfrecon__Description__c') || '',
+                    wfrecon__Color_Code__c: this.normalizeColorCode(this.getFieldValue(crewRecord, 'wfrecon__Color_Code__c') || '#FFFFFF')
                 };
             } else {
                 this.crewData = {
@@ -617,8 +617,8 @@ export default class CrewManagement extends NavigationMixin(LightningElement) {
         return {
             Id: null,
             Name: '',
-            Description__c: '',
-            Color_Code__c: '#FFFFFF'
+            wfrecon__Description__c: '',
+            wfrecon__Color_Code__c: '#FFFFFF'
         };
     }
 
