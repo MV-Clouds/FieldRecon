@@ -405,7 +405,11 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
         getLogEntryFiles({ logEntryId: logId })
             .then(result => {
                 this.files = result || [];
-                this.showFileViewer = true;
+                if (this.files.length > 0) {
+                    this.showFileViewer = true;
+                } else {
+                    this.showToast('Info', 'No files attached to this log', 'info');
+                }
                 this.isLoading = false;
             })
             .catch(error => {
