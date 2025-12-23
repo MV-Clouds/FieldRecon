@@ -82,12 +82,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             style: 'width: 8rem'
         },
         { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
-        { label: 'Start Date Time', fieldName: 'startDate', style: 'width: 12rem' },
-        { label: 'End Date Time', fieldName: 'endDate', style: 'width: 12rem' },
+        { label: 'Start Time', fieldName: 'startDate', style: 'width: 12rem' },
+        { label: 'End Time', fieldName: 'endDate', style: 'width: 12rem' },
+        { label: 'Clocked In Members', fieldName: 'clockedInMembers', style: 'width: 10rem' },
         { label: 'Total Man Hours', fieldName: 'totalManHours', style: 'width: 10rem' },
-        { label: 'Total Hours + Travel', fieldName: 'totalHoursWithTravel', style: 'width: 12rem' },
-        { label: 'Job Address', fieldName: 'jobAddress', style: 'width: 15rem' },
-        { label: 'Description', fieldName: 'jobDescription', style: 'width: 15rem' }
+        { label: 'Total Hours + Travel', fieldName: 'totalHoursWithTravel', style: 'width: 12rem' }
+        // { label: 'Job Address', fieldName: 'jobAddress', style: 'width: 15rem' },
+        // { label: 'Description', fieldName: 'jobDescription', style: 'width: 15rem' }
     ];
 
     // Timesheet columns adapted for inline editing/display
@@ -186,7 +187,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         }
 
                         if (col.fieldName === 'startDate' || col.fieldName === 'endDate') {
-                            cell.value = this.formatToAMPM(cell.value);
+                            cell.value = this.formatToTimeOnly(cell.value);
+                        }
+
+                        if (col.fieldName === 'clockedInMembers') {
+                            // Use Apex-provided count for immediate availability on page load
+                            cell.value = job.clockedInMembersCount || 0;
                         }
 
                         if (col.fieldName === 'totalManHours') {
@@ -240,10 +246,14 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const selectedIds = this.selectedTimesheets.get(mobId) || new Set();
         
         return rawTimesheets.map((ts, index) => {
+            // Check if this is a clock-in-only entry (non-editable)
+            const isClockInOnly = ts.isClockInOnly === true;
+            
             const displayEntry = {
                 ...ts,
                 srNo: index + 1,
                 isSelected: selectedIds.has(ts.id),
+                isClockInOnly: isClockInOnly, // Pass flag to template
                 displayFields: this.timesheetColumns.map(col => {
                     const fieldName = col.fieldName;
                     const cellKey = `${ts.id}-${fieldName}`;
@@ -252,10 +262,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     let value = originalValue; 
                     let isModified = false;
 
-                    const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
-                    if (modification && modification.hasOwnProperty(fieldName)) {
-                        value = modification[fieldName];
-                        isModified = true;
+                    // Only allow modifications for complete entries (not clock-in-only)
+                    if (!isClockInOnly) {
+                        const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
+                        if (modification && modification.hasOwnProperty(fieldName)) {
+                            value = modification[fieldName];
+                            isModified = true;
+                        }
                     }
 
                     if (col.type === 'boolean') {
@@ -265,7 +278,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     const isEditing = this.editingTimesheetCells.has(cellKey);
                     
                     let cellClass = 'center-trancate-text';
-                    if (col.editable) cellClass += ' editable-cell';
+                    // Only mark as editable if it's not a clock-in-only entry
+                    if (col.editable && !isClockInOnly) cellClass += ' editable-cell';
                     if (isModified) cellClass += ' modified-process-cell';
                     if (isEditing) cellClass += ' editing-cell';
 
@@ -274,14 +288,22 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     
                     let displayValue = String(value || '');
                     if (col.type === 'datetime') {
-                        // Display uses the formatted version
-                        displayValue = value ? this.formatToAMPM(value) : '--';
+                        // Display uses the formatted version - only time for clockIn/clockOut
+                        displayValue = value ? this.formatToTimeOnly(value) : '--';
                     } else if (col.type === 'boolean') {
-                        // Display uses Yes/No based on boolean state of the 'value'
-                        displayValue = !!(value === 1 || value === '1' || value === true || value === 'true') ? 'Yes' : 'No';
+                        // Display uses Yes/No based on boolean state of the 'value', but '--' for clock-in-only
+                        if (isClockInOnly && (fieldName === 'perDiem' || fieldName === 'premium')) {
+                            displayValue = '--';
+                        } else {
+                            displayValue = !!(value === 1 || value === '1' || value === true || value === 'true') ? 'Yes' : 'No';
+                        }
                     } else if (col.type === 'number' || col.type === 'currency') {
-                        // Display uses formatted number
-                        displayValue = value !== null && value !== undefined && !isNaN(Number(value)) ? Number(value).toFixed(2) : '0.00';
+                        // Display '--' for numeric fields in clock-in-only entries
+                        if (isClockInOnly && (fieldName === 'workHours' || fieldName === 'travelTime' || fieldName === 'totalTime')) {
+                            displayValue = '0.00';
+                        } else {
+                            displayValue = value !== null && value !== undefined && !isNaN(Number(value)) ? Number(value).toFixed(2) : '0.00';
+                        }
                     }
 
                     let minBoundary = null;
@@ -298,9 +320,9 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         rawValue: value,  // rawValue holds the modified or original value (can be 0/1 for boolean)
                         datetimeValue: datetimeValue, // datetimeValue holds YYYY-MM-DDTHH:mm string for input binding
                         isEditing: this.editingTimesheetCells.has(cellKey),
-                        isEditable: col.editable,
+                        isEditable: col.editable && !isClockInOnly, // Disable editing for clock-in-only entries
                         isModified: isModified,
-                        cellClass: 'center-trancate-text' + (col.editable ? ' editable-cell' : '') + (isModified ? ' modified-process-cell' : '') + (this.editingTimesheetCells.has(cellKey) ? ' editing-cell' : ''),
+                        cellClass: 'center-trancate-text' + (col.editable && !isClockInOnly ? ' editable-cell' : '') + (isModified ? ' modified-process-cell' : '') + (this.editingTimesheetCells.has(cellKey) ? ' editing-cell' : ''),
                         contentClass: 'editable-content',
                         isDatetime: col.type === 'datetime',
                         isNumber: col.type === 'number',
@@ -633,6 +655,37 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
+    /** * Method Name: formatToTimeOnly
+    * @description: Extracts only time portion from ISO datetime string in 12-hour AM/PM format.
+    */
+    formatToTimeOnly(iso) {
+        try {
+            if (!iso) return '--';
+            
+            // Parsing "2025-10-05T14:30:00.000Z" manually to avoid browser timezone math
+            const parts = iso.split('T');
+            if (parts.length < 2) return '--';
+            
+            const timePart = parts[1].substring(0, 5); // "14:30"
+            
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            return `${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToTimeOnly:', error);
+            return '--';
+        }
+    }
+
     extractDateKey(value) {
         if (!value) {
             return null;
@@ -715,10 +768,12 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             getJobRelatedMoblizationDetails({ filterDate: this.apexFormattedDate, mode: this.viewMode, customStartDate: this.customStartDate, customEndDate: this.customEndDate })
                 .then((data) => {
+                    console.log('getJobRelatedMoblizationDetails data ::' , data);
+                    
                     if(data != null) {
                         this.jobDetailsRaw = data;
                         this.filteredJobDetailsRaw = data;
-                        this.preloadTimesheetData();
+                        // this.preloadTimesheetData();
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     }
@@ -1862,6 +1917,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const field = event.currentTarget.dataset.field;
         const type = event.currentTarget.dataset.type;
         const mobId = event.currentTarget.dataset.mobid;
+        const isClockInOnly = event.currentTarget.dataset.clockinonly === 'true';
+        
+        // Prevent editing for clock-in-only entries
+        if (isClockInOnly) return;
         
         const column = this.timesheetColumns.find(col => col.fieldName === field);
         if (!column || !column.editable) return;
@@ -2264,6 +2323,17 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const mobId = event.currentTarget.dataset.mobid;
         const isChecked = event.target.checked;
         
+        // Find the timesheet entry to check if it's clock-in-only
+        const timesheets = this.timesheetDataMap.get(mobId) || [];
+        const entry = timesheets.find(ts => ts.id === id);
+        
+        // Prevent selecting clock-in-only entries
+        if (entry && entry.isClockInOnly) {
+            event.target.checked = false;
+            this.showToast('Info', 'Clock-in-only entries cannot be selected for deletion', 'info');
+            return;
+        }
+        
         if (!this.selectedTimesheets.has(mobId)) {
             this.selectedTimesheets.set(mobId, new Set());
         }
@@ -2288,8 +2358,10 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const mobId = event.currentTarget.dataset.mobid;
         const isChecked = event.target.checked;
         const timesheets = this.timesheetDataMap.get(mobId) || [];
-        const allIds = timesheets.map(ts => ts.id);
-
+        
+        // Filter out clock-in-only entries (only select complete entries)
+        const selectableTimesheets = timesheets.filter(ts => !ts.isClockInOnly);
+        
         if (!this.selectedTimesheets.has(mobId)) {
             this.selectedTimesheets.set(mobId, new Set());
         }
@@ -2297,7 +2369,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const selectedSet = this.selectedTimesheets.get(mobId);
 
         if (isChecked) {
-            allIds.forEach(id => selectedSet.add(id));
+            selectableTimesheets.forEach(ts => selectedSet.add(ts.id));
         } else {
             selectedSet.clear();
         }
