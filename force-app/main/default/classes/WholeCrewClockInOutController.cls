@@ -840,7 +840,6 @@ public with sharing class WholeCrewClockInOutController {
                 FROM PermissionSetAssignment
                 WHERE AssigneeId = :userId
                 AND PermissionSet.Name IN ('FR_Admin', 'FR_Crew_Boss')
-                WITH USER_MODE
                 LIMIT 1
             ];
             
@@ -947,7 +946,7 @@ public with sharing class WholeCrewClockInOutController {
         @AuraEnabled public DateTime jobStartTime;
         @AuraEnabled public DateTime jobEndTime;
         @AuraEnabled public DateTime clockInTime;
-        @AuraEnabled public Boolean isTimesheetNull;
+        @AuraEnabled public Boolean isTimeSheetNull;
         @AuraEnabled public String timesheetId;
         @AuraEnabled public Boolean isTimeSheetEntryNull;
         @AuraEnabled public String timesheetEntryId;

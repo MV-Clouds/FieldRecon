@@ -34,7 +34,6 @@ public with sharing class HomeTabController {
                 FROM PermissionSetAssignment
                 WHERE AssigneeId = :userId
                 AND PermissionSet.Name IN ('FR_Admin', 'FR_Crew_Boss')
-                WITH USER_MODE
                 LIMIT 1
             ];
             if (!adminAssignments.isEmpty()) {
