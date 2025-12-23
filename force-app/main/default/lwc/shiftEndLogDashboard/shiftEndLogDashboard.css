@@ -1040,6 +1040,10 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .dashboard-container {
+        height: calc(100vh - 2rem);
+    }
+
     .filter-row {
         flex-direction: column;
     }
@@ -1049,7 +1053,22 @@
     }
 
     .kpi-section {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .kpi-card.kpi-total {
+        grid-column: span 1;
+    }
+
+    .kpi-card.kpi-auto-approved {
+        grid-column: span 2;
+    }
+
+    .kpi-card.kpi-pending,
+    .kpi-card.kpi-approved,
+    .kpi-card.kpi-rejected {
+        grid-column: span 1;
     }
 
     .custom-table {
