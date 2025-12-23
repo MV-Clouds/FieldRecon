@@ -359,14 +359,14 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 })
                 .catch((error) => {
                     console.error('Error fetching data getMobilizationMembers apex:', error);
-                    this.showToast('Error', 'Failed to load Data!', 'error');
+                    this.showToast('Error', 'Failed to load data!', 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
                 });
         } catch (error) {
             console.error('Error in getMobilizationMembers:', error);
-            this.showToast('Error', 'Failed to load DAta!', 'error');
+            this.showToast('Error', 'Failed to load data!', 'error');
             this.isLoading = false;
         }
     }
@@ -470,14 +470,14 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 })
                 .catch(error => {
                     console.error('Error in getTimeSheetEntryItems apex :: ', error);
-                    this.showToast('Error', 'Failed to load DATa!', 'error');
+                    this.showToast('Error', 'Failed to load data!', 'error');
                 })
                 .finally(() => {
                     this.isLoading = false;
                 })
         } catch (error) {
             console.error('Error in getTimeSheetEntryItems ::', error);
-            this.showToast('Error', 'Failed to load DATA!', 'error');
+            this.showToast('Error', 'Failed to load data!', 'error');
             this.isLoading = false;
         }
     }
