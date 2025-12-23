@@ -8,12 +8,11 @@ import createLogEntry from '@salesforce/apex/ShiftEndLogEntriesController.create
 import deleteContentDocuments from '@salesforce/apex/ShiftEndLogEntriesController.deleteContentDocuments';
 import getChatterFeedItems from '@salesforce/apex/ShiftEndLogEntriesController.getChatterFeedItems';
 import checkOrgStorageLimit from '@salesforce/apex/ShiftEndLogV2Controller.checkOrgStorageLimit';
+import getCrewInfoForJob from '@salesforce/apex/ShiftEndLogEntriesController.getCrewInfoForJob';
 
 export default class ShiftEndLogEntries extends LightningElement {
     @api jobId = '';
-    @api crewLeaderId = '';
-    @api crewIds = [];
-
+    @track crewLeaderId = '';
     @track isLoading = false;
     @track currentStep = 'step1';
     @track selectedMobilizationId;
@@ -199,8 +198,12 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     connectedCallback() {
-        this.loadMobilizationList();
-        this.loadLocationProcesses();
+        console.log('ShiftEndLogEntries connectedCallback - recordId:', this.jobId);
+    
+        this.overrideSLDS();
+        this.initializeComponent();
+        // this.loadMobilizationList();
+        // this.loadLocationProcesses();
     }
 
     renderedCallback() {
@@ -211,6 +214,35 @@ export default class ShiftEndLogEntries extends LightningElement {
             if (!this.accordionStyleApplied) {
                 this.applyAccordionStyling();
             }
+        }
+    }
+
+    async initializeComponent() {
+        this.isLoading = true;
+        try {
+            
+            getCrewInfoForJob({ jobId: this.jobId }).then(crewData => { 
+            
+                if (crewData) {
+                    this.crewLeaderId = crewData.crewLeaderId;
+
+                    // Now load the rest using the fetched IDs
+                    if(this.crewLeaderId) {
+                        this.loadMobilizationList();
+                        this.loadLocationProcesses();
+                    } else {
+                        // Handle case where user is not a crew leader
+                        console.log('User is not a crew leader or no active crew found.');
+                    }
+                }
+            }).catch(error => {
+                console.error('Error in getCrewInfoForJob:', error?.message);
+            });
+        } catch (error) {
+            console.error('Error initializing component:', error.stack);
+            this.showToast('Error', 'Failed to initialize component', 'error');
+        } finally {
+            this.isLoading = false;
         }
     }
 
@@ -954,8 +986,6 @@ export default class ShiftEndLogEntries extends LightningElement {
         const originalValue = parseFloat(event.target.dataset.originalValue);
         const newValue = parseFloat(parseFloat(event.target.value).toFixed(1));
 
-        console.log('Slider changed - Process ID:', processId, 'Original:', originalValue, 'New:', newValue);
-
         // Track the modification
         if (newValue !== originalValue) {
             this.modifiedProcesses.set(processId, {
@@ -1428,8 +1458,8 @@ export default class ShiftEndLogEntries extends LightningElement {
             this.currentStep = 'step3';
         } else if (this.currentStep === 'step3') {
             // Check for unsaved progress bar changes
-            if (this.hasModifications) {
-                this.showToast('Warning', 'Please save or discard your progress changes before proceeding', 'warning');
+            if (this.hasLocationOptions && this.modifiedProcesses.size === 0) {
+                this.showToast('Warning', 'Please update at least one Location Progress record to continue.', 'warning');
                 return;
             }
             this.currentStep = 'step4';
@@ -1554,9 +1584,7 @@ export default class ShiftEndLogEntries extends LightningElement {
             });
 
             this.showToast('Success', 'Shift End Log created successfully', 'success');
-            this.dispatchEvent(new CustomEvent('close', {
-                detail: { isRecordCreated: true }
-            }));
+            this.dispatchEvent(new CustomEvent('close'));
         } catch (error) {
             console.error('Error creating log entry:', error);
             this.showToast('Error', 'Failed to create Shift End Log: ' + (error.body?.message || error.message), 'error');
@@ -1578,9 +1606,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                 console.error('Error deleting files:', error);
             }
         }
-        this.dispatchEvent(new CustomEvent('close', {
-            detail: { isRecordCreated: false }
-        }));
+        this.dispatchEvent(new CustomEvent('close'));
     }
 
     // Utility Methods
@@ -1762,6 +1788,62 @@ export default class ShiftEndLogEntries extends LightningElement {
         } catch (error) {
             console.error('Error applying accordion styling:', error);
         }
+    }
+
+    /** 
+    * Method Name: overrideSLDS
+    * @description: Overrides default SLDS styles for modal customization
+    */
+    overrideSLDS(){
+        let style = document.createElement('style');
+        style.innerText = `
+                .uiModal--medium .modal-container {
+                    width: 80%;
+                    min-width: min(480px, calc(100% - 2rem));
+                    margin-inline: auto;
+                }
+
+                .slds-modal__container{
+                    width: 80%;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+
+                .slds-p-around--medium {
+                    padding: unset !important;
+                }
+
+                .slds-modal__header:not(.empty):not(.slds-modal__header_empty){
+                    background-color: #5e5adb;
+                    color: white;
+                    padding: 1.25rem 1.5rem;
+                    text-align: center;
+                    flex-shrink: 0;
+                    border-radius: 16px 16px 0 0;
+                    position: sticky;
+                    top: 0;
+                    z-index: 100;
+                }
+
+                .slds-modal__title {
+                    font-size: 1.25rem !important;
+                    font-weight: 600 !important;
+                    margin: 0 !important;
+                }
+
+                .slds-modal__footer {
+                    display: none !important;
+                }
+
+                .cuf-content {
+                    padding: unset !important;
+                }
+
+                .slds-modal__content{
+                    height: unset !important;
+                }
+        `;
+        this.template.host.appendChild(style);
     }
 
     showToast(title, message, variant) {

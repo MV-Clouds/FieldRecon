@@ -8,6 +8,7 @@ import checkOrgStorageLimit from '@salesforce/apex/ShiftEndLogV2Controller.check
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
+import { subscribe, unsubscribe, onError } from 'lightning/empApi';
 
 export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track recordId; // Job ID
@@ -84,6 +85,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track isCurrentUserCrewLeader = false;
     @track isAdminUser = false;
     @track hasAccess = false;
+
+    subscription = {};
+    channelName = '/event/General_Refresh_Event__e';
 
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff';
 
@@ -204,6 +208,30 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         this.isLoading = true;
         this.checkUserPermissions();
         this.loadShiftEndLogsWithCrewInfo();
+        this.handleSubscribe();
+    }
+
+    disconnectedCallback() {
+        this.handleUnsubscribe();
+    }
+
+    handleSubscribe() {
+        const messageCallback = (response) => {
+            if(response.data && response.data.payload && response.data.payload.Record_Id__c === this.recordId) {
+                console.log('Platform Event received, refreshing...');
+                this.loadShiftEndLogsWithCrewInfo();
+            }
+        };
+
+        subscribe(this.channelName, -1, messageCallback).then(response => {
+            this.subscription = response;
+        });
+    }
+
+    handleUnsubscribe() {
+        unsubscribe(this.subscription, response => {
+            console.log('Unsubscribed from channel');
+        });
     }
 
     renderedCallback() {

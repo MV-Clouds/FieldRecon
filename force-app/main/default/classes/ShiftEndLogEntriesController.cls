@@ -564,6 +564,12 @@ public with sharing class ShiftEndLogEntriesController {
                 }
                 insert as user links;
             }
+
+            General_Refresh_Event__e refreshEvent = new General_Refresh_Event__e(
+                Record_Id__c = jobId,
+                Payload__c = '{"action":"refresh_shift_end_log"}'
+            );
+            EventBus.publish(refreshEvent);
             
             // query job
             wfrecon__Job__c jobRec = [SELECT Id, Name, wfrecon__Job_Name__c FROM wfrecon__Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
@@ -1099,6 +1105,69 @@ public with sharing class ShiftEndLogEntriesController {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'sendCustomNotification','exceptionObj' => e,'moreDetails' => 'Error sending custom notification for record: ' + recordId + ' - ' + e.getMessage()});
             System.debug('Error sending custom notification: ' + e.getMessage());
         }
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> getCrewInfoForJob(Id jobId) {
+        Map<String, Object> result = new Map<String, Object>();
+        String crewLeaderId = null;
+        List<String> crewIds = new List<String>();
+
+        try {
+            Id userId = UserInfo.getUserId();
+            Contact userContact = [SELECT Id FROM Contact WHERE wfrecon__User__c = :userId WITH USER_MODE LIMIT 1];
+
+            if(userContact != null) {
+                // Get Mobilizations for this Job
+                List<wfrecon__Mobilization__c> mobilizations = [
+                    SELECT Id FROM wfrecon__Mobilization__c 
+                    WHERE wfrecon__Job__c = :jobId 
+                    WITH USER_MODE
+                ];
+
+                if(!mobilizations.isEmpty()) {
+                    Set<Id> mobilizationIds = new Set<Id>();
+                    for(wfrecon__Mobilization__c mob : mobilizations) mobilizationIds.add(mob.Id);
+
+                    // Get Crews from Mobilization Members
+                    Set<Id> crewIdsFromMobilizations = new Set<Id>();
+                    for(wfrecon__Mobilization_Member__c mm : [
+                        SELECT wfrecon__Crew__c 
+                        FROM wfrecon__Mobilization_Member__c 
+                        WHERE wfrecon__Mobilization__c IN :mobilizationIds
+                        AND wfrecon__Crew__c != null
+                        WITH USER_MODE
+                    ]) {
+                        crewIdsFromMobilizations.add(mm.wfrecon__Crew__c);
+                    }
+
+                    // Get Crews where user is Leader
+                    if(!crewIdsFromMobilizations.isEmpty()) {
+                        List<wfrecon__Crew_Member__c> leaderCrewMembers = [
+                            SELECT wfrecon__Crew__c
+                            FROM wfrecon__Crew_Member__c
+                            WHERE wfrecon__Crew__c IN :crewIdsFromMobilizations
+                            AND wfrecon__Contact__c = :userContact.Id
+                            AND wfrecon__Member_Type__c = 'Leader'
+                            WITH USER_MODE
+                        ];
+
+                        if (!leaderCrewMembers.isEmpty()) {
+                            crewLeaderId = String.valueOf(userContact.Id);
+                            for (wfrecon__Crew_Member__c member : leaderCrewMembers) {
+                                crewIds.add(String.valueOf(member.wfrecon__Crew__c));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            result.put('crewLeaderId', crewLeaderId);
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'getCrewInfoForJob','exceptionObj' => e,'moreDetails' => 'Error getting crew info for job: ' + jobId + ' - ' + e.getMessage()});
+        }
+        return result;
     }
     
     // Wrapper classes for Chatter feed items
