@@ -133,7 +133,7 @@
 
                             <template if:true={job.isExpanded}>
                                 <tr key={job.mobId} class="nested-row">
-                                    <td colspan="10" style="padding: 0; background-color: transparent;">
+                                    <td colspan="9" style="padding: 0; background-color: transparent;">
                                         <div class="nested-table-container">
                                             <div class="nested-table-wrapper">
                                                 <div class="nested-table-header">
@@ -231,6 +231,7 @@
                                                                     <td>
                                                                         <input type="checkbox" 
                                                                             checked={ts.isSelected}
+                                                                            disabled={ts.isClockInOnly}
                                                                             onchange={handleTimesheetSelection}
                                                                             data-id={ts.id} 
                                                                             data-mobid={job.mobId}>
@@ -242,6 +243,7 @@
                                                                             data-field={field.key} 
                                                                             data-type={field.type} 
                                                                             data-mobid={job.mobId}
+                                                                            data-clockinonly={ts.isClockInOnly}
                                                                             onclick={handleTimesheetCellClick}>
                                                                             
                                                                             <template if:true={field.isEditing}>

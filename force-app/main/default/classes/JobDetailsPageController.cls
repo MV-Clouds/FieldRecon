@@ -93,6 +93,51 @@ public with sharing class JobDetailsPageController {
                     mobTotalHoursWithTravelMap.put(key, totalHrs + travelHrs);
                 }
             }
+            
+            // 2a. Count distinct clocked-in members per mobilization using aggregate queries
+            // Build map: mobilization ID -> Set of contact IDs who have timesheet entries
+            Map<Id, Set<Id>> mobContactMap = new Map<Id, Set<Id>>();
+            
+            // Aggregate query for complete timesheet entry items (GROUP BY for distinct contacts)
+            for (AggregateResult ar : [
+                SELECT wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c mobId,
+                    wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
+                FROM wfrecon__Timesheet_Entry_Item__c
+                WHERE wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c IN :mobs
+                AND wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c != null
+                WITH USER_MODE
+                GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c,
+                    wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c
+            ]) {
+                Id mobId = (Id)ar.get('mobId');
+                Id contactId = (Id)ar.get('contactId');
+                
+                if (!mobContactMap.containsKey(mobId)) {
+                    mobContactMap.put(mobId, new Set<Id>());
+                }
+                mobContactMap.get(mobId).add(contactId);
+            }
+            
+            // Aggregate query for clock-in-only entries (GROUP BY for distinct contacts)
+            for (AggregateResult ar : [
+                SELECT wfrecon__Mobilization__c mobId,
+                    wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
+                FROM wfrecon__Timesheet_Entry__c
+                WHERE wfrecon__Mobilization__c IN :mobs
+                AND wfrecon__TimeSheet__r.wfrecon__Contact__c != null
+                AND wfrecon__Clock_Out_Time__c = null
+                WITH USER_MODE
+                GROUP BY wfrecon__Mobilization__c,
+                    wfrecon__TimeSheet__r.wfrecon__Contact__c
+            ]) {
+                Id mobId = (Id)ar.get('mobId');
+                Id contactId = (Id)ar.get('contactId');
+                
+                if (!mobContactMap.containsKey(mobId)) {
+                    mobContactMap.put(mobId, new Set<Id>());
+                }
+                mobContactMap.get(mobId).add(contactId);
+            }
 
             // 3. Build wrappers
             List<MobilizationWrapper> result = new List<MobilizationWrapper>();
@@ -114,6 +159,10 @@ public with sharing class JobDetailsPageController {
                 String key = m.wfrecon__Job__c + '_' + String.valueOf(m.wfrecon__Start_Date__c.date());
                 w.totalManHours = mobManHoursMap.containsKey(key) ? mobManHoursMap.get(key) : 0.00;
                 w.totalHoursWithTravel = mobTotalHoursWithTravelMap.containsKey(key) ? mobTotalHoursWithTravelMap.get(key) : 0.00;
+                
+                // Lookup clocked-in members count
+                Set<Id> uniqueContacts = mobContactMap.get(m.Id);
+                w.clockedInMembersCount = uniqueContacts != null ? uniqueContacts.size() : 0;
 
                 result.add(w);
             }
@@ -136,7 +185,22 @@ public with sharing class JobDetailsPageController {
     @AuraEnabled
     public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, Date jobStartDate, Date jobEndDate){
         try {
-            // Updated query to include Timesheet Entry details needed for wrapper
+            // 1. Fetch clock-in-only entries (TSE without clock-out)
+            List<wfrecon__Timesheet_Entry__c> clockInOnlyEntries = [
+                SELECT Id, Name, wfrecon__TimeSheet__c, wfrecon__Clock_In_Time__c, 
+                       wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__r.Name, wfrecon__Cost_Code__c,
+                       wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, wfrecon__Mobilization__c,
+                       wfrecon__Clock_In_Date__c, wfrecon__TimeSheet__r.wfrecon__Job__c
+                FROM wfrecon__Timesheet_Entry__c 
+                WHERE wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
+                  AND wfrecon__Clock_In_Date__c >= :jobStartDate
+                  AND wfrecon__Clock_In_Date__c <= :jobEndDate
+                  AND wfrecon__Clock_Out_Time__c = null
+                WITH USER_MODE
+                ORDER BY wfrecon__Clock_In_Time__c ASC
+            ];
+
+            // 2. Fetch complete entries (TSELI with both clock-in and clock-out)
             List<wfrecon__Timesheet_Entry_Item__c> items = [
                 SELECT Id, wfrecon__Timesheet_Entry__c, 
                        wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, 
@@ -155,7 +219,15 @@ public with sharing class JobDetailsPageController {
                 ORDER BY wfrecon__Clock_In_Time__c ASC
             ];
 
+            // 3. Build result list: clock-in-only entries first, then complete entries
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
+            
+            // Add clock-in-only entries (TSE)
+            for(wfrecon__Timesheet_Entry__c entry : clockInOnlyEntries) {
+                result.add(new TimesheetEntryItemWrapper(entry));
+            }
+            
+            // Add complete entries (TSELI)
             for(wfrecon__Timesheet_Entry_Item__c item : items) {
                 result.add(new TimesheetEntryItemWrapper(item));
             }
@@ -1222,10 +1294,11 @@ public with sharing class JobDetailsPageController {
         // @AuraEnabled public String status { get; set; }
         @AuraEnabled public Decimal totalManHours { get; set; }
         @AuraEnabled public Decimal totalHoursWithTravel { get; set; }
+        @AuraEnabled public Integer clockedInMembersCount { get; set; }
     }
 
     public class TimesheetEntryItemWrapper {
-        @AuraEnabled public Id id; // Timesheet Entry Item ID (TSELI)
+        @AuraEnabled public Id id; // Timesheet Entry Item ID (TSELI) or Timesheet Entry ID (TSE) for clock-in-only
         @AuraEnabled public Id TSEId; // Timesheet Entry ID (TSE)
         @AuraEnabled public String contactName;
         @AuraEnabled public Datetime clockInTime;
@@ -1239,7 +1312,9 @@ public with sharing class JobDetailsPageController {
         @AuraEnabled public Date clockInDate;
         @AuraEnabled public Id mobId; // Added for easy lookup/refresh
         @AuraEnabled public Id timesheetId; // Added for easy lookup/refresh
+        @AuraEnabled public Boolean isClockInOnly; // Flag to identify clock-in-only entries (non-editable)
 
+        // Constructor for complete entries (TSELI)
         public TimesheetEntryItemWrapper(wfrecon__Timesheet_Entry_Item__c item) {
             this.id = item.Id;
             this.TSEId = item.wfrecon__Timesheet_Entry__c; // Expose parent ID
@@ -1258,6 +1333,30 @@ public with sharing class JobDetailsPageController {
             this.clockInDate = item.wfrecon__Clock_In_Date__c;
             this.mobId = item.wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c;
             this.timesheetId = item.wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c;
+            this.isClockInOnly = false; // Complete entry
+        }
+
+        // Constructor for clock-in-only entries (TSE)
+        public TimesheetEntryItemWrapper(wfrecon__Timesheet_Entry__c entry) {
+            this.id = entry.Id; // For clock-in-only, id is the TSE Id
+            this.TSEId = entry.Id; // Same as id for clock-in-only
+            this.contactName = entry.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name;
+            
+            // Convert to user timezone
+            this.clockInTime = entry.wfrecon__Clock_In_Time__c != null ? entry.wfrecon__Clock_In_Time__c.addSeconds(userTz.getOffset(entry.wfrecon__Clock_In_Time__c)/1000) : null;
+            this.clockOutTime = null; // No clock-out yet
+            
+            // Set all other fields as null/0 for display as '--'
+            this.workHours = null;
+            this.travelTime = null;
+            this.perDiem = null;
+            this.totalTime = null;
+            this.premium = null;
+            this.costCodeName = entry.wfrecon__Cost_Code__r != null ? entry.wfrecon__Cost_Code__r.Name : '-';
+            this.clockInDate = entry.wfrecon__Clock_In_Date__c;
+            this.mobId = entry.wfrecon__Mobilization__c;
+            this.timesheetId = entry.wfrecon__TimeSheet__c;
+            this.isClockInOnly = true; // Mark as clock-in-only (non-editable)
         }
     }
 
