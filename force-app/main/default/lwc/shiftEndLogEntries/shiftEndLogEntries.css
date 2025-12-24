@@ -90,7 +90,7 @@
 }
 
 .step-container {
-    animation: fadeIn-lwc-15q0a0qp92g 0.3s ease-in-out;
+    animation: fadeIn 0.3s ease-in-out;
     height: 100%;
     display: flex;
     flex-direction: column;
