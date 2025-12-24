@@ -389,7 +389,7 @@
                                 <div class="upload-buttons-container">
                                     <!-- Upload New Files with Standard Lightning Component -->
                                     <div class="upload-button-wrapper">
-                                        <lightning-file-upload accept={acceptedFormats} multiple record-id={jobId} onuploadfinished={handleUploadFinished} disabled={isFormDisabled} variant="label-hidden"></lightning-file-upload>
+                                        <lightning-file-upload accept={acceptedFormats} class="no-apply" multiple record-id={jobId} onuploadfinished={handleUploadFinished} disabled={isFormDisabled} variant="label-hidden"></lightning-file-upload>
                                     </div>
 
                                     <!-- Choose from Chatter Button -->
@@ -456,40 +456,41 @@
                         </div>
                     </div>
                 </template>
-            </div>
-
-            <!-- Footer with Navigation Buttons - Hidden when no mobilization options -->
-            <template if:true={hasMobilizationOptions}>
-                <div class="wizard-footer">
-                    <template if:false={isStep1}>
-                        <button class="nav-btn prev-btn" onclick={handlePrevious}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            </svg>
-                            Previous
-                        </button>
-                    </template>
-                    <div class="spacer"></div>
-                    <template if:false={isStep4}>
-                        <button class="nav-btn next-btn" onclick={handleNext}>
-                            Next
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </button>
-                    </template>
-                    <template if:true={isStep4}>
-                        <template if:false={isFormDisabled}>
-                            <button class="nav-btn done-btn" onclick={handleDone}>
+                <!-- Footer with Navigation Buttons - Hidden when no mobilization options -->
+                <template if:true={hasMobilizationOptions}>
+                    <div class="wizard-footer">
+                        <template if:false={isStep1}>
+                            <button class="nav-btn prev-btn" onclick={handlePrevious}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                    <polyline points="15 18 9 12 15 6"></polyline>
                                 </svg>
-                                Done
+                                Previous
                             </button>
                         </template>
-                    </template>
-                </div>
-            </template>
+                        <div class="spacer"></div>
+                        <template if:false={isStep4}>
+                            <button class="nav-btn next-btn" onclick={handleNext}>
+                                Next
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </template>
+                        <template if:true={isStep4}>
+                            <template if:false={isFormDisabled}>
+                                <button class="nav-btn done-btn" onclick={handleDone}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    Done
+                                </button>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            
 
             <template if:true={isLoading}>
                 <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>

@@ -5,27 +5,42 @@ public with sharing class ShiftEndLogEntriesController {
     public static Map<String, String> getMobilizationList(String jobId, String crewLeaderId){
         try {
             Map<String, String> result = new Map<String, String>();
-            if (String.isNotBlank(crewLeaderId) && crewLeaderId != null) {
-                Date today = Date.today();
-                Date yesterday = today.addDays(-1);
-                String todayStr = String.valueOf(today);
-                String yesterdayStr = String.valueOf(yesterday);
+            
+            // 1. Define Dates (Calculated once for both scenarios)
+            Date today = Date.today();
+            Date yesterday = today.addDays(-1);
+            String todayStr = String.valueOf(today);
+            String yesterdayStr = String.valueOf(yesterday);
+            
+            List<wfrecon__Mobilization__c> mobList = new List<wfrecon__Mobilization__c>();
+
+            // 2. Query Logic Branching
+            if (String.isNotBlank(crewLeaderId)) {
+                // Scenario A: Crew Leader is provided -> Filter by Crew Leader Subquery
+                mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Status__c 
+                        FROM wfrecon__Mobilization__c 
+                        WHERE wfrecon__Job__c = :jobId 
+                        AND Id IN (SELECT wfrecon__Mobilization__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew_Leader_Id__c = :crewLeaderId)
+                        AND (wfrecon__Start_Date_Text__c = :todayStr OR wfrecon__Start_Date_Text__c = :yesterdayStr)
+                        WITH USER_MODE
+                        ORDER BY wfrecon__Start_Date_Text__c DESC];
+            } else {
+                // Scenario B: No Crew Leader -> Get ALL mobilizations for the Job + Dates
+                mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Status__c 
+                        FROM wfrecon__Mobilization__c 
+                        WHERE wfrecon__Job__c = :jobId 
+                        AND (wfrecon__Start_Date_Text__c = :todayStr OR wfrecon__Start_Date_Text__c = :yesterdayStr)
+                        WITH USER_MODE
+                        ORDER BY wfrecon__Start_Date_Text__c DESC];
+            }
+
+            // 3. Process Results (Shared logic)
+            for (wfrecon__Mobilization__c mob : mobList) {
+                String statusLabel = String.isNotBlank(mob.wfrecon__Mobilization_Status__c) ? mob.wfrecon__Mobilization_Status__c : 'N/A';
                 
-                // Only return today's and yesterday's mobilization dates with Job Name and Status
-                List<wfrecon__Mobilization__c> mobList = [SELECT Id, Name, wfrecon__Start_Date_Text__c, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Status__c 
-                                                    FROM wfrecon__Mobilization__c 
-                                                    WHERE wfrecon__Job__c = :jobId 
-                                                    AND Id IN (SELECT wfrecon__Mobilization__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Crew_Leader_Id__c = :crewLeaderId)
-                                                    AND (wfrecon__Start_Date_Text__c = :todayStr OR wfrecon__Start_Date_Text__c = :yesterdayStr)
-                                                    WITH USER_MODE
-                                                    ORDER BY wfrecon__Start_Date_Text__c DESC];
-                for (wfrecon__Mobilization__c mob : mobList) {
-                    String statusLabel = String.isNotBlank(mob.wfrecon__Mobilization_Status__c) ? mob.wfrecon__Mobilization_Status__c : 'N/A';
-                    
-                    // Return date and status separately for JS formatting
-                    String displayLabel = mob.wfrecon__Start_Date_Text__c + '||' + mob.wfrecon__Job__r.wfrecon__Job_Name__c + '||' + statusLabel;
-                    result.put(mob.Id, displayLabel);
-                }
+                // Return date and status separately for JS formatting
+                String displayLabel = mob.wfrecon__Start_Date_Text__c + '||' + mob.wfrecon__Job__r.wfrecon__Job_Name__c + '||' + statusLabel;
+                result.put(mob.Id, displayLabel);
             }
 
             return result;
@@ -231,11 +246,20 @@ public with sharing class ShiftEndLogEntriesController {
             // Check custom setting for approval feature
             wfrecon__Shift_End_Log_Configuration__c config = wfrecon__Shift_End_Log_Configuration__c.getOrgDefaults();
             Boolean approvalFeatureEnabled = config != null && config.wfrecon__Timesheet_Entries_Approval_Feature__c == true;
+            List<wfrecon__Mobilization_Member__c> members;
 
-            List<wfrecon__Mobilization_Member__c> members = [SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
+            if (String.isNotBlank(crewLeaderId)) {
+                // Scenario A: Crew Leader is provided -> Filter by Crew Leader Subquery
+                members = [SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
                                                     FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Mobilization__c = :mobId AND wfrecon__Contact__c != null
                                                     AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true AND wfrecon__Crew_Leader_Id__c = :crewLeaderId
                                                     WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
+            } else {
+                members = [SELECT Id, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c, wfrecon__Mobilization__r.wfrecon__Job__c
+                                                    FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Mobilization__c = :mobId AND wfrecon__Contact__c != null
+                                                    AND wfrecon__Contact__r.wfrecon__Can_Clock_In_Out__c = true 
+                                                    WITH USER_MODE ORDER BY wfrecon__Contact__r.Name ASC];
+            }
     
             Set<Id> contactIds = new Set<Id>();
             for (wfrecon__Mobilization_Member__c m : members) {
@@ -1115,9 +1139,30 @@ public with sharing class ShiftEndLogEntriesController {
 
         try {
             Id userId = UserInfo.getUserId();
-            Contact userContact = [SELECT Id FROM Contact WHERE wfrecon__User__c = :userId WITH USER_MODE LIMIT 1];
 
-            if(userContact != null) {
+            // 1. Check for Admin Profile or Specific Permission Sets (FR_Base, FR_Admin, etc.)
+            Boolean hasBypassPermission = false;
+            
+            // Check Profile
+            if ([SELECT COUNT() FROM Profile WHERE Id = :UserInfo.getProfileId() AND Name = 'System Administrator'] > 0) {
+                hasBypassPermission = true;
+            } else {
+                // Check Permission Sets
+                if ([SELECT COUNT() FROM PermissionSetAssignment 
+                     WHERE AssigneeId = :userId 
+                     AND PermissionSet.Name IN ('FR_Base', 'FR_Admin', 'FR_Crew_Boss')] > 0) {
+                    hasBypassPermission = true;
+                }
+            }
+
+            // 2. Try to find the User's Contact record
+            // We use a List here to handle cases where the User (e.g., Sys Admin) does NOT have a linked Contact.
+            // This prevents the "List has no rows" exception.
+            List<Contact> userContacts = [SELECT Id FROM Contact WHERE wfrecon__User__c = :userId WITH USER_MODE LIMIT 1];
+
+            if(!userContacts.isEmpty()) {
+                Contact userContact = userContacts[0];
+
                 // Get Mobilizations for this Job
                 List<wfrecon__Mobilization__c> mobilizations = [
                     SELECT Id FROM wfrecon__Mobilization__c 
@@ -1162,7 +1207,9 @@ public with sharing class ShiftEndLogEntriesController {
                 }
             }
             
+            
             result.put('crewLeaderId', crewLeaderId);
+            result.put('hasAccess', (crewLeaderId != null || hasBypassPermission)); 
             
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ShiftEndLogEntriesController','methodName' => 'getCrewInfoForJob','exceptionObj' => e,'moreDetails' => 'Error getting crew info for job: ' + jobId + ' - ' + e.getMessage()});

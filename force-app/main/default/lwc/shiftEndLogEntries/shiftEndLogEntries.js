@@ -198,8 +198,6 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     connectedCallback() {
-        console.log('ShiftEndLogEntries connectedCallback - recordId:', this.jobId);
-    
         this.overrideSLDS();
         this.initializeComponent();
         // this.loadMobilizationList();
@@ -227,7 +225,7 @@ export default class ShiftEndLogEntries extends LightningElement {
                     this.crewLeaderId = crewData.crewLeaderId;
 
                     // Now load the rest using the fetched IDs
-                    if(this.crewLeaderId) {
+                    if(crewData.hasAccess) {
                         this.loadMobilizationList();
                         this.loadLocationProcesses();
                     } else {
@@ -1459,7 +1457,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         } else if (this.currentStep === 'step3') {
             // Check for unsaved progress bar changes
             if (this.hasLocationOptions && this.modifiedProcesses.size === 0) {
-                this.showToast('Warning', 'Please update at least one Location Progress record to continue.', 'warning');
+                this.showToast('Error', 'Please update at least one Location Progress record to continue.', 'error');
                 return;
             }
             this.currentStep = 'step4';
@@ -1801,6 +1799,10 @@ export default class ShiftEndLogEntries extends LightningElement {
                     width: 80%;
                     min-width: min(480px, calc(100% - 2rem));
                     margin-inline: auto;
+                }
+
+                .no-apply .modal-container{
+                    width: 50%;
                 }
 
                 .slds-modal__container{
