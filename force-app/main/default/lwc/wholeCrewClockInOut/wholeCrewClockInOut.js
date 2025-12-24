@@ -80,6 +80,16 @@ export default class WholeCrewClockInOut extends LightningElement {
         return this.activeTab === 'clockout';
     }
 
+    get isAllClockInSelected() {
+        if (!this.hasClockInMembers) return false;
+        return this.clockInMembers.every(m => m.isSelected);
+    }
+
+    get isAllClockOutSelected() {
+        if (!this.hasClockOutMembers) return false;
+        return this.clockOutMembers.every(m => m.isSelected);
+    }
+
     get clockInTabClass() {
         return this.activeTab === 'clockin' ? 'active' : '';
     }
@@ -332,6 +342,58 @@ export default class WholeCrewClockInOut extends LightningElement {
         } else {
             this.clockOutMembers = [...this.clockOutMembers];
         }
+    }
+
+    /** 
+    * Method Name: handleSelectAllClockIn
+    * @description: Selects or deselects all clock in members
+    */
+    handleSelectAllClockIn(event) {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+            // Select all clock in members
+            this.clockInMembers.forEach(member => {
+                this.selectedMemberIds.add(member.mobMemberId);
+                member.isSelected = true;
+            });
+        } else {
+            // Deselect all clock in members
+            this.clockInMembers.forEach(member => {
+                this.selectedMemberIds.delete(member.mobMemberId);
+                member.isSelected = false;
+            });
+        }
+        
+        // Force reactivity
+        this.selectedMemberIds = new Set(this.selectedMemberIds);
+        this.clockInMembers = [...this.clockInMembers];
+    }
+
+    /** 
+    * Method Name: handleSelectAllClockOut
+    * @description: Selects or deselects all clock out members
+    */
+    handleSelectAllClockOut(event) {
+        const isChecked = event.target.checked;
+        
+        if (isChecked) {
+            // Select all clock out members
+            this.clockOutMembers.forEach(member => {
+                this.selectedMemberIds.add(member.mobMemberId);
+                member.isSelected = true;
+            });
+        } else {
+            // Deselect all clock out members
+            this.clockOutMembers.forEach(member => {
+                this.selectedMemberIds.delete(member.mobMemberId);
+                member.isSelected = false;
+            });
+        }
+        
+        // Force reactivity
+        this.selectedMemberIds = new Set(this.selectedMemberIds);
+        this.clockOutMembers = [...this.clockOutMembers];
     }
 
     /** 
