@@ -773,7 +773,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     if(data != null) {
                         this.jobDetailsRaw = data;
                         this.filteredJobDetailsRaw = data;
-                        // this.preloadTimesheetData();
                     } else {
                         this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
                     }
@@ -790,32 +789,6 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this.isLoading = false;
         }
     }
-
-    /**
-     * Method Name: preloadTimesheetData
-     * @description: Pre-loads timesheet data for all jobs (like sovJobLocations pre-loads process data)
-     */
-       async preloadTimesheetData() {
-        try {
-            this.timesheetDataMap = new Map();
-            
-            if (!this.jobDetailsRaw || this.jobDetailsRaw.length === 0) {
-                return;
-            }
-
-            const loadPromises = this.jobDetailsRaw.map(job => {
-                return this.loadTimesheetDataForJob(job);
-            });
-
-            await Promise.all(loadPromises);
-            
-            this.filteredJobDetailsRaw = [...this.filteredJobDetailsRaw];
-            
-        } catch (error) {
-            console.error('Error in preloadTimesheetData:', error);
-        }
-    }
-
 
     /**
      * Method Name: loadTimesheetDataForJob
@@ -1704,9 +1677,13 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         this.closeManualTimesheetModal();
                         this.showToast('Success', 'Timesheet created successfully', 'success');
                         
+                        // Refresh the subtable data
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
                         }
+                        
+                        // Refresh the main table to update aggregated hours
+                        this.getJobRelatedMoblizationDetails();
                     } else {
                         this.showToast('Error', 'Failed to create timesheet record. Please try again.', 'error');
                     }
