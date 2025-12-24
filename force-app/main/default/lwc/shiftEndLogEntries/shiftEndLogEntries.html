@@ -376,6 +376,15 @@
                                     </template>
                                 </div>
                             </template>
+                            <template if:false={hasLocationOptions}>
+                                <div class="no-data-message">
+                                    <div class="no-data-icon">
+                                        <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                                    </div>
+                                    <h3 class="no-data-title">No Location Processes</h3>
+                                    <p class="no-data-description">There are no location processes configured for this job.</p>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </template>
