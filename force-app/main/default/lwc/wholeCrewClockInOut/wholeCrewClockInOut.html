@@ -85,6 +85,18 @@
                                 <!-- Clock In Tab -->
                                 <template if:true={isClockInActive}>
                                     <template if:true={hasClockInMembers}>
+                                        <!-- Select All Section -->
+                                        <div class="select-all-section">
+                                            <label class="select-all-label">
+                                                <input 
+                                                    type="checkbox" 
+                                                    class="select-all-checkbox"
+                                                    checked={isAllClockInSelected}
+                                                    onchange={handleSelectAllClockIn}
+                                                />
+                                                <span class="select-all-text">Select All ({clockInMembersCount})</span>
+                                            </label>
+                                        </div>
                                         <!-- Member Cards Grid -->
                                         <div class="members-grid">
                                             <template for:each={clockInMembers} for:item="member">
@@ -150,6 +162,18 @@
                                 <!-- Clock Out Tab -->
                                 <template if:true={isClockOutActive}>
                                     <template if:true={hasClockOutMembers}>
+                                        <!-- Select All Section -->
+                                        <div class="select-all-section">
+                                            <label class="select-all-label">
+                                                <input 
+                                                    type="checkbox" 
+                                                    class="select-all-checkbox"
+                                                    checked={isAllClockOutSelected}
+                                                    onchange={handleSelectAllClockOut}
+                                                />
+                                                <span class="select-all-text">Select All ({clockOutMembersCount})</span>
+                                            </label>
+                                        </div>
                                         <!-- Member Cards Grid -->
                                         <div class="members-grid">
                                             <template for:each={clockOutMembers} for:item="member">
@@ -208,7 +232,7 @@
                             <!-- Fixed Footer with Actions -->
                             <template if:true={isClockInActive}>
                                 <template if:true={hasClockInMembers}>
-                                    <template if:true={hasSelectedMembers}>
+                                    <!-- <template if:true={hasSelectedMembers}> -->
                                         <footer class="action-panel">
                                             <div class="action-form">
                                                 <div class="form-row">
@@ -237,13 +261,13 @@
                                                 </button>
                                             </div>
                                         </footer>
-                                    </template>
+                                    <!-- </template> -->
                                 </template>
                             </template>
 
                             <template if:true={isClockOutActive}>
                                 <template if:true={hasClockOutMembers}>
-                                    <template if:true={hasSelectedMembers}>
+                                    <!-- <template if:true={hasSelectedMembers}> -->
                                         <footer class="action-panel">
                                             <div class="action-form">
                                                 <div class="form-row">
@@ -261,7 +285,7 @@
                                                 </button>
                                             </div>
                                         </footer>
-                                    </template>
+                                    <!-- </template> -->
                                 </template>
                             </template>
                         </template>
