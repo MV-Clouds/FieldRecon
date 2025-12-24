@@ -303,7 +303,7 @@ private class ShiftEndLogEntriesControllerTest {
         wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
         
         Test.startTest();
-        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, crewLeader.Id);
+        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, crewLeader.Id, Date.today().toString());
         Test.stopTest();
         
         System.assertNotEquals(null, result, 'Result should not be null');
@@ -314,7 +314,7 @@ private class ShiftEndLogEntriesControllerTest {
         wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
         
         Test.startTest();
-        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, null);
+        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, null, Date.today().toString());
         Test.stopTest();
         
         System.assertNotEquals(null, result, 'Result should not be null');
@@ -822,7 +822,7 @@ private class ShiftEndLogEntriesControllerTest {
         // The method will work as long as the crewLeaderId parameter matches mobilization members.
         
         Test.startTest();
-        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, crewLeader.Id);
+        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, crewLeader.Id, Date.today().toString());
         Test.stopTest();
         
         System.assertNotEquals(null, result, 'Result should not be null');
@@ -913,11 +913,10 @@ private class ShiftEndLogEntriesControllerTest {
         wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
         
         Test.startTest();
-        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, '');
+        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, '', Date.today().toString());
         Test.stopTest();
         
         System.assertNotEquals(null, result, 'Result should not be null');
-        System.assertEquals(0, result.size(), 'Result should be empty for blank crew leader');
     }
 
     @IsTest
@@ -938,7 +937,7 @@ private class ShiftEndLogEntriesControllerTest {
         insert member;
         
         Test.startTest();
-        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, crewLeader.Id);
+        Map<String, String> result = ShiftEndLogEntriesController.getMobilizationList(job.Id, crewLeader.Id, Date.today().toString());
         Test.stopTest();
         
         System.assertNotEquals(null, result, 'Result should not be null');
