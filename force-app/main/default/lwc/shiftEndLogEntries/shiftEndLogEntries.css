@@ -1042,6 +1042,7 @@
     transition: all 0.2s ease;
     background: rgba(94, 90, 219, 1);
     color: white;
+    height: 32px;
 }
 
 .nav-btn:hover {
@@ -1558,6 +1559,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
+    height: 32px;
 }
 
 .load-more-btn:hover:not(:disabled) {

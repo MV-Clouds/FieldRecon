@@ -1143,16 +1143,11 @@ public with sharing class ShiftEndLogEntriesController {
             // 1. Check for Admin Profile or Specific Permission Sets (FR_Base, FR_Admin, etc.)
             Boolean hasBypassPermission = false;
             
-            // Check Profile
-            if ([SELECT COUNT() FROM Profile WHERE Id = :UserInfo.getProfileId() AND Name = 'System Administrator'] > 0) {
+            // Check Permission Sets
+            if ([SELECT COUNT() FROM PermissionSetAssignment 
+                    WHERE AssigneeId = :userId 
+                    AND PermissionSet.Name IN ('FR_Admin')] > 0) {
                 hasBypassPermission = true;
-            } else {
-                // Check Permission Sets
-                if ([SELECT COUNT() FROM PermissionSetAssignment 
-                     WHERE AssigneeId = :userId 
-                     AND PermissionSet.Name IN ('FR_Base', 'FR_Admin', 'FR_Crew_Boss')] > 0) {
-                    hasBypassPermission = true;
-                }
             }
 
             // 2. Try to find the User's Contact record
