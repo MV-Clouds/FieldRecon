@@ -98,7 +98,6 @@
     scroll-behavior: auto;
     scrollbar-width: thin !important;
     scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
-    margin-bottom: 2rem;
     padding: 0rem 1rem;
     flex: 1;
 }

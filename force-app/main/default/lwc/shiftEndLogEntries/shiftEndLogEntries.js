@@ -60,6 +60,8 @@ export default class ShiftEndLogEntries extends LightningElement {
     @track activeTab = 'approved';
     @track approvalFeatureEnabled = true; // Default to true, will be set from custom setting
     @track accordionStyleApplied = false;
+
+    @track showNoTimesheetModal = false;
     // Approval status tracking
     @track approvalStatus = {
         approvalMessage: '',
@@ -1443,10 +1445,10 @@ export default class ShiftEndLogEntries extends LightningElement {
     // Navigation
     handleNext() {
         if (this.currentStep === 'step1') {
-            // if (!this.hasTimesheetEntries) {
-            //     this.showToast('Warning', 'No timesheet entries found for the selected date.', 'warning');
-            //     return;
-            // }
+            if (!this.hasTimesheetEntries) {
+                this.showNoTimesheetModal = true;
+                return;
+            }
             this.currentStep = 'step2';
         } else if (this.currentStep === 'step2') {
             if (!this.step3Data.whatWeDone?.trim() || !this.step3Data.planForTomorrow?.trim()) {
@@ -1846,6 +1848,16 @@ export default class ShiftEndLogEntries extends LightningElement {
                 }
         `;
         this.template.host.appendChild(style);
+    }
+
+    closeNoTimesheetModal() {
+        this.showNoTimesheetModal = false;
+    }
+
+    handleConfirmNoTimesheet() {
+        this.showNoTimesheetModal = false;
+        // Proceed to next step explicitly
+        this.currentStep = 'step2';
     }
 
     showToast(title, message, variant) {

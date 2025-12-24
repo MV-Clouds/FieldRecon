@@ -711,4 +711,25 @@
         <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
     </template>
 
+    <template if:true={showNoTimesheetModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" onclick={closeNoTimesheetModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon" size="small"></lightning-icon>
+                </button>
+                <div class="pop-heading">No Timesheet Entries</div>
+                <div class="slds-modal__content pop-up">
+                    <div class="confirmation-message">
+                        <p class="confirmation-subtext">There are no timesheet entries for the selected date. Do you want to proceed to the next step without logging any time?</p>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="cancel-button" onclick={closeNoTimesheetModal}>Cancel</button>
+                    <button class="confirm-button" onclick={handleConfirmNoTimesheet}>Continue</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
+
 </template>
