@@ -1850,6 +1850,10 @@
     .attachment-file-icon {
         height: 80px;
     }
+
+    .step-container{
+        padding: 0rem 0.5rem;
+    }
 }
 
 .create-close-icon svg {
