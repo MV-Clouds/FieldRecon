@@ -68,6 +68,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         canEditTimesheet: true
     };
 
+    @track isAccess = false;
+
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
 
     get isDesktopDevice() {
@@ -244,9 +246,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                     if(crewData.hasAccess) {
                         this.loadMobilizationList();
                         this.loadLocationProcesses();
+                        this.isAccess = true;
                     } else {
                         // Handle case where user is not a crew leader
                         console.log('User is not a crew leader or no active crew found.');
+                        this.isAccess = false;
                     }
                 }
             }).catch(error => {

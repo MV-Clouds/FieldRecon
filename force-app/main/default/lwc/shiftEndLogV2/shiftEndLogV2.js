@@ -217,7 +217,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
 
     handleSubscribe() {
         const messageCallback = (response) => {
-            if(response.data && response.data.payload && response.data.payload.Record_Id__c === this.recordId) {
+            if(response.data && response.data.payload && response.data.payload.wfrecon__Record_Id__c === this.recordId) {
                 console.log('Platform Event received, refreshing...');
                 this.loadShiftEndLogsWithCrewInfo();
             }

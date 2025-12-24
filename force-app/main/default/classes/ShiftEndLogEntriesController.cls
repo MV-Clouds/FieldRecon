@@ -6,7 +6,6 @@ public with sharing class ShiftEndLogEntriesController {
         try {
             Map<String, String> result = new Map<String, String>();
             
-
             Date todayDate;
 
             System.debug('Client Date Input: ' + clientDate);
