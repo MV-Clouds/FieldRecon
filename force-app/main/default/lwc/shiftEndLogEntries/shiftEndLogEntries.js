@@ -217,7 +217,7 @@ export default class ShiftEndLogEntries extends LightningElement {
         }
     }
 
-    async initializeComponent() {
+    initializeComponent() {
         this.isLoading = true;
         try {
             
