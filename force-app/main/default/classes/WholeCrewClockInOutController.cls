@@ -485,13 +485,8 @@ public with sharing class WholeCrewClockInOutController {
                 
                 if (mm == null) continue;
                 
-                String clockInTimeString = (String) memberData.get('clockInTime');
-                Datetime clkInUserTz = convertUtc(clockInTimeString);
                 Boolean isTimeSheetNull = (Boolean) memberData.get('isTimeSheetNull');
-                String timesheetId = (String) memberData.get('timesheetId');
-                String costCodeId = (String) memberData.get('costCodeId');
                 String jobId = (String) memberData.get('jobId');
-                String mobId = (String) memberData.get('mobId');
                 
                 if (isTimeSheetNull == true) {
                     // Create new timesheet
@@ -528,6 +523,12 @@ public with sharing class WholeCrewClockInOutController {
                 String costCodeId = (String) memberData.get('costCodeId');
                 String mobId = (String) memberData.get('mobId');
                 
+                // --- Extract Location ---
+                Object latObj = memberData.get('latitude');
+                Object lonObj = memberData.get('longitude');
+                Decimal latitude = latObj != null ? Decimal.valueOf(String.valueOf(latObj)) : null;
+                Decimal longitude = lonObj != null ? Decimal.valueOf(String.valueOf(lonObj)) : null;
+                
                 Id tsId;
                 if (isTimeSheetNull == true) {
                     wfrecon__Timesheet__c newTs = (wfrecon__Timesheet__c) memberData.get('newTimesheet');
@@ -542,6 +543,13 @@ public with sharing class WholeCrewClockInOutController {
                 timesheetEntryRec.wfrecon__Cost_Code__c = costCodeId;
                 timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                 timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+
+                // --- Set Clock In Location on Entry ---
+                if(latitude != null && longitude != null) {
+                    timesheetEntryRec.wfrecon__Clock_In_Location__Latitude__s = latitude;
+                    timesheetEntryRec.wfrecon__Clock_In_Location__Longitude__s = longitude;
+                }
+
                 entriesToInsert.add(timesheetEntryRec);
             }
             // Insert all entries
@@ -583,7 +591,8 @@ public with sharing class WholeCrewClockInOutController {
             Map<Id, wfrecon__Timesheet_Entry__c> existingEntriesMap = new Map<Id, wfrecon__Timesheet_Entry__c>();
             if (!timesheetEntryIds.isEmpty()) {
                 existingEntriesMap = new Map<Id, wfrecon__Timesheet_Entry__c>([
-                    SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__c, wfrecon__Timesheet__c 
+                    SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__c, wfrecon__Timesheet__c,
+                           wfrecon__Clock_In_Location__Latitude__s, wfrecon__Clock_In_Location__Longitude__s 
                     FROM wfrecon__Timesheet_Entry__c 
                     WHERE Id IN :timesheetEntryIds 
                     WITH USER_MODE
@@ -602,7 +611,12 @@ public with sharing class WholeCrewClockInOutController {
                 Datetime clkOutUserTz = convertUtc(clockOutTimeString);
                 Datetime clkInUserTz = null;
                 
-                // Safely parse clockInTime
+                // --- Extract Location ---
+                Object latObj = memberData.get('latitude');
+                Object lonObj = memberData.get('longitude');
+                Decimal latitude = latObj != null ? Decimal.valueOf(String.valueOf(latObj)) : null;
+                Decimal longitude = lonObj != null ? Decimal.valueOf(String.valueOf(lonObj)) : null;
+
                 if (String.isNotBlank(clockInTimeString)) {
                     try {
                         clkInUserTz = Datetime.valueOfGmt(clockInTimeString.replace('T',' ').replace('Z',''));
@@ -647,6 +661,11 @@ public with sharing class WholeCrewClockInOutController {
                                 wfrecon__Mobilization__c = mobId,
                                 wfrecon__Do_Not_Execute__c = true
                             );
+                            // Set Location on Day 2 Entry
+                            if(latitude != null && longitude != null) {
+                                entryDay2.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                                entryDay2.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                            }
                             entriesToInsert.add(entryDay2);
                             memberData.put('entryDay2', entryDay2);
                         } else {
@@ -657,6 +676,13 @@ public with sharing class WholeCrewClockInOutController {
                             timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
                             timesheetEntryRec.wfrecon__Mobilization__c = mobId;
                             timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
+
+                            // Set Location on Entry
+                            if(latitude != null && longitude != null) {
+                                timesheetEntryRec.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                                timesheetEntryRec.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                            }
+
                             entriesToInsert.add(timesheetEntryRec);
                             memberData.put('newEntry', timesheetEntryRec);
                         }
@@ -686,11 +712,21 @@ public with sharing class WholeCrewClockInOutController {
                                     wfrecon__Mobilization__c = mobId,
                                     wfrecon__Do_Not_Execute__c = true
                                 );
+                                // Set Location on Day 2 Entry
+                                if(latitude != null && longitude != null) {
+                                    entryDay2.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                                    entryDay2.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                                }
                                 entriesToInsert.add(entryDay2);
                                 memberData.put('entryDay2', entryDay2);
                             } else {
                                 // Normal same-day update
                                 existing.wfrecon__Clock_Out_Time__c = clkOutUserTz;
+                                // Set Location on Updated Entry
+                                if(latitude != null && longitude != null) {
+                                    existing.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                                    existing.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                                }
                                 entriesToUpdate.add(existing);
                                 memberData.put('existingEntry', existing);
                             }
@@ -713,8 +749,13 @@ public with sharing class WholeCrewClockInOutController {
             for (Map<String, Object> memberData : membersList) {
                 Boolean isTimeSheetEntryNull = (Boolean) memberData.get('isTimeSheetEntryNull');
                 
-                if (isTimesheetEntryNull == true) {
-                    // Check if midnight split happened
+                // Extract Location again for Item logic
+                Object latObj = memberData.get('latitude');
+                Object lonObj = memberData.get('longitude');
+                Decimal latitude = latObj != null ? Decimal.valueOf(String.valueOf(latObj)) : null;
+                Decimal longitude = lonObj != null ? Decimal.valueOf(String.valueOf(lonObj)) : null;
+
+                if (isTimeSheetEntryNull == true) {
                     if (memberData.containsKey('entryDay1')) {
                         wfrecon__Timesheet_Entry__c entryDay1 = (wfrecon__Timesheet_Entry__c) memberData.get('entryDay1');
                         wfrecon__Timesheet_Entry_Item__c itemDay1 = new wfrecon__Timesheet_Entry_Item__c(
@@ -732,6 +773,11 @@ public with sharing class WholeCrewClockInOutController {
                             wfrecon__Clock_Out_Time__c = entryDay2.wfrecon__Clock_Out_Time__c,
                             wfrecon__Do_Not_Execute__c = true
                         );
+                        // Set Clock Out Location on Day 2 Item
+                        if(latitude != null && longitude != null) {
+                            itemDay2.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                            itemDay2.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                        }
                         itemsToInsert.add(itemDay2);
                     } else if (memberData.containsKey('newEntry')) {
                         wfrecon__Timesheet_Entry__c newEntry = (wfrecon__Timesheet_Entry__c) memberData.get('newEntry');
@@ -742,6 +788,11 @@ public with sharing class WholeCrewClockInOutController {
                             wfrecon__Cost_Code__c = newEntry.wfrecon__Cost_Code__c,
                             wfrecon__Do_Not_Execute__c = true
                         );
+                        // Set Clock Out Location on New Item
+                        if(latitude != null && longitude != null) {
+                            item.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                            item.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                        }
                         itemsToInsert.add(item);
                     }
                 } else {
@@ -755,6 +806,18 @@ public with sharing class WholeCrewClockInOutController {
                             wfrecon__Cost_Code__c = existing.wfrecon__Cost_Code__c,
                             wfrecon__Do_Not_Execute__c = true
                         );
+                        
+                        // Copy Clock In Location from Parent Entry to Item (Mirroring reference logic)
+                        if(existing.wfrecon__Clock_In_Location__Latitude__s != null && existing.wfrecon__Clock_In_Location__Longitude__s != null) {
+                            itemDay1.wfrecon__Clock_In_Location__Latitude__s = existing.wfrecon__Clock_In_Location__Latitude__s;
+                            itemDay1.wfrecon__Clock_In_Location__Longitude__s = existing.wfrecon__Clock_In_Location__Longitude__s;
+                        }
+
+                        // Set Clock Out Location on Updated Item
+                        if(latitude != null && longitude != null) {
+                            itemDay1.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                            itemDay1.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                        }
                         itemsToInsert.add(itemDay1);
                         
                         if (memberData.containsKey('entryDay2')) {
@@ -766,6 +829,11 @@ public with sharing class WholeCrewClockInOutController {
                                 wfrecon__Cost_Code__c = entryDay2.wfrecon__Cost_Code__c,
                                 wfrecon__Do_Not_Execute__c = true
                             );
+                            // Set Clock Out Location on Day 2 Item
+                            if(latitude != null && longitude != null) {
+                                itemDay2.wfrecon__Clock_Out_Location__Latitude__s = latitude;
+                                itemDay2.wfrecon__Clock_Out_Location__Longitude__s = longitude;
+                            }
                             itemsToInsert.add(itemDay2);
                         }
                     }
