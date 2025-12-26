@@ -600,9 +600,9 @@ public with sharing class ShiftEndLogEntriesController {
                 insert as user links;
             }
 
-            General_Refresh_Event__e refreshEvent = new General_Refresh_Event__e(
-                Record_Id__c = jobId,
-                Payload__c = '{"action":"refresh_shift_end_log"}'
+            wfrecon__General_Refresh_Event__e refreshEvent = new wfrecon__General_Refresh_Event__e(
+                wfrecon__Record_Id__c = jobId,
+                wfrecon__Payload__c = '{"action":"refresh_shift_end_log"}'
             );
             EventBus.publish(refreshEvent);
             

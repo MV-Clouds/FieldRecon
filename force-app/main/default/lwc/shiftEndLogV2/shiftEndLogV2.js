@@ -87,7 +87,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     @track hasAccess = false;
 
     subscription = {};
-    channelName = '/event/General_Refresh_Event__e';
+    channelName = '/event/wfrecon__General_Refresh_Event__e';
 
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff';
 
