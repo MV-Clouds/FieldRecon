@@ -2,15 +2,26 @@ public with sharing class ShiftEndLogEntriesController {
     public static TimeZone userTz = UserInfo.getTimeZone();
 
     @AuraEnabled
-    public static Map<String, String> getMobilizationList(String jobId, String crewLeaderId){
+    public static Map<String, String> getMobilizationList(String jobId, String crewLeaderId, String clientDate) {
         try {
             Map<String, String> result = new Map<String, String>();
             
-            // 1. Define Dates (Calculated once for both scenarios)
-            Date today = Date.today();
-            Date yesterday = today.addDays(-1);
-            String todayStr = String.valueOf(today);
-            String yesterdayStr = String.valueOf(yesterday);
+            Date todayDate;
+
+            System.debug('Client Date Input: ' + clientDate);
+            if (String.isNotBlank(clientDate)) {
+                // Parse the 'YYYY-MM-DD' string from LWC to get Client's "Today"
+                todayDate = Date.valueOf(clientDate);
+            } else {
+                todayDate = Date.today();
+            }
+
+            // Calculate "Yesterday" based on Client's "Today"
+            Date yesterdayDate = todayDate.addDays(-1);
+            String todayStr = String.valueOf(todayDate);
+            String yesterdayStr = String.valueOf(yesterdayDate);
+
+            System.debug('Client Today: ' + todayStr + ', Yesterday: ' + yesterdayStr);
             
             List<wfrecon__Mobilization__c> mobList = new List<wfrecon__Mobilization__c>();
 
@@ -589,9 +600,9 @@ public with sharing class ShiftEndLogEntriesController {
                 insert as user links;
             }
 
-            General_Refresh_Event__e refreshEvent = new General_Refresh_Event__e(
-                Record_Id__c = jobId,
-                Payload__c = '{"action":"refresh_shift_end_log"}'
+            wfrecon__General_Refresh_Event__e refreshEvent = new wfrecon__General_Refresh_Event__e(
+                wfrecon__Record_Id__c = jobId,
+                wfrecon__Payload__c = '{"action":"refresh_shift_end_log"}'
             );
             EventBus.publish(refreshEvent);
             

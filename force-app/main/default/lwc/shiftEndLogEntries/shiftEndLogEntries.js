@@ -68,6 +68,8 @@ export default class ShiftEndLogEntries extends LightningElement {
         canEditTimesheet: true
     };
 
+    @track isAccess = false;
+
     acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
 
     get isDesktopDevice() {
@@ -217,6 +219,20 @@ export default class ShiftEndLogEntries extends LightningElement {
         }
     }
 
+     /**
+     * Method Name: getClientDateString
+     * Get the client date string in YYYY-MM-DD format
+     * @returns {string} Client date string in YYYY-MM-DD format
+     */
+    getClientDateString() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const clientDateString = `${year}-${month}-${day}`;
+        return clientDateString;
+    }
+
     initializeComponent() {
         this.isLoading = true;
         try {
@@ -230,9 +246,11 @@ export default class ShiftEndLogEntries extends LightningElement {
                     if(crewData.hasAccess) {
                         this.loadMobilizationList();
                         this.loadLocationProcesses();
+                        this.isAccess = true;
                     } else {
                         // Handle case where user is not a crew leader
                         console.log('User is not a crew leader or no active crew found.');
+                        this.isAccess = false;
                     }
                 }
             }).catch(error => {
@@ -301,7 +319,10 @@ export default class ShiftEndLogEntries extends LightningElement {
     }
 
     loadMobilizationList() {
-        getMobilizationList({ jobId: this.jobId, crewLeaderId: this.crewLeaderId })
+
+        const clientDate = this.getClientDateString();
+
+        getMobilizationList({ jobId: this.jobId, crewLeaderId: this.crewLeaderId, clientDate: clientDate })
             .then(result => {
                 if (result) {
                     // Parse and format the mobilization options
