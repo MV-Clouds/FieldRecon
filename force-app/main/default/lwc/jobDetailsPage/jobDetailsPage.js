@@ -82,8 +82,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             style: 'width: 8rem'
         },
         { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
-        { label: 'Start Time', fieldName: 'startDate', style: 'width: 12rem' },
-        { label: 'End Time', fieldName: 'endDate', style: 'width: 12rem' },
+        { label: 'Start Time', fieldName: 'startDate', style: 'width: 10rem' },
+        { label: 'End Time', fieldName: 'endDate', style: 'width: 10rem' },
         { label: 'Clocked In Members', fieldName: 'clockedInMembers', style: 'width: 10rem' },
         { label: 'Total Man Hours', fieldName: 'totalManHours', style: 'width: 10rem' },
         { label: 'Total Hours + Travel', fieldName: 'totalHoursWithTravel', style: 'width: 12rem' }
@@ -94,11 +94,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     // Timesheet columns adapted for inline editing/display
     @track timesheetColumns = [
         { label: 'Full Name', fieldName: 'contactName', type: 'text', editable: false, style: 'width: 6rem' },
-        { label: 'Clock In Time', fieldName: 'clockInTime', type: 'datetime', editable: true, style: 'width: 6rem' },
-        { label: 'Clock Out Time', fieldName: 'clockOutTime', type: 'datetime', editable: true, style: 'width: 6rem' },
-        { label: 'Work Hours', fieldName: 'workHours', type: 'number', editable: false, style: 'width: 6rem' },
-        { label: 'Travel Time', fieldName: 'travelTime', type: 'number', editable: true, min: 0.00, step: 0.01, style: 'width: 6rem' },
-        { label: 'Total Time', fieldName: 'totalTime', type: 'number', editable: false, style: 'width: 6rem' },
+        { label: 'Clock In Time', fieldName: 'clockInTime', type: 'datetime', editable: true, style: 'width: 8rem' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime', type: 'datetime', editable: true, style: 'width: 8rem' },
+        { label: 'Work Hours', fieldName: 'workHours', type: 'number', editable: false, style: 'width: 5rem' },
+        { label: 'Travel Time', fieldName: 'travelTime', type: 'number', editable: true, min: 0.00, step: 0.01, style: 'width: 5rem' },
+        { label: 'Total Time', fieldName: 'totalTime', type: 'number', editable: false, style: 'width: 5rem' },
         { label: 'Per Diem', fieldName: 'perDiem', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Premium', fieldName: 'premium', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Cost Code', fieldName: 'costCodeName', type: 'text', editable: false, style: 'width: 6rem' }
