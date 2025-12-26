@@ -1706,6 +1706,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
+                            this.getJobRelatedMoblizationDetails();
                         }
                     } else {
                         this.showToast('Error', 'Failed to create timesheet record. Please try again.', 'error');
@@ -2262,6 +2263,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     this.showToast('Success', 'Timesheet changes saved successfully', 'success');
                     // 1. Re-load data for this job (updates map and triggers row re-render)
                     this.loadTimesheetData(mobId); 
+                    this.getJobRelatedMoblizationDetails();
                 } else {
                     this.showToast('Error', result, 'error');
                 }
@@ -2473,6 +2475,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
                     // Refresh data
                     this.loadTimesheetData(mobId);
+                    this.getJobRelatedMoblizationDetails();
                 } else {
                     this.showToast('Error', result, 'error');
                 }

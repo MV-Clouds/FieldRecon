@@ -209,6 +209,33 @@ export default class WholeCrewClockInOut extends LightningElement {
             });
     }
 
+    /** * Method Name: getCurrentLocation 
+    * @description: Gets the current geolocation with permission handling
+    * @return: Promise that resolves with {latitude, longitude} or null
+    */
+    async getCurrentLocation() {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                console.error('Geolocation is not supported by this browser.');
+                resolve(null);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    resolve({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    });
+                },
+                (error) => {
+                    console.error('Error getting location:', error.message);
+                    resolve(null);
+                }
+            );
+        });
+    }
+
     /** 
     * Method Name: loadMobilizations
     * @description: Loads mobilization dates for the job and auto-selects the first one
@@ -490,6 +517,11 @@ export default class WholeCrewClockInOut extends LightningElement {
 
             this.updateCurrentTime();
 
+            const location = await this.getCurrentLocation();
+
+            console.log('Current location:', location);
+            
+
             const clockInMembers = selectedMembers.map(member => ({
                 actionType: 'clockIn',
                 jobId: this.recordId,
@@ -501,7 +533,9 @@ export default class WholeCrewClockInOut extends LightningElement {
                 timesheetId: member.timesheetId,
                 isTimeSheetEntryNull: member.isTimeSheetEntryNull,
                 timesheetEntryId: member.timesheetEntryId,
-                mobMemberId: member.mobMemberId
+                mobMemberId: member.mobMemberId,
+                latitude: location?.latitude || null,
+                longitude: location?.longitude || null
             }));
 
             const clockInParams = {
@@ -546,6 +580,9 @@ export default class WholeCrewClockInOut extends LightningElement {
                 return;
             }
 
+            const location = await this.getCurrentLocation();
+            console.log('Current location:', location);
+
             // Prepare members data matching jobDetailsPage format
             const members = selectedMembers.map(member => ({
                 actionType: 'clockOut',
@@ -558,7 +595,9 @@ export default class WholeCrewClockInOut extends LightningElement {
                 timesheetId: member.timesheetId,
                 isTimeSheetEntryNull: member.isTimeSheetEntryNull,
                 timesheetEntryId: member.timesheetEntryId,
-                mobMemberId: member.mobMemberId
+                mobMemberId: member.mobMemberId,
+                latitude: location?.latitude || null,
+                longitude: location?.longitude || null
             }));
 
             const params = {
