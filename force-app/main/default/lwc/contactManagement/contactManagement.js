@@ -863,7 +863,8 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             const isDisabled = this.isPreviewMode ? true : !config.isEditable;
             
             // Determine Required Fields
-            const isRequired = fieldName === 'LastName' || fieldName === 'Email' || fieldName === 'RecordType.DeveloperName';
+            const isSystemRequired = fieldName === 'LastName' || fieldName === 'Email' || fieldName === 'RecordType.DeveloperName';
+            const isRequired = isSystemRequired || (config.isRequired === true);
 
             return {
                 fieldName: fieldName,

@@ -4,9 +4,9 @@ import saveContactConfig from '@salesforce/apex/ContactConfigController.saveCont
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class ContactConfigBody extends LightningElement {
-    @track fieldOptions = []; // All available fields
-    @track items = []; // Selected Rows
-    @track filteredFieldOptions = []; // Search results
+    @track fieldOptions = [];
+    @track items = [];
+    @track filteredFieldOptions = [];
     @track isLoading = false;
     @track pageSize = 30;
 
@@ -16,26 +16,21 @@ export default class ContactConfigBody extends LightningElement {
         this.fetchMetadata();
     }
 
-    // --- Data Fetching ---
     fetchMetadata() {
         this.isLoading = true;
         getContactFields()
             .then(result => {
-                // Prepare all fields options
                 this.fieldOptions = result.fieldDetailsList.map(opt => ({
                     ...opt,
-                    // If calculated (formula/rollup) or Audit field -> Disable Edit
                     isEditableDisabled: this.auditFields.includes(opt.value) || opt.isCalculated
                 }));
                 this.filteredFieldOptions = [...this.fieldOptions];
 
-                // Parse existing metadata config
                 if (result.metadataRecords && result.metadataRecords.length > 0) {
                     const fieldsData = JSON.parse(result.metadataRecords[0]);
                     this.pageSize = parseInt(result.metadataRecords[1], 10);
 
                     this.items = fieldsData.map((item, index) => {
-                        // Re-validate editable status against actual field definition
                         const fieldDef = this.fieldOptions.find(f => f.value === (item.fieldApiname || item.fieldName));
                         const isLocked = fieldDef ? fieldDef.isEditableDisabled : false;
 
@@ -47,6 +42,7 @@ export default class ContactConfigBody extends LightningElement {
                             fieldType: item.fieldType,
                             isEditable: isLocked ? false : item.isEditable,
                             isEditableDisabled: isLocked,
+                            isRequired: item.isRequired === true, // Load Required State
                             isFocused: false
                         };
                     });
@@ -64,7 +60,6 @@ export default class ContactConfigBody extends LightningElement {
         return this.items && this.items.length > 0;
     }
 
-    // --- Row Actions ---
     addNewRow() {
         this.items = [...this.items, {
             id: Date.now(),
@@ -73,9 +68,9 @@ export default class ContactConfigBody extends LightningElement {
             value: '',
             isEditable: false,
             isEditableDisabled: false,
+            isRequired: false, // Default
             isFocused: false
         }];
-        // Scroll to bottom logic if needed
         setTimeout(() => {
             const container = this.template.querySelector('.tableContainer');
             if (container) container.scrollTop = container.scrollHeight;
@@ -89,19 +84,15 @@ export default class ContactConfigBody extends LightningElement {
         this.items = newItems;
     }
 
-    // --- Combobox/Dropdown Logic ---
     handleFocus(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
-        // Reset filter
         this.filteredFieldOptions = [...this.fieldOptions];
-        // Set focus state
         this.items = this.items.map((item, i) => ({
             ...item,
             isFocused: i === index
         }));
 
         setTimeout(() => {
-            // Select the specific input for this row using the data-index
             const searchInput = this.template.querySelector(`input.picklist-input[data-index="${index}"]`);
             if (searchInput) {
                 searchInput.focus();
@@ -110,7 +101,6 @@ export default class ContactConfigBody extends LightningElement {
     }
 
     handleBlur(event) {
-        // Small delay to allow click selection event to fire
         const index = parseInt(event.currentTarget.dataset.index, 10);
         setTimeout(() => {
             this.items = this.items.map((item, i) => {
@@ -127,13 +117,16 @@ export default class ContactConfigBody extends LightningElement {
         );
     }
 
+    handlePreventDefault(event) {
+        event.preventDefault();
+    }
+
     selectOption(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
         const value = event.currentTarget.dataset.id;
         const label = event.currentTarget.dataset.label;
         const type = event.currentTarget.dataset.type;
 
-        // Find definition to check disabled status
         const fieldDef = this.fieldOptions.find(f => f.value === value);
         const isLocked = fieldDef ? fieldDef.isEditableDisabled : false;
 
@@ -144,18 +137,23 @@ export default class ContactConfigBody extends LightningElement {
             label: label,
             fieldType: type,
             isEditableDisabled: isLocked,
-            isEditable: false, // Reset editable when field changes
+            isEditable: false,
+            isRequired: false,
             isFocused: false
         };
     }
 
-    // --- Checkbox Logic ---
     handleEditableChange(event) {
         const index = parseInt(event.target.dataset.index, 10);
         this.items[index].isEditable = event.target.checked;
     }
 
-    // --- Drag and Drop ---
+    // NEW: Handle Required Checkbox Change
+    handleRequiredChange(event) {
+        const index = parseInt(event.target.dataset.index, 10);
+        this.items[index].isRequired = event.target.checked;
+    }
+
     handleDragStart(event) {
         event.dataTransfer.setData('text/plain', event.currentTarget.dataset.index);
         event.currentTarget.classList.add('dragged');
@@ -177,25 +175,32 @@ export default class ContactConfigBody extends LightningElement {
         
         this.items = items;
         
-        // Clean up classes
         this.template.querySelectorAll('.popup__data-row').forEach(row => {
             row.classList.remove('dragged', 'drop-over');
         });
     }
 
-    // --- Save & Close ---
     saveRecords() {
-        // Validation
         if (this.items.some(item => !item.fieldName)) {
             this.showToast('Error', 'Please select a field for all rows', 'error');
             return;
         }
 
-        // Duplicate check
-        const fields = this.items.map(i => i.fieldName);
-        const uniqueFields = new Set(fields);
-        if (fields.length !== uniqueFields.size) {
-            this.showToast('Error', 'Duplicate fields detected', 'error');
+        const seen = new Set();
+        const duplicates = new Set();
+        
+        this.items.forEach(item => {
+            if (seen.has(item.fieldName)) {
+                duplicates.add(item.label);
+            } else {
+                seen.add(item.fieldName);
+            }
+        });
+
+        if (duplicates.size > 0) {
+            // Show specific duplicate names in toast
+            const dupList = Array.from(duplicates).join(', ');
+            this.showToast('Error', `Duplicate fields detected: ${dupList}`, 'error');
             return;
         }
 
@@ -205,7 +210,8 @@ export default class ContactConfigBody extends LightningElement {
             fieldName: item.fieldName,
             label: item.label,
             fieldType: item.fieldType,
-            isEditable: item.isEditable
+            isEditable: item.isEditable,
+            isRequired: item.isRequired
         }));
 
         saveContactConfig({ 
@@ -214,7 +220,6 @@ export default class ContactConfigBody extends LightningElement {
         })
         .then(() => {
             this.showToast('Success', 'Configuration updated successfully', 'success');
-            // Notify parent to reload and close modal
             this.dispatchEvent(new CustomEvent('configurationupdated', {
                 detail: { success: true }
             }));

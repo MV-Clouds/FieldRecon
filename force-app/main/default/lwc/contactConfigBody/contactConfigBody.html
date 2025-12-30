@@ -38,8 +38,10 @@
                                         <div class="tableContainer">
                                             <template if:true={isDataAvailable}>
                                                 <div class="popup__header-row">
-                                                    <div class="slds-col display_css"></div> <div class="slds-col display_css"><p class="header-text">Field</p></div>
+                                                    <div class="slds-col display_css"></div> 
+                                                    <div class="slds-col display_css"><p class="header-text">Field</p></div>
                                                     <div class="slds-col display_css"><p class="header-text">Edit</p></div>
+                                                    <div class="slds-col display_css"><p class="header-text">Required</p></div>
                                                     <div class="slds-col display_css"><p class="header-text">Delete</p></div>
                                                 </div>
 
@@ -102,6 +104,16 @@
                                                                            data-index={index} 
                                                                            onchange={handleEditableChange}
                                                                            disabled={item.isEditableDisabled}>
+                                                                    <span class="checkmark"></span>
+                                                                </label>
+                                                            </div>
+
+                                                            <div class="slds-col wrap_css order_btn_grp">
+                                                                <label class="custom-checkbox">
+                                                                    <input type="checkbox" 
+                                                                           checked={item.isRequired} 
+                                                                           data-index={index} 
+                                                                           onchange={handleRequiredChange}>
                                                                     <span class="checkmark"></span>
                                                                 </label>
                                                             </div>
