@@ -1,0 +1,251 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1">
+        <!-- <div class="slds-modal__container"> -->
+            
+            <!-- <div class="slds-modal__header blue-header">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleClose}>
+                    <lightning-icon icon-name="utility:close" size="small" alternative-text="close" class="slds-button__icon slds-button__icon_large"></lightning-icon>
+                    <span class="slds-assistive-text">Close</span>
+                </button>
+                <h2 class="slds-text-heading_medium">Preview Quote</h2>
+            </div> -->
+
+            <!-- <div class="slds-modal__content slds-p-around--medium" id="modal-content-id-1"> -->
+                <div class="main-div">
+                    <div class="content-body">
+                        <div class="outer-grid">
+                            
+                            <div class="inner-grid-1">
+                                <div class="form-scroll-container">
+                                    
+                                    <div class="form-group">
+                                        <label class="field-label required">* Select Email Template</label>
+                                        <div class="input-wrapper">
+                                            <select class="custom-select">
+                                                <option>Quote with Categories & Totals</option>
+                                                <option>Standard Quote</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="field-label required">* From Address (Org-Wide Email)</label>
+                                        <div class="input-wrapper">
+                                            <select class="custom-select">
+                                                <option>Email &lt;karan.s@mvclouds.com&gt;</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="field-label required">* To</label>
+                                        <div class="input-wrapper search-wrapper">
+                                            <lightning-icon icon-name="utility:search" size="x-small" class="search-icon"></lightning-icon>
+                                            <input type="text" class="custom-input pl-30" placeholder="Search Contact..." />
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="field-label">CC</label>
+                                        <div class="input-wrapper search-wrapper">
+                                            <lightning-icon icon-name="utility:search" size="x-small" class="search-icon"></lightning-icon>
+                                            <input type="text" class="custom-input pl-30" placeholder="Search Contact..." />
+                                        </div>
+                                        <div class="checkbox-wrapper">
+                                            <input type="checkbox" id="ccUser" />
+                                            <label for="ccUser">CC Current User</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="field-label">BCC</label>
+                                        <div class="input-wrapper search-wrapper">
+                                            <lightning-icon icon-name="utility:search" size="x-small" class="search-icon"></lightning-icon>
+                                            <input type="text" class="custom-input pl-30" placeholder="Search Contact..." />
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="field-label required">* Subject</label>
+                                        <div class="input-wrapper">
+                                            <input type="text" class="custom-input" value="Quote with Categories & Totals" />
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="field-label required">* Body</label>
+                                        <div class="rich-text-toolbar">
+                                            <div class="toolbar-item">Salesforce Sans <lightning-icon icon-name="utility:down" size="xx-small"></lightning-icon></div>
+                                            <div class="toolbar-item">12 <lightning-icon icon-name="utility:down" size="xx-small"></lightning-icon></div>
+                                            <div class="toolbar-btn">B</div>
+                                            <div class="toolbar-btn">I</div>
+                                            <div class="toolbar-btn">U</div>
+                                        </div>
+                                        <div class="rich-text-area">
+                                            <p>Hi Account1,</p>
+                                            <br/>
+                                            <p>Please <a href="#" class="theme-link">click here</a> to view and accept your proposal.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group checkbox-wrapper mt-2">
+                                        <input type="checkbox" id="customSig" />
+                                        <label for="customSig">Use Your Custom Email Signature</label>
+                                        <lightning-icon icon-name="utility:info" size="xx-small" class="ml-1"></lightning-icon>
+                                    </div>
+
+                                    <div class="form-group mt-3">
+                                        <label class="field-label">Attachments</label>
+                                        <div class="attachment-box">
+                                            <button class="upload-btn"><lightning-icon icon-name="utility:upload" size="x-small" class="mr-1"></lightning-icon> Upload Files</button>
+                                            <span class="drag-text">Or drop files</span>
+                                            <button class="select-btn">Select File From Record</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group mt-3">
+                                        <label class="field-label">Signature</label>
+                                        <div class="signature-pad">
+                                            </div>
+                                        <div class="sig-footer">
+                                            <button class="clear-sig-btn">Clear Signature</button>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="inner-grid-2 right-panel">
+                                <div class="preview-scroll-container">
+                                    
+                                    <div class="accordion-item">
+                                        <div class="accordion-header" onclick={toggleBodyPreview}>
+                                            <span>Email Body Preview</span>
+                                            <lightning-icon icon-name={bodyPreviewIcon} size="x-small"></lightning-icon>
+                                        </div>
+                                        <div class={bodyPreviewClass}>
+                                            <div class="preview-content">
+                                                <p>Hi Account1,</p>
+                                                <p class="mt-2">Please <a href="#" class="theme-link">click here</a> to view and accept your proposal.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="accordion-item mt-2">
+                                        <div class="accordion-header" onclick={toggleAttachmentPreview}>
+                                            <span>Email Attachment Preview</span>
+                                            <lightning-icon icon-name={attachmentPreviewIcon} size="x-small"></lightning-icon>
+                                        </div>
+                                        <div class={attachmentPreviewClass}>
+                                            <div class="quote-document">
+                                                <div class="quote-header slds-grid slds-grid_align-spread">
+                                                    <div class="logo-area">
+                                                        <div class="img-placeholder">bt_logo.png</div>
+                                                    </div>
+                                                    <div class="quote-meta text-right">
+                                                        <div><strong>Quote No:</strong> 0001-0001</div>
+                                                        <div><strong>Date:</strong> 30 December 2025</div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="address-section slds-grid">
+                                                    <div class="slds-col slds-size_1-of-2">
+                                                        <div class="addr-label">Quote From:</div>
+                                                        <div class="addr-val">RKSingh</div>
+                                                        <div class="addr-val">, ,</div>
+                                                        <div class="addr-val">Office No:</div>
+                                                    </div>
+                                                    <div class="slds-col slds-size_1-of-2">
+                                                        <div class="addr-label">Quote To:</div>
+                                                        <div class="addr-val">Account1</div>
+                                                        <div class="addr-val">US</div>
+                                                        <div class="addr-val">Mobile No:</div>
+                                                        <div class="addr-val">Home No:</div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="project-details slds-grid mt-3">
+                                                    <div class="slds-col slds-size_1-of-2">
+                                                        <div><strong>Quote # :</strong> 0001-0001</div>
+                                                        <div><strong>Quote Title :</strong> Quote1</div>
+                                                        <div><strong>Quote Amount:</strong> USD 1,05,000.00</div>
+                                                        <div><strong>Due Date:</strong></div>
+                                                    </div>
+                                                    <div class="slds-col slds-size_1-of-2">
+                                                        <div><strong>Project Name :</strong> Project1</div>
+                                                        <div><strong>Sales Rep:</strong></div>
+                                                        <div><strong>Sales Rep Phone:</strong></div>
+                                                    </div>
+                                                </div>
+
+                                                <table class="quote-table mt-3">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 40%;">Product Name (Long)</th>
+                                                            <th>Notes</th>
+                                                            <th class="text-right">Quantity</th>
+                                                            <th class="text-right">Unit Sales Price</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr class="group-header">
+                                                            <td colspan="3">No Grouping</td>
+                                                            <td class="text-right">USD 1,05,000.00</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>GenWatt Diesel 1000kW</td>
+                                                            <td></td>
+                                                            <td class="text-right">1.00</td>
+                                                            <td class="text-right">USD 1,00,000.00</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>GenWatt Diesel 10kW</td>
+                                                            <td></td>
+                                                            <td class="text-right">1.00</td>
+                                                            <td class="text-right">USD 5,000.00</td>
+                                                        </tr>
+                                                        <tr class="group-total-row">
+                                                            <td colspan="3"></td>
+                                                            <td class="text-right total-cell">$105,000.00</td>
+                                                        </tr>
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr>
+                                                            <td colspan="3" class="text-right bold">Subtotal:</td>
+                                                            <td class="text-right">USD 1,05,000.00</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td colspan="3" class="text-right bold">Tax %:</td>
+                                                            <td class="text-right"></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td colspan="3" class="text-right bold">Discount %:</td>
+                                                            <td class="text-right"></td>
+                                                        </tr>
+                                                        <tr class="grand-total">
+                                                            <td colspan="3" class="text-right bold">Quote Total:</td>
+                                                            <td class="text-right bold">USD 1,05,000.00</td>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="popUpFooter">
+                        <button class="footer-btn secondary" onclick={handleClose}>Accept and Close</button>
+                        <button class="footer-btn secondary" onclick={handleClose}>Accept and Send Email</button>
+                        <button class="footer-btn secondary" onclick={handleClose}>Send Email</button>
+                        <button class="footer-btn primary-outline" onclick={handleClose}>Cancel</button>
+                    </div>
+                </div>
+            <!-- </div> -->
+        <!-- </div> -->
+    </section>
+</template>
