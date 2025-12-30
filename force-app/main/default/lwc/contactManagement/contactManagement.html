@@ -22,6 +22,13 @@
             <div class="right-controls">
                 <!-- Create New Contact Button -->
                 <div class="action-buttons">
+                    <button class="action-button" onclick={handleOpenConfig}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        Configure Settings
+                    </button>
                     <button 
                         class="action-button create-button"
                         onclick={handleCreateNew}>
@@ -78,6 +85,12 @@
 
                                         <template if:true={col.isActions}>
                                             <div class="contact-action-button-container">
+                                                <button class="contact-edit-icon-btn" title="Preview Contact" data-record-id={contactRecord.Id} onclick={handlePreviewContact}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                        <circle cx="12" cy="12" r="3"></circle>
+                                                    </svg>
+                                                </button>
                                                 <button class="contact-edit-icon-btn" title="Edit Contact" data-record-id={contactRecord.Id} onclick={handleEditContact}>
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -188,78 +201,56 @@
                 <!-- Modal content -->
                 <div class="slds-modal__content slds-p-around--medium contact-popup-body">
                     <form onsubmit={handleSave}>
-                        <!-- First Name Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                label="First Name"
-                                name="firstName"
-                                value={firstName}
-                                onchange={handleInputChange}
-                                required
-                                max-length="40"
-                                message-when-value-missing="First Name is required">
-                            </lightning-input>
+                        <div class="slds-grid slds-wrap slds-gutters">
+                            <template for:each={dynamicFields} for:item="field">
+                                <div key={field.fieldName} class="slds-col slds-size_1-of-1 slds-m-bottom_medium">
+                                    
+                                    <template if:true={field.isRecordType}>
+                                        <lightning-combobox
+                                            label={field.label}
+                                            name={field.fieldName}
+                                            value={field.value}
+                                            options={recordTypeOptions}
+                                            required={field.isRequired}
+                                            disabled={field.isDisabled}
+                                            onchange={handleDynamicInputChange}>
+                                        </lightning-combobox>
+                                    </template>
+
+                                    <template if:true={field.isCheckbox}>
+                                        <lightning-input
+                                            type="checkbox"
+                                            label={field.label}
+                                            name={field.fieldName}
+                                            checked={field.value}
+                                            disabled={field.isDisabled}
+                                            onchange={handleDynamicInputChange}>
+                                        </lightning-input>
+                                    </template>
+
+                                    <template if:true={field.isStandardInput}>
+                                        <lightning-input
+                                            label={field.label}
+                                            name={field.fieldName}
+                                            type={field.type}
+                                            value={field.value}
+                                            required={field.isRequired}
+                                            disabled={field.isDisabled}
+                                            onchange={handleDynamicInputChange}
+                                            max-length="255">
+                                        </lightning-input>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
 
-                        <!-- Last Name Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                label="Last Name"
-                                name="lastName"
-                                value={lastName}
-                                onchange={handleInputChange}
-                                required
-                                max-length="80"
-                                message-when-value-missing="Last Name is required">
-                            </lightning-input>
-                        </div>
-
-                        <!-- Email Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                type="email"
-                                label="Email"
-                                name="email"
-                                value={email}
-                                onchange={handleInputChange}
-                                required
-                                max-length="80"
-                                pattern="^(?!.*@(yopmail|tempmail|guerrillamail|mailinator|10minutemail|throwaway|trashmail|fakeinbox)\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-                                message-when-pattern-mismatch="Please enter a valid email address. Disposable email addresses are not allowed."
-                                message-when-value-missing="Email is required">
-                            </lightning-input>
-                        </div>
-
-                        <!-- Record Type Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-combobox
-                                label="Type"
-                                name="recordType"
-                                value={recordType}
-                                placeholder="Select Type"
-                                options={recordTypeOptions}
-                                onchange={handleInputChange}
-                                required>
-                            </lightning-combobox>
-                        </div>
-
-                        <!-- Can Clock In/Out Checkbox -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                type="checkbox"
-                                label="Can Clock In / Out"
-                                name="canClockInOut"
-                                checked={canClockInOut}
-                                onchange={handleInputChange}>
-                            </lightning-input>
-                        </div>
-                        
-                        <!-- Footer Buttons -->
-                        <div class="bottom-footer-btn">
-                            <button type="submit" class="save-btn">
-                                {saveButtonLabel}
-                            </button>
-                        </div>
+                        <template if:false={isPreviewMode}>
+                            <div class="bottom-footer-btn">
+                                <button type="submit" class="save-btn">
+                                    {saveButtonLabel}
+                                </button>
+                            </div>
+                        </template>
                     </form>
                 </div>
             </div>
@@ -281,4 +272,8 @@
         onconfirm={handleConfirmationModalConfirm}
         oncancel={handleConfirmationModalCancel}>
     </c-generic-confirmation-modal>
+
+    <template if:true={showConfigModal}>
+        <c-contact-config-body onconfigurationupdated={handleConfigUpdated}></c-contact-config-body>
+    </template>
 </template>

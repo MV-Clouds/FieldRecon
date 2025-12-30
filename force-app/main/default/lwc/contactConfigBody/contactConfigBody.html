@@ -1,0 +1,141 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open slds-modal_large">
+        <div class="slds-modal__container">
+            
+            <div class="slds-modal__header blue-header">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleClose}>
+                    <lightning-icon icon-name="utility:close" size="small" alternative-text="close" class="slds-button__icon slds-button__icon_large"></lightning-icon>
+                    <span class="slds-assistive-text">Close</span>
+                </button>
+                <h1 class="slds-modal__title slds-hyphenate">Configure Contact Settings</h1>
+            </div>
+
+            <div class="slds-modal__content background_css custom-modal-container">
+                <template if:true={isLoading}>
+                    <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                </template>
+
+                <div class="main-div">
+                    <div class="body-div">
+                        <div class="content-section">
+                            <div class="cmp-cover mainDiv">
+                                <div class="main-cover">
+                                    
+                                    <div class="header_container_css">
+                                        <div class="header_title_css">
+                                            <div class="header-action">
+                                                <button class="add-new-btn" onclick={addNewRow}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M12 5V19"/><path d="M5 12H19"/>
+                                                    </svg>
+                                                    Add Row
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="body-div-table">
+                                        <div class="tableContainer">
+                                            <template if:true={isDataAvailable}>
+                                                <div class="popup__header-row">
+                                                    <div class="slds-col display_css"></div> <div class="slds-col display_css"><p class="header-text">Field</p></div>
+                                                    <div class="slds-col display_css"><p class="header-text">Edit</p></div>
+                                                    <div class="slds-col display_css"><p class="header-text">Delete</p></div>
+                                                </div>
+
+                                                <div class="popup__recordValues">
+                                                    <template for:each={items} for:item="item" for:index="index">
+                                                        <div key={item.id} class="popup__data-row" draggable="true" 
+                                                             data-index={index} 
+                                                             ondragstart={handleDragStart} 
+                                                             ondragover={handleDragOver} 
+                                                             ondrop={handleDrop}>
+                                                            
+                                                            <div class="slds-col drag-icon" title="Drag to reorder">
+                                                                <svg width="16" height="16" viewBox="0 0 20 20" fill="#666">
+                                                                    <circle cx="4" cy="4" r="1.5"/><circle cx="4" cy="10" r="1.5"/><circle cx="4" cy="16" r="1.5"/>
+                                                                    <circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/>
+                                                                </svg>
+                                                            </div>
+
+                                                            <div class="slds-col wrap_css">
+                                                                <div class="combobox-cover">
+                                                                    <div class="combobox-input">
+                                                                        <div class="input-show" data-index={index} onclick={handleFocus}>
+                                                                            {item.label}
+                                                                        </div>
+                                                                        <div class="add-btn-class" data-index={index} onclick={handleFocus}>
+                                                                            <svg width="16" height="10" viewBox="0 0 16 10" fill="none" stroke="#131314" stroke-width="2">
+                                                                                <path d="M2 1.75L8 7.75L14 1.75"/>
+                                                                            </svg>
+                                                                        </div>
+                                                                        <template if:true={item.isFocused}>
+                                                                            <div class="options-box">
+                                                                                <input type="text" class="slds-input picklist-input" 
+                                                                                       placeholder="Search..." 
+                                                                                       data-index={index} 
+                                                                                       onkeyup={handleSearchChange} 
+                                                                                       onblur={handleBlur}/>
+                                                                                <ul class="options-cover" onmousedown={handlePreventDefault}>
+                                                                                    <template for:each={filteredFieldOptions} for:item="opt">
+                                                                                        <li key={opt.value} 
+                                                                                            data-index={index} 
+                                                                                            data-label={opt.label} 
+                                                                                            data-id={opt.value} 
+                                                                                            data-type={opt.fieldType} 
+                                                                                            onclick={selectOption} 
+                                                                                            class="options-value">
+                                                                                            <span>{opt.label}</span>
+                                                                                        </li>
+                                                                                    </template>
+                                                                                </ul>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="slds-col wrap_css order_btn_grp">
+                                                                <label class="custom-checkbox">
+                                                                    <input type="checkbox" 
+                                                                           checked={item.isEditable} 
+                                                                           data-index={index} 
+                                                                           onchange={handleEditableChange}
+                                                                           disabled={item.isEditableDisabled}>
+                                                                    <span class="checkmark"></span>
+                                                                </label>
+                                                            </div>
+
+                                                            <div class="slds-col wrap_css order_btn_grp">
+                                                                <div class="delete-div" onclick={handleDelete} data-index={index}>
+                                                                    <svg width="16" height="16" viewBox="0 0 25 24" fill="currentColor">
+                                                                        <path d="M19.4 8.7c.2 0 .4.1.5.2.2.2.2.4.2.6 0 .1-.5 6.8-.8 9.6-.2 1.7-1.3 2.8-3 2.8H8.6c-1.6 0-2.8-1.1-2.9-2.8-.3-2.9-.8-9.6-.8-9.6 0-.2 0-.4.2-.6.2-.1.3-.2.5-.2h13.9zM14.6 2c.9 0 1.7.6 1.9 1.5l.2.7c.1.6.6 1 1.2 1h2.9c.4 0 .7.3.7.7v.4c0 .4-.3.7-.7.7H4.2c-.4 0-.7-.3-.7-.7v-.4c0-.4.3-.7.7-.7h2.9c.6 0 1.1-.4 1.2-1l.2-.7c.2-.9 1-1.5 1.9-1.5h4.1z"/>
+                                                                    </svg>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template if:false={isDataAvailable}>
+                                                <div class="no-data-container">
+                                                    <span>No Fields Selected. Click 'Add Row' to begin.</span>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <div class="footerbtns">
+                                            <button class="cancel_btn_css" onclick={handleClose}>Cancel</button>
+                                            <button class="save_btn_css" onclick={saveRecords}>Save</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>

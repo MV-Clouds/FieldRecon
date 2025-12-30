@@ -1205,12 +1205,12 @@ public with sharing class ManagementTabController {
 
         try {
             // 1. Fetch Custom Setting (Org Defaults)
-            Shift_End_Log_Configuration__c config = Shift_End_Log_Configuration__c.getOrgDefaults();
+            wfrecon__Shift_End_Log_Configuration__c config = wfrecon__Shift_End_Log_Configuration__c.getOrgDefaults();
             
             if (config != null && config.Id != null) {
-                response.put('timesheetApprovalFeature', config.Timesheet_Entries_Approval_Feature__c);
+                response.put('timesheetApprovalFeature', config.wfrecon__Timesheet_Entries_Approval_Feature__c);
                 
-                String jsonString = config.Approvers_JSON__c;
+                String jsonString = config.wfrecon__Approvers_JSON__c;
                 if (String.isNotBlank(jsonString)) {
                     try {
                         // We store IDs as a JSON array ["005...", "005..."] to match the field name 'JSON'
@@ -1277,19 +1277,19 @@ public with sharing class ManagementTabController {
             }
 
             // 2. Get or Create Org Defaults
-            Shift_End_Log_Configuration__c config = Shift_End_Log_Configuration__c.getOrgDefaults();
+            wfrecon__Shift_End_Log_Configuration__c config = wfrecon__Shift_End_Log_Configuration__c.getOrgDefaults();
             if (config == null) {
-                config = new Shift_End_Log_Configuration__c();
+                config = new wfrecon__Shift_End_Log_Configuration__c();
             }
 
             // 3. Update Fields (Using same field names as Metadata)
-            config.Timesheet_Entries_Approval_Feature__c = timesheetApprovalFeature;
-            
+            config.wfrecon__Timesheet_Entries_Approval_Feature__c = timesheetApprovalFeature;
+
             // Serialize List<Id> to JSON String to store in 'Approvers_JSON__c'
             if (approverIds != null && !approverIds.isEmpty()) {
-                config.Approvers_JSON__c = JSON.serialize(approverIds);
+                config.wfrecon__Approvers_JSON__c = JSON.serialize(approverIds);
             } else {
-                config.Approvers_JSON__c = '[]';
+                config.wfrecon__Approvers_JSON__c = '[]';
             }
 
             // 4. Save
@@ -1312,5 +1312,24 @@ public with sharing class ManagementTabController {
         }
 
         return response;
+    }
+
+    @AuraEnabled
+    public static Boolean checkEmailUniqueness(String email, String excludeContactId) {
+        if (String.isBlank(email)) {
+            return true; // Let standard validation handle empty fields if required
+        }
+        
+        String query = 'SELECT Id FROM Contact WHERE Email = :email';
+        
+        // If we are editing, we must exclude the current record from the duplicate check
+        if (String.isNotBlank(excludeContactId)) {
+            query += ' AND Id != :excludeContactId';
+        }
+        
+        query += ' LIMIT 1';
+        
+        List<Contact> duplicates = Database.query(query);
+        return duplicates.isEmpty();
     }
 }
