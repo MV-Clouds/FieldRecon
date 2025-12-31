@@ -176,7 +176,7 @@ export default class QuoteEmailComposer extends LightningElement {
                 .slds-modal__header:not(.empty):not(.slds-modal__header_empty){
                     background-color: #5e5adb;
                     color: white;
-                    padding: 0.8rem 1.5rem;
+                    padding: 1.25rem 1.5rem;
                     text-align: center;
                     flex-shrink: 0;
                     border-radius: 4px 4px 0 0;

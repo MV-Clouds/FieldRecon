@@ -8,10 +8,7 @@ public with sharing class QuoteEmailController {
     @AuraEnabled(cacheable=true)
     public static InitData getInitialData() {
         InitData data = new InitData();
-        // Fetch Org Wide Addresses
         data.orgWideAddresses = [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress];
-        
-        // Fetch Email Templates from specific folder "Quote Emails"
         data.emailTemplates = [
             SELECT Id, Name 
             FROM EmailTemplate 
@@ -27,7 +24,6 @@ public with sharing class QuoteEmailController {
     public static Map<String, String> renderEmailTemplate(String templateId, String whoId, String whatId) {
         if(String.isBlank(templateId)) return null;
 
-        // Messaging.renderStoredEmailTemplate requires a valid WhoId (Contact/Lead)
         // If user hasn't selected "To" yet, pick a dummy contact to allow preview rendering
         if(String.isBlank(whoId)) {
             List<Contact> dummy = [SELECT Id FROM Contact LIMIT 1];
@@ -45,6 +41,10 @@ public with sharing class QuoteEmailController {
         }
     }
 
+    /**
+     * Updated to accept file attachments
+     * files parameter structure: List of Maps { 'fileName': '...', 'base64Data': '...', 'contentType': '...' }
+     */
     @AuraEnabled
     public static void sendQuoteEmail(
         String toId, 
@@ -53,7 +53,8 @@ public with sharing class QuoteEmailController {
         String subject, 
         String body, 
         String fromId, 
-        String relatedToId
+        String relatedToId,
+        List<Object> files 
     ) {
         try {
             Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
@@ -61,7 +62,7 @@ public with sharing class QuoteEmailController {
             // Set Target (To)
             if(String.isNotBlank(toId)) {
                 mail.setTargetObjectId(toId);
-                mail.setTreatTargetObjectAsRecipient(true); // Sends to the Contact
+                mail.setTreatTargetObjectAsRecipient(true);
             }
 
             // Set Related Record
@@ -69,20 +70,15 @@ public with sharing class QuoteEmailController {
                 mail.setWhatId(relatedToId);
             }
 
-            // Set From Address (Org Wide)
+            // Set From Address
             if(String.isNotBlank(fromId)) {
                 mail.setOrgWideEmailAddressId(fromId);
             }
 
-            // Set CC
+            // Set CC & BCC
             if(ccIds != null && !ccIds.isEmpty()) {
-                mail.setCcAddresses(getIdsFromStrings(ccIds)); // Requires converting IDs to emails usually, but CC on object requires logic
-                // NOTE: setCcAddresses expects String[] of emails. 
-                // For IDs, we usually fetch emails. Simple version here:
                 mail.setCcAddresses(getEmailsFromIds(ccIds));
             }
-
-            // Set BCC
             if(bccIds != null && !bccIds.isEmpty()) {
                 mail.setBccAddresses(getEmailsFromIds(bccIds));
             }
@@ -90,6 +86,25 @@ public with sharing class QuoteEmailController {
             mail.setSubject(subject);
             mail.setHtmlBody(body);
             mail.setSaveAsActivity(true);
+
+            // --- Handle Attachments ---
+            if (files != null && !files.isEmpty()) {
+                List<Messaging.EmailFileAttachment> attachments = new List<Messaging.EmailFileAttachment>();
+                
+                for (Object fileObj : files) {
+                    Map<Object, Object> fileMap = (Map<Object, Object>)fileObj;
+                    String fileName = (String)fileMap.get('fileName');
+                    String base64Data = (String)fileMap.get('base64Data');
+                    String contentType = (String)fileMap.get('contentType');
+
+                    Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+                    efa.setFileName(fileName);
+                    efa.setBody(EncodingUtil.base64Decode(base64Data));
+                    efa.setContentType(contentType);
+                    attachments.add(efa);
+                }
+                mail.setFileAttachments(attachments);
+            }
 
             Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{mail});
 
@@ -105,9 +120,5 @@ public with sharing class QuoteEmailController {
             if(c.Email != null) emails.add(c.Email);
         }
         return emails;
-    }
-    
-    private static List<String> getIdsFromStrings(List<String> inputs) {
-        return inputs;
     }
 }

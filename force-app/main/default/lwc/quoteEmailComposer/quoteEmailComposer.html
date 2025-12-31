@@ -50,9 +50,6 @@
                                     value={selectedCcId}
                                     onchange={handleCcChange}>
                                 </lightning-record-picker>
-                                <div class="checkbox-wrapper mt-1">
-                                    <lightning-input type="checkbox" label="CC Current User" checked={ccCurrentUser} onchange={handleCcUserChange}></lightning-input>
-                                </div>
                             </div>
 
                             <div class="form-group">
@@ -75,6 +72,7 @@
                             </div>
 
                             <div class="form-group">
+                                <p>Body:</p>
                                 <lightning-input-rich-text
                                     label="Body"
                                     value={emailBody}
@@ -84,24 +82,12 @@
                                 </lightning-input-rich-text>
                             </div>
 
-                            <div class="form-group checkbox-wrapper mt-2">
-                                <lightning-input type="checkbox" label="Use Your Custom Email Signature"></lightning-input>
-                            </div>
-
                             <div class="form-group mt-3">
                                 <label class="slds-form-element__label">Attachments</label>
                                 <div class="attachment-box">
                                     <button class="upload-btn"><lightning-icon icon-name="utility:upload" size="x-small" class="mr-1"></lightning-icon> Upload Files</button>
                                     <span class="drag-text">Or drop files</span>
                                     <button class="select-btn">Select File From Record</button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group mt-3">
-                                <label class="slds-form-element__label">Signature</label>
-                                <div class="signature-pad"></div>
-                                <div class="sig-footer">
-                                    <button class="clear-sig-btn">Clear Signature</button>
                                 </div>
                             </div>
 
@@ -156,8 +142,6 @@
             </div>
 
             <div class="popUpFooter">
-                <button class="footer-btn secondary" onclick={handleClose}>Accept and Close</button>
-                <button class="footer-btn secondary" onclick={handleSendEmail}>Accept and Send Email</button>
                 <button class="footer-btn secondary" onclick={handleSendEmail}>Send Email</button>
                 <button class="footer-btn primary-outline" onclick={handleClose}>Cancel</button>
             </div>
