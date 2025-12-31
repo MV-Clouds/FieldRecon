@@ -27,7 +27,7 @@ public without sharing class ProposalPageController {
             result = 'Not Accepted';
             proposalStatus = 'Pending';
             proRecRecord = new wfrecon__Proposal_Recipient__c();
-            recordId = ApexPages.currentPage().getParameters().get('Id')?.escapeHtml4();
+            recordId = ApexPages.currentPage().getParameters().get('recordId')?.escapeHtml4();
             templateId = ApexPages.currentPage().getParameters().get('templateId')?.escapeHtml4();
             contactId = ApexPages.currentPage().getParameters().get('contactId')?.escapeHtml4();
 
@@ -47,7 +47,7 @@ public without sharing class ProposalPageController {
             List<wfrecon__Proposal_Recipient__c> proposalRecipients = [SELECT Id, Name, wfrecon__Accepted_Rejected_Changed_Date__c, wfrecon__Contact__c, wfrecon__Due_Date__c, wfrecon__Proposal__c, 
                                                                         wfrecon__Proposal__r.Name, wfrecon__Requested_Changes__c, wfrecon__Status__c
                                                                         FROM wfrecon__Proposal_Recipient__c
-                                                                        WHERE Id = :recordId AND wfrecon__Contact__c = :contactId AND wfrecon__Status__c = 'Pending'
+                                                                        WHERE wfrecon__Proposal__c = :recordId AND wfrecon__Contact__c = :contactId AND wfrecon__Status__c = 'Pending'
                                                                         LIMIT 1];
 
             if (proposalRecipients == null || proposalRecipients.isEmpty()) {
@@ -234,6 +234,7 @@ public without sharing class ProposalPageController {
             pdfPage.getParameters().put('imgURL', cdPublicLink.ContentDownloadUrl);
             pdfPage.getParameters().put('customerAcceptedDate', customerAcceptedDate);
             pdfPage.getParameters().put('templateId', templateId);
+            pdfPage.getParameters().put('contactId', contactId);
 
             Blob pdfBlob = Test.isRunningTest() ? Blob.valueOf('Unit.Test') : pdfPage.getContent();
 
