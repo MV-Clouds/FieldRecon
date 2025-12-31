@@ -3,6 +3,7 @@ public with sharing class QuoteEmailController {
     public class InitData {
         @AuraEnabled public List<OrgWideEmailAddress> orgWideAddresses;
         @AuraEnabled public List<EmailTemplate> emailTemplates;
+        @AuraEnabled public String baseUrl;
     }
 
     @AuraEnabled(cacheable=true)
@@ -17,7 +18,28 @@ public with sharing class QuoteEmailController {
             ORDER BY Name 
             LIMIT 100
         ];
+        
+        // Fetch Base URL from Custom Setting (Quote_Settings__c)
+        wfrecon__Proposal_Settings__c settings = wfrecon__Proposal_Settings__c.getOrgDefaults();
+        if(settings != null && settings.wfrecon__Base_URL__c != null) {
+            data.baseUrl = settings.wfrecon__Base_URL__c;
+        } else {
+            // Fallback or empty if not set
+            data.baseUrl = '';
+        }
+        
         return data;
+    }
+
+    @AuraEnabled
+    public static String getContactName(String contactId) {
+        if(String.isBlank(contactId)) return '';
+        try {
+            Contact c = [SELECT Name FROM Contact WHERE Id = :contactId with user_mode LIMIT 1];
+            return c.Name;
+        } catch(Exception e) {
+            return '';
+        }
     }
 
     @AuraEnabled
@@ -25,7 +47,7 @@ public with sharing class QuoteEmailController {
         if(String.isBlank(templateId)) return null;
 
         if(String.isBlank(whoId)) {
-            List<Contact> dummy = [SELECT Id FROM Contact LIMIT 1];
+            List<Contact> dummy = [SELECT Id FROM Contact with user_mode LIMIT 1];
             if(!dummy.isEmpty()) whoId = dummy[0].Id;
         }
 
@@ -41,7 +63,8 @@ public with sharing class QuoteEmailController {
     }
 
     /**
-     * Sends email with Salesforce Files (ContentDocuments)
+     * Updated to accept file attachments
+     * files parameter structure: List of Maps { 'fileName': '...', 'base64Data': '...', 'contentType': '...' }
      */
     @AuraEnabled
     public static void sendQuoteEmail(

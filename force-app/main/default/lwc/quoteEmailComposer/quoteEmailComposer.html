@@ -146,7 +146,7 @@
 
                             <div class="accordion-item mt-2">
                                 <div class="accordion-header" onclick={toggleAttachmentPreview}>
-                                    <span>Full Email Preview</span>
+                                    <span>Email Template Preview</span>
                                     <lightning-icon icon-name={attachmentPreviewIcon} size="x-small"></lightning-icon>
                                 </div>
                                 <div class={attachmentPreviewClass}>
@@ -156,8 +156,10 @@
                                             <div class="slds-m-bottom_small">{subject}</div>
                                             <hr style="margin: 5px 0; border: 0; border-top: 1px solid #ddd;"/>
                                         </div>
-                                        <lightning-formatted-rich-text value={emailBody}></lightning-formatted-rich-text>
-                                        <div if:false={emailBody} class="slds-text-color_weak slds-text-align_center slds-p-around_medium">
+                                        
+                                        <lightning-formatted-rich-text value={templatePreviewHtml}></lightning-formatted-rich-text>
+                                        
+                                        <div if:false={templatePreviewHtml} class="slds-text-color_weak slds-text-align_center slds-p-around_medium">
                                             Select a template to view preview.
                                         </div>
                                     </div>

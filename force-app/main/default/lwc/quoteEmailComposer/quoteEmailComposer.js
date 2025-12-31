@@ -3,6 +3,7 @@ import getInitialData from '@salesforce/apex/QuoteEmailController.getInitialData
 import renderEmailTemplate from '@salesforce/apex/QuoteEmailController.renderEmailTemplate';
 import sendQuoteEmail from '@salesforce/apex/QuoteEmailController.sendQuoteEmail';
 import getRecordFiles from '@salesforce/apex/QuoteEmailController.getRecordFiles';
+import getContactName from '@salesforce/apex/QuoteEmailController.getContactName';
 import deleteContentDocuments from '@salesforce/apex/QuoteEmailController.deleteContentDocuments';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
@@ -16,12 +17,19 @@ export default class QuoteEmailComposer extends LightningElement {
     // Dropdown Data
     @track templateOptions = [];
     @track fromOptions = [];
+    @track baseUrl = '';
 
     // Form Selections
     @track selectedTemplateId;
     @track selectedFromAddress;
     @track subject = '';
+    
+    // Body Logic: 
+    // emailBody = The editable text in the form (Contains the link)
+    // templatePreviewHtml = The visual preview of the selected Template (Not editable)
     @track emailBody = '';
+    @track templatePreviewHtml = ''; 
+
     @track selectedToId;
     @track selectedCcId;
     @track selectedBccId;
@@ -42,13 +50,14 @@ export default class QuoteEmailComposer extends LightningElement {
     @wire(getInitialData)
     wiredInitData({ error, data }) {
         if (data) {
+            this.baseUrl = data.baseUrl;
             this.templateOptions = data.emailTemplates.map(t => ({ label: t.Name, value: t.Id }));
             this.fromOptions = data.orgWideAddresses.map(addr => ({ label: addr.DisplayName + ' <' + addr.Address + '>', value: addr.Id }));
             
             if(this.fromOptions.length > 0) this.selectedFromAddress = this.fromOptions[0].value;
             if(this.templateOptions.length > 0) {
                 this.selectedTemplateId = this.templateOptions[0].value;
-                this.fetchAndRenderTemplate();
+                this.fetchAndRenderTemplate(); // Renders the preview
             }
         } else if (error) {
             this.showToast('Error', 'Error loading initial data', 'error');
@@ -98,6 +107,7 @@ export default class QuoteEmailComposer extends LightningElement {
     handleTemplateChange(event) {
         this.selectedTemplateId = event.detail.value;
         this.fetchAndRenderTemplate();
+        this.generateDefaultBody();
     }
 
     handleFromChange(event) {
@@ -115,6 +125,7 @@ export default class QuoteEmailComposer extends LightningElement {
     handleToChange(event) {
         this.selectedToId = event.detail.recordId;
         if (this.selectedTemplateId) this.fetchAndRenderTemplate();
+        this.generateDefaultBody();
     }
 
     handleCcChange(event) {
@@ -133,16 +144,39 @@ export default class QuoteEmailComposer extends LightningElement {
         this.isAttachmentExpanded = !this.isAttachmentExpanded; 
     }
 
+    // --- Template Rendering (Preview Only) ---
     fetchAndRenderTemplate() {
         if (!this.selectedTemplateId) return;
         this.isLoading = true;
         renderEmailTemplate({ templateId: this.selectedTemplateId, whoId: this.selectedToId || null, whatId: this.recordId })
             .then(result => {
                 this.subject = result.subject;
-                this.emailBody = result.body;
+                // Only update the Preview variable, NOT the emailBody input
+                this.templatePreviewHtml = result.body;
             })
             .catch(error => this.showToast('Error', 'Error rendering template', 'error'))
             .finally(() => this.isLoading = false);
+    }
+
+    // --- Default Body Generation ---
+    generateDefaultBody() {
+        if (!this.selectedToId || !this.recordId || !this.selectedTemplateId) return;
+
+        // Fetch Account/Contact Name for greeting
+        getContactName({ contactId: this.selectedToId })
+            .then(name => {
+                // Dynamic URL Construction
+                const dynamicUrl = `${this.baseUrl}/apex/ProposalPage?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${this.selectedToId}`;
+                
+                // Construct the HTML Body
+                this.emailBody = `Hi ${name},<br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
+            })
+            .catch(error => {
+                console.error('Error fetching account name', error);
+                // Fallback if name fetch fails
+                const dynamicUrl = `${this.baseUrl}/apex/ProposalPage?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${this.selectedToId}`;
+                this.emailBody = `Hi,<br/><br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
+            });
     }
 
     // --- Standard Upload Handling ---
@@ -358,7 +392,7 @@ export default class QuoteEmailComposer extends LightningElement {
                     color: white;
                     padding: 1.25rem 1.5rem;
                     text-align: center;
-                    border-radius: 4px 4px 0 0;
+                    border-radius: 16px 16px 0px 0px;
                     position: sticky;
                     top: 0;
                     z-index: 100;
@@ -378,6 +412,9 @@ export default class QuoteEmailComposer extends LightningElement {
                     height: unset !important;
                     background-color: white;
                     padding: 0rem;
+                }
+                .slds-rich-text-editor{
+                    overflow: hidden;
                 }
         `;
         this.template.host.appendChild(style);
