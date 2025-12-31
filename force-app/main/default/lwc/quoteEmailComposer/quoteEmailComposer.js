@@ -270,44 +270,60 @@ export default class QuoteEmailComposer extends LightningElement {
 
     // --- Send Email ---
     handleSendEmail() {
-        if (this.isSendDisabled) {
-            this.showToast('Error', 'Please fill all required fields', 'error');
-            return;
-        }
-
-        const allValid = [...this.template.querySelectorAll('.validate-field')]
-            .reduce((validSoFar, inputCmp) => {
-                inputCmp.reportValidity();
-                return validSoFar && inputCmp.checkValidity();
+        try{
+            console.log('Send Email Clicked');
+            
+            if (this.isSendDisabled) {
+                this.showToast('Error', 'Please fill all required fields', 'error');
+                return;
+            }
+    
+            console.log('Validating fields...');
+            
+            const allValid = [
+                    ...this.template.querySelectorAll('.validate-field'),
+            ].reduce((validSoFar, inputCmp) => {
+                // Check validation for standard inputs and record pickers
+                if (inputCmp.reportValidity) {
+                    inputCmp.reportValidity();
+                    return validSoFar && inputCmp.checkValidity();
+                }
+                return validSoFar;
             }, true);
 
-        if (!allValid) {
-            this.showToast('Error', 'Please fix validation errors', 'error');
-            return;
+            if (!allValid) {
+                this.showToast('Error', 'Please fix the errors in the form.', 'error');
+                return;
+            }
+    
+            console.log('Fields Validated, Sending Email...');
+            this.isLoading = true;
+            const fileIds = this.uploadedFiles.map(f => f.id);
+    
+            sendQuoteEmail({
+                toId: this.selectedToId,
+                ccIds: this.selectedCcId ? [this.selectedCcId] : [],
+                bccIds: this.selectedBccId ? [this.selectedBccId] : [],
+                subject: this.subject,
+                body: this.emailBody,
+                fromId: this.selectedFromAddress,
+                relatedToId: this.recordId,
+                contentDocumentIds: fileIds
+            })
+            .then(() => {
+                this.showToast('Success', 'Email Sent Successfully', 'success');
+                this.handleClose();
+            })
+            .catch(error => {
+                console.error(error);
+                this.showToast('Error', 'Failed to send email: ' + (error.body ? error.body.message : error.message), 'error');
+            })
+            .finally(() => this.isLoading = false);
+        }catch(err){
+            console.error('Unexpected error in handleSendEmail:', err.stack);
+            this.showToast('Error', 'An unexpected error occurred. Please try again.', 'error');
+            this.isLoading = false;
         }
-
-        this.isLoading = true;
-        const fileIds = this.uploadedFiles.map(f => f.id);
-
-        sendQuoteEmail({
-            toId: this.selectedToId,
-            ccIds: this.selectedCcId ? [this.selectedCcId] : [],
-            bccIds: this.selectedBccId ? [this.selectedBccId] : [],
-            subject: this.subject,
-            body: this.emailBody,
-            fromId: this.selectedFromAddress,
-            relatedToId: this.recordId,
-            contentDocumentIds: fileIds
-        })
-        .then(() => {
-            this.showToast('Success', 'Email Sent Successfully', 'success');
-            this.handleClose();
-        })
-        .catch(error => {
-            console.error(error);
-            this.showToast('Error', 'Failed to send email: ' + (error.body ? error.body.message : error.message), 'error');
-        })
-        .finally(() => this.isLoading = false);
     }
 
     handleClose() {
