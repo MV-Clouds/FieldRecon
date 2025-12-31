@@ -15,7 +15,8 @@
                                     placeholder="Select Template..."
                                     options={templateOptions}
                                     onchange={handleTemplateChange}
-                                    required>
+                                    required
+                                    class="validate-field">
                                 </lightning-combobox>
                             </div>
 
@@ -27,7 +28,8 @@
                                     placeholder="Select From Address..."
                                     options={fromOptions}
                                     onchange={handleFromChange}
-                                    required>
+                                    required
+                                    class="validate-field">
                                 </lightning-combobox>
                             </div>
 
@@ -38,7 +40,8 @@
                                     object-api-name="Contact"
                                     value={selectedToId}
                                     onchange={handleToChange}
-                                    required>
+                                    required
+                                    class="validate-field">
                                 </lightning-record-picker>
                             </div>
 
@@ -67,27 +70,53 @@
                                     label="Subject" 
                                     value={subject} 
                                     onchange={handleSubjectChange} 
-                                    required>
+                                    required
+                                    class="validate-field">
                                 </lightning-input>
                             </div>
 
                             <div class="form-group">
-                                <p>Body:</p>
                                 <lightning-input-rich-text
                                     label="Body"
                                     value={emailBody}
                                     onchange={handleBodyChange}
                                     required
-                                    variant="bottom-toolbar">
+                                    variant="bottom-toolbar"
+                                    class="validate-field">
                                 </lightning-input-rich-text>
                             </div>
 
                             <div class="form-group mt-3">
                                 <label class="slds-form-element__label">Attachments</label>
+                                
+                                <input 
+                                    type="file" 
+                                    class="file-input-hidden" 
+                                    onchange={handleFileSelect} 
+                                    multiple 
+                                    style="display:none;"
+                                    data-id="fileInput"
+                                />
+
                                 <div class="attachment-box">
-                                    <button class="upload-btn"><lightning-icon icon-name="utility:upload" size="x-small" class="mr-1"></lightning-icon> Upload Files</button>
+                                    <button class="upload-btn" onclick={triggerFileInput}>
+                                        <lightning-icon icon-name="utility:upload" size="x-small" class="mr-1"></lightning-icon> 
+                                        Upload Files
+                                    </button>
                                     <span class="drag-text">Or drop files</span>
-                                    <button class="select-btn">Select File From Record</button>
+                                </div>
+
+                                <div class="file-pills-container mt-2" if:true={hasFiles}>
+                                    <template for:each={uploadedFiles} for:item="file" for:index="index">
+                                        <lightning-pill 
+                                            key={file.name} 
+                                            label={file.name} 
+                                            name={index} 
+                                            onremove={handleRemoveFile}
+                                            class="slds-m-right_xx-small slds-m-bottom_xx-small">
+                                            <lightning-icon icon-name="doctype:attachment" size="x-small" alternative-text="Attachment"></lightning-icon>
+                                        </lightning-pill>
+                                    </template>
                                 </div>
                             </div>
 
@@ -114,24 +143,20 @@
 
                             <div class="accordion-item mt-2">
                                 <div class="accordion-header" onclick={toggleAttachmentPreview}>
-                                    <span>Selected Template Preview</span>
+                                    <span>Full Email Preview</span>
                                     <lightning-icon icon-name={attachmentPreviewIcon} size="x-small"></lightning-icon>
                                 </div>
                                 <div class={attachmentPreviewClass}>
                                     <div class="preview-content">
-                                        
                                         <div class="preview-subject" if:true={subject}>
                                             <div class="slds-text-title_bold slds-m-bottom_xx-small">Subject:</div>
                                             <div class="slds-m-bottom_small">{subject}</div>
                                             <hr style="margin: 5px 0; border: 0; border-top: 1px solid #ddd;"/>
                                         </div>
-
                                         <lightning-formatted-rich-text value={emailBody}></lightning-formatted-rich-text>
-                                        
                                         <div if:false={emailBody} class="slds-text-color_weak slds-text-align_center slds-p-around_medium">
                                             Select a template to view preview.
                                         </div>
-
                                     </div>
                                 </div>
                             </div>
@@ -142,7 +167,12 @@
             </div>
 
             <div class="popUpFooter">
-                <button class="footer-btn secondary" onclick={handleSendEmail}>Send Email</button>
+                <button 
+                    class={sendButtonClass} 
+                    onclick={handleSendEmail} 
+                    disabled={isSendDisabled}>
+                    Send Email
+                </button>
                 <button class="footer-btn primary-outline" onclick={handleClose}>Cancel</button>
             </div>
         </div>
