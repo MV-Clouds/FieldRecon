@@ -24,7 +24,6 @@ public with sharing class QuoteEmailController {
     public static Map<String, String> renderEmailTemplate(String templateId, String whoId, String whatId) {
         if(String.isBlank(templateId)) return null;
 
-        // If user hasn't selected "To" yet, pick a dummy contact to allow preview rendering
         if(String.isBlank(whoId)) {
             List<Contact> dummy = [SELECT Id FROM Contact LIMIT 1];
             if(!dummy.isEmpty()) whoId = dummy[0].Id;
@@ -42,8 +41,7 @@ public with sharing class QuoteEmailController {
     }
 
     /**
-     * Updated to accept file attachments
-     * files parameter structure: List of Maps { 'fileName': '...', 'base64Data': '...', 'contentType': '...' }
+     * Sends email with Salesforce Files (ContentDocuments)
      */
     @AuraEnabled
     public static void sendQuoteEmail(
@@ -54,28 +52,24 @@ public with sharing class QuoteEmailController {
         String body, 
         String fromId, 
         String relatedToId,
-        List<Object> files 
+        List<String> contentDocumentIds 
     ) {
         try {
             Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
             
-            // Set Target (To)
             if(String.isNotBlank(toId)) {
                 mail.setTargetObjectId(toId);
                 mail.setTreatTargetObjectAsRecipient(true);
             }
 
-            // Set Related Record
             if(String.isNotBlank(relatedToId)) {
                 mail.setWhatId(relatedToId);
             }
 
-            // Set From Address
             if(String.isNotBlank(fromId)) {
                 mail.setOrgWideEmailAddressId(fromId);
             }
 
-            // Set CC & BCC
             if(ccIds != null && !ccIds.isEmpty()) {
                 mail.setCcAddresses(getEmailsFromIds(ccIds));
             }
@@ -87,23 +81,21 @@ public with sharing class QuoteEmailController {
             mail.setHtmlBody(body);
             mail.setSaveAsActivity(true);
 
-            // --- Handle Attachments ---
-            if (files != null && !files.isEmpty()) {
-                List<Messaging.EmailFileAttachment> attachments = new List<Messaging.EmailFileAttachment>();
-                
-                for (Object fileObj : files) {
-                    Map<Object, Object> fileMap = (Map<Object, Object>)fileObj;
-                    String fileName = (String)fileMap.get('fileName');
-                    String base64Data = (String)fileMap.get('base64Data');
-                    String contentType = (String)fileMap.get('contentType');
-
-                    Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
-                    efa.setFileName(fileName);
-                    efa.setBody(EncodingUtil.base64Decode(base64Data));
-                    efa.setContentType(contentType);
-                    attachments.add(efa);
+            // --- Handle Attachments (Salesforce Files) ---
+            if (contentDocumentIds != null && !contentDocumentIds.isEmpty()) {
+                // We need ContentVersion IDs to attach to email
+                // Querying LatestPublishedVersionId ensures we get the actual file blob reference
+                List<ContentVersion> versions = [
+                    SELECT Id 
+                    FROM ContentVersion 
+                    WHERE ContentDocumentId IN :contentDocumentIds 
+                    AND IsLatest = true
+                ];
+                List<Id> entityAttachments = new List<Id>();
+                for(ContentVersion cv : versions) {
+                    entityAttachments.add(cv.Id);
                 }
-                mail.setFileAttachments(attachments);
+                mail.setEntityAttachments(entityAttachments);
             }
 
             Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{mail});
@@ -113,12 +105,68 @@ public with sharing class QuoteEmailController {
         }
     }
 
-    // Helper to get emails from Contact IDs
+    /**
+     * Deletes files (used when user removes a newly uploaded file)
+     */
+    @AuraEnabled
+    public static void deleteContentDocuments(List<String> contentDocumentIds) {
+        try {
+            if (contentDocumentIds == null || contentDocumentIds.isEmpty()) return;
+            delete [SELECT Id FROM ContentDocument WHERE Id IN :contentDocumentIds];
+        } catch (Exception e) {
+            throw new AuraHandledException('Error deleting files: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Fetches existing files linked to the record for the "Select Existing" modal
+     */
+    @AuraEnabled
+    public static List<FileWrapper> getRecordFiles(String recordId) {
+        List<FileWrapper> fileList = new List<FileWrapper>();
+        
+        try {
+            List<ContentDocumentLink> links = [
+                SELECT ContentDocumentId, ContentDocument.Title, ContentDocument.FileExtension, ContentDocument.LatestPublishedVersionId
+                FROM ContentDocumentLink 
+                WHERE LinkedEntityId = :recordId
+                ORDER BY ContentDocument.CreatedDate DESC
+            ];
+
+            for(ContentDocumentLink link : links) {
+                FileWrapper fw = new FileWrapper();
+                fw.docId = link.ContentDocumentId;
+                fw.versionId = link.ContentDocument.LatestPublishedVersionId;
+                fw.title = link.ContentDocument.Title;
+                fw.extension = link.ContentDocument.FileExtension;
+                // Simple logic to detect images
+                Set<String> imgExts = new Set<String>{'jpg','jpeg','png','gif'};
+                if(link.ContentDocument.FileExtension != null && imgExts.contains(link.ContentDocument.FileExtension.toLowerCase())){
+                    fw.isImage = true;
+                } else {
+                    fw.isImage = false;
+                }
+                fileList.add(fw);
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+        return fileList;
+    }
+
     private static List<String> getEmailsFromIds(List<String> recordIds) {
         List<String> emails = new List<String>();
         for(Contact c : [SELECT Email FROM Contact WHERE Id IN :recordIds]) {
             if(c.Email != null) emails.add(c.Email);
         }
         return emails;
+    }
+
+    public class FileWrapper {
+        @AuraEnabled public String docId;
+        @AuraEnabled public String versionId;
+        @AuraEnabled public String title;
+        @AuraEnabled public String extension;
+        @AuraEnabled public Boolean isImage;
     }
 }

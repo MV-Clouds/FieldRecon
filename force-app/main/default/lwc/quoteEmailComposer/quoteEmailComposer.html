@@ -1,6 +1,10 @@
 <template>
     <section role="dialog" tabindex="-1" class="main-section">
         <div class="main-div">
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading..." size="medium" variant="brand"></lightning-spinner>
+            </template>
+
             <div class="content-body">
                 <div class="outer-grid">
                     
@@ -88,33 +92,32 @@
 
                             <div class="form-group mt-3">
                                 <label class="slds-form-element__label">Attachments</label>
-                                
-                                <input 
-                                    type="file" 
-                                    class="file-input-hidden" 
-                                    onchange={handleFileSelect} 
-                                    multiple 
-                                    style="display:none;"
-                                    data-id="fileInput"
-                                />
-
-                                <div class="attachment-box">
-                                    <button class="upload-btn" onclick={triggerFileInput}>
-                                        <lightning-icon icon-name="utility:upload" size="x-small" class="mr-1"></lightning-icon> 
-                                        Upload Files
+                                <div class="upload-buttons-container">
+                                    <div class="upload-button-wrapper">
+                                        <lightning-file-upload 
+                                            name="fileUploader"
+                                            record-id={recordId} 
+                                            onuploadfinished={handleUploadFinished}
+                                            variant="label-hidden"
+                                            label=" "
+                                            multiple>
+                                        </lightning-file-upload>
+                                    </div>
+                                    <button type="button" class="upload-action-btn chatter-btn" onclick={openFileSelectionModal}>
+                                        <lightning-icon icon-name="utility:open_folder" size="x-small" variant="inverse" class="mr-1"></lightning-icon>
+                                        Select from Record
                                     </button>
-                                    <span class="drag-text">Or drop files</span>
                                 </div>
 
                                 <div class="file-pills-container mt-2" if:true={hasFiles}>
                                     <template for:each={uploadedFiles} for:item="file" for:index="index">
                                         <lightning-pill 
-                                            key={file.name} 
+                                            key={file.id} 
                                             label={file.name} 
-                                            name={index} 
+                                            name={file.id} 
                                             onremove={handleRemoveFile}
                                             class="slds-m-right_xx-small slds-m-bottom_xx-small">
-                                            <lightning-icon icon-name="doctype:attachment" size="x-small" alternative-text="Attachment"></lightning-icon>
+                                            <lightning-icon icon-name={file.icon} size="x-small"></lightning-icon>
                                         </lightning-pill>
                                     </template>
                                 </div>
@@ -167,14 +170,76 @@
             </div>
 
             <div class="popUpFooter">
-                <button 
-                    class={sendButtonClass} 
-                    onclick={handleSendEmail} 
-                    disabled={isSendDisabled}>
-                    Send Email
-                </button>
+                <button class={sendButtonClass} onclick={handleSendEmail} disabled={isSendDisabled}>Send Email</button>
                 <button class="footer-btn primary-outline" onclick={handleClose}>Cancel</button>
             </div>
         </div>
     </section>
+
+    <template if:true={showFileModal}>
+        <section role="dialog" class="slds-modal slds-fade-in-open sub-modal">
+            <div class="slds-modal__container chatter-modal-container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" onclick={closeFileModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" size="small"></lightning-icon>
+                </button>
+
+                <header class="slds-modal__header edit-modal-header">
+                    <h2 class="slds-text-heading_medium slds-text-color_inverse">Select Files from Record</h2>
+                </header>
+                <div class="slds-modal__content chatter-modal-content">
+                    <template if:true={isLoadingFiles}>
+                        <div class="chatter-loading">
+                            <lightning-spinner alternative-text="Loading..." size="medium" variant="brand"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template if:false={isLoadingFiles}>
+                        <template if:false={hasRecordFiles}>
+                            <div class="no-data-message-chatter">
+                                <div class="slds-align_absolute-center slds-m-bottom_small">
+                                    <lightning-icon icon-name="doctype:unknown" size="large"></lightning-icon>
+                                </div>
+                                <h3 class="slds-text-heading_small slds-text-align_center">No Files Found</h3>
+                                <p class="slds-text-align_center slds-text-color_weak">There are no files attached to this record.</p>
+                            </div>
+                        </template>
+
+                        <template if:true={hasRecordFiles}>
+                            <div class="chatter-feed-list">
+                                <div class="feed-item-attachments">
+                                    <template for:each={recordFiles} for:item="file">
+                                        <div key={file.docId} class={file.cardClass} data-id={file.docId} onclick={handleFileSelectionInModal}>
+                                            <template if:true={file.selected}>
+                                                <div class="attachment-selected-badge">
+                                                    <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse"></lightning-icon>
+                                                </div>
+                                            </template>
+                                            <template if:true={file.alreadyAdded}>
+                                                <div class="attachment-uploaded-badge">Added</div>
+                                            </template>
+                                            
+                                            <template if:true={file.isImage}>
+                                                <img src={file.thumbnailUrl} class="attachment-thumbnail">
+                                            </template>
+                                            <template if:false={file.isImage}>
+                                                <div class="attachment-file-icon">
+                                                    <lightning-icon icon-name={file.icon} size="large"></lightning-icon>
+                                                </div>
+                                            </template>
+                                            <div class="attachment-title" title={file.title}>{file.title}</div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+                </div>
+                <div class="bottom-footer-btn">
+                    <button class="footer-btn primary-outline" onclick={closeFileModal}>Cancel</button>
+                    <button class="footer-btn secondary btn-active slds-m-left_medium" onclick={handleAddSelectedFiles} disabled={hasNoSelectedFiles}>Add Selected</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open sub-backdrop"></div>
+    </template>
 </template>

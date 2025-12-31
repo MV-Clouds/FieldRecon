@@ -2,12 +2,14 @@ import { LightningElement, track, api, wire } from 'lwc';
 import getInitialData from '@salesforce/apex/QuoteEmailController.getInitialData';
 import renderEmailTemplate from '@salesforce/apex/QuoteEmailController.renderEmailTemplate';
 import sendQuoteEmail from '@salesforce/apex/QuoteEmailController.sendQuoteEmail';
+import getRecordFiles from '@salesforce/apex/QuoteEmailController.getRecordFiles';
+import deleteContentDocuments from '@salesforce/apex/QuoteEmailController.deleteContentDocuments';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class QuoteEmailComposer extends LightningElement {
     @api recordId;
     
-    // Accordion State (Both Open by Default)
+    @track isLoading = false;
     @track isBodyExpanded = true;
     @track isAttachmentExpanded = true;
 
@@ -20,47 +22,40 @@ export default class QuoteEmailComposer extends LightningElement {
     @track selectedFromAddress;
     @track subject = '';
     @track emailBody = '';
-    
-    // Record Picker Selections
     @track selectedToId;
     @track selectedCcId;
     @track selectedBccId;
 
     // Attachments
-    @track uploadedFiles = []; // Array of { name, base64, contentType }
+    @track uploadedFiles = []; // Main list of selected files {id, name, icon, isNewUpload}
+    
+    // File Modal
+    @track showFileModal = false;
+    @track recordFiles = []; // Files fetched from Apex for the modal
+    @track isLoadingFiles = false;
 
     connectedCallback() {
         this.overrideSLDS();
     }
 
-    // --- Data Fetching & Default Selection ---
-
+    // --- Init ---
     @wire(getInitialData)
     wiredInitData({ error, data }) {
         if (data) {
             this.templateOptions = data.emailTemplates.map(t => ({ label: t.Name, value: t.Id }));
             this.fromOptions = data.orgWideAddresses.map(addr => ({ label: addr.DisplayName + ' <' + addr.Address + '>', value: addr.Id }));
             
-            // 1. Default From Address
-            if(this.fromOptions.length > 0) {
-                this.selectedFromAddress = this.fromOptions[0].value;
-            }
-
-            // 2. Default Template (First One)
+            if(this.fromOptions.length > 0) this.selectedFromAddress = this.fromOptions[0].value;
             if(this.templateOptions.length > 0) {
                 this.selectedTemplateId = this.templateOptions[0].value;
-                this.fetchAndRenderTemplate(); // Render immediately
+                this.fetchAndRenderTemplate();
             }
-
         } else if (error) {
             this.showToast('Error', 'Error loading initial data', 'error');
-            console.error('Init Data Error:', error);
         }
     }
 
-    // --- Computed Properties for UI ---
-
-    // Validate fields to enable/disable button
+    // --- Computed Properties ---
     get isSendDisabled() {
         const hasTemplate = !!this.selectedTemplateId;
         const hasFrom = !!this.selectedFromAddress;
@@ -130,121 +125,193 @@ export default class QuoteEmailComposer extends LightningElement {
         this.selectedBccId = event.detail.recordId;
     }
 
-    // --- Attachment Handling ---
-
-    triggerFileInput() {
-        const fileInput = this.template.querySelector('input[data-id="fileInput"]');
-        if (fileInput) {
-            fileInput.click();
-        }
+    toggleBodyPreview() { 
+        this.isBodyExpanded = !this.isBodyExpanded; 
     }
 
-    handleFileSelect(event) {
-        const files = event.target.files;
-        if (!files || files.length === 0) return;
-
-        // Process files asynchronously
-        Array.from(files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const base64 = reader.result.split(',')[1]; // Remove 'data:image/png;base64,' header
-                this.uploadedFiles.push({
-                    name: file.name,
-                    base64Data: base64,
-                    contentType: file.type || 'application/octet-stream'
-                });
-                // Trigger reactivity
-                this.uploadedFiles = [...this.uploadedFiles]; 
-            };
-            reader.readAsDataURL(file);
-        });
+    toggleAttachmentPreview() { 
+        this.isAttachmentExpanded = !this.isAttachmentExpanded; 
     }
-
-    handleRemoveFile(event) {
-        const index = event.detail.name;
-        this.uploadedFiles.splice(index, 1);
-        this.uploadedFiles = [...this.uploadedFiles]; // Trigger reactivity
-    }
-
-    // --- Template Rendering ---
 
     fetchAndRenderTemplate() {
         if (!this.selectedTemplateId) return;
-
-        const whoId = this.selectedToId || null;
-        const whatId = this.recordId;
-
-        renderEmailTemplate({ templateId: this.selectedTemplateId, whoId: whoId, whatId: whatId })
+        this.isLoading = true;
+        renderEmailTemplate({ templateId: this.selectedTemplateId, whoId: this.selectedToId || null, whatId: this.recordId })
             .then(result => {
                 this.subject = result.subject;
                 this.emailBody = result.body;
             })
+            .catch(error => this.showToast('Error', 'Error rendering template', 'error'))
+            .finally(() => this.isLoading = false);
+    }
+
+    // --- Standard Upload Handling ---
+    handleUploadFinished(event) {
+        const newFiles = event.detail.files;
+        const newFileList = newFiles.map(file => ({
+            id: file.documentId, // ContentDocumentId
+            name: file.name,
+            icon: this.getFileIcon(file.name),
+            isNewUpload: true // Flag to indicate we should delete this if removed
+        }));
+        this.uploadedFiles = [...this.uploadedFiles, ...newFileList];
+        this.showToast('Success', `${newFiles.length} file(s) uploaded successfully`, 'success');
+    }
+
+    // --- File Modal Logic ---
+    openFileSelectionModal() {
+        this.showFileModal = true;
+        this.loadRecordFiles();
+    }
+
+    closeFileModal() {
+        this.showFileModal = false;
+        this.recordFiles = [];
+    }
+
+    loadRecordFiles() {
+        this.isLoadingFiles = true;
+        getRecordFiles({ recordId: this.recordId })
+            .then(result => {
+                const currentFileIds = new Set(this.uploadedFiles.map(f => f.id));
+                
+                this.recordFiles = result.map(file => ({
+                    ...file,
+                    icon: this.getFileIcon(file.title + '.' + file.extension),
+                    thumbnailUrl: file.isImage ? `/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=${file.versionId}` : '',
+                    selected: false,
+                    alreadyAdded: currentFileIds.has(file.docId),
+                    cardClass: `attachment-card ${currentFileIds.has(file.docId) ? 'disabled' : ''}`
+                }));
+            })
             .catch(error => {
-                this.showToast('Error', 'Error rendering template', 'error');
+                console.error(error);
+                this.showToast('Error', 'Failed to fetch record files', 'error');
+            })
+            .finally(() => {
+                this.isLoadingFiles = false;
             });
     }
 
-    toggleBodyPreview() {
-        this.isBodyExpanded = !this.isBodyExpanded;
+    handleFileSelectionInModal(event) {
+        const docId = event.currentTarget.dataset.id;
+        this.recordFiles = this.recordFiles.map(file => {
+            if (file.docId === docId && !file.alreadyAdded) {
+                const newSelected = !file.selected;
+                return { 
+                    ...file, 
+                    selected: newSelected, 
+                    cardClass: `attachment-card ${newSelected ? 'selected' : ''}` 
+                };
+            }
+            return file;
+        });
     }
 
-    toggleAttachmentPreview() {
-        this.isAttachmentExpanded = !this.isAttachmentExpanded;
+    get hasRecordFiles() {
+        return this.recordFiles && this.recordFiles.length > 0;
     }
 
-    // --- Send Email Logic ---
+    get hasNoSelectedFiles() {
+        return !this.recordFiles.some(f => f.selected);
+    }
 
+    handleAddSelectedFiles() {
+        const selected = this.recordFiles.filter(f => f.selected);
+        const formatted = selected.map(f => ({
+            id: f.docId,
+            name: f.title + (f.extension ? '.' + f.extension : ''),
+            icon: f.icon,
+            isNewUpload: false // Existing file, do not delete on remove
+        }));
+
+        this.uploadedFiles = [...this.uploadedFiles, ...formatted];
+        this.closeFileModal();
+    }
+
+    // --- Removal Logic ---
+    handleRemoveFile(event) {
+        const fileId = event.detail.name; // ID from pill
+        const fileToRemove = this.uploadedFiles.find(f => f.id === fileId);
+
+        if (fileToRemove && fileToRemove.isNewUpload) {
+            // Delete from Salesforce if it was just uploaded in this session
+            this.isLoading = true;
+            deleteContentDocuments({ contentDocumentIds: [fileId] })
+                .then(() => {
+                    this.removeFromList(fileId);
+                    this.showToast('Success', 'File removed', 'success');
+                })
+                .catch(error => {
+                    console.error(error);
+                    this.showToast('Error', 'Failed to delete file', 'error');
+                })
+                .finally(() => this.isLoading = false);
+        } else {
+            // Just remove from list
+            this.removeFromList(fileId);
+        }
+    }
+
+    removeFromList(fileId) {
+        this.uploadedFiles = this.uploadedFiles.filter(f => f.id !== fileId);
+    }
+
+    // --- Helper Utils ---
+    getFileIcon(fileName) {
+        if(!fileName) return 'doctype:attachment';
+        const ext = fileName.split('.').pop().toLowerCase();
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) return 'doctype:image';
+        if (ext === 'pdf') return 'doctype:pdf';
+        if (['doc', 'docx'].includes(ext)) return 'doctype:word';
+        if (['xls', 'xlsx', 'csv'].includes(ext)) return 'doctype:excel';
+        return 'doctype:attachment';
+    }
+
+    // --- Send Email ---
     handleSendEmail() {
         if (this.isSendDisabled) {
-            this.showToast('Error', 'Please fill in all required fields.', 'error');
+            this.showToast('Error', 'Please fill all required fields', 'error');
             return;
         }
 
-        // 1. Validations (Input Reports)
-        const allValid = [
-            ...this.template.querySelectorAll('.validate-field'),
-        ].reduce((validSoFar, inputCmp) => {
-            // Check validation for standard inputs and record pickers
-            if (inputCmp.reportValidity) {
+        const allValid = [...this.template.querySelectorAll('.validate-field')]
+            .reduce((validSoFar, inputCmp) => {
                 inputCmp.reportValidity();
                 return validSoFar && inputCmp.checkValidity();
-            }
-            return validSoFar;
-        }, true);
+            }, true);
 
         if (!allValid) {
-            this.showToast('Error', 'Please fix the errors in the form.', 'error');
+            this.showToast('Error', 'Please fix validation errors', 'error');
             return;
         }
 
-        // 2. Prepare Data
-        const ccIds = this.selectedCcId ? [this.selectedCcId] : [];
-        const bccIds = this.selectedBccId ? [this.selectedBccId] : [];
+        this.isLoading = true;
+        const fileIds = this.uploadedFiles.map(f => f.id);
 
-        // 3. Send
-        sendQuoteEmail({ 
+        sendQuoteEmail({
             toId: this.selectedToId,
-            ccIds: ccIds,
-            bccIds: bccIds,
+            ccIds: this.selectedCcId ? [this.selectedCcId] : [],
+            bccIds: this.selectedBccId ? [this.selectedBccId] : [],
             subject: this.subject,
             body: this.emailBody,
             fromId: this.selectedFromAddress,
             relatedToId: this.recordId,
-            files: this.uploadedFiles // Pass the files list
+            contentDocumentIds: fileIds
         })
         .then(() => {
             this.showToast('Success', 'Email Sent Successfully', 'success');
             this.handleClose();
         })
         .catch(error => {
-            console.error('Send Error:', error);
+            console.error(error);
             this.showToast('Error', 'Failed to send email: ' + (error.body ? error.body.message : error.message), 'error');
-        });
+        })
+        .finally(() => this.isLoading = false);
     }
 
     handleClose() {
-        const closeEvent = new CustomEvent('close');
-        this.dispatchEvent(closeEvent);
+        this.dispatchEvent(new CustomEvent('close'));
     }
 
     showToast(title, message, variant) {
