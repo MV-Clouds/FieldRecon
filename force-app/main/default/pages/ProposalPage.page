@@ -1,0 +1,817 @@
+<apex:page controller="ProposalPageController" standardStylesheets="false" applyHtmlTag="false" applyBodyTag="false" showHeader="false" cache="false" action="{!createPDF}">
+    <c:JsAndCssIncludeComponent importJquery="true" />
+
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f7fafc;
+        }
+        .custom-spinner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .spinner-content {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        .spinner-loader {
+            border: 6px solid #edf2f7;
+            border-top: 6px solid #3182ce;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spinner-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: #2d3748;
+        }
+        .container {
+            width: 90%;
+            max-width: 1100px;
+            margin: 32px auto;
+            padding: 24px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        .signature-section {
+            width: 100%;
+            margin: 24px 0;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .popup-content {
+            background: #ffffff;
+            width: 650px;
+            max-width: 95%;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            animation: popupFadeIn 0.3s ease;
+        }
+        @keyframes popupFadeIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .popup-header {
+            background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%);
+            color: #fff;
+            padding: 16px;
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .popup-body {
+            padding: 24px;
+            background: #f7fafc;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 24px;
+            background: #edf2f7;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
+            color: #4a5568;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            background: #3182ce;
+            color: #fff;
+        }
+        .tab:hover {
+            background: #2b6cb0;
+            color: #fff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block !important;
+        }
+        .tab-content canvas {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px;
+            background: #ffffff;
+            width: 100%;
+            height: 200px;
+            display: block !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: flex-start;
+        }
+        .color-picker-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2d3748;
+        }
+        .color-picker {
+            width: 36px;
+            height: 36px;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .tab-content select,
+        .tab-content textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background: #ffffff;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .tab-content input[type="text"] {
+            width: 75%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background: #ffffff;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .tab-content input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background: #ffffff;
+            transition: border-color 0.3s ease;
+        }
+        .tab-content input[type="text"]:focus,
+        .tab-content select:focus,
+        .tab-content input[type="file"]:focus,
+        .tab-content textarea:focus {
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+            outline: none;
+        }
+        .tab-content textarea {
+            height: 120px;
+            resize: vertical;
+        }
+        .preview-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #edf2f7;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .preview-section canvas {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px;
+            background: #ffffff;
+            width: 300px;
+            height: 100px;
+            display: block !important;
+            margin: 0 auto;
+        }
+        .error-message {
+            color: #e53e3e;
+            font-size: 14px;
+            margin-top: 12px;
+            text-align: center;
+            display: none;
+        }
+        .success-message {
+            color: #38a169;
+            font-size: 14px;
+            margin-top: 12px;
+            text-align: center;
+            display: none;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .custom-button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .custom-button-neutral {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+        .custom-button-neutral:hover {
+            background: #cbd5e0;
+        }
+        .custom-button-brand {
+            background: #3182ce;
+            color: #fff;
+        }
+        .custom-button-brand:hover {
+            background: #2b6cb0;
+        }
+        .custom-button-destructive {
+            background: #e53e3e;
+            color: #fff;
+        }
+        .custom-button-destructive:hover {
+            background: #c53030;
+        }
+        .custom-button:disabled {
+            background: #e2e8f0;
+            color: #a0aec0;
+            cursor: not-allowed;
+        }
+        .contract-message {
+            text-align: center;
+            padding: 24px;
+            font-size: 18px;
+            margin-bottom: 24px;
+        }
+        .contract-message h1 {
+            font-size: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            display: inline-block;
+        }
+        .loading-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #f7fafc;
+            z-index: 9000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: #2d3748;
+            margin-top: 12px;
+        }
+        .rejectionReasonText {
+            width: 100%;
+            height: 200px;
+        }
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            min-width: 320px;
+            max-width: 400px;
+            padding: 16px;
+            border-radius: 8px;
+            color: #fff;
+            z-index: 3000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.5s ease forwards;
+        }
+        .toast-error {
+            background: #e53e3e;
+        }
+        .toast-success {
+            background: #38a169;
+        }
+        .toast-warning {
+            background: #dd6b20;
+        }
+        .toast-close {
+            position: absolute;
+            top: 0px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .name-color-picker-container {
+            display: flex;
+            flex-direction: row;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @media (max-width: 600px) {
+            .container {
+                width: 95%;
+                margin: 16px auto;
+                padding: 16px;
+            }
+            .popup-content {
+                width: 95%;
+            }
+            .tab {
+                font-size: 14px;
+                padding: 10px;
+            }
+            .custom-button {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            .toast {
+                min-width: 280px;
+                max-width: 90%;
+                right: 12px;
+                top: 12px;
+            }
+            .tab-content canvas {
+                height: 180px;
+            }
+            .preview-section canvas {
+                width: 100%;
+                height: 90px;
+            }
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+
+    <script>
+        var signaturePad;
+        var signatureData;
+        var hasSignature = false;
+        var debounceTimeout;
+        var recordId = '{!JSENCODE(recordID)}';
+        var isProcessing = false;
+
+        function checkCanvasSupport() {
+            var canvas = document.createElement('canvas');
+            return !!(canvas.getContext && canvas.getContext('2d'));
+        }
+
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (document.getElementById('loadingContainer').style.display !== 'none') {
+                    hideSpinner();
+                }
+            }, 1500);
+
+            var fonts = ['Arial', 'Times New Roman', 'Courier New', 'Georgia', 'Brush Script MT', 'Dancing Script'];
+            fonts.forEach(function(font) {
+                var testDiv = document.createElement('div');
+                testDiv.style.fontFamily = font;
+                testDiv.style.position = 'absolute';
+                testDiv.style.visibility = 'hidden';
+                testDiv.innerText = 'test';
+                document.body.appendChild(testDiv);
+                document.body.removeChild(testDiv);
+            });
+        });
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(function(tab) {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(function(content) {
+                content.classList.remove('active');
+            });
+            document.querySelector('.tab[onclick="showTab(\'' + tabName + '\');"]').classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            updatePreview();
+        }
+
+        function initializeSignaturePad() {
+            var canvas = document.getElementById('signatureCanvas');
+            if (!canvas || !checkCanvasSupport() || typeof SignaturePad === 'undefined') {
+                showToast('error', 'Signature initialization failed. Please try again.');
+                return;
+            }
+            signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: document.getElementById('drawColorPicker').value || 'rgb(0, 0, 0)'
+            });
+            signaturePad.addEventListener('endStroke', function() {
+                updatePreview();
+            });
+            document.getElementById('drawColorPicker').addEventListener('input', function() {
+                signaturePad.penColor = this.value;
+                updatePreview();
+            });
+        }
+
+        function openSignaturePopup() {
+            if (!checkCanvasSupport()) {
+                showToast('error', 'Your browser does not support HTML5 canvas. Please use a modern browser.');
+                return;
+            }
+            document.getElementById('signaturePopup').style.display = 'flex';
+            setTimeout(initializeSignaturePad, 0);
+            updateButtonState();
+            updatePreview();
+        }
+
+        function closeSignaturePopup() {
+            document.getElementById('signaturePopup').style.display = 'none';
+            if (signaturePad) {
+                signaturePad.clear();
+            }
+            document.getElementById('typedSignature').value = '';
+            document.getElementById('signatureFont').value = 'Dancing Script';
+            document.getElementById('typeColorPicker').value = '#000000';
+            document.getElementById('imageUpload').value = '';
+            hasSignature = false;
+            updatePreview();
+            updateButtonState();
+        }
+
+        function clearSignature() {
+            if (signaturePad) {
+                signaturePad.clear();
+            }
+            document.getElementById('imageUpload').value = '';
+            hasSignature = false;
+            updatePreview();
+            updateButtonState();
+        }
+
+        function updatePreview() {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(function() {
+                var previewCanvas = document.getElementById('previewCanvas');
+                if (!previewCanvas) {
+                    return;
+                }
+                var ctx = previewCanvas.getContext('2d');
+                ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+                hasSignature = false;
+                var activeTab = document.querySelector('.tab.active').getAttribute('onclick').match(/'([^']+)'/)[1];
+
+                if (activeTab === 'draw' && signaturePad && !signaturePad.isEmpty()) {
+                    var img = new Image();
+                    img.src = signaturePad.toDataURL('image/png');
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0, 300, 100);
+                        hasSignature = true;
+                        updateButtonState();
+                    };
+                    img.onerror = function() {
+                        showToast('error', 'Error loading signature. Please try again.');
+                    };
+                    return;
+                }
+
+                if (activeTab === 'type') {
+                    var typedSignature = document.getElementById('typedSignature').value.trim();
+                    var fontStyle = document.getElementById('signatureFont').value;
+                    var textColor = document.getElementById('typeColorPicker').value;
+                    if (typedSignature) {
+                        ctx.font = '32px "' + fontStyle + '", cursive, sans-serif';
+                        ctx.fillStyle = textColor;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(typedSignature, 150, 50);
+                        hasSignature = true;
+                        updateButtonState();
+                    }
+                    return;
+                }
+
+                if (activeTab === 'upload') {
+                    var fileInput = document.getElementById('imageUpload');
+                    if (fileInput.files && fileInput.files[0]) {
+                        var file = fileInput.files[0];
+                        if (file.type !== 'image/png' || file.size > 1048576) {
+                            showToast('error', file.type !== 'image/png' ? 'Please upload a PNG image.' : 'Image size must be less than 1MB.');
+                            hasSignature = false;
+                            updateButtonState();
+                            return;
+                        }
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            var img = new Image();
+                            img.src = e.target.result;
+                            img.onload = function() {
+                                var scale = Math.min(300 / img.width, 100 / img.height);
+                                var scaledWidth = img.width * scale;
+                                var scaledHeight = img.height * scale;
+                                var offsetX = (300 - scaledWidth) / 2;
+                                var offsetY = (100 - scaledHeight) / 2;
+                                ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+                                hasSignature = true;
+                                updateButtonState();
+                            };
+                            img.onerror = function() {
+                                showToast('error', 'Error loading image. Please try again.');
+                            };
+                        };
+                        reader.readAsDataURL(file);
+                        return;
+                    }
+                }
+                updateButtonState();
+            }, 200);
+        }
+
+        function updateButtonState() {
+            var saveButton = document.getElementById('saveSignatureButton');
+            saveButton.disabled = !hasSignature || isProcessing;
+        }
+
+        function saveSignature() {
+            if (!hasSignature) {
+                showToast('error', 'Please provide a signature by drawing, typing, or uploading an image.');
+                return;
+            }
+            if (isProcessing) return;
+            isProcessing = true;
+            var previewCanvas = document.getElementById('previewCanvas');
+            signatureData = previewCanvas.toDataURL('image/png').split(',')[1];
+            showSpinner('Processing proposal acceptance...');
+            callSaveSignature(signatureData);
+        }
+
+        function showRejectPopup() {
+            document.getElementById('rejectPopup').style.display = 'flex';
+        }
+
+        function closeRejectPopup() {
+            document.getElementById('rejectPopup').style.display = 'none';
+            document.getElementById('rejectionReasonText').value = '';
+        }
+
+        function saveRejection() {
+            var rejectionReason = document.getElementById('rejectionReasonText').value.trim();
+            if (!rejectionReason) {
+                showToast('error', 'Please enter a rejection reason.');
+                return;
+            }
+            if (isProcessing) return;
+            isProcessing = true;
+            showSpinner('Processing proposal rejection...');
+            callSaveRejectionReason(rejectionReason);
+        }
+
+        function closeWindow() {
+            window.close();
+        }
+
+        function showToast(type, message) {
+            var toast = document.getElementById('toastNotification');
+            toast.className = 'toast toast-' + type;
+            toast.innerHTML = message + '<span class="toast-close" onclick="hideToast();">&times;</span>';
+            toast.style.display = 'block';
+            setTimeout(hideToast, 5000);
+        }
+
+        function hideToast() {
+            var toast = document.getElementById('toastNotification');
+            toast.style.display = 'none';
+        }
+
+        function showSpinner(message) {
+            var spinner = document.getElementById('spinner');
+            spinner.style.display = 'flex';
+            document.getElementById('spinnerText').textContent = message;
+            document.getElementById('loadingContainer').style.display = 'none';
+        }
+
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('loadingContainer').style.display = 'none';
+            isProcessing = false;
+
+            var errorMessages = document.querySelectorAll('.apexPageMessage');
+            if (errorMessages.length > 0) {
+                var errorText = errorMessages[0].textContent || 'An error occurred. Please try again.';
+                showToast('error', errorText);
+            } else {
+                setTimeout(function() {
+                    closeSignaturePopup();
+                    closeRejectPopup();
+                    if (signaturePad) signaturePad.clear();
+                    var previewCanvas = document.getElementById('previewCanvas');
+                    if (previewCanvas) {
+                        var ctx = previewCanvas.getContext('2d');
+                        ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                    }
+                    hasSignature = false;
+                    updateButtonState();
+                }, 1000);
+            }
+        }
+    </script>
+
+    <div>
+        <div id="loadingContainer" class="loading-container">
+            <div class="spinner-loader"></div>
+            <div class="loading-text">Loading Proposal...</div>
+        </div>
+        <div id="spinner" class="custom-spinner">
+            <div class="spinner-content">
+                <div class="spinner-loader"></div>
+                <div class="spinner-text" id="spinnerText">Processing...</div>
+            </div>
+        </div>
+        <div id="toastNotification" class="toast"></div>
+
+        <apex:form id="frmid">
+            <apex:pageMessages id="pageMessages" />
+            <apex:actionStatus id="saveStatus" onstart="showSpinner('Processing...');" onstop="hideSpinner();" />
+            <apex:actionFunction name="callSaveSignature" action="{!uploadSignature}" rerender="frmid, pageMessages" status="saveStatus" oncomplete="if (!document.querySelectorAll('.apexPageMessage').length) { callCreateAttachment(); } else { hideSpinner(); }">
+                <apex:param name="signatureData" assignTo="{!signatureData}" value="" />
+            </apex:actionFunction>
+            <apex:actionFunction name="callCreateAttachment" action="{!insertAttachment}" rerender="frmid, pageMessages" status="saveStatus" oncomplete="hideSpinner();" />
+            <apex:actionFunction name="callSaveRejectionReason" action="{!saveRejectionReason}" rerender="frmid, pageMessages" status="saveStatus" oncomplete="hideSpinner();">
+                <apex:param name="rejectionReason" assignTo="{!rejectionReason}" value="" />
+            </apex:actionFunction>
+            <apex:actionFunction name="initPage" action="{!createPDF}" rerender="frmid, pageMessages" status="saveStatus" oncomplete="hideSpinner();" />
+
+            <!-- Already Accepted, Rejected, or Expired -->
+            <apex:outputPanel rendered="{!isAccepted || proRecRecord.wfrecon__Status__c == 'Rejected' || isExpired}">
+                <div class="container">
+                    <apex:outputPanel rendered="{!!ISNULL(quoteMessage)}">
+                        <div class="contract-message">
+                            <h1 style="background-color: {!IF(isAccepted, '#38a169', IF(proRecRecord.wfrecon__Status__c == 'Rejected', '#e53e3e', '#dd6b20'))};">{!quoteMessage}</h1>
+                        </div>
+                    </apex:outputPanel>
+                    <apex:outputText value="{!strBody}" escape="false"/>
+                    <div class="button-group">
+                        <button type="button" class="custom-button custom-button-neutral" onclick="closeWindow();">Close</button>
+                    </div>
+                </div>
+            </apex:outputPanel>
+
+            <!-- Contract Ready for Action -->
+            <apex:outputPanel rendered="{!(!isAccepted && !customSignature && !isExpired && proRecRecord.wfrecon__Status__c != 'Rejected' && !ISNULL(strBody))}">
+                <div class="container">
+                    <apex:outputPanel rendered="{!!ISNULL(quoteMessage)}">
+                        <div class="contract-message">
+                            <h1 style="background-color: #3182ce;">{!quoteMessage}</h1>
+                        </div>
+                    </apex:outputPanel>
+                    <apex:outputText value="{!strBody}" escape="false"/>
+                    <div class="button-group">
+                        <button type="button" class="custom-button custom-button-neutral" onclick="closeWindow();">Close</button>
+                        <button type="button" class="custom-button custom-button-destructive" onclick="showRejectPopup();">Reject</button>
+                        <button type="button" class="custom-button custom-button-brand" onclick="openSignaturePopup();">Sign and Accept</button>
+                    </div>
+                </div>
+            </apex:outputPanel>
+
+            <!-- Contract Signed or Rejected -->
+            <apex:outputPanel rendered="{!customSignature}">
+                <div class="container">
+                    <div class="contract-message">
+                        <h1 style="background-color: {!IF(proposalStatus == 'Accepted', '#38a169', '#e53e3e')};">
+                            {!IF(proposalStatus == 'Accepted', 
+                                 'You have successfully signed and accepted your Proposal. Thank you for your business.', 
+                                 'You have rejected the Proposal with reason: ' + rejectionReason + '. Please contact your Sales Representative for further assistance.')}
+                        </h1>
+                    </div>
+                    <div class="button-group">
+                        <button type="button" class="custom-button custom-button-neutral" onclick="closeWindow();">Close</button>
+                    </div>
+                </div>
+            </apex:outputPanel>
+
+            <!-- Error State -->
+            <apex:outputPanel rendered="{!ISNULL(strBody) && !isAccepted && !customSignature && !isExpired && proRecRecord.wfrecon__Status__c != 'Rejected'}">
+                <div class="container">
+                    <div class="contract-message">
+                        <h1 style="background-color: #e53e3e;">
+                            Error: Unable to load proposal details. Please try again.
+                        </h1>
+                    </div>
+                    <div class="button-group">
+                        <button type="button" class="custom-button custom-button-neutral" onclick="closeWindow();">Close</button>
+                    </div>
+                </div>
+            </apex:outputPanel>
+
+            <!-- Signature Popup -->
+            <div id="signaturePopup" class="popup">
+                <div class="popup-content">
+                    <div class="popup-header">Add Your Signature</div>
+                    <div class="popup-body">
+                        <div class="tabs">
+                            <div class="tab active" onclick="showTab('draw');">Draw</div>
+                            <div class="tab" onclick="showTab('type');">Type</div>
+                            <div class="tab" onclick="showTab('upload');">Upload</div>
+                        </div>
+                        <div id="draw" class="tab-content active">
+                            <canvas id="signatureCanvas" width="550" height="200"></canvas>
+                            <div class="button-group">
+                                <button type="button" class="custom-button custom-button-neutral" onclick="clearSignature();">Clear</button>
+                                <div class="color-picker-container">
+                                    <label class="color-picker-label">Pen Color:</label>
+                                    <input type="color" id="drawColorPicker" value="#000000" />
+                                </div>
+                            </div>
+                        </div>
+                        <div id="type" class="tab-content">
+                            <div class="name-color-picker-container">
+                                <input type="text" id="typedSignature" placeholder="Type your name" oninput="updatePreview(); updateButtonState();" />
+                                <div class="color-picker-container">
+                                    <label class="color-picker-label">Text Color:</label>
+                                    <input type="color" id="typeColorPicker" value="#000000" onchange="updatePreview(); updateButtonState();" />
+                                </div>
+                            </div>
+                            <select id="signatureFont" onchange="updatePreview(); updateButtonState();">
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Brush Script MT">Brush Script MT</option>
+                                <option value="Dancing Script" selected="selected">Dancing Script</option>
+                            </select>
+                        </div>
+                        <div id="upload" class="tab-content">
+                            <input type="file" id="imageUpload" accept="image/png" onchange="updatePreview(); updateButtonState();" />
+                            <div class="button-group">
+                                <button type="button" class="custom-button custom-button-neutral" onclick="clearSignature();">Clear</button>
+                            </div>
+                        </div>
+                        <div class="preview-section">
+                            <h3 style="font-size: 16px; margin-bottom: 8px; font-weight: 600; margin-top: 0;">Signature Preview</h3>
+                            <canvas id="previewCanvas" width="300" height="100"></canvas>
+                        </div>
+                        <div id="errorMessage" class="error-message"></div>
+                        <div id="successMessage" class="success-message"></div>
+                        <div class="button-group">
+                            <button type="button" class="custom-button custom-button-neutral" onclick="closeSignaturePopup();">Cancel</button>
+                            <button type="button" id="saveSignatureButton" class="custom-button custom-button-brand" onclick="saveSignature();" disabled="disabled">Sign and Accept Proposal</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reject Popup -->
+            <div id="rejectPopup" class="popup">
+                <div class="popup-content">
+                    <div class="popup-header">Rejection Reason</div>
+                    <div class="popup-body">
+                        <textarea class="rejectionReasonText" id="rejectionReasonText" placeholder="Enter reason for rejection"></textarea>
+                        <div class="button-group">
+                            <button type="button" class="custom-button custom-button-neutral" onclick="closeRejectPopup();">Cancel</button>
+                            <button type="button" class="custom-button custom-button-destructive" onclick="saveRejection();">Submit Rejection</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </apex:form>
+    </div>
+</apex:page>
