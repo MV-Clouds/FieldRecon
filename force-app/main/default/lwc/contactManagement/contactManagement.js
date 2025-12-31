@@ -4,6 +4,9 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getContacts from '@salesforce/apex/ManagementTabController.getContacts';
 import upsertContact from '@salesforce/apex/ManagementTabController.upsertContact';
 import deleteContact from '@salesforce/apex/ManagementTabController.deleteContact';
+// New Controller Methods for Config and Validation
+import checkEmailUniqueness from '@salesforce/apex/ManagementTabController.checkEmailUniqueness';
+import getContactFields from '@salesforce/apex/ContactConfigController.getContactFields';
 
 export default class ContactManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -43,12 +46,21 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
     // Contact table columns configuration
     @track contactTableColumns = [
-        { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false, headerClass: 'header-cell non-sortable-header' },
+        { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false, headerClass: 'header-cell header-index non-sortable-header' },
         { label: 'Actions', fieldName: 'Actions', type: 'text', isActions: true, sortable: false, headerClass: 'header-cell non-sortable-header' },
         { label: 'Name', fieldName: 'Name', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
         { label: 'Type', fieldName: 'RecordType.DeveloperName', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
         { label: 'Can Clock In / Out', fieldName: 'wfrecon__Can_Clock_In_Out__c', type: 'checkbox', isCheckboxField: true, sortable: true, headerClass: 'header-cell sortable-header' }
     ];
+
+    // Modal & Mode States
+    @track showConfigModal = false;
+    @track isPreviewMode = false;
+
+    // Dynamic Form Data
+    @track dynamicFields = [];
+    @track formValues = {};
+    @track configuredMetadata = [];
 
     /**
      * Method Name: get displayedContacts
@@ -257,6 +269,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Get modal title based on mode
      */
     get modalTitle() {
+        if (this.isPreviewMode) return 'Contact Details';
         return this.isEditMode ? 'Edit Contact' : 'Create New Contact';
     }
 
@@ -274,6 +287,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      */
     connectedCallback() {
         this.fetchContacts();
+        this.fetchConfiguration();
     }
 
     /**
@@ -365,8 +379,11 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Open create new contact modal
      */
     handleCreateNew() {
-        this.clearFormFields();
+        this.formValues = {};
         this.isEditMode = false;
+        this.isPreviewMode = false;
+        this.recordIdToEdit = null;
+        this.prepareDynamicFields();
         this.showCreateModal = true;
     }
 
@@ -376,6 +393,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      */
     handleCloseModal() {
         this.showCreateModal = false;
+        this.formValues = {};
         this.clearFormFields();
         this.isEditMode = false;
         this.recordIdToEdit = null;
@@ -429,43 +447,128 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * Method Name: handleSave
      * @description: Handle save button click
      */
-    handleSave(event) {
+    async handleSave(event) {
         event.preventDefault();
         
-        if (!this.validateForm()) {
+        const inputFields = this.template.querySelectorAll('lightning-input-field');
+        const customInputs = this.template.querySelectorAll('.custom-field-input');
+        
+        let isValid = true;
+        const fieldData = {};
+
+        // 1. Get Standard Fields (Inputs, Dates, Lookups)
+        inputFields.forEach(field => {
+            if(!field.reportValidity()) isValid = false;
+            fieldData[field.fieldName] = field.value;
+        });
+
+        // 2. Get Custom Fields (Record Type Combobox)
+        customInputs.forEach(input => {
+            if(!input.checkValidity()) isValid = false;
+            fieldData[input.name] = input.value;
+        });
+
+        if (!isValid) {
+            this.showToast('Error', 'Please fix the errors in the form.', 'error');
             return;
         }
 
-        this.isLoading = true;
-
-        const contactRecord = {
-            FirstName: this.firstName,
-            LastName: this.lastName,
-            Email: this.email,
-            RecordTypeDeveloperName: this.recordType,
-            wfrecon__Can_Clock_In_Out__c: this.canClockInOut
-        };
-
-        if (this.isEditMode && this.recordIdToEdit) {
-            contactRecord.Id = this.recordIdToEdit;
+        // 3. Merge & Process Data
+        const finalPayload = { ...this.formValues, ...fieldData };
+        
+        // Email Validation
+        const email = finalPayload['Email'];
+        if (email) {
+            this.isLoading = true;
+            try {
+                const isUnique = await checkEmailUniqueness({ 
+                    email: email, 
+                    excludeContactId: this.isEditMode ? this.recordIdToEdit : null 
+                });
+                if (!isUnique) {
+                    this.showToast('Validation Error', 'This email address is already associated with another contact.', 'error');
+                    this.isLoading = false;
+                    return;
+                }
+            } catch (error) {
+                this.isLoading = false;
+                console.error(error);
+                return;
+            }
         }
 
-        console.log('contactRecord :: ', contactRecord);
+        // Clean Empty Strings for Apex
+        Object.keys(finalPayload).forEach(key => {
+            if (finalPayload[key] === '' || finalPayload[key] === undefined) {
+                finalPayload[key] = null;
+            }
+        });
 
-        upsertContact({ contactData: contactRecord })
+        // Fix Record Type Key for Apex
+        if (finalPayload['RecordType.DeveloperName']) {
+            finalPayload['RecordTypeDeveloperName'] = finalPayload['RecordType.DeveloperName'];
+            delete finalPayload['RecordType.DeveloperName'];
+        }
+
+        // 4. Save
+        this.isLoading = true;
+        upsertContact({ contactData: finalPayload })
             .then(result => {
-                const successMessage = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
-                this.showToast('Success', successMessage, 'success');
+                const msg = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
+                this.showToast('Success', msg, 'success');
                 this.handleCloseModal();
                 this.fetchContacts();
             })
             .catch(error => {
-                console.error('Error saving contact:', error);
+                console.error('Save Error', error);
                 this.showToast('Error', error.body?.message || 'Failed to save contact', 'error');
             })
             .finally(() => {
                 this.isLoading = false;
             });
+    }
+
+    // --- Form Handling Logic ---
+
+    // 1. Success Handler
+    handleSuccess(event) {
+        this.isLoading = false;
+        const msg = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
+        this.showToast('Success', msg, 'success');
+        this.handleCloseModal();
+        this.fetchContacts(); // Refresh table
+    }
+
+    // 2. Error Handler
+    handleError(event) {
+        this.isLoading = false;
+        let errorMessage = event.detail.detail || 'An error occurred while saving.';
+        console.error('Record Edit Form Error:', JSON.stringify(event.detail));
+        this.showToast('Error', errorMessage, 'error');
+    }
+
+    validateForm() {
+        let isValid = true;
+        // Validate all dynamic inputs
+        const inputFields = this.template.querySelectorAll('lightning-input, lightning-combobox');
+        
+        inputFields.forEach(field => {
+            if (!field.checkValidity()) {
+                field.reportValidity();
+                isValid = false;
+            }
+        });
+
+        // Email Regex Check
+        const email = this.formValues['Email'];
+        if (email) {
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailPattern.test(email)) {
+                this.showToast('Validation Error', 'Invalid email format.', 'error');
+                isValid = false;
+            }
+        }
+        return isValid;
     }
 
     /**
@@ -636,13 +739,32 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      */
     handleEditContact(event) {
         event.preventDefault();
-        const recordId = event.currentTarget.dataset.recordId;
-        
-        const contactToEdit = this.contacts.find(contact => contact.Id === recordId);
-        if (contactToEdit) {
-            this.isEditMode = true;
+        event.preventDefault();
+        const id = event.currentTarget.dataset.recordId;
+        this.openModalWithRecord(id, true, false);
+    }
+
+    handlePreviewContact(event) {
+        event.preventDefault();
+        const id = event.currentTarget.dataset.recordId;
+        this.openModalWithRecord(id, false, true);
+    }
+
+    openModalWithRecord(recordId, isEdit, isPreview) {
+        const contact = this.contacts.find(c => c.Id === recordId);
+        if (contact) {
+            this.isEditMode = isEdit;
+            this.isPreviewMode = isPreview;
             this.recordIdToEdit = recordId;
-            this.populateFormFields(contactToEdit);
+            
+            // Populate formValues from Config
+            this.formValues = {};
+            this.configuredMetadata.forEach(field => {
+                this.formValues[field.fieldName] = this.getFieldValue(contact, field.fieldName);
+            });
+            this.formValues['Id'] = recordId;
+
+            this.prepareDynamicFields();
             this.showCreateModal = true;
         }
     }
@@ -736,6 +858,120 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         if (selectedPage && selectedPage !== this.currentPage) {
             this.currentPage = selectedPage;
         }
+    }
+
+    // --- Configuration Fetching ---
+    fetchConfiguration() {
+        getContactFields()
+            .then(result => {
+                if (result && result.metadataRecords && result.metadataRecords.length > 0) {
+                    try {
+                        this.configuredMetadata = JSON.parse(result.metadataRecords[0]);
+                    } catch (e) {
+                        this.setDefaultConfiguration();
+                    }
+                } else {
+                    this.setDefaultConfiguration();
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching config', error);
+                this.setDefaultConfiguration();
+            });
+    }
+
+    setDefaultConfiguration() {
+        this.configuredMetadata = [
+            { fieldName: 'FirstName', label: 'First Name', isEditable: true, fieldType: 'STRING' },
+            { fieldName: 'LastName', label: 'Last Name', isEditable: true, fieldType: 'STRING' },
+            { fieldName: 'Email', label: 'Email', isEditable: true, fieldType: 'EMAIL' },
+            { fieldName: 'RecordType.DeveloperName', label: 'Type', isEditable: true, fieldType: 'PICKLIST' },
+            { fieldName: 'wfrecon__Can_Clock_In_Out__c', label: 'Can Clock In / Out', isEditable: true, fieldType: 'BOOLEAN' }
+        ];
+    }
+
+    // --- Configuration Modal Handlers ---
+    handleOpenConfig() {
+        this.showConfigModal = true;
+    }
+
+    handleConfigUpdated(event) {
+        this.showConfigModal = false;
+        if(event.detail && event.detail.success) {
+            this.fetchConfiguration(); // Reload config if saved
+        }
+    }
+
+    // --- Dynamic Form Logic ---
+    prepareDynamicFields() {
+        // 1. Load config or default
+        let metadata = [];
+        if (this.configuredMetadata && this.configuredMetadata.length > 0) {
+            metadata = [...this.configuredMetadata];
+        } else {
+            this.setDefaultConfiguration();
+            metadata = [...this.configuredMetadata];
+        }
+
+        // 2. Filter out Record Type from metadata if it exists (to avoid duplicates)
+        // We will manually inject it at the top next.
+        const otherFields = metadata.filter(f => 
+            f.fieldName !== 'RecordType.DeveloperName' && 
+            f.fieldName !== 'RecordTypeId'
+        );
+
+        // 3. Create the Record Type Field Object (Always First)
+        const recordTypeVal = this.formValues['RecordType.DeveloperName'] || this.formValues['RecordTypeId'];
+        
+        const recordTypeField = {
+            fieldName: 'RecordType.DeveloperName', // Internal ID for UI
+            label: 'Type',
+            value: recordTypeVal,
+            isDisabled: this.isPreviewMode, // Disabled in preview, enabled in create/edit
+            isRequired: true,
+            isRecordType: true,
+            isCheckbox: false,
+            isStandardInput: false
+        };
+
+        // 4. Map the rest of the fields
+        const dynamicOtherFields = otherFields.map(config => {
+            const fieldName = config.fieldName;
+            const currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
+            
+            const isDisabled = this.isPreviewMode ? true : !config.isEditable;
+            const isSystemRequired = fieldName === 'LastName' || fieldName === 'Email';
+            const isRequired = isSystemRequired || (config.isRequired === true);
+
+            return {
+                fieldName: fieldName,
+                label: config.label || fieldName,
+                value: currentVal,
+                isDisabled: isDisabled,
+                isRequired: isRequired,
+                isRecordType: false,
+                isCheckbox: config.fieldType === 'BOOLEAN',
+                isStandardInput: config.fieldType !== 'BOOLEAN'
+            };
+        });
+
+        if (this.isEditMode || this.isPreviewMode) {
+            this.dynamicFields = [...dynamicOtherFields];
+        } else {
+            // Create Mode: Show Type at the top
+            this.dynamicFields = [recordTypeField, ...dynamicOtherFields];
+        }
+    }
+    handleCustomInputChange(event) {
+        const name = event.target.name;
+        const value = event.detail.value;
+        this.formValues[name] = value;
+    }
+
+    handleDynamicInputChange(event) {
+        const name = event.target.name;
+        const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        this.formValues[name] = value;
     }
 
     /**

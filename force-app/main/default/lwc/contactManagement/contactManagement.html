@@ -6,28 +6,27 @@
     </template>
 
     <div class="main-card">
-        <!-- Header Section -->
         <div class="filter-search-container">
             <div class="search-bar">
-                <lightning-input
-                    type="search"
-                    variant="label-hidden"
-                    placeholder="Search by Contact Name, Email or Type..."
-                    value={searchTerm}
-                    onchange={handleSearch}
+                <lightning-input type="search" variant="label-hidden"
+                    placeholder="Search by Contact Name, Email or Type..." value={searchTerm} onchange={handleSearch}
                     class="search-bar-input">
                 </lightning-input>
             </div>
 
             <div class="right-controls">
-                <!-- Create New Contact Button -->
                 <div class="action-buttons">
-                    <button 
-                        class="action-button create-button"
-                        onclick={handleCreateNew}>
+                    <button class="action-button" onclick={handleOpenConfig}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        Configure Settings
+                    </button>
+                    <button class="action-button create-button" onclick={handleCreateNew}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                         </svg>
                         Create New Contact
                     </button>
@@ -35,17 +34,13 @@
             </div>
         </div>
 
-        <!-- Data Table Container -->
         <div class="data-table-container">
             <template if:true={isDataAvailable}>
                 <table class="custom-data-table">
                     <thead class="table-header">
                         <tr>
                             <template for:each={contactTableColumns} for:item="col">
-                                <th key={col.fieldName} 
-                                    class={col.headerClass}
-                                    data-field={col.fieldName}
-                                    onclick={handleSortClick}>
+                                <th key={col.fieldName} class={col.headerClass} data-field={col.fieldName} onclick={handleSortClick}>
                                     <template if:true={col.sortable}>
                                         <div class="sort-header-content">
                                             <span class="column-label">{col.label}</span>
@@ -71,40 +66,26 @@
                                 <template for:each={contactRecord.columns} for:item="col">
                                     <td key={col.key}>
                                         <template if:true={col.isSerialNumber}>
-                                            <div class="center-trancate-text">
-                                                {col.value}
-                                            </div>
+                                            <div class="center-trancate-text">{col.value}</div>
                                         </template>
-
                                         <template if:true={col.isActions}>
                                             <div class="contact-action-button-container">
-                                                <button class="contact-edit-icon-btn" title="Edit Contact" data-record-id={contactRecord.Id} onclick={handleEditContact}>
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                        <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                    </svg>
+                                                <button class="contact-edit-icon-btn" title="Preview" data-record-id={contactRecord.Id} onclick={handlePreviewContact}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                                 </button>
-                                                <button class="contact-delete-icon-btn" title="Delete Contact" data-record-id={contactRecord.Id} onclick={handleDeleteContact}>
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                                    </svg>
+                                                <button class="contact-edit-icon-btn" title="Edit" data-record-id={contactRecord.Id} onclick={handleEditContact}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                </button>
+                                                <button class="contact-delete-icon-btn" title="Delete" data-record-id={contactRecord.Id} onclick={handleDeleteContact}>
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                                 </button>
                                             </div>
                                         </template>
-
                                         <template if:true={col.isRegularField}>
-                                            <div class="center-trancate-text" title={col.value}>
-                                                {col.value}
-                                            </div>
+                                            <div class="center-trancate-text" title={col.value}>{col.value}</div>
                                         </template>
-
                                         <template if:true={col.isCheckboxField}>
-                                            <div class="center-trancate-text">
-                                                {col.displayValue}
-                                            </div>
+                                            <div class="center-trancate-text">{col.displayValue}</div>
                                         </template>
                                     </td>
                                 </template>
@@ -113,172 +94,96 @@
                     </tbody>
                 </table>
             </template>
-
             <template if:false={isDataAvailable}>
                 <div class="no-prop">
                     <div class="empty-state">
-                        <div class="empty-state__content">
-                            <div class="empty-state__icon">
-                                <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
-                            </div>
-                            <div class="empty-state__message">No contact data available to show</div>
-                        </div>
+                        <div class="empty-state__message">No contact data available to show</div>
                     </div>
                 </div>
             </template>
         </div>
 
-        <!-- Pagination Section -->
         <template if:true={isDataAvailable}>
             <div class="pagination-section">
                 <div class="pagination-container">
-                    <button 
-                        class="pagination-button" 
-                        onclick={handlePrevious} 
-                        disabled={isFirstPage}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2" fill="none"/>
-                        </svg>
-                        Previous
-                    </button>
-                    
-                    <template for:each={pageNumbers} for:item="page">
-                        <template if:false={page.isEllipsis}>
-                            <button key={page.number}
-                                    class={page.class}
-                                    data-page={page.number}
-                                    onclick={handlePageChange}>
-                                {page.number}
-                            </button>
-                        </template>
-                        <template if:true={page.isEllipsis}>
-                            <span key={page.key} class="pagination-ellipsis">...</span>
-                        </template>
-                    </template>
-                    
-                    <button 
-                        class="pagination-button" 
-                        onclick={handleNext} 
-                        disabled={isLastPage}>
-                        Next
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" fill="none"/>
-                        </svg>
-                    </button>
+                    <button class="pagination-button" onclick={handlePrevious} disabled={isFirstPage}>Previous</button>
+                    <button class="pagination-button" onclick={handleNext} disabled={isLastPage}>Next</button>
                 </div>
             </div>
         </template>
     </div>
 
-    <!-- Create Contact Modal -->
     <template if:true={showCreateModal}>
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
             <div class="slds-modal__container contact-popup">
-                <!-- Modal header -->
                 <header class="slds-modal__header contact-popup-header">
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
-                            title="Close" onclick={handleCloseModal}>
-                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close"
-                                        class="slds-button__icon slds-button__icon_large"></lightning-icon>
-                        <span class="slds-assistive-text">Close</span>
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseModal}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="close"></lightning-icon>
                     </button>
                     <h2 class="slds-text-heading_medium">{modalTitle}</h2>
                 </header>
 
-                <!-- Modal content -->
                 <div class="slds-modal__content slds-p-around--medium contact-popup-body">
-                    <form onsubmit={handleSave}>
-                        <!-- First Name Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                label="First Name"
-                                name="firstName"
-                                value={firstName}
-                                onchange={handleInputChange}
-                                required
-                                max-length="40"
-                                message-when-value-missing="First Name is required">
-                            </lightning-input>
-                        </div>
-
-                        <!-- Last Name Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                label="Last Name"
-                                name="lastName"
-                                value={lastName}
-                                onchange={handleInputChange}
-                                required
-                                max-length="80"
-                                message-when-value-missing="Last Name is required">
-                            </lightning-input>
-                        </div>
-
-                        <!-- Email Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                type="email"
-                                label="Email"
-                                name="email"
-                                value={email}
-                                onchange={handleInputChange}
-                                required
-                                max-length="80"
-                                pattern="^(?!.*@(yopmail|tempmail|guerrillamail|mailinator|10minutemail|throwaway|trashmail|fakeinbox)\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-                                message-when-pattern-mismatch="Please enter a valid email address. Disposable email addresses are not allowed."
-                                message-when-value-missing="Email is required">
-                            </lightning-input>
-                        </div>
-
-                        <!-- Record Type Field -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-combobox
-                                label="Type"
-                                name="recordType"
-                                value={recordType}
-                                placeholder="Select Type"
-                                options={recordTypeOptions}
-                                onchange={handleInputChange}
-                                required>
-                            </lightning-combobox>
-                        </div>
-
-                        <!-- Can Clock In/Out Checkbox -->
-                        <div class="slds-m-bottom_medium">
-                            <lightning-input
-                                type="checkbox"
-                                label="Can Clock In / Out"
-                                name="canClockInOut"
-                                checked={canClockInOut}
-                                onchange={handleInputChange}>
-                            </lightning-input>
-                        </div>
+                    <lightning-record-edit-form
+                        object-api-name="Contact"
+                        record-id={recordIdToEdit}
+                        density="comfy">
                         
-                        <!-- Footer Buttons -->
-                        <div class="bottom-footer-btn">
-                            <button type="submit" class="save-btn">
-                                {saveButtonLabel}
-                            </button>
+                        <div class="slds-grid slds-wrap slds-gutters">
+                            <template for:each={dynamicFields} for:item="field">
+                                <div key={field.fieldName} class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                    
+                                    <template if:true={field.isRecordType}>
+                                        <lightning-combobox
+                                            name={field.fieldName}
+                                            label={field.label}
+                                            value={field.value}
+                                            options={recordTypeOptions}
+                                            required={field.isRequired}
+                                            disabled={field.isDisabled}
+                                            class="custom-field-input"
+                                            onchange={handleCustomInputChange}>
+                                        </lightning-combobox>
+                                    </template>
+
+                                    <template if:false={field.isRecordType}>
+                                        <lightning-input-field
+                                            field-name={field.fieldName}
+                                            required={field.isRequired}
+                                            disabled={field.isDisabled}>
+                                        </lightning-input-field>
+                                    </template>
+
+                                </div>
+                            </template>
                         </div>
-                    </form>
+
+                        <template if:false={isPreviewMode}>
+                            <div class="bottom-footer-btn">
+                                <button type="button" class="save-btn" onclick={handleSave}>
+                                    {saveButtonLabel}
+                                </button>
+                            </div>
+                        </template>
+
+                    </lightning-record-edit-form>
                 </div>
             </div>
         </section>
-        <!-- Modal Backdrop -->
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
 
-    <!-- Confirmation Modal -->
     <c-generic-confirmation-modal
         show-modal={showConfirmationModal}
         title={confirmationModalTitle}
         message={confirmationModalMessage}
         confirm-button-label="Delete"
         confirm-button-variant="destructive"
-        cancel-button-label="Cancel"
-        icon="utility:warning"
-        icon-variant="warning"
         onconfirm={handleConfirmationModalConfirm}
         oncancel={handleConfirmationModalCancel}>
     </c-generic-confirmation-modal>
+
+    <template if:true={showConfigModal}>
+        <c-contact-config-body onconfigurationupdated={handleConfigUpdated}></c-contact-config-body>
+    </template>
 </template>
