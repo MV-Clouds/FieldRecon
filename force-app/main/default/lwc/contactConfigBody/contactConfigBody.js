@@ -219,6 +219,7 @@ export default class ContactConfigBody extends LightningElement {
             totalPages: this.pageSize 
         })
         .then(() => {
+            this.isLoading = false;
             this.showToast('Success', 'Configuration updated successfully', 'success');
             this.dispatchEvent(new CustomEvent('configurationupdated', {
                 detail: { success: true }

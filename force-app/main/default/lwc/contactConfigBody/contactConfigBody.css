@@ -133,7 +133,7 @@
     transform: translateY(0);
 }
 
-.slds-modal__container {
+.modal__container {
     border-radius: 8px !important;
     overflow: hidden;
 }
@@ -195,10 +195,6 @@
 .header-text-section .header-text {
     font-size: 20px;
     margin-bottom: 16px;
-}
-
-.slds-button-group .slds-button_icon {
-    margin: 0 0.2rem;
 }
 
 .body-div-table{
