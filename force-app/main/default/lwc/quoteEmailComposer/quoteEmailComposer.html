@@ -86,8 +86,11 @@
                             </div>
 
                             <div class="form-group">
+                                <label class="slds-form-element__label">
+                                    <abbr title="required" class="slds-required">*</abbr>Body
+                                </label>
                                 <lightning-input-rich-text
-                                    label="Body"
+                                    label=" "
                                     value={emailBody}
                                     onchange={handleBodyChange}
                                     required
@@ -135,44 +138,37 @@
                     <div class="inner-grid-2 right-panel">
                         <div class="preview-scroll-container">
                             
-                            <div class="accordion-item">
-                                <div class="accordion-header" onclick={toggleBodyPreview}>
-                                    <span>Email Body Preview</span>
-                                    <lightning-icon icon-name={bodyPreviewIcon} size="x-small"></lightning-icon>
-                                </div>
-                                <div class={bodyPreviewClass}>
-                                    <div class="preview-content">
-                                        <lightning-formatted-rich-text value={emailBody}></lightning-formatted-rich-text>
-                                        <div if:false={emailBody} class="slds-text-color_weak slds-text-align_center">
-                                            Body is empty...
+                            <div class="accordion-container">
+                                <lightning-accordion active-section-name={activeSectionName} allow-multiple-sections-open="true" onsectiontoggle={handleSectionToggle}>
+                                    
+                                    <lightning-accordion-section name="bodyPreview" label="Email Body Preview">
+                                        <div class="preview-content">
+                                            <lightning-formatted-rich-text value={emailBody}></lightning-formatted-rich-text>
+                                            <div if:false={emailBody} class="slds-text-color_weak slds-text-align_center">
+                                                Body is empty...
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
+                                    </lightning-accordion-section>
 
-                            <div class="accordion-item mt-2">
-                                <div class="accordion-header" onclick={toggleAttachmentPreview}>
-                                    <span>Email Template Preview</span>
-                                    <lightning-icon icon-name={attachmentPreviewIcon} size="x-small"></lightning-icon>
-                                </div>
-                                <div class={attachmentPreviewClass}>
-                                    <div class="preview-content">
-                                        <div class="preview-subject" if:true={subject}>
-                                            <div class="slds-text-title_bold slds-m-bottom_xx-small">Subject:</div>
-                                            <div class="slds-m-bottom_small">{subject}</div>
-                                            <hr style="margin: 5px 0; border: 0; border-top: 1px solid #ddd;"/>
+                                    <lightning-accordion-section name="templatePreview" label="Email Template Preview">
+                                        <div class="preview-content">
+                                            <div class="preview-subject" if:true={subject}>
+                                                <div class="slds-text-title_bold slds-m-bottom_xx-small">Subject:</div>
+                                                <div class="slds-m-bottom_small">{subject}</div>
+                                                <hr style="margin: 5px 0; border: 0; border-top: 1px solid #ddd;"/>
+                                            </div>
+                                            
+                                            <lightning-formatted-rich-text value={templatePreviewHtml}></lightning-formatted-rich-text>
+                                            
+                                            <div if:false={templatePreviewHtml} class="slds-text-color_weak slds-text-align_center slds-p-around_medium">
+                                                Select a template to view preview.
+                                            </div>
                                         </div>
-                                        
-                                        <lightning-formatted-rich-text value={templatePreviewHtml}></lightning-formatted-rich-text>
-                                        
-                                        <div if:false={templatePreviewHtml} class="slds-text-color_weak slds-text-align_center slds-p-around_medium">
-                                            Select a template to view preview.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                    </lightning-accordion-section>
 
-                        </div>
+                                </lightning-accordion>
+                            </div>
+                            </div>
                     </div>
                 </div>
             </div>

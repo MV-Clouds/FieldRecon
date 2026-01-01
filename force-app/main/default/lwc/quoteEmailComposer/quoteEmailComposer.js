@@ -12,8 +12,10 @@ export default class QuoteEmailComposer extends LightningElement {
     @api recordId;
     
     @track isLoading = false;
-    @track isBodyExpanded = true;
-    @track isAttachmentExpanded = true;
+
+    // Accordion Logic
+    @track activeSectionName = ['bodyPreview', 'templatePreview'];
+    @track accordionStyleApplied = false;
 
     // Dropdown Data
     @track templateOptions = [];
@@ -51,6 +53,12 @@ export default class QuoteEmailComposer extends LightningElement {
 
     connectedCallback() {
         this.overrideSLDS();
+    }
+
+    renderedCallback() {
+        if (!this.accordionStyleApplied) {
+            this.applyAccordionStyling();
+        }
     }
 
     // --- Init ---
@@ -91,22 +99,6 @@ export default class QuoteEmailComposer extends LightningElement {
 
     get hasFiles() {
         return this.uploadedFiles.length > 0;
-    }
-
-    get bodyPreviewClass() {
-        return this.isBodyExpanded ? 'accordion-body' : 'accordion-body collapsed';
-    }
-
-    get attachmentPreviewClass() {
-        return this.isAttachmentExpanded ? 'accordion-body' : 'accordion-body collapsed';
-    }
-
-    get bodyPreviewIcon() {
-        return this.isBodyExpanded ? 'utility:chevronup' : 'utility:chevrondown';
-    }
-
-    get attachmentPreviewIcon() {
-        return this.isAttachmentExpanded ? 'utility:chevronup' : 'utility:chevrondown';
     }
 
     // --- Event Handlers ---
@@ -156,12 +148,8 @@ export default class QuoteEmailComposer extends LightningElement {
         this.bccItems = this.bccItems.filter(item => item.name !== itemName);
     }
 
-    toggleBodyPreview() { 
-        this.isBodyExpanded = !this.isBodyExpanded; 
-    }
-
-    toggleAttachmentPreview() { 
-        this.isAttachmentExpanded = !this.isAttachmentExpanded; 
+    handleSectionToggle(event) {
+        this.activeSectionName = event.detail.openSections;
     }
 
     // --- Template Rendering (Preview Only) ---
@@ -442,6 +430,34 @@ export default class QuoteEmailComposer extends LightningElement {
                 }
         `;
         this.template.host.appendChild(style);
+    }
+
+    applyAccordionStyling() {
+        try {
+            // Create style element if it doesn't exist
+            const style = document.createElement('style');
+            style.textContent = `
+                .accordion-container .section-control {
+                    background: rgba(94, 90, 219, 0.9) !important;
+                    color: white !important;
+                    margin-bottom: 4px;
+                    --slds-c-icon-color-foreground-default: #ffffff !important;
+                    font-weight: 600 !important;
+                    border-radius: 4px;
+                }
+                .accordion-container .slds-accordion__summary-content{
+                    font-size: medium;
+                }
+            `;
+            const accordionContainer = this.template.querySelector('.accordion-container');
+            if (accordionContainer) {
+                accordionContainer.appendChild(style);
+                this.accordionStyleApplied = true;
+            }
+
+        } catch (error) {
+            console.error('Error applying accordion styling:', error);
+        }
     }
 
     get variables() {
