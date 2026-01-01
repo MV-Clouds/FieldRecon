@@ -1,0 +1,15 @@
+<apex:component >
+    <apex:attribute name="importJquery" description="Assign true to import jQuery files"
+        type="Boolean" default="false" />
+
+    <!-- jQuery Stuff -->
+    <apex:outputPanel rendered="{!importJquery}">
+        <apex:stylesheet value="{!URLFOR($Resource.Jquery, 'jquery/css/ui-smoothness/jquery-ui.min.css')}" />
+        <apex:includeScript value="{!$Resource.Jquery}/jquery/js/jquery-3.2.1.min.js" />
+        <apex:includeScript value="{!$Resource.Jquery}/jquery/js/jquery-migrate-1.4.1.min.js" />
+        <apex:includeScript value="{!$Resource.Jquery}/jquery/js/jquery-ui-1.12.1.min.js" />
+        <script type="text/javascript">
+            var j$ = jQuery.noConflict();
+        </script>
+    </apex:outputPanel>
+</apex:component>
