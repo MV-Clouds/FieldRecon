@@ -174,7 +174,7 @@ export default class QuoteEmailComposer extends LightningElement {
         getContactName({ contactId: this.selectedToId })
             .then(name => {
                 // Dynamic URL Construction
-                const dynamicUrl = `${this.baseUrl}/apex/ProposalPage?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${this.selectedToId}`;
+                const dynamicUrl = `${this.baseUrl}?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${this.selectedToId}`;
                 
                 // Construct the HTML Body
                 this.emailBody = `Hi ${name},<br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
