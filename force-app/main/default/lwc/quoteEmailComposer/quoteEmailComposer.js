@@ -469,15 +469,25 @@ export default class QuoteEmailComposer extends LightningElement {
     }
 
     handleClose() {
-        // If there are files marked as new uploads, delete them before closing
         const newUploads = this.uploadedFiles.filter(f => f.isNewUpload).map(f => f.id);
         
         if (newUploads.length > 0) {
+            this.isLoading = true;
             deleteContentDocuments({ contentDocumentIds: newUploads })
-                .catch(error => console.error('Error cleaning up files on close', error));
+                .then(() => {
+                    this.dispatchEvent(new CustomEvent('close'));
+                })
+                .catch(error => {
+                    console.error('Error cleaning up files on close', error);
+                    // Still close even if delete fails to avoid trapping user
+                    this.dispatchEvent(new CustomEvent('close'));
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+        } else {
+            this.dispatchEvent(new CustomEvent('close'));
         }
-
-        this.dispatchEvent(new CustomEvent('close'));
     }
 
     showToast(title, message, variant) {
