@@ -31,6 +31,7 @@ public without sharing class ProposalPageAsPDFController {
             }      
             
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageAsPDFController', 'methodName' => 'createPDF', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             strBody = 'Error: ' + e.getMessage() + ' at line: ' + e.getLineNumber();
         }
     }

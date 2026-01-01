@@ -114,6 +114,7 @@ public without sharing class ProposalPageController {
                 quoteMessage = 'Error: Failed to generate proposal content.';
             }
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageController', 'methodName' => 'createPDF', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             strBody = null;
             quoteMessage = 'Error: Unable to load proposal. ' + e.getMessage();
         }
@@ -145,6 +146,7 @@ public without sharing class ProposalPageController {
             quoteMessage = 'You have rejected the Proposal. Please contact your Sales Representative for further assistance.';
             strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Rejected';
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageController', 'methodName' => 'saveRejectionReason', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             quoteMessage = 'Error saving rejection: ' + e.getMessage();
             strBody = null;
         }
@@ -173,6 +175,7 @@ public without sharing class ProposalPageController {
             quoteMessage = 'Your change request has been submitted. Your Sales Representative will contact you soon.';
             strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Changes Requested<br/>Requested Changes: ' + requestedChanges;
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageController', 'methodName' => 'saveRequestChanges', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             quoteMessage = 'Error saving change request: ' + e.getMessage();
             strBody = null;
         }
@@ -230,6 +233,7 @@ public without sharing class ProposalPageController {
 
             return null;
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageController', 'methodName' => 'uploadSignature', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             quoteMessage = 'Error saving signature: ' + e.getMessage();
             strBody = null;
             return null;
@@ -280,6 +284,7 @@ public without sharing class ProposalPageController {
             strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on ' + customerAcceptedDate;
             return null;
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageController', 'methodName' => 'insertAttachment', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             quoteMessage = 'Error generating PDF: ' + e.getMessage();
             strBody = null;
             return null;
