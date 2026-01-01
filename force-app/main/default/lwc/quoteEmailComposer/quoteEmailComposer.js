@@ -3,10 +3,14 @@ import getInitialData from '@salesforce/apex/QuoteEmailController.getInitialData
 import renderEmailTemplate from '@salesforce/apex/QuoteEmailController.renderEmailTemplate';
 import sendQuoteEmail from '@salesforce/apex/QuoteEmailController.sendQuoteEmail';
 import getRecordFiles from '@salesforce/apex/QuoteEmailController.getRecordFiles';
+import getUploadedFileDetails from '@salesforce/apex/QuoteEmailController.getUploadedFileDetails';
 import getContactName from '@salesforce/apex/QuoteEmailController.getContactName';
 import deleteContentDocuments from '@salesforce/apex/QuoteEmailController.deleteContentDocuments';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { gql, graphql } from 'lightning/uiGraphQLApi';
+
+// Max file size in bytes (25 MB)
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 export default class QuoteEmailComposer extends LightningElement {
     @api recordId;
@@ -248,14 +252,35 @@ export default class QuoteEmailComposer extends LightningElement {
     // --- Standard Upload Handling ---
     handleUploadFinished(event) {
         const newFiles = event.detail.files;
-        const newFileList = newFiles.map(file => ({
-            id: file.documentId, // ContentDocumentId
-            name: file.name,
-            icon: this.getFileIcon(file.name),
-            isNewUpload: true // Flag to indicate we should delete this if removed
-        }));
-        this.uploadedFiles = [...this.uploadedFiles, ...newFileList];
-        this.showToast('Success', `${newFiles.length} file(s) uploaded successfully`, 'success');
+        const newFileIds = newFiles.map(file => file.documentId);
+        
+        // Fetch details (size) for validation
+        getUploadedFileDetails({ contentDocumentIds: newFileIds })
+            .then(fileDetails => {
+                let currentTotalSize = this.uploadedFiles.reduce((acc, file) => acc + (file.size || 0), 0);
+                let newUploadSize = fileDetails.reduce((acc, file) => acc + (file.size || 0), 0);
+                
+                if (currentTotalSize + newUploadSize > MAX_FILE_SIZE) {
+                    this.showToast('Error', 'Total attachment size cannot exceed 25MB.', 'error');
+                    // Delete the files that were just uploaded because they break the limit
+                    deleteContentDocuments({ contentDocumentIds: newFileIds });
+                    return;
+                }
+
+                const newFileList = fileDetails.map(file => ({
+                    id: file.docId, // ContentDocumentId
+                    name: file.title + '.' + file.extension,
+                    icon: this.getFileIcon(file.title + '.' + file.extension),
+                    size: file.size,
+                    isNewUpload: true // Flag to indicate we should delete this if removed
+                }));
+                this.uploadedFiles = [...this.uploadedFiles, ...newFileList];
+                this.showToast('Success', `${newFiles.length} file(s) uploaded successfully`, 'success');
+            })
+            .catch(error => {
+                console.error(error);
+                this.showToast('Error', 'Error validating file size', 'error');
+            });
     }
 
     // --- File Modal Logic ---
@@ -280,6 +305,7 @@ export default class QuoteEmailComposer extends LightningElement {
                     icon: this.getFileIcon(file.title + '.' + file.extension),
                     thumbnailUrl: file.isImage ? `/sfc/servlet.shepherd/version/renditionDownload?rendition=THUMB720BY480&versionId=${file.versionId}` : '',
                     selected: false,
+                    size: file.size,
                     alreadyAdded: currentFileIds.has(file.docId),
                     cardClass: `attachment-card ${currentFileIds.has(file.docId) ? 'disabled' : ''}`
                 }));
@@ -318,10 +344,21 @@ export default class QuoteEmailComposer extends LightningElement {
 
     handleAddSelectedFiles() {
         const selected = this.recordFiles.filter(f => f.selected);
+        
+        // Validation for size
+        let currentTotalSize = this.uploadedFiles.reduce((acc, file) => acc + (file.size || 0), 0);
+        let selectedSize = selected.reduce((acc, file) => acc + (file.size || 0), 0);
+
+        if (currentTotalSize + selectedSize > MAX_FILE_SIZE) {
+            this.showToast('Error', 'Total attachment size cannot exceed 25MB.', 'error');
+            return;
+        }
+
         const formatted = selected.map(f => ({
             id: f.docId,
             name: f.title + (f.extension ? '.' + f.extension : ''),
             icon: f.icon,
+            size: f.size,
             isNewUpload: false // Existing file, do not delete on remove
         }));
 
@@ -416,7 +453,8 @@ export default class QuoteEmailComposer extends LightningElement {
             })
             .then(() => {
                 this.showToast('Success', 'Email Sent Successfully', 'success');
-                this.handleClose();
+                // Ensure no new uploads are left hanging if we success (they are now sent/attached)
+                this.dispatchEvent(new CustomEvent('close'));
             })
             .catch(error => {
                 console.error(error);
@@ -431,6 +469,14 @@ export default class QuoteEmailComposer extends LightningElement {
     }
 
     handleClose() {
+        // If there are files marked as new uploads, delete them before closing
+        const newUploads = this.uploadedFiles.filter(f => f.isNewUpload).map(f => f.id);
+        
+        if (newUploads.length > 0) {
+            deleteContentDocuments({ contentDocumentIds: newUploads })
+                .catch(error => console.error('Error cleaning up files on close', error));
+        }
+
         this.dispatchEvent(new CustomEvent('close'));
     }
 

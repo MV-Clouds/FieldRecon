@@ -35,7 +35,6 @@ public with sharing class QuoteEmailController {
         if (String.isNotBlank(recordId)) {
             try {
                 // Fetch Proposal to get Contact ID via Bid
-                // Note: Assuming API names based on 'wfrecon__' namespace. Adjust if names differ.
                 List<wfrecon__Proposal__c> proposals = [
                     SELECT wfrecon__Bid__r.wfrecon__Contact__c 
                     FROM wfrecon__Proposal__c 
@@ -47,8 +46,6 @@ public with sharing class QuoteEmailController {
                 if (!proposals.isEmpty() && proposals[0].wfrecon__Bid__r != null && proposals[0].wfrecon__Bid__r.wfrecon__Contact__c != null) {
                     data.defaultContactId = proposals[0].wfrecon__Bid__r.wfrecon__Contact__c;
                 }
-
-                System.debug('Fetched default contact ID: ' + data.defaultContactId);
             } catch (Exception e) {
                 // Fail silently for auto-population logic if fields don't exist or permissions issue
                 System.debug('Error fetching default contact: ' + e.getMessage());
@@ -169,6 +166,42 @@ public with sharing class QuoteEmailController {
     }
 
     /**
+     * Fetches details (including size) for newly uploaded files to validate
+     */
+    @AuraEnabled
+    public static List<FileWrapper> getUploadedFileDetails(List<String> contentDocumentIds) {
+        List<FileWrapper> fileList = new List<FileWrapper>();
+        
+        try {
+            List<ContentDocument> docs = [
+                SELECT Id, Title, FileExtension, LatestPublishedVersionId, ContentSize
+                FROM ContentDocument 
+                WHERE Id IN :contentDocumentIds
+            ];
+
+            for(ContentDocument doc : docs) {
+                FileWrapper fw = new FileWrapper();
+                fw.docId = doc.Id;
+                fw.versionId = doc.LatestPublishedVersionId;
+                fw.title = doc.Title;
+                fw.extension = doc.FileExtension;
+                fw.size = doc.ContentSize;
+                
+                Set<String> imgExts = new Set<String>{'jpg','jpeg','png','gif'};
+                if(doc.FileExtension != null && imgExts.contains(doc.FileExtension.toLowerCase())){
+                    fw.isImage = true;
+                } else {
+                    fw.isImage = false;
+                }
+                fileList.add(fw);
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+        return fileList;
+    }
+
+    /**
      * Fetches existing files linked to the record for the "Select Existing" modal
      */
     @AuraEnabled
@@ -177,7 +210,7 @@ public with sharing class QuoteEmailController {
         
         try {
             List<ContentDocumentLink> links = [
-                SELECT ContentDocumentId, ContentDocument.Title, ContentDocument.FileExtension, ContentDocument.LatestPublishedVersionId
+                SELECT ContentDocumentId, ContentDocument.Title, ContentDocument.FileExtension, ContentDocument.LatestPublishedVersionId, ContentDocument.ContentSize
                 FROM ContentDocumentLink 
                 WHERE LinkedEntityId = :recordId
                 ORDER BY ContentDocument.CreatedDate DESC
@@ -189,6 +222,7 @@ public with sharing class QuoteEmailController {
                 fw.versionId = link.ContentDocument.LatestPublishedVersionId;
                 fw.title = link.ContentDocument.Title;
                 fw.extension = link.ContentDocument.FileExtension;
+                fw.size = link.ContentDocument.ContentSize;
                 // Simple logic to detect images
                 Set<String> imgExts = new Set<String>{'jpg','jpeg','png','gif'};
                 if(link.ContentDocument.FileExtension != null && imgExts.contains(link.ContentDocument.FileExtension.toLowerCase())){
@@ -218,5 +252,6 @@ public with sharing class QuoteEmailController {
         @AuraEnabled public String title;
         @AuraEnabled public String extension;
         @AuraEnabled public Boolean isImage;
+        @AuraEnabled public Long size;
     }
 }
