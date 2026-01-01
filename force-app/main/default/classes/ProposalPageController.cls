@@ -186,13 +186,13 @@ public without sharing class ProposalPageController {
                 return null;
             }
 
-            Date nowDT = Date.today();
-            customerAcceptedDate = String.valueOf(DateTime.now());
+            DateTime nowDT = Datetime.now();
+            customerAcceptedDate = String.valueOf(nowDT.format('MM-dd-yyyy HH:mm:ss'));
 
             ContentVersion conVer = new ContentVersion();
             conVer.ContentLocation = 'S';
             conVer.PathOnClient = 'SignatureName.png';
-            conVer.Title = 'Signature ' + nowDT;
+            conVer.Title = 'Signature ' + customerAcceptedDate;
             conVer.VersionData = EncodingUtil.base64Decode(signatureData);
             insert conVer;
 
@@ -205,7 +205,7 @@ public without sharing class ProposalPageController {
             insert conDocLink;
 
             ContentDistribution cd = new ContentDistribution();
-            cd.Name = 'Proposal Signature ' + nowDT;
+            cd.Name = 'Proposal Signature ' + customerAcceptedDate;
             cd.ContentVersionId = conVer.Id;
             cd.PreferencesAllowOriginalDownload = true;
             cd.PreferencesAllowPDFDownload = true;
@@ -217,7 +217,7 @@ public without sharing class ProposalPageController {
 
             wfrecon__Proposal_Recipient__c proposalRec = new wfrecon__Proposal_Recipient__c(
                 Id = proposalRecipientId,
-                wfrecon__Accepted_Rejected_Changed_Date__c = Datetime.now(),
+                wfrecon__Accepted_Rejected_Changed_Date__c = nowDT,
                 wfrecon__Status__c = 'Accepted'
             );
             update proposalRec;
@@ -254,7 +254,6 @@ public without sharing class ProposalPageController {
             PageReference pdfPage = Page.ProposalPageAsPDF;
             pdfPage.getParameters().put('Id', recordID);
             pdfPage.getParameters().put('imgURL', cdPublicLink.ContentDownloadUrl);
-            pdfPage.getParameters().put('customerAcceptedDate', customerAcceptedDate);
             pdfPage.getParameters().put('templateId', templateId);
             pdfPage.getParameters().put('contactId', contactId);
 
@@ -263,7 +262,7 @@ public without sharing class ProposalPageController {
             ContentVersion conVer = new ContentVersion();
             conVer.ContentLocation = 'S';
             conVer.PathOnClient = 'Proposal.pdf';
-            conVer.Title = 'Proposal ' + Datetime.valueOf(customerAcceptedDate).format('MM-dd-yyyy HH:mm:ss') + '.pdf';
+            conVer.Title = 'Proposal ' + customerAcceptedDate + '.pdf';
             conVer.VersionData = pdfBlob;
             insert conVer;
 
@@ -278,7 +277,7 @@ public without sharing class ProposalPageController {
             customSignature = true;
             proposalStatus = 'Accepted';
             quoteMessage = 'You have successfully signed and accepted your Proposal. Thank you for your business.';
-            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on ' + Datetime.valueOf(customerAcceptedDate).format('MM-dd-yyyy HH:mm:ss');
+            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on ' + customerAcceptedDate;
             return null;
         } catch (Exception e) {
             quoteMessage = 'Error generating PDF: ' + e.getMessage();

@@ -441,7 +441,7 @@
         }
     </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+    <apex:includeScript value="{!$Resource.Signaturepad}" />
 
     <script>
         var signaturePad;
