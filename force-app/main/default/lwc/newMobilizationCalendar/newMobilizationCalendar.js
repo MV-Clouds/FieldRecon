@@ -18,6 +18,9 @@ import assignResourceToJob from '@salesforce/apex/MobSchedulerController.assignR
 // Permission Checker
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
+// Platform Event Imports
+import { subscribe, unsubscribe, onError } from 'lightning/empApi';
+
 export default class NewMobilizationCalendar extends NavigationMixin(LightningElement) {
     fullCalendarLoaded = false;
     @track events = {};
@@ -82,6 +85,10 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
 
     // Permissions Flags
     hasFullAccess = false;
+
+    // Platform Event Subscription
+    channelName = '/event/Job_Change_Event__e';
+    subscription = {};
 
     get isEdit() {
         return this.jobName.length ? true : false;
@@ -182,6 +189,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
         this.isSpinner = true;
         this.fetchTimeZoneOffset();
         this.fetchPermissions();
+        this.registerPlatformEventListener();
         loadScript(this, FULL_CALENDAR + '/fullcalendar3/jquery.min.js')
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/moment.js'))
             .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.js'))
@@ -212,6 +220,11 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
                 console.error('Error in NewMobilizationCalendar.ConnectedCallback > loadScript', error?.body?.message || error?.message);
                 this.isSpinner = false;
             });
+    }
+
+    disconnectedCallback() {
+        // Unsubscribe from platform event when component is destroyed
+        this.handleUnsubscribe();
     }
 
     fetchPermissions(){
@@ -990,6 +1003,69 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
             });
         } catch (e) {
             console.error('error in navigateToRecord:', e.message);
+        }
+    }
+
+    // Platform Event Methods
+    registerPlatformEventListener() {
+        try {
+            // Register error listener
+            const errorListener = (error) => {
+                console.error('Platform Event Error:', JSON.stringify(error));
+            };
+            onError(errorListener);
+
+            // Subscribe to platform event
+            const messageCallback = (response) => {
+                try {
+                    console.log('Platform Event Received:', JSON.stringify(response));
+                    
+                    // Extract event data
+                    const eventData = response?.data?.payload;
+                    const operationType = eventData?.Operation_Type__c;
+                    const jobId = eventData?.Job_Id__c;
+                    const mobGroupId = eventData?.Mobilization_Group_Id__c;
+
+                    console.log(`Job Change Event: ${operationType} for Job: ${jobId}, MobGroup: ${mobGroupId}`);
+
+                    // Close modal if the current editing record is deleted
+                    if (operationType === 'DELETE' && this.groupId === mobGroupId) {
+                        this.handleModalClose();
+                        this.showToast('Info', 'The mobilization group you were editing has been deleted.', 'info');
+                    }
+
+                    // Refresh calendar to show updated data
+                    this.refreshCalendar();
+                    
+                } catch (error) {
+                    console.error('Error processing platform event:', error?.message);
+                }
+            };
+
+            // Subscribe to the channel
+            subscribe(this.channelName, -1, messageCallback)
+                .then((response) => {
+                    console.log('Successfully subscribed to platform event:', this.channelName);
+                    this.subscription = response;
+                })
+                .catch((error) => {
+                    console.error('Error subscribing to platform event:', error);
+                });
+        } catch (error) {
+            console.error('Error in registerPlatformEventListener:', error?.message);
+        }
+    }
+
+    handleUnsubscribe() {
+        try {
+            // Unsubscribe from the platform event
+            if (this.subscription) {
+                unsubscribe(this.subscription, (response) => {
+                    console.log('Unsubscribed from platform event:', response);
+                });
+            }
+        } catch (error) {
+            console.error('Error unsubscribing from platform event:', error?.message);
         }
     }
 }
