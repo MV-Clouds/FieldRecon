@@ -1,49 +1,283 @@
 <template>
-    <template if:true={isLoading}>
-        <div class="spinner-container">
+    
+    <div class="main-card">
+        <template if:true={isLoading}>
             <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
-        </div>
-    </template>
-
-    <div class="wrapper">
+        </template>
         <!-- Button Container -->
-        <div class="filter-bar">
-            <div class="btnContainer">
-                <button class="createBillingBtn" onclick={handleAddProposalLine}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
+        <div class="filter-search-container">
+            <div class="header-amounts-container">
+                <div class="amount-item">
+                    <span class="amount-label">Proposal Amount:</span>
+                    <span class="amount-value">${proposalAmount}</span>
+                </div>
+                <div class="amount-item">
+                    <span class="amount-label">Sales Price:</span>
+                    <span class="amount-value">${salesPrice}</span>
+                </div>
+                <div class="amount-item">
+                    <span class="amount-label">OH Amount:</span>
+                    <span class="amount-value">${ohAmount}</span>
+                </div>
+                <div class="amount-item">
+                    <span class="amount-label">Warranty:</span>
+                    <span class="amount-value">${warrantyAmount}</span>
+                </div>
+                <div class="amount-item">
+                    <span class="amount-label">Profit:</span>
+                    <span class="amount-value">${profitAmount}</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="action-button add-btn" onclick={handleAddProposalLine}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
                     </svg>
-                    Add Proposal Lines
+                    Add Proposal Line
                 </button>
             </div>
         </div>
 
-        <!-- Table Content -->
+        <!-- Nested Table Content -->
         <template if:true={proposalLines.length}>
-            <div class="table-content">
-                <table class="slds-table">
-                    <thead>
+            <div class="data-table-container">
+                <table class="custom-data-table">
+                    <thead class="table-header">
                         <tr>
-                            <th scope="col">Sr No.</th>
-                            <th scope="col">Name</th>
-                            <th scope="col">Product</th>
-                            <th scope="col">Pricebook</th>
-                            <th scope="col">Quantity</th>
-                            <th scope="col">Unit Cost</th>
-                            <th scope="col">Description</th>
+                            <th class="header-cell" style="width: 50px;"></th>
+                            <th class="header-cell">Sr No.</th>
+                            <th class="header-cell">Proposal Line</th>
+                            <th class="header-cell">Description</th>
+                            <th class="header-cell">Budget Lines</th>
+                            <th class="header-cell">Total Amount</th>
+                            <th class="header-cell">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <template for:each={proposalLines} for:item="line" for:index="index">
-                            <tr key={line.Id}>
-                                <td>{line.serialNumber}</td>
-                                <td>{line.Name}</td>
-                                <td>{line.productName}</td>
-                                <td>{line.pricebookName}</td>
-                                <td>{line.wfrecon__Quantity__c}</td>
-                                <td>{line.wfrecon__Unit_Cost__c}</td>
-                                <td>{line.wfrecon__Description__c}</td>
+                    <tbody class="table-body">
+                        <template for:each={proposalLines} for:item="line">
+                            <!-- Proposal Line Row -->
+                            <tr key={line.Id} class="proposal-line-row">
+                                <td class="center-trancate-text">
+                                    <button class="toggle-button" data-id={line.Id} onclick={handleToggleExpand}
+                                        data-expanded={line.isExpanded}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                            xmlns="http://www.w3.org/2000/svg">
+                                            <template if:true={line.isExpanded}>
+                                                <!-- Chevron Up - Indicates collapse -->
+                                                <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round" />
+                                            </template>
+                                            <template if:false={line.isExpanded}>
+                                                <!-- Chevron Down - Indicates expand -->
+                                                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round" />
+                                            </template>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <td class="center-trancate-text">{line.serialNumber}</td>
+                                <td class="center-trancate-text">
+                                    <a href={line.recordLink} class="name-link">{line.Name}</a>
+                                </td>
+                                <td class="center-trancate-text">{line.wfrecon__Description__c}</td>
+                                <td class="center-trancate-text">{line.budgetLineCount} Lines</td>
+                                <td class="center-trancate-text total-amount">${line.totalAmount}</td>
+                                <td class="center-trancate-text">
+                                    <button class="delete-button" data-id={line.Id} onclick={handleDeleteProposalLine}
+                                        title="Delete">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                            xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round" />
+                                            <path
+                                                d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
+                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round" />
+                                        </svg>
+                                    </button>
+                                </td>
                             </tr>
+                            <!-- Budget Nested Rows -->
+                            <template if:true={line.isExpanded}>
+                                <tr key={line.budgetRowKey} class="nested-row">
+                                    <td colspan="9" class="nested-table-container">
+                                        <template if:true={line.budget}>
+                                            <div class="nested-table-wrapper">
+                                                <!-- Budget Action Buttons -->
+                                                <div class="budget-actions">
+                                                    <button 
+                                                        class="action-button add-budget-line-btn" 
+                                                        data-proposal-line-id={line.Id}
+                                                        onclick={handleAddBudgetLine}
+                                                        title="Add new budget line">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                            <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                        </svg>
+                                                        Add Budget Line
+                                                    </button>
+                                                    <template if:true={line.budget.hasBudgetModifications}>
+                                                        <button 
+                                                            class="action-button discard-btn" 
+                                                            data-proposal-line-id={line.Id}
+                                                            onclick={handleDiscardBudgetChanges}
+                                                            disabled={line.budget.isSavingBudget}
+                                                            title="Discard unsaved changes">
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                            Discard Changes
+                                                        </button>
+                                                        <button 
+                                                            class="action-button save-btn" 
+                                                            data-proposal-line-id={line.Id}
+                                                            onclick={handleSaveBudgetChanges}
+                                                            disabled={line.budget.isSavingBudget}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                            <template if:true={line.budget.isSavingBudget}>Saving...</template>
+                                                            <template if:false={line.budget.isSavingBudget}>Save Changes</template>
+                                                        </button>
+                                                    </template>
+                                                </div>
+
+                                                <!-- Budget Lines Table -->
+                                                <template if:true={line.budget.budgetLines}>
+                                                    <table class="nested-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="header-cell">Sr No.</th>
+                                                                <th class="header-cell">Budget ID</th>
+                                                                <th class="header-cell">Product</th>
+                                                                <th class="header-cell">Pricebook</th>
+                                                                <th class="header-cell">Description</th>
+                                                                <th class="header-cell">Quantity</th>
+                                                                <th class="header-cell">Unit Cost</th>
+                                                                <th class="header-cell">Total</th>
+                                                                <th class="header-cell">Action</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <template for:each={line.budget.budgetLines}
+                                                                for:item="budgetLine">
+                                                                <tr key={budgetLine.Id}>
+                                                                    <td class="center-trancate-text">
+                                                                        {budgetLine.serialNumber}</td>
+                                                                    <td class="center-trancate-text">{budgetLine.Name}
+                                                                    </td>
+                                                                    <td class="center-trancate-text">
+                                                                        {budgetLine.productName}</td>
+                                                                    <td class="center-trancate-text">
+                                                                        {budgetLine.pricebookName}</td>
+                                                                    <td class="center-trancate-text">
+                                                                        {budgetLine.wfrecon__Description__c}
+                                                                    </td>
+                                                                    <td class={budgetLine.quantityCellClass}
+                                                                        data-proposal-line-id={line.Id}
+                                                                        data-budget-line-id={budgetLine.Id}
+                                                                        data-field="quantity"
+                                                                        onclick={handleBudgetLineCellClick}>
+                                                                        <template if:true={budgetLine.isEditingQuantity}>
+                                                                            <input type="number" 
+                                                                                class="inline-edit-input"
+                                                                                value={budgetLine.wfrecon__Quantity__c}
+                                                                                data-proposal-line-id={line.Id}
+                                                                                data-budget-line-id={budgetLine.Id}
+                                                                                data-field="quantity"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                onblur={handleBudgetLineFieldBlur}>
+                                                                        </template>
+                                                                        <template if:false={budgetLine.isEditingQuantity}>
+                                                                            <div class="cell-content-with-icon">
+                                                                                <span>{budgetLine.wfrecon__Quantity__c}</span>
+                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                </svg>
+                                                                            </div>
+                                                                        </template>
+                                                                    </td>
+                                                                    <td class={budgetLine.unitCostCellClass}
+                                                                        data-proposal-line-id={line.Id}
+                                                                        data-budget-line-id={budgetLine.Id}
+                                                                        data-field="unitCost"
+                                                                        onclick={handleBudgetLineCellClick}>
+                                                                        <template if:true={budgetLine.isEditingUnitCost}>
+                                                                            <input type="number" 
+                                                                                class="inline-edit-input"
+                                                                                value={budgetLine.wfrecon__Unit_Cost__c}
+                                                                                data-proposal-line-id={line.Id}
+                                                                                data-budget-line-id={budgetLine.Id}
+                                                                                data-field="unitCost"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                onblur={handleBudgetLineFieldBlur}>
+                                                                        </template>
+                                                                        <template if:false={budgetLine.isEditingUnitCost}>
+                                                                            <div class="cell-content-with-icon">
+                                                                                <span>${budgetLine.wfrecon__Unit_Cost__c}</span>
+                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                </svg>
+                                                                            </div>
+                                                                        </template>
+                                                                    </td>
+                                                                    <td class="center-trancate-text">${budgetLine.total}
+                                                                    </td>
+                                                                    <td class="center-trancate-text action-cell">
+                                                                        <button class="table-delete-btn" 
+                                                                            data-proposal-line-id={line.Id}
+                                                                            data-budget-line-id={budgetLine.Id}
+                                                                            onclick={handleDeleteBudgetLine}
+                                                                            title="Delete Budget Line">
+                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                                xmlns="http://www.w3.org/2000/svg">
+                                                                                <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
+                                                                                    stroke-linecap="round" stroke-linejoin="round" />
+                                                                                <path
+                                                                                    d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
+                                                                                    stroke="currentColor" stroke-width="2"
+                                                                                    stroke-linecap="round" stroke-linejoin="round" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            </template>
+                                                            <!-- Budget Lines Total Row -->
+                                                            <tr class="total-row">
+                                                                <td colspan="8" class="total-label">Total Budget Amount:
+                                                                </td>
+                                                                <td class="total-value">
+                                                                    ${line.budget.totalBudgetAmount}
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </template>
+                                                <template if:false={line.budget.budgetLines}>
+                                                    <div class="no-budget-lines">No budget lines found</div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template if:false={line.budget}>
+                                            <div class="no-budget">No budget linked to this proposal line</div>
+                                        </template>
+                                    </td>
+                                </tr>
+                            </template>
                         </template>
                     </tbody>
                 </table>
@@ -64,4 +298,188 @@
             </div>
         </template>
     </div>
+
+    <!-- Add Proposal Lines Modal -->
+    <template if:true={showAddModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+            aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_full">
+            <div class="slds-modal__container">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
+                    onclick={handleCloseModal}>
+                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                        size="small"></lightning-icon>
+                </button>
+
+                <div class="pop-heading">
+                    <template if:true={isAddingToBudget}>
+                        Add Budget Lines to {proposalLineName}
+                    </template>
+                    <template if:false={isAddingToBudget}>
+                        Add Proposal Line
+                    </template>
+                </div>
+
+                <div class="slds-modal__content pop-up" id="modal-content-id-1">
+                    <div class="popUpBody slds-p-around--medium">
+                        <template if:true={isModalLoading}>
+                            <lightning-spinner alternative-text="Loading..." size="small"></lightning-spinner>
+                        </template>
+
+                        <!-- Proposal Line Basic Info - Only show when creating new proposal line -->
+                        <template if:false={isAddingToBudget}>
+                            <div class="proposal-header-section">
+                                <h3 class="section-title">Proposal Line Information</h3>
+                                <div class="form-group full-width">
+                                    <label class="form-label required">Proposal Line Name</label>
+                                    <input type="text" class="form-input" placeholder="Enter proposal line name"
+                                        value={proposalLineName} oninput={handleProposalLineNameChange} maxlength="80" />
+                                </div>
+                                <div class="form-group full-width">
+                                    <label class="form-label">Description</label>
+                                    <textarea class="form-textarea" placeholder="Enter description" rows="2"
+                                        value={proposalLineDescription}
+                                        oninput={handleProposalLineDescriptionChange}></textarea>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Budget Lines Section -->
+                        <div class="section-header">
+                            <h3 class="section-title-l">Budget Lines</h3>
+                            <button class="add-line-btn" onclick={handleAddAnotherLine}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                                Add Row
+                            </button>
+                        </div>
+
+                        <!-- Budget Lines Table -->
+                        <div class="budget-lines-table-container" data-id="tableContainer">
+                            <table class="budget-lines-table">
+                                <thead>
+                                    <tr>
+                                        <th class="table-header-cell">Sr No.</th>
+                                        <th class="table-header-cell required-col">Pricebook</th>
+                                        <th class="table-header-cell required-col">Product</th>
+                                        <th class="table-header-cell">Description</th>
+                                        <th class="table-header-cell required-col">Quantity</th>
+                                        <th class="table-header-cell">Unit Cost</th>
+                                        <th class="table-header-cell">Total</th>
+                                        <th class="table-header-cell">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={newBudgetLines} for:item="line" for:index="idx">
+                                        <tr key={line.tempId} class="budget-line-row">
+                                            <td class="table-cell">{line.lineNumber}</td>
+                                            <td class="table-cell">
+                                                <select
+                                                    class="table-select-input"
+                                                    data-id={line.tempId}
+                                                    value={line.pricebookId}
+                                                    onchange={handleRowPricebookChange}
+                                                    disabled={isModalLoading}>
+                                                    <option value="">Select Pricebook</option>
+                                                    <template for:each={pricebookOptions} for:item="pb">
+                                                        <option key={pb.value} value={pb.value}>{pb.label}</option>
+                                                    </template>
+                                                </select>
+                                            </td>
+                                            <td class="table-cell">
+                                                <select
+                                                    class="table-select-input"
+                                                    data-id={line.tempId}
+                                                    value={line.productId}
+                                                    onchange={handleProductChange}
+                                                    disabled={isModalLoading}>
+                                                    <option value="">Select Product</option>
+                                                    <template for:each={line.productOptions} for:item="prod">
+                                                        <option key={prod.value} value={prod.value}>{prod.label}</option>
+                                                    </template>
+                                                </select>
+                                            </td>
+                                            <td class="table-cell">
+                                                <input type="text" class="table-text-input"
+                                                    placeholder="Enter description" value={line.description}
+                                                    data-id={line.tempId} data-field="description"
+                                                    oninput={handleLineFieldChange} />
+                                            </td>
+                                            <td class="table-cell">
+                                                <input type="number" class="table-text-input" placeholder="0"
+                                                    step="0.01" min="0" value={line.quantity} data-id={line.tempId}
+                                                    data-field="quantity" oninput={handleLineFieldChange} />
+                                            </td>
+                                            <td class="table-cell">
+                                                <input type="number" class="table-text-input" placeholder="Auto-filled"
+                                                    step="0.01" value={line.unitCost} data-id={line.tempId}
+                                                    data-field="unitCost" oninput={handleLineFieldChange} />
+                                            </td>
+                                            <td class="table-cell table-total">${line.lineTotal}</td>
+                                            <td class="table-cell">
+                                                <template if:true={line.canDelete}>
+                                                    <button class="table-delete-btn" data-id={line.tempId}
+                                                        onclick={handleRemoveLine} title="Remove Line">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                            xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
+                                                                stroke-linecap="round" stroke-linejoin="round" />
+                                                            <path
+                                                                d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
+                                                                stroke="currentColor" stroke-width="2"
+                                                                stroke-linecap="round" stroke-linejoin="round" />
+                                                        </svg>
+                                                    </button>
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="popUpFooter">
+                    <button class="close-btn" onclick={handleCloseModal} disabled={isSaving}>
+                        Cancel
+                    </button>
+                    <button class="save-btn" onclick={handleSaveProposalLines} disabled={isSaving}>
+                        <template if:true={isSaving}>Saving...</template>
+                        <template if:false={isSaving}>Save</template>
+                    </button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Confirmation Modal -->
+    <template if:true={showConfirmModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <div class="pop-heading">
+                    {confirmModalTitle}
+                </div>
+                <div class="slds-modal__content pop-up">
+                    <div class="popUpBody">
+                        <p style="text-align: center; font-size: 14px; color: #333;">{confirmModalMessage}</p>
+                    </div>
+                </div>
+                <div class="popUpFooter">
+                    <button class="close-btn" onclick={handleCloseConfirmModal}>
+                        Cancel
+                    </button>
+                    <button class="save-btn" onclick={handleConfirmAction}>
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
 </template>
