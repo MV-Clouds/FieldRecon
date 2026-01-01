@@ -42,15 +42,20 @@ public without sharing class ProposalPageController {
                 strBody = null;
                 return;
             }
+            if (String.isBlank(contactId)) {
+                quoteMessage = 'Error: Contact ID is missing.';
+                strBody = null;
+                return;
+            }
 
             List<wfrecon__Proposal_Recipient__c> proposalRecipients = [SELECT Id, Name, wfrecon__Accepted_Rejected_Changed_Date__c, wfrecon__Contact__c, wfrecon__Due_Date__c, wfrecon__Proposal__c, 
                                                                         wfrecon__Proposal__r.Name, wfrecon__Requested_Changes__c, wfrecon__Status__c
                                                                         FROM wfrecon__Proposal_Recipient__c
-                                                                        WHERE wfrecon__Proposal__c = :recordId AND wfrecon__Contact__c = :contactId AND wfrecon__Status__c = 'Pending'
+                                                                        WHERE wfrecon__Proposal__c = :recordId AND wfrecon__Contact__c = :contactId ORDER BY CreatedDate DESC
                                                                         LIMIT 1];
 
             if (proposalRecipients == null || proposalRecipients.isEmpty()) {
-                quoteMessage = 'Error: No valid proposal or contact found.';
+                quoteMessage = 'Error: No valid proposal found.';
                 strBody = null;
                 return;
             } else {
@@ -100,10 +105,8 @@ public without sharing class ProposalPageController {
             if (!results.isEmpty() && results[0].isSuccess()) {
                 strBody = email.getHTMLBody();
                 if (String.isBlank(strBody)) {
-                    strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>' + '<div class="signature-placeholder">{SIGNATURE_PLACEHOLDER}</div>';
-                    quoteMessage = 'Warning: Email template content is empty.';
-                } else if (!strBody.contains('{SIGNATURE_PLACEHOLDER}')) {
-                    strBody += '<div class="signature-placeholder">{SIGNATURE_PLACEHOLDER}</div>';
+                    quoteMessage = 'Error: Email template content is empty.';
+                    strBody = null;
                 }
             } else {
                 String errorMessage = results.isEmpty() ? 'No results returned' : String.valueOf(results[0].getErrors());

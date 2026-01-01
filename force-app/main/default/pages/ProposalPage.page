@@ -828,7 +828,7 @@
                 <div class="container">
                     <div class="contract-message">
                         <h1 style="background-color: #c23934;">
-                            Error: Unable to load proposal details. Please try again.
+                           {!quoteMessage}
                         </h1>
                     </div>
                     <div class="button-group">

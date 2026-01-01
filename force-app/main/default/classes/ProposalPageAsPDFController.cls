@@ -1,7 +1,7 @@
 public without sharing class ProposalPageAsPDFController {
     public String recordID { get; set; }
     public String contactId { get; set; }
-    public String imgId { get; set; }
+    public String imgURL { get; set; }
     public String strBody { get; set; }
     public String templateId { get; set; }
 
@@ -9,7 +9,7 @@ public without sharing class ProposalPageAsPDFController {
         try {
             recordID = ApexPages.currentPage().getParameters().get('Id');
             templateId = ApexPages.currentPage().getParameters().get('templateId');
-            imgId = ApexPages.currentPage().getParameters().get('imgURL');
+            imgURL = ApexPages.currentPage().getParameters().get('imgURL');
             contactId = ApexPages.currentPage().getParameters().get('contactId');
 
             // Generate email template body
@@ -25,7 +25,7 @@ public without sharing class ProposalPageAsPDFController {
             Database.rollback(sp);
 
             if (!results.isEmpty() && results[0].isSuccess()) {
-                strBody = email?.getHTMLBody()?.replace('{SIGNATURE_PLACEHOLDER}', imgId);
+                strBody = email?.getHTMLBody()?.replace('{SIGNATURE_PLACEHOLDER}', imgURL);
             } else {
                 strBody = 'Error: Failed to generate template content. Errors: ' + results[0].getErrors();
             }      
