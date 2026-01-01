@@ -6,6 +6,7 @@ import getRecordFiles from '@salesforce/apex/QuoteEmailController.getRecordFiles
 import getContactName from '@salesforce/apex/QuoteEmailController.getContactName';
 import deleteContentDocuments from '@salesforce/apex/QuoteEmailController.deleteContentDocuments';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { gql, graphql } from 'lightning/uiGraphQLApi';
 
 export default class QuoteEmailComposer extends LightningElement {
     @api recordId;
@@ -31,8 +32,10 @@ export default class QuoteEmailComposer extends LightningElement {
     @track templatePreviewHtml = ''; 
 
     @track selectedToId;
-    @track selectedCcId;
-    @track selectedBccId;
+    
+    // Multi-select Lists
+    @track ccItems = [];
+    @track bccItems = [];
 
     // Attachments
     @track uploadedFiles = []; // Main list of selected files {id, name, icon, isNewUpload}
@@ -41,6 +44,10 @@ export default class QuoteEmailComposer extends LightningElement {
     @track showFileModal = false;
     @track recordFiles = []; // Files fetched from Apex for the modal
     @track isLoadingFiles = false;
+
+    // GraphQL Selection Tracker
+    selectedRecordId = '';
+    activePicker = ''; // 'CC' or 'BCC'
 
     connectedCallback() {
         this.overrideSLDS();
@@ -128,12 +135,25 @@ export default class QuoteEmailComposer extends LightningElement {
         this.generateDefaultBody();
     }
 
-    handleCcChange(event) {
-        this.selectedCcId = event.detail.recordId;
+    // Multi-select Handlers
+    handleCcSelect(event) {
+        this.activePicker = 'CC';
+        this.selectedRecordId = event.detail.recordId;
     }
 
-    handleBccChange(event) {
-        this.selectedBccId = event.detail.recordId;
+    handleBccSelect(event) {
+        this.activePicker = 'BCC';
+        this.selectedRecordId = event.detail.recordId;
+    }
+
+    handleCcRemove(event) {
+        const itemName = event.detail.item.name;
+        this.ccItems = this.ccItems.filter(item => item.name !== itemName);
+    }
+
+    handleBccRemove(event) {
+        const itemName = event.detail.item.name;
+        this.bccItems = this.bccItems.filter(item => item.name !== itemName);
     }
 
     toggleBodyPreview() { 
@@ -162,7 +182,7 @@ export default class QuoteEmailComposer extends LightningElement {
     generateDefaultBody() {
         if (!this.selectedToId || !this.recordId || !this.selectedTemplateId) return;
 
-        // Fetch Account/Contact Name for greeting
+        // Fetch Contact/Contact Name for greeting
         getContactName({ contactId: this.selectedToId })
             .then(name => {
                 // Dynamic URL Construction
@@ -172,7 +192,7 @@ export default class QuoteEmailComposer extends LightningElement {
                 this.emailBody = `Hi ${name},<br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
             })
             .catch(error => {
-                console.error('Error fetching account name', error);
+                console.error('Error fetching contact name', error);
                 // Fallback if name fetch fails
                 const dynamicUrl = `${this.baseUrl}/apex/ProposalPage?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${this.selectedToId}`;
                 this.emailBody = `Hi,<br/><br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
@@ -333,11 +353,15 @@ export default class QuoteEmailComposer extends LightningElement {
             console.log('Fields Validated, Sending Email...');
             this.isLoading = true;
             const fileIds = this.uploadedFiles.map(f => f.id);
+            
+            // Collect IDs from multi-select pills
+            const ccIdList = this.ccItems.map(item => item.name);
+            const bccIdList = this.bccItems.map(item => item.name);
     
             sendQuoteEmail({
                 toId: this.selectedToId,
-                ccIds: this.selectedCcId ? [this.selectedCcId] : [],
-                bccIds: this.selectedBccId ? [this.selectedBccId] : [],
+                ccIds: ccIdList,
+                bccIds: bccIdList,
                 subject: this.subject,
                 body: this.emailBody,
                 fromId: this.selectedFromAddress,
@@ -418,5 +442,74 @@ export default class QuoteEmailComposer extends LightningElement {
                 }
         `;
         this.template.host.appendChild(style);
+    }
+
+    get variables() {
+        return {
+            selectedRecordId: this.selectedRecordId
+        };
+    }
+
+    @wire(graphql, {
+        query: gql`
+            query searchContact($selectedRecordId: ID) {
+                uiapi {
+                    query {
+                        Contact(
+                            where: { Id: { eq: $selectedRecordId } }
+                            first: 1
+                        ) {
+                            edges {
+                                node {
+                                    Id
+                                    Name {
+                                        value
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        `,
+        variables: '$variables'
+    })
+    wiredGraphQL({ data, errors }) {
+        if (errors || !data || (data && data?.uiapi?.query?.Contact?.edges?.length < 1)) {
+            return;
+        }
+        
+        const graphqlResults = data.uiapi.query.Contact.edges.map((edge) => ({
+            Id: edge.node.Id,
+            Name: edge.node.Name.value
+        }));
+
+        const contactData = graphqlResults?.[0];
+        const newItem = {
+            label: contactData.Name,
+            name: contactData.Id
+        };
+
+        if (this.activePicker === 'CC') {
+             // Check for duplicates in CC
+             if (!this.ccItems.some(item => item.name === newItem.name)) {
+                this.ccItems = [...this.ccItems, newItem];
+             }
+             // Clear the CC picker
+             const picker = this.template.querySelector('[data-id="cc-picker"]');
+             if (picker) picker.clearSelection();
+
+        } else if (this.activePicker === 'BCC') {
+            // Check for duplicates in BCC
+            if (!this.bccItems.some(item => item.name === newItem.name)) {
+                this.bccItems = [...this.bccItems, newItem];
+            }
+            // Clear the BCC picker
+            const picker = this.template.querySelector('[data-id="bcc-picker"]');
+            if (picker) picker.clearSelection();
+        }
+        
+        // Reset ID so wire doesn't re-fire unexpectedly if we clear logic elsewhere
+        this.selectedRecordId = null; 
     }
 }

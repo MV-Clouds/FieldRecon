@@ -54,9 +54,12 @@
                                     label="CC"
                                     placeholder="Search Contact..."
                                     object-api-name="Contact"
-                                    value={selectedCcId}
-                                    onchange={handleCcChange}>
+                                    onchange={handleCcSelect}
+                                    data-id="cc-picker">
                                 </lightning-record-picker>
+                                <template if:true={ccItems.length}>
+                                    <lightning-pill-container items={ccItems} onitemremove={handleCcRemove}></lightning-pill-container>
+                                </template>
                             </div>
 
                             <div class="form-group">
@@ -64,9 +67,12 @@
                                     label="BCC"
                                     placeholder="Search Contact..."
                                     object-api-name="Contact"
-                                    value={selectedBccId}
-                                    onchange={handleBccChange}>
+                                    onchange={handleBccSelect}
+                                    data-id="bcc-picker">
                                 </lightning-record-picker>
+                                <template if:true={bccItems.length}>
+                                    <lightning-pill-container items={bccItems} onitemremove={handleBccRemove}></lightning-pill-container>
+                                </template>
                             </div>
 
                             <div class="form-group">
