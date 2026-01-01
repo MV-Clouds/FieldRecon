@@ -4,10 +4,12 @@ public with sharing class QuoteEmailController {
         @AuraEnabled public List<OrgWideEmailAddress> orgWideAddresses;
         @AuraEnabled public List<EmailTemplate> emailTemplates;
         @AuraEnabled public String baseUrl;
+        @AuraEnabled public String defaultContactId;
     }
 
     @AuraEnabled(cacheable=true)
-    public static InitData getInitialData() {
+    public static InitData getInitialData(String recordId) {
+
         InitData data = new InitData();
         data.orgWideAddresses = [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress];
         data.emailTemplates = [
@@ -26,6 +28,31 @@ public with sharing class QuoteEmailController {
         } else {
             // Fallback or empty if not set
             data.baseUrl = '';
+        }
+        
+
+        // Auto-fetch Contact ID from Proposal -> Bid -> Contact
+        if (String.isNotBlank(recordId)) {
+            try {
+                // Fetch Proposal to get Contact ID via Bid
+                // Note: Assuming API names based on 'wfrecon__' namespace. Adjust if names differ.
+                List<wfrecon__Proposal__c> proposals = [
+                    SELECT wfrecon__Bid__r.wfrecon__Contact__c 
+                    FROM wfrecon__Proposal__c 
+                    WHERE Id = :recordId 
+                    with user_mode
+                    LIMIT 1
+                ];
+
+                if (!proposals.isEmpty() && proposals[0].wfrecon__Bid__r != null && proposals[0].wfrecon__Bid__r.wfrecon__Contact__c != null) {
+                    data.defaultContactId = proposals[0].wfrecon__Bid__r.wfrecon__Contact__c;
+                }
+
+                System.debug('Fetched default contact ID: ' + data.defaultContactId);
+            } catch (Exception e) {
+                // Fail silently for auto-population logic if fields don't exist or permissions issue
+                System.debug('Error fetching default contact: ' + e.getMessage());
+            }
         }
         
         return data;

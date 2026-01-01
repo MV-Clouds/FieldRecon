@@ -62,7 +62,7 @@ export default class QuoteEmailComposer extends LightningElement {
     }
 
     // --- Init ---
-    @wire(getInitialData)
+    @wire(getInitialData, { recordId: '$recordId' })
     wiredInitData({ error, data }) {
         if (data) {
             this.baseUrl = data.baseUrl;
@@ -72,8 +72,22 @@ export default class QuoteEmailComposer extends LightningElement {
             if(this.fromOptions.length > 0) this.selectedFromAddress = this.fromOptions[0].value;
             if(this.templateOptions.length > 0) {
                 this.selectedTemplateId = this.templateOptions[0].value;
-                this.fetchAndRenderTemplate(); // Renders the preview
             }
+
+            // Auto-populate To address if a contact is found on the Bid
+            if(data.defaultContactId) {
+                this.selectedToId = data.defaultContactId;
+            }
+
+            console.log('Initial Data Loaded:', JSON.stringify(data));
+            
+
+            // Only trigger default body generation if we have the necessary data
+            if(this.selectedTemplateId) {
+                this.fetchAndRenderTemplate(); 
+                this.generateDefaultBody();
+            }
+
         } else if (error) {
             this.showToast('Error', 'Error loading initial data', 'error');
         }
@@ -123,8 +137,17 @@ export default class QuoteEmailComposer extends LightningElement {
 
     handleToChange(event) {
         this.selectedToId = event.detail.recordId;
-        if (this.selectedTemplateId) this.fetchAndRenderTemplate();
-        this.generateDefaultBody();
+        
+        if (this.selectedTemplateId) {
+            this.fetchAndRenderTemplate();
+        }
+
+        // If body is empty, generate from scratch. 
+        if (!this.emailBody || this.emailBody.trim() === '') {
+            this.generateDefaultBody();
+        } else {
+            this.updateBodyWithNewContact();
+        }
     }
 
     // Multi-select Handlers
@@ -166,24 +189,59 @@ export default class QuoteEmailComposer extends LightningElement {
             .finally(() => this.isLoading = false);
     }
 
-    // --- Default Body Generation ---
+    // --- Default Body Generation (Fresh) ---
     generateDefaultBody() {
-        if (!this.selectedToId || !this.recordId || !this.selectedTemplateId) return;
+        if (!this.recordId || !this.selectedTemplateId) return;
 
         // Fetch Contact/Contact Name for greeting
         getContactName({ contactId: this.selectedToId })
             .then(name => {
+                const safeName = name || '';
+                const contactParam = this.selectedToId ? this.selectedToId : '';
                 // Dynamic URL Construction
-                const dynamicUrl = `${this.baseUrl}?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${this.selectedToId}`;
+                const dynamicUrl = `${this.baseUrl}?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${contactParam}`;
                 
                 // Construct the HTML Body
-                this.emailBody = `Hi ${name},<br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
+                this.emailBody = `Hi ${safeName},<br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
             })
             .catch(error => {
                 console.error('Error fetching contact name', error);
-                // Fallback if name fetch fails
-                const dynamicUrl = `${this.baseUrl}/apex/ProposalPage?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${this.selectedToId}`;
+                const contactParam = this.selectedToId ? this.selectedToId : '';
+                const dynamicUrl = `${this.baseUrl}/apex/ProposalPage?recordID=${this.recordId}&templateId=${this.selectedTemplateId}&contactId=${contactParam}`;
                 this.emailBody = `Hi,<br/><br/>Please <a href="${dynamicUrl}">click here</a> to view and accept your proposal.`;
+            });
+    }
+
+    // --- Update Body (Preserve Edits) ---
+    updateBodyWithNewContact() {
+        if (!this.recordId) return;
+
+        getContactName({ contactId: this.selectedToId })
+            .then(name => {
+                const newName = name || '';
+                let tempBody = this.emailBody;
+
+                // 1. Update Greeting (Assumes "Hi [Name]," format)
+                // Looks for "Hi " followed by any text until a comma
+                if (tempBody.includes('Hi ')) {
+                    const greetingRegex = /Hi .*?,/;
+                    tempBody = tempBody.replace(greetingRegex, `Hi ${newName},`);
+                }
+
+                // 2. Update Link Parameter (contactId=...)
+                // Finds "contactId=" followed by alphanumeric ID characters and replaces them
+                const linkRegex = /contactId=([a-zA-Z0-9]{15,18})/;
+                if(this.selectedToId) {
+                    tempBody = tempBody.replace(linkRegex, `contactId=${this.selectedToId}`);
+                } else {
+                    // If contact removed, just clear the ID in url
+                    tempBody = tempBody.replace(linkRegex, `contactId=`);
+                }
+
+                this.emailBody = tempBody;
+            })
+            .catch(error => {
+                console.error('Error updating body with new contact', error);
             });
     }
 
