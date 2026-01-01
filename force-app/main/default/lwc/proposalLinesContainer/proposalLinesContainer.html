@@ -1,0 +1,67 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="wrapper">
+        <!-- Button Container -->
+        <div class="filter-bar">
+            <div class="btnContainer">
+                <button class="createBillingBtn" onclick={handleAddProposalLine}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6.85714 9.14286H0V6.85714H6.85714V0H9.14286V6.85714H16V9.14286H9.14286V16H6.85714V9.14286Z" fill="white"/>
+                    </svg>
+                    Add Proposal Lines
+                </button>
+            </div>
+        </div>
+
+        <!-- Table Content -->
+        <template if:true={proposalLines.length}>
+            <div class="table-content">
+                <table class="slds-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Sr No.</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Product</th>
+                            <th scope="col">Pricebook</th>
+                            <th scope="col">Quantity</th>
+                            <th scope="col">Unit Cost</th>
+                            <th scope="col">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={proposalLines} for:item="line" for:index="index">
+                            <tr key={line.Id}>
+                                <td>{line.serialNumber}</td>
+                                <td>{line.Name}</td>
+                                <td>{line.productName}</td>
+                                <td>{line.pricebookName}</td>
+                                <td>{line.wfrecon__Quantity__c}</td>
+                                <td>{line.wfrecon__Unit_Cost__c}</td>
+                                <td>{line.wfrecon__Description__c}</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+
+        <!-- Empty State -->
+        <template if:false={proposalLines.length}>
+            <div class="no-records-message">
+                <div class="empty-state">
+                    <div class="empty-state__content">
+                        <div class="empty-state__icon">
+                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                        </div>
+                        <div class="empty-state__message">No data available to show</div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>
