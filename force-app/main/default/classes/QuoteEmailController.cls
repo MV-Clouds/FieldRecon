@@ -9,50 +9,55 @@ public with sharing class QuoteEmailController {
 
     @AuraEnabled(cacheable=true)
     public static InitData getInitialData(String recordId) {
-
-        InitData data = new InitData();
-        data.orgWideAddresses = [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress];
-        data.emailTemplates = [
-            SELECT Id, Name 
-            FROM EmailTemplate 
-            WHERE IsActive = true 
-            AND Folder.Name = 'Quote Emails' 
-            ORDER BY Name 
-            LIMIT 100
-        ];
-        
-        // Fetch Base URL from Custom Setting (Quote_Settings__c)
-        wfrecon__Proposal_Settings__c settings = wfrecon__Proposal_Settings__c.getOrgDefaults();
-        if(settings != null && settings.wfrecon__Base_URL__c != null) {
-            data.baseUrl = settings.wfrecon__Base_URL__c;
-        } else {
-            // Fallback or empty if not set
-            data.baseUrl = '';
-        }
-        
-
-        // Auto-fetch Contact ID from Proposal -> Bid -> Contact
-        if (String.isNotBlank(recordId)) {
-            try {
-                // Fetch Proposal to get Contact ID via Bid
-                List<wfrecon__Proposal__c> proposals = [
-                    SELECT wfrecon__Bid__r.wfrecon__Contact__c 
-                    FROM wfrecon__Proposal__c 
-                    WHERE Id = :recordId 
-                    with user_mode
-                    LIMIT 1
-                ];
-
-                if (!proposals.isEmpty() && proposals[0].wfrecon__Bid__r != null && proposals[0].wfrecon__Bid__r.wfrecon__Contact__c != null) {
-                    data.defaultContactId = proposals[0].wfrecon__Bid__r.wfrecon__Contact__c;
-                }
-            } catch (Exception e) {
-                // Fail silently for auto-population logic if fields don't exist or permissions issue
-                System.debug('Error fetching default contact: ' + e.getMessage());
+        try {
+            InitData data = new InitData();
+            data.orgWideAddresses = [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress];
+            data.emailTemplates = [
+                SELECT Id, Name 
+                FROM EmailTemplate 
+                WHERE IsActive = true 
+                AND Folder.Name = 'Quote Emails' 
+                ORDER BY Name 
+                LIMIT 100
+            ];
+            
+            // Fetch Base URL from Custom Setting (Quote_Settings__c)
+            wfrecon__Proposal_Settings__c settings = wfrecon__Proposal_Settings__c.getOrgDefaults();
+            if(settings != null && settings.wfrecon__Base_URL__c != null) {
+                data.baseUrl = settings.wfrecon__Base_URL__c;
+            } else {
+                // Fallback or empty if not set
+                data.baseUrl = '';
             }
+            
+
+            // Auto-fetch Contact ID from Proposal -> Bid -> Contact
+            if (String.isNotBlank(recordId)) {
+                try {
+                    // Fetch Proposal to get Contact ID via Bid
+                    List<wfrecon__Proposal__c> proposals = [
+                        SELECT wfrecon__Bid__r.wfrecon__Contact__c 
+                        FROM wfrecon__Proposal__c 
+                        WHERE Id = :recordId 
+                        with user_mode
+                        LIMIT 1
+                    ];
+
+                    if (!proposals.isEmpty() && proposals[0].wfrecon__Bid__r != null && proposals[0].wfrecon__Bid__r.wfrecon__Contact__c != null) {
+                        data.defaultContactId = proposals[0].wfrecon__Bid__r.wfrecon__Contact__c;
+                    }
+                } catch (Exception e) {
+                    // Fail silently for auto-population logic if fields don't exist or permissions issue
+                    System.debug('Error fetching default contact: ' + e.getMessage());
+                }
+            }
+            
+            return data;
+        } catch (Exception e) {
+            System.debug('Exception in getInitialData: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getInitialData', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
-        
-        return data;
     }
 
     @AuraEnabled
@@ -62,6 +67,7 @@ public with sharing class QuoteEmailController {
             Contact c = [SELECT Name FROM Contact WHERE Id = :contactId with user_mode LIMIT 1];
             return c.Name;
         } catch(Exception e) {
+            System.debug('Exception in getContactName: ' + e.getMessage());
             return '';
         }
     }
@@ -82,6 +88,7 @@ public with sharing class QuoteEmailController {
             result.put('body', mail.getHtmlBody());
             return result;
         } catch (Exception e) {
+            System.debug('Exception in renderEmailTemplate: ' + e.getMessage());
             throw new AuraHandledException('Error rendering template: ' + e.getMessage());
         }
     }
@@ -148,6 +155,7 @@ public with sharing class QuoteEmailController {
             Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{mail});
 
         } catch (Exception e) {
+            System.debug('Exception in sendQuoteEmail: ' + e.getMessage());
             throw new AuraHandledException('Error sending email: ' + e.getMessage());
         }
     }
@@ -159,8 +167,9 @@ public with sharing class QuoteEmailController {
     public static void deleteContentDocuments(List<String> contentDocumentIds) {
         try {
             if (contentDocumentIds == null || contentDocumentIds.isEmpty()) return;
-            delete [SELECT Id FROM ContentDocument WHERE Id IN :contentDocumentIds];
+            delete [SELECT Id FROM ContentDocument WHERE Id IN :contentDocumentIds WITH USER_MODE];
         } catch (Exception e) {
+            System.debug('Exception in deleteContentDocuments: ' + e.getMessage());
             throw new AuraHandledException('Error deleting files: ' + e.getMessage());
         }
     }
@@ -170,9 +179,8 @@ public with sharing class QuoteEmailController {
      */
     @AuraEnabled
     public static List<FileWrapper> getUploadedFileDetails(List<String> contentDocumentIds) {
-        List<FileWrapper> fileList = new List<FileWrapper>();
-        
         try {
+            List<FileWrapper> fileList = new List<FileWrapper>();
             List<ContentDocument> docs = [
                 SELECT Id, Title, FileExtension, LatestPublishedVersionId, ContentSize
                 FROM ContentDocument 
@@ -195,10 +203,11 @@ public with sharing class QuoteEmailController {
                 }
                 fileList.add(fw);
             }
+            return fileList;
         } catch (Exception e) {
+            System.debug('Exception in getUploadedFileDetails: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
-        return fileList;
     }
 
     /**
@@ -206,9 +215,8 @@ public with sharing class QuoteEmailController {
      */
     @AuraEnabled
     public static List<FileWrapper> getRecordFiles(String recordId) {
-        List<FileWrapper> fileList = new List<FileWrapper>();
-        
         try {
+            List<FileWrapper> fileList = new List<FileWrapper>();
             List<ContentDocumentLink> links = [
                 SELECT ContentDocumentId, ContentDocument.Title, ContentDocument.FileExtension, ContentDocument.LatestPublishedVersionId, ContentDocument.ContentSize
                 FROM ContentDocumentLink 
@@ -232,18 +240,24 @@ public with sharing class QuoteEmailController {
                 }
                 fileList.add(fw);
             }
+            return fileList;
         } catch (Exception e) {
+            System.debug('Exception in getRecordFiles: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
-        return fileList;
     }
 
     private static List<String> getEmailsFromIds(List<String> recordIds) {
-        List<String> emails = new List<String>();
-        for(Contact c : [SELECT Email FROM Contact WHERE Id IN :recordIds]) {
-            if(c.Email != null) emails.add(c.Email);
+        try {
+            List<String> emails = new List<String>();
+            for(Contact c : [SELECT Email FROM Contact WHERE Id IN :recordIds WITH USER_MODE]) {
+                if(c.Email != null) emails.add(c.Email);
+            }
+            return emails;
+        } catch (Exception e) {
+            System.debug('Exception in getEmailsFromIds: ' + e.getMessage());
+            return new List<String>();
         }
-        return emails;
     }
 
     public class FileWrapper {

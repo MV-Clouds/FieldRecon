@@ -55,6 +55,9 @@ export default class QuoteEmailComposer extends LightningElement {
     selectedRecordId = '';
     activePicker = ''; // 'CC' or 'BCC'
 
+    // Status Flag
+    emailSentSuccessfully = false;
+
     connectedCallback() {
         this.overrideSLDS();
     }
@@ -62,6 +65,22 @@ export default class QuoteEmailComposer extends LightningElement {
     renderedCallback() {
         if (!this.accordionStyleApplied) {
             this.applyAccordionStyling();
+        }
+    }
+
+    // Lifecycle hook that runs when the component is removed from DOM (Cancel button OR "X" button)
+    disconnectedCallback() {
+        if (!this.emailSentSuccessfully) {
+            // Identify files uploaded in this session
+            const newUploads = this.uploadedFiles.filter(f => f.isNewUpload).map(f => f.id);
+            
+            if (newUploads.length > 0) {
+                // Fire and forget - clean up files because email wasn't sent
+                deleteContentDocuments({ contentDocumentIds: newUploads })
+                    .catch(error => {
+                        console.error('Error cleaning up files on disconnect', error);
+                    });
+            }
         }
     }
 
@@ -453,6 +472,9 @@ export default class QuoteEmailComposer extends LightningElement {
             })
             .then(() => {
                 this.showToast('Success', 'Email Sent Successfully', 'success');
+                // Flag success so disconnectedCallback knows NOT to delete files
+                this.emailSentSuccessfully = true;
+                
                 // Ensure no new uploads are left hanging if we success (they are now sent/attached)
                 this.dispatchEvent(new CustomEvent('close'));
             })
@@ -469,25 +491,8 @@ export default class QuoteEmailComposer extends LightningElement {
     }
 
     handleClose() {
-        const newUploads = this.uploadedFiles.filter(f => f.isNewUpload).map(f => f.id);
-        
-        if (newUploads.length > 0) {
-            this.isLoading = true;
-            deleteContentDocuments({ contentDocumentIds: newUploads })
-                .then(() => {
-                    this.dispatchEvent(new CustomEvent('close'));
-                })
-                .catch(error => {
-                    console.error('Error cleaning up files on close', error);
-                    // Still close even if delete fails to avoid trapping user
-                    this.dispatchEvent(new CustomEvent('close'));
-                })
-                .finally(() => {
-                    this.isLoading = false;
-                });
-        } else {
-            this.dispatchEvent(new CustomEvent('close'));
-        }
+        // Just close. disconnectedCallback handles the cleanup if emailSentSuccessfully is false.
+        this.dispatchEvent(new CustomEvent('close'));
     }
 
     showToast(title, message, variant) {
