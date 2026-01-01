@@ -8,6 +8,7 @@ public without sharing class ProposalPageController {
     public wfrecon__Proposal_Recipient__c proRecRecord { get; set; }
     public String objectAPIName { get; set; }
     public String rejectionReason { get; set; }
+    public String requestedChanges { get; set; }
     public String cdId { get; set; }
     public Boolean displayPopup { get; set; }
     public String quoteMessage { get; set; }
@@ -33,14 +34,12 @@ public without sharing class ProposalPageController {
 
             if (String.isBlank(recordId)) {
                 quoteMessage = 'Error: Proposal ID is missing.';
-                strBody = 'Error: Proposal ID is missing. Please provide a valid proposal ID.';
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Proposal ID is missing.'));
+                strBody = null;
                 return;
             }
             if (String.isBlank(templateId)) {
                 quoteMessage = 'Error: Template ID is missing.';
-                strBody = 'Error: Template ID is missing. Please provide a valid template ID.';
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Template ID is missing.'));
+                strBody = null;
                 return;
             }
 
@@ -52,8 +51,7 @@ public without sharing class ProposalPageController {
 
             if (proposalRecipients == null || proposalRecipients.isEmpty()) {
                 quoteMessage = 'Error: No valid proposal or contact found.';
-                strBody = 'Error: No valid proposal or contact associated with ID ' + recordId + '.';
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'No valid proposal or contact found.'));
+                strBody = null;
                 return;
             } else {
                 proRecRecord = proposalRecipients[0];
@@ -72,6 +70,12 @@ public without sharing class ProposalPageController {
                 result = 'Rejected';
                 proposalStatus = 'Rejected';
                 strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Rejected';
+                return;
+            } else if (proRecRecord.wfrecon__Status__c == 'Changes Requested') {
+                quoteMessage = 'Changes have already been requested for this Proposal. Your Sales Representative will contact you soon.';
+                result = 'Changes Requested';
+                proposalStatus = 'Changes Requested';
+                strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Changes Requested';
                 return;
             } else if (proRecRecord.wfrecon__Due_Date__c != null && proRecRecord.wfrecon__Due_Date__c < Date.today()) {
                 quoteMessage = 'This Proposal has expired as the due date (' + proRecRecord.wfrecon__Due_Date__c.format() + ') has passed. Please contact your Sales Representative for further assistance.';
@@ -103,14 +107,12 @@ public without sharing class ProposalPageController {
                 }
             } else {
                 String errorMessage = results.isEmpty() ? 'No results returned' : String.valueOf(results[0].getErrors());
-                strBody = 'Error: Failed to generate template content. Errors: ' + errorMessage;
-                quoteMessage = 'Error: Failed to generate proposal content. Errors: ' + errorMessage;
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Failed to generate template content.'));
+                strBody = null;
+                quoteMessage = 'Error: Failed to generate proposal content.';
             }
         } catch (Exception e) {
-            strBody = 'Error in ProposalPageController.createPDF: ' + e.getMessage() + ' at line: ' + e.getLineNumber();
+            strBody = null;
             quoteMessage = 'Error: Unable to load proposal. ' + e.getMessage();
-            ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Unable to load proposal: ' + e.getMessage()));
         }
     }
 
@@ -125,12 +127,6 @@ public without sharing class ProposalPageController {
     public void saveRejectionReason() {
         try {
             displayPopup = false;
-            if (String.isBlank(rejectionReason)) {
-                quoteMessage = 'Error: No rejection reason provided.';
-                strBody = 'Error: No rejection reason provided.';
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'No rejection reason provided.'));
-                return;
-            }
 
             wfrecon__Proposal_Recipient__c proposalRec = new wfrecon__Proposal_Recipient__c(
                 Id = proposalRecipientId,
@@ -147,8 +143,35 @@ public without sharing class ProposalPageController {
             strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Rejected';
         } catch (Exception e) {
             quoteMessage = 'Error saving rejection: ' + e.getMessage();
-            strBody = 'Error saving rejection: ' + e.getMessage();
-            ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Error saving rejection: ' + e.getMessage()));
+            strBody = null;
+        }
+    }
+
+    public void saveRequestChanges() {
+        try {
+            displayPopup = false;
+            if (String.isBlank(requestedChanges)) {
+                quoteMessage = 'Error: No requested changes provided.';
+                strBody = null;
+                return;
+            }
+
+            wfrecon__Proposal_Recipient__c proposalRec = new wfrecon__Proposal_Recipient__c(
+                Id = proposalRecipientId,
+                wfrecon__Accepted_Rejected_Changed_Date__c = System.today(),
+                wfrecon__Status__c = 'Changes Requested',
+                wfrecon__Requested_Changes__c = requestedChanges
+            );
+            update proposalRec;
+
+            customSignature = true;
+            proposalStatus = 'Changes Requested';
+            result = 'Changes Requested';
+            quoteMessage = 'Your change request has been submitted. Your Sales Representative will contact you soon.';
+            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Changes Requested<br/>Requested Changes: ' + requestedChanges;
+        } catch (Exception e) {
+            quoteMessage = 'Error saving change request: ' + e.getMessage();
+            strBody = null;
         }
     }
 
@@ -156,8 +179,7 @@ public without sharing class ProposalPageController {
         try {
             if (String.isBlank(signatureData)) {
                 quoteMessage = 'Error: No signature provided.';
-                strBody = 'Error: No signature provided.';
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'No signature provided.'));
+                strBody = null;
                 return null;
             }
 
@@ -206,8 +228,7 @@ public without sharing class ProposalPageController {
             return null;
         } catch (Exception e) {
             quoteMessage = 'Error saving signature: ' + e.getMessage();
-            strBody = 'Error saving signature: ' + e.getMessage();
-            ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Error saving signature: ' + e.getMessage()));
+            strBody = null;
             return null;
         }
     }
@@ -216,16 +237,14 @@ public without sharing class ProposalPageController {
         try {
             if (String.isBlank(cdId)) {
                 quoteMessage = 'Error: No signature distribution found.';
-                strBody = 'Error: No signature distribution found.';
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'No signature distribution found.'));
+                strBody = null;
                 return null;
             }
 
             ContentDistribution cdPublicLink = [SELECT Id, DistributionPublicUrl, ContentDownloadUrl FROM ContentDistribution WHERE Id = :cdId LIMIT 1];
             if (cdPublicLink == null) {
                 quoteMessage = 'Error: Failed to retrieve signature distribution link.';
-                strBody = 'Error: Failed to retrieve signature distribution link.';
-                ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Failed to retrieve signature distribution link.'));
+                strBody = null;
                 return null;
             }
 
@@ -260,8 +279,7 @@ public without sharing class ProposalPageController {
             return null;
         } catch (Exception e) {
             quoteMessage = 'Error generating PDF: ' + e.getMessage();
-            strBody = 'Error generating PDF: ' + e.getMessage();
-            ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Error generating PDF: ' + e.getMessage()));
+            strBody = null;
             return null;
         }
     }
