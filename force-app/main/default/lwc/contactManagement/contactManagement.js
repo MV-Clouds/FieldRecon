@@ -943,7 +943,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             const currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
             
             const isDisabled = this.isPreviewMode ? true : !config.isEditable;
-            const isSystemRequired = fieldName === 'LastName' || fieldName === 'Email';
+            const isSystemRequired = ['FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'].includes(fieldName);
             const isRequired = isSystemRequired || (config.isRequired === true);
 
             return {
