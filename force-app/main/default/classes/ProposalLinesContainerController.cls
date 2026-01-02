@@ -5,11 +5,11 @@
 * Created Date: 31 Dec 2024
 * Created By: Harsh Gandhi
 * Modified Date: 1 Jan 2026
-* Modified By: AI Assistant
+* Modified By: Karan Singh
 *--------------------------------------------------------------------------------
 * Modification History:
 * Date Modified - Developer Name - Description
-* 1 Jan 2026 - AI Assistant - Added comprehensive methods for proposal lines, budgets, and budget lines management
+* 1 Jan 2026 - Karan Singh - Added comprehensive methods for proposal lines, budgets, and budget lines management
 **/
 public with sharing class ProposalLinesContainerController {
     
