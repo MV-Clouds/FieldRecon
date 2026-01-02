@@ -33,11 +33,6 @@ public with sharing class ProposalLinesContainerController {
                 return result;
             }
             
-            // Fetch Proposal data
-            wfrecon__Proposal__c proposal = [SELECT Id, Name, wfrecon__Proposal_Amount__c, wfrecon__Sales_Price__c, 
-                wfrecon__OH_Amount__c, wfrecon__Warranty_Amount__c, wfrecon__Profit_Amount__c 
-                FROM wfrecon__Proposal__c WHERE Id = :proposalId WITH USER_MODE LIMIT 1];
-            
             // Fetch Proposal Lines
             List<wfrecon__Proposal_Line__c> proposalLines = [SELECT Id, Name, wfrecon__Description__c,
                     (SELECT Id, Name, wfrecon__Total_Budget__c, (SELECT Id, Name, wfrecon__Product__c, wfrecon__Product__r.Name, 
@@ -46,7 +41,6 @@ public with sharing class ProposalLinesContainerController {
                     WHERE wfrecon__Proposal__c = :proposalId WITH USER_MODE ORDER BY CreatedDate ASC];
             
             Map<String, Object> responseData = new Map<String, Object>();
-            responseData.put('proposal', proposal);
             responseData.put('proposalLines', proposalLines);
             
             result.put('success', true);

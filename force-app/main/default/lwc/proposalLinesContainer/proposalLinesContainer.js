@@ -12,7 +12,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @api recordId;
     @track isLoading = false;
     @track proposalLinesRaw = [];
-    @track proposalData = null;
     @track showAddModal = false;
     @track isModalLoading = false;
     @track isSaving = false;
@@ -58,9 +57,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         getProposalLinesWithBudgets({ proposalId: this.recordId })
             .then(result => {
                 if (result.success && result.data) {
-                    // Store proposal data
-                    this.proposalData = result.data.proposal;
-                    
                     // Process proposal lines
                     this.proposalLinesRaw = result.data.proposalLines.map((line, index) => ({
                         ...line,
@@ -165,35 +161,19 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         });
     }
 
-    // Get proposal amounts from proposal data
-    get proposalAmount() {
-        return this.proposalData?.wfrecon__Proposal_Amount__c 
-            ? parseFloat(this.proposalData.wfrecon__Proposal_Amount__c).toFixed(2) 
-            : '0.00';
-    }
-
-    get salesPrice() {
-        return this.proposalData?.wfrecon__Sales_Price__c 
-            ? parseFloat(this.proposalData.wfrecon__Sales_Price__c).toFixed(2) 
-            : '0.00';
-    }
-
-    get ohAmount() {
-        return this.proposalData?.wfrecon__OH_Amount__c 
-            ? parseFloat(this.proposalData.wfrecon__OH_Amount__c).toFixed(2) 
-            : '0.00';
-    }
-
-    get warrantyAmount() {
-        return this.proposalData?.wfrecon__Warranty_Amount__c 
-            ? parseFloat(this.proposalData.wfrecon__Warranty_Amount__c).toFixed(2) 
-            : '0.00';
-    }
-
-    get profitAmount() {
-        return this.proposalData?.wfrecon__Profit_Amount__c 
-            ? parseFloat(this.proposalData.wfrecon__Profit_Amount__c).toFixed(2) 
-            : '0.00';
+    // Get grand total of all proposal lines
+    get grandTotal() {
+        if (!this.proposalLinesRaw || this.proposalLinesRaw.length === 0) {
+            return '0.00';
+        }
+        
+        const total = this.proposalLinesRaw.reduce((sum, line) => {
+            const budgetLines = line.wfrecon__Budgets__r?.[0]?.wfrecon__Budget_Lines__r || [];
+            const lineTotal = this.calculateBudgetTotal(budgetLines);
+            return sum + parseFloat(lineTotal);
+        }, 0);
+        
+        return total.toFixed(2);
     }
 
     // Handle toggle expand/collapse
