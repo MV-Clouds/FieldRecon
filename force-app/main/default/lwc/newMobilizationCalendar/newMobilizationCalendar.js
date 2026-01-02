@@ -87,7 +87,7 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
     hasFullAccess = false;
 
     // Platform Event Subscription
-    channelName = '/event/Job_Change_Event__e';
+    channelName = '/event/wfrecon__Job_Change_Event__e';
     subscription = {};
 
     get isEdit() {
