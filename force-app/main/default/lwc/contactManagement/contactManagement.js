@@ -383,11 +383,31 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      */
     handleCreateNew() {
         this.formValues = {};
+        // Set default value for Can Clock In / Out to true for new contacts
+        this.formValues['wfrecon__Can_Clock_In_Out__c'] = true;
         this.isEditMode = false;
         this.isPreviewMode = false;
         this.recordIdToEdit = null;
         this.prepareDynamicFields();
         this.showCreateModal = true;
+        
+        // Set the checkbox value after the form renders
+        setTimeout(() => {
+            this.setDefaultCheckboxValue();
+        }, 100);
+    }
+
+    /**
+     * Method Name: setDefaultCheckboxValue
+     * @description: Set the default value for Can Clock In / Out checkbox
+     */
+    setDefaultCheckboxValue() {
+        const inputFields = this.template.querySelectorAll('lightning-input-field');
+        inputFields.forEach(field => {
+            if (field.fieldName === 'wfrecon__Can_Clock_In_Out__c') {
+                field.value = true;
+            }
+        });
     }
 
     /**
