@@ -103,11 +103,44 @@
             </template>
         </div>
 
+        <!-- Pagination Section -->
         <template if:true={isDataAvailable}>
             <div class="pagination-section">
                 <div class="pagination-container">
-                    <button class="pagination-button" onclick={handlePrevious} disabled={isFirstPage}>Previous</button>
-                    <button class="pagination-button" onclick={handleNext} disabled={isLastPage}>Next</button>
+                    <button 
+                        class="pagination-button" 
+                        onclick={handlePrevious} 
+                        disabled={isFirstPage}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Previous
+                    </button>
+                    
+                    <template for:each={pageNumbers} for:item="page">
+                        <template if:false={page.isEllipsis}>
+                            <button 
+                                key={page.number}
+                                class={page.cssClass}
+                                data-page={page.number}
+                                onclick={handlePageChange}>
+                                {page.number}
+                            </button>
+                        </template>
+                        <template if:true={page.isEllipsis}>
+                            <span key={page.number} class="pagination-ellipsis">...</span>
+                        </template>
+                    </template>
+                    
+                    <button 
+                        class="pagination-button" 
+                        onclick={handleNext} 
+                        disabled={isLastPage}>
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </template>

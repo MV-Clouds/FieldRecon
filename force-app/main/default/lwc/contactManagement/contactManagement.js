@@ -165,7 +165,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Check if current page is last page
      */
     get isLastPage() {
-        return this.currentPage >= this.totalPages;
+        return this.currentPage === this.totalPages;
     }
 
     /**
@@ -191,60 +191,63 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     get pageNumbers() {
         const pages = [];
         const totalPages = this.totalPages;
-        const current = this.currentPage;
-        const maxVisible = this.visiblePages;
-
-        if (totalPages <= maxVisible + 2) {
+        
+        if (totalPages <= this.visiblePages) {
+            // Show all pages if total pages is less than or equal to visible pages
             for (let i = 1; i <= totalPages; i++) {
                 pages.push({
                     number: i,
-                    class: i === current ? 'pagination-button active' : 'pagination-button',
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button',
                     isEllipsis: false
                 });
             }
         } else {
-            pages.push({
-                number: 1,
-                class: 1 === current ? 'pagination-button active' : 'pagination-button',
-                isEllipsis: false
-            });
-
-            let startPage = Math.max(2, current - Math.floor(maxVisible / 2));
-            let endPage = Math.min(totalPages - 1, startPage + maxVisible - 1);
-
-            if (endPage - startPage < maxVisible - 1) {
-                startPage = Math.max(2, endPage - maxVisible + 1);
-            }
-
-            if (startPage > 2) {
+            // Show pages with ellipsis
+            const startPage = Math.max(1, this.currentPage - Math.floor(this.visiblePages / 2));
+            const endPage = Math.min(totalPages, startPage + this.visiblePages - 1);
+            
+            // Add first page and ellipsis if needed
+            if (startPage > 1) {
                 pages.push({
-                    key: 'ellipsis-start',
-                    isEllipsis: true
+                    number: 1,
+                    cssClass: 1 === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
                 });
+                if (startPage > 2) {
+                    pages.push({
+                        number: '...',
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
+                    });
+                }
             }
-
+            
+            // Add visible pages
             for (let i = startPage; i <= endPage; i++) {
                 pages.push({
                     number: i,
-                    class: i === current ? 'pagination-button active' : 'pagination-button',
+                    cssClass: i === this.currentPage ? 'pagination-button active' : 'pagination-button',
                     isEllipsis: false
                 });
             }
-
-            if (endPage < totalPages - 1) {
+            
+            // Add last page and ellipsis if needed
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pages.push({
+                        number: '...',
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
+                    });
+                }
                 pages.push({
-                    key: 'ellipsis-end',
-                    isEllipsis: true
+                    number: totalPages,
+                    cssClass: totalPages === this.currentPage ? 'pagination-button active' : 'pagination-button',
+                    isEllipsis: false
                 });
             }
-
-            pages.push({
-                number: totalPages,
-                class: totalPages === current ? 'pagination-button active' : 'pagination-button',
-                isEllipsis: false
-            });
         }
-
+        
         return pages;
     }
 
@@ -253,7 +256,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Check if ellipsis should be shown in pagination
      */
     get showEllipsis() {
-        return this.totalPages > this.visiblePages + 2;
+        return this.totalPages > this.visiblePages;
     }
 
     /**
