@@ -266,6 +266,21 @@ export default class ContactConfigBody extends LightningElement {
             return;
         }
 
+        // Check if required fields have editable checkbox enabled
+        const requiredButNotEditable = this.items.filter(item => 
+            item.isRequired && !item.isEditable
+        );
+
+        if (requiredButNotEditable.length > 0) {
+            const fieldNames = requiredButNotEditable.map(item => item.label).join(', ');
+            this.showToast(
+                'Error', 
+                `Required fields must be editable: ${fieldNames}.`, 
+                'error'
+            );
+            return;
+        }
+
         this.isLoading = true;
 
         const dataToSave = this.items.map(item => ({
