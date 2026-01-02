@@ -34,20 +34,19 @@ public with sharing class QuoteEmailController {
             // Auto-fetch Contact ID from Proposal -> Bid -> Contact
             if (String.isNotBlank(recordId)) {
                 try {
-                    // Fetch Proposal to get Contact ID via Bid
-                    List<wfrecon__Proposal__c> proposals = [
-                        SELECT wfrecon__Bid__r.wfrecon__Contact__c 
+                    // Query wfrecon__Contact__c directly from the Proposal
+                    List<wfrecon__Proposal__c> proposal = [
+                        SELECT wfrecon__Contact__c 
                         FROM wfrecon__Proposal__c 
                         WHERE Id = :recordId 
-                        with user_mode
+                        WITH USER_MODE
                         LIMIT 1
                     ];
 
-                    if (!proposals.isEmpty() && proposals[0].wfrecon__Bid__r != null && proposals[0].wfrecon__Bid__r.wfrecon__Contact__c != null) {
-                        data.defaultContactId = proposals[0].wfrecon__Bid__r.wfrecon__Contact__c;
+                    if (proposal[0].wfrecon__Contact__c != null) {
+                        data.defaultContactId = proposal[0].wfrecon__Contact__c;
                     }
                 } catch (Exception e) {
-                    // Fail silently for auto-population logic if fields don't exist or permissions issue
                     System.debug('Error fetching default contact: ' + e.getMessage());
                 }
             }
@@ -64,10 +63,9 @@ public with sharing class QuoteEmailController {
     public static String getContactName(String contactId) {
         if(String.isBlank(contactId)) return '';
         try {
-            Contact c = [SELECT Name FROM Contact WHERE Id = :contactId with user_mode LIMIT 1];
+            Contact c = [SELECT Name FROM Contact WHERE Id = :contactId WITH USER_MODE LIMIT 1];
             return c.Name;
         } catch(Exception e) {
-            System.debug('Exception in getContactName: ' + e.getMessage());
             return '';
         }
     }
@@ -77,7 +75,7 @@ public with sharing class QuoteEmailController {
         if(String.isBlank(templateId)) return null;
 
         if(String.isBlank(whoId)) {
-            List<Contact> dummy = [SELECT Id FROM Contact with user_mode LIMIT 1];
+            List<Contact> dummy = [SELECT Id FROM Contact WITH USER_MODE LIMIT 1];
             if(!dummy.isEmpty()) whoId = dummy[0].Id;
         }
 
@@ -88,7 +86,6 @@ public with sharing class QuoteEmailController {
             result.put('body', mail.getHtmlBody());
             return result;
         } catch (Exception e) {
-            System.debug('Exception in renderEmailTemplate: ' + e.getMessage());
             throw new AuraHandledException('Error rendering template: ' + e.getMessage());
         }
     }
@@ -109,6 +106,33 @@ public with sharing class QuoteEmailController {
         List<String> contentDocumentIds 
     ) {
         try {
+
+            // 1. Fetch the Proposal Expiration Date
+            Date expirationDate = null;
+            if(String.isNotBlank(relatedToId)) {
+                wfrecon__Proposal__c currentProposal = [
+                    SELECT wfrecon__Expiration_Date__c 
+                    FROM wfrecon__Proposal__c 
+                    WHERE Id = :relatedToId 
+                    WITH USER_MODE 
+                    LIMIT 1
+                ];
+                expirationDate = currentProposal.wfrecon__Expiration_Date__c;
+            }
+
+            // 2. Insert wfrecon__Proposal_Recipient__c
+            if(String.isNotBlank(toId) && String.isNotBlank(relatedToId)) {
+                wfrecon__Proposal_Recipient__c recipient = new wfrecon__Proposal_Recipient__c();
+                recipient.wfrecon__Proposal__c = relatedToId;
+                recipient.wfrecon__Contact__c = toId;
+                recipient.wfrecon__Status__c = 'Pending';
+                recipient.wfrecon__Due_Date__c = expirationDate;
+                
+                // Using User Mode to enforce permissions
+                insert as user recipient;
+            }
+
+            // 3. Prepare Email
             Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
             
             if(String.isNotBlank(toId)) {
@@ -135,10 +159,8 @@ public with sharing class QuoteEmailController {
             mail.setHtmlBody(body);
             mail.setSaveAsActivity(true);
 
-            // --- Handle Attachments (Salesforce Files) ---
+            // Handle Attachments
             if (contentDocumentIds != null && !contentDocumentIds.isEmpty()) {
-                // We need ContentVersion IDs to attach to email
-                // Querying LatestPublishedVersionId ensures we get the actual file blob reference
                 List<ContentVersion> versions = [
                     SELECT Id 
                     FROM ContentVersion 
@@ -169,7 +191,6 @@ public with sharing class QuoteEmailController {
             if (contentDocumentIds == null || contentDocumentIds.isEmpty()) return;
             delete [SELECT Id FROM ContentDocument WHERE Id IN :contentDocumentIds WITH USER_MODE];
         } catch (Exception e) {
-            System.debug('Exception in deleteContentDocuments: ' + e.getMessage());
             throw new AuraHandledException('Error deleting files: ' + e.getMessage());
         }
     }
@@ -205,7 +226,6 @@ public with sharing class QuoteEmailController {
             }
             return fileList;
         } catch (Exception e) {
-            System.debug('Exception in getUploadedFileDetails: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
     }
@@ -231,7 +251,6 @@ public with sharing class QuoteEmailController {
                 fw.title = link.ContentDocument.Title;
                 fw.extension = link.ContentDocument.FileExtension;
                 fw.size = link.ContentDocument.ContentSize;
-                // Simple logic to detect images
                 Set<String> imgExts = new Set<String>{'jpg','jpeg','png','gif'};
                 if(link.ContentDocument.FileExtension != null && imgExts.contains(link.ContentDocument.FileExtension.toLowerCase())){
                     fw.isImage = true;
@@ -242,7 +261,6 @@ public with sharing class QuoteEmailController {
             }
             return fileList;
         } catch (Exception e) {
-            System.debug('Exception in getRecordFiles: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
     }
@@ -255,7 +273,6 @@ public with sharing class QuoteEmailController {
             }
             return emails;
         } catch (Exception e) {
-            System.debug('Exception in getEmailsFromIds: ' + e.getMessage());
             return new List<String>();
         }
     }

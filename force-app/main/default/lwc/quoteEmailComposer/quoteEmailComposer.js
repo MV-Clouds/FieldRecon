@@ -253,12 +253,15 @@ export default class QuoteEmailComposer extends LightningElement {
 
                 // 2. Update Link Parameter (contactId=...)
                 // Finds "contactId=" followed by alphanumeric ID characters and replaces them
-                const linkRegex = /contactId=([a-zA-Z0-9]{15,18})/;
+                const linkRegex = /contactId=[a-zA-Z0-9]*/;
                 if(this.selectedToId) {
                     tempBody = tempBody.replace(linkRegex, `contactId=${this.selectedToId}`);
+                    console.log('Updated body with new contact ID:', this.selectedToId + '---'+ tempBody);
+                    
                 } else {
                     // If contact removed, just clear the ID in url
                     tempBody = tempBody.replace(linkRegex, `contactId=`);
+                    console.log('no body with new contact ID:', this.selectedToId + '---'+ tempBody);
                 }
 
                 this.emailBody = tempBody;
