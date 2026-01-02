@@ -51,7 +51,9 @@
                                                              data-index={index} 
                                                              ondragstart={handleDragStart} 
                                                              ondragover={handleDragOver} 
-                                                             ondrop={handleDrop}>
+                                                             ondragleave={handleDragLeave}
+                                                             ondrop={handleDrop}
+                                                             ondragend={handleDragEnd}>
                                                             
                                                             <div class="slds-col drag-icon" title="Drag to reorder">
                                                                 <svg width="16" height="16" viewBox="0 0 20 20" fill="#666">

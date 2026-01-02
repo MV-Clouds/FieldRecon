@@ -226,10 +226,29 @@ export default class ContactConfigBody extends LightningElement {
         event.currentTarget.classList.add('drop-over');
     }
 
+    handleDragLeave(event) {
+        event.currentTarget.classList.remove('drop-over');
+    }
+
+    handleDragEnd(event) {
+        // Clean up all drag-related classes regardless of where the drag ended
+        this.template.querySelectorAll('.popup__data-row').forEach(row => {
+            row.classList.remove('dragged', 'drop-over');
+        });
+    }
+
     handleDrop(event) {
         event.preventDefault();
         const fromIndex = parseInt(event.dataTransfer.getData('text/plain'), 10);
         const toIndex = parseInt(event.currentTarget.dataset.index, 10);
+        
+        // If dropped on the same row, just clean up and return
+        if (fromIndex === toIndex) {
+            this.template.querySelectorAll('.popup__data-row').forEach(row => {
+                row.classList.remove('dragged', 'drop-over');
+            });
+            return;
+        }
         
         const items = [...this.items];
         const [movedItem] = items.splice(fromIndex, 1);
