@@ -51,7 +51,9 @@
                                                              data-index={index} 
                                                              ondragstart={handleDragStart} 
                                                              ondragover={handleDragOver} 
-                                                             ondrop={handleDrop}>
+                                                             ondragleave={handleDragLeave}
+                                                             ondrop={handleDrop}
+                                                             ondragend={handleDragEnd}>
                                                             
                                                             <div class="slds-col drag-icon" title="Drag to reorder">
                                                                 <svg width="16" height="16" viewBox="0 0 20 20" fill="#666">
@@ -62,7 +64,7 @@
 
                                                             <div class="slds-col wrap_css">
                                                                 <div class="combobox-cover">
-                                                                    <div class="combobox-input">
+                                                                    <div class={item.dropdownClass}>
                                                                         <div class="input-show" data-index={index} onclick={handleFocus}>
                                                                             {item.label}
                                                                         </div>
@@ -113,13 +115,13 @@
                                                                     <input type="checkbox" 
                                                                            checked={item.isRequired} 
                                                                            data-index={index} 
-                                                                           onchange={handleRequiredChange}>
+                                                                           onchange={handleRequiredChange} disabled={item.isRequiredDisabled}>
                                                                     <span class="checkmark"></span>
                                                                 </label>
                                                             </div>
 
                                                             <div class="slds-col wrap_css order_btn_grp">
-                                                                <div class="delete-div" onclick={handleDelete} data-index={index}>
+                                                                <div class={item.deleteClass} onclick={handleDelete} data-index={index}>
                                                                     <svg width="16" height="16" viewBox="0 0 25 24" fill="currentColor">
                                                                         <path d="M19.4 8.7c.2 0 .4.1.5.2.2.2.2.4.2.6 0 .1-.5 6.8-.8 9.6-.2 1.7-1.3 2.8-3 2.8H8.6c-1.6 0-2.8-1.1-2.9-2.8-.3-2.9-.8-9.6-.8-9.6 0-.2 0-.4.2-.6.2-.1.3-.2.5-.2h13.9zM14.6 2c.9 0 1.7.6 1.9 1.5l.2.7c.1.6.6 1 1.2 1h2.9c.4 0 .7.3.7.7v.4c0 .4-.3.7-.7.7H4.2c-.4 0-.7-.3-.7-.7v-.4c0-.4.3-.7.7-.7h2.9c.6 0 1.1-.4 1.2-1l.2-.7c.2-.9 1-1.5 1.9-1.5h4.1z"/>
                                                                     </svg>

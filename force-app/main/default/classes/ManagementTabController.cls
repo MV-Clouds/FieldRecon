@@ -957,26 +957,46 @@ public with sharing class ManagementTabController {
             // Remove the custom field from the map so it doesn't cause issues
             contactData.remove('RecordTypeDeveloperName');
             
+            // Remove Id temporarily to handle it separately
+            Id contactId = null;
+            if (contactData.containsKey('Id') && contactData.get('Id') != null) {
+                Object idValue = contactData.get('Id');
+                contactId = idValue instanceof Id ? (Id)idValue : Id.valueOf(String.valueOf(idValue));
+                contactData.remove('Id');
+            }
+            
             // Create Contact record from the remaining data
             Contact contactRecord = new Contact();
             
             // Set Id if it exists (for updates)
-            if (contactData.containsKey('Id') && contactData.get('Id') != null) {
-                contactRecord.Id = (Id) contactData.get('Id');
+            if (contactId != null) {
+                contactRecord.Id = contactId;
             }
             
-            // Set other fields
-            if (contactData.containsKey('FirstName')) {
-                contactRecord.FirstName = (String) contactData.get('FirstName');
-            }
-            if (contactData.containsKey('LastName')) {
-                contactRecord.LastName = (String) contactData.get('LastName');
-            }
-            if (contactData.containsKey('Email')) {
-                contactRecord.Email = (String) contactData.get('Email');
-            }
-            if (contactData.containsKey('wfrecon__Can_Clock_In_Out__c')) {
-                contactRecord.wfrecon__Can_Clock_In_Out__c = (Boolean) contactData.get('wfrecon__Can_Clock_In_Out__c');
+            // Dynamically set all fields from the map
+            // This handles both standard and custom fields
+            for (String fieldName : contactData.keySet()) {
+                Object fieldValue = contactData.get(fieldName);
+                
+                // Skip null values
+                if (fieldValue == null) {
+                    continue;
+                }
+                
+                // Skip internal fields
+                if (fieldName.equalsIgnoreCase('RecordType.DeveloperName') || 
+                    fieldName.equalsIgnoreCase('RecordTypeId') ||
+                    fieldName.equalsIgnoreCase('Name')) {
+                    continue;
+                }
+                
+                try {
+                    // Use putSObject to dynamically set field values
+                    contactRecord.put(fieldName, fieldValue);
+                } catch (Exception fieldEx) {
+                    System.debug('Warning: Could not set field ' + fieldName + ': ' + fieldEx.getMessage());
+                    // Continue with other fields if one fails
+                }
             }
             
             // Handle RecordType assignment for new records
