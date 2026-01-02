@@ -1,254 +1,177 @@
 public with sharing class ProposalDeepCloneController {
 
-    // Cache schema descriptions to save CPU time
-    private static Map<String, Set<String>> cachedFieldMap = new Map<String, Set<String>>();
-
     @AuraEnabled
     public static String cloneProposal(Id proposalId) {
         Savepoint sp = Database.setSavepoint();
         try {
-            // ----------------------------------------------------------------
-            // 1. CLONE ROOT (Proposal)
-            // ----------------------------------------------------------------
-            String rootObjName = 'wfrecon__Proposal__c';
+            System.debug('### STARTING CLONE FOR PROPOSAL: ' + proposalId);
+
+            // ====================================================
+            // 1. CLONE PROPOSAL
+            // ====================================================
+            SObject oldProposal = queryRecord('wfrecon__Proposal__c', 'Id', new Set<Id>{proposalId}).get(0);
+            SObject newProposal = oldProposal.clone(false, true, false, false);
             
-            // Query & Clone Parent
-            SObject originalProposal = querySingleRecord(proposalId, rootObjName);
-            SObject newProposal = originalProposal.clone(false, true, false, false);
-            
-            // Name Logic: Only update Name if it is NOT an Auto-Number
-            if (isNameWritable(rootObjName)) {
-                String oldName = (String)originalProposal.get('Name');
-                newProposal.put('Name', oldName + ' - Clone');
+            // Set Name
+            if (isNameWritable('wfrecon__Proposal__c')) {
+                newProposal.put('Name', (String)oldProposal.get('Name') + ' - Clone');
             }
             insert newProposal;
-
-            // ----------------------------------------------------------------
-            // 2. RECURSIVE DEEP CLONE (Levels 1, 2, 3)
-            // ----------------------------------------------------------------
-            // Map maintains the link: Old_Parent_ID => New_Parent_Record
-            Map<Id, SObject> previousLevelMap = new Map<Id, SObject>{ proposalId => newProposal };
-
-            // Run for 3 levels deep
-            for (Integer i = 1; i <= 3; i++) {
-                // Stop if we are close to limits
-                if (Limits.getQueries() >= 90) break;
-
-                previousLevelMap = processLevel(previousLevelMap);
-
-                if (previousLevelMap.isEmpty()) break;
-            }
-
-            return newProposal.Id;
-
-        } catch (Exception e) {
-            Database.rollback(sp);
-            throw new AuraHandledException('Deep Clone Error: ' + e.getMessage() + ' | ' + e.getStackTraceString());
-        }
-    }
-
-    /**
-     * PROCESS LEVEL: 
-     * Uses Sub-Select Queries to fetch children of multiple types in batches.
-     */
-    private static Map<Id, SObject> processLevel(Map<Id, SObject> parentMap) {
-        Map<Id, SObject> nextLevelMap = new Map<Id, SObject>();
-        
-        // 1. Group Parent IDs by SObject Type (Handle recursive parents)
-        Map<String, Set<Id>> parentIdsByType = new Map<String, Set<Id>>();
-        for (Id oldId : parentMap.keySet()) {
-            String objType = String.valueOf(oldId.getSobjectType());
-            if (!parentIdsByType.containsKey(objType)) {
-                parentIdsByType.put(objType, new Set<Id>());
-            }
-            parentIdsByType.get(objType).add(oldId);
-        }
-
-        // We will collect all new records here before inserting
-        // Map<ObjectTypeName, List<Records>>
-        Map<String, List<SObject>> newRecordsToInsertByType = new Map<String, List<SObject>>();
-        
-        // Tracking: Old_Child_ID => New_Child_Record (for next recursion)
-        Map<Id, SObject> oldIdToNewInstance = new Map<Id, SObject>();
-
-        // 2. Iterate Parent Types
-        for (String parentObjName : parentIdsByType.keySet()) {
-            Set<Id> validParentIds = parentIdsByType.get(parentObjName);
+            Id newProposalId = newProposal.Id;
             
-            // Get all Custom Relationships
-            List<ChildRelationInfo> relations = getChildRelationships(parentObjName);
-            if (relations.isEmpty()) continue;
+            List<SObject> oldLines = queryRecord('wfrecon__Proposal_Line__c', 'wfrecon__Proposal__c', new Set<Id>{proposalId});
+            System.debug('### FOUND LINES: ' + oldLines.size());
 
-            // 3. CHUNK LOGIC (Batching Sub-Queries)
-            // Salesforce allows max 20 sub-queries per SOQL. We use 15 to be safe and avoid query length limits.
-            Integer BATCH_SIZE = 15;
-            
-            for (Integer i = 0; i < relations.size(); i += BATCH_SIZE) {
-                // Safety: Stop if query limits hit
-                if (Limits.getQueries() >= 95) break;
+            Map<Id, Id> oldLineIdToNewLineId = new Map<Id, Id>();
 
-                // Create a batch of relationships
-                List<ChildRelationInfo> batchRels = new List<ChildRelationInfo>();
-                for (Integer j = 0; j < BATCH_SIZE && (i + j) < relations.size(); j++) {
-                    batchRels.add(relations[i + j]);
-                }
-
-                // Build Sub-Select Query: SELECT Id, (SELECT ... FROM Rel1), (SELECT ... FROM Rel2) FROM Parent
-                List<String> subSelects = new List<String>();
+            if (!oldLines.isEmpty()) {
+                List<SObject> newLines = new List<SObject>();
                 
-                // Keep track of which relationship maps to which index/name
-                for (ChildRelationInfo rel : batchRels) {
-                    Set<String> fields = getCloneableFields(rel.childObjectName);
-                    if (fields.isEmpty()) continue;
-                    
-                    String subQuery = '(SELECT ' + String.join(new List<String>(fields), ',') + 
-                                      ' FROM ' + rel.relationshipName + ')';
-                    subSelects.add(subQuery);
+                for (SObject oldRec : oldLines) {
+                    SObject newRec = oldRec.clone(false, true, false, false);
+                    newRec.put('wfrecon__Proposal__c', newProposalId); // Link to New Proposal
+                    newLines.add(newRec);
+                }
+                
+                insert newLines;
+
+                // Map Old IDs to New IDs
+                for (Integer i = 0; i < oldLines.size(); i++) {
+                    oldLineIdToNewLineId.put(oldLines[i].Id, newLines[i].Id);
+                }
+            }
+
+
+            // ====================================================
+            // 3. CLONE BUDGETS
+            // ====================================================
+            // We query budgets that are linked to the OLD Lines
+            if (!oldLineIdToNewLineId.isEmpty()) {
+                List<SObject> oldBudgets = queryRecord('wfrecon__Budget__c', 'wfrecon__Proposal_Line__c', oldLineIdToNewLineId.keySet());
+                System.debug('### FOUND BUDGETS: ' + oldBudgets.size());
+
+                Map<Id, Id> oldBudgetIdToNewBudgetId = new Map<Id, Id>();
+
+                if (!oldBudgets.isEmpty()) {
+                    List<SObject> newBudgets = new List<SObject>();
+
+                    for (SObject oldRec : oldBudgets) {
+                        SObject newRec = oldRec.clone(false, true, false, false);
+                        
+                        // 1. Link to New Line
+                        Id oldLineId = (Id)oldRec.get('wfrecon__Proposal_Line__c');
+                        if (oldLineIdToNewLineId.containsKey(oldLineId)) {
+                            newRec.put('wfrecon__Proposal_Line__c', oldLineIdToNewLineId.get(oldLineId));
+                        }
+
+                        // 2. Link to New Proposal (Crucial Fix)
+                        // Even if Budget is child of Line, it often has a lookup to Proposal too. 
+                        // We must update this, otherwise it points to Old Proposal.
+                        if (hasField('wfrecon__Budget__c', 'wfrecon__Proposal__c')) {
+                            newRec.put('wfrecon__Proposal__c', newProposalId);
+                        }
+
+                        newBudgets.add(newRec);
+                    }
+
+                    insert newBudgets;
+
+                    // Map Old IDs to New IDs
+                    for (Integer i = 0; i < oldBudgets.size(); i++) {
+                        oldBudgetIdToNewBudgetId.put(oldBudgets[i].Id, newBudgets[i].Id);
+                    }
                 }
 
-                if (subSelects.isEmpty()) continue;
 
-                String masterQuery = 'SELECT Id, ' + String.join(subSelects, ',') + 
-                                     ' FROM ' + parentObjName + 
-                                     ' WHERE Id IN :validParentIds';
+                // ====================================================
+                // 4. CLONE BUDGET LINES
+                // ====================================================
+                if (!oldBudgetIdToNewBudgetId.isEmpty()) {
+                    List<SObject> oldBudgetLines = queryRecord('wfrecon__Budget_Line__c', 'wfrecon__Budget__c', oldBudgetIdToNewBudgetId.keySet());
+                    System.debug('### FOUND BUDGET LINES: ' + oldBudgetLines.size());
 
-                // Execute ONE query for up to 15 Child Objects
-                List<SObject> queryResults = Database.query(masterQuery);
+                    if (!oldBudgetLines.isEmpty()) {
+                        List<SObject> newBudgetLines = new List<SObject>();
 
-                // 4. Extract Children from Results
-                for (SObject parentRecord : queryResults) {
-                    SObject newParent = parentMap.get(parentRecord.Id); // Get the NEW parent we created earlier
-
-                    for (ChildRelationInfo rel : batchRels) {
-                        // Extract embedded list
-                        // Using safe extraction
-                        List<SObject> children = new List<SObject>();
-                        try {
-                            children = parentRecord.getSObjects(rel.relationshipName);
-                        } catch (Exception ex) { continue; } // Handle cases where relationship returns null
-
-                        if (children != null && !children.isEmpty()) {
-                            List<SObject> clonesForThisRel = new List<SObject>();
+                        for (SObject oldRec : oldBudgetLines) {
+                            SObject newRec = oldRec.clone(false, true, false, false);
                             
-                            for (SObject oldChild : children) {
-                                SObject newChild = oldChild.clone(false, true, false, false);
-                                
-                                // Re-Parent
-                                newChild.put(rel.lookupFieldName, newParent.Id);
-                                
-                                clonesForThisRel.add(newChild);
-                                oldIdToNewInstance.put(oldChild.Id, newChild);
+                            // 1. Link to New Budget
+                            Id oldBudgetId = (Id)oldRec.get('wfrecon__Budget__c');
+                            if (oldBudgetIdToNewBudgetId.containsKey(oldBudgetId)) {
+                                newRec.put('wfrecon__Budget__c', oldBudgetIdToNewBudgetId.get(oldBudgetId));
                             }
 
-                            if (!newRecordsToInsertByType.containsKey(rel.childObjectName)) {
-                                newRecordsToInsertByType.put(rel.childObjectName, new List<SObject>());
+                            // 2. Link to New Proposal (Safety Fix)
+                            if (hasField('wfrecon__Budget_Line__c', 'wfrecon__Proposal__c')) {
+                                newRec.put('wfrecon__Proposal__c', newProposalId);
                             }
-                            newRecordsToInsertByType.get(rel.childObjectName).addAll(clonesForThisRel);
+
+                            newBudgetLines.add(newRec);
                         }
+                        insert newBudgetLines;
                     }
                 }
             }
-        }
 
-        // 5. BULK INSERT (One DML per Object Type)
-        if (!newRecordsToInsertByType.isEmpty()) {
-            for (String objType : newRecordsToInsertByType.keySet()) {
-                try {
-                    insert newRecordsToInsertByType.get(objType);
-                } catch (Exception e) {
-                    System.debug('Error inserting ' + objType + ': ' + e.getMessage());
-                }
-            }
-        }
+            return newProposalId;
 
-        // 6. Return Map for Next Level
-        for (Id oldId : oldIdToNewInstance.keySet()) {
-            SObject newRec = oldIdToNewInstance.get(oldId);
-            if (newRec.Id != null) {
-                nextLevelMap.put(oldId, newRec);
-            }
+        } catch (Exception e) {
+            Database.rollback(sp);
+            System.debug('### EXCEPTION: ' + e.getMessage());
+            System.debug('### STACK: ' + e.getStackTraceString());
+            throw new AuraHandledException('Error: ' + e.getMessage());
         }
-
-        return nextLevelMap;
     }
 
-    // ----------------------------------------------------------------
-    // UTILITIES
-    // ----------------------------------------------------------------
+    // ==========================================================================
+    // HELPER METHODS
+    // ==========================================================================
 
-    private static SObject querySingleRecord(Id recordId, String objectName) {
-        Set<String> fields = getCloneableFields(objectName);
-        String query = 'SELECT ' + String.join(new List<String>(fields), ',') + 
-                       ' FROM ' + objectName + ' WHERE Id = :recordId LIMIT 1';
+    private static List<SObject> queryRecord(String objName, String criteriaField, Set<Id> criteriaValues) {
+        if (criteriaValues.isEmpty()) return new List<SObject>();
+        
+        List<String> fields = getFields(objName);
+        
+        // Ensure criteria field is selected so we can map it later
+        Boolean hasField = false;
+        for(String f : fields) { if(f.equalsIgnoreCase(criteriaField)) hasField=true; }
+        if(!hasField) fields.add(criteriaField);
+
+        String query = 'SELECT ' + String.join(fields, ',') + 
+                       ' FROM ' + objName + 
+                       ' WHERE ' + criteriaField + ' IN :criteriaValues';
+        
         return Database.query(query);
     }
 
-    private static Boolean isNameWritable(String objectName) {
-        Map<String, Schema.SObjectField> mapFields = Schema.getGlobalDescribe().get(objectName).getDescribe().fields.getMap();
-        if (mapFields.containsKey('Name')) {
-            Schema.DescribeFieldResult d = mapFields.get('Name').getDescribe();
-            return d.isCreateable() && !d.isAutoNumber();
-        }
-        return false;
-    }
-
-    // --- SCHEMA METHODS ---
-
-    private static Set<String> getCloneableFields(String objectName) {
-        if (cachedFieldMap.containsKey(objectName)) {
-            return cachedFieldMap.get(objectName);
-        }
-
-        Set<String> fieldsToQuery = new Set<String>();
-        Map<String, Schema.SObjectField> fieldMap = Schema.getGlobalDescribe().get(objectName).getDescribe().fields.getMap();
-
-        for (String fieldName : fieldMap.keySet()) {
-            Schema.DescribeFieldResult d = fieldMap.get(fieldName).getDescribe();
-            
-            // Exclude System Fields
-            if (d.getName().equalsIgnoreCase('ActivityId')) continue; 
-            if (d.getName().equalsIgnoreCase('CreatedDate')) continue; 
-            if (d.getName().equalsIgnoreCase('LastModifiedDate')) continue; 
-            if (d.getName().equalsIgnoreCase('OwnerId') && !d.isCreateable()) continue; 
-
-            if (d.getName() == 'Name' || d.isCreateable()) {
-                fieldsToQuery.add(d.getName());
-            }
-        }
-        cachedFieldMap.put(objectName, fieldsToQuery);
-        return fieldsToQuery;
-    }
-
-    public class ChildRelationInfo {
-        public String childObjectName;
-        public String lookupFieldName;
-        public String relationshipName; // e.g. wfrecon__Proposal_Items__r
-    }
-
-    private static List<ChildRelationInfo> getChildRelationships(String parentObjectName) {
-        List<ChildRelationInfo> relationships = new List<ChildRelationInfo>();
+    private static List<String> getFields(String objName) {
+        Map<String, Schema.SObjectField> fieldMap = Schema.getGlobalDescribe().get(objName).getDescribe().fields.getMap();
+        List<String> fields = new List<String>();
         
-        Schema.SObjectType parentType = Schema.getGlobalDescribe().get(parentObjectName);
-        if (parentType == null) return relationships;
-
-        for (Schema.ChildRelationship rel : parentType.getDescribe().getChildRelationships()) {
-            Schema.DescribeSObjectResult childDescribe = rel.getChildSObject().getDescribe();
-            String childName = childDescribe.getName();
-            String relName = rel.getRelationshipName(); // Essential for Sub-Query
-
-            // FILTER: 
-            // 1. Must be Custom Object (avoids system tables)
-            // 2. Must be Createable
-            // 3. Must have a Relationship Name (some system relationships don't)
-            if (relName != null && childDescribe.isCustom() && childDescribe.isCreateable()) {
-                
-                ChildRelationInfo info = new ChildRelationInfo();
-                info.childObjectName = childName;
-                info.lookupFieldName = rel.getField().getDescribe().getName();
-                info.relationshipName = relName;
-                relationships.add(info);
+        for (String f : fieldMap.keySet()) {
+            Schema.DescribeFieldResult d = fieldMap.get(f).getDescribe();
+            // Get all Accessible fields
+            if (d.isAccessible()) {
+                // Exclude system fields that break clones
+                String n = d.getName();
+                if (!n.equalsIgnoreCase('CreatedDate') && 
+                    !n.equalsIgnoreCase('LastModifiedDate') &&
+                    !n.equalsIgnoreCase('CreatedById') &&
+                    !n.equalsIgnoreCase('LastModifiedById')) {
+                    fields.add(n);
+                }
             }
         }
-        return relationships;
+        return fields;
+    }
+
+    private static Boolean isNameWritable(String objName) {
+        Schema.DescribeFieldResult d = Schema.getGlobalDescribe().get(objName).getDescribe().fields.getMap().get('Name').getDescribe();
+        return d.isCreateable() && !d.isAutoNumber();
+    }
+
+    private static Boolean hasField(String objName, String fieldName) {
+        return Schema.getGlobalDescribe().get(objName).getDescribe().fields.getMap().containsKey(fieldName);
     }
 }
