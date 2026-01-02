@@ -563,6 +563,7 @@ export default class QuoteEmailComposer extends LightningElement {
                     --slds-c-icon-color-foreground-default: #ffffff !important;
                     font-weight: 600 !important;
                     border-radius: 4px;
+                    padding: 6px;
                 }
                 .accordion-container .slds-accordion__summary-content{
                     font-size: medium;
