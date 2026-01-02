@@ -1,6 +1,6 @@
 <template>
     <div class="modal-header slds-modal__header">
-        <h2 class="title slds-text-heading_medium slds-hyphenate">Deep Clone Proposal</h2>
+        <h2 class="title slds-text-heading_medium slds-hyphenate">Clone Proposal</h2>
     </div>
     
     <div class="slds-modal__content slds-p-around_medium">
@@ -8,15 +8,11 @@
             <div class="slds-is-relative" style="height: 100px;">
                 <lightning-spinner alternative-text="Cloning..." variant="brand"></lightning-spinner>
             </div>
-            <p class="slds-text-align_center slds-m-top_medium">Cloning Proposal and all related records...</p>
         </template>
         
         <template if:false={isLoading}>
             <p class="slds-text-align_center slds-text-heading_small">
                 Are you sure you want to clone this Proposal?
-            </p>
-            <p class="slds-text-align_center slds-text-color_weak slds-m-top_small">
-                This will create a copy of the Proposal, all its child items, and their details.
             </p>
         </template>
     </div>
