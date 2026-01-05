@@ -811,10 +811,14 @@
             <apex:outputPanel rendered="{!customSignature}">
                 <div class="container">
                     <div class="contract-message">
-                        <h1 style="background-color: {!IF(proposalStatus == 'Accepted', '#38a169', '#e53e3e')};">
+                        <h1 style="background-color: {!IF(proposalStatus == 'Accepted', '#38a169', IF(proposalStatus == 'Changes Requested', '#f59e0b', '#e53e3e'))};">
                             {!IF(proposalStatus == 'Accepted', 
                                  'You have successfully signed and accepted your Proposal. Thank you for your business.', 
-                                 'You have rejected the Proposal with reason: ' + rejectionReason + '. Please contact your Sales Representative for further assistance.')}
+                                 IF(proposalStatus == 'Changes Requested',
+                                    'Your change request has been submitted. Your Sales Representative will contact you soon.',
+                                    IF(NOT(ISBLANK(rejectionReason)),
+                                       'You have rejected the Proposal with reason: ' + rejectionReason + '. Please contact your Sales Representative for further assistance.',
+                                       'You have rejected the Proposal. Please contact your Sales Representative for further assistance.')))}
                         </h1>
                     </div>
                     <div class="button-group">
