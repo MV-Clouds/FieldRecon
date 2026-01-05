@@ -1,10 +1,11 @@
 <template>
-    
+
     <div class="main-card">
         <template if:true={isLoading}>
             <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
         </template>
-        <!-- Button Container -->
+
+        <!-- Header -->
         <div class="filter-search-container">
             <div class="header-amounts-container">
                 <div class="amount-item">
@@ -13,6 +14,21 @@
                 </div>
             </div>
             <div class="header-actions">
+                <template if:true={hasAnyModifications}>
+                    <button class="action-button cancel-btn" onclick={handleDiscardAllBudgetSections}
+                        disabled={isSaving}>
+                        Cancel All Changes
+                    </button>
+                    <button class="action-button save-btn" onclick={handleSaveAllBudgetSections}
+                        disabled={isSaving}>
+                        <template if:true={isSaving}>
+                            Saving...
+                        </template>
+                        <template if:false={isSaving}>
+                            Save All Changes
+                        </template>
+                    </button>
+                </template>
                 <button class="action-button add-btn" onclick={handleAddProposalLine}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -25,7 +41,7 @@
             </div>
         </div>
 
-        <!-- Nested Table Content -->
+        <!-- Proposal Lines Table -->
         <template if:true={proposalLines.length}>
             <div class="data-table-container">
                 <table class="custom-data-table">
@@ -33,8 +49,11 @@
                         <tr>
                             <th class="header-cell" style="width: 50px;"></th>
                             <th class="header-cell">Sr No.</th>
-                            <th class="header-cell">Proposal Line</th>
-                            <th class="header-cell">Description</th>
+                            <th class="header-cell">Product</th>
+                            <th class="header-cell">Quantity</th>
+                            <th class="header-cell">OH</th>
+                            <th class="header-cell">Warranty</th>
+                            <th class="header-cell">Profit</th>
                             <th class="header-cell">Budget Lines</th>
                             <th class="header-cell">Total Amount</th>
                             <th class="header-cell">Actions</th>
@@ -43,20 +62,18 @@
                     <tbody class="table-body">
                         <template for:each={proposalLines} for:item="line">
                             <!-- Proposal Line Row -->
-                            <tr key={line.Id} class="proposal-line-row">
+                            <tr key={line.Id} class="proposal-line-row" data-is-odd={line.isOddRow}>
                                 <td class="center-trancate-text">
                                     <button class="toggle-button" data-id={line.Id} onclick={handleToggleExpand}
                                         data-expanded={line.isExpanded}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                                             xmlns="http://www.w3.org/2000/svg">
                                             <template if:true={line.isExpanded}>
-                                                <!-- Chevron Up - Indicates collapse -->
-                                                <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2"
+                                                <path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2"
                                                     stroke-linecap="round" stroke-linejoin="round" />
                                             </template>
                                             <template if:false={line.isExpanded}>
-                                                <!-- Chevron Down - Indicates expand -->
-                                                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2"
+                                                <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                                     stroke-linecap="round" stroke-linejoin="round" />
                                             </template>
                                         </svg>
@@ -66,7 +83,106 @@
                                 <td class="center-trancate-text">
                                     <a href={line.recordLink} class="name-link">{line.Name}</a>
                                 </td>
-                                <td class="center-trancate-text">{line.wfrecon__Description__c}</td>
+                                <!-- Quantity Field -->
+                                <td class="center-trancate-text editable-cell"
+                                    data-proposal-line-id={line.Id}
+                                    data-field="wfrecon__Quantity__c"
+                                    data-editable="true"
+                                    onclick={handleProposalLineCellClick}>
+                                    <template if:true={line.isEditingQuantity}>
+                                        <input type="number" class="inline-edit-input"
+                                            value={line.displayQuantity}
+                                            data-proposal-line-id={line.Id}
+                                            data-field="wfrecon__Quantity__c"
+                                            oninput={handleProposalLineFieldChange}
+                                            onblur={handleProposalLineFieldBlur}
+                                            step="1" min="0" />
+                                    </template>
+                                    <template if:false={line.isEditingQuantity}>
+                                        <div class="cell-with-icon">
+                                            <span class="cell-text">{line.displayQuantity}</span>
+                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                    </template>
+                                </td>
+                                <!-- OH Field -->
+                                <td class="center-trancate-text editable-cell"
+                                    data-proposal-line-id={line.Id}
+                                    data-field="wfrecon__OH_Per__c"
+                                    data-editable="true"
+                                    onclick={handleProposalLineCellClick}>
+                                    <template if:true={line.isEditingOH}>
+                                        <input type="number" class="inline-edit-input"
+                                            value={line.displayOH}
+                                            data-proposal-line-id={line.Id}
+                                            data-field="wfrecon__OH_Per__c"
+                                            oninput={handleProposalLineFieldChange}
+                                            onblur={handleProposalLineFieldBlur}
+                                            step="0.01" min="0" />
+                                    </template>
+                                    <template if:false={line.isEditingOH}>
+                                        <div class="cell-with-icon">
+                                            <span class="cell-text">{line.displayOH}%</span>
+                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                    </template>
+                                </td>
+                                <!-- Warranty Field -->
+                                <td class="center-trancate-text editable-cell"
+                                    data-proposal-line-id={line.Id}
+                                    data-field="wfrecon__Warranty_Per__c"
+                                    data-editable="true"
+                                    onclick={handleProposalLineCellClick}>
+                                    <template if:true={line.isEditingWarranty}>
+                                        <input type="number" class="inline-edit-input"
+                                            value={line.displayWarranty}
+                                            data-proposal-line-id={line.Id}
+                                            data-field="wfrecon__Warranty_Per__c"
+                                            oninput={handleProposalLineFieldChange}
+                                            onblur={handleProposalLineFieldBlur}
+                                            step="0.01" min="0" />
+                                    </template>
+                                    <template if:false={line.isEditingWarranty}>
+                                        <div class="cell-with-icon">
+                                            <span class="cell-text">{line.displayWarranty}%</span>
+                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                    </template>
+                                </td>
+                                <!-- Profit Field -->
+                                <td class="center-trancate-text editable-cell"
+                                    data-proposal-line-id={line.Id}
+                                    data-field="wfrecon__Profit_Per__c"
+                                    data-editable="true"
+                                    onclick={handleProposalLineCellClick}>
+                                    <template if:true={line.isEditingProfit}>
+                                        <input type="number" class="inline-edit-input"
+                                            value={line.displayProfit}
+                                            data-proposal-line-id={line.Id}
+                                            data-field="wfrecon__Profit_Per__c"
+                                            oninput={handleProposalLineFieldChange}
+                                            onblur={handleProposalLineFieldBlur}
+                                            step="0.01" min="0" />
+                                    </template>
+                                    <template if:false={line.isEditingProfit}>
+                                        <div class="cell-with-icon">
+                                            <span class="cell-text">{line.displayProfit}%</span>
+                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                    </template>
+                                </td>
                                 <td class="center-trancate-text">{line.budgetLineCount} Lines</td>
                                 <td class="center-trancate-text total-amount">${line.totalAmount}</td>
                                 <td class="center-trancate-text">
@@ -74,396 +190,1306 @@
                                         title="Delete">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                                             xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round" />
-                                            <path
-                                                d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round" />
+                                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                         </svg>
                                     </button>
                                 </td>
                             </tr>
-                            <!-- Budget Nested Rows -->
+
+                            <!-- Budget Sections (Expanded View) -->
                             <template if:true={line.isExpanded}>
                                 <tr key={line.budgetRowKey} class="nested-row">
-                                    <td colspan="9" class="nested-table-container">
+                                    <td colspan="10" class="nested-table-container">
                                         <template if:true={line.budget}>
-                                            <div class="nested-table-wrapper">
-                                                <!-- Budget Action Buttons -->
-                                                <div class="budget-actions">
-                                                    <button 
-                                                        class="action-button add-budget-line-btn" 
-                                                        data-proposal-line-id={line.Id}
-                                                        onclick={handleAddBudgetLine}
-                                                        title="Add new budget line">
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                                            <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                                        </svg>
-                                                        Add Budget Line
-                                                    </button>
-                                                    <template if:true={line.budget.hasBudgetModifications}>
-                                                        <button 
-                                                            class="action-button discard-btn" 
-                                                            data-proposal-line-id={line.Id}
-                                                            onclick={handleDiscardBudgetChanges}
-                                                            disabled={line.budget.isSavingBudget}
-                                                            title="Discard unsaved changes">
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <div class="budget-sections-container">
+
+                                                <!-- Labor Section -->
+                                                <div class="budget-section">
+                                                    <div class="section-header-row">
+                                                        <div class="section-header-left" data-proposal-line-id={line.Id}
+                                                            data-cost-type="labor" onclick={handleToggleSection}>
+                                                            <svg class="section-toggle-icon" width="16" height="16"
+                                                                viewBox="0 0 24 24" fill="none">
+                                                                <template if:true={line.budget.laborExpanded}>
+                                                                    <path d="M19 9l-7 7-7-7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </template>
+                                                                <template if:false={line.budget.laborExpanded}>
+                                                                    <path d="M9 5l7 7-7 7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </template>
                                                             </svg>
-                                                            Discard Changes
-                                                        </button>
-                                                        <button 
-                                                            class="action-button save-btn" 
-                                                            data-proposal-line-id={line.Id}
-                                                            onclick={handleSaveBudgetChanges}
-                                                            disabled={line.budget.isSavingBudget}>
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                <polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                            </svg>
-                                                            <template if:true={line.budget.isSavingBudget}>Saving...</template>
-                                                            <template if:false={line.budget.isSavingBudget}>Save Changes</template>
-                                                        </button>
+                                                            <h3 class="section-title">Labor</h3>
+                                                            <span
+                                                                class="section-count">({line.budget.budgetLinesByCostType.labor.length}
+                                                                lines)</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <template if:true={line.budget.laborExpanded}>
+                                                        <div class="section-content">
+                                                            <div class="section-actions">
+                                                                <button class="section-action-btn add-btn"
+                                                                    data-proposal-line-id={line.Id} data-cost-type="labor"
+                                                                    data-budget-id={line.budget.Id}
+                                                                    onclick={handleAddBudgetLineToSection}>
+                                                                    <svg width="20" height="20" viewBox="0 0 24 24"
+                                                                        fill="none">
+                                                                        <path d="M12 5V19M5 12H19" stroke="currentColor"
+                                                                            stroke-width="2" />
+                                                                    </svg>
+                                                                    Add
+                                                                </button>
+                                                            </div>
+                                                            <template if:true={line.budget.budgetLinesByCostType.labor.length}>
+                                                                <div class="table-scroll-container">
+                                                                <table class="budget-section-table">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th class="col-sr-no">Sr No.</th>
+                                                                            <th>No. Of Crew</th>
+                                                                            <th>Hrs/Day</th>
+                                                                            <th>Burden Rate/Hour</th>
+                                                                            <th># Of Days</th>
+                                                                            <th>Estimated Hours</th>
+                                                                            <th>Labor Cost</th>
+                                                                            <th>Note</th>
+                                                                            <th class="col-actions">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <template
+                                                                            for:each={line.budget.budgetLinesByCostType.labor}
+                                                                            for:item="laborLine" for:index="idx">
+                                                                            <tr key={laborLine.Id}>
+                                                                                <td class="col-sr-no">{laborLine.displayIndex}</td>
+                                                                                <!-- No. Of Crew -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={laborLine.Id}
+                                                                                    data-cost-type="labor"
+                                                                                    data-field="wfrecon__No_Of_Crew_Members__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={laborLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={laborLine.wfrecon__No_Of_Crew_Members__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={laborLine.Id}
+                                                                                            data-cost-type="labor"
+                                                                                            data-field="wfrecon__No_Of_Crew_Members__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={laborLine.isNew}>
+                                                                                        <template if:true={laborLine.isEditingCrew}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={laborLine.wfrecon__No_Of_Crew_Members__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={laborLine.Id}
+                                                                                                data-cost-type="labor"
+                                                                                                data-field="wfrecon__No_Of_Crew_Members__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={laborLine.isEditingCrew}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{laborLine.wfrecon__No_Of_Crew_Members__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Hrs/Day -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={laborLine.Id}
+                                                                                    data-cost-type="labor"
+                                                                                    data-field="wfrecon__Hrs_day__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={laborLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={laborLine.wfrecon__Hrs_day__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={laborLine.Id}
+                                                                                            data-cost-type="labor"
+                                                                                            data-field="wfrecon__Hrs_day__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={laborLine.isNew}>
+                                                                                        <template if:true={laborLine.isEditingHrsDay}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={laborLine.wfrecon__Hrs_day__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={laborLine.Id}
+                                                                                                data-cost-type="labor"
+                                                                                                data-field="wfrecon__Hrs_day__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={laborLine.isEditingHrsDay}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{laborLine.wfrecon__Hrs_day__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Burden Rate/Hour -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={laborLine.Id}
+                                                                                    data-cost-type="labor"
+                                                                                    data-field="wfrecon__Burden_Rate_Hour__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={laborLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={laborLine.wfrecon__Burden_Rate_Hour__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={laborLine.Id}
+                                                                                            data-cost-type="labor"
+                                                                                            data-field="wfrecon__Burden_Rate_Hour__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={laborLine.isNew}>
+                                                                                        <template if:true={laborLine.isEditingBurdenRate}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={laborLine.wfrecon__Burden_Rate_Hour__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={laborLine.Id}
+                                                                                                data-cost-type="labor"
+                                                                                                data-field="wfrecon__Burden_Rate_Hour__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={laborLine.isEditingBurdenRate}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{laborLine.wfrecon__Burden_Rate_Hour__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- # Of Days -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={laborLine.Id}
+                                                                                    data-cost-type="labor"
+                                                                                    data-field="wfrecon__of_Days__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={laborLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={laborLine.wfrecon__of_Days__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={laborLine.Id}
+                                                                                            data-cost-type="labor"
+                                                                                            data-field="wfrecon__of_Days__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={laborLine.isNew}>
+                                                                                        <template if:true={laborLine.isEditingDays}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={laborLine.wfrecon__of_Days__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={laborLine.Id}
+                                                                                                data-cost-type="labor"
+                                                                                                data-field="wfrecon__of_Days__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={laborLine.isEditingDays}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{laborLine.wfrecon__of_Days__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Estimated Hours (Calculated) -->
+                                                                                <td>
+                                                                                    <span class="calculated-value">{laborLine.wfrecon__Estimated_Hours__c}</span>
+                                                                                </td>
+                                                                                <!-- Labor Cost (Calculated) -->
+                                                                                <td>
+                                                                                    <span class="calculated-value">${laborLine.wfrecon__Labor_Cost__c}</span>
+                                                                                </td>
+                                                                                <!-- Note -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={laborLine.Id}
+                                                                                    data-cost-type="labor"
+                                                                                    data-field="wfrecon__Note__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={laborLine.isNew}>
+                                                                                        <input type="text" class="table-text-input"
+                                                                                            value={laborLine.wfrecon__Note__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={laborLine.Id}
+                                                                                            data-cost-type="labor"
+                                                                                            data-field="wfrecon__Note__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={laborLine.isNew}>
+                                                                                        <template if:true={laborLine.isEditingNote}>
+                                                                                            <input type="text" class="inline-edit-input"
+                                                                                                value={laborLine.wfrecon__Note__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={laborLine.Id}
+                                                                                                data-cost-type="labor"
+                                                                                                data-field="wfrecon__Note__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={laborLine.isEditingNote}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{laborLine.wfrecon__Note__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <button class="table-delete-btn"
+                                                                                        data-proposal-line-id={line.Id}
+                                                                                        data-budget-line-id={laborLine.Id}
+                                                                                        data-cost-type="labor"
+                                                                                        onclick={handleDeleteBudgetLine}>
+                                                                                        <svg width="14" height="14"
+                                                                                            viewBox="0 0 24 24"
+                                                                                            fill="none">
+                                                                                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                        </svg>
+                                                                                    </button>
+                                                                                </td>
+                                                                            </tr>
+                                                                        </template>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                            </template>
+                                                            <template if:false={line.budget.budgetLinesByCostType.labor.length}>
+                                                                <div class="no-budget-lines">
+                                                                    <p>No labor budget lines available. Click "Add" to create a new entry.</p>
+                                                                </div>
+                                                            </template>
+                                                        </div>
                                                     </template>
                                                 </div>
 
-                                                <!-- Budget Lines Table -->
-                                                <template if:true={line.budget.budgetLines}>
-                                                    <table class="nested-table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th class="header-cell">Sr No.</th>
-                                                                <th class="header-cell">Budget ID</th>
-                                                                <th class="header-cell">Product</th>
-                                                                <th class="header-cell">Pricebook</th>
-                                                                <th class="header-cell">Description</th>
-                                                                <th class="header-cell">Quantity</th>
-                                                                <th class="header-cell">Unit Cost</th>
-                                                                <th class="header-cell">Total</th>
-                                                                <th class="header-cell">Action</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <template for:each={line.budget.budgetLines}
-                                                                for:item="budgetLine">
-                                                                <tr key={budgetLine.Id}>
-                                                                    <td class="center-trancate-text">
-                                                                        {budgetLine.serialNumber}</td>
-                                                                    <td class="center-trancate-text">{budgetLine.Name}
-                                                                    </td>
-                                                                    <td class="center-trancate-text">
-                                                                        {budgetLine.productName}</td>
-                                                                    <td class="center-trancate-text">
-                                                                        {budgetLine.pricebookName}</td>
-                                                                    <td class="center-trancate-text">
-                                                                        {budgetLine.wfrecon__Description__c}
-                                                                    </td>
-                                                                    <td class={budgetLine.quantityCellClass}
-                                                                        data-proposal-line-id={line.Id}
-                                                                        data-budget-line-id={budgetLine.Id}
-                                                                        data-field="quantity"
-                                                                        onclick={handleBudgetLineCellClick}>
-                                                                        <template if:true={budgetLine.isEditingQuantity}>
-                                                                            <input type="number" 
-                                                                                class="inline-edit-input"
-                                                                                value={budgetLine.wfrecon__Quantity__c}
-                                                                                data-proposal-line-id={line.Id}
-                                                                                data-budget-line-id={budgetLine.Id}
-                                                                                data-field="quantity"
-                                                                                step="0.01"
-                                                                                min="0"
-                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                onblur={handleBudgetLineFieldBlur}>
-                                                                        </template>
-                                                                        <template if:false={budgetLine.isEditingQuantity}>
-                                                                            <div class="cell-content-with-icon">
-                                                                                <span>{budgetLine.wfrecon__Quantity__c}</span>
-                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                </svg>
-                                                                            </div>
-                                                                        </template>
-                                                                    </td>
-                                                                    <td class={budgetLine.unitCostCellClass}
-                                                                        data-proposal-line-id={line.Id}
-                                                                        data-budget-line-id={budgetLine.Id}
-                                                                        data-field="unitCost"
-                                                                        onclick={handleBudgetLineCellClick}>
-                                                                        <template if:true={budgetLine.isEditingUnitCost}>
-                                                                            <input type="number" 
-                                                                                class="inline-edit-input"
-                                                                                value={budgetLine.wfrecon__Unit_Cost__c}
-                                                                                data-proposal-line-id={line.Id}
-                                                                                data-budget-line-id={budgetLine.Id}
-                                                                                data-field="unitCost"
-                                                                                step="0.01"
-                                                                                min="0"
-                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                onblur={handleBudgetLineFieldBlur}>
-                                                                        </template>
-                                                                        <template if:false={budgetLine.isEditingUnitCost}>
-                                                                            <div class="cell-content-with-icon">
-                                                                                <span>${budgetLine.wfrecon__Unit_Cost__c}</span>
-                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                                                </svg>
-                                                                            </div>
-                                                                        </template>
-                                                                    </td>
-                                                                    <td class="center-trancate-text">${budgetLine.total}
-                                                                    </td>
-                                                                    <td class="center-trancate-text action-cell">
-                                                                        <button class="table-delete-btn" 
-                                                                            data-proposal-line-id={line.Id}
-                                                                            data-budget-line-id={budgetLine.Id}
-                                                                            onclick={handleDeleteBudgetLine}
-                                                                            title="Delete Budget Line">
-                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                                                xmlns="http://www.w3.org/2000/svg">
-                                                                                <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
-                                                                                    stroke-linecap="round" stroke-linejoin="round" />
-                                                                                <path
-                                                                                    d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
-                                                                                    stroke="currentColor" stroke-width="2"
-                                                                                    stroke-linecap="round" stroke-linejoin="round" />
-                                                                            </svg>
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            </template>
-                                                            <!-- Budget Lines Total Row -->
-                                                            <tr class="total-row">
-                                                                <td colspan="8" class="total-label">Total Budget Amount:
-                                                                </td>
-                                                                <td class="total-value">
-                                                                    ${line.budget.totalBudgetAmount}
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </template>
-                                                <template if:false={line.budget.budgetLines}>
-                                                    <div class="no-budget-lines">No budget lines found</div>
-                                                </template>
-                                            </div>
-                                        </template>
-                                        <template if:false={line.budget}>
-                                            <div class="no-budget">No budget linked to this proposal line</div>
-                                        </template>
-                                    </td>
-                                </tr>
-                            </template>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </template>
+                                                <!-- Materials Section -->
+                                                <div class="budget-section">
+                                                    <div class="section-header-row">
+                                                        <div class="section-header-left" data-proposal-line-id={line.Id}
+                                                            data-cost-type="materials" onclick={handleToggleSection}>
+                                                            <svg class="section-toggle-icon" width="16" height="16"
+                                                                viewBox="0 0 24 24" fill="none">
+                                                                <template if:true={line.budget.materialsExpanded}>
+                                                                    <path d="M19 9l-7 7-7-7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </template>
+                                                                <template if:false={line.budget.materialsExpanded}>
+                                                                    <path d="M9 5l7 7-7 7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </template>
+                                                            </svg>
+                                                            <h3 class="section-title">Materials</h3>
+                                                            <span
+                                                                class="section-count">({line.budget.budgetLinesByCostType.materials.length}
+                                                                lines)</span>
+                                                        </div>
+                                                    </div>
 
-        <!-- Empty State -->
-        <template if:false={proposalLines.length}>
-            <div class="no-records-message">
-                <div class="empty-state">
-                    <div class="empty-state__content">
-                        <div class="empty-state__icon">
-                            <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
-                        </div>
-                        <div class="empty-state__message">No data available to show</div>
+                                                    <template if:true={line.budget.materialsExpanded}>
+                                                        <div class="section-content">
+                                                            <div class="section-actions">
+                                                                <button class="section-action-btn add-btn"
+                                                                    data-proposal-line-id={line.Id}
+                                                                    data-cost-type="materials"
+                                                                    data-budget-id={line.budget.Id}
+                                                                    onclick={handleAddBudgetLineToSection}>
+                                                                    <svg width="20" height="20" viewBox="0 0 24 24"
+                                                                        fill="none">
+                                                                        <path d="M12 5V19M5 12H19" stroke="currentColor"
+                                                                            stroke-width="2" />
+                                                                    </svg>
+                                                                    Add
+                                                                </button>
+                                                            </div>
+                                                            <template if:true={line.budget.budgetLinesByCostType.materials.length}>
+                                                                <div class="table-scroll-container">
+                                                                    <table class="budget-section-table">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th class="col-sr-no">Sr No.</th>
+                                                                            <th>Material</th>
+                                                                            <th>QTY</th>
+                                                                            <th>Material Cost Each</th>
+                                                                            <th>Material Cost SubTotal</th>
+                                                                            <th class="col-actions">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <template
+                                                                            for:each={line.budget.budgetLinesByCostType.materials}
+                                                                            for:item="materialLine" for:index="idx">
+                                                                            <tr key={materialLine.Id}>
+                                                                                <td class="col-sr-no">{materialLine.displayIndex}</td>
+                                                                                <!-- Material -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={materialLine.Id}
+                                                                                    data-cost-type="materials"
+                                                                                    data-field="wfrecon__Material__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={materialLine.isNew}>
+                                                                                        <input type="text" class="table-text-input"
+                                                                                            value={materialLine.wfrecon__Material__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={materialLine.Id}
+                                                                                            data-cost-type="materials"
+                                                                                            data-field="wfrecon__Material__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={materialLine.isNew}>
+                                                                                        <template if:true={materialLine.isEditingMaterial}>
+                                                                                            <input type="text" class="inline-edit-input"
+                                                                                                value={materialLine.wfrecon__Material__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={materialLine.Id}
+                                                                                                data-cost-type="materials"
+                                                                                                data-field="wfrecon__Material__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={materialLine.isEditingMaterial}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{materialLine.wfrecon__Material__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- QTY -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={materialLine.Id}
+                                                                                    data-cost-type="materials"
+                                                                                    data-field="wfrecon__QTY__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={materialLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={materialLine.wfrecon__QTY__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={materialLine.Id}
+                                                                                            data-cost-type="materials"
+                                                                                            data-field="wfrecon__QTY__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={materialLine.isNew}>
+                                                                                        <template if:true={materialLine.isEditingQty}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={materialLine.wfrecon__QTY__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={materialLine.Id}
+                                                                                                data-cost-type="materials"
+                                                                                                data-field="wfrecon__QTY__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={materialLine.isEditingQty}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{materialLine.wfrecon__QTY__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Material Cost Each -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={materialLine.Id}
+                                                                                    data-cost-type="materials"
+                                                                                    data-field="wfrecon__Material_Cost_Each__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={materialLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={materialLine.wfrecon__Material_Cost_Each__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={materialLine.Id}
+                                                                                            data-cost-type="materials"
+                                                                                            data-field="wfrecon__Material_Cost_Each__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={materialLine.isNew}>
+                                                                                        <template if:true={materialLine.isEditingCostEach}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={materialLine.wfrecon__Material_Cost_Each__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={materialLine.Id}
+                                                                                                data-cost-type="materials"
+                                                                                                data-field="wfrecon__Material_Cost_Each__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={materialLine.isEditingCostEach}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{materialLine.wfrecon__Material_Cost_Each__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Material Cost SubTotal (Calculated) -->
+                                                                                <td>
+                                                                                    <span class="calculated-value">${materialLine.wfrecon__Material_Cost_SubTotal__c}</span>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <button class="table-delete-btn"
+                                                                                        data-proposal-line-id={line.Id}
+                                                                                        data-budget-line-id={materialLine.Id}
+                                                                                        data-cost-type="materials"
+                                                                                        onclick={handleDeleteBudgetLine}>
+                                                                                        <svg width="14" height="14"
+                                                                                            viewBox="0 0 24 24"
+                                                                                            fill="none">
+                                                                                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                        </svg>
+                                                                                    </button>
+                                                                                </td>
+                                                                            </tr>
+                                                                        </template>
+                                                                    </tbody>
+                                                                </table>
+                                                                </div>
+                                                            </template>
+                                                            <template if:false={line.budget.budgetLinesByCostType.materials.length}>
+                                                                <div class="no-budget-lines">
+                                                                    <p>No materials budget lines available. Click "Add" to create a new entry.</p>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+
+                                                <!-- Hotels Section -->
+                                                <div class="budget-section">
+                                                    <div class="section-header-row">
+                                                        <div class="section-header-left" data-proposal-line-id={line.Id}
+                                                            data-cost-type="hotel" onclick={handleToggleSection}>
+                                                            <svg class="section-toggle-icon" width="16" height="16"
+                                                                viewBox="0 0 24 24" fill="none">
+                                                                <template if:true={line.budget.hotelExpanded}>
+                                                                    <path d="M19 9l-7 7-7-7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </template>
+                                                                <template if:false={line.budget.hotelExpanded}>
+                                                                    <path d="M9 5l7 7-7 7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </template>
+                                                            </svg>
+                                                            <h3 class="section-title">Hotels</h3>
+                                                            <span
+                                                                class="section-count">({line.budget.budgetLinesByCostType.hotel.length}
+                                                                lines)</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <template if:true={line.budget.hotelExpanded}>
+                                                        <div class="section-content">
+                                                            <div class="section-actions">
+                                                                <button class="section-action-btn add-btn"
+                                                                    data-proposal-line-id={line.Id} data-cost-type="hotel"
+                                                                    data-budget-id={line.budget.Id}
+                                                                    onclick={handleAddBudgetLineToSection}>
+                                                                    <svg width="20" height="20" viewBox="0 0 24 24"
+                                                                        fill="none">
+                                                                        <path d="M12 5V19M5 12H19" stroke="currentColor"
+                                                                            stroke-width="2" />
+                                                                    </svg>
+                                                                    Add
+                                                                </button>
+                                                            </div>
+                                                            <template if:true={line.budget.budgetLinesByCostType.hotel.length}>
+                                                                <div class="table-scroll-container">
+                                                                    <table class="budget-section-table">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th class="col-sr-no">Sr No.</th>
+                                                                            <th># Of Nights</th>
+                                                                            <th>Number Of Rooms</th>
+                                                                            <th>Costs Per Night</th>
+                                                                            <th>Total Hotel Cost</th>
+                                                                            <th class="col-actions">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <template
+                                                                            for:each={line.budget.budgetLinesByCostType.hotel}
+                                                                            for:item="hotelLine" for:index="idx">
+                                                                            <tr key={hotelLine.Id}>
+                                                                                <td class="col-sr-no">{hotelLine.displayIndex}</td>
+                                                                                <!-- # Of Nights -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={hotelLine.Id}
+                                                                                    data-cost-type="hotel"
+                                                                                    data-field="wfrecon__Of_Nights__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={hotelLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={hotelLine.wfrecon__Of_Nights__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={hotelLine.Id}
+                                                                                            data-cost-type="hotel"
+                                                                                            data-field="wfrecon__Of_Nights__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={hotelLine.isNew}>
+                                                                                        <template if:true={hotelLine.isEditingNights}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={hotelLine.wfrecon__Of_Nights__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={hotelLine.Id}
+                                                                                                data-cost-type="hotel"
+                                                                                                data-field="wfrecon__Of_Nights__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={hotelLine.isEditingNights}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{hotelLine.wfrecon__Of_Nights__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Number Of Rooms -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={hotelLine.Id}
+                                                                                    data-cost-type="hotel"
+                                                                                    data-field="wfrecon__Number_Of_Rooms__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={hotelLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={hotelLine.wfrecon__Number_Of_Rooms__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={hotelLine.Id}
+                                                                                            data-cost-type="hotel"
+                                                                                            data-field="wfrecon__Number_Of_Rooms__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={hotelLine.isNew}>
+                                                                                        <template if:true={hotelLine.isEditingRooms}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={hotelLine.wfrecon__Number_Of_Rooms__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={hotelLine.Id}
+                                                                                                data-cost-type="hotel"
+                                                                                                data-field="wfrecon__Number_Of_Rooms__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={hotelLine.isEditingRooms}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{hotelLine.wfrecon__Number_Of_Rooms__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Costs Per Night -->
+                                                                                <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                                                    data-budget-line-id={hotelLine.Id}
+                                                                                    data-cost-type="hotel"
+                                                                                    data-field="wfrecon__Costs_Per_Night__c"
+                                                                                    data-editable="true"
+                                                                                    onclick={handleBudgetLineCellClick}>
+                                                                                    <template if:true={hotelLine.isNew}>
+                                                                                        <input type="number" class="table-input"
+                                                                                            value={hotelLine.wfrecon__Costs_Per_Night__c}
+                                                                                            data-proposal-line-id={line.Id}
+                                                                                            data-budget-line-id={hotelLine.Id}
+                                                                                            data-cost-type="hotel"
+                                                                                            data-field="wfrecon__Costs_Per_Night__c"
+                                                                                            oninput={handleBudgetLineFieldChange} />
+                                                                                    </template>
+                                                                                    <template if:false={hotelLine.isNew}>
+                                                                                        <template if:true={hotelLine.isEditingCostPerNight}>
+                                                                                            <input type="number" class="inline-edit-input"
+                                                                                                value={hotelLine.wfrecon__Costs_Per_Night__c}
+                                                                                                data-proposal-line-id={line.Id}
+                                                                                                data-budget-line-id={hotelLine.Id}
+                                                                                                data-cost-type="hotel"
+                                                                                                data-field="wfrecon__Costs_Per_Night__c"
+                                                                                                oninput={handleBudgetLineFieldChange}
+                                                                                                onblur={handleBudgetLineCellBlur} />
+                                                                                        </template>
+                                                                                        <template if:false={hotelLine.isEditingCostPerNight}>
+                                                                                            <div class="cell-with-icon">
+                                                                                                <span class="cell-text">{hotelLine.wfrecon__Costs_Per_Night__c}</span>
+                                                                                                <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                </td>
+                                                                                <!-- Total Hotel Cost (Calculated) -->
+                                                                                <td>
+                                                                                    <span class="calculated-value">${hotelLine.wfrecon__Total_Hotel_Cost__c}</span>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <button class="table-delete-btn"
+                                                                                        data-proposal-line-id={line.Id}
+                                                                                        data-budget-line-id={hotelLine.Id}
+                                                                                        data-cost-type="hotel"
+                                                                                        onclick={handleDeleteBudgetLine}>
+                                                                                        <svg width="14" height="14"
+                                                                                            viewBox="0 0 24 24"
+                                                                                            fill="none">
+                                                                                            <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                                                        </svg>
+                                                                                    </button>
+                                                                                </td>
+                                                                            </tr>
+                                                                        </template>
+                                                                    </tbody>
+                                                                </table>
+                                                                </div>
+                                                            </template>
+                                                            <template if:false={line.budget.budgetLinesByCostType.hotel.length}>
+                                                                <div class="no-budget-lines">
+                                                                    <p>No hotel budget lines available. Click "Add" to create a new entry.</p>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+
+                                                <!-- Mileage Section -->
+                                                <div class="budget-section">
+                <div class="section-header-row">
+                    <div class="section-header-left" data-proposal-line-id={line.Id} data-cost-type="mileage"
+                        onclick={handleToggleSection}>
+                        <svg class="section-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <template if:true={line.budget.mileageExpanded}>
+                                <path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </template>
+                            <template if:false={line.budget.mileageExpanded}>
+                                <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </template>
+                        </svg>
+                        <h3 class="section-title">Mileage</h3>
+                        <span class="section-count">({line.budget.budgetLinesByCostType.mileage.length} lines)</span>
                     </div>
                 </div>
-            </div>
-        </template>
-    </div>
 
-    <!-- Add Proposal Lines Modal -->
-    <template if:true={showAddModal}>
-        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
-            aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open slds-modal_full">
-            <div class="slds-modal__container">
-                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
-                    onclick={handleCloseModal}>
-                    <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
-                        size="small"></lightning-icon>
-                </button>
-
-                <div class="pop-heading">
-                    <template if:true={isAddingToBudget}>
-                        Add Budget Lines to {proposalLineName}
-                    </template>
-                    <template if:false={isAddingToBudget}>
-                        Add Proposal Line
-                    </template>
-                </div>
-
-                <div class="slds-modal__content pop-up" id="modal-content-id-1">
-                    <div class="popUpBody slds-p-around--medium">
-                        <template if:true={isModalLoading}>
-                            <lightning-spinner alternative-text="Loading..." size="small"></lightning-spinner>
-                        </template>
-
-                        <!-- Proposal Line Basic Info - Only show when creating new proposal line -->
-                        <template if:false={isAddingToBudget}>
-                            <div class="proposal-header-section">
-                                <h3 class="section-title">Proposal Line Information</h3>
-                                <div class="form-group full-width">
-                                    <label class="form-label required">Proposal Line Name</label>
-                                    <input type="text" class="form-input" placeholder="Enter proposal line name"
-                                        value={proposalLineName} oninput={handleProposalLineNameChange} maxlength="80" />
-                                </div>
-                                <div class="form-group full-width">
-                                    <label class="form-label">Description</label>
-                                    <textarea class="form-textarea" placeholder="Enter description" rows="2"
-                                        value={proposalLineDescription}
-                                        oninput={handleProposalLineDescriptionChange}></textarea>
-                                </div>
-                            </div>
-                        </template>
-
-                        <!-- Budget Lines Section -->
-                        <div class="section-header">
-                            <h3 class="section-title-l">Budget Lines</h3>
-                            <button class="add-line-btn" onclick={handleAddAnotherLine}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                    <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" />
+                <template if:true={line.budget.mileageExpanded}>
+                    <div class="section-content">
+                        <div class="section-actions">
+                            <button class="section-action-btn add-btn" data-proposal-line-id={line.Id}
+                                data-cost-type="mileage" data-budget-id={line.budget.Id}
+                                onclick={handleAddBudgetLineToSection}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" />
                                 </svg>
-                                Add Row
+                                Add
                             </button>
                         </div>
-
-                        <!-- Budget Lines Table -->
-                        <div class="budget-lines-table-container" data-id="tableContainer">
-                            <table class="budget-lines-table">
+                        <template if:true={line.budget.budgetLinesByCostType.mileage.length}>
+                            <div class="table-scroll-container">
+                                <table class="budget-section-table">
                                 <thead>
                                     <tr>
-                                        <th class="table-header-cell">Sr No.</th>
-                                        <th class="table-header-cell required-col">Pricebook</th>
-                                        <th class="table-header-cell required-col">Product</th>
-                                        <th class="table-header-cell">Description</th>
-                                        <th class="table-header-cell required-col">Quantity</th>
-                                        <th class="table-header-cell">Unit Cost</th>
-                                        <th class="table-header-cell">Total</th>
-                                        <th class="table-header-cell">Action</th>
+                                        <th class="col-sr-no">Sr No.</th>
+                                        <th># Of Trips</th>
+                                        <th># Of Trucks</th>
+                                        <th>Mileage</th>
+                                        <th>Mileage Rate</th>
+                                        <th>Total Mileage</th>
+                                        <th class="col-actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template for:each={newBudgetLines} for:item="line" for:index="idx">
-                                        <tr key={line.tempId} class="budget-line-row">
-                                            <td class="table-cell">{line.lineNumber}</td>
-                                            <td class="table-cell">
-                                                <select
-                                                    class="table-select-input"
-                                                    data-id={line.tempId}
-                                                    value={line.pricebookId}
-                                                    onchange={handleRowPricebookChange}
-                                                    disabled={isModalLoading}>
-                                                    <option value="">Select Pricebook</option>
-                                                    <template for:each={pricebookOptions} for:item="pb">
-                                                        <option key={pb.value} value={pb.value}>{pb.label}</option>
-                                                    </template>
-                                                </select>
-                                            </td>
-                                            <td class="table-cell">
-                                                <select
-                                                    class="table-select-input"
-                                                    data-id={line.tempId}
-                                                    value={line.productId}
-                                                    onchange={handleProductChange}
-                                                    disabled={isModalLoading}>
-                                                    <option value="">Select Product</option>
-                                                    <template for:each={line.productOptions} for:item="prod">
-                                                        <option key={prod.value} value={prod.value}>{prod.label}</option>
-                                                    </template>
-                                                </select>
-                                            </td>
-                                            <td class="table-cell">
-                                                <input type="text" class="table-text-input"
-                                                    placeholder="Enter description" value={line.description}
-                                                    data-id={line.tempId} data-field="description"
-                                                    oninput={handleLineFieldChange} />
-                                            </td>
-                                            <td class="table-cell">
-                                                <input type="number" class="table-text-input" placeholder="0"
-                                                    step="0.01" min="0" value={line.quantity} data-id={line.tempId}
-                                                    data-field="quantity" oninput={handleLineFieldChange} />
-                                            </td>
-                                            <td class="table-cell">
-                                                <input type="number" class="table-text-input" placeholder="Auto-filled"
-                                                    step="0.01" value={line.unitCost} data-id={line.tempId}
-                                                    data-field="unitCost" oninput={handleLineFieldChange} />
-                                            </td>
-                                            <td class="table-cell table-total">${line.lineTotal}</td>
-                                            <td class="table-cell">
-                                                <template if:true={line.canDelete}>
-                                                    <button class="table-delete-btn" data-id={line.tempId}
-                                                        onclick={handleRemoveLine} title="Remove Line">
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                            xmlns="http://www.w3.org/2000/svg">
-                                                            <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
-                                                                stroke-linecap="round" stroke-linejoin="round" />
-                                                            <path
-                                                                d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
-                                                                stroke="currentColor" stroke-width="2"
-                                                                stroke-linecap="round" stroke-linejoin="round" />
-                                                        </svg>
-                                                    </button>
+                                    <template for:each={line.budget.budgetLinesByCostType.mileage}
+                                        for:item="mileageLine" for:index="idx">
+                                        <tr key={mileageLine.Id}>
+                                            <td class="col-sr-no">{mileageLine.displayIndex}</td>
+                                            <!-- # Of Trips -->
+                                            <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                data-budget-line-id={mileageLine.Id}
+                                                data-cost-type="mileage"
+                                                data-field="wfrecon__Of_Trips__c"
+                                                data-editable="true"
+                                                onclick={handleBudgetLineCellClick}>
+                                                <template if:true={mileageLine.isNew}>
+                                                    <input type="number" class="table-input"
+                                                        value={mileageLine.wfrecon__Of_Trips__c}
+                                                        data-proposal-line-id={line.Id} data-budget-line-id={mileageLine.Id}
+                                                        data-cost-type="mileage" data-field="wfrecon__Of_Trips__c"
+                                                        oninput={handleBudgetLineFieldChange} />
                                                 </template>
+                                                <template if:false={mileageLine.isNew}>
+                                                    <template if:true={mileageLine.isEditingTrips}>
+                                                        <input type="number" class="inline-edit-input"
+                                                            value={mileageLine.wfrecon__Of_Trips__c}
+                                                            data-proposal-line-id={line.Id}
+                                                            data-budget-line-id={mileageLine.Id}
+                                                            data-cost-type="mileage"
+                                                            data-field="wfrecon__Of_Trips__c"
+                                                            oninput={handleBudgetLineFieldChange}
+                                                            onblur={handleBudgetLineCellBlur} />
+                                                    </template>
+                                                    <template if:false={mileageLine.isEditingTrips}>
+                                                        <div class="cell-with-icon">
+                                                            <span class="cell-text">{mileageLine.wfrecon__Of_Trips__c}</span>
+                                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <!-- # Of Trucks -->
+                                            <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                data-budget-line-id={mileageLine.Id}
+                                                data-cost-type="mileage"
+                                                data-field="wfrecon__Of_Trucks__c"
+                                                data-editable="true"
+                                                onclick={handleBudgetLineCellClick}>
+                                                <template if:true={mileageLine.isNew}>
+                                                    <input type="number" class="table-input"
+                                                        value={mileageLine.wfrecon__Of_Trucks__c}
+                                                        data-proposal-line-id={line.Id} data-budget-line-id={mileageLine.Id}
+                                                        data-cost-type="mileage" data-field="wfrecon__Of_Trucks__c"
+                                                        oninput={handleBudgetLineFieldChange} />
+                                                </template>
+                                                <template if:false={mileageLine.isNew}>
+                                                    <template if:true={mileageLine.isEditingTrucks}>
+                                                        <input type="number" class="inline-edit-input"
+                                                            value={mileageLine.wfrecon__Of_Trucks__c}
+                                                            data-proposal-line-id={line.Id}
+                                                            data-budget-line-id={mileageLine.Id}
+                                                            data-cost-type="mileage"
+                                                            data-field="wfrecon__Of_Trucks__c"
+                                                            oninput={handleBudgetLineFieldChange}
+                                                            onblur={handleBudgetLineCellBlur} />
+                                                    </template>
+                                                    <template if:false={mileageLine.isEditingTrucks}>
+                                                        <div class="cell-with-icon">
+                                                            <span class="cell-text">{mileageLine.wfrecon__Of_Trucks__c}</span>
+                                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <!-- Mileage -->
+                                            <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                data-budget-line-id={mileageLine.Id}
+                                                data-cost-type="mileage"
+                                                data-field="wfrecon__Mileage__c"
+                                                data-editable="true"
+                                                onclick={handleBudgetLineCellClick}>
+                                                <template if:true={mileageLine.isNew}>
+                                                    <input type="number" class="table-input"
+                                                        value={mileageLine.wfrecon__Mileage__c}
+                                                        data-proposal-line-id={line.Id} data-budget-line-id={mileageLine.Id}
+                                                        data-cost-type="mileage" data-field="wfrecon__Mileage__c"
+                                                        oninput={handleBudgetLineFieldChange} />
+                                                </template>
+                                                <template if:false={mileageLine.isNew}>
+                                                    <template if:true={mileageLine.isEditingMileage}>
+                                                        <input type="number" class="inline-edit-input"
+                                                            value={mileageLine.wfrecon__Mileage__c}
+                                                            data-proposal-line-id={line.Id}
+                                                            data-budget-line-id={mileageLine.Id}
+                                                            data-cost-type="mileage"
+                                                            data-field="wfrecon__Mileage__c"
+                                                            oninput={handleBudgetLineFieldChange}
+                                                            onblur={handleBudgetLineCellBlur} />
+                                                    </template>
+                                                    <template if:false={mileageLine.isEditingMileage}>
+                                                        <div class="cell-with-icon">
+                                                            <span class="cell-text">{mileageLine.wfrecon__Mileage__c}</span>
+                                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <!-- Mileage Rate -->
+                                            <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                data-budget-line-id={mileageLine.Id}
+                                                data-cost-type="mileage"
+                                                data-field="wfrecon__Mileage_Rate__c"
+                                                data-editable="true"
+                                                onclick={handleBudgetLineCellClick}>
+                                                <template if:true={mileageLine.isNew}>
+                                                    <input type="number" class="table-input"
+                                                        value={mileageLine.wfrecon__Mileage_Rate__c}
+                                                        data-proposal-line-id={line.Id} data-budget-line-id={mileageLine.Id}
+                                                        data-cost-type="mileage" data-field="wfrecon__Mileage_Rate__c"
+                                                        oninput={handleBudgetLineFieldChange} />
+                                                </template>
+                                                <template if:false={mileageLine.isNew}>
+                                                    <template if:true={mileageLine.isEditingMileageRate}>
+                                                        <input type="number" class="inline-edit-input"
+                                                            value={mileageLine.wfrecon__Mileage_Rate__c}
+                                                            data-proposal-line-id={line.Id}
+                                                            data-budget-line-id={mileageLine.Id}
+                                                            data-cost-type="mileage"
+                                                            data-field="wfrecon__Mileage_Rate__c"
+                                                            oninput={handleBudgetLineFieldChange}
+                                                            onblur={handleBudgetLineCellBlur} />
+                                                    </template>
+                                                    <template if:false={mileageLine.isEditingMileageRate}>
+                                                        <div class="cell-with-icon">
+                                                            <span class="cell-text">{mileageLine.wfrecon__Mileage_Rate__c}</span>
+                                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <!-- Total Mileage (Calculated) -->
+                                            <td>
+                                                <span class="calculated-value">${mileageLine.wfrecon__Total_Mileage__c}</span>
+                                            </td>
+                                            <td>
+                                                <button class="table-delete-btn" data-proposal-line-id={line.Id}
+                                                    data-budget-line-id={mileageLine.Id}
+                                                    data-cost-type="mileage"
+                                                    onclick={handleDeleteBudgetLine}>
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                    </svg>
+                                                </button>
                                             </td>
                                         </tr>
                                     </template>
                                 </tbody>
                             </table>
+                            </div>
+                        </template>
+                        <template if:false={line.budget.budgetLinesByCostType.mileage.length}>
+                            <div class="no-budget-lines">
+                                <p>No mileage budget lines available. Click "Add" to create a new entry.</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <div class="budget-section">
+                <div class="section-header-row">
+                    <div class="section-header-left" data-proposal-line-id={line.Id} data-cost-type="perdiem"
+                        onclick={handleToggleSection}>
+                        <svg class="section-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <template if:true={line.budget.perdiemExpanded}>
+                                <path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </template>
+                            <template if:false={line.budget.perdiemExpanded}>
+                                <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </template>
+                        </svg>
+                        <h3 class="section-title">Per Diem</h3>
+                        <span class="section-count">({line.budget.budgetLinesByCostType.perdiem.length} lines)</span>
+                    </div>
+                </div>
+
+                <template if:true={line.budget.perdiemExpanded}>
+                    <div class="section-content">
+                        <div class="section-actions">
+                            <button class="section-action-btn add-btn" data-proposal-line-id={line.Id}
+                                data-cost-type="perdiem" data-budget-id={line.budget.Id}
+                                onclick={handleAddBudgetLineToSection}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                Add
+                            </button>
                         </div>
+                        <template if:true={line.budget.budgetLinesByCostType.perdiem.length}>
+                            <div class="table-scroll-container">
+                                <table class="budget-section-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-sr-no">Sr No.</th>
+                                        <th>Per Diem # Of Days</th>
+                                        <th>Per Diem Rate</th>
+                                        <th>Total Per Diem</th>
+                                        <th># Of Men</th>
+                                        <th class="col-actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={line.budget.budgetLinesByCostType.perdiem}
+                                        for:item="perdiemLine" for:index="idx">
+                                        <tr key={perdiemLine.Id}>
+                                            <td class="col-sr-no">{perdiemLine.displayIndex}</td>
+                                            <!-- Per Diem # Of Days -->
+                                            <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                data-budget-line-id={perdiemLine.Id}
+                                                data-cost-type="perdiem"
+                                                data-field="wfrecon__Per_Diem_of_Days__c"
+                                                data-editable="true"
+                                                onclick={handleBudgetLineCellClick}>
+                                                <template if:true={perdiemLine.isNew}>
+                                                    <input type="number" class="table-input"
+                                                        value={perdiemLine.wfrecon__Per_Diem_of_Days__c}
+                                                        data-proposal-line-id={line.Id} data-budget-line-id={perdiemLine.Id}
+                                                        data-cost-type="perdiem" data-field="wfrecon__Per_Diem_of_Days__c"
+                                                        oninput={handleBudgetLineFieldChange} />
+                                                </template>
+                                                <template if:false={perdiemLine.isNew}>
+                                                    <template if:true={perdiemLine.isEditingPerDiemDays}>
+                                                        <input type="number" class="inline-edit-input"
+                                                            value={perdiemLine.wfrecon__Per_Diem_of_Days__c}
+                                                            data-proposal-line-id={line.Id}
+                                                            data-budget-line-id={perdiemLine.Id}
+                                                            data-cost-type="perdiem"
+                                                            data-field="wfrecon__Per_Diem_of_Days__c"
+                                                            oninput={handleBudgetLineFieldChange}
+                                                            onblur={handleBudgetLineCellBlur} />
+                                                    </template>
+                                                    <template if:false={perdiemLine.isEditingPerDiemDays}>
+                                                        <div class="cell-with-icon">
+                                                            <span class="cell-text">{perdiemLine.wfrecon__Per_Diem_of_Days__c}</span>
+                                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <!-- Per Diem Rate -->
+                                            <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                data-budget-line-id={perdiemLine.Id}
+                                                data-cost-type="perdiem"
+                                                data-field="wfrecon__Per_Diem_Rate__c"
+                                                data-editable="true"
+                                                onclick={handleBudgetLineCellClick}>
+                                                <template if:true={perdiemLine.isNew}>
+                                                    <input type="number" class="table-input"
+                                                        value={perdiemLine.wfrecon__Per_Diem_Rate__c}
+                                                        data-proposal-line-id={line.Id} data-budget-line-id={perdiemLine.Id}
+                                                        data-cost-type="perdiem" data-field="wfrecon__Per_Diem_Rate__c"
+                                                        oninput={handleBudgetLineFieldChange} />
+                                                </template>
+                                                <template if:false={perdiemLine.isNew}>
+                                                    <template if:true={perdiemLine.isEditingPerDiemRate}>
+                                                        <input type="number" class="inline-edit-input"
+                                                            value={perdiemLine.wfrecon__Per_Diem_Rate__c}
+                                                            data-proposal-line-id={line.Id}
+                                                            data-budget-line-id={perdiemLine.Id}
+                                                            data-cost-type="perdiem"
+                                                            data-field="wfrecon__Per_Diem_Rate__c"
+                                                            oninput={handleBudgetLineFieldChange}
+                                                            onblur={handleBudgetLineCellBlur} />
+                                                    </template>
+                                                    <template if:false={perdiemLine.isEditingPerDiemRate}>
+                                                        <div class="cell-with-icon">
+                                                            <span class="cell-text">{perdiemLine.wfrecon__Per_Diem_Rate__c}</span>
+                                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <!-- Total Per Diem (Calculated) -->
+                                            <td>
+                                                <span class="calculated-value">${perdiemLine.wfrecon__Total_Per_Diem__c}</span>
+                                            </td>
+                                            <!-- # Of Men -->
+                                            <td class="editable-cell" data-proposal-line-id={line.Id}
+                                                data-budget-line-id={perdiemLine.Id}
+                                                data-cost-type="perdiem"
+                                                data-field="wfrecon__of_Men__c"
+                                                data-editable="true"
+                                                onclick={handleBudgetLineCellClick}>
+                                                <template if:true={perdiemLine.isNew}>
+                                                    <input type="number" class="table-input"
+                                                        value={perdiemLine.wfrecon__of_Men__c}
+                                                        data-proposal-line-id={line.Id} data-budget-line-id={perdiemLine.Id}
+                                                        data-cost-type="perdiem" data-field="wfrecon__of_Men__c"
+                                                        oninput={handleBudgetLineFieldChange} />
+                                                </template>
+                                                <template if:false={perdiemLine.isNew}>
+                                                    <template if:true={perdiemLine.isEditingMen}>
+                                                        <input type="number" class="inline-edit-input"
+                                                            value={perdiemLine.wfrecon__of_Men__c}
+                                                            data-proposal-line-id={line.Id}
+                                                            data-budget-line-id={perdiemLine.Id}
+                                                            data-cost-type="perdiem"
+                                                            data-field="wfrecon__of_Men__c"
+                                                            oninput={handleBudgetLineFieldChange}
+                                                            onblur={handleBudgetLineCellBlur} />
+                                                    </template>
+                                                    <template if:false={perdiemLine.isEditingMen}>
+                                                        <div class="cell-with-icon">
+                                                            <span class="cell-text">{perdiemLine.wfrecon__of_Men__c}</span>
+                                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            </svg>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <td>
+                                                <button class="table-delete-btn" data-proposal-line-id={line.Id}
+                                                    data-budget-line-id={perdiemLine.Id}
+                                                    data-cost-type="perdiem"
+                                                    onclick={handleDeleteBudgetLine}>
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                        <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            </div>
+                        </template>
+                        <template if:false={line.budget.budgetLinesByCostType.perdiem.length}>
+                            <div class="no-budget-lines">
+                                <p>No perdiem budget lines available. Click "Add" to create a new entry.</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+    </div>
+</template>
+</td>
+</tr>
+</template>
+</template>
+</tbody>
+</table>
+</div>
+</template>
+
+<!-- Empty State -->
+<template if:false={proposalLines.length}>
+    <div class="no-records-message">
+        <div class="empty-state">
+            <div class="empty-state__content">
+                <div class="empty-state__icon">
+                    <img src="/resource/wfrecon__emptyState" alt="" draggable="false">
+                </div>
+                <div class="empty-state__message">No data available to show</div>
+            </div>
+        </div>
+    </div>
+</template>
+</div>
+
+<!-- Add Proposal Lines Modal -->
+<template if:true={showAddModal}>
+    <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
+        <div class="slds-modal__container">
+            <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                onclick={handleCloseModal}>
+                <lightning-icon icon-name="utility:close" alternative-text="Close" class="close-icon"
+                    size="small"></lightning-icon>
+            </button>
+
+            <div class="pop-heading">Add Proposal Lines</div>
+
+            <div class="slds-modal__content pop-up">
+                <div class="popUpBody slds-p-around--medium">
+                    <template if:true={isModalLoading}>
+                        <lightning-spinner alternative-text="Loading..." size="small"></lightning-spinner>
+                    </template>
+
+                    <!-- Add Another Line Button at Top -->
+                    <div style="margin-bottom: 1rem; display: flex; justify-content: flex-end;">
+                        <button class="add-line-btn" onclick={handleAddAnotherLine}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                            Add Another Line
+                        </button>
+                    </div>
+
+                    <!-- Proposal Lines Table -->
+                    <div class="proposal-lines-table-container" data-id="tableContainer">
+                        <table class="proposal-lines-table">
+                            <thead>
+                                <tr>
+                                    <th class="table-header-cell">Sr No.</th>
+                                    <th class="table-header-cell required-col">Pricebook</th>
+                                    <th class="table-header-cell required-col">Product</th>
+                                    <th class="table-header-cell required-col">Quantity</th>
+                                    <th class="table-header-cell">OH %</th>
+                                    <th class="table-header-cell">Warranty %</th>
+                                    <th class="table-header-cell">Profit %</th>
+                                    <th class="table-header-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={newProposalLines} for:item="line" for:index="idx">
+                                    <tr key={line.tempId} class="proposal-line-row">
+                                        <td>{line.lineNumber}</td>
+                                        <td>
+                                            <select class="table-select-input" data-id={line.tempId}
+                                                onchange={handleRowPricebookChange}>
+                                                <option value="">Select Pricebook</option>
+                                                <template for:each={pricebookOptions} for:item="pb">
+                                                    <option key={pb.value} value={pb.value}>{pb.label}</option>
+                                                </template>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select class="table-select-input" data-id={line.tempId}
+                                                onchange={handleProductChange}>
+                                                <option value="">Select Product</option>
+                                                <template for:each={line.productOptions} for:item="prod">
+                                                    <option key={prod.value} value={prod.value}>{prod.label}</option>
+                                                </template>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="table-input" value={line.quantity}
+                                                data-id={line.tempId} data-field="quantity"
+                                                oninput={handleLineFieldChange} min="0" step="1" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="table-input" value={line.oh}
+                                                data-id={line.tempId} data-field="oh" oninput={handleLineFieldChange}
+                                                min="0" step="0.01" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="table-input" value={line.warranty}
+                                                data-id={line.tempId} data-field="warranty"
+                                                oninput={handleLineFieldChange} min="0" step="0.01" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="table-input" value={line.profit}
+                                                data-id={line.tempId} data-field="profit"
+                                                oninput={handleLineFieldChange} min="0" step="0.01" />
+                                        </td>
+                                        <td>
+                                            <template if:true={line.canDelete}>
+                                                <button class="table-delete-btn" data-id={line.tempId}
+                                                    onclick={handleRemoveLine}>
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                        <path d="M3 6h18M8 6V4h8v2m-9 0v14h10V6H7z"
+                                                            stroke="currentColor" stroke-width="2" />
+                                                    </svg>
+                                                </button>
+                                            </template>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
 
-                <div class="popUpFooter">
-                    <button class="close-btn" onclick={handleCloseModal} disabled={isSaving}>
-                        Cancel
-                    </button>
-                    <button class="save-btn" onclick={handleSaveProposalLines} disabled={isSaving}>
-                        <template if:true={isSaving}>Saving...</template>
-                        <template if:false={isSaving}>Save</template>
-                    </button>
+            <div class="popUpFooter">
+                <button class="close-btn" onclick={handleCloseModal} disabled={isSaving}>
+                    Cancel
+                </button>
+                <button class="save-btn" onclick={handleSaveProposalLines} disabled={isSaving}>
+                    <template if:true={isSaving}>Saving...</template>
+                    <template if:false={isSaving}>Save</template>
+                </button>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>
+
+<!-- Confirmation Modal -->
+<template if:true={showConfirmModal}>
+    <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container">
+            <div class="pop-heading">{confirmModalTitle}</div>
+            <div class="slds-modal__content pop-up">
+                <div class="popUpBody">
+                    <p style="text-align: center; font-size: 14px; color: #333;">{confirmModalMessage}</p>
                 </div>
             </div>
-        </section>
-        <div class="slds-backdrop slds-backdrop_open"></div>
-    </template>
-
-    <!-- Confirmation Modal -->
-    <template if:true={showConfirmModal}>
-        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
-            <div class="slds-modal__container">
-                <div class="pop-heading">
-                    {confirmModalTitle}
-                </div>
-                <div class="slds-modal__content pop-up">
-                    <div class="popUpBody">
-                        <p style="text-align: center; font-size: 14px; color: #333;">{confirmModalMessage}</p>
-                    </div>
-                </div>
-                <div class="popUpFooter">
-                    <button class="close-btn" onclick={handleCloseConfirmModal}>
-                        Cancel
-                    </button>
-                    <button class="save-btn" onclick={handleConfirmAction}>
-                        Confirm
-                    </button>
-                </div>
+            <div class="popUpFooter">
+                <button class="close-btn" onclick={handleCloseConfirmModal}>Cancel</button>
+                <button class="save-btn" onclick={handleConfirmAction}>Confirm</button>
             </div>
-        </section>
-        <div class="slds-backdrop slds-backdrop_open"></div>
-    </template>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>
 </template>

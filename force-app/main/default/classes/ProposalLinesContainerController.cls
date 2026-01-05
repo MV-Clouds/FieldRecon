@@ -33,12 +33,27 @@ public with sharing class ProposalLinesContainerController {
                 return result;
             }
             
-            // Fetch Proposal Lines
-            List<wfrecon__Proposal_Line__c> proposalLines = [SELECT Id, Name, wfrecon__Description__c,
-                    (SELECT Id, Name, wfrecon__Total_Budget__c, (SELECT Id, Name, wfrecon__Product__c, wfrecon__Product__r.Name, 
-                        wfrecon__Price_Book__c, wfrecon__Price_Book__r.Name, wfrecon__Description__c, wfrecon__Quantity__c, wfrecon__Unit_Cost__c
-                    FROM wfrecon__Budget_Lines__r ORDER BY CreatedDate ASC) FROM wfrecon__Budgets__r LIMIT 1) FROM wfrecon__Proposal_Line__c
-                    WHERE wfrecon__Proposal__c = :proposalId WITH USER_MODE ORDER BY CreatedDate ASC];
+            // Fetch Proposal Lines with Product and Budget information
+            List<wfrecon__Proposal_Line__c> proposalLines = [
+                SELECT Id, Name, wfrecon__Product__c, wfrecon__Product__r.Name, wfrecon__Total_Cost__c, 
+                    wfrecon__Quantity__c, wfrecon__OH_Per__c, wfrecon__Warranty_Per__c, wfrecon__Profit_Per__c,
+                    (SELECT Id, Name, 
+                        (SELECT Id, Name, wfrecon__Cost_Type__c,
+                            wfrecon__No_Of_Crew_Members__c, wfrecon__Hrs_day__c, wfrecon__Burden_Rate_Hour__c, wfrecon__Total_Mileage__c,
+                            wfrecon__of_Days__c, wfrecon__Note__c, wfrecon__Labor_Cost__c, wfrecon__Material_Cost__c,
+                            wfrecon__Material__c, wfrecon__QTY__c, wfrecon__Cost_Each__c, wfrecon__Estimated_Hours__c,
+                            wfrecon__Of_Nights__c, wfrecon__Number_Of_Rooms__c, wfrecon__Costs_Per_Night__c, wfrecon__Total_Hotel_Cost__c,
+                            wfrecon__Of_Trips__c, wfrecon__Of_Trucks__c, wfrecon__Mileage__c, wfrecon__Mileage_Rate__c,
+                            wfrecon__Per_Diem_of_Days__c, wfrecon__Per_Diem_Rate__c, wfrecon__of_Men__c, wfrecon__Total_Per_Diem__c
+                        FROM wfrecon__Budget_Lines__r 
+                        ORDER BY CreatedDate ASC) 
+                    FROM wfrecon__Budgets__r 
+                    LIMIT 1) 
+                FROM wfrecon__Proposal_Line__c
+                WHERE wfrecon__Proposal__c = :proposalId 
+                WITH USER_MODE 
+                ORDER BY CreatedDate ASC
+            ];
             
             Map<String, Object> responseData = new Map<String, Object>();
             responseData.put('proposalLines', proposalLines);
@@ -140,8 +155,8 @@ public with sharing class ProposalLinesContainerController {
 
     /*
     *********************************************************
-    @description     : Save Proposal Lines with Budgets and Budget Lines
-    @param           : {String} linesData - JSON string of lines data
+    @description     : Save Proposal Lines (Multiple lines with product, quantity, OH, Warranty, Profit)
+    @param           : {String} linesData - JSON string of proposal lines data
     @return          : Map<String, Object> - Result with success status and message
     ********************************************************
     */
@@ -155,48 +170,46 @@ public with sharing class ProposalLinesContainerController {
                 return result;
             }
 
-            // Parse the data: one proposal line with multiple budget lines
+            // Parse the data: multiple proposal lines with product info
             Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(linesData);
+            String proposalId = (String) data.get('proposalId');
+            List<Object> proposalLinesData = (List<Object>) data.get('proposalLines');
             
-            // Create Proposal Line
-            wfrecon__Proposal_Line__c proposalLine = new wfrecon__Proposal_Line__c();
-            proposalLine.wfrecon__Proposal__c = (String) data.get('proposalId');
-            proposalLine.Name = (String) data.get('proposalLineName');
-            proposalLine.wfrecon__Description__c = (String) data.get('proposalLineDescription');
+            List<wfrecon__Proposal_Line__c> proposalLinesToInsert = new List<wfrecon__Proposal_Line__c>();
             
-            insert as user proposalLine;
-
-            // Create Budget
-            wfrecon__Budget__c budget = new wfrecon__Budget__c();
-            budget.wfrecon__Proposal_Line__c = proposalLine.Id;
-            budget.Name = 'Budget for ' + proposalLine.Name;
-            
-            insert as user budget;
-
-            // Create Budget Lines
-            List<Object> budgetLinesData = (List<Object>) data.get('budgetLines');
-            List<wfrecon__Budget_Line__c> budgetLinesToInsert = new List<wfrecon__Budget_Line__c>();
-            
-            for (Integer i = 0; i < budgetLinesData.size(); i++) {
-                Map<String, Object> budgetLineMap = (Map<String, Object>) budgetLinesData[i];
+            for (Object lineObj : proposalLinesData) {
+                Map<String, Object> lineData = (Map<String, Object>) lineObj;
                 
-                wfrecon__Budget_Line__c budgetLine = new wfrecon__Budget_Line__c();
-                budgetLine.wfrecon__Budget__c = budget.Id;
-                budgetLine.wfrecon__Product__c = (String) budgetLineMap.get('productId');
-                budgetLine.wfrecon__Price_Book__c = (String) budgetLineMap.get('pricebookId');
-                budgetLine.wfrecon__Quantity__c = (Decimal) budgetLineMap.get('quantity');
-                budgetLine.wfrecon__Unit_Cost__c = (Decimal) budgetLineMap.get('unitCost');
-                budgetLine.wfrecon__Description__c = (String) budgetLineMap.get('description');
+                wfrecon__Proposal_Line__c proposalLine = new wfrecon__Proposal_Line__c();
+                proposalLine.wfrecon__Proposal__c = proposalId;
+                proposalLine.wfrecon__Product__c = (String) lineData.get('productId');
+                proposalLine.Name = (String) lineData.get('proposalLineName');
+                proposalLine.wfrecon__Quantity__c = lineData.get('quantity') != null ? Decimal.valueOf(String.valueOf(lineData.get('quantity'))) : 0;
+                proposalLine.wfrecon__OH_Per__c = lineData.get('oh') != null ? Decimal.valueOf(String.valueOf(lineData.get('oh'))) : 0;
+                proposalLine.wfrecon__Warranty_Per__c = lineData.get('warranty') != null ? Decimal.valueOf(String.valueOf(lineData.get('warranty'))) : 0;
+                proposalLine.wfrecon__Profit_Per__c = lineData.get('profit') != null ? Decimal.valueOf(String.valueOf(lineData.get('profit'))) : 0;
                 
-                budgetLinesToInsert.add(budgetLine);
+                proposalLinesToInsert.add(proposalLine);
             }
-
-            if (!budgetLinesToInsert.isEmpty()) {
-                insert as user budgetLinesToInsert;
+            
+            if (!proposalLinesToInsert.isEmpty()) {
+                insert as user proposalLinesToInsert;
+                
+                // Create budgets for each proposal line
+                List<wfrecon__Budget__c> budgetsToInsert = new List<wfrecon__Budget__c>();
+                for (wfrecon__Proposal_Line__c pLine : proposalLinesToInsert) {
+                    wfrecon__Budget__c budget = new wfrecon__Budget__c();
+                    budget.wfrecon__Proposal_Line__c = pLine.Id;
+                    budgetsToInsert.add(budget);
+                }
+                
+                if (!budgetsToInsert.isEmpty()) {
+                    insert as user budgetsToInsert;
+                }
             }
             
             result.put('success', true);
-            result.put('message', 'Proposal line and budget lines saved successfully');
+            result.put('message', 'Proposal lines saved successfully');
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{
                 'className' => CLASSNAME,
@@ -208,7 +221,7 @@ public with sharing class ProposalLinesContainerController {
                 'apiResponse' => null
             });
             result.put('success', false);
-            result.put('message', 'Unable to save proposal line. Please try again or contact your administrator.');
+            result.put('message', 'Unable to save proposal lines. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
         }
         return result;
@@ -279,7 +292,9 @@ public with sharing class ProposalLinesContainerController {
 
     /*
     *********************************************************
-    @description     : Save Budget Line Inline Edits
+    /*
+    *********************************************************
+    @description     : Save Budget Lines by Cost Type (Labor, Material, Hotel, Mileage, Per Diem)
     @param           : {String} budgetLinesJson - JSON string of budget lines with modifications
     @return          : Map<String, Object> - Result with success status and message
     ********************************************************
@@ -304,27 +319,15 @@ public with sharing class ProposalLinesContainerController {
                 Map<String, Object> budgetLineMap = (Map<String, Object>) budgetLineObj;
                 String budgetLineId = (String) budgetLineMap.get('Id');
                 String action = (String) budgetLineMap.get('action');
+                String costType = (String) budgetLineMap.get('costType');
                 
                 if (action == 'delete' && String.isNotBlank(budgetLineId)) {
-                    // Mark for deletion
                     budgetLineIdsToDelete.add(budgetLineId);
                 } else if (action == 'insert') {
-                    // New budget line
-                    wfrecon__Budget_Line__c newBudgetLine = new wfrecon__Budget_Line__c();
-                    newBudgetLine.wfrecon__Budget__c = (String) budgetLineMap.get('budgetId');
-                    newBudgetLine.wfrecon__Product__c = (String) budgetLineMap.get('productId');
-                    newBudgetLine.wfrecon__Price_Book__c = (String) budgetLineMap.get('pricebookId');
-                    newBudgetLine.wfrecon__Quantity__c = (Decimal) budgetLineMap.get('quantity');
-                    newBudgetLine.wfrecon__Unit_Cost__c = (Decimal) budgetLineMap.get('unitCost');
-                    newBudgetLine.wfrecon__Description__c = (String) budgetLineMap.get('description');
+                    wfrecon__Budget_Line__c newBudgetLine = createBudgetLineFromMap(budgetLineMap, costType);
                     budgetLinesToInsert.add(newBudgetLine);
                 } else if (String.isNotBlank(budgetLineId)) {
-                    // Update existing budget line
-                    wfrecon__Budget_Line__c budgetLine = new wfrecon__Budget_Line__c();
-                    budgetLine.Id = budgetLineId;
-                    budgetLine.wfrecon__Quantity__c = (Decimal) budgetLineMap.get('quantity');
-                    budgetLine.wfrecon__Unit_Cost__c = (Decimal) budgetLineMap.get('unitCost');
-                    budgetLine.wfrecon__Description__c = (String) budgetLineMap.get('description');
+                    wfrecon__Budget_Line__c budgetLine = updateBudgetLineFromMap(budgetLineId, budgetLineMap, costType);
                     budgetLinesToUpdate.add(budgetLine);
                 }
             }
@@ -357,6 +360,160 @@ public with sharing class ProposalLinesContainerController {
             result.put('success', false);
             result.put('message', 'Unable to save budget lines. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
+        }
+        return result;
+    }
+
+    /*
+    *********************************************************
+    @description     : Create Budget Line from Map based on Cost Type
+    @param           : {Map<String, Object>} dataMap - Budget line data
+    @param           : {String} costType - Cost type (labor, materials, hotel, mileage, perdiem)
+    @return          : wfrecon__Budget_Line__c - New budget line record
+    ********************************************************
+    */
+    private static wfrecon__Budget_Line__c createBudgetLineFromMap(Map<String, Object> dataMap, String costType) {
+        system.debug('Creating budget line from map: ' + dataMap);
+
+        wfrecon__Budget_Line__c budgetLine = new wfrecon__Budget_Line__c();
+        budgetLine.wfrecon__Budget__c = (String) dataMap.get('budgetId');
+        budgetLine.wfrecon__Cost_Type__c = costType;
+        
+        if (costType == 'labor') {
+            budgetLine.wfrecon__No_Of_Crew_Members__c = getDecimalValue(dataMap, 'noOfCrewMembers');
+            budgetLine.wfrecon__Hrs_day__c = getDecimalValue(dataMap, 'hrsDay');
+            budgetLine.wfrecon__Burden_Rate_Hour__c = getDecimalValue(dataMap, 'burdenRateHour');
+            budgetLine.wfrecon__of_Days__c = getDecimalValue(dataMap, 'ofDays');
+            budgetLine.wfrecon__Note__c = (String) dataMap.get('note');
+        } else if (costType == 'materials') {
+            budgetLine.wfrecon__Material__c = (String) dataMap.get('materials');
+            budgetLine.wfrecon__QTY__c = getDecimalValue(dataMap, 'qty');
+            budgetLine.wfrecon__Cost_Each__c = getDecimalValue(dataMap, 'materialCostEach');
+        } else if (costType == 'hotel') {
+            budgetLine.wfrecon__Of_Nights__c = getDecimalValue(dataMap, 'ofNights');
+            budgetLine.wfrecon__Number_Of_Rooms__c = getDecimalValue(dataMap, 'numberOfRooms');
+            budgetLine.wfrecon__Costs_Per_Night__c = getDecimalValue(dataMap, 'costsPerNight');
+        } else if (costType == 'mileage') {
+            budgetLine.wfrecon__Of_Trips__c = getDecimalValue(dataMap, 'ofTrips');
+            budgetLine.wfrecon__Of_Trucks__c = getDecimalValue(dataMap, 'ofTrucks');
+            budgetLine.wfrecon__Mileage__c = getDecimalValue(dataMap, 'mileage');
+            budgetLine.wfrecon__Mileage_Rate__c = getDecimalValue(dataMap, 'mileageRate');
+        } else if (costType == 'perdiem') {
+            budgetLine.wfrecon__Per_Diem_of_Days__c = getDecimalValue(dataMap, 'perDiemOfDays');
+            budgetLine.wfrecon__Per_Diem_Rate__c = getDecimalValue(dataMap, 'perDiemRate');
+            budgetLine.wfrecon__of_Men__c = getDecimalValue(dataMap, 'ofMen');
+        }
+        
+        return budgetLine;
+    }
+
+    /*
+    *********************************************************
+    @description     : Update Budget Line from Map based on Cost Type
+    @param           : {String} budgetLineId - Budget Line Id
+    @param           : {Map<String, Object>} dataMap - Budget line data
+    @param           : {String} costType - Cost type
+    @return          : wfrecon__Budget_Line__c - Updated budget line record
+    ********************************************************
+    */
+    private static wfrecon__Budget_Line__c updateBudgetLineFromMap(String budgetLineId, Map<String, Object> dataMap, String costType) {
+        wfrecon__Budget_Line__c budgetLine = new wfrecon__Budget_Line__c();
+        budgetLine.Id = budgetLineId;
+        budgetLine.wfrecon__Cost_Type__c = costType;
+        
+        if (costType == 'labor') {
+            budgetLine.wfrecon__No_Of_Crew_Members__c = getDecimalValue(dataMap, 'noOfCrewMembers');
+            budgetLine.wfrecon__Hrs_day__c = getDecimalValue(dataMap, 'hrsDay');
+            budgetLine.wfrecon__Burden_Rate_Hour__c = getDecimalValue(dataMap, 'burdenRateHour');
+            budgetLine.wfrecon__of_Days__c = getDecimalValue(dataMap, 'ofDays');
+            budgetLine.wfrecon__Note__c = (String) dataMap.get('note');
+        } else if (costType == 'materials') {
+            budgetLine.wfrecon__Material__c = (String) dataMap.get('materials');
+            budgetLine.wfrecon__QTY__c = getDecimalValue(dataMap, 'qty');
+            budgetLine.wfrecon__Cost_Each__c = getDecimalValue(dataMap, 'materialCostEach');
+        } else if (costType == 'hotel') {
+            budgetLine.wfrecon__Of_Nights__c = getDecimalValue(dataMap, 'ofNights');
+            budgetLine.wfrecon__Number_Of_Rooms__c = getDecimalValue(dataMap, 'numberOfRooms');
+            budgetLine.wfrecon__Costs_Per_Night__c = getDecimalValue(dataMap, 'costsPerNight');
+        } else if (costType == 'mileage') {
+            budgetLine.wfrecon__Of_Trips__c = getDecimalValue(dataMap, 'ofTrips');
+            budgetLine.wfrecon__Of_Trucks__c = getDecimalValue(dataMap, 'ofTrucks');
+            budgetLine.wfrecon__Mileage__c = getDecimalValue(dataMap, 'mileage');
+            budgetLine.wfrecon__Mileage_Rate__c = getDecimalValue(dataMap, 'mileageRate');
+        } else if (costType == 'perdiem') {
+            budgetLine.wfrecon__Per_Diem_of_Days__c = getDecimalValue(dataMap, 'perDiemOfDays');
+            budgetLine.wfrecon__Per_Diem_Rate__c = getDecimalValue(dataMap, 'perDiemRate');
+            budgetLine.wfrecon__of_Men__c = getDecimalValue(dataMap, 'ofMen');
+        }
+        
+        return budgetLine;
+    }
+
+    /*
+    *********************************************************
+    @description     : Helper method to safely get Decimal value from Map
+    @param           : {Map<String, Object>} dataMap - Data map
+    @param           : {String} key - Key to retrieve
+    @return          : Decimal - Decimal value or null
+    ********************************************************
+    */
+    private static Decimal getDecimalValue(Map<String, Object> dataMap, String key) {
+        Object value = dataMap.get(key);
+        if (value == null) return null;
+        if (value instanceof Decimal) return (Decimal) value;
+        if (value instanceof Integer) return Decimal.valueOf((Integer) value);
+        if (value instanceof String) {
+            String strValue = (String) value;
+            return String.isNotBlank(strValue) ? Decimal.valueOf(strValue) : null;
+        }
+        return null;
+    }
+
+    /*
+    *********************************************************
+    @description     : Get Proposal Defaults (OH, Warranty, Profit)
+    @param           : {String} proposalId - Proposal Record Id
+    @return          : Map<String, Object> - Result with success status and defaults
+    ********************************************************
+    */
+    @AuraEnabled
+    public static Map<String, Object> getProposalDefaults(String proposalId) {
+        Map<String, Object> result = new Map<String, Object>();
+        try {
+            if (String.isBlank(proposalId)) {
+                result.put('success', false);
+                result.put('message', 'Proposal ID is required');
+                return result;
+            }
+            
+            wfrecon__Proposal__c proposal = [SELECT Id, wfrecon__OH__c, wfrecon__Warranty__c, wfrecon__Profit__c 
+                                              FROM wfrecon__Proposal__c 
+                                              WHERE Id = :proposalId 
+                                              WITH USER_MODE 
+                                              LIMIT 1];
+            
+            Map<String, Object> defaults = new Map<String, Object>();
+            defaults.put('oh', proposal.wfrecon__OH__c != null ? proposal.wfrecon__OH__c : 0);
+            defaults.put('warranty', proposal.wfrecon__Warranty__c != null ? proposal.wfrecon__Warranty__c : 0);
+            defaults.put('profit', proposal.wfrecon__Profit__c != null ? proposal.wfrecon__Profit__c : 0);
+            
+            result.put('success', true);
+            result.put('message', 'Proposal defaults fetched successfully');
+            result.put('data', defaults);
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getProposalDefaults',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching proposal defaults for Id: ' + proposalId,
+                'apiResponse' => null
+            });
+            result.put('success', false);
+            result.put('message', 'Unable to fetch proposal defaults. Please try again or contact your administrator.');
+            result.put('error', e.getMessage());
+            result.put('data', new Map<String, Object>());
         }
         return result;
     }

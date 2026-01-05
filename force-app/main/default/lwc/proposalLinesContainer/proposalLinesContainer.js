@@ -1,12 +1,15 @@
 import { LightningElement, api, track } from 'lwc';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+
 import getProposalLinesWithBudgets from '@salesforce/apex/ProposalLinesContainerController.getProposalLinesWithBudgets';
 import getPricebooks from '@salesforce/apex/ProposalLinesContainerController.getPricebooks';
 import getProductsByPricebook from '@salesforce/apex/ProposalLinesContainerController.getProductsByPricebook';
 import saveProposalLines from '@salesforce/apex/ProposalLinesContainerController.saveProposalLines';
 import deleteProposalLine from '@salesforce/apex/ProposalLinesContainerController.deleteProposalLine';
 import saveBudgetLineEdits from '@salesforce/apex/ProposalLinesContainerController.saveBudgetLineEdits';
+import deleteBudgetLine from '@salesforce/apex/ProposalLinesContainerController.deleteBudgetLine';
+import getProposalDefaults from '@salesforce/apex/ProposalLinesContainerController.getProposalDefaults';
 
 export default class ProposalLinesContainer extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -16,26 +19,20 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track isModalLoading = false;
     @track isSaving = false;
 
-    // Proposal Line fields
-    @track proposalLineName = '';
-    @track proposalLineDescription = '';
+    // Proposal defaults from parent
+    @track proposalDefaults = { oh: 0, warranty: 0, profit: 0 };
 
-    // Modal data for Budget Lines
+    // Modal data for Proposal Lines
     @track pricebookOptions = [];
-    @track selectedPricebookId = '';
-    @track newBudgetLines = [];
+    @track newProposalLines = [];
     tempIdCounter = 1;
 
-    // Inline editing properties
-    @track modifiedBudgetLinesByProposal = new Map(); // Map<proposalLineId, Map<budgetLineId, changes>>
-    @track hasModificationsByProposal = new Map(); // Map<proposalLineId, boolean>
-    @track isSavingByProposal = new Map(); // Map<proposalLineId, boolean>
-    @track editingCells = new Set(); // Track which cells are currently being edited
-    
-    // Add to existing budget tracking
-    @track currentBudgetId = null;
-    @track currentProposalLineId = null;
-    @track isAddingToBudget = false;
+    // Budget line editing by section
+    @track editingBudgetLines = new Map(); // Map<proposalLineId, Map<costType, Array<budgetLines>>>
+    @track hasModificationsBySection = new Map(); // Map<proposalLineId, Map<costType, boolean>>
+    @track isSavingBySection = new Map(); // Map<proposalLineId, Map<costType, boolean>>
+    @track editingProposalLines = new Set(); // Set of proposal line IDs being edited
+    @track editingBudgetCells = new Set(); // Set of budget cell keys being edited "proposalLineId-budgetLineId-fieldName"
     
     // Confirmation modal tracking
     @track showConfirmModal = false;
@@ -43,12 +40,35 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track confirmModalMessage = '';
     @track confirmModalAction = null;
     @track confirmModalData = null;
-    
-    // Modified cells tracking for highlighting
-    modifiedCells = new Set();
+
+    costTypes = ['labor', 'materials', 'hotel', 'mileage', 'perdiem'];
+
+    // Helper method to safely get field value (avoid undefined)
+    safeValue(value, defaultValue = '') {
+        return (value !== undefined && value !== null) ? value : defaultValue;
+    }
+
+    safeNumber(value, defaultValue = 0) {
+        const num = parseFloat(value);
+        return (!isNaN(num)) ? num : defaultValue;
+    }
 
     connectedCallback() {
+        this.loadProposalDefaults();
         this.loadProposalLines();
+    }
+
+    // Load proposal defaults (OH, Warranty, Profit)
+    loadProposalDefaults() {
+        getProposalDefaults({ proposalId: this.recordId })
+            .then(result => {
+                if (result.success && result.data) {
+                    this.proposalDefaults = result.data;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading proposal defaults:', error);
+            });
     }
 
     // Load proposal lines with budgets and budget lines
@@ -56,121 +76,166 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.isLoading = true;
         getProposalLinesWithBudgets({ proposalId: this.recordId })
             .then(result => {
+                console.log('Fetched proposal lines result:', result);
                 if (result.success && result.data) {
-                    // Process proposal lines
-                    this.proposalLinesRaw = result.data.proposalLines.map((line, index) => ({
-                        ...line,
-                        serialNumber: index + 1,
-                        recordLink: `/${line.Id}`,
-                        budgetRowKey: `budget-${line.Id}`,
-                        isExpanded: false,
-                        budgetLineCount: line.wfrecon__Budgets__r && line.wfrecon__Budgets__r.length > 0 &&
-                            line.wfrecon__Budgets__r[0].wfrecon__Budget_Lines__r ?
-                            line.wfrecon__Budgets__r[0].wfrecon__Budget_Lines__r.length : 0,
-                        totalAmount: this.calculateBudgetTotal(
-                            line.wfrecon__Budgets__r && line.wfrecon__Budgets__r.length > 0 ?
-                                line.wfrecon__Budgets__r[0].wfrecon__Budget_Lines__r : []
-                        ),
-                        budget: line.wfrecon__Budgets__r && line.wfrecon__Budgets__r.length > 0 ? {
-                            ...line.wfrecon__Budgets__r[0],
-                            budgetLines: line.wfrecon__Budgets__r[0].wfrecon__Budget_Lines__r ?
-                                line.wfrecon__Budgets__r[0].wfrecon__Budget_Lines__r.map((bl, blIndex) => ({
-                                    ...bl,
-                                    serialNumber: blIndex + 1,
-                                    productName: bl.wfrecon__Product__r?.Name || '',
-                                    pricebookName: bl.wfrecon__Price_Book__r?.Name || '',
-                                    total: this.calculateTotal(bl.wfrecon__Quantity__c, bl.wfrecon__Unit_Cost__c),
-                                    isEditingQuantity: false,
-                                    isEditingUnitCost: false,
-                                    isEditingDescription: false
-                                })) : [],
-                            totalBudgetAmount: this.calculateBudgetTotal(line.wfrecon__Budgets__r[0].wfrecon__Budget_Lines__r),
-                            hasBudgetModifications: false,
-                            isSavingBudget: false
-                        } : null
-                    }));
-                } else {
-                    console.error('Error loading proposal lines:', result.error || result.message);
-                    this.showToast('Error', result.message, 'error');
+                    this.proposalLinesRaw = result.data.proposalLines || [];
+                    console.log('Raw proposal lines:', this.proposalLinesRaw);
+                    // Process and organize budget lines by cost type
+                    this.proposalLinesRaw.forEach(line => {
+                        line.isExpanded = false;
+                        line.budgetRowKey = `budget-${line.Id}`;
+                        line.recordLink = `/${line.Id}`;
+                        line.totalAmount = this.safeNumber(line.wfrecon__Sales_Price__c);
+                        if (line.wfrecon__Budgets__r && line.wfrecon__Budgets__r.length > 0) {
+                            const budget = line.wfrecon__Budgets__r[0];
+                            line.budget = {
+                                Id: budget.Id,
+                                Name: budget.Name,
+                                budgetLinesByCostType: this.organizeBudgetLinesByCostType(budget.wfrecon__Budget_Lines__r || [], line.Id),
+                                laborHasModifications: false,
+                                materialHasModifications: false,
+                                hotelHasModifications: false,
+                                mileageHasModifications: false,
+                                perdiemHasModifications: false
+                            };
+                        }
+                    });
                 }
                 this.isLoading = false;
             })
             .catch(error => {
                 console.error('Error loading proposal lines:', error);
-                this.showToast('Error', 'Unable to load proposal lines. Please try again.', 'error');
+                this.showToast('Error', 'Unable to load proposal lines', 'error');
                 this.isLoading = false;
             });
     }
 
-    // Calculate total for a line
-    calculateTotal(quantity, unitCost) {
-        const qty = parseFloat(quantity) || 0;
-        const cost = parseFloat(unitCost) || 0;
-        return (qty * cost).toFixed(2);
-    }
+    // Organize budget lines by cost type
+    organizeBudgetLinesByCostType(budgetLines, proposalLineId) {
+        const organized = {
+            labor: [],
+            materials: [],
+            hotel: [],
+            mileage: [],
+            perdiem: []
+        };
 
-    // Calculate budget total
-    calculateBudgetTotal(budgetLines) {
-        if (!budgetLines || budgetLines.length === 0) return '0.00';
-        const total = budgetLines.reduce((sum, line) => {
-            return sum + (parseFloat(line.wfrecon__Quantity__c || 0) * parseFloat(line.wfrecon__Unit_Cost__c || 0));
-        }, 0);
-        return total.toFixed(2);
+        budgetLines.forEach(line => {
+            const costType = (line.wfrecon__Cost_Type__c || '').toLowerCase();
+            if (organized[costType]) {
+                // Ensure all fields have safe values
+                line.wfrecon__No_Of_Crew_Members__c = this.safeNumber(line.wfrecon__No_Of_Crew_Members__c);
+                line.wfrecon__Hrs_day__c = this.safeNumber(line.wfrecon__Hrs_day__c);
+                line.wfrecon__Burden_Rate_Hour__c = this.safeNumber(line.wfrecon__Burden_Rate_Hour__c);
+                line.wfrecon__of_Days__c = this.safeNumber(line.wfrecon__of_Days__c);
+                line.wfrecon__Estimated_Hours__c = this.safeNumber(line.wfrecon__Estimated_Hours__c);
+                line.wfrecon__Labor_Cost__c = this.safeNumber(line.wfrecon__Labor_Cost__c);
+                line.wfrecon__Note__c = this.safeValue(line.wfrecon__Note__c);
+                
+                line.wfrecon__Material__c = this.safeValue(line.wfrecon__Material__c);
+                line.wfrecon__QTY__c = this.safeNumber(line.wfrecon__QTY__c);
+                line.wfrecon__Material_Cost_Each__c = this.safeNumber(line.wfrecon__Material_Cost_Each__c);
+                line.wfrecon__Material_Cost_SubTotal__c = this.safeNumber(line.wfrecon__Material_Cost_SubTotal__c);
+                
+                line.wfrecon__Of_Nights__c = this.safeNumber(line.wfrecon__Of_Nights__c);
+                line.wfrecon__Number_Of_Rooms__c = this.safeNumber(line.wfrecon__Number_Of_Rooms__c);
+                line.wfrecon__Costs_Per_Night__c = this.safeNumber(line.wfrecon__Costs_Per_Night__c);
+                line.wfrecon__Total_Hotel_Cost__c = this.safeNumber(line.wfrecon__Total_Hotel_Cost__c);
+                
+                line.wfrecon__Of_Trips__c = this.safeNumber(line.wfrecon__Of_Trips__c);
+                line.wfrecon__Of_Trucks__c = this.safeNumber(line.wfrecon__Of_Trucks__c);
+                line.wfrecon__Mileage__c = this.safeNumber(line.wfrecon__Mileage__c);
+                line.wfrecon__Mileage_Rate__c = this.safeNumber(line.wfrecon__Mileage_Rate__c);
+                line.wfrecon__Total_Mileage__c = this.safeNumber(line.wfrecon__Total_Mileage__c);
+                
+                line.wfrecon__Per_Diem_of_Days__c = this.safeNumber(line.wfrecon__Per_Diem_of_Days__c);
+                line.wfrecon__Per_Diem_Rate__c = this.safeNumber(line.wfrecon__Per_Diem_Rate__c);
+                line.wfrecon__Total_Per_Diem__c = this.safeNumber(line.wfrecon__Total_Per_Diem__c);
+                line.wfrecon__of_Men__c = this.safeNumber(line.wfrecon__of_Men__c);
+                
+                organized[costType].push(line);
+            }
+        });
+
+        // Add displayIndex to each budget line
+        Object.keys(organized).forEach(costType => {
+            organized[costType].forEach((line, index) => {
+                line.displayIndex = index + 1;
+                line.isBeingEdited = false;
+                
+                // Add field-specific editing flags based on editingBudgetCells
+                const budgetLineId = line.Id;
+                
+                // Labor fields
+                line.isEditingCrew = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__No_Of_Crew_Members__c`);
+                line.isEditingHrsDay = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Hrs_day__c`);
+                line.isEditingBurdenRate = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Burden_Rate_Hour__c`);
+                line.isEditingDays = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__of_Days__c`);
+                line.isEditingNote = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Note__c`);
+                
+                // Materials fields
+                line.isEditingMaterial = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Material__c`);
+                line.isEditingQty = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__QTY__c`);
+                line.isEditingCostEach = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Material_Cost_Each__c`);
+                
+                // Hotel fields
+                line.isEditingNights = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Of_Nights__c`);
+                line.isEditingRooms = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Number_Of_Rooms__c`);
+                line.isEditingCostPerNight = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Costs_Per_Night__c`);
+                
+                // Mileage fields
+                line.isEditingTrips = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Of_Trips__c`);
+                line.isEditingTrucks = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Of_Trucks__c`);
+                line.isEditingMileage = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Mileage__c`);
+                line.isEditingMileageRate = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Mileage_Rate__c`);
+                
+                // Per Diem fields
+                line.isEditingPerDiemDays = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Per_Diem_of_Days__c`);
+                line.isEditingMen = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__of_Men__c`);
+                line.isEditingPerDiemRate = this.editingBudgetCells.has(`${proposalLineId}_${budgetLineId}_wfrecon__Per_Diem_Rate__c`);
+            });
+        });
+
+        return organized;
     }
 
     // Get formatted proposal lines
     get proposalLines() {
-        if (!this.modifiedCells) {
-            this.modifiedCells = new Set();
-        }
+        return this.proposalLinesRaw.map((line, index) => ({
+            ...line,
+            serialNumber: index + 1,
+            budgetLineCount: this.getTotalBudgetLineCount(line),
+            totalAmount: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
+            isOddRow: (index % 2 === 0),
+            isEditingQuantity: this.editingProposalLines.has(`${line.Id}_wfrecon__Quantity__c`),
+            isEditingOH: this.editingProposalLines.has(`${line.Id}_wfrecon__OH_Per__c`),
+            isEditingWarranty: this.editingProposalLines.has(`${line.Id}_wfrecon__Warranty_Per__c`),
+            isEditingProfit: this.editingProposalLines.has(`${line.Id}_wfrecon__Profit_Per__c`),
+            // Safe values for display
+            displayQuantity: this.safeNumber(line.wfrecon__Quantity__c, 0),
+            displayOH: this.safeNumber(line.wfrecon__OH_Per__c, 0),
+            displayWarranty: this.safeNumber(line.wfrecon__Warranty_Per__c, 0),
+            displayProfit: this.safeNumber(line.wfrecon__Profit_Per__c, 0)
+        }));
+    }
+
+    // Get total budget line count for a proposal line
+    getTotalBudgetLineCount(line) {
+        if (!line.budget || !line.budget.budgetLinesByCostType) return 0;
         
-        return this.proposalLinesRaw.map(line => {
-            if (line.budget && line.budget.budgetLines) {
-                const budgetLines = line.budget.budgetLines.map(bl => {
-                    const isQuantityModified = this.modifiedCells.has(`${bl.Id}-quantity`);
-                    const isUnitCostModified = this.modifiedCells.has(`${bl.Id}-unitCost`);
-                    
-                    // Check if cells are being edited
-                    const isEditingQuantity = this.editingCells.has(`${bl.Id}-quantity`);
-                    const isEditingUnitCost = this.editingCells.has(`${bl.Id}-unitCost`);
-                    
-                    return {
-                        ...bl,
-                        isQuantityModified,
-                        isUnitCostModified,
-                        isEditingQuantity,
-                        isEditingUnitCost,
-                        quantityCellClass: isQuantityModified 
-                            ? 'center-trancate-text editable-cell modified-cell' 
-                            : 'center-trancate-text editable-cell',
-                        unitCostCellClass: isUnitCostModified 
-                            ? 'center-trancate-text editable-cell modified-cell' 
-                            : 'center-trancate-text editable-cell'
-                    };
-                });
-                
-                return {
-                    ...line,
-                    budget: {
-                        ...line.budget,
-                        budgetLines
-                    }
-                };
-            }
-            return line;
-        });
+        const costTypeCounts = this.costTypes.map(type => 
+            (line.budget.budgetLinesByCostType[type] || []).length
+        );
+        
+        return costTypeCounts.reduce((sum, count) => sum + count, 0);
     }
 
     // Get grand total of all proposal lines
     get grandTotal() {
-        if (!this.proposalLinesRaw || this.proposalLinesRaw.length === 0) {
-            return '0.00';
-        }
+        if (!this.proposalLinesRaw || this.proposalLinesRaw.length === 0) return '0.00';
         
         const total = this.proposalLinesRaw.reduce((sum, line) => {
-            const budgetLines = line.wfrecon__Budgets__r?.[0]?.wfrecon__Budget_Lines__r || [];
-            const lineTotal = this.calculateBudgetTotal(budgetLines);
-            return sum + parseFloat(lineTotal);
+            return sum + this.safeNumber(line.wfrecon__Total_Cost__c, 0);
         }, 0);
         
         return total.toFixed(2);
@@ -179,25 +244,17 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     // Handle toggle expand/collapse
     handleToggleExpand(event) {
         const lineId = event.currentTarget.dataset.id;
-        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
-            if (line.Id === lineId) {
-                return { ...line, isExpanded: !line.isExpanded };
-            }
-            return line;
-        });
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => ({
+            ...line,
+            isExpanded: line.Id === lineId ? !line.isExpanded : line.isExpanded
+        }));
     }
 
     // Handle Add Proposal Line button click
     handleAddProposalLine() {
         this.showAddModal = true;
-        this.proposalLineName = '';
-        this.proposalLineDescription = '';
-        this.selectedPricebookId = '';
-        this.isAddingToBudget = false;
-        this.currentBudgetId = null;
-        this.currentProposalLineId = null;
         this.loadPricebooks();
-        this.initializeNewBudgetLines();
+        this.initializeNewProposalLines();
     }
 
     // Load pricebooks
@@ -210,43 +267,30 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                         label: pb.Name,
                         value: pb.Id
                     }));
-                } else {
-                    console.error('Error loading pricebooks:', result.error || result.message);
-                    this.showToast('Error', result.message, 'error');
                 }
                 this.isModalLoading = false;
             })
             .catch(error => {
                 console.error('Error loading pricebooks:', error);
-                this.showToast('Error', 'Unable to load pricebooks. Please try again.', 'error');
+                this.showToast('Error', 'Unable to load pricebooks', 'error');
                 this.isModalLoading = false;
             });
     }
 
-    // Initialize new budget lines
-    initializeNewBudgetLines() {
-        this.newBudgetLines = [{
+    // Initialize new proposal lines
+    initializeNewProposalLines() {
+        this.newProposalLines = [{
             tempId: `temp-${this.tempIdCounter++}`,
             lineNumber: 1,
             pricebookId: '',
             productId: '',
             quantity: 1,
-            unitCost: 0,
-            description: '',
+            oh: this.proposalDefaults.oh,
+            warranty: this.proposalDefaults.warranty,
+            profit: this.proposalDefaults.profit,
             productOptions: [],
-            lineTotal: '0.00',
             canDelete: false
         }];
-    }
-
-    // Handle proposal line name change
-    handleProposalLineNameChange(event) {
-        this.proposalLineName = event.target.value;
-    }
-
-    // Handle proposal line description change
-    handleProposalLineDescriptionChange(event) {
-        this.proposalLineDescription = event.target.value;
     }
 
     // Handle row pricebook change
@@ -258,16 +302,13 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             this.loadProductsForRow(tempId, pricebookId);
         }
 
-        // Update the pricebook ID for this row and reset product selection
-        this.newBudgetLines = this.newBudgetLines.map(line => {
+        this.newProposalLines = this.newProposalLines.map(line => {
             if (line.tempId === tempId) {
                 return {
                     ...line,
                     pricebookId: pricebookId,
                     productId: '',
-                    unitCost: 0,
-                    productOptions: [],
-                    lineTotal: this.calculateTotal(line.quantity, 0)
+                    productOptions: []
                 };
             }
             return line;
@@ -280,31 +321,26 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         getProductsByPricebook({ pricebookId: pricebookId })
             .then(result => {
                 if (result.success && result.data) {
-                    const productOpts = result.data.map(pbe => ({
-                        label: pbe.Product2.Name,
-                        value: pbe.Product2Id,
-                        unitPrice: pbe.UnitPrice
+                    const productOptions = result.data.map(entry => ({
+                        label: entry.Product2.Name,
+                        value: entry.Product2Id
                     }));
 
-                    // Update only this specific budget line with product options
-                    this.newBudgetLines = this.newBudgetLines.map(line => {
+                    this.newProposalLines = this.newProposalLines.map(line => {
                         if (line.tempId === tempId) {
                             return {
                                 ...line,
-                                productOptions: productOpts
+                                productOptions: productOptions
                             };
                         }
                         return line;
                     });
-                } else {
-                    console.error('Error loading products:', result.error || result.message);
-                    this.showToast('Error', result.message, 'error');
                 }
                 this.isModalLoading = false;
             })
             .catch(error => {
                 console.error('Error loading products:', error);
-                this.showToast('Error', 'Unable to load products. Please try again.', 'error');
+                this.showToast('Error', 'Unable to load products', 'error');
                 this.isModalLoading = false;
             });
     }
@@ -314,17 +350,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const tempId = event.currentTarget.dataset.id;
         const productId = event.target.value;
 
-        this.newBudgetLines = this.newBudgetLines.map(line => {
+        this.newProposalLines = this.newProposalLines.map(line => {
             if (line.tempId === tempId) {
+                // Find the product name from productOptions
                 const selectedProduct = line.productOptions.find(opt => opt.value === productId);
-                const unitCost = selectedProduct ? selectedProduct.unitPrice : 0;
-                const lineTotal = this.calculateTotal(line.quantity, unitCost);
-
+                const productName = selectedProduct ? selectedProduct.label : '';
+                
                 return {
                     ...line,
                     productId: productId,
-                    unitCost: unitCost,
-                    lineTotal: lineTotal
+                    productName: productName
                 };
             }
             return line;
@@ -337,151 +372,114 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const field = event.currentTarget.dataset.field;
         const value = event.target.value;
 
-        this.newBudgetLines = this.newBudgetLines.map(line => {
+        this.newProposalLines = this.newProposalLines.map(line => {
             if (line.tempId === tempId) {
-                const updatedLine = { ...line, [field]: value };
-                updatedLine.lineTotal = this.calculateTotal(updatedLine.quantity, updatedLine.unitCost);
-                return updatedLine;
+                return {
+                    ...line,
+                    [field]: field === 'quantity' || field === 'oh' || field === 'warranty' || field === 'profit' 
+                            ? parseFloat(value) || 0 
+                            : value
+                };
             }
             return line;
         });
     }
 
-    // Handle add another line
+    // Handle add another proposal line
     handleAddAnotherLine() {
         const newLine = {
             tempId: `temp-${this.tempIdCounter++}`,
-            lineNumber: this.newBudgetLines.length + 1,
+            lineNumber: this.newProposalLines.length + 1,
             pricebookId: '',
             productId: '',
             quantity: 1,
-            unitCost: 0,
-            description: '',
+            oh: this.proposalDefaults.oh,
+            warranty: this.proposalDefaults.warranty,
+            profit: this.proposalDefaults.profit,
             productOptions: [],
-            lineTotal: '0.00',
             canDelete: true
         };
 
-        this.newBudgetLines = [...this.newBudgetLines, newLine];
+        this.newProposalLines = [...this.newProposalLines, newLine];
         
-        // Scroll to bottom of table container
+        // Scroll to bottom
         setTimeout(() => {
-            const tableContainer = this.template.querySelector('[data-id="tableContainer"]');
-            if (tableContainer) {
-                tableContainer.scrollTop = tableContainer.scrollHeight;
+            const container = this.template.querySelector('[data-id="tableContainer"]');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
             }
         }, 100);
     }
 
-    // Handle remove line
+    // Handle remove proposal line
     handleRemoveLine(event) {
         const tempId = event.currentTarget.dataset.id;
-        this.newBudgetLines = this.newBudgetLines.filter(line => line.tempId !== tempId);
+        this.newProposalLines = this.newProposalLines.filter(line => line.tempId !== tempId);
         
         // Re-number lines
-        this.newBudgetLines = this.newBudgetLines.map((line, index) => ({
+        this.newProposalLines = this.newProposalLines.map((line, index) => ({
             ...line,
             lineNumber: index + 1,
             canDelete: index > 0
         }));
     }
 
+    // Handle save proposal lines
     handleSaveProposalLines() {
-        // Validate budget lines
-        const hasInvalidLines = this.newBudgetLines.some(line =>
+        // Validate
+        const hasInvalidLines = this.newProposalLines.some(line =>
             !line.pricebookId || !line.productId || !line.quantity || line.quantity <= 0
         );
 
         if (hasInvalidLines) {
-            this.showToast('Error', 'Please fill in all required fields (Pricebook, Product, Quantity) for all budget lines', 'error');
+            this.showToast('Validation Error', 'Please fill all required fields (Pricebook, Product, Quantity)', 'warning');
             return;
         }
 
         this.isSaving = true;
 
-        // Check if we're adding to an existing budget or creating a new proposal line
-        if (this.isAddingToBudget && this.currentBudgetId) {
-            // Adding budget lines to existing budget
-            const budgetLinesToAdd = this.newBudgetLines.map(line => ({
-                budgetId: this.currentBudgetId,
-                pricebookId: line.pricebookId,
+        const proposalLinesData = this.newProposalLines.map(line => {
+            // Limit product name to 80 characters for proposal line name
+            const proposalLineName = line.productName ? line.productName.substring(0, 80) : '';
+            
+            return {
                 productId: line.productId,
-                quantity: parseFloat(line.quantity),
-                unitCost: parseFloat(line.unitCost),
-                description: line.description,
-                action: 'insert'
-            }));
-
-            saveBudgetLineEdits({ budgetLinesJson: JSON.stringify(budgetLinesToAdd) })
-                .then(result => {
-                    if (result.success) {
-                        this.showToast('Success', 'Budget lines added successfully', 'success');
-                        this.handleCloseModal();
-                        this.loadProposalLines();
-                    } else {
-                        console.error('Error adding budget lines:', result.error || result.message);
-                        this.showToast('Error', result.message, 'error');
-                        this.isSaving = false;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error adding budget lines:', error);
-                    this.showToast('Error', 'Unable to add budget lines. Please try again.', 'error');
-                    this.isSaving = false;
-                });
-        } else {
-            // Creating new proposal line with budget
-            // Validate proposal line name
-            if (!this.proposalLineName || this.proposalLineName.trim() === '') {
-                this.showToast('Error', 'Please enter a Proposal Line Name', 'error');
-                this.isSaving = false;
-                return;
-            }
-
-            const proposalLineData = {
-                proposalId: this.recordId,
-                proposalLineName: this.proposalLineName,
-                proposalLineDescription: this.proposalLineDescription,
-                budgetLines: this.newBudgetLines.map(line => ({
-                    pricebookId: line.pricebookId,
-                    productId: line.productId,
-                    quantity: parseFloat(line.quantity),
-                    unitCost: parseFloat(line.unitCost),
-                    description: line.description
-                }))
+                quantity: line.quantity,
+                oh: line.oh,
+                warranty: line.warranty,
+                profit: line.profit,
+                proposalLineName: proposalLineName
             };
+        });
 
-            saveProposalLines({ linesData: JSON.stringify(proposalLineData) })
-                .then(result => {
-                    if (result.success) {
-                        this.showToast('Success', result.message, 'success');
-                        this.handleCloseModal();
-                        this.loadProposalLines();
-                    } else {
-                        console.error('Error saving proposal line:', result.error || result.message);
-                        this.showToast('Error', result.message, 'error');
-                        this.isSaving = false;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error saving proposal line:', error);
-                    this.showToast('Error', 'Unable to save proposal line. Please try again.', 'error');
-                    this.isSaving = false;
-                });
-        }
+        const linesData = JSON.stringify({
+            proposalId: this.recordId,
+            proposalLines: proposalLinesData
+        });
+
+        saveProposalLines({ linesData: linesData })
+            .then(result => {
+                if (result.success) {
+                    this.showToast('Success', result.message, 'success');
+                    this.handleCloseModal();
+                    this.loadProposalLines();
+                } else {
+                    this.showToast('Error', result.message, 'error');
+                }
+                this.isSaving = false;
+            })
+            .catch(error => {
+                console.error('Error saving proposal lines:', error);
+                this.showToast('Error', 'Unable to save proposal lines', 'error');
+                this.isSaving = false;
+            });
     }
 
     // Handle close modal
     handleCloseModal() {
         this.showAddModal = false;
-        this.proposalLineName = '';
-        this.proposalLineDescription = '';
-        this.selectedPricebookId = '';
-        this.newBudgetLines = [];
+        this.newProposalLines = [];
         this.isSaving = false;
-        this.currentBudgetId = null;
-        this.currentProposalLineId = null;
-        this.isAddingToBudget = false;
     }
 
     // Handle delete proposal line
@@ -503,16 +501,140 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     this.showToast('Success', result.message, 'success');
                     this.loadProposalLines();
                 } else {
-                    console.error('Error deleting proposal line:', result.error || result.message);
                     this.showToast('Error', result.message, 'error');
-                    this.isLoading = false;
                 }
+                this.isLoading = false;
             })
             .catch(error => {
                 console.error('Error deleting proposal line:', error);
-                this.showToast('Error', 'Unable to delete proposal line. Please try again.', 'error');
+                this.showToast('Error', 'Unable to delete proposal line', 'error');
                 this.isLoading = false;
             });
+    }
+
+    // Handle proposal line cell click to enter edit mode
+    handleProposalLineCellClick(event) {
+        // If clicking on an input, don't interfere
+        if (event.target.tagName === 'INPUT') {
+            return;
+        }
+        
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const fieldName = event.currentTarget.dataset.field;
+        const isEditable = event.currentTarget.dataset.editable === 'true';
+        
+        if (!isEditable) return;
+        
+        // Clear any existing edits
+        this.editingProposalLines.clear();
+        
+        // Add this specific field to editing
+        const editKey = `${proposalLineId}_${fieldName}`;
+        this.editingProposalLines.add(editKey);
+        this.proposalLinesRaw = [...this.proposalLinesRaw];
+        
+        // Focus the input in the next tick
+        setTimeout(() => {
+            const input = this.template.querySelector(`input[data-proposal-line-id="${proposalLineId}"][data-field="${fieldName}"]`);
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 10);
+    }
+
+    // Handle proposal line field change
+    handleProposalLineFieldChange(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const fieldName = event.currentTarget.dataset.field;
+        const value = event.target.value;
+        
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+            if (line.Id === proposalLineId) {
+                return {
+                    ...line,
+                    [fieldName]: parseFloat(value) || 0,
+                    isModified: true
+                };
+            }
+            return line;
+        });
+    }
+
+    // Handle proposal line field blur to save and exit edit mode
+    handleProposalLineFieldBlur(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const fieldName = event.currentTarget.dataset.field;
+        const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+        
+        if (line && line.isModified) {
+            this.saveProposalLineEdit(line);
+        }
+        
+        const editKey = `${proposalLineId}_${fieldName}`;
+        this.editingProposalLines.delete(editKey);
+        this.proposalLinesRaw = [...this.proposalLinesRaw];
+    }
+
+    saveProposalLineEdit(line) {
+        // You'll need to add an Apex method for updating individual proposal line fields
+        // For now, just remove the isModified flag
+        this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
+            if (l.Id === line.Id) {
+                return {
+                    ...l,
+                    isModified: false
+                };
+            }
+            return l;
+        });
+        
+        this.showToast('Success', 'Proposal line updated', 'success');
+        this.loadProposalLines();
+    }
+
+    // Handle budget line cell click to enter edit mode
+    handleBudgetLineCellClick(event) {
+        // If clicking on an input, don't interfere
+        if (event.target.tagName === 'INPUT') {
+            return;
+        }
+        
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const budgetLineId = event.currentTarget.dataset.budgetLineId;
+        const costType = event.currentTarget.dataset.costType;
+        const fieldName = event.currentTarget.dataset.field;
+        const isEditable = event.currentTarget.dataset.editable === 'true';
+        
+        if (!isEditable) return;
+        
+        // Clear any existing edits
+        this.editingBudgetCells.clear();
+        
+        // Add this specific field to editing
+        const editKey = `${proposalLineId}_${budgetLineId}_${fieldName}`;
+        this.editingBudgetCells.add(editKey);
+        this.proposalLinesRaw = [...this.proposalLinesRaw];
+        
+        // Focus the input in the next tick
+        setTimeout(() => {
+            const input = this.template.querySelector(`input[data-proposal-line-id="${proposalLineId}"][data-budget-line-id="${budgetLineId}"][data-field="${fieldName}"]`);
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 10);
+    }
+
+    // Handle budget line field blur to exit edit mode
+    handleBudgetLineCellBlur(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const budgetLineId = event.currentTarget.dataset.budgetLineId;
+        const fieldName = event.currentTarget.dataset.field;
+        
+        const editKey = `${proposalLineId}_${budgetLineId}_${fieldName}`;
+        this.editingBudgetCells.delete(editKey);
+        this.proposalLinesRaw = [...this.proposalLinesRaw];
     }
 
     // Show toast notification
@@ -543,309 +665,501 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.confirmModalData = null;
     }
 
-    // Inline editing handlers for budget lines
-    handleBudgetLineCellClick(event) {
-        const budgetLineId = event.currentTarget.dataset.budgetLineId;
-        const fieldName = event.currentTarget.dataset.field;
-        const cellKey = `${budgetLineId}-${fieldName}`;
+    // Budget line section handlers
+    handleToggleSection(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const costType = event.currentTarget.dataset.costType;
         
-        // Don't open editor if already editing this cell
-        if (this.editingCells.has(cellKey)) {
-            return;
-        }
-        
-        // Close all other editing cells first
-        this.editingCells.clear();
-        this.editingCells.add(cellKey);
-        
-        // Trigger reactivity to close all editing states
-        this.proposalLinesRaw = [...this.proposalLinesRaw];
-        
-        // Auto-focus the input after DOM update
-        setTimeout(() => {
-            const input = this.template.querySelector(
-                `input[data-budget-line-id="${budgetLineId}"][data-field="${fieldName}"]`
-            );
-            if (input) {
-                input.focus();
-                input.select();
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+            if (line.Id === proposalLineId && line.budget) {
+                const sectionKey = `${costType}Expanded`;
+                return {
+                    ...line,
+                    budget: {
+                        ...line.budget,
+                        [sectionKey]: !line.budget[sectionKey]
+                    }
+                };
             }
-        }, 50);
+            return line;
+        });
+    }
+
+    handleAddBudgetLineToSection(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const costType = event.currentTarget.dataset.costType;
+        const budgetId = event.currentTarget.dataset.budgetId;
+        
+        // Add new empty budget line to the section
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+            if (line.Id === proposalLineId && line.budget) {
+                const newBudgetLine = this.createEmptyBudgetLine(budgetId, costType);
+                
+                // Flatten all budget lines to an array
+                const allBudgetLines = [];
+                Object.keys(line.budget.budgetLinesByCostType).forEach(type => {
+                    allBudgetLines.push(...(line.budget.budgetLinesByCostType[type] || []));
+                });
+                allBudgetLines.push(newBudgetLine);
+
+                return {
+                    ...line,
+                    budget: {
+                        ...line.budget,
+                        budgetLinesByCostType: this.organizeBudgetLinesByCostType(allBudgetLines, line.Id)
+                    }
+                };
+            }
+            return line;
+        });
+        
+        // Mark section as modified
+        this.markSectionAsModified(proposalLineId, costType);
+    }
+
+    createEmptyBudgetLine(budgetId, costType) {
+        const baseLine = {
+            tempId: `temp-${this.tempIdCounter++}`,
+            wfrecon__Budget__c: budgetId,
+            wfrecon__Cost_Type__c: costType,
+            isNew: true
+        };
+
+        switch(costType) {
+            case 'labor':
+                return {
+                    ...baseLine,
+                    wfrecon__No_Of_Crew_Members__c: 0,
+                    wfrecon__Hrs_day__c: 0,
+                    wfrecon__Burden_Rate_Hour__c: 0,
+                    wfrecon__of_Days__c: 0,
+                    wfrecon__Estimated_Hours__c: 0,
+                    wfrecon__Labor_Cost__c: 0,
+                    wfrecon__Note__c: ''
+                };
+            case 'materials':
+                return {
+                    ...baseLine,
+                    wfrecon__Material__c: '',
+                    wfrecon__QTY__c: 0,
+                    wfrecon__Material_Cost_Each__c: 0,
+                    wfrecon__Material_Cost_SubTotal__c: 0
+                };
+            case 'hotel':
+                return {
+                    ...baseLine,
+                    wfrecon__Of_Nights__c: 0,
+                    wfrecon__Number_Of_Rooms__c: 0,
+                    wfrecon__Costs_Per_Night__c: 0,
+                    wfrecon__Total_Hotel_Cost__c: 0
+                };
+            case 'mileage':
+                return {
+                    ...baseLine,
+                    wfrecon__Of_Trips__c: 0,
+                    wfrecon__Of_Trucks__c: 0,
+                    wfrecon__Mileage__c: 0,
+                    wfrecon__Mileage_Rate__c: 0,
+                    wfrecon__Total_Mileage__c: 0
+                };
+            case 'perdiem':
+                return {
+                    ...baseLine,
+                    wfrecon__Per_Diem_of_Days__c: 0,
+                    wfrecon__Per_Diem_Rate__c: 0,
+                    wfrecon__Total_Per_Diem__c: 0,
+                    wfrecon__of_Men__c: 0
+                };
+            default:
+                return baseLine;
+        }
     }
 
     handleBudgetLineFieldChange(event) {
         const proposalLineId = event.currentTarget.dataset.proposalLineId;
         const budgetLineId = event.currentTarget.dataset.budgetLineId;
+        const costType = event.currentTarget.dataset.costType;
         const fieldName = event.currentTarget.dataset.field;
         let newValue = event.target.value;
-        
-        // Type conversion
-        if (fieldName === 'quantity' || fieldName === 'unitCost') {
-            newValue = parseFloat(newValue) || 0;
-        }
-        
-        // Get original value
-        const proposalLine = this.proposalLinesRaw.find(line => line.Id === proposalLineId);
-        const budgetLine = proposalLine?.budget?.budgetLines?.find(bl => bl.Id === budgetLineId);
-        
-        if (!budgetLine) return;
-        
-        const fieldMapping = {
-            'quantity': 'wfrecon__Quantity__c',
-            'unitCost': 'wfrecon__Unit_Cost__c'
-        };
-        
-        const originalValue = budgetLine[fieldMapping[fieldName]];
-        
-        // Track modifications
-        if (!this.modifiedBudgetLinesByProposal.has(proposalLineId)) {
-            this.modifiedBudgetLinesByProposal.set(proposalLineId, new Map());
-        }
-        
-        const proposalModifications = this.modifiedBudgetLinesByProposal.get(proposalLineId);
-        
-        if (!proposalModifications.has(budgetLineId)) {
-            proposalModifications.set(budgetLineId, {});
-        }
-        
-        const budgetLineModifications = proposalModifications.get(budgetLineId);
-        
-        // Check if value changed
-        if (newValue !== originalValue) {
-            budgetLineModifications[fieldName] = newValue;
-        } else {
-            delete budgetLineModifications[fieldName];
-            if (Object.keys(budgetLineModifications).length === 0) {
-                proposalModifications.delete(budgetLineId);
-            }
-        }
-        
-        if (proposalModifications.size === 0) {
-            this.modifiedBudgetLinesByProposal.delete(proposalLineId);
-        }
-        
-        // Update hasModifications flag
-        this.hasModificationsByProposal.set(
-            proposalLineId, 
-            proposalModifications.size > 0
-        );
-        
-        // Track which cells are modified for highlighting
-        if (!this.modifiedCells) {
-            this.modifiedCells = new Set();
-        }
-        const cellKey = `${budgetLineId}-${fieldName}`;
-        if (newValue !== originalValue) {
-            this.modifiedCells.add(cellKey);
-        } else {
-            this.modifiedCells.delete(cellKey);
-        }
-        
-        // Update the proposal lines to recalculate totals
+
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
-            if (line.Id === proposalLineId && line.budget && line.budget.budgetLines) {
-                const updatedBudgetLines = line.budget.budgetLines.map(bl => {
-                    if (bl.Id === budgetLineId) {
-                        const updatedBL = { ...bl };
-                        if (fieldName === 'quantity') updatedBL.wfrecon__Quantity__c = newValue;
-                        if (fieldName === 'unitCost') updatedBL.wfrecon__Unit_Cost__c = newValue;
-                        updatedBL.total = this.calculateTotal(updatedBL.wfrecon__Quantity__c, updatedBL.wfrecon__Unit_Cost__c);
-                        return updatedBL;
+            if (line.Id === proposalLineId && line.budget) {
+                // Flatten all budget lines to an array
+                const allBudgetLines = [];
+                Object.keys(line.budget.budgetLinesByCostType).forEach(type => {
+                    const lines = line.budget.budgetLinesByCostType[type].map(budgetLine => {
+                        if (type === costType && ((budgetLine.Id === budgetLineId) || (budgetLine.tempId === budgetLineId))) {
+                            const updatedLine = {
+                                ...budgetLine,
+                                [fieldName]: newValue,
+                                isModified: true
+                            };
+                            // Calculate formula fields based on cost type
+                            return this.calculateFormulaFields(updatedLine, costType);
+                        }
+                        return budgetLine;
+                    });
+                    allBudgetLines.push(...lines);
+                });
+
+                return {
+                    ...line,
+                    budget: {
+                        ...line.budget,
+                        budgetLinesByCostType: this.organizeBudgetLinesByCostType(allBudgetLines, line.Id)
                     }
-                    return bl;
+                };
+            }
+            return line;
+        });
+
+        this.markSectionAsModified(proposalLineId, costType);
+    }
+
+    calculateFormulaFields(budgetLine, costType) {
+        const parseNum = (val) => parseFloat(val) || 0;
+        
+        switch(costType) {
+            case 'labor':
+                // Estimated Hours = No_Of_Crew_Members * Hrs_day * of_Days
+                const estimatedHours = parseNum(budgetLine.wfrecon__No_Of_Crew_Members__c) * 
+                                      parseNum(budgetLine.wfrecon__Hrs_day__c) * 
+                                      parseNum(budgetLine.wfrecon__of_Days__c);
+                budgetLine.wfrecon__Estimated_Hours__c = estimatedHours;
+                
+                // Labor Cost = Estimated_Hours * Burden_Rate_Hour
+                budgetLine.wfrecon__Labor_Cost__c = estimatedHours * parseNum(budgetLine.wfrecon__Burden_Rate_Hour__c);
+                break;
+                
+            case 'materials':
+                // Material Cost Subtotal = QTY * Cost_Each
+                budgetLine.wfrecon__Material_Cost_SubTotal__c = parseNum(budgetLine.wfrecon__QTY__c) * 
+                                                                 parseNum(budgetLine.wfrecon__Material_Cost_Each__c);
+                break;
+                
+            case 'hotel':
+                // Total Hotel Cost = Number_Of_Rooms * Of_Nights * Costs_Per_Night
+                budgetLine.wfrecon__Total_Hotel_Cost__c = parseNum(budgetLine.wfrecon__Number_Of_Rooms__c) * 
+                                                          parseNum(budgetLine.wfrecon__Of_Nights__c) * 
+                                                          parseNum(budgetLine.wfrecon__Costs_Per_Night__c);
+                break;
+                
+            case 'mileage':
+                // Total Mileage = Of_Trucks * Of_Trips * Mileage * Mileage_Rate
+                budgetLine.wfrecon__Total_Mileage__c = parseNum(budgetLine.wfrecon__Of_Trucks__c) * 
+                                                       parseNum(budgetLine.wfrecon__Of_Trips__c) * 
+                                                       parseNum(budgetLine.wfrecon__Mileage__c) * 
+                                                       parseNum(budgetLine.wfrecon__Mileage_Rate__c);
+                break;
+                
+            case 'perdiem':
+                // Total Per Diem = Per_Diem_of_Days * of_Men * Per_Diem_Rate
+                budgetLine.wfrecon__Total_Per_Diem__c = parseNum(budgetLine.wfrecon__Per_Diem_of_Days__c) * 
+                                                        parseNum(budgetLine.wfrecon__of_Men__c) * 
+                                                        parseNum(budgetLine.wfrecon__Per_Diem_Rate__c);
+                break;
+        }
+        
+        return budgetLine;
+    }
+
+    markSectionAsModified(proposalLineId, costType) {
+        if (!this.hasModificationsBySection.has(proposalLineId)) {
+            this.hasModificationsBySection.set(proposalLineId, new Map());
+        }
+        this.hasModificationsBySection.get(proposalLineId).set(costType, true);
+        
+        // Update the budget object flag
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+            if (line.Id === proposalLineId && line.budget) {
+                const flagMap = {
+                    'Labor': 'laborHasModifications',
+                    'Materials': 'materialsHasModifications',
+                    'Hotel': 'hotelHasModifications',
+                    'Mileage': 'mileageHasModifications',
+                    'Per Diem': 'perdiemHasModifications'
+                };
+                
+                return {
+                    ...line,
+                    budget: {
+                        ...line.budget,
+                        [flagMap[costType]]: true
+                    }
+                };
+            }
+            return line;
+        });
+    }
+
+    handleSaveBudgetSection(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const costType = event.currentTarget.dataset.costType;
+
+        const proposalLine = this.proposalLinesRaw.find(line => line.Id === proposalLineId);
+        if (!proposalLine || !proposalLine.budget) return;
+
+        const budgetLines = proposalLine.budget.budgetLinesByCostType[costType] || [];
+        const budgetLinesToSave = budgetLines
+            .filter(line => line.isModified || line.isNew)
+            .map(line => ({
+                Id: line.Id,
+                budgetId: line.wfrecon__Budget__c,
+                costType: costType,
+                action: line.isNew ? 'insert' : 'update',
+                ...this.extractBudgetLineFields(line, costType)
+            }));
+
+        if (budgetLinesToSave.length === 0) {
+            this.showToast('Info', 'No changes to save', 'info');
+            return;
+        }
+
+        this.setSavingState(proposalLineId, costType, true);
+
+        saveBudgetLineEdits({ budgetLinesJson: JSON.stringify(budgetLinesToSave) })
+            .then(result => {
+                if (result.success) {
+                    this.showToast('Success', result.message, 'success');
+                    this.loadProposalLines();
+                    this.clearSectionModifications(proposalLineId, costType);
+                } else {
+                    this.showToast('Error', result.message, 'error');
+                }
+                this.setSavingState(proposalLineId, costType, false);
+            })
+            .catch(error => {
+                console.error('Error saving budget lines:', error);
+                this.showToast('Error', 'Unable to save budget lines', 'error');
+                this.setSavingState(proposalLineId, costType, false);
+            });
+    }
+
+    extractBudgetLineFields(line, costType) {
+        const fields = {};
+        
+        switch(costType) {
+            case 'labor':
+                fields.noOfCrewMembers = line.wfrecon__No_Of_Crew_Members__c;
+                fields.hrsDay = line.wfrecon__Hrs_day__c;
+                fields.burdenRateHour = line.wfrecon__Burden_Rate_Hour__c;
+                fields.ofDays = line.wfrecon__of_Days__c;
+                fields.estimatedHours = line.wfrecon__Estimated_Hours__c;
+                fields.laborCost = line.wfrecon__Labor_Cost__c;
+                fields.note = line.wfrecon__Note__c;
+                break;
+            case 'materials':
+                fields.materials = line.wfrecon__Material__c;
+                fields.qty = line.wfrecon__QTY__c;
+                fields.materialCostEach = line.wfrecon__Material_Cost_Each__c;
+                fields.materialCostSubTotal = line.wfrecon__Material_Cost_SubTotal__c;
+                break;
+            case 'hotel':
+                fields.ofNights = line.wfrecon__Of_Nights__c;
+                fields.numberOfRooms = line.wfrecon__Number_Of_Rooms__c;
+                fields.costsPerNight = line.wfrecon__Costs_Per_Night__c;
+                fields.totalHotelCost = line.wfrecon__Total_Hotel_Cost__c;
+                break;
+            case 'mileage':
+                fields.ofTrips = line.wfrecon__Of_Trips__c;
+                fields.ofTrucks = line.wfrecon__Of_Trucks__c;
+                fields.mileage = line.wfrecon__Mileage__c;
+                fields.mileageRate = line.wfrecon__Mileage_Rate__c;
+                fields.totalMileage = line.wfrecon__Total_Mileage__c;
+                break;
+            case 'perdiem':
+                fields.perDiemOfDays = line.wfrecon__Per_Diem_of_Days__c;
+                fields.perDiemRate = line.wfrecon__Per_Diem_Rate__c;
+                fields.totalPerDiem = line.wfrecon__Total_Per_Diem__c;
+                fields.ofMen = line.wfrecon__of_Men__c;
+                break;
+        }
+        
+        return fields;
+    }
+
+    handleDiscardBudgetSection(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const costType = event.currentTarget.dataset.costType;
+        
+        this.loadProposalLines();
+        this.clearSectionModifications(proposalLineId, costType);
+    }
+
+    handleDeleteBudgetLine(event) {
+        const proposalLineId = event.currentTarget.dataset.proposalLineId;
+        const budgetLineId = event.currentTarget.dataset.budgetLineId;
+        const costType = event.currentTarget.dataset.costType;
+        
+        // If budget line doesn't have an ID (newly added, not saved), just remove it from the list
+        if (!budgetLineId || budgetLineId.startsWith('temp-')) {
+            this.removeNewBudgetLine(proposalLineId, budgetLineId, costType);
+            return;
+        }
+        
+        // For existing budget lines, show confirmation
+        this.confirmModalTitle = 'Delete Budget Line';
+        this.confirmModalMessage = 'Are you sure you want to delete this budget line?';
+        this.confirmModalAction = 'deleteBudgetLine';
+        this.confirmModalData = { proposalLineId, budgetLineId };
+        this.showConfirmModal = true;
+    }
+
+    removeNewBudgetLine(proposalLineId, budgetLineId, costType) {
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+            if (line.Id === proposalLineId && line.budget) {
+                // Flatten all budget lines and filter out the one to remove
+                const allBudgetLines = [];
+                Object.keys(line.budget.budgetLinesByCostType).forEach(type => {
+                    const lines = line.budget.budgetLinesByCostType[type].filter(bl => bl.Id !== budgetLineId);
+                    allBudgetLines.push(...lines);
                 });
                 
                 return {
                     ...line,
                     budget: {
                         ...line.budget,
-                        budgetLines: updatedBudgetLines,
-                        totalBudgetAmount: this.calculateBudgetTotal(updatedBudgetLines),
-                        hasBudgetModifications: this.hasModificationsByProposal.get(proposalLineId) || false
-                    },
-                    totalAmount: this.calculateBudgetTotal(updatedBudgetLines)
+                        budgetLinesByCostType: this.organizeBudgetLinesByCostType(allBudgetLines, line.Id)
+                    }
                 };
             }
             return line;
         });
     }
 
-    handleBudgetLineFieldBlur(event) {
-        const budgetLineId = event.currentTarget.dataset.budgetLineId;
-        const fieldName = event.currentTarget.dataset.field;
-        const cellKey = `${budgetLineId}-${fieldName}`;
-        
-        setTimeout(() => {
-            this.editingCells.delete(cellKey);
-            this.proposalLinesRaw = [...this.proposalLinesRaw];
-        }, 100);
+    confirmDeleteBudgetLine(proposalLineId, budgetLineId) {
+        this.isLoading = true;
+        deleteBudgetLine({ budgetLineId: budgetLineId })
+            .then(result => {
+                if (result.success) {
+                    this.showToast('Success', result.message, 'success');
+                    this.loadProposalLines();
+                } else {
+                    this.showToast('Error', result.message, 'error');
+                }
+                this.isLoading = false;
+            })
+            .catch(error => {
+                console.error('Error deleting budget line:', error);
+                this.showToast('Error', 'Unable to delete budget line', 'error');
+                this.isLoading = false;
+            });
     }
 
-    handleSaveBudgetChanges(event) {
-        const proposalLineId = event.currentTarget.dataset.proposalLineId;
-        
-        if (!this.modifiedBudgetLinesByProposal.has(proposalLineId)) {
-            this.showToast('Info', 'No changes to save', 'info');
-            return;
+    setSavingState(proposalLineId, costType, isSaving) {
+        if (!this.isSavingBySection.has(proposalLineId)) {
+            this.isSavingBySection.set(proposalLineId, new Map());
+        }
+        this.isSavingBySection.get(proposalLineId).set(costType, isSaving);
+    }
+
+    clearSectionModifications(proposalLineId, costType) {
+        if (this.hasModificationsBySection.has(proposalLineId)) {
+            this.hasModificationsBySection.get(proposalLineId).delete(costType);
         }
         
-        // Set saving state
-        this.isSavingByProposal.set(proposalLineId, true);
+        // Update the budget object flag
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
             if (line.Id === proposalLineId && line.budget) {
+                const flagMap = {
+                    'Labor': 'laborHasModifications',
+                    'Materials': 'materialsHasModifications',
+                    'Hotel': 'hotelHasModifications',
+                    'Mileage': 'mileageHasModifications',
+                    'Per Diem': 'perdiemHasModifications'
+                };
+                
                 return {
                     ...line,
                     budget: {
                         ...line.budget,
-                        isSavingBudget: true
+                        [flagMap[costType]]: false
                     }
                 };
             }
             return line;
         });
+    }
+
+    hasSectionModifications(proposalLineId, costType) {
+        return this.hasModificationsBySection.has(proposalLineId) &&
+               this.hasModificationsBySection.get(proposalLineId).get(costType);
+    }
+
+    isSectionSaving(proposalLineId, costType) {
+        return this.isSavingBySection.has(proposalLineId) &&
+               this.isSavingBySection.get(proposalLineId).get(costType);
+    }
+
+    // Check if any proposal line has any modifications in any section
+    get hasAnyModifications() {
+        if (this.hasModificationsBySection.size === 0) return false;
         
-        // Prepare data for save
-        const modifications = this.modifiedBudgetLinesByProposal.get(proposalLineId);
-        const budgetLinesToSave = [];
-        
-        modifications.forEach((changes, budgetLineId) => {
-            const budgetLineData = {
-                Id: budgetLineId,
-                quantity: null,
-                unitCost: null
-            };
-            
-            // Get the current values from UI
-            const proposalLine = this.proposalLinesRaw.find(line => line.Id === proposalLineId);
-            const budgetLine = proposalLine?.budget?.budgetLines?.find(bl => bl.Id === budgetLineId);
-            
-            if (budgetLine) {
-                budgetLineData.quantity = budgetLine.wfrecon__Quantity__c;
-                budgetLineData.unitCost = budgetLine.wfrecon__Unit_Cost__c;
+        for (let [proposalLineId, costTypeMap] of this.hasModificationsBySection) {
+            for (let [costType, hasModifications] of costTypeMap) {
+                if (hasModifications) return true;
             }
+        }
+        return false;
+    }
+
+    // Save all modified budget sections across all proposal lines
+    handleSaveAllBudgetSections() {
+        const allBudgetLinesToSave = [];
+        
+        // Iterate through all proposal lines and collect modified budget lines
+        this.proposalLinesRaw.forEach(proposalLine => {
+            if (!proposalLine.budget) return;
             
-            budgetLinesToSave.push(budgetLineData);
+            this.costTypes.forEach(costType => {
+                if (this.hasSectionModifications(proposalLine.Id, costType)) {
+                    const budgetLines = proposalLine.budget.budgetLinesByCostType[costType] || [];
+                    const linesToSave = budgetLines
+                        .filter(line => line.isModified || line.isNew)
+                        .map(line => ({
+                            Id: line.Id,
+                            budgetId: line.wfrecon__Budget__c,
+                            costType: costType,
+                            action: line.isNew ? 'insert' : 'update',
+                            ...this.extractBudgetLineFields(line, costType)
+                        }));
+                    
+                    allBudgetLinesToSave.push(...linesToSave);
+                }
+            });
         });
-        
-        saveBudgetLineEdits({ budgetLinesJson: JSON.stringify(budgetLinesToSave) })
+
+        if (allBudgetLinesToSave.length === 0) {
+            this.showToast('Info', 'No changes to save', 'info');
+            return;
+        }
+
+        this.isSaving = true;
+
+        saveBudgetLineEdits({ budgetLinesJson: JSON.stringify(allBudgetLinesToSave) })
             .then(result => {
                 if (result.success) {
-                    this.showToast('Success', result.message, 'success');
-                    
-                    // Clear modifications for this proposal line
-                    this.modifiedBudgetLinesByProposal.delete(proposalLineId);
-                    this.hasModificationsByProposal.set(proposalLineId, false);
-                    if (this.modifiedCells) {
-                        this.modifiedCells.clear();
-                    }
-                    
-                    // Reload data
+                    this.showToast('Success', 'All changes saved successfully', 'success');
                     this.loadProposalLines();
+                    // Clear all modifications
+                    this.hasModificationsBySection.clear();
                 } else {
                     this.showToast('Error', result.message, 'error');
                 }
-                
-                this.isSavingByProposal.set(proposalLineId, false);
+                this.isSaving = false;
             })
             .catch(error => {
-                console.error('Error saving budget lines:', error);
-                this.showToast('Error', 'Unable to save budget lines. Please try again.', 'error');
-                this.isSavingByProposal.set(proposalLineId, false);
+                console.error('Error saving all budget sections:', error);
+                this.showToast('Error', 'Unable to save budget lines', 'error');
+                this.isSaving = false;
             });
     }
 
-    handleDiscardBudgetChanges(event) {
-        const proposalLineId = event.currentTarget.dataset.proposalLineId;
-        
-        if (!this.modifiedBudgetLinesByProposal.has(proposalLineId)) {
-            return;
-        }
-        
-        // Clear modifications
-        this.modifiedBudgetLinesByProposal.delete(proposalLineId);
-        this.hasModificationsByProposal.set(proposalLineId, false);
-        this.editingCells.clear();
-        if (this.modifiedCells) {
-            this.modifiedCells.clear();
-        }
-        
-        // Reload data to reset UI
+    // Discard all budget section changes across all proposal lines
+    handleDiscardAllBudgetSections() {
         this.loadProposalLines();
-    }
-
-    handleAddBudgetLine(event) {
-        const proposalLineId = event.currentTarget.dataset.proposalLineId;
-        
-        // Find the proposal line
-        const proposalLine = this.proposalLinesRaw.find(line => line.Id === proposalLineId);
-        if (!proposalLine || !proposalLine.budget) {
-            this.showToast('Error', 'Budget not found for this proposal line', 'error');
-            return;
-        }
-        
-        // Store the budget ID and proposal line ID for adding budget lines
-        this.currentBudgetId = proposalLine.budget.Id;
-        this.currentProposalLineId = proposalLineId;
-        this.isAddingToBudget = true;
-        
-        // Open modal to add budget line
-        this.proposalLineName = proposalLine.Name;
-        this.proposalLineDescription = proposalLine.wfrecon__Description__c;
-        this.selectedPricebookId = '';
-        this.loadPricebooks();
-        this.initializeNewBudgetLines();
-        this.showAddModal = true;
-    }
-
-    handleDeleteBudgetLine(event) {
-        const proposalLineId = event.currentTarget.dataset.proposalLineId;
-        const budgetLineId = event.currentTarget.dataset.budgetLineId;
-        
-        this.confirmModalTitle = 'Delete Budget Line';
-        this.confirmModalMessage = 'Are you sure you want to delete this budget line? This action cannot be undone.';
-        this.confirmModalAction = 'deleteBudgetLine';
-        this.confirmModalData = { proposalLineId, budgetLineId };
-        this.showConfirmModal = true;
-    }
-    
-    confirmDeleteBudgetLine(proposalLineId, budgetLineId) {
-        this.isLoading = true;
-        
-        // Track as modification
-        if (!this.modifiedBudgetLinesByProposal.has(proposalLineId)) {
-            this.modifiedBudgetLinesByProposal.set(proposalLineId, new Map());
-        }
-        
-        const proposalModifications = this.modifiedBudgetLinesByProposal.get(proposalLineId);
-        proposalModifications.set(budgetLineId, { action: 'delete' });
-        this.hasModificationsByProposal.set(proposalLineId, true);
-        
-        // Prepare data
-        const budgetLinesToSave = [{
-            Id: budgetLineId,
-            action: 'delete'
-        }];
-        
-        saveBudgetLineEdits({ budgetLinesJson: JSON.stringify(budgetLinesToSave) })
-            .then(result => {
-                if (result.success) {
-                    this.showToast('Success', result.message, 'success');
-                    
-                    // Clear modifications
-                    this.modifiedBudgetLinesByProposal.delete(proposalLineId);
-                    this.hasModificationsByProposal.set(proposalLineId, false);
-                    
-                    // Reload data
-                    this.loadProposalLines();
-                } else {
-                    this.showToast('Error', result.message, 'error');
-                    this.isLoading = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting budget line:', error);
-                this.showToast('Error', 'Unable to delete budget line. Please try again.', 'error');
-                this.isLoading = false;
-            });
+        this.hasModificationsBySection.clear();
+        this.editingBudgetLines.clear();
+        this.showToast('Success', 'All changes discarded', 'info');
     }
 }
