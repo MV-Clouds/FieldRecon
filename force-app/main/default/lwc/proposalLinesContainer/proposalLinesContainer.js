@@ -595,35 +595,57 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
     // Handle budget line cell click to enter edit mode
     handleBudgetLineCellClick(event) {
-        // If clicking on an input, don't interfere
-        if (event.target.tagName === 'INPUT') {
-            return;
-        }
-        
-        const proposalLineId = event.currentTarget.dataset.proposalLineId;
-        const budgetLineId = event.currentTarget.dataset.budgetLineId;
-        const costType = event.currentTarget.dataset.costType;
-        const fieldName = event.currentTarget.dataset.field;
-        const isEditable = event.currentTarget.dataset.editable === 'true';
-        
-        if (!isEditable) return;
-        
-        // Clear any existing edits
-        this.editingBudgetCells.clear();
-        
-        // Add this specific field to editing
-        const editKey = `${proposalLineId}_${budgetLineId}_${fieldName}`;
-        this.editingBudgetCells.add(editKey);
-        this.proposalLinesRaw = [...this.proposalLinesRaw];
-        
-        // Focus the input in the next tick
-        setTimeout(() => {
-            const input = this.template.querySelector(`input[data-proposal-line-id="${proposalLineId}"][data-budget-line-id="${budgetLineId}"][data-field="${fieldName}"]`);
-            if (input) {
-                input.focus();
-                input.select();
+        try {
+            if (event.target.tagName === 'INPUT') {
+                return;
             }
-        }, 10);
+            
+            const proposalLineId = event.currentTarget.dataset.proposalLineId;
+            const budgetLineId = event.currentTarget.dataset.budgetLineId;
+            const costType = event.currentTarget.dataset.costType;
+            const fieldName = event.currentTarget.dataset.field;
+            const isEditable = event.currentTarget.dataset.editable === 'true';
+            
+            if (!isEditable) return;
+            
+            // Clear any existing edits
+            this.editingBudgetCells.clear();
+            
+            // Add this specific field to editing
+            const editKey = `${proposalLineId}_${budgetLineId}_${fieldName}`;
+            this.editingBudgetCells.add(editKey);
+            
+            // Reorganize budget lines to recalculate editing flags
+            this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+                if (line.Id === proposalLineId && line.budget) {
+                    // Flatten all budget lines
+                    const allBudgetLines = [];
+                    Object.keys(line.budget.budgetLinesByCostType).forEach(type => {
+                        allBudgetLines.push(...(line.budget.budgetLinesByCostType[type] || []));
+                    });
+                    
+                    return {
+                        ...line,
+                        budget: {
+                            ...line.budget,
+                            budgetLinesByCostType: this.organizeBudgetLinesByCostType(allBudgetLines, line.Id)
+                        }
+                    };
+                }
+                return line;
+            });
+
+            // Focus the input in the next tick
+            setTimeout(() => {
+                const input = this.template.querySelector(`input[data-proposal-line-id="${proposalLineId}"][data-budget-line-id="${budgetLineId}"][data-field="${fieldName}"]`);
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 10);
+        } catch (error) {
+            console.error('Error in handleBudgetLineCellClick:', error);
+        }
     }
 
     // Handle budget line field blur to exit edit mode
@@ -634,7 +656,26 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         
         const editKey = `${proposalLineId}_${budgetLineId}_${fieldName}`;
         this.editingBudgetCells.delete(editKey);
-        this.proposalLinesRaw = [...this.proposalLinesRaw];
+        
+        // Reorganize budget lines to recalculate editing flags
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+            if (line.Id === proposalLineId && line.budget) {
+                // Flatten all budget lines
+                const allBudgetLines = [];
+                Object.keys(line.budget.budgetLinesByCostType).forEach(type => {
+                    allBudgetLines.push(...(line.budget.budgetLinesByCostType[type] || []));
+                });
+                
+                return {
+                    ...line,
+                    budget: {
+                        ...line.budget,
+                        budgetLinesByCostType: this.organizeBudgetLinesByCostType(allBudgetLines, line.Id)
+                    }
+                };
+            }
+            return line;
+        });
     }
 
     // Show toast notification
