@@ -8,6 +8,10 @@ export default class ProposalDeepClone extends NavigationMixin(LightningElement)
     @api recordId;
     @track isLoading = false;
 
+    connectedCallback(){
+        this.overrideSLDS();
+    }
+
     handleClone() {
         this.isLoading = true;
         cloneProposal({ proposalId: this.recordId })
@@ -37,6 +41,58 @@ export default class ProposalDeepClone extends NavigationMixin(LightningElement)
                 this.showToast('Error', 'Error in the clone process contact administrator: ' + error.body?.message||error.stack, 'error');
                 this.isLoading = false;
             });
+    }
+
+    overrideSLDS() {
+        let style = document.createElement('style');
+        style.innerText = `
+                .uiModal--medium .modal-container {
+                    width: 70%;
+                    min-width: min(480px, calc(100% - 2rem));
+                    margin-inline: auto;
+                }
+                .no-apply .modal-container{
+                    width: 50%;
+                }
+                .slds-modal__container{
+                    width: 90%;
+                    max-width: 1400px;
+                    margin: 0 auto;
+                }
+                .slds-p-around--medium {
+                    padding: unset !important;
+                }
+                .slds-modal__header:not(.empty):not(.slds-modal__header_empty){
+                    background-color: #5e5adb;
+                    color: white;
+                    padding: 1.25rem 1.5rem;
+                    text-align: center;
+                    border-radius: 16px 16px 0px 0px;
+                    position: sticky;
+                    top: 0;
+                    z-index: 100;
+                }
+                .slds-modal__title {
+                    font-size: 1.25rem !important;
+                    font-weight: 600 !important;
+                    margin: 0 !important;
+                }
+                .slds-modal__footer {
+                    display: none !important;
+                }
+                .cuf-content {
+                    padding: unset !important;
+                }
+                .slds-modal__content{
+                    height: unset !important;
+                    background-color: white;
+                    padding: 0rem;
+                }
+                .slds-rich-text-editor{
+                    overflow: hidden;
+                }
+        `;
+        this.template.host.appendChild(style);
     }
 
     handleCancel() {

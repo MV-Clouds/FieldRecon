@@ -11,14 +11,22 @@
         </template>
         
         <template if:false={isLoading}>
-            <p class="slds-text-align_center slds-text-heading_small">
+            <p class="slds-text-align_center slds-text-heading_small center-content">
                 Are you sure you want to clone this Proposal?
             </p>
         </template>
+
+        <div class="popUpFooter">
+            <button class="footer-btn primary-outline" onclick={handleCancel}  disabled={isLoading}>Cancel</button>
+            <button class="footer-btn secondary btn-active slds-m-left_medium" onclick={handleClone} disabled={isLoading}>Clone</button>
+        </div>
     </div>
 
     <div class="modal-footer slds-modal__footer">
         <button class="slds-button slds-button_neutral" onclick={handleCancel} disabled={isLoading}>Cancel</button>
         <button class="slds-button slds-button_brand" onclick={handleClone} disabled={isLoading}>Clone</button>
+
+        <button class="footer-btn primary-outline" onclick={closeFileModal}>Cancel</button>
+        <button class="footer-btn secondary btn-active slds-m-left_medium" onclick={handleAddSelectedFiles} disabled={hasNoSelectedFiles}>Add Selected</button>
     </div>
 </template>

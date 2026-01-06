@@ -1,0 +1,53 @@
+.center-content{
+    padding: 1rem;
+}
+
+.footer-btn {
+    padding: 0 1rem;
+    height: 32px;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+/* Send Button States */
+.footer-btn.secondary.btn-disabled {
+    background: #c9c7c5; /* Standard disabled gray */
+    border: 1px solid #c9c7c5;
+    color: white;
+    cursor: not-allowed;
+}
+
+.footer-btn.secondary.btn-active {
+    background: #5e5adb; /* Matches the popup header color */
+    border: 1px solid #5e5adb;
+    color: white;
+}
+
+.footer-btn.secondary.btn-active:hover {
+    background: #4a46c0; /* Slightly darker on hover */
+}
+
+.footer-btn.primary-outline {
+    background: #fff;
+    border: 1px solid #dddbda;
+    color: #0176d3;
+}
+
+.footer-btn.primary-outline:hover {
+    background: #f3f3f3;
+}
+
+.popUpFooter, .bottom-footer-btn {
+    padding: 0.75rem 1rem;
+    background: #f3f3f3;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+}
