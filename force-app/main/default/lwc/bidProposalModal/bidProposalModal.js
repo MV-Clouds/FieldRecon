@@ -285,8 +285,8 @@ export default class BidProposalModal extends LightningElement {
         const proposalId = event.detail.id;
         this.showToast('Success', 'Proposal created successfully', 'success');
         
-        // Close the quick action screen
-        this.dispatchEvent(new CustomEvent('close'));
+        // Close the quick action screen and pass the created Proposal Id to parent (Aura wrapper will navigate)
+        this.dispatchEvent(new CustomEvent('close', { detail: { id: proposalId } }));
     }
 
     handleError(event) {
