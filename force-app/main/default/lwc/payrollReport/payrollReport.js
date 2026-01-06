@@ -208,6 +208,12 @@ export default class PayrollReport extends LightningElement {
                             const travel_hours = this.roundValue(emp.TravelHoursDisplay || 0);
                             const regular_hours_withot_travel = this.roundValue((emp.regular_hours || 0) - (emp.TravelHoursDisplay || 0));
                             const overtime_hours = this.roundValue(emp.overtime_hours || 0);
+                            
+                            // Calculate Total Hours explicitly from the sum of Job Rows (Reg + Travel)
+                            // This ensures the Total Hours = Sum(Regular Hours Column) + Sum(Travel Hours Column)
+                            const sumJobReg = jobRows.reduce((acc, row) => acc + (row.reg || 0), 0);
+                            const sumJobTravel = jobRows.reduce((acc, row) => acc + (row.travel || 0), 0);
+                            const total_hours = this.roundValue(sumJobReg + sumJobTravel);
 
                             return {
                                 ...emp,
@@ -217,6 +223,7 @@ export default class PayrollReport extends LightningElement {
                                 travel_hours,
                                 regular_hours_withot_travel,
                                 overtime_hours,
+                                total_hours // Add total hours to data object
                             };
                         });
                         console.log('main data *** : ', JSON.stringify(this.data));
@@ -361,6 +368,8 @@ export default class PayrollReport extends LightningElement {
                                 const weight = (job.reg || 0) / totalReg;
                                 otForJob = parseFloat((totalOT * weight).toFixed(2));
                                 newReg = (job.reg || 0) - (otForJob || 0);
+                            } else {
+                                newReg = (job.reg || 0);
                             }
                         }
                         else{
@@ -378,6 +387,7 @@ export default class PayrollReport extends LightningElement {
                             first_name: emp.first_name || '',
                             title: emp.title || '',
                             overtime_hours: emp.overtime_hours || '',
+                            total_hours: emp.total_hours || 0, // Pass total_hours to display row
                             jobCount: jobCount,
 
                             job: {
@@ -545,7 +555,8 @@ export default class PayrollReport extends LightningElement {
             'regular_hours',
             'overtime_hours',
             'premium',
-            'reimbursement'
+            'reimbursement',
+            'Total Hours' // Added new column header
         ];
 
         const csvHeader = columns.join(',');
@@ -568,7 +579,8 @@ export default class PayrollReport extends LightningElement {
                     regPlusTravel.toFixed(2),
                     row.job.ot ? row.job.ot.toFixed(2) : '0',
                     row.job.premium ? row.job.premium.toFixed(2) : '0',
-                    row.job.reimbursement ? row.job.reimbursement.toFixed(2) : '0'
+                    row.job.reimbursement ? row.job.reimbursement.toFixed(2) : '0',
+                    row.total_hours ? Number(row.total_hours).toFixed(2) : '0' // Added Total Hours value
                 ].join(',');
             } catch (e) {
                 console.error('CSV Row Error:', e);
