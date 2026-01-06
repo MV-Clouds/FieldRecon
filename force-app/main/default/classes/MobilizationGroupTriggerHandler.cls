@@ -36,14 +36,63 @@ public with sharing class MobilizationGroupTriggerHandler {
         
         Boolean isMidnight = false;
         List<Mobilization_Group__c> mobGroups = new List<Mobilization_Group__c>();
+        List<Mobilization_Group__c> mobGroupsWithWeekendChanges = new List<Mobilization_Group__c>();
+        
         //filtering records based on criteria
         for(Mobilization_Group__c mg : newMobGroups){
-            if(mg.Start_Date__c != oldMobGroups.get(mg.Id).Start_Date__c ||
+            // Check if Include_Saturday or Include_Sunday changed
+            Boolean saturdayChanged = mg.Include_Saturday__c != oldMobGroups.get(mg.Id).Include_Saturday__c;
+            Boolean sundayChanged = mg.Include_Sunday__c != oldMobGroups.get(mg.Id).Include_Sunday__c;
+            
+            if(saturdayChanged || sundayChanged){
+                // If weekend settings changed, we need to delete all and recreate
+                mobGroupsWithWeekendChanges.add(mg);
+            } else if(mg.Start_Date__c != oldMobGroups.get(mg.Id).Start_Date__c ||
                mg.End_Date__c != oldMobGroups.get(mg.Id).End_Date__c || 
                mg.Mobilization_Status__c != oldMobGroups.get(mg.Id).Mobilization_Status__c){
                 mobGroups.add(mg);
-               }
+            }
         }
+        
+        // Handle weekend setting changes by deleting and recreating all mobilizations
+        if(!mobGroupsWithWeekendChanges.isEmpty()){
+            // First, query the full Mobilization Group records to ensure we have all fields
+            String weekendSoql = 'SELECT Id, Name, Start_Date__c, End_Date__c, Mobilization_Status__c, Job__c, Include_Saturday__c, Include_Sunday__c ' +
+                'FROM Mobilization_Group__c WHERE Id IN :arg1';
+            List<Mobilization_Group__c> fullMobGroups = (Mobilization_Group__c[]) Lib_Security.ws()
+                .dbQuery(weekendSoql, new List<Object>{mobGroupsWithWeekendChanges});
+            
+            // Use runOnce flag to prevent recursion
+            MobilizationGroupTriggerHandler.runOnce = false;
+            
+            // Delete existing mobilizations
+            String deleteSoql = 'SELECT Id FROM Mobilization__c WHERE Mobilization_Group__c IN :arg1';
+            List<Mobilization__c> mobsToDelete = (Mobilization__c[]) Lib_Security.ws()
+                .dbQuery(deleteSoql, new List<Object>{fullMobGroups});
+            
+            if(!mobsToDelete.isEmpty()){
+                Lib_Security.ws().dbDelete(mobsToDelete);
+            }
+            
+            // Recreate all mobilizations with new weekend settings
+            List<Mobilization__c> newMobilizations = new List<Mobilization__c>();
+            for(Mobilization_Group__c mg : fullMobGroups){
+                newMobilizations.addAll(createNewMobilization(mg.Start_Date__c, mg.End_Date__c, mg));
+            }
+            
+            if(!newMobilizations.isEmpty()){
+                Lib_Security.ws().dbInsert(newMobilizations);
+            }
+            
+            // Reset runOnce flag
+            MobilizationGroupTriggerHandler.runOnce = true;
+        }
+        
+        // Handle other changes (dates, status) with the existing logic
+        if(mobGroups.isEmpty()){
+            return;
+        }
+        
         String soql ='SELECT Id,Name,Start_Date__c,End_Date__c,Mobilization_Status__c,Job__c,Include_Saturday__c,Include_Sunday__c,AddAssetUser__c, '+
             ' (SELECT Id,Mobilization_Status__c, Start_Date__c, End_Date__c,Job__c, Mobilization_Group__c FROM Mobilizations__r) '+
             ' FROM Mobilization_Group__c Where Id IN :arg1';

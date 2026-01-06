@@ -11,6 +11,9 @@ import getDefaultValues from '@salesforce/apex/MobSchedulerController.getDefault
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
+// Platform Event Imports
+import { subscribe, unsubscribe, onError } from 'lightning/empApi';
+
 export default class MobScheduler extends NavigationMixin(LightningElement) {
     showSpinner = false;
     @track hasAccess = false;
@@ -93,6 +96,10 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
     isMobDelete = false;
     mobIdToDelete = null;
+
+    // Platform Event Subscription
+    channelName = '/event/wfrecon__Job_Change_Event__e';
+    subscription = {};
 
     get resourceObjectApi(){
         // return this.resourceType == 'Asset' ? 'wfrecon__Equipment__c' : 'Contact';
@@ -280,6 +287,12 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
 
     connectedCallback() {
         this.checkUserPermissions();
+        this.registerPlatformEventListener();
+    }
+
+    disconnectedCallback() {
+        // Unsubscribe from platform event when component is destroyed
+        this.handleUnsubscribe();
     }
 
     checkUserPermissions() {
@@ -1328,6 +1341,60 @@ export default class MobScheduler extends NavigationMixin(LightningElement) {
             this.confirmationBtnLabel2 = null;
         } catch (e) {
             console.error('MobScheduler.handleConfirmationAction error:', e?.message);
+        }
+    }
+
+    // Platform Event Methods
+    registerPlatformEventListener() {
+        try {
+            // Register error listener
+            const errorListener = (error) => {
+                console.error('Platform Event Error:', JSON.stringify(error));
+            };
+            onError(errorListener);
+
+            // Subscribe to platform event
+            const messageCallback = (response) => {
+                try {
+                    console.log('Platform Event Received:', JSON.stringify(response));
+                    
+                    // Refresh data to show updated changes
+                    if (this.isDayView) {
+                        this.initDay(this.currentWeekStart);
+                    } else {
+                        // initWeek handles both Week View and Resource View
+                        this.initWeek(this.currentWeekStart);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error processing platform event:', error?.message);
+                }
+            };
+
+            // Subscribe to the channel
+            subscribe(this.channelName, -1, messageCallback)
+                .then((response) => {
+                    console.log('Successfully subscribed to platform event:', this.channelName);
+                    this.subscription = response;
+                })
+                .catch((error) => {
+                    console.error('Error subscribing to platform event:', error);
+                });
+        } catch (error) {
+            console.error('Error in registerPlatformEventListener:', error?.message);
+        }
+    }
+
+    handleUnsubscribe() {
+        try {
+            // Unsubscribe from the platform event
+            if (this.subscription) {
+                unsubscribe(this.subscription, (response) => {
+                    console.log('Unsubscribed from platform event:', response);
+                });
+            }
+        } catch (error) {
+            console.error('Error unsubscribing from platform event:', error?.message);
         }
     }
 }
