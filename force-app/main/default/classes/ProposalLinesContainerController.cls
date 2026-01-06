@@ -490,7 +490,7 @@ public with sharing class ProposalLinesContainerController {
                     if (String.isBlank(budgetId)) {
                         budgetId = (String) lineData.get('budgetId');
                     }
-                    budgetLine.wfrecon__Cost_Type__c = costType;
+                    budgetLine.wfrecon__Cost_Type__c = costType == 'perdiem' ? 'Per Diem' : costType;
                     
                     // Set fields based on cost type (excluding formula fields)
                     if (costType == 'labor') {
