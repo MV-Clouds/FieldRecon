@@ -23,6 +23,13 @@
                         </lightning-input-field>
                     </div>
 
+                    <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                        <lightning-input-field
+                            field-name="wfrecon__Type__c"
+                            required>
+                        </lightning-input-field>
+                    </div>
+
                     <!-- Account & Contact - Side by Side -->
                     <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
                         <lightning-input-field
@@ -125,10 +132,6 @@
                 </div>
 
                 <div class="footer-div">
-                    <button 
-                    class="cancel-btn"
-                        onclick={handleCancel}>Cancel
-                    </button>
                     <button 
                         class="save-btn"
                         onclick={handleSave}>Save

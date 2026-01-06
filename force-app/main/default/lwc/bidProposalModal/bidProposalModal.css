@@ -57,7 +57,7 @@
     display: flex;
     gap: 1rem;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
     padding: 1rem;
     background: white;
     border-top: 1px solid #e0e0e0;
