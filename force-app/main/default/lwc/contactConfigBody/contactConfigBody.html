@@ -78,19 +78,24 @@
                                                                                        data-index={index} 
                                                                                        onkeyup={handleSearchChange} 
                                                                                        onblur={handleBlur}/>
-                                                                                <ul class="options-cover" onmousedown={handlePreventDefault}>
-                                                                                    <template for:each={filteredFieldOptions} for:item="opt">
-                                                                                        <li key={opt.value} 
-                                                                                            data-index={index} 
-                                                                                            data-label={opt.label} 
-                                                                                            data-id={opt.value} 
-                                                                                            data-type={opt.fieldType} 
-                                                                                            onclick={selectOption} 
-                                                                                            class="options-value">
-                                                                                            <span>{opt.label}</span>
-                                                                                        </li>
-                                                                                    </template>
-                                                                                </ul>
+                                                                                <template if:true={filteredFieldOptions.length}>
+                                                                                    <ul class="options-cover" onmousedown={handlePreventDefault}>
+                                                                                        <template for:each={filteredFieldOptions} for:item="opt">
+                                                                                            <li key={opt.value} 
+                                                                                                data-index={index} 
+                                                                                                data-label={opt.label} 
+                                                                                                data-id={opt.value} 
+                                                                                                data-type={opt.fieldType} 
+                                                                                                onclick={selectOption} 
+                                                                                                class="options-value">
+                                                                                                <span>{opt.label}</span>
+                                                                                            </li>
+                                                                                        </template>
+                                                                                    </ul>
+                                                                                </template>
+                                                                                <template if:false={filteredFieldOptions.length}>
+                                                                                    <div class="no-options">No fields found</div>
+                                                                                </template>
                                                                             </div>
                                                                         </template>
                                                                     </div>

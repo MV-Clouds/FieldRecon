@@ -84,68 +84,24 @@ export default class ContactConfigBody extends LightningElement {
         this.items = newItems;
     }
 
-    handleFocus(event) {
-        const index = parseInt(event.currentTarget.dataset.index, 10);
-        this.filteredFieldOptions = [...this.fieldOptions];
-        this.items = this.items.map((item, i) => ({
-            ...item,
-            isFocused: i === index
-        }));
-
-        setTimeout(() => {
-            const searchInput = this.template.querySelector(`input.picklist-input[data-index="${index}"]`);
-            if (searchInput) {
-                searchInput.focus();
-            }
-        }, 0);
-    }
-
-    handleBlur(event) {
-        const index = parseInt(event.currentTarget.dataset.index, 10);
-        setTimeout(() => {
-            this.items = this.items.map((item, i) => {
-                if(i === index) return {...item, isFocused: false};
-                return item;
-            });
-        }, 200);
-    }
-
-    handleSearchChange(event) {
-        const searchTerm = event.target.value.toLowerCase();
-        this.filteredFieldOptions = this.fieldOptions.filter(opt => 
-            opt.label.toLowerCase().includes(searchTerm)
-        );
-    }
-
-    handlePreventDefault(event) {
-        event.preventDefault();
-    }
-
-    selectOption(event) {
-        const index = parseInt(event.currentTarget.dataset.index, 10);
-        const value = event.currentTarget.dataset.id;
-        const label = event.currentTarget.dataset.label;
-        const type = event.currentTarget.dataset.type;
-
-        const fieldDef = this.fieldOptions.find(f => f.value === value);
-        const isLocked = fieldDef ? fieldDef.isEditableDisabled : false;
-
-        this.items[index] = {
-            ...this.items[index],
-            fieldName: value,
-            value: value,
-            label: label,
-            fieldType: type,
-            isEditableDisabled: isLocked,
-            isEditable: false,
-            isRequired: false,
-            isFocused: false
-        };
-    }
-
     handleEditableChange(event) {
         const index = parseInt(event.target.dataset.index, 10);
         this.items[index].isEditable = event.target.checked;
+    }
+
+    // NEW HELPER: Build available options for a given row (exclude values selected in other rows)
+    getAvailableFieldOptions(index, searchTerm = '') {
+        const selectedValues = this.items
+            .map((it, i) => (i === index ? null : it.value))
+            .filter(v => v);
+
+        const term = (searchTerm || '').trim().toLowerCase();
+
+        return this.fieldOptions.filter(opt => {
+            if (selectedValues.includes(opt.value)) return false;
+            if (!term) return true;
+            return opt.label.toLowerCase().includes(term);
+        });
     }
 
     // NEW: Handle Required Checkbox Change
@@ -239,5 +195,70 @@ export default class ContactConfigBody extends LightningElement {
 
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
+
+    // Updated handlers that use filtered options
+    handleFocus(event) {
+        const index = parseInt(event.currentTarget.dataset.index, 10);
+        this.filteredFieldOptions = this.getAvailableFieldOptions(index, '');
+        this.items = this.items.map((item, i) => ({
+            ...item,
+            isFocused: i === index
+        }));
+
+        setTimeout(() => {
+            const searchInput = this.template.querySelector(`input.picklist-input[data-index="${index}"]`);
+            if (searchInput) {
+                // small delay ensures the input is rendered and ready to receive focus
+                setTimeout(() => searchInput.focus(), 50);
+            }
+        }, 0);
+    }
+
+    handleBlur(event) {
+        const index = parseInt(event.currentTarget.dataset.index, 10);
+        setTimeout(() => {
+            this.items = this.items.map((item, i) => {
+                if(i === index) return {...item, isFocused: false};
+                return item;
+            });
+            // clear filtered options after blur
+            this.filteredFieldOptions = [];
+        }, 200);
+    }
+
+    handleSearchChange(event) {
+        const searchTerm = event.target.value || '';
+        const index = parseInt(event.target.dataset.index, 10);
+        this.filteredFieldOptions = this.getAvailableFieldOptions(index, searchTerm);
+    }
+
+    handlePreventDefault(event) {
+        event.preventDefault();
+    }
+
+    selectOption(event) {
+        const index = parseInt(event.currentTarget.dataset.index, 10);
+        const value = event.currentTarget.dataset.id;
+        const label = event.currentTarget.dataset.label;
+        const type = event.currentTarget.dataset.type;
+
+        const fieldDef = this.fieldOptions.find(f => f.value === value);
+        const isLocked = fieldDef ? fieldDef.isEditableDisabled : false;
+
+        this.items[index] = {
+            ...this.items[index],
+            fieldName: value,
+            value: value,
+            label: label,
+            fieldType: type,
+            isEditableDisabled: isLocked,
+            isEditable: false,
+            isRequired: false,
+            isFocused: false
+        };
+
+        // Update filtered options to reflect the choice (so other rows won't see it)
+        this.filteredFieldOptions = [];
     }
 }
