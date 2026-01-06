@@ -32,6 +32,8 @@ export default class ContactConfigBody extends LightningElement {
                     ...opt,
                     isEditableDisabled: this.auditFields.includes(opt.value) || opt.isCalculated
                 }));
+                // Exclude compound/full name field (Name) because FirstName and LastName are available
+                this.fieldOptions = this.fieldOptions.filter(opt => !this.isFullNameField(opt));
                 this.filteredFieldOptions = [...this.fieldOptions];
 
                 let itemsData = [];
@@ -149,10 +151,20 @@ export default class ContactConfigBody extends LightningElement {
         const lowerSearch = (searchTerm || '').toLowerCase();
 
         return this.fieldOptions.filter(opt => {
+            // never show compound/full name field (e.g., Name) in options
+            if (this.isFullNameField(opt)) return false;
             const notSelectedElsewhere = !otherSelected.includes(opt.value) || opt.value === currentValue;
             const matchesSearch = opt.label.toLowerCase().includes(lowerSearch);
             return notSelectedElsewhere && matchesSearch;
         });
+    }
+
+    // Helper to identify and exclude compound/full name field
+    isFullNameField(opt) {
+        if (!opt) return false;
+        const val = (opt.value || '').toString().toLowerCase();
+        const lab = (opt.label || '').toString().toLowerCase();
+        return val === 'name' || val === 'fullname' || lab === 'full name' || lab === 'fullname';
     }
 
     // Make this async so we can wait for DOM update before trying to focus the input
@@ -179,7 +191,6 @@ export default class ContactConfigBody extends LightningElement {
                 const len = searchInput.value ? searchInput.value.length : 0;
                 searchInput.setSelectionRange(len, len);
             } catch (e) {
-                // ignore if not supported
             }
         }
     }
