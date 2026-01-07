@@ -116,7 +116,7 @@
                         </svg>
                         Previous
                     </button>
-                    
+
                     <template for:each={pageNumbers} for:item="page">
                         <template if:false={page.isEllipsis}>
                             <button 
@@ -131,7 +131,7 @@
                             <span key={page.number} class="pagination-ellipsis">...</span>
                         </template>
                     </template>
-                    
+
                     <button 
                         class="pagination-button" 
                         onclick={handleNext} 

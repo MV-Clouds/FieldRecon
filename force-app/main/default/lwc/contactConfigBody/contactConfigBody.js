@@ -32,6 +32,8 @@ export default class ContactConfigBody extends LightningElement {
                     ...opt,
                     isEditableDisabled: this.auditFields.includes(opt.value) || opt.isCalculated
                 }));
+                // Exclude compound/full name field (Name) because FirstName and LastName are available
+                this.fieldOptions = this.fieldOptions.filter(opt => !this.isFullNameField(opt));
                 this.filteredFieldOptions = [...this.fieldOptions];
 
                 let itemsData = [];
@@ -139,22 +141,58 @@ export default class ContactConfigBody extends LightningElement {
         this.items = newItems;
     }
 
-    handleFocus(event) {
+    // Helper to compute available options for a given row index (excludes fields chosen in other rows)
+    getAvailableOptions(index, searchTerm = '') {
+        const currentValue = this.items[index] ? this.items[index].fieldName : null;
+        const otherSelected = this.items
+            .map((it, i) => i !== index ? it.fieldName : null)
+            .filter(Boolean);
+
+        const lowerSearch = (searchTerm || '').toLowerCase();
+
+        return this.fieldOptions.filter(opt => {
+            // never show compound/full name field (e.g., Name) in options
+            if (this.isFullNameField(opt)) return false;
+            const notSelectedElsewhere = !otherSelected.includes(opt.value) || opt.value === currentValue;
+            const matchesSearch = opt.label.toLowerCase().includes(lowerSearch);
+            return notSelectedElsewhere && matchesSearch;
+        });
+    }
+
+    // Helper to identify and exclude compound/full name field
+    isFullNameField(opt) {
+        if (!opt) return false;
+        const val = (opt.value || '').toString().toLowerCase();
+        const lab = (opt.label || '').toString().toLowerCase();
+        return val === 'name' || val === 'fullname' || lab === 'full name' || lab === 'fullname';
+    }
+
+    // Make this async so we can wait for DOM update before trying to focus the input
+    async handleFocus(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
         if (this.items[index] && this.items[index].isDropdownDisabled) return;
 
-        this.filteredFieldOptions = [...this.fieldOptions];
+        // Pre-filter options to exclude values selected in other rows
+        this.filteredFieldOptions = this.getAvailableOptions(index);
+
         this.items = this.items.map((item, i) => ({
             ...item,
             isFocused: i === index
         }));
 
-        setTimeout(() => {
-            const searchInput = this.template.querySelector(`input.picklist-input[data-index="${index}"]`);
-            if (searchInput) {
-                searchInput.focus();
+        // Wait for next tick to ensure DOM updated
+        await Promise.resolve();
+
+        const searchInput = this.template.querySelector(`input.picklist-input[data-index="${index}"]`);
+        if (searchInput) {
+            searchInput.focus();
+            // ensure caret is visible at end of any existing text
+            try {
+                const len = searchInput.value ? searchInput.value.length : 0;
+                searchInput.setSelectionRange(len, len);
+            } catch (e) {
             }
-        }, 0);
+        }
     }
 
     handleBlur(event) {
@@ -164,14 +202,15 @@ export default class ContactConfigBody extends LightningElement {
                 if(i === index) return {...item, isFocused: false};
                 return item;
             });
+            // Reset filtered options so it will be recalculated next time
+            this.filteredFieldOptions = [...this.fieldOptions];
         }, 200);
     }
 
     handleSearchChange(event) {
-        const searchTerm = event.target.value.toLowerCase();
-        this.filteredFieldOptions = this.fieldOptions.filter(opt => 
-            opt.label.toLowerCase().includes(searchTerm)
-        );
+        const index = parseInt(event.target.dataset.index, 10);
+        const searchTerm = event.target.value || '';
+        this.filteredFieldOptions = this.getAvailableOptions(index, searchTerm);
     }
 
     handlePreventDefault(event) {
@@ -183,6 +222,13 @@ export default class ContactConfigBody extends LightningElement {
         const value = event.currentTarget.dataset.id;
         const label = event.currentTarget.dataset.label;
         const type = event.currentTarget.dataset.type;
+
+        // Prevent selecting a value already chosen by another row (shouldn't happen because we filter, but safety net)
+        const isDuplicate = this.items.some((it, i) => i !== index && it.fieldName === value);
+        if (isDuplicate) {
+            this.showToast('Error', 'Field already selected in another row', 'error');
+            return;
+        }
 
         const fieldDef = this.fieldOptions.find(f => f.value === value);
         const isLocked = fieldDef ? fieldDef.isEditableDisabled : false;
@@ -203,6 +249,9 @@ export default class ContactConfigBody extends LightningElement {
             isRequired: false,
             isFocused: false
         };
+
+        // Clear filtered options so other rows won't show this value
+        this.filteredFieldOptions = [...this.fieldOptions];
     }
 
     handleEditableChange(event) {

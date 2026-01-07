@@ -78,19 +78,24 @@
                                                                                 <input type="text" class="slds-input picklist-input" 
                                                                                        placeholder="Search..." 
                                                                                        data-index={index} 
-                                                                                       onkeyup={handleSearchChange} 
-                                                                                       onblur={handleBlur}/>
+                                                                                       oninput={handleSearchChange} 
+                                                                                       onblur={handleBlur} />
                                                                                 <ul class="options-cover" onmousedown={handlePreventDefault}>
-                                                                                    <template for:each={filteredFieldOptions} for:item="opt">
-                                                                                        <li key={opt.value} 
-                                                                                            data-index={index} 
-                                                                                            data-label={opt.label} 
-                                                                                            data-id={opt.value} 
-                                                                                            data-type={opt.fieldType} 
-                                                                                            onclick={selectOption} 
-                                                                                            class="options-value">
-                                                                                            <span>{opt.label}</span>
-                                                                                        </li>
+                                                                                    <template if:true={filteredFieldOptions.length}>
+                                                                                        <template for:each={filteredFieldOptions} for:item="opt">
+                                                                                            <li key={opt.value} 
+                                                                                                data-index={index} 
+                                                                                                data-label={opt.label} 
+                                                                                                data-id={opt.value} 
+                                                                                                data-type={opt.fieldType} 
+                                                                                                onclick={selectOption} 
+                                                                                                class="options-value">
+                                                                                                <span>{opt.label}</span>
+                                                                                            </li>
+                                                                                        </template>
+                                                                                    </template>
+                                                                                    <template if:false={filteredFieldOptions.length}>
+                                                                                        <li class="options-value no-result" data-index={index}><span>No fields found</span></li>
                                                                                     </template>
                                                                                 </ul>
                                                                             </div>
