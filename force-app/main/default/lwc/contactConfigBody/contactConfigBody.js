@@ -3,6 +3,14 @@ import getContactFields from '@salesforce/apex/ContactConfigController.getContac
 import saveContactConfig from '@salesforce/apex/ContactConfigController.saveContactConfig';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
+const MANDATORY_FIELD_DETAILS = [
+    { fieldName: 'RecordType.DeveloperName', label: 'Type', fieldType: 'PICKLIST' },
+    { fieldName: 'FirstName', label: 'First Name', fieldType: 'STRING' },
+    { fieldName: 'LastName', label: 'Last Name', fieldType: 'STRING' },
+    { fieldName: 'Email', label: 'Email', fieldType: 'EMAIL' },
+    { fieldName: 'wfrecon__Can_Clock_In_Out__c', label: 'Can Clock In / Out', fieldType: 'BOOLEAN' }
+];
+
 export default class ContactConfigBody extends LightningElement {
     @track fieldOptions = [];
     @track items = [];
@@ -26,27 +34,67 @@ export default class ContactConfigBody extends LightningElement {
                 }));
                 this.filteredFieldOptions = [...this.fieldOptions];
 
+                let itemsData = [];
                 if (result.metadataRecords && result.metadataRecords.length > 0) {
-                    const fieldsData = JSON.parse(result.metadataRecords[0]);
+                    itemsData = JSON.parse(result.metadataRecords[0]);
                     this.pageSize = parseInt(result.metadataRecords[1], 10);
-
-                    this.items = fieldsData.map((item, index) => {
-                        const fieldDef = this.fieldOptions.find(f => f.value === (item.fieldApiname || item.fieldName));
-                        const isLocked = fieldDef ? fieldDef.isEditableDisabled : false;
-
-                        return {
-                            id: index + 1,
-                            fieldName: item.fieldName,
-                            label: item.label,
-                            value: item.fieldApiname || item.fieldName,
-                            fieldType: item.fieldType,
-                            isEditable: isLocked ? false : item.isEditable,
-                            isEditableDisabled: isLocked,
-                            isRequired: item.isRequired === true, // Load Required State
-                            isFocused: false
-                        };
-                    });
                 }
+
+                const mandatoryFieldNames = MANDATORY_FIELD_DETAILS.map(f => f.fieldName);
+                
+                // Process existing items
+                let processedItems = itemsData.map((item, index) => {
+                    const fieldApiname = item.fieldApiname || item.fieldName;
+                    const isMandatory = mandatoryFieldNames.includes(fieldApiname);
+                    const fieldDef = this.fieldOptions.find(f => f.value === fieldApiname);
+                    const isSystemLocked = fieldDef ? fieldDef.isEditableDisabled : false;
+
+                    return {
+                        id: index + 1,
+                        fieldName: fieldApiname,
+                        label: item.label,
+                        value: fieldApiname,
+                        fieldType: item.fieldType,
+                        isEditable: isMandatory ? true : (isSystemLocked ? false : item.isEditable),
+                        isRequired: isMandatory ? true : (item.isRequired === true),
+                        isEditableDisabled: isMandatory || isSystemLocked,
+                        isRequiredDisabled: isMandatory,
+                        isDeleteDisabled: isMandatory,
+                        isDropdownDisabled: isMandatory,
+                        dropdownClass: `combobox-input ${isMandatory ? 'disabled' : ''}`,
+                        deleteClass: `delete-div ${isMandatory ? 'disabled' : ''}`,
+                        isFocused: false
+                    };
+                });
+
+                // Ensure all mandatory fields are present and at the top
+                const finalItems = [];
+                MANDATORY_FIELD_DETAILS.forEach((mandatory) => {
+                    const existingIndex = processedItems.findIndex(item => item.fieldName === mandatory.fieldName);
+                    if (existingIndex !== -1) {
+                        const [item] = processedItems.splice(existingIndex, 1);
+                        finalItems.push(item);
+                    } else {
+                        finalItems.push({
+                            id: Date.now() + Math.random(),
+                            fieldName: mandatory.fieldName,
+                            label: mandatory.label,
+                            value: mandatory.fieldName,
+                            fieldType: mandatory.fieldType,
+                            isEditable: true,
+                            isRequired: true,
+                            isEditableDisabled: true,
+                            isRequiredDisabled: true,
+                            isDeleteDisabled: true,
+                            isDropdownDisabled: true,
+                            dropdownClass: 'combobox-input disabled',
+                            deleteClass: 'delete-div disabled',
+                            isFocused: false
+                        });
+                    }
+                });
+
+                this.items = [...finalItems, ...processedItems];
                 this.isLoading = false;
             })
             .catch(error => {
@@ -69,6 +117,11 @@ export default class ContactConfigBody extends LightningElement {
             isEditable: false,
             isEditableDisabled: false,
             isRequired: false, // Default
+            isRequiredDisabled: false,
+            isDeleteDisabled: false,
+            isDropdownDisabled: false,
+            dropdownClass: 'combobox-input',
+            deleteClass: 'delete-div',
             isFocused: false
         }];
         setTimeout(() => {
@@ -79,6 +132,8 @@ export default class ContactConfigBody extends LightningElement {
 
     handleDelete(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
+        if (this.items[index] && this.items[index].isDeleteDisabled) return;
+        
         const newItems = [...this.items];
         newItems.splice(index, 1);
         this.items = newItems;
@@ -86,6 +141,8 @@ export default class ContactConfigBody extends LightningElement {
 
     handleFocus(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
+        if (this.items[index] && this.items[index].isDropdownDisabled) return;
+
         this.filteredFieldOptions = [...this.fieldOptions];
         this.items = this.items.map((item, i) => ({
             ...item,
@@ -137,6 +194,11 @@ export default class ContactConfigBody extends LightningElement {
             label: label,
             fieldType: type,
             isEditableDisabled: isLocked,
+            isRequiredDisabled: false, // New selection isn't mandatory
+            isDeleteDisabled: false,
+            isDropdownDisabled: false,
+            dropdownClass: 'combobox-input',
+            deleteClass: 'delete-div',
             isEditable: false,
             isRequired: false,
             isFocused: false
@@ -164,10 +226,29 @@ export default class ContactConfigBody extends LightningElement {
         event.currentTarget.classList.add('drop-over');
     }
 
+    handleDragLeave(event) {
+        event.currentTarget.classList.remove('drop-over');
+    }
+
+    handleDragEnd(event) {
+        // Clean up all drag-related classes regardless of where the drag ended
+        this.template.querySelectorAll('.popup__data-row').forEach(row => {
+            row.classList.remove('dragged', 'drop-over');
+        });
+    }
+
     handleDrop(event) {
         event.preventDefault();
         const fromIndex = parseInt(event.dataTransfer.getData('text/plain'), 10);
         const toIndex = parseInt(event.currentTarget.dataset.index, 10);
+        
+        // If dropped on the same row, just clean up and return
+        if (fromIndex === toIndex) {
+            this.template.querySelectorAll('.popup__data-row').forEach(row => {
+                row.classList.remove('dragged', 'drop-over');
+            });
+            return;
+        }
         
         const items = [...this.items];
         const [movedItem] = items.splice(fromIndex, 1);
@@ -201,6 +282,21 @@ export default class ContactConfigBody extends LightningElement {
             // Show specific duplicate names in toast
             const dupList = Array.from(duplicates).join(', ');
             this.showToast('Error', `Duplicate fields detected: ${dupList}`, 'error');
+            return;
+        }
+
+        // Check if required fields have editable checkbox enabled
+        const requiredButNotEditable = this.items.filter(item => 
+            item.isRequired && !item.isEditable
+        );
+
+        if (requiredButNotEditable.length > 0) {
+            const fieldNames = requiredButNotEditable.map(item => item.label).join(', ');
+            this.showToast(
+                'Error', 
+                `Required fields must be editable: ${fieldNames}.`, 
+                'error'
+            );
             return;
         }
 
