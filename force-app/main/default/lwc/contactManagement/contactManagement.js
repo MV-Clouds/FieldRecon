@@ -194,18 +194,20 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         const current = this.currentPage;
         const maxVisible = this.visiblePages;
 
+        // If total pages fits within visible range + first/last, render them all
         if (totalPages <= maxVisible + 2) {
             for (let i = 1; i <= totalPages; i++) {
                 pages.push({
                     number: i,
-                    class: i === current ? 'pagination-button active' : 'pagination-button',
+                    cssClass: i === current ? 'pagination-button active' : 'pagination-button',
                     isEllipsis: false
                 });
             }
         } else {
+            // Always show first page
             pages.push({
                 number: 1,
-                class: 1 === current ? 'pagination-button active' : 'pagination-button',
+                cssClass: 1 === current ? 'pagination-button active' : 'pagination-button',
                 isEllipsis: false
             });
 
@@ -218,7 +220,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
             if (startPage > 2) {
                 pages.push({
-                    key: 'ellipsis-start',
+                    number: 'ellipsis-start',
                     isEllipsis: true
                 });
             }
@@ -226,21 +228,22 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             for (let i = startPage; i <= endPage; i++) {
                 pages.push({
                     number: i,
-                    class: i === current ? 'pagination-button active' : 'pagination-button',
+                    cssClass: i === current ? 'pagination-button active' : 'pagination-button',
                     isEllipsis: false
                 });
             }
 
             if (endPage < totalPages - 1) {
                 pages.push({
-                    key: 'ellipsis-end',
+                    number: 'ellipsis-end',
                     isEllipsis: true
                 });
             }
 
+            // Always show last page
             pages.push({
                 number: totalPages,
-                class: totalPages === current ? 'pagination-button active' : 'pagination-button',
+                cssClass: totalPages === current ? 'pagination-button active' : 'pagination-button',
                 isEllipsis: false
             });
         }
