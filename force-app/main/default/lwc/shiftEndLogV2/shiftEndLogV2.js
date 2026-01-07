@@ -842,6 +842,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
 
             this.editCurrentStep = 'step2';
+             this.groupEditLocationProcesses();
             // Update slider visuals after DOM renders (increased timeout for render)
             setTimeout(() => this.updateEditSliderVisuals(), 300);
         } else if (this.editCurrentStep === 'step2') {
@@ -856,6 +857,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleEditPrevious() {
         if (this.editCurrentStep === 'step3') {
             this.editCurrentStep = 'step2';
+             this.groupEditLocationProcesses();
             // Update slider visuals after DOM renders
             setTimeout(() => this.updateEditSliderVisuals(), 100);
         } else if (this.editCurrentStep === 'step2') {
@@ -1003,18 +1005,60 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         }
     }
 
+    // groupEditLocationProcesses() {
+    //     const locationMap = new Map();
+
+    //     this.editAllLocationProcesses.forEach(proc => {
+    //         if (!locationMap.has(proc.locationName)) {
+    //             locationMap.set(proc.locationName, {
+    //                 locationName: proc.locationName,
+    //                 sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name
+    //                 processes: []
+    //             });
+    //         }
+    //         locationMap.get(proc.locationName).processes.push(proc);
+    //     });
+
+    //     this.editGroupedLocationProcesses = Array.from(locationMap.values());
+
+    //     // Set first accordion as active by default
+    //     if (this.editGroupedLocationProcesses.length > 0) {
+    //         this.editActiveAccordionSections = [this.editGroupedLocationProcesses[0].sectionName];
+    //     }
+    // }
+
     groupEditLocationProcesses() {
         const locationMap = new Map();
 
         this.editAllLocationProcesses.forEach(proc => {
+            // Recalculate display values based on current completionPercentage
+            const yesterdayPercentage = proc.yesterdayPercentage || 0;
+            const completionPercentage = proc.completionPercentage || 0;
+            const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
+            const remainingProgress = Math.max(0, 100 - completionPercentage);
+            
+            // Check if this process has been modified
+            const isModified = this.editModifiedProcesses.has(proc.processId);
+            const originalCompletion = this.editOriginalCompletionPercentages.get(proc.processId) || completionPercentage;
+            
+            const updatedProc = {
+                ...proc,
+                todayProgress: todayProgress,
+                remainingProgress: remainingProgress,
+                changedToday: completionPercentage !== originalCompletion,
+                completedStyle: `width: ${yesterdayPercentage}%`,
+                todayStyle: `width: ${todayProgress}%`,
+                remainingStyle: `width: ${remainingProgress}%`
+            };
+            
             if (!locationMap.has(proc.locationName)) {
                 locationMap.set(proc.locationName, {
                     locationName: proc.locationName,
-                    sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name
+                    sectionName: proc.locationName.replace(/\s+/g, '_'),
                     processes: []
                 });
             }
-            locationMap.get(proc.locationName).processes.push(proc);
+            locationMap.get(proc.locationName).processes.push(updatedProc);
         });
 
         this.editGroupedLocationProcesses = Array.from(locationMap.values());
