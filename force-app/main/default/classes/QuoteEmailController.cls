@@ -11,12 +11,12 @@ public with sharing class QuoteEmailController {
     public static InitData getInitialData(String recordId) {
         try {
             InitData data = new InitData();
-            data.orgWideAddresses = [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress];
+            data.orgWideAddresses = [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress WITH USER_MODE];
             data.emailTemplates = [
                 SELECT Id, Name 
                 FROM EmailTemplate 
                 WHERE IsActive = true 
-                AND Folder.Name = 'Quote Emails' 
+                AND Folder.Name = 'Quote Emails' WITH USER_MODE
                 ORDER BY Name 
                 LIMIT 100
             ];
@@ -72,6 +72,7 @@ public with sharing class QuoteEmailController {
 
     @AuraEnabled
     public static Map<String, String> renderEmailTemplate(String templateId, String whoId, String whatId) {
+        try {
         if(String.isBlank(templateId)) return null;
 
         if(String.isBlank(whoId)) {
@@ -79,14 +80,14 @@ public with sharing class QuoteEmailController {
             if(!dummy.isEmpty()) whoId = dummy[0].Id;
         }
 
-        try {
             Messaging.SingleEmailMessage mail = Messaging.renderStoredEmailTemplate(templateId, whoId, whatId);
             Map<String, String> result = new Map<String, String>();
             result.put('subject', mail.getSubject());
             result.put('body', mail.getHtmlBody());
             return result;
         } catch (Exception e) {
-            throw new AuraHandledException('Error rendering template: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'renderEmailTemplate', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return null;
         }
     }
 
@@ -178,7 +179,7 @@ public with sharing class QuoteEmailController {
 
         } catch (Exception e) {
             System.debug('Exception in sendQuoteEmail: ' + e.getMessage());
-            throw new AuraHandledException('Error sending email: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'sendQuoteEmail', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
         }
     }
 
@@ -191,7 +192,7 @@ public with sharing class QuoteEmailController {
             if (contentDocumentIds == null || contentDocumentIds.isEmpty()) return;
             delete [SELECT Id FROM ContentDocument WHERE Id IN :contentDocumentIds WITH USER_MODE];
         } catch (Exception e) {
-            throw new AuraHandledException('Error deleting files: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'deleteContentDocuments', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
         }
     }
 
@@ -215,9 +216,7 @@ public with sharing class QuoteEmailController {
                 fw.title = doc.Title;
                 fw.extension = doc.FileExtension;
                 fw.size = doc.ContentSize;
-                
-                Set<String> imgExts = new Set<String>{'jpg','jpeg','png','gif'};
-                if(doc.FileExtension != null && imgExts.contains(doc.FileExtension.toLowerCase())){
+                if(doc.FileExtension != null){
                     fw.isImage = true;
                 } else {
                     fw.isImage = false;
@@ -226,7 +225,8 @@ public with sharing class QuoteEmailController {
             }
             return fileList;
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getUploadedFileDetails', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return new List<FileWrapper>();
         }
     }
 
@@ -251,8 +251,7 @@ public with sharing class QuoteEmailController {
                 fw.title = link.ContentDocument.Title;
                 fw.extension = link.ContentDocument.FileExtension;
                 fw.size = link.ContentDocument.ContentSize;
-                Set<String> imgExts = new Set<String>{'jpg','jpeg','png','gif'};
-                if(link.ContentDocument.FileExtension != null && imgExts.contains(link.ContentDocument.FileExtension.toLowerCase())){
+                if(link.ContentDocument.FileExtension != null){
                     fw.isImage = true;
                 } else {
                     fw.isImage = false;
@@ -261,7 +260,8 @@ public with sharing class QuoteEmailController {
             }
             return fileList;
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getRecordFiles', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            return new List<FileWrapper>();
         }
     }
 
@@ -273,6 +273,7 @@ public with sharing class QuoteEmailController {
             }
             return emails;
         } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getEmailsFromIds', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return new List<String>();
         }
     }
