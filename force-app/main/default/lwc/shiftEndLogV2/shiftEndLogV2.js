@@ -845,6 +845,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             // Update slider visuals after DOM renders (increased timeout for render)
             setTimeout(() => this.updateEditSliderVisuals(), 300);
         } else if (this.editCurrentStep === 'step2') {
+            if (this.hasEditLocationOptions && !this.hasModifiedProcesses) {
+            this.showToast('Error', 'Please update at least one Location Progress record to continue.', 'error');
+            return;
+        }
             this.editCurrentStep = 'step3';
         }
     }
