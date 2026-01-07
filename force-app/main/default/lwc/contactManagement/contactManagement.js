@@ -194,18 +194,20 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         const current = this.currentPage;
         const maxVisible = this.visiblePages;
 
+        // If total pages fits within visible range + first/last, render them all
         if (totalPages <= maxVisible + 2) {
             for (let i = 1; i <= totalPages; i++) {
                 pages.push({
                     number: i,
-                    class: i === current ? 'pagination-button active' : 'pagination-button',
+                    cssClass: i === current ? 'pagination-button active' : 'pagination-button',
                     isEllipsis: false
                 });
             }
         } else {
+            // Always show first page
             pages.push({
                 number: 1,
-                class: 1 === current ? 'pagination-button active' : 'pagination-button',
+                cssClass: 1 === current ? 'pagination-button active' : 'pagination-button',
                 isEllipsis: false
             });
 
@@ -218,7 +220,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
             if (startPage > 2) {
                 pages.push({
-                    key: 'ellipsis-start',
+                    number: 'ellipsis-start',
                     isEllipsis: true
                 });
             }
@@ -226,21 +228,22 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             for (let i = startPage; i <= endPage; i++) {
                 pages.push({
                     number: i,
-                    class: i === current ? 'pagination-button active' : 'pagination-button',
+                    cssClass: i === current ? 'pagination-button active' : 'pagination-button',
                     isEllipsis: false
                 });
             }
 
             if (endPage < totalPages - 1) {
                 pages.push({
-                    key: 'ellipsis-end',
+                    number: 'ellipsis-end',
                     isEllipsis: true
                 });
             }
 
+            // Always show last page
             pages.push({
                 number: totalPages,
-                class: totalPages === current ? 'pagination-button active' : 'pagination-button',
+                cssClass: totalPages === current ? 'pagination-button active' : 'pagination-button',
                 isEllipsis: false
             });
         }
@@ -379,12 +382,33 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Open create new contact modal
      */
     handleCreateNew() {
-        this.formValues = {};
+        this.formValues = {
+            'wfrecon__Can_Clock_In_Out__c': true  // Default to checked
+        };
         this.isEditMode = false;
         this.isPreviewMode = false;
         this.recordIdToEdit = null;
         this.prepareDynamicFields();
         this.showCreateModal = true;
+        
+        // Set default value for checkbox field after modal renders
+        setTimeout(() => {
+            this.setDefaultCheckboxValue();
+        }, 100);
+    }
+
+    /**
+     * Method Name: setDefaultCheckboxValue
+     * @description: Set default value for checkbox field after modal renders
+     *              This is needed because lightning-input-field doesn't respect value property
+     */
+    setDefaultCheckboxValue() {
+        const inputFields = this.template.querySelectorAll('lightning-input-field');
+        inputFields.forEach(field => {
+            if (field.fieldName === 'wfrecon__Can_Clock_In_Out__c') {
+                field.value = true;
+            }
+        });
     }
 
     /**
@@ -458,23 +482,38 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
         // 1. Get Standard Fields (Inputs, Dates, Lookups)
         inputFields.forEach(field => {
-            if(!field.reportValidity()) isValid = false;
-            fieldData[field.fieldName] = field.value;
+            if(!field.reportValidity()) {
+                isValid = false;
+            }
+            // Only add to fieldData if value exists
+            if(field.value !== undefined && field.value !== null && field.value !== '') {
+                fieldData[field.fieldName] = field.value;
+            }
         });
 
         // 2. Get Custom Fields (Record Type Combobox)
         customInputs.forEach(input => {
-            if(!input.checkValidity()) isValid = false;
-            fieldData[input.name] = input.value;
+            if(!input.reportValidity()) {
+                isValid = false;
+            }
+            // Only add to fieldData if value exists
+            if(input.value !== undefined && input.value !== null && input.value !== '') {
+                fieldData[input.name] = input.value;
+            }
         });
 
         if (!isValid) {
-            this.showToast('Error', 'Please fix the errors in the form.', 'error');
+            this.showToast('Error', 'Please complete all required fields.', 'error');
             return;
         }
 
-        // 3. Merge & Process Data
+        // 3. Merge & Process Data - formValues should already have values from handleCustomInputChange
         const finalPayload = { ...this.formValues, ...fieldData };
+        
+        // Add record ID if editing
+        if (this.isEditMode && this.recordIdToEdit) {
+            finalPayload['Id'] = this.recordIdToEdit;
+        }
         
         // Email Validation
         const email = finalPayload['Email'];
@@ -492,7 +531,8 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 }
             } catch (error) {
                 this.isLoading = false;
-                console.error(error);
+                console.error('Email validation error:', error);
+                this.showToast('Error', 'Failed to validate email. Please try again.', 'error');
                 return;
             }
         }
@@ -514,10 +554,14 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.isLoading = true;
         upsertContact({ contactData: finalPayload })
             .then(result => {
-                const msg = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
-                this.showToast('Success', msg, 'success');
-                this.handleCloseModal();
-                this.fetchContacts();
+                if (result) {
+                    const msg = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
+                    this.showToast('Success', msg, 'success');
+                    this.handleCloseModal();
+                    this.fetchContacts();
+                } else {
+                    this.showToast('Error', 'Failed to save contact. Please try again.', 'error');
+                }
             })
             .catch(error => {
                 console.error('Save Error', error);
@@ -526,127 +570,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             .finally(() => {
                 this.isLoading = false;
             });
-    }
-
-    // --- Form Handling Logic ---
-
-    // 1. Success Handler
-    handleSuccess(event) {
-        this.isLoading = false;
-        const msg = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
-        this.showToast('Success', msg, 'success');
-        this.handleCloseModal();
-        this.fetchContacts(); // Refresh table
-    }
-
-    // 2. Error Handler
-    handleError(event) {
-        this.isLoading = false;
-        let errorMessage = event.detail.detail || 'An error occurred while saving.';
-        console.error('Record Edit Form Error:', JSON.stringify(event.detail));
-        this.showToast('Error', errorMessage, 'error');
-    }
-
-    validateForm() {
-        let isValid = true;
-        // Validate all dynamic inputs
-        const inputFields = this.template.querySelectorAll('lightning-input, lightning-combobox');
-        
-        inputFields.forEach(field => {
-            if (!field.checkValidity()) {
-                field.reportValidity();
-                isValid = false;
-            }
-        });
-
-        // Email Regex Check
-        const email = this.formValues['Email'];
-        if (email) {
-            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-            if (!emailPattern.test(email)) {
-                this.showToast('Validation Error', 'Invalid email format.', 'error');
-                isValid = false;
-            }
-        }
-        return isValid;
-    }
-
-    /**
-     * Method Name: validateForm
-     * @description: Validate form fields dynamically and show relevant messages
-     */
-    validateForm() {
-        let isValid = true;
-        let errorMessages = [];
-        let missingFields = [];
-
-        const inputFields = this.template.querySelectorAll('lightning-input, lightning-combobox');
-        inputFields.forEach(field => {
-            if (!field.checkValidity()) {
-                field.reportValidity();
-                isValid = false;
-            }
-        });
-
-        // Validate First Name
-        if (!this.firstName || !this.firstName.trim()) {
-            missingFields.push('First Name');
-            isValid = false;
-        }
-
-        // Validate Last Name
-        if (!this.lastName || !this.lastName.trim()) {
-            missingFields.push('Last Name');
-            isValid = false;
-        }
-
-        // Validate Email
-        if (!this.email || !this.email.trim()) {
-            missingFields.push('Email');
-            isValid = false;
-        } else {
-            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-            if (!emailPattern.test(this.email.trim())) {
-                errorMessages.push('Please enter a valid email address');
-                isValid = false;
-            } else {
-                const disposableDomains = [
-                    'yopmail', 'tempmail', 'guerrillamail', 'mailinator',
-                    '10minutemail', 'throwaway', 'trashmail', 'fakeinbox'
-                ];
-                const emailDomain = this.email.split('@')[1]?.toLowerCase();
-                if (emailDomain && disposableDomains.some(domain => emailDomain.includes(domain))) {
-                    errorMessages.push('Disposable email addresses are not allowed');
-                    isValid = false;
-                }
-            }
-        }
-
-        // Validate Record Type
-        if (!this.recordType) {
-            missingFields.push('Type');
-            isValid = false;
-        }
-
-        // === Determine Message to Show ===
-        if (!isValid) {
-            if (missingFields.length === 4) {
-                // All fields empty
-                this.showToast('Validation Error', 'All fields are required', 'error');
-            } else if (missingFields.length > 0 && errorMessages.length === 0) {
-                // Some missing fields
-                this.showToast(
-                    'Validation Error',
-                    `${missingFields.join(', ')} ${missingFields.length > 1 ? 'are' : 'is'} required`,
-                    'error'
-                );
-            } else if (errorMessages.length > 0) {
-                // Other validation errors
-                this.showToast('Validation Error', errorMessages.join(', '), 'error');
-            }
-        }
-
-        return isValid;
     }
 
     /**
@@ -937,7 +860,15 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         // 4. Map the rest of the fields
         const dynamicOtherFields = otherFields.map(config => {
             const fieldName = config.fieldName;
-            const currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
+            
+            // Set default value for Can Clock In/Out checkbox on create mode
+            let currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
+            
+            // Ensure checkbox field gets proper boolean value
+            if (!this.isEditMode && !this.isPreviewMode && 
+                fieldName === 'wfrecon__Can_Clock_In_Out__c' && currentVal === null) {
+                currentVal = true;
+            }
             
             const isDisabled = this.isPreviewMode ? true : !config.isEditable;
             const isSystemRequired = fieldName === 'LastName' || fieldName === 'Email';
@@ -962,16 +893,16 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             this.dynamicFields = [recordTypeField, ...dynamicOtherFields];
         }
     }
+    /**
+     * Method Name: handleCustomInputChange
+     * @description: Handle custom input changes (Record Type combobox)
+     */
     handleCustomInputChange(event) {
         const name = event.target.name;
         const value = event.detail.value;
-        this.formValues[name] = value;
-    }
-
-    handleDynamicInputChange(event) {
-        const name = event.target.name;
-        const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
-        this.formValues[name] = value;
+        if (name && value !== undefined) {
+            this.formValues[name] = value;
+        }
     }
 
     /**
