@@ -630,7 +630,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.modifiedProposalLines.get(proposalLineId).add(fieldName);
 
         // Recalculate totals if OH, Warranty, or Profit percentage changed
-        if (fieldName === 'wfrecon__OH_Per__c' || 
+        if (fieldName === 'wfrecon__Quantity__c' ||
+            fieldName === 'wfrecon__OH_Per__c' || 
             fieldName === 'wfrecon__Warranty_Per__c' || 
             fieldName === 'wfrecon__Profit_Per__c') {
             this.recalculateProposalLineTotals(proposalLineId);
@@ -1010,8 +1011,9 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const perDiemLines = line.budget.budgetLinesByCostType.perdiem || [];
             perDiemCost = perDiemLines.reduce((sum, bl) => sum + parseNum(bl.wfrecon__Total_Per_Diem__c), 0);
 
-            // Calculate total cost
-            const totalCost = laborCost + materialCost + hotelCost + mileageCost + perDiemCost;
+            // Calculate total cost (sum of all costs multiplied by quantity)
+            const quantity = parseNum(line.wfrecon__Quantity__c) || 1;
+            const totalCost = (laborCost + materialCost + hotelCost + mileageCost + perDiemCost) * quantity;
 
             // Calculate sales price using the formula: Total_Cost / (1 - (OH% + Profit% + Warranty%))
             const ohPer = parseNum(line.wfrecon__OH_Per__c) / 100; // Convert percentage to decimal
