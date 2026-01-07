@@ -22,17 +22,13 @@ public with sharing class ProposalDeepCloneController {
             List<SObject> existingProposals = queryRecord('wfrecon__Proposal__c', 'Id', new Set<Id>{proposalId});
             if (existingProposals.isEmpty()) {
                 // Manually throw exception to jump to catch block
-                throw new CalloutException('Original Proposal not found.');
+                throw new AuraHandledException('Original Proposal not found.');
             }
             
             SObject oldProposal = existingProposals.get(0);
             SObject newProposal = oldProposal.clone(false, true, false, false);
             
-            // Set Name
-            if (isNameWritable('wfrecon__Proposal__c')) {
-                newProposal.put('Name', (String)oldProposal.get('Name') + ' - Clone');
-            }
-            insert newProposal;
+            insert as user newProposal;
             Id newProposalId = newProposal.Id;
             
             // ====================================================
@@ -50,7 +46,7 @@ public with sharing class ProposalDeepCloneController {
                     newLines.add(newRec);
                 }
                 
-                insert newLines;
+                insert as user newLines;
 
                 for (Integer i = 0; i < oldLines.size(); i++) {
                     oldLineIdToNewLineId.put(oldLines[i].Id, newLines[i].Id);
@@ -82,7 +78,7 @@ public with sharing class ProposalDeepCloneController {
                         newBudgets.add(newRec);
                     }
 
-                    insert newBudgets;
+                    insert as user newBudgets;
 
                     for (Integer i = 0; i < oldBudgets.size(); i++) {
                         oldBudgetIdToNewBudgetId.put(oldBudgets[i].Id, newBudgets[i].Id);
@@ -112,7 +108,7 @@ public with sharing class ProposalDeepCloneController {
 
                             newBudgetLines.add(newRec);
                         }
-                        insert newBudgetLines;
+                        insert as user newBudgetLines;
                     }
                 }
             }
@@ -146,7 +142,7 @@ public with sharing class ProposalDeepCloneController {
         for(String f : fields) { if(f.equalsIgnoreCase(criteriaField)) hasField=true; }
         if(!hasField) fields.add(criteriaField);
         
-        String query = 'SELECT ' + String.join(fields, ',') + ' FROM ' + objName + ' WHERE ' + criteriaField + ' IN :criteriaValues';
+        String query = 'SELECT ' + String.join(fields, ',') + ' FROM ' + objName + ' WHERE ' + criteriaField + ' IN :criteriaValues'+' WITH USER_MODE';
         return Database.query(query);
     }
 
@@ -156,19 +152,11 @@ public with sharing class ProposalDeepCloneController {
         
         for (String f : fieldMap.keySet()) {
             Schema.DescribeFieldResult d = fieldMap.get(f).getDescribe();
-            if (d.isAccessible() && !d.getName().equalsIgnoreCase('CreatedDate') && 
-                !d.getName().equalsIgnoreCase('LastModifiedDate') &&
-                !d.getName().equalsIgnoreCase('CreatedById') &&
-                !d.getName().equalsIgnoreCase('LastModifiedById')) {
+            if (d.isAccessible() && d.isCreateable() && !d.isAutoNumber()) {
                     fields.add(d.getName());
             }
         }
         return fields;
-    }
-
-    private static Boolean isNameWritable(String objName) {
-        Schema.DescribeFieldResult d = Schema.getGlobalDescribe().get(objName).getDescribe().fields.getMap().get('Name').getDescribe();
-        return d.isCreateable() && !d.isAutoNumber();
     }
 
     private static Boolean hasField(String objName, String fieldName) {

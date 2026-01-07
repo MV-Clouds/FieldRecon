@@ -47,7 +47,7 @@ export default class ProposalDeepClone extends NavigationMixin(LightningElement)
         let style = document.createElement('style');
         style.innerText = `
                 .uiModal--medium .modal-container {
-                    width: 70%;
+                    width: 50%;
                     min-width: min(480px, calc(100% - 2rem));
                     margin-inline: auto;
                 }
@@ -87,6 +87,7 @@ export default class ProposalDeepClone extends NavigationMixin(LightningElement)
                     height: unset !important;
                     background-color: white;
                     padding: 0rem;
+                    border-radius: 0rem 0rem 1rem 1rem;
                 }
                 .slds-rich-text-editor{
                     overflow: hidden;
