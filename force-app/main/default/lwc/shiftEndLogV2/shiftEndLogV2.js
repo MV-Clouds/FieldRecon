@@ -842,9 +842,14 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             }
 
             this.editCurrentStep = 'step2';
+             this.groupEditLocationProcesses();
             // Update slider visuals after DOM renders (increased timeout for render)
             setTimeout(() => this.updateEditSliderVisuals(), 300);
         } else if (this.editCurrentStep === 'step2') {
+            if (this.hasEditLocationOptions && !this.hasModifiedProcesses) {
+            this.showToast('Error', 'Please update at least one Location Progress record to continue.', 'error');
+            return;
+        }
             this.editCurrentStep = 'step3';
         }
     }
@@ -852,6 +857,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     handleEditPrevious() {
         if (this.editCurrentStep === 'step3') {
             this.editCurrentStep = 'step2';
+             this.groupEditLocationProcesses();
             // Update slider visuals after DOM renders
             setTimeout(() => this.updateEditSliderVisuals(), 100);
         } else if (this.editCurrentStep === 'step2') {
@@ -860,118 +866,232 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     }
 
     // Load location processes for edit modal
+    // loadEditLocationProcesses(logToEdit) {
+    //     if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
+
+    //         // Clear the original percentages map at the start
+    //         this.editOriginalCompletionPercentages.clear();
+
+    //         // Check if there's approval data - handle both new and old structure
+    //         let approvalDataArray = [];
+    //         let approvalDataMap = new Map(); // Map processId to approval entry
+    //         if (logToEdit.wfrecon__Approval_Data__c) {
+    //             try {
+    //                 const parsedData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
+
+    //                 // Check if it's the new structure or old structure
+    //                 if (parsedData.locationProcessChanges) {
+    //                     // New structure
+    //                     approvalDataArray = parsedData.locationProcessChanges;
+    //                 } else if (Array.isArray(parsedData)) {
+    //                     // Old structure
+    //                     approvalDataArray = parsedData;
+    //                 }
+
+    //                 // Build a map for quick lookup
+    //                 approvalDataArray.forEach(item => {
+    //                     approvalDataMap.set(item.id, item);
+    //                 });
+    //             } catch (e) {
+    //                 console.error('Error parsing approval data in edit modal:', e);
+    //             }
+    //         }
+
+    //         // Map backend fields to component properties
+    //         this.editAllLocationProcesses = logToEdit.locationProcesses.map(proc => {
+    //             // Handle different possible field names from backend
+    //             const processId = proc.Id || proc.processId;
+    //             const processName = proc.Name || proc.processName;
+    //             const locationName = proc.wfrecon__Location__r?.Name || proc.locationName || 'Unknown Location';
+    //             const sequence = proc.wfrecon__Sequence__c || proc.sequence || 0;
+
+    //             // Get yesterday's percentage (total completed before today)
+    //             const yesterdayPercentage = Math.round(parseFloat(proc.yesterdayPercentage || proc.oldPercentage || 0));
+
+    //             // Get current total completed percentage
+    //             const completionPercentage = Math.round(parseFloat(proc.wfrecon__Completed_Percentage__c || proc.completionPercentage || 0));
+
+    //             // Calculate today's change (difference between current and yesterday)
+    //             const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
+    //             const remainingProgress = Math.max(0, 100 - completionPercentage);
+
+    //             // Check if this process is pending approval from the JSON array
+    //             const approvalDataForProcess = approvalDataArray.find(item => item.id === processId);
+    //             const isPendingApproval = !!approvalDataForProcess;
+    //             const approvalOldValue = approvalDataForProcess?.oldValue || 0;
+    //             const approvalNewValue = approvalDataForProcess?.newValue || 0;
+
+    //             // If in approval: purple shows (yesterday → approval value)
+    //             // If current > approval: that's new changes after approval
+    //             const approvalChange = isPendingApproval
+    //                 ? Math.round(approvalNewValue - yesterdayPercentage)
+    //                 : 0;
+
+    //             // Calculate today's progress considering approval
+    //             const actualTodayProgress = isPendingApproval
+    //                 ? Math.max(0, completionPercentage - yesterdayPercentage) // Show total change from yesterday
+    //                 : todayProgress;
+
+    //             // Store the BASELINE completion percentage in the separate Map
+    //             // If this process has an existing approval entry, use its oldValue as baseline
+    //             // Otherwise, use the current completionPercentage
+    //             const baselinePercentage = approvalDataMap.has(processId)
+    //                 ? approvalDataMap.get(processId).oldValue
+    //                 : completionPercentage;
+    //             this.editOriginalCompletionPercentages.set(processId, baselinePercentage);
+
+    //             // Pre-populate editModifiedProcesses with existing approval data
+    //             // This ensures existing changes are preserved even if not touched in this edit session
+    //             if (approvalDataMap.has(processId)) {
+    //                 const existingApproval = approvalDataMap.get(processId);
+    //                 this.editModifiedProcesses.set(processId, {
+    //                     processId: processId,
+    //                     originalValue: existingApproval.oldValue, // yesterdayPercentage
+    //                     newValue: existingApproval.newValue // Current value from approval
+    //                 });
+    //             }
+
+    //             return {
+    //                 processId: processId,
+    //                 processName: processName,
+    //                 locationName: locationName,
+    //                 sequence: sequence,
+    //                 yesterdayPercentage: yesterdayPercentage, // Total completed till yesterday (green base)
+    //                 completionPercentage: completionPercentage, // Current total completed
+    //                 todayProgress: actualTodayProgress, // Today's change (includes approval changes)
+    //                 remainingProgress: remainingProgress,
+    //                 changedToday: false,
+    //                 isPendingApproval: isPendingApproval,
+    //                 approvalOldValue: approvalOldValue,
+    //                 approvalNewValue: approvalNewValue,
+    //                 approvalChange: approvalChange,
+    //                 displayApprovalPercentage: approvalChange,
+    //                 sliderMinValue: yesterdayPercentage, // Always start from yesterday (not approval value)
+    //                 completedStyle: `width: ${yesterdayPercentage}%`,
+    //                 todayStyle: `width: ${actualTodayProgress}%`,
+    //                 approvalStyle: `width: ${approvalChange}%`,
+    //                 remainingStyle: `width: ${remainingProgress}%`
+    //             };
+    //         });
+
+    //         this.buildEditLocationOptions();
+    //         this.setEditDefaultLocation();
+    //     }
+    // }
+
     loadEditLocationProcesses(logToEdit) {
-        if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
+    if (logToEdit.locationProcesses && logToEdit.locationProcesses.length > 0) {
 
-            // Clear the original percentages map at the start
-            this.editOriginalCompletionPercentages.clear();
+        // Clear the original percentages map at the start
+        this.editOriginalCompletionPercentages.clear();
 
-            // Check if there's approval data - handle both new and old structure
-            let approvalDataArray = [];
-            let approvalDataMap = new Map(); // Map processId to approval entry
-            if (logToEdit.wfrecon__Approval_Data__c) {
-                try {
-                    const parsedData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
+        // Check if there's approval data - handle both new and old structure
+        let approvalDataArray = [];
+        let approvalDataMap = new Map(); // Map processId to approval entry
+        if (logToEdit.wfrecon__Approval_Data__c) {
+            try {
+                const parsedData = JSON.parse(logToEdit.wfrecon__Approval_Data__c);
 
-                    // Check if it's the new structure or old structure
-                    if (parsedData.locationProcessChanges) {
-                        // New structure
-                        approvalDataArray = parsedData.locationProcessChanges;
-                    } else if (Array.isArray(parsedData)) {
-                        // Old structure
-                        approvalDataArray = parsedData;
-                    }
-
-                    // Build a map for quick lookup
-                    approvalDataArray.forEach(item => {
-                        approvalDataMap.set(item.id, item);
-                    });
-                } catch (e) {
-                    console.error('Error parsing approval data in edit modal:', e);
+                // Check if it's the new structure or old structure
+                if (parsedData.locationProcessChanges) {
+                    // New structure
+                    approvalDataArray = parsedData.locationProcessChanges;
+                } else if (Array.isArray(parsedData)) {
+                    // Old structure
+                    approvalDataArray = parsedData;
                 }
+
+                // Build a map for quick lookup
+                approvalDataArray.forEach(item => {
+                    approvalDataMap.set(item.id, item);
+                });
+            } catch (e) {
+                console.error('Error parsing approval data in edit modal:', e);
+            }
+        }
+
+        // Map backend fields to component properties
+        this.editAllLocationProcesses = logToEdit.locationProcesses.map(proc => {
+            // Handle different possible field names from backend
+            const processId = proc.Id || proc.processId;
+            const processName = proc.Name || proc.processName;
+            const locationName = proc.wfrecon__Location__r?.Name || proc.locationName || 'Unknown Location';
+            const sequence = proc.wfrecon__Sequence__c || proc.sequence || 0;
+
+            // Get yesterday's percentage (total completed before today)
+            const yesterdayPercentage = Math.round(parseFloat(proc.yesterdayPercentage || proc.oldPercentage || 0));
+
+            // Check if this process is pending approval from the JSON array
+            const approvalDataForProcess = approvalDataArray.find(item => item.id === processId);
+            const isPendingApproval = !!approvalDataForProcess;
+            const approvalOldValue = approvalDataForProcess?.oldValue || 0;
+            const approvalNewValue = approvalDataForProcess?.newValue || 0;
+
+            // IMPORTANT FIX: When pending approval, use approvalNewValue as completionPercentage
+            const completionPercentage = isPendingApproval 
+                ? Math.round(parseFloat(approvalNewValue)) // Use approval value when pending
+                : Math.round(parseFloat(proc.wfrecon__Completed_Percentage__c || proc.completionPercentage || 0));
+
+            // Calculate today's change (difference between current and yesterday)
+            const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
+            const remainingProgress = Math.max(0, 100 - completionPercentage);
+
+            // If in approval: purple shows (yesterday → approval value)
+            const approvalChange = isPendingApproval
+                ? Math.round(approvalNewValue - yesterdayPercentage)
+                : 0;
+
+            // Calculate today's progress considering approval
+            const actualTodayProgress = isPendingApproval
+                ? Math.max(0, completionPercentage - yesterdayPercentage) // Show total change from yesterday
+                : todayProgress;
+
+            // Store the BASELINE completion percentage in the separate Map
+            // If this process has an existing approval entry, use its oldValue as baseline
+            // Otherwise, use the current completionPercentage
+            const baselinePercentage = approvalDataMap.has(processId)
+                ? approvalDataMap.get(processId).oldValue
+                : completionPercentage;
+            this.editOriginalCompletionPercentages.set(processId, baselinePercentage);
+
+            // Pre-populate editModifiedProcesses with existing approval data
+            // This ensures existing changes are preserved even if not touched in this edit session
+            if (approvalDataMap.has(processId)) {
+                const existingApproval = approvalDataMap.get(processId);
+                this.editModifiedProcesses.set(processId, {
+                    processId: processId,
+                    originalValue: existingApproval.oldValue, // yesterdayPercentage
+                    newValue: existingApproval.newValue // Current value from approval
+                });
             }
 
-            // Map backend fields to component properties
-            this.editAllLocationProcesses = logToEdit.locationProcesses.map(proc => {
-                // Handle different possible field names from backend
-                const processId = proc.Id || proc.processId;
-                const processName = proc.Name || proc.processName;
-                const locationName = proc.wfrecon__Location__r?.Name || proc.locationName || 'Unknown Location';
-                const sequence = proc.wfrecon__Sequence__c || proc.sequence || 0;
+            return {
+                processId: processId,
+                processName: processName,
+                locationName: locationName,
+                sequence: sequence,
+                yesterdayPercentage: yesterdayPercentage, // Total completed till yesterday (green base)
+                completionPercentage: completionPercentage, // Current total completed - NOW INCLUDES APPROVAL VALUE
+                todayProgress: actualTodayProgress, // Today's change (includes approval changes)
+                remainingProgress: remainingProgress,
+                changedToday: false,
+                isPendingApproval: isPendingApproval,
+                approvalOldValue: approvalOldValue,
+                approvalNewValue: approvalNewValue,
+                approvalChange: approvalChange,
+                displayApprovalPercentage: approvalChange,
+                sliderMinValue: yesterdayPercentage, // Always start from yesterday (not approval value)
+                completedStyle: `width: ${yesterdayPercentage}%`,
+                todayStyle: `width: ${actualTodayProgress}%`,
+                approvalStyle: `width: ${approvalChange}%`,
+                remainingStyle: `width: ${remainingProgress}%`
+            };
+        });
 
-                // Get yesterday's percentage (total completed before today)
-                const yesterdayPercentage = Math.round(parseFloat(proc.yesterdayPercentage || proc.oldPercentage || 0));
-
-                // Get current total completed percentage
-                const completionPercentage = Math.round(parseFloat(proc.wfrecon__Completed_Percentage__c || proc.completionPercentage || 0));
-
-                // Calculate today's change (difference between current and yesterday)
-                const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
-                const remainingProgress = Math.max(0, 100 - completionPercentage);
-
-                // Check if this process is pending approval from the JSON array
-                const approvalDataForProcess = approvalDataArray.find(item => item.id === processId);
-                const isPendingApproval = !!approvalDataForProcess;
-                const approvalOldValue = approvalDataForProcess?.oldValue || 0;
-                const approvalNewValue = approvalDataForProcess?.newValue || 0;
-
-                // If in approval: purple shows (yesterday → approval value)
-                // If current > approval: that's new changes after approval
-                const approvalChange = isPendingApproval
-                    ? Math.round(approvalNewValue - yesterdayPercentage)
-                    : 0;
-
-                // Calculate today's progress considering approval
-                const actualTodayProgress = isPendingApproval
-                    ? Math.max(0, completionPercentage - yesterdayPercentage) // Show total change from yesterday
-                    : todayProgress;
-
-                // Store the BASELINE completion percentage in the separate Map
-                // If this process has an existing approval entry, use its oldValue as baseline
-                // Otherwise, use the current completionPercentage
-                const baselinePercentage = approvalDataMap.has(processId)
-                    ? approvalDataMap.get(processId).oldValue
-                    : completionPercentage;
-                this.editOriginalCompletionPercentages.set(processId, baselinePercentage);
-
-                // Pre-populate editModifiedProcesses with existing approval data
-                // This ensures existing changes are preserved even if not touched in this edit session
-                if (approvalDataMap.has(processId)) {
-                    const existingApproval = approvalDataMap.get(processId);
-                    this.editModifiedProcesses.set(processId, {
-                        processId: processId,
-                        originalValue: existingApproval.oldValue, // yesterdayPercentage
-                        newValue: existingApproval.newValue // Current value from approval
-                    });
-                }
-
-                return {
-                    processId: processId,
-                    processName: processName,
-                    locationName: locationName,
-                    sequence: sequence,
-                    yesterdayPercentage: yesterdayPercentage, // Total completed till yesterday (green base)
-                    completionPercentage: completionPercentage, // Current total completed
-                    todayProgress: actualTodayProgress, // Today's change (includes approval changes)
-                    remainingProgress: remainingProgress,
-                    changedToday: false,
-                    isPendingApproval: isPendingApproval,
-                    approvalOldValue: approvalOldValue,
-                    approvalNewValue: approvalNewValue,
-                    approvalChange: approvalChange,
-                    displayApprovalPercentage: approvalChange,
-                    sliderMinValue: yesterdayPercentage, // Always start from yesterday (not approval value)
-                    completedStyle: `width: ${yesterdayPercentage}%`,
-                    todayStyle: `width: ${actualTodayProgress}%`,
-                    approvalStyle: `width: ${approvalChange}%`,
-                    remainingStyle: `width: ${remainingProgress}%`
-                };
-            });
-
-            this.buildEditLocationOptions();
-            this.setEditDefaultLocation();
-        }
+        this.buildEditLocationOptions();
+        this.setEditDefaultLocation();
     }
+}
 
     buildEditLocationOptions() {
         const locationMap = new Map();
@@ -999,18 +1119,60 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         }
     }
 
+    // groupEditLocationProcesses() {
+    //     const locationMap = new Map();
+
+    //     this.editAllLocationProcesses.forEach(proc => {
+    //         if (!locationMap.has(proc.locationName)) {
+    //             locationMap.set(proc.locationName, {
+    //                 locationName: proc.locationName,
+    //                 sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name
+    //                 processes: []
+    //             });
+    //         }
+    //         locationMap.get(proc.locationName).processes.push(proc);
+    //     });
+
+    //     this.editGroupedLocationProcesses = Array.from(locationMap.values());
+
+    //     // Set first accordion as active by default
+    //     if (this.editGroupedLocationProcesses.length > 0) {
+    //         this.editActiveAccordionSections = [this.editGroupedLocationProcesses[0].sectionName];
+    //     }
+    // }
+
     groupEditLocationProcesses() {
         const locationMap = new Map();
 
         this.editAllLocationProcesses.forEach(proc => {
+            // Recalculate display values based on current completionPercentage
+            const yesterdayPercentage = proc.yesterdayPercentage || 0;
+            const completionPercentage = proc.completionPercentage || 0;
+            const todayProgress = Math.max(0, completionPercentage - yesterdayPercentage);
+            const remainingProgress = Math.max(0, 100 - completionPercentage);
+            
+            // Check if this process has been modified
+            const isModified = this.editModifiedProcesses.has(proc.processId);
+            const originalCompletion = this.editOriginalCompletionPercentages.get(proc.processId) || completionPercentage;
+            
+            const updatedProc = {
+                ...proc,
+                todayProgress: todayProgress,
+                remainingProgress: remainingProgress,
+                changedToday: completionPercentage !== originalCompletion,
+                completedStyle: `width: ${yesterdayPercentage}%`,
+                todayStyle: `width: ${todayProgress}%`,
+                remainingStyle: `width: ${remainingProgress}%`
+            };
+            
             if (!locationMap.has(proc.locationName)) {
                 locationMap.set(proc.locationName, {
                     locationName: proc.locationName,
-                    sectionName: proc.locationName.replace(/\s+/g, '_'), // Create unique section name
+                    sectionName: proc.locationName.replace(/\s+/g, '_'),
                     processes: []
                 });
             }
-            locationMap.get(proc.locationName).processes.push(proc);
+            locationMap.get(proc.locationName).processes.push(updatedProc);
         });
 
         this.editGroupedLocationProcesses = Array.from(locationMap.values());
