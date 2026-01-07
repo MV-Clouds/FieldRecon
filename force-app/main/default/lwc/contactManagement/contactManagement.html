@@ -103,6 +103,7 @@
             </template>
         </div>
 
+        <!-- Pagination Section -->
         <template if:true={isDataAvailable}>
             <div class="pagination-section">
                 <div class="pagination-container">
@@ -182,7 +183,8 @@
                                         <lightning-input-field
                                             field-name={field.fieldName}
                                             required={field.isRequired}
-                                            disabled={field.isDisabled}>
+                                            disabled={field.isDisabled}
+                                            onchange={handleInputFieldChange}>
                                         </lightning-input-field>
                                     </template>
 
