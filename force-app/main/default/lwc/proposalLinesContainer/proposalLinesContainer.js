@@ -28,6 +28,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track modifiedProposalLines = new Map();
     @track originalProposalLineValues = new Map();
     @track modifiedBudgetLineFields = new Map();
+    @track manuallyEditedSalesPrices = new Map(); // Track manually edited sales prices
     @track showConfirmModal = false;
     @track confirmModalTitle = '';
     @track confirmModalMessage = '';
@@ -245,24 +246,28 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 isOddRow: (index % 2 === 0),
                 isModified: modifiedFields.size > 0,
                 isEditingQuantity: this.editingProposalLines.has(`${line.Id}_wfrecon__Quantity__c`),
-                isEditingOH: this.editingProposalLines.has(`${line.Id}_wfrecon__OH_Per__c`),
-                isEditingWarranty: this.editingProposalLines.has(`${line.Id}_wfrecon__Warranty_Per__c`),
+                isEditingDescription: this.editingProposalLines.has(`${line.Id}_wfrecon__Description__c`),
                 isEditingProfit: this.editingProposalLines.has(`${line.Id}_wfrecon__Profit_Per__c`),
+                isEditingSalesPrice: this.editingProposalLines.has(`${line.Id}_wfrecon__Sales_Price__c`),
                 // CSS classes for each field
                 quantityCellClass: modifiedFields.has('wfrecon__Quantity__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
-                ohCellClass: modifiedFields.has('wfrecon__OH_Per__c')
-                    ? 'center-trancate-text editable-cell modified-cell'
-                    : 'center-trancate-text editable-cell',
-                warrantyCellClass: modifiedFields.has('wfrecon__Warranty_Per__c')
+                descriptionCellClass: modifiedFields.has('wfrecon__Description__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
                 profitCellClass: modifiedFields.has('wfrecon__Profit_Per__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
+                profitSummaryItemClass: modifiedFields.has('wfrecon__Profit_Per__c')
+                    ? 'summary-item editable-summary-item modified-cell'
+                    : 'summary-item editable-summary-item',
+                salesPriceCellClass: modifiedFields.has('wfrecon__Sales_Price__c')
+                    ? 'center-trancate-text editable-cell modified-cell'
+                    : 'center-trancate-text editable-cell',
                 // Safe values for display
                 displayQuantity: this.safeNumber(line.wfrecon__Quantity__c, 0),
+                displayDescription: this.safeValue(line.wfrecon__Description__c, ''),
                 displayOH: this.safeNumber(line.wfrecon__OH_Per__c, 0),
                 displayWarranty: this.safeNumber(line.wfrecon__Warranty_Per__c, 0),
                 displayProfit: this.safeNumber(line.wfrecon__Profit_Per__c, 0),
@@ -270,6 +275,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 displayWarrantyAmount: this.safeNumber(line.wfrecon__Warranty_Amount__c, 0).toFixed(2),
                 displayProfitAmount: this.safeNumber(line.wfrecon__Profit_Amount__c, 0).toFixed(2),
                 displayTotalCost: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
+                displayRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0).toFixed(2),
                 displaySalesPrice: this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2),
                 displayLaborCost: this.safeNumber(line.wfrecon__Labor_Cost__c, 0).toFixed(2),
                 displayMaterialCost: this.safeNumber(line.wfrecon__Material_Cost__c, 0).toFixed(2),
@@ -289,6 +295,26 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         }, 0);
 
         return total.toFixed(2);
+    }
+
+    // Get total sales price of all proposal lines
+    get totalSalesPrice() {
+        if (!this.proposalLinesRaw || this.proposalLinesRaw.length === 0) return '0.00';
+
+        const total = this.proposalLinesRaw.reduce((sum, line) => {
+            return sum + this.safeNumber(line.wfrecon__Sales_Price__c, 0);
+        }, 0);
+
+        return total.toFixed(2);
+    }
+
+    // Get margin (Total Sales Price - Grand Total Cost)
+    get margin() {
+        const totalSales = parseFloat(this.totalSalesPrice) || 0;
+        const totalCost = parseFloat(this.grandTotal) || 0;
+        const marginValue = totalSales - totalCost;
+
+        return marginValue.toFixed(2);
     }
 
     // Handle toggle expand/collapse
@@ -338,6 +364,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             oh: this.proposalDefaults.oh,
             warranty: this.proposalDefaults.warranty,
             profit: this.proposalDefaults.profit,
+            description: '',
             productOptions: [],
             canDelete: false
         }];
@@ -373,7 +400,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 if (result.success && result.data) {
                     const productOptions = result.data.map(entry => ({
                         label: entry.Product2.Name,
-                        value: entry.Product2Id
+                        value: entry.Product2Id,
+                        description: entry.Product2.Description || ''
                     }));
 
                     this.newProposalLines = this.newProposalLines.map(line => {
@@ -402,14 +430,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
         this.newProposalLines = this.newProposalLines.map(line => {
             if (line.tempId === tempId) {
-                // Find the product name from productOptions
+                // Find the product name and description from productOptions
                 const selectedProduct = line.productOptions.find(opt => opt.value === productId);
                 const productName = selectedProduct ? selectedProduct.label : '';
+                const productDescription = selectedProduct ? selectedProduct.description : '';
 
                 return {
                     ...line,
                     productId: productId,
-                    productName: productName
+                    productName: productName,
+                    description: productDescription
                 };
             }
             return line;
@@ -446,6 +476,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             oh: this.proposalDefaults.oh,
             warranty: this.proposalDefaults.warranty,
             profit: this.proposalDefaults.profit,
+            description: '',
             productOptions: [],
             canDelete: true
         };
@@ -499,7 +530,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 oh: line.oh,
                 warranty: line.warranty,
                 profit: line.profit,
-                proposalLineName: proposalLineName
+                proposalLineName: proposalLineName,
+                description: line.description || ''
             };
         });
 
@@ -615,9 +647,19 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
             if (line.Id === proposalLineId) {
+                // Handle text fields (like Description) vs numeric fields
+                let fieldValue = fieldName === 'wfrecon__Description__c' 
+                    ? value 
+                    : (parseFloat(value) || 0);
+                
+                // Track manually edited sales price
+                if (fieldName === 'wfrecon__Sales_Price__c') {
+                    this.manuallyEditedSalesPrices.set(proposalLineId, fieldValue);
+                }
+                
                 return {
                     ...line,
-                    [fieldName]: parseFloat(value) || 0
+                    [fieldName]: fieldValue
                 };
             }
             return line;
@@ -629,10 +671,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         }
         this.modifiedProposalLines.get(proposalLineId).add(fieldName);
 
-        // Recalculate totals if OH, Warranty, or Profit percentage changed
-        if (fieldName === 'wfrecon__Quantity__c' ||
-            fieldName === 'wfrecon__OH_Per__c' || 
-            fieldName === 'wfrecon__Warranty_Per__c' || 
+        // Recalculate totals if Quantity or Profit percentage changed
+        if (fieldName === 'wfrecon__Quantity__c' || 
             fieldName === 'wfrecon__Profit_Per__c') {
             this.recalculateProposalLineTotals(proposalLineId);
         }
@@ -642,6 +682,30 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     handleProposalLineFieldBlur(event) {
         const proposalLineId = event.currentTarget.dataset.proposalLineId;
         const fieldName = event.currentTarget.dataset.field;
+
+        // Validate Sales Price on blur
+        if (fieldName === 'wfrecon__Sales_Price__c') {
+            const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+            if (line) {
+                const salesPrice = parseFloat(line.wfrecon__Sales_Price__c) || 0;
+                const recommendedPrice = parseFloat(line.wfrecon__Recommended_Price__c) || 0;
+                
+                if (salesPrice < recommendedPrice) {
+                    // Reset to recommended price and show error
+                    this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
+                        if (l.Id === proposalLineId) {
+                            return {
+                                ...l,
+                                wfrecon__Sales_Price__c: recommendedPrice
+                            };
+                        }
+                        return l;
+                    });
+                    this.manuallyEditedSalesPrices.set(proposalLineId, recommendedPrice);
+                    this.showToast('Error', `Sales Price cannot be less than Recommended Price ($${recommendedPrice.toFixed(2)})`, 'error');
+                }
+            }
+        }
 
         const editKey = `${proposalLineId}_${fieldName}`;
         this.editingProposalLines.delete(editKey);
@@ -1021,9 +1085,36 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const warrantyPer = parseNum(line.wfrecon__Warranty_Per__c) / 100;
             
             const denominator = 1 - (ohPer + profitPer + warrantyPer);
-            const salesPrice = denominator !== 0 ? totalCost / denominator : totalCost;
+            const recommendedPrice = denominator !== 0 ? totalCost / denominator : totalCost;
 
-            // Calculate amount fields
+            // Set Sales Price to Recommended Price if not manually edited or if Recommended Price is higher
+            let salesPrice = parseNum(line.wfrecon__Sales_Price__c);
+            const prevRecommendedPrice = parseNum(line.wfrecon__Recommended_Price__c);
+            const manuallyEditedPrice = this.manuallyEditedSalesPrices.get(line.Id);
+            
+            // Update sales price only if:
+            // 1. It's not set yet, OR
+            // 2. User has NOT manually edited it AND recommended price changed, OR
+            // 3. User HAS manually edited it BUT new recommended price is higher than their manual value
+            const shouldUpdateSalesPrice = !salesPrice || 
+                (!manuallyEditedPrice && Math.abs(prevRecommendedPrice - recommendedPrice) > 0.01) ||
+                (manuallyEditedPrice && recommendedPrice > manuallyEditedPrice);
+            
+            if (shouldUpdateSalesPrice) {
+                salesPrice = recommendedPrice;
+                // Clear manual edit tracking since we're auto-updating
+                this.manuallyEditedSalesPrices.delete(line.Id);
+                // Mark sales price as modified when auto-updated due to recommended price change
+                if (!this.modifiedProposalLines.has(line.Id)) {
+                    this.modifiedProposalLines.set(line.Id, new Set());
+                }
+                this.modifiedProposalLines.get(line.Id).add('wfrecon__Sales_Price__c');
+            } else if (manuallyEditedPrice) {
+                // Use the manually edited price if it's higher than or equal to recommended price
+                salesPrice = manuallyEditedPrice;
+            }
+
+            // Calculate amount fields using the actual sales price
             const ohAmount = ohPer * salesPrice;
             const profitAmount = profitPer * salesPrice;
             const warrantyAmount = warrantyPer * salesPrice;
@@ -1036,6 +1127,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 wfrecon__Mileage_Cost__c: mileageCost,
                 wfrecon__Per_Diem_Cost__c: perDiemCost,
                 wfrecon__Total_Cost__c: totalCost,
+                wfrecon__Recommended_Price__c: recommendedPrice,
                 wfrecon__Sales_Price__c: salesPrice,
                 wfrecon__OH_Amount__c: ohAmount,
                 wfrecon__Profit_Amount__c: profitAmount,
@@ -1233,6 +1325,30 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const allBudgetLinesToSave = [];
         const modifiedProposalLinesArray = [];
 
+        // Validate all sales prices before saving
+        let hasInvalidSalesPrice = false;
+        let errorMessage = '';
+        
+        this.modifiedProposalLines.forEach((modifiedFields, proposalLineId) => {
+            if (modifiedFields.has('wfrecon__Sales_Price__c')) {
+                const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+                if (line) {
+                    const salesPrice = parseFloat(line.wfrecon__Sales_Price__c) || 0;
+                    const recommendedPrice = parseFloat(line.wfrecon__Recommended_Price__c) || 0;
+                    
+                    if (salesPrice < recommendedPrice) {
+                        hasInvalidSalesPrice = true;
+                        errorMessage = `Sales Price ($${salesPrice.toFixed(2)}) cannot be less than Recommended Price ($${recommendedPrice.toFixed(2)}) for ${line.Name}`;
+                    }
+                }
+            }
+        });
+
+        if (hasInvalidSalesPrice) {
+            this.showToast('Validation Error', errorMessage, 'error');
+            return;
+        }
+
         // Collect modified proposal lines
         this.modifiedProposalLines.forEach((modifiedFields, proposalLineId) => {
             const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
@@ -1240,9 +1356,11 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 modifiedProposalLinesArray.push({
                     Id: line.Id,
                     wfrecon__Quantity__c: line.wfrecon__Quantity__c,
+                    wfrecon__Description__c: line.wfrecon__Description__c,
                     wfrecon__OH_Per__c: line.wfrecon__OH_Per__c,
                     wfrecon__Warranty_Per__c: line.wfrecon__Warranty_Per__c,
-                    wfrecon__Profit_Per__c: line.wfrecon__Profit_Per__c
+                    wfrecon__Profit_Per__c: line.wfrecon__Profit_Per__c,
+                    wfrecon__Sales_Price__c: line.wfrecon__Sales_Price__c
                 });
             }
         });
@@ -1298,6 +1416,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     this.modifiedProposalLines.clear();
                     this.originalProposalLineValues.clear();
                     this.modifiedBudgetLineFields.clear();
+                    this.manuallyEditedSalesPrices.clear();
                 } else {
                     this.showToast('Error', result.message, 'error');
                 }

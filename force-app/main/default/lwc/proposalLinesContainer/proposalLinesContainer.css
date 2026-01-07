@@ -4,6 +4,18 @@
     user-select: none;
 }
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
 /* Main Container */
 .main-card {
     background-color: #ffffff;
@@ -138,7 +150,6 @@
 
 /* Data Table Container */
 .data-table-container {
-    /* flex: 1; */
     overflow-x: auto;
     overflow-y: auto;
     border-radius: 8px;
@@ -149,12 +160,22 @@
 
 /* Table Styles */
 .custom-data-table {
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
     border-collapse: collapse;
     background-color: #fff;
     font-size: 14px;
 }
+
+/* Main Proposal Lines Table Column Widths */
+.col-toggle { width: 3%; }
+.col-sr-no { width: 6%; }
+.col-service { width: 18%; }
+.col-description { width: 26%; }
+.col-quantity { width: 8%; }
+.col-total-cost { width: 11%; }
+.col-recommended-price { width: 11%; }
+.col-sales-price { width: 11%; }
+.col-actions { width: 6%; }
 
 .table-header {
     position: sticky;
@@ -173,12 +194,10 @@
     top: 0;
     z-index: 10;
     white-space: nowrap;
-    min-width: 100px;
 }
 
 .header-cell:first-child {
     border-left: none;
-    min-width: 50px;
 }
 
 .table-body {
@@ -188,8 +207,6 @@
 .custom-data-table td {
     padding: 10px;
     text-align: center;
-    /* max-width: 200px;
-    min-width: 100px; */
     word-wrap: break-word;
     overflow: hidden;
     position: relative;
@@ -358,9 +375,7 @@
 }
 
 .inline-edit-input {
-    width: 80px;
-    min-width: 60px;
-    max-width: 120px;
+    width: 100%;
     padding: 6px 8px;
     border: 2px solid rgba(94, 90, 219, 0.6);
     border-radius: 4px;
@@ -490,6 +505,115 @@
     background-color: rgb(244, 244, 255);
 }
 
+/* Proposal Line Summary Section */
+.proposal-summary-section {
+    margin-top: 16px;
+    overflow-x: auto;
+}
+
+.summary-grid {
+    display: flex;
+    gap: 12px;
+    min-width: min-content;
+    justify-content: center;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    padding: 5px 10px;
+    background-color: rgba(94, 90, 219, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(94, 90, 219, 0.15);
+    transition: all 0.2s ease;
+    min-width: 140px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.summary-item:hover {
+    background-color: rgba(94, 90, 219, 0.08);
+    border-color: rgba(94, 90, 219, 0.25);
+}
+
+.editable-summary-item {
+    cursor: pointer;
+}
+
+.summary-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.summary-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(94, 90, 219, 1);
+    white-space: nowrap;
+}
+
+.summary-value-amount {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2ecc71;
+    white-space: nowrap;
+}
+
+.summary-value-editable {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.summary-edit-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.summary-edit-container:hover {
+    background-color: rgba(94, 90, 219, 0.1);
+}
+
+.summary-edit-container:hover .summary-edit-icon {
+    opacity: 1;
+}
+
+.summary-edit-icon {
+    opacity: 0.5;
+    color: rgba(94, 90, 219, 0.8);
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.summary-edit-input {
+    width: 70px;
+    padding: 0px 8px;
+    border: 2px solid rgba(94, 90, 219, 0.6);
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(94, 90, 219, 1);
+    background-color: #ffffff;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.summary-edit-input:focus {
+    border-color: rgba(94, 90, 219, 1);
+    box-shadow: 0 0 0 3px rgba(94, 90, 219, 0.1);
+}
+
+
 /* Global Budget Actions */
 .budget-actions-container {
     background-color: #ffffff;
@@ -568,8 +692,6 @@
     align-items: center;
     padding: 12px 16px;
     background-color: #ffffff;
-    /* border-bottom: 2px solid #e5e5e5; */
-    /* min-height: 44px; */
 }
 
 .section-header-left {
@@ -611,7 +733,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* gap: 0.5rem; */
     padding: 0.5rem 1rem;
     border: 1px solid #d8d8d8;
     border-radius: 4px;
@@ -623,7 +744,6 @@
     position: relative;
     white-space: nowrap;
     height: 36px;
-    /* min-width: 108px; */
     font-size: 14px;
 }
 
@@ -671,7 +791,6 @@
     overflow-x: auto;
     max-width: 100%;
     background-color: #ffffff;
-    /* padding: 12px; */
     margin: 8px 12px;
 }
 
@@ -684,13 +803,13 @@
 
 .budget-section-table {
     width: 100%;
-    min-width: 800px;
     border-collapse: collapse;
     font-size: 13px;
     background-color: #ffffff;
     border: 1px solid #e5e5e5;
     border-radius: 4px;
     overflow: hidden;
+    table-layout: fixed;
 }
 
 .budget-section-table thead {
@@ -734,31 +853,46 @@
     text-align: center;
     font-size: 12px;
     color: #555;
-    min-width: 120px;
     white-space: nowrap;
 }
 
 .budget-section-table th {
-    min-width: 120px;
     white-space: nowrap;
 }
 
-.budget-section-table td.col-sr-no,
-.budget-section-table th.col-sr-no {
-    font-weight: 600;
-    /* color: rgba(94, 90, 219, 1); */
-    font-size: 12px;
-    width: 70px;
-    min-width: 70px;
-    max-width: 70px;
-}
+/* Budget Table Column Widths - Labor */
+.budget-col-sr-no { width: 6%; }
+.budget-col-crew { width: 10%; }
+.budget-col-hrs-day { width: 10%; }
+.budget-col-burden-rate { width: 15%; }
+.budget-col-days { width: 10%; }
+.budget-col-est-hours { width: 12%; }
+.budget-col-subtotal { width: 15%; }
+.budget-col-note { width: 15%; }
+.budget-col-actions { width: 7%; }
 
-.budget-section-table td.col-actions,
-.budget-section-table th.col-actions {
-    width: 80px;
-    min-width: 80px;
-    max-width: 80px;
-}
+/* Budget Table Column Widths - Materials */
+.budget-col-material { width: 35%; }
+.budget-col-qty { width: 15%; }
+.budget-col-cost-each { width: 20%; }
+
+/* Budget Table Column Widths - Hotel */
+.budget-col-nights { width: 18%; }
+.budget-col-rooms { width: 20%; }
+.budget-col-cost-per-night { width: 20%; }
+.budget-col-total-hotel { width: 20%; }
+
+/* Budget Table Column Widths - Mileage */
+.budget-col-trips { width: 12%; }
+.budget-col-trucks { width: 12%; }
+.budget-col-miles { width: 18%; }
+.budget-col-dollar-mile { width: 15%; }
+.budget-col-total-mileage { width: 20%; }
+
+/* Budget Table Column Widths - Perdiem */
+.budget-col-rate { width: 20%; }
+.budget-col-men { width: 18%; }
+.budget-col-total { width: 28%; }
 
 .proposal-lines-table-container {
     max-height: 400px;
@@ -769,11 +903,20 @@
 }
 
 .proposal-lines-table {
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    table-layout: fixed;
 }
+
+/* Modal Proposal Lines Table Column Widths */
+.modal-col-sr-no { width: 5%; }
+.modal-col-pricebook { width: 18%; }
+.modal-col-product { width: 18%; }
+.modal-col-description { width: 30%; }
+.modal-col-quantity { width: 10%; }
+.modal-col-profit { width: 10%; }
+.modal-col-actions { width: 9%; }
 
 .proposal-lines-table thead {
     position: sticky;
@@ -1137,7 +1280,6 @@
 .table-text-input,
 .table-select-input {
     width: 100%;
-    min-width: 100px;
     padding: 6px 8px;
     border: 1px solid rgba(94, 90, 219, 0.3);
     border-radius: 4px;
@@ -1171,6 +1313,14 @@
     display: inline-block;
     padding: 6px 8px;
     /* min-width: 60px; */
+}
+
+.description-text {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
 }
 
 .cell-text-truncate {
@@ -1213,7 +1363,6 @@
     background-repeat: no-repeat;
     background-position: right 8px center;
     padding-right: 28px;
-    width: 150px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
