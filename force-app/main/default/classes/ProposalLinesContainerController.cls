@@ -35,9 +35,10 @@ public with sharing class ProposalLinesContainerController {
             
             // Fetch Proposal Lines with Budget information
             List<wfrecon__Proposal_Line__c> proposalLines = [
-                SELECT Id, Name, wfrecon__Product__c, wfrecon__Total_Cost__c, 
+                SELECT Id, Name, wfrecon__Product__c, wfrecon__Total_Cost__c, wfrecon__Description__c,
                     wfrecon__Quantity__c, wfrecon__OH_Per__c, wfrecon__Warranty_Per__c, wfrecon__Profit_Per__c,
-                    wfrecon__OH_Amount__c, wfrecon__Profit_Amount__c, wfrecon__Warranty_Amount__c, wfrecon__Sales_Price__c,
+                    wfrecon__OH_Amount__c, wfrecon__Profit_Amount__c, wfrecon__Warranty_Amount__c, 
+                    wfrecon__Recommended_Price__c, wfrecon__Sales_Price__c, wfrecon__Sequence__c,
                     wfrecon__Hotel_Cost__c, wfrecon__Labor_Cost__c, wfrecon__Material_Cost__c, 
                     wfrecon__Mileage_Cost__c, wfrecon__Per_Diem_Cost__c,
                     (SELECT Id, Name, 
@@ -55,7 +56,7 @@ public with sharing class ProposalLinesContainerController {
                 FROM wfrecon__Proposal_Line__c
                 WHERE wfrecon__Proposal__c = :proposalId 
                 WITH USER_MODE 
-                ORDER BY CreatedDate ASC
+                ORDER BY wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
             ];
             
             Map<String, Object> responseData = new Map<String, Object>();
@@ -132,7 +133,7 @@ public with sharing class ProposalLinesContainerController {
                 return result;
             }
             
-            List<PricebookEntry> products = [SELECT Id, Product2Id, Product2.Name, UnitPrice FROM PricebookEntry WHERE Pricebook2Id = :pricebookId AND IsActive = true
+            List<PricebookEntry> products = [SELECT Id, Product2Id, Product2.Name, Product2.Description, UnitPrice FROM PricebookEntry WHERE Pricebook2Id = :pricebookId AND IsActive = true
                     WITH USER_MODE ORDER BY Product2.Name ASC];
             
             result.put('success', true);
@@ -178,6 +179,22 @@ public with sharing class ProposalLinesContainerController {
             String proposalId = (String) data.get('proposalId');
             List<Object> proposalLinesData = (List<Object>) data.get('proposalLines');
             
+            // Get the maximum sequence number from existing proposal lines
+            List<AggregateResult> maxSeqResults = [
+                SELECT MAX(wfrecon__Sequence__c) maxSeq 
+                FROM wfrecon__Proposal_Line__c 
+                WHERE wfrecon__Proposal__c = :proposalId 
+                WITH USER_MODE
+            ];
+            
+            Decimal maxSequence = 0;
+            if (maxSeqResults != null && !maxSeqResults.isEmpty()) {
+                Object maxSeqValue = maxSeqResults[0].get('maxSeq');
+                if (maxSeqValue != null) {
+                    maxSequence = (Decimal) maxSeqValue;
+                }
+            }
+            
             List<wfrecon__Proposal_Line__c> proposalLinesToInsert = new List<wfrecon__Proposal_Line__c>();
             
             for (Object lineObj : proposalLinesData) {
@@ -188,10 +205,15 @@ public with sharing class ProposalLinesContainerController {
                 proposalLine.wfrecon__Product__c = (String) lineData.get('productId');
                 proposalLine.wfrecon__Price_Book__c = (String) lineData.get('pricebookId');
                 proposalLine.Name = (String) lineData.get('proposalLineName');
+                proposalLine.wfrecon__Description__c = (String) lineData.get('description');
                 proposalLine.wfrecon__Quantity__c = lineData.get('quantity') != null ? Decimal.valueOf(String.valueOf(lineData.get('quantity'))) : 0;
                 proposalLine.wfrecon__OH_Per__c = lineData.get('oh') != null ? Decimal.valueOf(String.valueOf(lineData.get('oh'))) : 0;
                 proposalLine.wfrecon__Warranty_Per__c = lineData.get('warranty') != null ? Decimal.valueOf(String.valueOf(lineData.get('warranty'))) : 0;
                 proposalLine.wfrecon__Profit_Per__c = lineData.get('profit') != null ? Decimal.valueOf(String.valueOf(lineData.get('profit'))) : 0;
+                
+                // Set sequence number (increment from max)
+                maxSequence++;
+                proposalLine.wfrecon__Sequence__c = maxSequence;
                 
                 proposalLinesToInsert.add(proposalLine);
             }
@@ -417,14 +439,19 @@ public with sharing class ProposalLinesContainerController {
                     if (lineData.containsKey('wfrecon__Quantity__c')) {
                         proposalLine.wfrecon__Quantity__c = (Decimal) lineData.get('wfrecon__Quantity__c');
                     }
-                    if (lineData.containsKey('wfrecon__OH_Per__c')) {
-                        proposalLine.wfrecon__OH_Per__c = (Decimal) lineData.get('wfrecon__OH_Per__c');
+                    if (lineData.containsKey('wfrecon__Description__c')) {
+                        proposalLine.wfrecon__Description__c = (String) lineData.get('wfrecon__Description__c');
                     }
-                    if (lineData.containsKey('wfrecon__Warranty_Per__c')) {
-                        proposalLine.wfrecon__Warranty_Per__c = (Decimal) lineData.get('wfrecon__Warranty_Per__c');
-                    }
+                    // OH and Warranty percentages are read-only and not updated
                     if (lineData.containsKey('wfrecon__Profit_Per__c')) {
                         proposalLine.wfrecon__Profit_Per__c = (Decimal) lineData.get('wfrecon__Profit_Per__c');
+                    }
+                    if (lineData.containsKey('wfrecon__Sales_Price__c')) {
+                        proposalLine.wfrecon__Sales_Price__c = (Decimal) lineData.get('wfrecon__Sales_Price__c');
+                    }
+                    if (lineData.containsKey('wfrecon__Sequence__c')) {
+                        Object seqValue = lineData.get('wfrecon__Sequence__c');
+                        proposalLine.wfrecon__Sequence__c = seqValue != null ? Decimal.valueOf(String.valueOf(seqValue)) : null;
                     }
 
                     proposalLinesToUpdate.add(proposalLine);

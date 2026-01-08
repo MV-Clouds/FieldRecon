@@ -12,6 +12,14 @@
                     <span class="amount-label">Grand Total Cost:</span>
                     <span class="amount-value">${grandTotal}</span>
                 </div>
+                <div class="amount-item">
+                    <span class="amount-label">Total Sales Price:</span>
+                    <span class="amount-value">${totalSalesPrice}</span>
+                </div>
+                <div class="amount-item">
+                    <span class="amount-label">Margin:</span>
+                    <span class="amount-value">${margin}</span>
+                </div>
             </div>
             <div class="header-actions">
                 <template if:true={hasAnyModifications}>
@@ -46,26 +54,36 @@
                 <table class="custom-data-table">
                     <thead class="table-header">
                         <tr>
-                            <th class="header-cell" style="width: 50px;"></th>
-                            <th class="header-cell">Sr No.</th>
-                            <th class="header-cell">Service</th>
-                            <th class="header-cell">Quantity</th>
-                            <th class="header-cell">OH</th>
-                            <th class="header-cell">OH Amount</th>
-                            <th class="header-cell">Warranty</th>
-                            <th class="header-cell">Warranty Amount</th>
-                            <th class="header-cell">Profit</th>
-                            <th class="header-cell">Profit Amount</th>
-                            <th class="header-cell">Total Cost</th>
-                            <th class="header-cell">Sales Price</th>
-                            <th class="header-cell">Actions</th>
+                            <th class="header-cell col-toggle"></th>
+                            <th class="header-cell col-sr-no">Sr No.</th>
+                            <th class="header-cell col-service">Service</th>
+                            <th class="header-cell col-description">Description</th>
+                            <th class="header-cell col-quantity">Quantity</th>
+                            <th class="header-cell col-total-cost">Total Cost</th>
+                            <th class="header-cell col-recommended-price">Recommended Price</th>
+                            <th class="header-cell col-sales-price">Sales Price</th>
+                            <th class="header-cell col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="table-body">
                         <template for:each={proposalLines} for:item="line">
                             <!-- Proposal Line Row -->
-                            <tr key={line.Id} class="proposal-line-row" data-is-odd={line.isOddRow}>
-                                <td class="center-trancate-text">
+                            <tr key={line.Id} class="proposal-line-row" data-is-odd={line.isOddRow}
+                                draggable="true" 
+                                data-line-id={line.Id}
+                                ondragstart={handleDragStart}
+                                ondragover={handleDragOver}
+                                ondrop={handleDrop}
+                                ondragend={handleDragEnd}>
+                                <td class="center-trancate-text drag-handle-cell">
+                                    <svg class="drag-handle-icon" width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="6" cy="4" r="1.5" fill="#706e6b"/>
+                                        <circle cx="10" cy="4" r="1.5" fill="#706e6b"/>
+                                        <circle cx="6" cy="8" r="1.5" fill="#706e6b"/>
+                                        <circle cx="10" cy="8" r="1.5" fill="#706e6b"/>
+                                        <circle cx="6" cy="12" r="1.5" fill="#706e6b"/>
+                                        <circle cx="10" cy="12" r="1.5" fill="#706e6b"/>
+                                    </svg>
                                     <button class="toggle-button" data-id={line.Id} onclick={handleToggleExpand}
                                         data-expanded={line.isExpanded}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -84,6 +102,30 @@
                                 <td class="center-trancate-text">{line.serialNumber}</td>
                                 <td class="center-trancate-text">
                                     <a href={line.recordLink} class="name-link">{line.Name}</a>
+                                </td>
+                                <!-- Description Field -->
+                                <td class={line.descriptionCellClass} data-proposal-line-id={line.Id}
+                                    data-field="wfrecon__Description__c" data-editable="true"
+                                    onclick={handleProposalLineCellClick}>
+                                    <template if:true={line.isEditingDescription}>
+                                        <input type="text" class="inline-edit-input" value={line.displayDescription}
+                                            data-proposal-line-id={line.Id} data-field="wfrecon__Description__c"
+                                            oninput={handleProposalLineFieldChange} onblur={handleProposalLineFieldBlur} />
+                                    </template>
+                                    <template if:false={line.isEditingDescription}>
+                                        <div class="cell-with-icon">
+                                            <span class="cell-text description-text">{line.displayDescription}</span>
+                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24"
+                                                fill="none">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                    stroke-linejoin="round" />
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                    stroke-linejoin="round" />
+                                            </svg>
+                                        </div>
+                                    </template>
                                 </td>
                                 <!-- Quantity Field -->
                                 <td class={line.quantityCellClass} data-proposal-line-id={line.Id}
@@ -110,91 +152,35 @@
                                         </div>
                                     </template>
                                 </td>
-                                <!-- OH Field -->
-                                <td class={line.ohCellClass} data-proposal-line-id={line.Id}
-                                    data-field="wfrecon__OH_Per__c" data-editable="true"
-                                    onclick={handleProposalLineCellClick}>
-                                    <template if:true={line.isEditingOH}>
-                                        <input type="number" class="inline-edit-input" value={line.displayOH}
-                                            data-proposal-line-id={line.Id} data-field="wfrecon__OH_Per__c"
-                                            oninput={handleProposalLineFieldChange} onblur={handleProposalLineFieldBlur}
-                                            step="0.01" min="0" />
-                                    </template>
-                                    <template if:false={line.isEditingOH}>
-                                        <div class="cell-with-icon">
-                                            <span class="cell-text">{line.displayOH}%</span>
-                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24"
-                                                fill="none">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round" />
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round" />
-                                            </svg>
-                                        </div>
-                                    </template>
-                                </td>
-                                <!-- OH Amount (Read-only) -->
-                                <td class="center-trancate-text">${line.displayOHAmount}</td>
-                                <!-- Warranty Field -->
-                                <td class={line.warrantyCellClass} data-proposal-line-id={line.Id}
-                                    data-field="wfrecon__Warranty_Per__c" data-editable="true"
-                                    onclick={handleProposalLineCellClick}>
-                                    <template if:true={line.isEditingWarranty}>
-                                        <input type="number" class="inline-edit-input" value={line.displayWarranty}
-                                            data-proposal-line-id={line.Id} data-field="wfrecon__Warranty_Per__c"
-                                            oninput={handleProposalLineFieldChange} onblur={handleProposalLineFieldBlur}
-                                            step="0.01" min="0" />
-                                    </template>
-                                    <template if:false={line.isEditingWarranty}>
-                                        <div class="cell-with-icon">
-                                            <span class="cell-text">{line.displayWarranty}%</span>
-                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24"
-                                                fill="none">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round" />
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round" />
-                                            </svg>
-                                        </div>
-                                    </template>
-                                </td>
-                                <!-- Warranty Amount (Read-only) -->
-                                <td class="center-trancate-text">${line.displayWarrantyAmount}</td>
-                                <!-- Profit Field -->
-                                <td class={line.profitCellClass} data-proposal-line-id={line.Id}
-                                    data-field="wfrecon__Profit_Per__c" data-editable="true"
-                                    onclick={handleProposalLineCellClick}>
-                                    <template if:true={line.isEditingProfit}>
-                                        <input type="number" class="inline-edit-input" value={line.displayProfit}
-                                            data-proposal-line-id={line.Id} data-field="wfrecon__Profit_Per__c"
-                                            oninput={handleProposalLineFieldChange} onblur={handleProposalLineFieldBlur}
-                                            step="0.01" min="0" />
-                                    </template>
-                                    <template if:false={line.isEditingProfit}>
-                                        <div class="cell-with-icon">
-                                            <span class="cell-text">{line.displayProfit}%</span>
-                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24"
-                                                fill="none">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round" />
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round" />
-                                            </svg>
-                                        </div>
-                                    </template>
-                                </td>
-                                <!-- Profit Amount (Read-only) -->
-                                <td class="center-trancate-text">${line.displayProfitAmount}</td>
                                 <!-- Total Cost (Read-only) -->
                                 <td class="center-trancate-text total-amount">${line.displayTotalCost}</td>
-                                <!-- Sales Price (Read-only) -->
-                                <td class="center-trancate-text">${line.displaySalesPrice}</td>
+                                <!-- Recommended Price (Read-only calculated field) -->
+                                <td class="center-trancate-text">${line.displayRecommendedPrice}</td>
+                                <!-- Sales Price (Editable with minimum = Recommended Price) -->
+                                <td class={line.salesPriceCellClass} data-proposal-line-id={line.Id}
+                                    data-field="wfrecon__Sales_Price__c" data-editable="true"
+                                    onclick={handleProposalLineCellClick}>
+                                    <template if:true={line.isEditingSalesPrice}>
+                                        <input type="number" class="inline-edit-input" value={line.displaySalesPrice}
+                                            data-proposal-line-id={line.Id} data-field="wfrecon__Sales_Price__c"
+                                            oninput={handleProposalLineFieldChange} onblur={handleProposalLineFieldBlur}
+                                            step="0.01" min={line.displayRecommendedPrice} />
+                                    </template>
+                                    <template if:false={line.isEditingSalesPrice}>
+                                        <div class="cell-with-icon">
+                                            <span class="cell-text">${line.displaySalesPrice}</span>
+                                            <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24"
+                                                fill="none">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                    stroke-linejoin="round" />
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                    stroke-linejoin="round" />
+                                            </svg>
+                                        </div>
+                                    </template>
+                                </td>
                                 <td class="center-trancate-text">
                                     <button class="delete-button" data-id={line.Id} onclick={handleDeleteProposalLine}
                                         title="Delete">
@@ -218,8 +204,50 @@
                             <!-- Budget Sections (Expanded View) -->
                             <template if:true={line.isExpanded}>
                                 <tr key={line.budgetRowKey} class="nested-row">
-                                    <td colspan="15" class="nested-table-container">
+                                    <td colspan="10" class="nested-table-container">
                                         <template if:true={line.budget}>
+                                            <!-- Proposal Line Summary Section -->
+                                            <div class="proposal-summary-section">
+                                                <div class="summary-grid">
+                                                    <div class={line.profitSummaryItemClass}>
+                                                        <span class="summary-label">Profit % - </span>
+                                                        <div class="summary-value-editable">
+                                                            <template if:true={line.isEditingProfit}>
+                                                                <input type="number" class="summary-edit-input" value={line.displayProfit}
+                                                                    data-proposal-line-id={line.Id} data-field="wfrecon__Profit_Per__c"
+                                                                    oninput={handleProposalLineFieldChange} onblur={handleProposalLineFieldBlur}
+                                                                    step="0.01" min="0" />
+                                                            </template>
+                                                            <template if:false={line.isEditingProfit}>
+                                                                <div class="summary-edit-container" data-proposal-line-id={line.Id}
+                                                                    data-field="wfrecon__Profit_Per__c" data-editable="true"
+                                                                    onclick={handleProposalLineCellClick}>
+                                                                    <span class="summary-value">{line.displayProfit}%</span>
+                                                                    <svg class="summary-edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                                    </svg>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                    <div class="summary-item">
+                                                        <span class="summary-label">Profit Amount - </span>
+                                                        <span class="summary-value-amount">${line.displayProfitAmount}</span>
+                                                    </div>
+                                                    <div class="summary-item">
+                                                        <span class="summary-label">OH Amount - </span>
+                                                        <span class="summary-value-amount">${line.displayOHAmount}</span>
+                                                    </div>
+                                                    <div class="summary-item">
+                                                        <span class="summary-label">Warranty Amount - </span>
+                                                        <span class="summary-value-amount">${line.displayWarrantyAmount}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div class="budget-sections-container">
 
                                                 <!-- Labor Section -->
@@ -274,15 +302,15 @@
                                                                     <table class="budget-section-table">
                                                                         <thead>
                                                                             <tr>
-                                                                                <th class="col-sr-no">Sr No.</th>
-                                                                                <th># of Crew</th>
-                                                                                <th>Hrs/Day</th>
-                                                                                <th>Burden Rate ($/Hour)</th>
-                                                                                <th># of Days</th>
-                                                                                <th>Estimated Hours</th>
-                                                                                <th>Labor Cost Sub Total</th>
-                                                                                <th>Note</th>
-                                                                                <th class="col-actions">Actions</th>
+                                                                                <th class="budget-col-sr-no">Sr No.</th>
+                                                                                <th class="budget-col-crew"># of Crew</th>
+                                                                                <th class="budget-col-hrs-day">Hrs/Day</th>
+                                                                                <th class="budget-col-burden-rate">Burden Rate ($/Hour)</th>
+                                                                                <th class="budget-col-days"># of Days</th>
+                                                                                <th class="budget-col-est-hours">Estimated Hours</th>
+                                                                                <th class="budget-col-subtotal">Labor Cost Sub Total</th>
+                                                                                <th class="budget-col-note">Note</th>
+                                                                                <th class="budget-col-actions">Actions</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -721,12 +749,12 @@
                                                                     <table class="budget-section-table">
                                                                         <thead>
                                                                             <tr>
-                                                                                <th class="col-sr-no">Sr No.</th>
-                                                                                <th>Material</th>
-                                                                                <th>QTY</th>
-                                                                                <th>Cost Each</th>
-                                                                                <th>Material Cost Sub Total</th>
-                                                                                <th class="col-actions">Actions</th>
+                                                                                <th class="budget-col-sr-no">Sr No.</th>
+                                                                                <th class="budget-col-material">Material</th>
+                                                                                <th class="budget-col-qty">QTY</th>
+                                                                                <th class="budget-col-cost-each">Cost Each</th>
+                                                                                <th class="budget-col-subtotal">Material Cost Sub Total</th>
+                                                                                <th class="budget-col-actions">Actions</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -1034,12 +1062,12 @@
                                                                     <table class="budget-section-table">
                                                                         <thead>
                                                                             <tr>
-                                                                                <th class="col-sr-no">Sr No.</th>
-                                                                                <th># of Nights</th>
-                                                                                <th>Number Of Rooms</th>
-                                                                                <th>Costs Per Night</th>
-                                                                                <th>Total Hotel Cost</th>
-                                                                                <th class="col-actions">Actions</th>
+                                                                                <th class="budget-col-sr-no">Sr No.</th>
+                                                                                <th class="budget-col-nights"># of Nights</th>
+                                                                                <th class="budget-col-rooms">Number Of Rooms</th>
+                                                                                <th class="budget-col-cost-per-night">Costs Per Night</th>
+                                                                                <th class="budget-col-total-hotel">Total Hotel Cost</th>
+                                                                                <th class="budget-col-actions">Actions</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -1349,13 +1377,13 @@
                                                                     <table class="budget-section-table">
                                                                         <thead>
                                                                             <tr>
-                                                                                <th class="col-sr-no">Sr No.</th>
-                                                                                <th># of Trips</th>
-                                                                                <th># of Trucks</th>
-                                                                                <th>Miles/Round Trip</th>
-                                                                                <th>$/Mile</th>
-                                                                                <th>Total Mileage</th>
-                                                                                <th class="col-actions">Actions</th>
+                                                                                <th class="budget-col-sr-no">Sr No.</th>
+                                                                                <th class="budget-col-trips"># of Trips</th>
+                                                                                <th class="budget-col-trucks"># of Trucks</th>
+                                                                                <th class="budget-col-miles">Miles/Round Trip</th>
+                                                                                <th class="budget-col-dollar-mile">$/Mile</th>
+                                                                                <th class="budget-col-total-mileage">Total Mileage</th>
+                                                                                <th class="budget-col-actions">Actions</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -1727,12 +1755,12 @@
                                                                     <table class="budget-section-table">
                                                                         <thead>
                                                                             <tr>
-                                                                                <th class="col-sr-no">Sr No.</th>
-                                                                                <th>Days</th>
-                                                                                <th>Rate</th>
-                                                                                <th># of Men</th>
-                                                                                <th>Total</th>
-                                                                                <th class="col-actions">Actions</th>
+                                                                                <th class="budget-col-sr-no">Sr No.</th>
+                                                                                <th class="budget-col-days">Days</th>
+                                                                                <th class="budget-col-rate">Rate</th>
+                                                                                <th class="budget-col-men"># of Men</th>
+                                                                                <th class="budget-col-total">Total</th>
+                                                                                <th class="budget-col-actions">Actions</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -2047,14 +2075,13 @@
                             <table class="proposal-lines-table">
                                 <thead>
                                     <tr>
-                                        <th class="table-header-cell">Sr No.</th>
-                                        <th class="table-header-cell required-col">Pricebook</th>
-                                        <th class="table-header-cell required-col">Product</th>
-                                        <th class="table-header-cell required-col">Quantity</th>
-                                        <th class="table-header-cell">OH %</th>
-                                        <th class="table-header-cell">Warranty %</th>
-                                        <th class="table-header-cell">Profit %</th>
-                                        <th class="table-header-cell">Actions</th>
+                                        <th class="table-header-cell modal-col-sr-no">Sr No.</th>
+                                        <th class="table-header-cell required-col modal-col-pricebook">Pricebook</th>
+                                        <th class="table-header-cell required-col modal-col-product">Product</th>
+                                        <th class="table-header-cell modal-col-description">Description</th>
+                                        <th class="table-header-cell required-col modal-col-quantity">Quantity</th>
+                                        <th class="table-header-cell modal-col-profit">Profit %</th>
+                                        <th class="table-header-cell modal-col-actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2062,7 +2089,7 @@
                                         <tr key={line.tempId} class="proposal-line-row">
                                             <td>{line.lineNumber}</td>
                                             <td>
-                                                <select class="table-select-input" data-id={line.tempId}
+                                                <select class="table-select-input wide-select" data-id={line.tempId}
                                                     onchange={handleRowPricebookChange}>
                                                     <option value="">Select Pricebook</option>
                                                     <template for:each={pricebookOptions} for:item="pb">
@@ -2071,7 +2098,7 @@
                                                 </select>
                                             </td>
                                             <td>
-                                                <select class="table-select-input" data-id={line.tempId}
+                                                <select class="table-select-input wide-select" data-id={line.tempId}
                                                     onchange={handleProductChange}>
                                                     <option value="">Select Product</option>
                                                     <template for:each={line.productOptions} for:item="prod">
@@ -2081,22 +2108,18 @@
                                                 </select>
                                             </td>
                                             <td>
-                                                <input type="number" class="table-input" value={line.quantity}
+                                                <input type="text" class="table-text-input wide-input" value={line.description}
+                                                    data-id={line.tempId} data-field="description"
+                                                    oninput={handleLineFieldChange}
+                                                    placeholder="Enter description" />
+                                            </td>
+                                            <td>
+                                                <input type="number" class="table-input small-input" value={line.quantity}
                                                     data-id={line.tempId} data-field="quantity"
                                                     oninput={handleLineFieldChange} min="0" step="1" />
                                             </td>
                                             <td>
-                                                <input type="number" class="table-input" value={line.oh}
-                                                    data-id={line.tempId} data-field="oh"
-                                                    oninput={handleLineFieldChange} min="0" step="0.01" />
-                                            </td>
-                                            <td>
-                                                <input type="number" class="table-input" value={line.warranty}
-                                                    data-id={line.tempId} data-field="warranty"
-                                                    oninput={handleLineFieldChange} min="0" step="0.01" />
-                                            </td>
-                                            <td>
-                                                <input type="number" class="table-input" value={line.profit}
+                                                <input type="number" class="table-input small-input" value={line.profit}
                                                     data-id={line.tempId} data-field="profit"
                                                     oninput={handleLineFieldChange} min="0" step="0.01" />
                                             </td>

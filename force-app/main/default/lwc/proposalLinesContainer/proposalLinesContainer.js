@@ -28,11 +28,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track modifiedProposalLines = new Map();
     @track originalProposalLineValues = new Map();
     @track modifiedBudgetLineFields = new Map();
+    @track manuallyEditedSalesPrices = new Map(); // Track manually edited sales prices
     @track showConfirmModal = false;
     @track confirmModalTitle = '';
     @track confirmModalMessage = '';
     @track confirmModalAction = null;
     @track confirmModalData = null;
+    @track originalSequences = new Map(); // Store original sequences
+    @track hasSequenceChanges = false; // Track if sequences have been modified
+    draggedLineId = null;
+    draggedOverLineId = null;
 
     costTypes = ['labor', 'materials', 'hotel', 'mileage', 'perdiem'];
 
@@ -73,15 +78,25 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.isLoading = true;
         getProposalLinesWithBudgets({ proposalId: this.recordId })
             .then(result => {
-                console.log('Fetched proposal lines result:', result);
                 if (result.success && result.data) {
-                    this.proposalLinesRaw = result.data.proposalLines || [];
-                    console.log('Raw proposal lines:', this.proposalLinesRaw);
+                    const lines = result.data.proposalLines || [];
+                    
+                    // Sort by sequence field
+                    lines.sort((a, b) => {
+                        const seqA = a.wfrecon__Sequence__c || 0;
+                        const seqB = b.wfrecon__Sequence__c || 0;
+                        return seqA - seqB;
+                    });
+                    
+                    this.proposalLinesRaw = lines;
                     // Process and organize budget lines by cost type
-                    this.proposalLinesRaw.forEach(line => {
+                    this.proposalLinesRaw.forEach((line, index) => {
                         line.isExpanded = false;
                         line.budgetRowKey = `budget-${line.Id}`;
                         line.recordLink = `/${line.Id}`;
+                        // Use database sequence or fall back to position-based numbering
+                        line.currentSequence = line.wfrecon__Sequence__c ? parseInt(line.wfrecon__Sequence__c) : (index + 1);
+                        
                         if (line.wfrecon__Budgets__r && line.wfrecon__Budgets__r.length > 0) {
                             const budget = line.wfrecon__Budgets__r[0];
                             // Organize budget lines by cost type
@@ -102,6 +117,13 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                         // Remove the raw Budgets__r to avoid duplication
                         delete line.wfrecon__Budgets__r;
                     });
+                    
+                    // Store original sequences
+                    this.originalSequences.clear();
+                    this.proposalLinesRaw.forEach(line => {
+                        this.originalSequences.set(line.Id, line.currentSequence);
+                    });
+                    this.hasSequenceChanges = false;
                 }
                 this.isLoading = false;
             })
@@ -240,29 +262,33 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const modifiedFields = this.modifiedProposalLines.get(line.Id) || new Set();
             return {
                 ...line,
-                serialNumber: index + 1,
+                serialNumber: line.currentSequence || (index + 1),
                 totalAmount: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
                 isOddRow: (index % 2 === 0),
                 isModified: modifiedFields.size > 0,
                 isEditingQuantity: this.editingProposalLines.has(`${line.Id}_wfrecon__Quantity__c`),
-                isEditingOH: this.editingProposalLines.has(`${line.Id}_wfrecon__OH_Per__c`),
-                isEditingWarranty: this.editingProposalLines.has(`${line.Id}_wfrecon__Warranty_Per__c`),
+                isEditingDescription: this.editingProposalLines.has(`${line.Id}_wfrecon__Description__c`),
                 isEditingProfit: this.editingProposalLines.has(`${line.Id}_wfrecon__Profit_Per__c`),
+                isEditingSalesPrice: this.editingProposalLines.has(`${line.Id}_wfrecon__Sales_Price__c`),
                 // CSS classes for each field
                 quantityCellClass: modifiedFields.has('wfrecon__Quantity__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
-                ohCellClass: modifiedFields.has('wfrecon__OH_Per__c')
-                    ? 'center-trancate-text editable-cell modified-cell'
-                    : 'center-trancate-text editable-cell',
-                warrantyCellClass: modifiedFields.has('wfrecon__Warranty_Per__c')
+                descriptionCellClass: modifiedFields.has('wfrecon__Description__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
                 profitCellClass: modifiedFields.has('wfrecon__Profit_Per__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
+                profitSummaryItemClass: modifiedFields.has('wfrecon__Profit_Per__c')
+                    ? 'summary-item editable-summary-item modified-cell'
+                    : 'summary-item editable-summary-item',
+                salesPriceCellClass: modifiedFields.has('wfrecon__Sales_Price__c')
+                    ? 'center-trancate-text editable-cell modified-cell'
+                    : 'center-trancate-text editable-cell',
                 // Safe values for display
                 displayQuantity: this.safeNumber(line.wfrecon__Quantity__c, 0),
+                displayDescription: this.safeValue(line.wfrecon__Description__c, ''),
                 displayOH: this.safeNumber(line.wfrecon__OH_Per__c, 0),
                 displayWarranty: this.safeNumber(line.wfrecon__Warranty_Per__c, 0),
                 displayProfit: this.safeNumber(line.wfrecon__Profit_Per__c, 0),
@@ -270,6 +296,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 displayWarrantyAmount: this.safeNumber(line.wfrecon__Warranty_Amount__c, 0).toFixed(2),
                 displayProfitAmount: this.safeNumber(line.wfrecon__Profit_Amount__c, 0).toFixed(2),
                 displayTotalCost: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
+                displayRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0).toFixed(2),
                 displaySalesPrice: this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2),
                 displayLaborCost: this.safeNumber(line.wfrecon__Labor_Cost__c, 0).toFixed(2),
                 displayMaterialCost: this.safeNumber(line.wfrecon__Material_Cost__c, 0).toFixed(2),
@@ -289,6 +316,26 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         }, 0);
 
         return total.toFixed(2);
+    }
+
+    // Get total sales price of all proposal lines
+    get totalSalesPrice() {
+        if (!this.proposalLinesRaw || this.proposalLinesRaw.length === 0) return '0.00';
+
+        const total = this.proposalLinesRaw.reduce((sum, line) => {
+            return sum + this.safeNumber(line.wfrecon__Sales_Price__c, 0);
+        }, 0);
+
+        return total.toFixed(2);
+    }
+
+    // Get margin (Total Sales Price - Grand Total Cost)
+    get margin() {
+        const totalSales = parseFloat(this.totalSalesPrice) || 0;
+        const totalCost = parseFloat(this.grandTotal) || 0;
+        const marginValue = totalSales - totalCost;
+
+        return marginValue.toFixed(2);
     }
 
     // Handle toggle expand/collapse
@@ -338,6 +385,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             oh: this.proposalDefaults.oh,
             warranty: this.proposalDefaults.warranty,
             profit: this.proposalDefaults.profit,
+            description: '',
             productOptions: [],
             canDelete: false
         }];
@@ -373,7 +421,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 if (result.success && result.data) {
                     const productOptions = result.data.map(entry => ({
                         label: entry.Product2.Name,
-                        value: entry.Product2Id
+                        value: entry.Product2Id,
+                        description: entry.Product2.Description || ''
                     }));
 
                     this.newProposalLines = this.newProposalLines.map(line => {
@@ -402,14 +451,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
         this.newProposalLines = this.newProposalLines.map(line => {
             if (line.tempId === tempId) {
-                // Find the product name from productOptions
+                // Find the product name and description from productOptions
                 const selectedProduct = line.productOptions.find(opt => opt.value === productId);
                 const productName = selectedProduct ? selectedProduct.label : '';
+                const productDescription = selectedProduct ? selectedProduct.description : '';
 
                 return {
                     ...line,
                     productId: productId,
-                    productName: productName
+                    productName: productName,
+                    description: productDescription
                 };
             }
             return line;
@@ -446,6 +497,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             oh: this.proposalDefaults.oh,
             warranty: this.proposalDefaults.warranty,
             profit: this.proposalDefaults.profit,
+            description: '',
             productOptions: [],
             canDelete: true
         };
@@ -499,7 +551,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 oh: line.oh,
                 warranty: line.warranty,
                 profit: line.profit,
-                proposalLineName: proposalLineName
+                proposalLineName: proposalLineName,
+                description: line.description || ''
             };
         });
 
@@ -615,9 +668,19 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
             if (line.Id === proposalLineId) {
+                // Handle text fields (like Description) vs numeric fields
+                let fieldValue = fieldName === 'wfrecon__Description__c' 
+                    ? value 
+                    : (parseFloat(value) || 0);
+                
+                // Track manually edited sales price
+                if (fieldName === 'wfrecon__Sales_Price__c') {
+                    this.manuallyEditedSalesPrices.set(proposalLineId, fieldValue);
+                }
+                
                 return {
                     ...line,
-                    [fieldName]: parseFloat(value) || 0
+                    [fieldName]: fieldValue
                 };
             }
             return line;
@@ -629,10 +692,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         }
         this.modifiedProposalLines.get(proposalLineId).add(fieldName);
 
-        // Recalculate totals if OH, Warranty, or Profit percentage changed
-        if (fieldName === 'wfrecon__Quantity__c' ||
-            fieldName === 'wfrecon__OH_Per__c' || 
-            fieldName === 'wfrecon__Warranty_Per__c' || 
+        // Recalculate totals if Quantity or Profit percentage changed
+        if (fieldName === 'wfrecon__Quantity__c' || 
             fieldName === 'wfrecon__Profit_Per__c') {
             this.recalculateProposalLineTotals(proposalLineId);
         }
@@ -642,6 +703,30 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     handleProposalLineFieldBlur(event) {
         const proposalLineId = event.currentTarget.dataset.proposalLineId;
         const fieldName = event.currentTarget.dataset.field;
+
+        // Validate Sales Price on blur
+        if (fieldName === 'wfrecon__Sales_Price__c') {
+            const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+            if (line) {
+                const salesPrice = parseFloat(line.wfrecon__Sales_Price__c) || 0;
+                const recommendedPrice = parseFloat(line.wfrecon__Recommended_Price__c) || 0;
+                
+                if (salesPrice < recommendedPrice) {
+                    // Reset to recommended price and show error
+                    this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
+                        if (l.Id === proposalLineId) {
+                            return {
+                                ...l,
+                                wfrecon__Sales_Price__c: recommendedPrice
+                            };
+                        }
+                        return l;
+                    });
+                    this.manuallyEditedSalesPrices.set(proposalLineId, recommendedPrice);
+                    this.showToast('Error', `Sales Price cannot be less than Recommended Price ($${recommendedPrice.toFixed(2)})`, 'error');
+                }
+            }
+        }
 
         const editKey = `${proposalLineId}_${fieldName}`;
         this.editingProposalLines.delete(editKey);
@@ -657,7 +742,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
             const proposalLineId = event.currentTarget.dataset.proposalLineId;
             const budgetLineId = event.currentTarget.dataset.budgetLineId;
-            const costType = event.currentTarget.dataset.costType;
             const fieldName = event.currentTarget.dataset.field;
             const isEditable = event.currentTarget.dataset.editable === 'true';
 
@@ -749,6 +833,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             this.confirmDeleteProposalLine(this.confirmModalData.lineId);
         } else if (this.confirmModalAction === 'deleteBudgetLine') {
             this.confirmDeleteBudgetLine(this.confirmModalData.budgetLineId);
+        } else if (this.confirmModalAction === 'discardAllChanges') {
+            this.confirmDiscardAllChanges();
         }
         this.handleCloseConfirmModal();
     }
@@ -1021,9 +1107,36 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const warrantyPer = parseNum(line.wfrecon__Warranty_Per__c) / 100;
             
             const denominator = 1 - (ohPer + profitPer + warrantyPer);
-            const salesPrice = denominator !== 0 ? totalCost / denominator : totalCost;
+            const recommendedPrice = denominator !== 0 ? totalCost / denominator : totalCost;
 
-            // Calculate amount fields
+            // Set Sales Price to Recommended Price if not manually edited or if Recommended Price is higher
+            let salesPrice = parseNum(line.wfrecon__Sales_Price__c);
+            const prevRecommendedPrice = parseNum(line.wfrecon__Recommended_Price__c);
+            const manuallyEditedPrice = this.manuallyEditedSalesPrices.get(line.Id);
+            
+            // Update sales price only if:
+            // 1. It's not set yet, OR
+            // 2. User has NOT manually edited it AND recommended price changed, OR
+            // 3. User HAS manually edited it BUT new recommended price is higher than their manual value
+            const shouldUpdateSalesPrice = !salesPrice || 
+                (!manuallyEditedPrice && Math.abs(prevRecommendedPrice - recommendedPrice) > 0.01) ||
+                (manuallyEditedPrice && recommendedPrice > manuallyEditedPrice);
+            
+            if (shouldUpdateSalesPrice) {
+                salesPrice = recommendedPrice;
+                // Clear manual edit tracking since we're auto-updating
+                this.manuallyEditedSalesPrices.delete(line.Id);
+                // Mark sales price as modified when auto-updated due to recommended price change
+                if (!this.modifiedProposalLines.has(line.Id)) {
+                    this.modifiedProposalLines.set(line.Id, new Set());
+                }
+                this.modifiedProposalLines.get(line.Id).add('wfrecon__Sales_Price__c');
+            } else if (manuallyEditedPrice) {
+                // Use the manually edited price if it's higher than or equal to recommended price
+                salesPrice = manuallyEditedPrice;
+            }
+
+            // Calculate amount fields using the actual sales price
             const ohAmount = ohPer * salesPrice;
             const profitAmount = profitPer * salesPrice;
             const warrantyAmount = warrantyPer * salesPrice;
@@ -1036,6 +1149,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 wfrecon__Mileage_Cost__c: mileageCost,
                 wfrecon__Per_Diem_Cost__c: perDiemCost,
                 wfrecon__Total_Cost__c: totalCost,
+                wfrecon__Recommended_Price__c: recommendedPrice,
                 wfrecon__Sales_Price__c: salesPrice,
                 wfrecon__OH_Amount__c: ohAmount,
                 wfrecon__Profit_Amount__c: profitAmount,
@@ -1218,20 +1332,49 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         if (this.modifiedProposalLines.size > 0) return true;
 
         // Check budget line modifications
-        if (this.hasModificationsBySection.size === 0) return false;
+        if (this.hasModificationsBySection.size === 0) {
+            // Check sequence changes
+            return this.hasSequenceChanges;
+        }
 
         for (let [costTypeMap] of this.hasModificationsBySection) {
             for (let [hasModifications] of costTypeMap) {
                 if (hasModifications) return true;
             }
         }
-        return false;
+        
+        // Check sequence changes
+        return this.hasSequenceChanges;
     }
 
     // Save all modified budget sections and proposal lines
     handleSaveAllBudgetSections() {
         const allBudgetLinesToSave = [];
         const modifiedProposalLinesArray = [];
+
+        // Validate all sales prices before saving
+        let hasInvalidSalesPrice = false;
+        let errorMessage = '';
+        
+        this.modifiedProposalLines.forEach((modifiedFields, proposalLineId) => {
+            if (modifiedFields.has('wfrecon__Sales_Price__c')) {
+                const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+                if (line) {
+                    const salesPrice = parseFloat(line.wfrecon__Sales_Price__c) || 0;
+                    const recommendedPrice = parseFloat(line.wfrecon__Recommended_Price__c) || 0;
+                    
+                    if (salesPrice < recommendedPrice) {
+                        hasInvalidSalesPrice = true;
+                        errorMessage = `Sales Price ($${salesPrice.toFixed(2)}) cannot be less than Recommended Price ($${recommendedPrice.toFixed(2)}) for ${line.Name}`;
+                    }
+                }
+            }
+        });
+
+        if (hasInvalidSalesPrice) {
+            this.showToast('Validation Error', errorMessage, 'error');
+            return;
+        }
 
         // Collect modified proposal lines
         this.modifiedProposalLines.forEach((modifiedFields, proposalLineId) => {
@@ -1240,12 +1383,33 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 modifiedProposalLinesArray.push({
                     Id: line.Id,
                     wfrecon__Quantity__c: line.wfrecon__Quantity__c,
+                    wfrecon__Description__c: line.wfrecon__Description__c,
                     wfrecon__OH_Per__c: line.wfrecon__OH_Per__c,
                     wfrecon__Warranty_Per__c: line.wfrecon__Warranty_Per__c,
-                    wfrecon__Profit_Per__c: line.wfrecon__Profit_Per__c
+                    wfrecon__Profit_Per__c: line.wfrecon__Profit_Per__c,
+                    wfrecon__Sales_Price__c: line.wfrecon__Sales_Price__c
                 });
             }
         });
+
+        // Collect sequence changes
+        if (this.hasSequenceChanges) {
+            for (const line of this.proposalLinesRaw) {
+                const originalSeq = this.originalSequences.get(line.Id);
+                if (originalSeq !== line.currentSequence) {
+                    // Check if this line is already in the changes
+                    const existingLine = modifiedProposalLinesArray.find(l => l.Id === line.Id);
+                    if (existingLine) {
+                        existingLine.wfrecon__Sequence__c = line.currentSequence;
+                    } else {
+                        modifiedProposalLinesArray.push({
+                            Id: line.Id,
+                            wfrecon__Sequence__c: line.currentSequence
+                        });
+                    }
+                }
+            }
+        }
 
         // Iterate through all proposal lines and collect modified budget lines
         this.proposalLinesRaw.forEach(proposalLine => {
@@ -1298,6 +1462,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     this.modifiedProposalLines.clear();
                     this.originalProposalLineValues.clear();
                     this.modifiedBudgetLineFields.clear();
+                    this.manuallyEditedSalesPrices.clear();
+                    this.hasSequenceChanges = false;
                 } else {
                     this.showToast('Error', result.message, 'error');
                 }
@@ -1312,13 +1478,106 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
     // Discard all budget section changes and proposal line changes
     handleDiscardAllBudgetSections() {
+        this.confirmModalTitle = 'Discard All Changes';
+        this.confirmModalMessage = 'Are you sure you want to discard all unsaved changes? This action cannot be undone.';
+        this.confirmModalAction = 'discardAllChanges';
+        this.showConfirmModal = true;
+    }
+
+    confirmDiscardAllChanges() {
         this.loadProposalLines();
-        this.hasModificationsBySection.clear();
-        this.editingBudgetLines.clear();
+        this.editingProposalLines.clear();
         this.modifiedProposalLines.clear();
         this.originalProposalLineValues.clear();
+        this.editingBudgetLines.clear();
+        this.hasModificationsBySection.clear();
         this.modifiedBudgetLineFields.clear();
-        this.editingProposalLines.clear();
-        this.showToast('Success', 'All changes discarded', 'info');
+        this.hasSequenceChanges = false;
+        this.showToast('Success', 'All changes have been discarded', 'success');
+    }
+
+    // Drag and Drop Handlers
+    handleDragStart(event) {
+        this.draggedLineId = event.currentTarget.dataset.lineId;
+        event.currentTarget.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        
+        // Collapse all expanded proposal lines for better drag and drop experience
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => ({
+            ...line,
+            isExpanded: false
+        }));
+    }
+
+    handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        
+        const targetLineId = event.currentTarget.dataset.lineId;
+        if (targetLineId && targetLineId !== this.draggedLineId) {
+            // Remove drag-over class from all rows first
+            const allRows = this.template.querySelectorAll('.proposal-line-row');
+            allRows.forEach(row => row.classList.remove('drag-over'));
+            
+            // Add drag-over class to current target
+            this.draggedOverLineId = targetLineId;
+            event.currentTarget.classList.add('drag-over');
+        }
+    }
+
+    handleDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const targetLineId = event.currentTarget.dataset.lineId;
+        event.currentTarget.classList.remove('drag-over');
+        
+        if (this.draggedLineId && targetLineId && this.draggedLineId !== targetLineId) {
+            this.reorderProposalLines(this.draggedLineId, targetLineId);
+        }
+    }
+
+    handleDragEnd(event) {
+        event.currentTarget.classList.remove('dragging');
+        // Remove drag-over class from all rows
+        const allRows = this.template.querySelectorAll('.proposal-line-row');
+        allRows.forEach(row => row.classList.remove('drag-over'));
+        
+        this.draggedLineId = null;
+        this.draggedOverLineId = null;
+    }
+
+    reorderProposalLines(draggedId, targetId) {
+        const draggedIndex = this.proposalLinesRaw.findIndex(line => line.Id === draggedId);
+        const targetIndex = this.proposalLinesRaw.findIndex(line => line.Id === targetId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        // Reorder the array
+        const newLines = [...this.proposalLinesRaw];
+        const [draggedLine] = newLines.splice(draggedIndex, 1);
+        newLines.splice(targetIndex, 0, draggedLine);
+        
+        // Update sequences
+        newLines.forEach((line, index) => {
+            line.currentSequence = index + 1;
+        });
+        
+        this.proposalLinesRaw = newLines;
+        
+        // Check if sequences differ from original
+        this.checkSequenceChanges();
+    }
+
+    checkSequenceChanges() {
+        let hasChanges = false;
+        for (const line of this.proposalLinesRaw) {
+            const originalSeq = this.originalSequences.get(line.Id);
+            if (originalSeq !== line.currentSequence) {
+                hasChanges = true;
+                break;
+            }
+        }
+        this.hasSequenceChanges = hasChanges;
     }
 }
