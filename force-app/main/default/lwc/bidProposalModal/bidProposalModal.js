@@ -9,12 +9,14 @@ const BID_FIELDS = [
     'wfrecon__Bid__c.Id',
     'wfrecon__Bid__c.wfrecon__AccountId__c',
     'wfrecon__Bid__c.wfrecon__Contact__c',
-    'wfrecon__Bid__c.wfrecon__Bid_Due_Date__c'
+    'wfrecon__Bid__c.wfrecon__Bid_Due_Date__c',
+    'wfrecon__Bid__c.wfrecon__Status__c'
 ];
 
 export default class BidProposalModal extends LightningElement {
     @api recordId; // Bid Record ID from Quick Action
     @track isLoading = true;
+    @track isBidValid = true;
 
     // Pre-populated values from Bid
     bidId;
@@ -64,6 +66,11 @@ export default class BidProposalModal extends LightningElement {
             this.contactId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Contact__c');
             this.currentContactId = this.contactId;
             
+               // Get bid status and check eligibility in one step
+        const bidStatus = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Status__c');
+        this.isBidValid = bidStatus && bidStatus.toLowerCase() === 'bidding';
+        
+
             // Autopopulate expiration date with bid due date
             const bidDueDate = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Bid_Due_Date__c');
             if (bidDueDate) {
