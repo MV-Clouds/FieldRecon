@@ -34,6 +34,10 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track confirmModalMessage = '';
     @track confirmModalAction = null;
     @track confirmModalData = null;
+    @track originalSequences = new Map(); // Store original sequences
+    @track hasSequenceChanges = false; // Track if sequences have been modified
+    draggedLineId = null;
+    draggedOverLineId = null;
 
     costTypes = ['labor', 'materials', 'hotel', 'mileage', 'perdiem'];
 
@@ -76,13 +80,24 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             .then(result => {
                 console.log('Fetched proposal lines result:', result);
                 if (result.success && result.data) {
-                    this.proposalLinesRaw = result.data.proposalLines || [];
+                    const lines = result.data.proposalLines || [];
+                    
+                    // Sort by sequence field
+                    lines.sort((a, b) => {
+                        const seqA = a.wfrecon__Sequence__c || 0;
+                        const seqB = b.wfrecon__Sequence__c || 0;
+                        return seqA - seqB;
+                    });
+                    
+                    this.proposalLinesRaw = lines;
                     console.log('Raw proposal lines:', this.proposalLinesRaw);
                     // Process and organize budget lines by cost type
-                    this.proposalLinesRaw.forEach(line => {
+                    this.proposalLinesRaw.forEach((line, index) => {
                         line.isExpanded = false;
                         line.budgetRowKey = `budget-${line.Id}`;
                         line.recordLink = `/${line.Id}`;
+                        line.currentSequence = line.wfrecon__Sequence__c || (index + 1);
+                        
                         if (line.wfrecon__Budgets__r && line.wfrecon__Budgets__r.length > 0) {
                             const budget = line.wfrecon__Budgets__r[0];
                             // Organize budget lines by cost type
@@ -103,6 +118,13 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                         // Remove the raw Budgets__r to avoid duplication
                         delete line.wfrecon__Budgets__r;
                     });
+                    
+                    // Store original sequences
+                    this.originalSequences.clear();
+                    this.proposalLinesRaw.forEach(line => {
+                        this.originalSequences.set(line.Id, line.currentSequence);
+                    });
+                    this.hasSequenceChanges = false;
                 }
                 this.isLoading = false;
             })
@@ -721,7 +743,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
             const proposalLineId = event.currentTarget.dataset.proposalLineId;
             const budgetLineId = event.currentTarget.dataset.budgetLineId;
-            const costType = event.currentTarget.dataset.costType;
             const fieldName = event.currentTarget.dataset.field;
             const isEditable = event.currentTarget.dataset.editable === 'true';
 
@@ -813,6 +834,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             this.confirmDeleteProposalLine(this.confirmModalData.lineId);
         } else if (this.confirmModalAction === 'deleteBudgetLine') {
             this.confirmDeleteBudgetLine(this.confirmModalData.budgetLineId);
+        } else if (this.confirmModalAction === 'discardAllChanges') {
+            this.confirmDiscardAllChanges();
         }
         this.handleCloseConfirmModal();
     }
@@ -1310,13 +1333,19 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         if (this.modifiedProposalLines.size > 0) return true;
 
         // Check budget line modifications
-        if (this.hasModificationsBySection.size === 0) return false;
+        if (this.hasModificationsBySection.size === 0) {
+            // Check sequence changes
+            return this.hasSequenceChanges;
+        }
 
         for (let [costTypeMap] of this.hasModificationsBySection) {
             for (let [hasModifications] of costTypeMap) {
                 if (hasModifications) return true;
             }
         }
+        
+        // Check sequence changes
+        return this.hasSequenceChanges;
         return false;
     }
 
@@ -1364,6 +1393,25 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 });
             }
         });
+
+        // Collect sequence changes
+        if (this.hasSequenceChanges) {
+            for (const line of this.proposalLinesRaw) {
+                const originalSeq = this.originalSequences.get(line.Id);
+                if (originalSeq !== line.currentSequence) {
+                    // Check if this line is already in the changes
+                    const existingLine = modifiedProposalLinesArray.find(l => l.Id === line.Id);
+                    if (existingLine) {
+                        existingLine.wfrecon__Sequence__c = line.currentSequence;
+                    } else {
+                        modifiedProposalLinesArray.push({
+                            Id: line.Id,
+                            wfrecon__Sequence__c: line.currentSequence
+                        });
+                    }
+                }
+            }
+        }
 
         // Iterate through all proposal lines and collect modified budget lines
         this.proposalLinesRaw.forEach(proposalLine => {
@@ -1417,6 +1465,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     this.originalProposalLineValues.clear();
                     this.modifiedBudgetLineFields.clear();
                     this.manuallyEditedSalesPrices.clear();
+                    this.hasSequenceChanges = false;
                 } else {
                     this.showToast('Error', result.message, 'error');
                 }
@@ -1431,13 +1480,95 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
     // Discard all budget section changes and proposal line changes
     handleDiscardAllBudgetSections() {
+        this.confirmModalTitle = 'Discard All Changes';
+        this.confirmModalMessage = 'Are you sure you want to discard all unsaved changes? This action cannot be undone.';
+        this.confirmModalAction = 'discardAllChanges';
+        this.showConfirmModal = true;
+    }
+
+    confirmDiscardAllChanges() {
         this.loadProposalLines();
-        this.hasModificationsBySection.clear();
-        this.editingBudgetLines.clear();
+        this.editingProposalLines.clear();
         this.modifiedProposalLines.clear();
         this.originalProposalLineValues.clear();
+        this.editingBudgetLines.clear();
+        this.hasModificationsBySection.clear();
         this.modifiedBudgetLineFields.clear();
-        this.editingProposalLines.clear();
-        this.showToast('Success', 'All changes discarded', 'info');
+        this.hasSequenceChanges = false;
+        this.showToast('Success', 'All changes have been discarded', 'success');
+    }
+
+    // Drag and Drop Handlers
+    handleDragStart(event) {
+        this.draggedLineId = event.currentTarget.dataset.lineId;
+        event.currentTarget.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+    }
+
+    handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        
+        const targetLineId = event.currentTarget.dataset.lineId;
+        if (targetLineId && targetLineId !== this.draggedLineId) {
+            this.draggedOverLineId = targetLineId;
+            event.currentTarget.classList.add('drag-over');
+        }
+    }
+
+    handleDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const targetLineId = event.currentTarget.dataset.lineId;
+        event.currentTarget.classList.remove('drag-over');
+        
+        if (this.draggedLineId && targetLineId && this.draggedLineId !== targetLineId) {
+            this.reorderProposalLines(this.draggedLineId, targetLineId);
+        }
+    }
+
+    handleDragEnd(event) {
+        event.currentTarget.classList.remove('dragging');
+        // Remove drag-over class from all rows
+        const allRows = this.template.querySelectorAll('.proposal-line-row');
+        allRows.forEach(row => row.classList.remove('drag-over'));
+        
+        this.draggedLineId = null;
+        this.draggedOverLineId = null;
+    }
+
+    reorderProposalLines(draggedId, targetId) {
+        const draggedIndex = this.proposalLinesRaw.findIndex(line => line.Id === draggedId);
+        const targetIndex = this.proposalLinesRaw.findIndex(line => line.Id === targetId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        // Reorder the array
+        const newLines = [...this.proposalLinesRaw];
+        const [draggedLine] = newLines.splice(draggedIndex, 1);
+        newLines.splice(targetIndex, 0, draggedLine);
+        
+        // Update sequences
+        newLines.forEach((line, index) => {
+            line.currentSequence = index + 1;
+        });
+        
+        this.proposalLinesRaw = newLines;
+        
+        // Check if sequences differ from original
+        this.checkSequenceChanges();
+    }
+
+    checkSequenceChanges() {
+        let hasChanges = false;
+        for (const line of this.proposalLinesRaw) {
+            const originalSeq = this.originalSequences.get(line.Id);
+            if (originalSeq !== line.currentSequence) {
+                hasChanges = true;
+                break;
+            }
+        }
+        this.hasSequenceChanges = hasChanges;
     }
 }

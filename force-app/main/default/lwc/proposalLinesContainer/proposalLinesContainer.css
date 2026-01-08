@@ -477,8 +477,8 @@ input[type="number"] {
 }
 
 .proposal-line-row {
-    cursor: default;
-    transition: background-color 0.2s ease;
+    cursor: move;
+    transition: background-color 0.2s ease, transform 0.2s ease;
     background-color: #ffffff;
 }
 
@@ -488,6 +488,38 @@ input[type="number"] {
 
 .proposal-line-row:hover {
     background-color: rgb(239, 239, 255) !important;
+}
+
+.proposal-line-row.dragging {
+    opacity: 0.5;
+    transform: scale(0.98);
+}
+
+.proposal-line-row.drag-over {
+    border-top: 3px solid #0176d3;
+    border-bottom: 3px solid #0176d3;
+}
+
+.drag-handle-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+}
+
+.drag-handle-icon {
+    cursor: grab;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.drag-handle-icon:hover {
+    opacity: 1;
+}
+
+.proposal-line-row:active .drag-handle-icon {
+    cursor: grabbing;
 }
 
 .nested-table-container {

@@ -68,8 +68,22 @@
                     <tbody class="table-body">
                         <template for:each={proposalLines} for:item="line">
                             <!-- Proposal Line Row -->
-                            <tr key={line.Id} class="proposal-line-row" data-is-odd={line.isOddRow}>
-                                <td class="center-trancate-text">
+                            <tr key={line.Id} class="proposal-line-row" data-is-odd={line.isOddRow}
+                                draggable="true" 
+                                data-line-id={line.Id}
+                                ondragstart={handleDragStart}
+                                ondragover={handleDragOver}
+                                ondrop={handleDrop}
+                                ondragend={handleDragEnd}>
+                                <td class="center-trancate-text drag-handle-cell">
+                                    <svg class="drag-handle-icon" width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="6" cy="4" r="1.5" fill="#706e6b"/>
+                                        <circle cx="10" cy="4" r="1.5" fill="#706e6b"/>
+                                        <circle cx="6" cy="8" r="1.5" fill="#706e6b"/>
+                                        <circle cx="10" cy="8" r="1.5" fill="#706e6b"/>
+                                        <circle cx="6" cy="12" r="1.5" fill="#706e6b"/>
+                                        <circle cx="10" cy="12" r="1.5" fill="#706e6b"/>
+                                    </svg>
                                     <button class="toggle-button" data-id={line.Id} onclick={handleToggleExpand}
                                         data-expanded={line.isExpanded}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"

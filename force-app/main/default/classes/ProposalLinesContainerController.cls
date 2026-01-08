@@ -429,6 +429,10 @@ public with sharing class ProposalLinesContainerController {
                     if (lineData.containsKey('wfrecon__Sales_Price__c')) {
                         proposalLine.wfrecon__Sales_Price__c = (Decimal) lineData.get('wfrecon__Sales_Price__c');
                     }
+                    if (lineData.containsKey('wfrecon__Sequence__c')) {
+                        Object seqValue = lineData.get('wfrecon__Sequence__c');
+                        proposalLine.wfrecon__Sequence__c = seqValue != null ? Decimal.valueOf(String.valueOf(seqValue)) : null;
+                    }
 
                     proposalLinesToUpdate.add(proposalLine);
                 }
