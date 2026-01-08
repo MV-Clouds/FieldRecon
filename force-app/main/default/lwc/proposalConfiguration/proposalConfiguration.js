@@ -8,11 +8,16 @@ export default class ProposalConfiguration extends LightningElement {
     @track warrantyValue = 0;
     @track profitValue = 0;
     @track isLoading = true;
+    @track hasChanges = false;
     
     // Store original values for cancel functionality
     originalOhValue = 0;
     originalWarrantyValue = 0;
     originalProfitValue = 0;
+
+    get isButtonDisabled() {
+    return !this.hasChanges;
+}
 
     connectedCallback() {
         this.loadConfiguration();
@@ -29,6 +34,9 @@ export default class ProposalConfiguration extends LightningElement {
                 this.originalOhValue = this.ohValue;
                 this.originalWarrantyValue = this.warrantyValue;
                 this.originalProfitValue = this.profitValue;
+                
+                // Reset changes flag
+                this.hasChanges = false;
             })
             .catch(error => {
                 this.showToast('Error', 'Failed to load configuration', 'error');
@@ -39,22 +47,36 @@ export default class ProposalConfiguration extends LightningElement {
     }
 
     handleOHChange(event) {
-        this.ohValue = parseFloat(event.target.value) || 0;
+        const newValue = parseFloat(event.target.value) || 0;
+        this.ohValue = newValue;
+        this.checkForChanges();
     }
 
     handleWarrantyChange(event) {
-        this.warrantyValue = parseFloat(event.target.value) || 0;
+        const newValue = parseFloat(event.target.value) || 0;
+        this.warrantyValue = newValue;
+        this.checkForChanges();
     }
 
     handleProfitChange(event) {
-        this.profitValue = parseFloat(event.target.value) || 0;
+        const newValue = parseFloat(event.target.value) || 0;
+        this.profitValue = newValue;
+        this.checkForChanges();
+    }
+
+    checkForChanges() {
+        // Check if any value differs from original
+        this.hasChanges = 
+            this.ohValue !== this.originalOhValue ||
+            this.warrantyValue !== this.originalWarrantyValue ||
+            this.profitValue !== this.originalProfitValue;
     }
 
     handleCancel() {
         this.ohValue = this.originalOhValue;
         this.warrantyValue = this.originalWarrantyValue;
         this.profitValue = this.originalProfitValue;
-        
+        this.hasChanges = false;
     }
 
     handleSave() {
@@ -78,6 +100,9 @@ export default class ProposalConfiguration extends LightningElement {
             this.originalOhValue = this.ohValue;
             this.originalWarrantyValue = this.warrantyValue;
             this.originalProfitValue = this.profitValue;
+            
+            // Reset changes flag
+            this.hasChanges = false;
             
             this.showToast('Success', 'Configuration saved successfully', 'success');
             this.isLoading = false;
