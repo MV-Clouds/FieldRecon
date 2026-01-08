@@ -13,7 +13,7 @@ const BID_FIELDS = [
 
 export default class BidProposalModal extends LightningElement {
     @api recordId; // Bid Record ID from Quick Action
-    @track isLoading = true;
+    @track isLoading = false;
 
     // Pre-populated values from Bid
     bidId;
@@ -39,6 +39,7 @@ export default class BidProposalModal extends LightningElement {
     @wire(getRecord, { recordId: '$recordId', fields: BID_FIELDS })
     wiredBid({ error, data }) {
         if (data) {
+            this.isLoading= true;
             this.bidId = this.recordId;
             this.accountId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__AccountId__c');
             this.contactId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Contact__c');
@@ -55,7 +56,9 @@ export default class BidProposalModal extends LightningElement {
                 this.fetchContactDetails(this.contactId);
             }
 
-            this.isLoading = false;
+              setTimeout(() => {
+                this.isLoading = false;
+            }, 1000);
         } else if (error) {
             console.error('Error loading Bid:', error);
             this.showToast('Error', 'Failed to load Bid information', 'error');

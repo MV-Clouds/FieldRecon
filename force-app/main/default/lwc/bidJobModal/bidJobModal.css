@@ -1,0 +1,149 @@
+* {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    user-select: none;
+}
+
+.slds-modal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.main-div{
+    padding: 1rem;
+    padding-bottom: 0;
+}
+
+.component-wrapper{
+    display: flex;
+    flex-direction: column;
+    max-height: 70vh;
+    min-height: 200px;
+    padding: 0;
+}
+
+.tab-navigation {
+    display: flex;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 0.4rem;
+    flex-shrink: 0;
+}
+
+.tab-button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 1rem;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #585858;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+    background: rgba(94, 90, 219, 0.05);
+    color: #5e5adb;
+}
+
+.tab-button.active {
+    color: #5e5adb;
+    border-bottom: 3px solid #5e5adb;
+    background: rgba(94, 90, 219, 0.05);
+}
+
+.modal-scrollable{
+    overflow-y: auto;
+    flex: 1 1 auto;
+}
+
+.footer-div{
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    flex-shrink: 0;
+    border-radius: 0 0 1.25rem 1.25rem;
+    position: sticky;
+    bottom: 0;
+    right: 0;
+    z-index: 11;
+}
+
+.save-btn {
+    background-color: var(--primary-theme-color, #5e5adb);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding-inline: 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 2.25rem;
+    min-width: 6rem;
+}
+
+.save-btn:hover:not(:disabled) {
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.save-btn:disabled {
+    background-color: rgba(94, 90, 219, 0.5);
+    cursor: not-allowed;
+}
+
+/* Custom scrollbar styling */
+.modal-scrollable::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.modal-scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.modal-scrollable::-webkit-scrollbar-thumb {
+    background: rgba(94, 90, 219, 0.5);
+    border-radius: 4px;
+}
+
+.modal-scrollable::-webkit-scrollbar-thumb:hover {
+    background: rgba(94, 90, 219, 0.8);
+}
+
+/* Firefox scrollbar */
+.modal-scrollable {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(94, 90, 219, 0.5) #f1f1f1;
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 768px) {
+    .slds-col.slds-size_1-of-2 {
+        width: 100% !important;
+    }
+
+    .tab-button {
+        font-size: 12px;
+        padding: 0.75rem;
+    }
+}
+
+@media only screen and (max-width: 480px) {
+    .footer-div {
+        flex-direction: column;
+    }
+    
+    .save-btn {
+        width: 100%;
+        min-width: unset;
+    }
+
+}
