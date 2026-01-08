@@ -944,6 +944,96 @@ public with sharing class ManagementTabController {
         }
     }
 
+    // @AuraEnabled
+    // public static Contact upsertContact(Map<String, Object> contactData) {
+    //     try {
+    //         if (contactData == null || contactData.isEmpty()) {
+    //             throw new AuraHandledException('Contact data is required.');
+    //         }
+
+    //         // Extract RecordTypeDeveloperName before creating Contact record
+    //         String recordTypeDeveloperName = (String) contactData.get('RecordTypeDeveloperName');
+            
+    //         // Remove the custom field from the map so it doesn't cause issues
+    //         contactData.remove('RecordTypeDeveloperName');
+            
+    //         // Remove Id temporarily to handle it separately
+    //         Id contactId = null;
+    //         if (contactData.containsKey('Id') && contactData.get('Id') != null) {
+    //             Object idValue = contactData.get('Id');
+    //             contactId = idValue instanceof Id ? (Id)idValue : Id.valueOf(String.valueOf(idValue));
+    //             contactData.remove('Id');
+    //         }
+            
+    //         // Create Contact record from the remaining data
+    //         Contact contactRecord = new Contact();
+            
+    //         // Set Id if it exists (for updates)
+    //         if (contactId != null) {
+    //             contactRecord.Id = contactId;
+    //         }
+            
+    //         // Dynamically set all fields from the map
+    //         // This handles both standard and custom fields
+    //         for (String fieldName : contactData.keySet()) {
+    //             Object fieldValue = contactData.get(fieldName);
+                
+    //             // Skip null values
+    //             if (fieldValue == null) {
+    //                 continue;
+    //             }
+                
+    //             // Skip internal fields
+    //             if (fieldName.equalsIgnoreCase('RecordType.DeveloperName') || 
+    //                 fieldName.equalsIgnoreCase('RecordTypeId') ||
+    //                 fieldName.equalsIgnoreCase('Name')) {
+    //                 continue;
+    //             }
+                
+    //             try {
+    //                 // Use putSObject to dynamically set field values
+    //                 contactRecord.put(fieldName, fieldValue);
+    //             } catch (Exception fieldEx) {
+    //                 System.debug('Warning: Could not set field ' + fieldName + ': ' + fieldEx.getMessage());
+    //                 // Continue with other fields if one fails
+    //             }
+    //         }
+            
+    //         // Handle RecordType assignment for new records
+    //         if (contactRecord.Id == null && String.isNotBlank(recordTypeDeveloperName)) {
+    //             List<RecordType> recordTypes = [
+    //                 SELECT Id 
+    //                 FROM RecordType 
+    //                 WHERE DeveloperName = :recordTypeDeveloperName 
+    //                 AND SObjectType = 'Contact' 
+    //                 LIMIT 1
+    //             ];
+                
+    //             if (!recordTypes.isEmpty()) {
+    //                 contactRecord.RecordTypeId = recordTypes[0].Id;
+    //             } else {
+    //                 throw new AuraHandledException('Invalid Record Type: ' + recordTypeDeveloperName);
+    //             }
+    //         }
+            
+    //         upsert as user contactRecord;
+            
+    //         // Return the full contact record with RecordType info
+    //         return [
+    //             SELECT Id, FirstName, LastName, Name, Email, 
+    //                    RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
+    //             FROM Contact
+    //             WHERE Id = :contactRecord.Id
+    //             WITH USER_MODE
+    //             LIMIT 1
+    //         ];
+    //     } catch (Exception e) {
+    //         System.debug('Error in upsertContact: ' + e.getMessage());
+    //         ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME , 'methodName' => 'upsertContact', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+    //         return null;            
+    //     }
+    // }
+
     @AuraEnabled
     public static Contact upsertContact(Map<String, Object> contactData) {
         try {
@@ -957,26 +1047,75 @@ public with sharing class ManagementTabController {
             // Remove the custom field from the map so it doesn't cause issues
             contactData.remove('RecordTypeDeveloperName');
             
+            // Remove Id temporarily to handle it separately
+            Id contactId = null;
+            if (contactData.containsKey('Id') && contactData.get('Id') != null) {
+                Object idValue = contactData.get('Id');
+                contactId = idValue instanceof Id ? (Id)idValue : Id.valueOf(String.valueOf(idValue));
+                contactData.remove('Id');
+            }
+            
             // Create Contact record from the remaining data
             Contact contactRecord = new Contact();
             
             // Set Id if it exists (for updates)
-            if (contactData.containsKey('Id') && contactData.get('Id') != null) {
-                contactRecord.Id = (Id) contactData.get('Id');
+            if (contactId != null) {
+                contactRecord.Id = contactId;
             }
             
-            // Set other fields
-            if (contactData.containsKey('FirstName')) {
-                contactRecord.FirstName = (String) contactData.get('FirstName');
-            }
-            if (contactData.containsKey('LastName')) {
-                contactRecord.LastName = (String) contactData.get('LastName');
-            }
-            if (contactData.containsKey('Email')) {
-                contactRecord.Email = (String) contactData.get('Email');
-            }
-            if (contactData.containsKey('wfrecon__Can_Clock_In_Out__c')) {
-                contactRecord.wfrecon__Can_Clock_In_Out__c = (Boolean) contactData.get('wfrecon__Can_Clock_In_Out__c');
+            // Dynamically set all fields from the map
+            for (String fieldName : contactData.keySet()) {
+                Object fieldValue = contactData.get(fieldName);
+                
+                // Skip null values
+                if (fieldValue == null) {
+                    continue;
+                }
+                
+                // Skip internal fields
+                if (fieldName.equalsIgnoreCase('RecordType.DeveloperName') || 
+                    fieldName.equalsIgnoreCase('RecordTypeId') ||
+                    fieldName.equalsIgnoreCase('Name')) {
+                    continue;
+                }
+                
+                try {
+                    // Check if this is a Date field
+                    Schema.DescribeFieldResult fieldDescribe = Contact.getSObjectType()
+                        .getDescribe()
+                        .fields.getMap()
+                        .get(fieldName)
+                        ?.getDescribe();
+                    
+                    if (fieldDescribe != null) {
+                        Schema.DisplayType fieldType = fieldDescribe.getType();
+                        
+                        // Handle Date fields specifically
+                        if (fieldType == Schema.DisplayType.Date && fieldValue instanceof String) {
+                            String dateStr = (String)fieldValue;
+                            // Parse the date string (expecting format like '2024-01-01')
+                            Date parsedDate = Date.valueOf(dateStr);
+                            contactRecord.put(fieldName, parsedDate);
+                        }
+                        // Handle DateTime fields
+                        else if (fieldType == Schema.DisplayType.DateTime && fieldValue instanceof String) {
+                            String datetimeStr = (String)fieldValue;
+                            // Parse ISO 8601 format (e.g., '2024-01-01T10:00:00Z')
+                            DateTime parsedDateTime = DateTime.valueOfGmt(datetimeStr.replace('T', ' ').replace('Z', ''));
+                            contactRecord.put(fieldName, parsedDateTime);
+                        }
+                        // Handle other field types
+                        else {
+                            contactRecord.put(fieldName, fieldValue);
+                        }
+                    } else {
+                        // For custom fields or if describe info not available, try direct assignment
+                        contactRecord.put(fieldName, fieldValue);
+                    }
+                } catch (Exception fieldEx) {
+                    System.debug('Warning: Could not set field ' + fieldName + ': ' + fieldEx.getMessage());
+                    // Continue with other fields if one fails
+                }
             }
             
             // Handle RecordType assignment for new records
@@ -1001,16 +1140,20 @@ public with sharing class ManagementTabController {
             // Return the full contact record with RecordType info
             return [
                 SELECT Id, FirstName, LastName, Name, Email, 
-                       RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
+                    RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
                 FROM Contact
                 WHERE Id = :contactRecord.Id
                 WITH USER_MODE
-                LIMIT 1
             ];
         } catch (Exception e) {
-            System.debug('Error in upsertContact: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME , 'methodName' => 'upsertContact', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
-            return null;            
+            System.debug('Error in upsertContact: ' + e.getMessage() + ' Stack trace: ' + e.getStackTraceString());
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'YourClassNameHere', 
+                'methodName' => 'upsertContact', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
+            throw new AuraHandledException('Error processing contact: ' + e.getMessage());
         }
     }
 
