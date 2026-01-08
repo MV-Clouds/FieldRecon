@@ -66,6 +66,11 @@
                             <template if:true={tab.isShiftEndLogApprover}>
                                 <c-shift-end-log-approver-assignment></c-shift-end-log-approver-assignment>
                             </template>
+
+
+                            <template if:true={tab.isProposalConfiguration}>
+                                <c-proposal-configuration></c-proposal-configuration>
+                            </template>
                         </div>
                     </template>
                 </template>

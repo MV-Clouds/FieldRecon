@@ -1,0 +1,97 @@
+<template>
+      <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <div class="spinner-container slds-is-fixed">
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            </div>
+        </template>
+
+    <div class="slds-p-around_medium main-card">
+    
+        <!-- Header Section -->
+        <div class="header-section">
+            <h2 class="header-title">Proposal Configuration</h2>
+        </div>
+
+        <!-- Configuration Form -->
+            <div class="slds-grid slds-wrap ">
+
+                <div class="toggle-section">
+                    <div class="toggle-container">
+                        <div class="toggle-label-container">
+                            <label class="toggle-label">OH (%)</label>
+                            <div class="info-icon-wrapper">
+                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                                </lightning-icon>
+                                <div class="tooltip">Enter the Overhead (OH) percentage that will be default set
+                                    everywhere for proposal.</div>
+                            </div>
+                        </div>
+                        <div class="custom-toggle-wrapper">
+                            <input type="number" min="0" max="100" step="0.01" value={ohValue} onchange={handleOHChange}
+                                formatter="decimal" class="custom-input" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toggle-section">
+                    <div class="toggle-container">
+                        <div class="toggle-label-container">
+                            <label class="toggle-label">Warranty (%)</label>
+                            <div class="info-icon-wrapper">
+                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                                </lightning-icon>
+                                <div class="tooltip">Enter the Warranty percentage that will be default set everywhere
+                                    for proposal.</div>
+                            </div>
+                        </div>
+                        <div class="custom-toggle-wrapper">
+                            <input type="number" min="0" max="100" step="0.01" value={warrantyValue}
+                                onchange={handleWarrantyChange} formatter="decimal" class="custom-input" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toggle-section">
+                    <div class="toggle-container">
+                        <div class="toggle-label-container">
+                            <label class="toggle-label">Profit (%)</label>
+                            <div class="info-icon-wrapper">
+                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                                </lightning-icon>
+                                <div class="tooltip">Enter the Profit percentage that will be default set everywhere for
+                                    proposal.</div>
+                            </div>
+                        </div>
+                        <div class="custom-toggle-wrapper">
+                            <input type="number" min="0" max="100" step="0.01" value={profitValue}
+                                onchange={handleProfitChange} formatter="decimal" class="custom-input" />
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons-container">
+            <button class="action-button cancel-button" onclick={handleCancel} disabled={isButtonDisabled}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                Cancel
+            </button>
+            <button class="action-button save-button" onclick={handleSave} disabled={isButtonDisabled}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    <polyline points="7,3 7,8 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                Save Changes
+            </button>
+        </div>
+    </div>
+</template>
