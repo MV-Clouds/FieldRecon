@@ -2,6 +2,7 @@ import { LightningElement, api, track, wire } from 'lwc';
 import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getContactInfo from '@salesforce/apex/BidProposalController.getContactInfo';
+import getProposalConfig from '@salesforce/apex/ProposalConfigController.getProposalConfig';
 
 // Bid fields to fetch
 const BID_FIELDS = [
@@ -35,6 +36,25 @@ export default class BidProposalModal extends LightningElement {
 
     // Track if we need to fetch contact
     currentContactId = null;
+
+       // Wire to get custom setting values
+    @wire(getProposalConfig)
+    wiredProposalConfig({ error, data }) {
+        if (data) {
+            // Set default values from custom setting
+            this.ohValue = data.wfrecon__OH__c || 0;
+            this.warrantyValue = data.wfrecon__Warranty__c || 0;
+            this.profitValue = data.wfrecon__Profit__c || 0;
+            
+            // Update display values
+            this.ohDisplay = `${this.ohValue}%`;
+            this.warrantyDisplay = `${this.warrantyValue}%`;
+            this.profitDisplay = `${this.profitValue}%`;
+        } else if (error) {
+            console.error('Error loading Proposal Configuration:', error);
+            // Keep default values (0) if error occurs
+        }
+    }
 
     @wire(getRecord, { recordId: '$recordId', fields: BID_FIELDS })
     wiredBid({ error, data }) {
