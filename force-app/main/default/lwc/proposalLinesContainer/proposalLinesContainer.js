@@ -29,6 +29,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track originalProposalLineValues = new Map();
     @track modifiedBudgetLineFields = new Map();
     @track manuallyEditedSalesPrices = new Map(); // Track manually edited sales prices
+    @track editingFieldValues = new Map(); // Store raw string values during editing
     @track showConfirmModal = false;
     @track confirmModalTitle = '';
     @track confirmModalMessage = '';
@@ -56,60 +57,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             selected: option.value === (lineType || 'Base Contract')
         }));
     }
-
-    // Proposal Line table columns configuration
-    proposalLineColumns = [
-        { label: 'Sr No.', fieldName: 'serialNumber', width: '6%', type: 'text', editable: false },
-        { label: 'Service', fieldName: 'Name', width: '18%', type: 'link', editable: false },
-        { label: 'Description', fieldName: 'wfrecon__Description__c', width: '26%', type: 'text', editable: true },
-        { label: 'Quantity', fieldName: 'wfrecon__Quantity__c', width: '8%', type: 'number', editable: true },
-        { label: 'Total Cost', fieldName: 'wfrecon__Total_Cost__c', width: '11%', type: 'currency', editable: false },
-        { label: 'Recommended Price', fieldName: 'wfrecon__Recommended_Price__c', width: '11%', type: 'currency', editable: false },
-        { label: 'Sales Price', fieldName: 'wfrecon__Sales_Price__c', width: '11%', type: 'currency', editable: true }
-    ];
-
-    // Budget Line columns configuration by cost type
-    budgetLineColumns = {
-        labor: [
-            { label: 'Sr No.', fieldName: 'displayIndex', cssClass: 'col-sr-no', type: 'text', editable: false },
-            { label: '# of Crew', fieldName: 'wfrecon__No_Of_Crew_Members__c', cssClass: 'budget-col-crew', type: 'number', editable: true, editingFlag: 'isEditingCrew', cellClass: 'crewCellClass' },
-            { label: 'Hrs/Day', fieldName: 'wfrecon__Hrs_day__c', cssClass: 'budget-col-hrs-day', type: 'number', editable: true, editingFlag: 'isEditingHrsDay', cellClass: 'hrsDayCellClass' },
-            { label: 'Burden Rate ($/Hour)', fieldName: 'wfrecon__Burden_Rate_Hour__c', cssClass: 'budget-col-burden-rate', type: 'number', editable: true, editingFlag: 'isEditingBurdenRate', cellClass: 'burdenRateCellClass' },
-            { label: '# of Days', fieldName: 'wfrecon__of_Days__c', cssClass: 'budget-col-days', type: 'number', editable: true, editingFlag: 'isEditingDays', cellClass: 'daysCellClass' },
-            { label: 'Estimated Hours', fieldName: 'wfrecon__Estimated_Hours__c', cssClass: 'budget-col-est-hours', type: 'calculated', editable: false },
-            { label: 'Labor Cost Sub Total', fieldName: 'wfrecon__Labor_Cost__c', cssClass: 'budget-col-subtotal', type: 'currency', editable: false },
-            { label: 'Note', fieldName: 'wfrecon__Note__c', cssClass: 'budget-col-note', type: 'text', editable: true, editingFlag: 'isEditingNote', cellClass: 'noteCellClass', truncate: true }
-        ],
-        materials: [
-            { label: 'Sr No.', fieldName: 'displayIndex', cssClass: 'col-sr-no', type: 'text', editable: false },
-            { label: 'Material', fieldName: 'wfrecon__Material__c', cssClass: 'budget-col-material', type: 'text', editable: true, editingFlag: 'isEditingMaterial', cellClass: 'materialCellClass', truncate: true },
-            { label: 'QTY', fieldName: 'wfrecon__QTY__c', cssClass: 'budget-col-qty', type: 'number', editable: true, editingFlag: 'isEditingQty', cellClass: 'qtyCellClass' },
-            { label: 'Cost Each', fieldName: 'wfrecon__Cost_Each__c', cssClass: 'budget-col-cost-each', type: 'number', editable: true, editingFlag: 'isEditingCostEach', cellClass: 'costEachCellClass' },
-            { label: 'Material Cost Sub Total', fieldName: 'wfrecon__Material_Cost__c', cssClass: 'budget-col-subtotal', type: 'currency', editable: false }
-        ],
-        hotel: [
-            { label: 'Sr No.', fieldName: 'displayIndex', cssClass: 'col-sr-no', type: 'text', editable: false },
-            { label: '# of Nights', fieldName: 'wfrecon__Of_Nights__c', cssClass: 'budget-col-nights', type: 'number', editable: true, editingFlag: 'isEditingNights', cellClass: 'nightsCellClass' },
-            { label: 'Number Of Rooms', fieldName: 'wfrecon__Number_Of_Rooms__c', cssClass: 'budget-col-rooms', type: 'number', editable: true, editingFlag: 'isEditingRooms', cellClass: 'roomsCellClass' },
-            { label: 'Costs Per Night', fieldName: 'wfrecon__Costs_Per_Night__c', cssClass: 'budget-col-cost-per-night', type: 'number', editable: true, editingFlag: 'isEditingCostPerNight', cellClass: 'costPerNightCellClass' },
-            { label: 'Total Hotel Cost', fieldName: 'wfrecon__Total_Hotel_Cost__c', cssClass: 'budget-col-total-hotel', type: 'currency', editable: false }
-        ],
-        mileage: [
-            { label: 'Sr No.', fieldName: 'displayIndex', cssClass: 'col-sr-no', type: 'text', editable: false },
-            { label: '# of Trips', fieldName: 'wfrecon__Of_Trips__c', cssClass: 'budget-col-trips', type: 'number', editable: true, editingFlag: 'isEditingTrips', cellClass: 'tripsCellClass' },
-            { label: '# of Trucks', fieldName: 'wfrecon__Of_Trucks__c', cssClass: 'budget-col-trucks', type: 'number', editable: true, editingFlag: 'isEditingTrucks', cellClass: 'trucksCellClass' },
-            { label: 'Miles/Round Trip', fieldName: 'wfrecon__Mileage__c', cssClass: 'budget-col-miles', type: 'number', editable: true, editingFlag: 'isEditingMileage', cellClass: 'mileageCellClass' },
-            { label: '$/Mile', fieldName: 'wfrecon__Mileage_Rate__c', cssClass: 'budget-col-dollar-mile', type: 'number', editable: true, editingFlag: 'isEditingMileageRate', cellClass: 'mileageRateCellClass' },
-            { label: 'Total Mileage', fieldName: 'wfrecon__Total_Mileage__c', cssClass: 'budget-col-total-mileage', type: 'currency', editable: false }
-        ],
-        perdiem: [
-            { label: 'Sr No.', fieldName: 'displayIndex', cssClass: 'col-sr-no', type: 'text', editable: false },
-            { label: 'Days', fieldName: 'wfrecon__Per_Diem_of_Days__c', cssClass: 'budget-col-days', type: 'number', editable: true, editingFlag: 'isEditingPerDiemDays', cellClass: 'perDiemDaysCellClass' },
-            { label: 'Rate', fieldName: 'wfrecon__Per_Diem_Rate__c', cssClass: 'budget-col-rate', type: 'number', editable: true, editingFlag: 'isEditingPerDiemRate', cellClass: 'perDiemRateCellClass' },
-            { label: '# of Men', fieldName: 'wfrecon__of_Men__c', cssClass: 'budget-col-men', type: 'number', editable: true, editingFlag: 'isEditingMen', cellClass: 'menCellClass' },
-            { label: 'Total', fieldName: 'wfrecon__Total_Per_Diem__c', cssClass: 'budget-col-total', type: 'currency', editable: false }
-        ]
-    };
 
     // Helper method to safely get field value (avoid undefined)
     safeValue(value, defaultValue = '') {
@@ -377,6 +324,9 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     get proposalLines() {
         return this.proposalLinesRaw.map((line, index) => {
             const modifiedFields = this.modifiedProposalLines.get(line.Id) || new Set();
+            const isEditingSalesPrice = this.editingProposalLines.has(`${line.Id}_wfrecon__Sales_Price__c`);
+            const editingKey = `${line.Id}_wfrecon__Sales_Price__c`;
+            
             return {
                 ...line,
                 serialNumber: line.currentSequence || (index + 1),
@@ -386,7 +336,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 isEditingQuantity: this.editingProposalLines.has(`${line.Id}_wfrecon__Quantity__c`),
                 isEditingDescription: this.editingProposalLines.has(`${line.Id}_wfrecon__Description__c`),
                 isEditingProfit: this.editingProposalLines.has(`${line.Id}_wfrecon__Profit_Per__c`),
-                isEditingSalesPrice: this.editingProposalLines.has(`${line.Id}_wfrecon__Sales_Price__c`),
+                isEditingSalesPrice: isEditingSalesPrice,
                 // CSS classes for each field
                 quantityCellClass: modifiedFields.has('wfrecon__Quantity__c')
                     ? 'center-trancate-text editable-cell modified-cell'
@@ -403,7 +353,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 salesPriceCellClass: modifiedFields.has('wfrecon__Sales_Price__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
-                // Safe values for display
+                // Safe values for display - use editing value if currently editing
                 displayQuantity: this.safeNumber(line.wfrecon__Quantity__c, 0),
                 displayDescription: this.safeValue(line.wfrecon__Description__c, ''),
                 displayOH: this.safeNumber(line.wfrecon__OH_Per__c, 0),
@@ -414,7 +364,11 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 displayProfitAmount: this.safeNumber(line.wfrecon__Profit_Amount__c, 0).toFixed(2),
                 displayTotalCost: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
                 displayRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0).toFixed(2),
-                displaySalesPrice: this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2),
+                displaySalesPrice: isEditingSalesPrice && this.editingFieldValues.has(editingKey) 
+                    ? this.editingFieldValues.get(editingKey) 
+                    : this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2),
+                formattedRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0).toFixed(2),
+                formattedSalesPrice: this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2),
                 displayLaborCost: this.safeNumber(line.wfrecon__Labor_Cost__c, 0).toFixed(2),
                 displayMaterialCost: this.safeNumber(line.wfrecon__Material_Cost__c, 0).toFixed(2),
                 displayHotelCost: this.safeNumber(line.wfrecon__Hotel_Cost__c, 0).toFixed(2),
@@ -490,11 +444,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const marginValue = totalSales - totalCost;
 
         return marginValue.toFixed(2);
-    }
-
-    // Helper method to get budget columns for a specific cost type
-    getBudgetColumns(costType) {
-        return this.budgetLineColumns[costType] || [];
     }
 
     // Handle toggle expand/collapse
@@ -844,6 +793,15 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         // Add this specific field to editing
         const editKey = `${proposalLineId}_${fieldName}`;
         this.editingProposalLines.add(editKey);
+        
+        // Store initial editing value for sales price
+        if (fieldName === 'wfrecon__Sales_Price__c') {
+            const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+            if (line) {
+                this.editingFieldValues.set(editKey, this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2));
+            }
+        }
+        
         this.proposalLinesRaw = [...this.proposalLinesRaw];
 
         // Focus the input in the next tick
@@ -860,27 +818,49 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     handleProposalLineFieldChange(event) {
         const proposalLineId = event.currentTarget.dataset.proposalLineId;
         const fieldName = event.currentTarget.dataset.field;
-        const value = event.target.value;
+        let value = event.target.value;
 
-        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
-            if (line.Id === proposalLineId) {
-                // Handle text fields (like Description) vs numeric fields
-                let fieldValue = fieldName === 'wfrecon__Description__c'
-                    ? value
-                    : (parseFloat(value) || 0);
-
-                // Track manually edited sales price
-                if (fieldName === 'wfrecon__Sales_Price__c') {
-                    this.manuallyEditedSalesPrices.set(proposalLineId, fieldValue);
-                }
-
-                return {
-                    ...line,
-                    [fieldName]: fieldValue
-                };
+        // For sales price, validate input and store raw string
+        if (fieldName === 'wfrecon__Sales_Price__c') {
+            // Only validate numbers and decimal points
+            if (value !== '' && !/^\d*\.?\d*$/.test(value)) {
+                // Invalid input, don't update
+                return;
             }
-            return line;
-        });
+            // Store the raw string value for editing
+            const editKey = `${proposalLineId}_${fieldName}`;
+            this.editingFieldValues.set(editKey, value);
+            
+            // Update the actual field value as number
+            const numericValue = value === '' ? 0 : (parseFloat(value) || 0);
+            this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+                if (line.Id === proposalLineId) {
+                    this.manuallyEditedSalesPrices.set(proposalLineId, numericValue);
+                    return {
+                        ...line,
+                        [fieldName]: numericValue
+                    };
+                }
+                return line;
+            });
+        } else {
+            // Handle other fields normally
+            this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+                if (line.Id === proposalLineId) {
+                    let fieldValue;
+                    if (fieldName === 'wfrecon__Description__c') {
+                        fieldValue = value;
+                    } else {
+                        fieldValue = value === '' ? 0 : (parseFloat(value) || 0);
+                    }
+                    return {
+                        ...line,
+                        [fieldName]: fieldValue
+                    };
+                }
+                return line;
+            });
+        }
 
         // Mark only this specific field as modified
         if (!this.modifiedProposalLines.has(proposalLineId)) {
@@ -899,13 +879,19 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     handleProposalLineFieldBlur(event) {
         const proposalLineId = event.currentTarget.dataset.proposalLineId;
         const fieldName = event.currentTarget.dataset.field;
+        const editKey = `${proposalLineId}_${fieldName}`;
 
         // Validate Sales Price on blur
         if (fieldName === 'wfrecon__Sales_Price__c') {
             const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
             if (line) {
-                const salesPrice = parseFloat(line.wfrecon__Sales_Price__c) || 0;
+                let salesPrice = parseFloat(line.wfrecon__Sales_Price__c);
                 const recommendedPrice = parseFloat(line.wfrecon__Recommended_Price__c) || 0;
+
+                // Handle invalid or empty input
+                if (isNaN(salesPrice) || salesPrice < 0) {
+                    salesPrice = recommendedPrice;
+                }
 
                 if (salesPrice < recommendedPrice) {
                     // Reset to recommended price and show error
@@ -920,11 +906,24 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     });
                     this.manuallyEditedSalesPrices.set(proposalLineId, recommendedPrice);
                     this.showToast('Error', `Sales Price cannot be less than Recommended Price ($${recommendedPrice.toFixed(2)})`, 'error');
+                } else if (salesPrice !== parseFloat(line.wfrecon__Sales_Price__c)) {
+                    // Update to the valid parsed value
+                    this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
+                        if (l.Id === proposalLineId) {
+                            return {
+                                ...l,
+                                wfrecon__Sales_Price__c: salesPrice
+                            };
+                        }
+                        return l;
+                    });
                 }
+                
+                // Clear the editing value
+                this.editingFieldValues.delete(editKey);
             }
         }
 
-        const editKey = `${proposalLineId}_${fieldName}`;
         this.editingProposalLines.delete(editKey);
         this.proposalLinesRaw = [...this.proposalLinesRaw];
     }

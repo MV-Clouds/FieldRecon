@@ -150,7 +150,7 @@
                                                     data-field="wfrecon__Quantity__c" data-editable="true"
                                                     onclick={handleProposalLineCellClick}>
                                                     <template if:true={line.isEditingQuantity}>
-                                                        <input type="number" class="inline-edit-input"
+                                                        <input type="text" class="inline-edit-input"
                                                             value={line.displayQuantity} data-proposal-line-id={line.Id}
                                                             data-field="wfrecon__Quantity__c"
                                                             oninput={handleProposalLineFieldChange}
@@ -177,23 +177,23 @@
                                                 <td class="center-trancate-text total-amount">${line.displayTotalCost}
                                                 </td>
                                                 <!-- Recommended Price (Read-only calculated field) -->
-                                                <td class="center-trancate-text">${line.displayRecommendedPrice}</td>
+                                                <td class="center-trancate-text">${line.formattedRecommendedPrice}</td>
                                                 <!-- Sales Price (Editable with minimum = Recommended Price) -->
                                                 <td class={line.salesPriceCellClass} data-proposal-line-id={line.Id}
                                                     data-field="wfrecon__Sales_Price__c" data-editable="true"
                                                     onclick={handleProposalLineCellClick}>
                                                     <template if:true={line.isEditingSalesPrice}>
-                                                        <input type="number" class="inline-edit-input"
+                                                        <input type="text" class="inline-edit-input"
                                                             value={line.displaySalesPrice}
                                                             data-proposal-line-id={line.Id}
                                                             data-field="wfrecon__Sales_Price__c"
                                                             oninput={handleProposalLineFieldChange}
-                                                            onblur={handleProposalLineFieldBlur} step="0.01"
-                                                            min={line.displayRecommendedPrice} />
+                                                            onblur={handleProposalLineFieldBlur} inputmode="decimal"
+                                                            data-min={line.displayRecommendedPrice} />
                                                     </template>
                                                     <template if:false={line.isEditingSalesPrice}>
                                                         <div class="cell-with-icon">
-                                                            <span class="cell-text">${line.displaySalesPrice}</span>
+                                                            <span class="cell-text">${line.formattedSalesPrice}</span>
                                                             <svg class="edit-icon" width="14" height="14"
                                                                 viewBox="0 0 24 24" fill="none">
                                                                 <path
@@ -267,7 +267,7 @@
                                                                                     data-field="wfrecon__Profit_Per__c"
                                                                                     oninput={handleProposalLineFieldChange}
                                                                                     onblur={handleProposalLineFieldBlur}
-                                                                                    step="0.01" min="0" />
+                                                                                    inputmode="decimal" min="0" />
                                                                             </template>
                                                                             <template if:false={line.isEditingProfit}>
                                                                                 <div class="summary-edit-container"
@@ -2422,7 +2422,7 @@
                                                     data-field="wfrecon__Quantity__c" data-editable="true"
                                                     onclick={handleProposalLineCellClick}>
                                                     <template if:true={line.isEditingQuantity}>
-                                                        <input type="number" class="inline-edit-input"
+                                                        <input type="text" class="inline-edit-input"
                                                             value={line.displayQuantity} data-proposal-line-id={line.Id}
                                                             data-field="wfrecon__Quantity__c"
                                                             oninput={handleProposalLineFieldChange}
@@ -2449,23 +2449,23 @@
                                                 <td class="center-trancate-text total-amount">${line.displayTotalCost}
                                                 </td>
                                                 <!-- Recommended Price (Read-only calculated field) -->
-                                                <td class="center-trancate-text">${line.displayRecommendedPrice}</td>
+                                                <td class="center-trancate-text">${line.formattedRecommendedPrice}</td>
                                                 <!-- Sales Price (Editable with minimum = Recommended Price) -->
                                                 <td class={line.salesPriceCellClass} data-proposal-line-id={line.Id}
                                                     data-field="wfrecon__Sales_Price__c" data-editable="true"
                                                     onclick={handleProposalLineCellClick}>
                                                     <template if:true={line.isEditingSalesPrice}>
-                                                        <input type="number" class="inline-edit-input"
+                                                        <input type="text" class="inline-edit-input"
                                                             value={line.displaySalesPrice}
                                                             data-proposal-line-id={line.Id}
                                                             data-field="wfrecon__Sales_Price__c"
                                                             oninput={handleProposalLineFieldChange}
-                                                            onblur={handleProposalLineFieldBlur} step="0.01"
-                                                            min={line.displayRecommendedPrice} />
+                                                            onblur={handleProposalLineFieldBlur} inputmode="decimal"
+                                                            data-min={line.displayRecommendedPrice} />
                                                     </template>
                                                     <template if:false={line.isEditingSalesPrice}>
                                                         <div class="cell-with-icon">
-                                                            <span class="cell-text">${line.displaySalesPrice}</span>
+                                                            <span class="cell-text">${line.formattedSalesPrice}</span>
                                                             <svg class="edit-icon" width="14" height="14"
                                                                 viewBox="0 0 24 24" fill="none">
                                                                 <path
@@ -2539,7 +2539,7 @@
                                                                                     data-field="wfrecon__Profit_Per__c"
                                                                                     oninput={handleProposalLineFieldChange}
                                                                                     onblur={handleProposalLineFieldBlur}
-                                                                                    step="0.01" min="0" />
+                                                                                    inputmode="decimal" min="0" />
                                                                             </template>
                                                                             <template if:false={line.isEditingProfit}>
                                                                                 <div class="summary-edit-container"
@@ -4695,7 +4695,7 @@
                                             <td>
                                                 <input type="number" class="table-input small-input" value={line.profit}
                                                     data-id={line.tempId} data-field="profit"
-                                                    oninput={handleLineFieldChange} min="0" step="0.01" />
+                                                    oninput={handleLineFieldChange} min="0" inputmode="decimal" />
                                             </td>
                                             <td>
                                                 <select class="table-select-input" data-id={line.tempId}
