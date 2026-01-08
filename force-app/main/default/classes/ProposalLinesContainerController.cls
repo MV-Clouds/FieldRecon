@@ -40,7 +40,7 @@ public with sharing class ProposalLinesContainerController {
                     wfrecon__OH_Amount__c, wfrecon__Profit_Amount__c, wfrecon__Warranty_Amount__c, 
                     wfrecon__Recommended_Price__c, wfrecon__Sales_Price__c, wfrecon__Sequence__c,
                     wfrecon__Hotel_Cost__c, wfrecon__Labor_Cost__c, wfrecon__Material_Cost__c, 
-                    wfrecon__Mileage_Cost__c, wfrecon__Per_Diem_Cost__c,
+                    wfrecon__Mileage_Cost__c, wfrecon__Per_Diem_Cost__c, wfrecon__Type__c,
                     (SELECT Id, Name, 
                         (SELECT Id, Name, wfrecon__Cost_Type__c,
                             wfrecon__No_Of_Crew_Members__c, wfrecon__Hrs_day__c, wfrecon__Burden_Rate_Hour__c, wfrecon__Total_Mileage__c,
@@ -179,19 +179,20 @@ public with sharing class ProposalLinesContainerController {
             String proposalId = (String) data.get('proposalId');
             List<Object> proposalLinesData = (List<Object>) data.get('proposalLines');
             
-            // Get the maximum sequence number from existing proposal lines
+            // Get the maximum sequence number from existing Base Contract proposal lines only
             List<AggregateResult> maxSeqResults = [
                 SELECT MAX(wfrecon__Sequence__c) maxSeq 
                 FROM wfrecon__Proposal_Line__c 
                 WHERE wfrecon__Proposal__c = :proposalId 
+                AND wfrecon__Type__c = 'Base Contract'
                 WITH USER_MODE
             ];
             
-            Decimal maxSequence = 0;
+            Decimal maxBaseContractSequence = 0;
             if (maxSeqResults != null && !maxSeqResults.isEmpty()) {
                 Object maxSeqValue = maxSeqResults[0].get('maxSeq');
                 if (maxSeqValue != null) {
-                    maxSequence = (Decimal) maxSeqValue;
+                    maxBaseContractSequence = (Decimal) maxSeqValue;
                 }
             }
             
@@ -199,6 +200,10 @@ public with sharing class ProposalLinesContainerController {
             
             for (Object lineObj : proposalLinesData) {
                 Map<String, Object> lineData = (Map<String, Object>) lineObj;
+                String lineType = (String) lineData.get('type');
+                if (String.isBlank(lineType)) {
+                    lineType = 'Base Contract'; // Default to Base Contract if not specified
+                }
                 
                 wfrecon__Proposal_Line__c proposalLine = new wfrecon__Proposal_Line__c();
                 proposalLine.wfrecon__Proposal__c = proposalId;
@@ -210,10 +215,16 @@ public with sharing class ProposalLinesContainerController {
                 proposalLine.wfrecon__OH_Per__c = lineData.get('oh') != null ? Decimal.valueOf(String.valueOf(lineData.get('oh'))) : 0;
                 proposalLine.wfrecon__Warranty_Per__c = lineData.get('warranty') != null ? Decimal.valueOf(String.valueOf(lineData.get('warranty'))) : 0;
                 proposalLine.wfrecon__Profit_Per__c = lineData.get('profit') != null ? Decimal.valueOf(String.valueOf(lineData.get('profit'))) : 0;
+                proposalLine.wfrecon__Type__c = lineType;
                 
-                // Set sequence number (increment from max)
-                maxSequence++;
-                proposalLine.wfrecon__Sequence__c = maxSequence;
+                // Set sequence based on type
+                if (lineType == 'Base Contract') {
+                    maxBaseContractSequence++;
+                    proposalLine.wfrecon__Sequence__c = maxBaseContractSequence;
+                } else {
+                    // Alternate lines get sequence 0
+                    proposalLine.wfrecon__Sequence__c = 0;
+                }
                 
                 proposalLinesToInsert.add(proposalLine);
             }
@@ -405,6 +416,51 @@ public with sharing class ProposalLinesContainerController {
 
     /*
     *********************************************************
+    @description     : Swap Proposal Line Type (Base Contract <-> Alternate)
+    @param           : {String} proposalLineId - Proposal Line Id
+    @param           : {String} newType - New type value (Base Contract or Alternate)
+    @return          : Map<String, Object> - Result with success status and message
+    ********************************************************
+    */
+    @AuraEnabled
+    public static Map<String, Object> swapProposalLineType(String proposalLineId, String newType) {
+        Map<String, Object> result = new Map<String, Object>();
+        try {
+            if (String.isBlank(proposalLineId) || String.isBlank(newType)) {
+                result.put('success', false);
+                result.put('message', 'Proposal Line ID and Type are required');
+                return result;
+            }
+            
+            wfrecon__Proposal_Line__c proposalLine = [SELECT Id, wfrecon__Type__c 
+                                                       FROM wfrecon__Proposal_Line__c 
+                                                       WHERE Id = :proposalLineId 
+                                                       WITH USER_MODE 
+                                                       LIMIT 1];
+            
+            proposalLine.wfrecon__Type__c = newType;
+            update as user proposalLine;
+            
+            result.put('success', true);
+            result.put('message', 'Proposal line type updated successfully');
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'swapProposalLineType',
+                'exceptionMessage' => e.getMessage(),
+                'stackTrace' => e.getStackTraceString(),
+                'lineNumber' => String.valueOf(e.getLineNumber()),
+                'apiResponse' => null
+            });
+            result.put('success', false);
+            result.put('message', 'Unable to update proposal line type. Please try again or contact your administrator.');
+            result.put('error', e.getMessage());
+        }
+        return result;
+    }
+
+    /*
+    *********************************************************
     @description     : Save All Changes (Proposal Lines + Budget Lines)
     @param           : {String} changesJson - JSON string containing both proposal lines and budget lines to update/insert
     @return          : Map<String, Object> - Result with success status and message
@@ -452,6 +508,9 @@ public with sharing class ProposalLinesContainerController {
                     if (lineData.containsKey('wfrecon__Sequence__c')) {
                         Object seqValue = lineData.get('wfrecon__Sequence__c');
                         proposalLine.wfrecon__Sequence__c = seqValue != null ? Decimal.valueOf(String.valueOf(seqValue)) : null;
+                    }
+                    if (lineData.containsKey('wfrecon__Type__c')) {
+                        proposalLine.wfrecon__Type__c = (String) lineData.get('wfrecon__Type__c');
                     }
 
                     proposalLinesToUpdate.add(proposalLine);
