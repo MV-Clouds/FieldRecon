@@ -38,7 +38,7 @@ public with sharing class ProposalLinesContainerController {
                 SELECT Id, Name, wfrecon__Product__c, wfrecon__Total_Cost__c, wfrecon__Description__c,
                     wfrecon__Quantity__c, wfrecon__OH_Per__c, wfrecon__Warranty_Per__c, wfrecon__Profit_Per__c,
                     wfrecon__OH_Amount__c, wfrecon__Profit_Amount__c, wfrecon__Warranty_Amount__c, 
-                    wfrecon__Recommended_Price__c, wfrecon__Sales_Price__c,
+                    wfrecon__Recommended_Price__c, wfrecon__Sales_Price__c, wfrecon__Sequence__c,
                     wfrecon__Hotel_Cost__c, wfrecon__Labor_Cost__c, wfrecon__Material_Cost__c, 
                     wfrecon__Mileage_Cost__c, wfrecon__Per_Diem_Cost__c,
                     (SELECT Id, Name, 
@@ -56,7 +56,7 @@ public with sharing class ProposalLinesContainerController {
                 FROM wfrecon__Proposal_Line__c
                 WHERE wfrecon__Proposal__c = :proposalId 
                 WITH USER_MODE 
-                ORDER BY CreatedDate ASC
+                ORDER BY wfrecon__Sequence__c ASC NULLS LAST, CreatedDate ASC
             ];
             
             Map<String, Object> responseData = new Map<String, Object>();
@@ -179,6 +179,22 @@ public with sharing class ProposalLinesContainerController {
             String proposalId = (String) data.get('proposalId');
             List<Object> proposalLinesData = (List<Object>) data.get('proposalLines');
             
+            // Get the maximum sequence number from existing proposal lines
+            List<AggregateResult> maxSeqResults = [
+                SELECT MAX(wfrecon__Sequence__c) maxSeq 
+                FROM wfrecon__Proposal_Line__c 
+                WHERE wfrecon__Proposal__c = :proposalId 
+                WITH USER_MODE
+            ];
+            
+            Decimal maxSequence = 0;
+            if (maxSeqResults != null && !maxSeqResults.isEmpty()) {
+                Object maxSeqValue = maxSeqResults[0].get('maxSeq');
+                if (maxSeqValue != null) {
+                    maxSequence = (Decimal) maxSeqValue;
+                }
+            }
+            
             List<wfrecon__Proposal_Line__c> proposalLinesToInsert = new List<wfrecon__Proposal_Line__c>();
             
             for (Object lineObj : proposalLinesData) {
@@ -194,6 +210,10 @@ public with sharing class ProposalLinesContainerController {
                 proposalLine.wfrecon__OH_Per__c = lineData.get('oh') != null ? Decimal.valueOf(String.valueOf(lineData.get('oh'))) : 0;
                 proposalLine.wfrecon__Warranty_Per__c = lineData.get('warranty') != null ? Decimal.valueOf(String.valueOf(lineData.get('warranty'))) : 0;
                 proposalLine.wfrecon__Profit_Per__c = lineData.get('profit') != null ? Decimal.valueOf(String.valueOf(lineData.get('profit'))) : 0;
+                
+                // Set sequence number (increment from max)
+                maxSequence++;
+                proposalLine.wfrecon__Sequence__c = maxSequence;
                 
                 proposalLinesToInsert.add(proposalLine);
             }

@@ -78,7 +78,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.isLoading = true;
         getProposalLinesWithBudgets({ proposalId: this.recordId })
             .then(result => {
-                console.log('Fetched proposal lines result:', result);
                 if (result.success && result.data) {
                     const lines = result.data.proposalLines || [];
                     
@@ -90,13 +89,13 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     });
                     
                     this.proposalLinesRaw = lines;
-                    console.log('Raw proposal lines:', this.proposalLinesRaw);
                     // Process and organize budget lines by cost type
                     this.proposalLinesRaw.forEach((line, index) => {
                         line.isExpanded = false;
                         line.budgetRowKey = `budget-${line.Id}`;
                         line.recordLink = `/${line.Id}`;
-                        line.currentSequence = line.wfrecon__Sequence__c || (index + 1);
+                        // Use database sequence or fall back to position-based numbering
+                        line.currentSequence = line.wfrecon__Sequence__c ? parseInt(line.wfrecon__Sequence__c) : (index + 1);
                         
                         if (line.wfrecon__Budgets__r && line.wfrecon__Budgets__r.length > 0) {
                             const budget = line.wfrecon__Budgets__r[0];
@@ -263,7 +262,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const modifiedFields = this.modifiedProposalLines.get(line.Id) || new Set();
             return {
                 ...line,
-                serialNumber: index + 1,
+                serialNumber: line.currentSequence || (index + 1),
                 totalAmount: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
                 isOddRow: (index % 2 === 0),
                 isModified: modifiedFields.size > 0,
@@ -1346,7 +1345,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         
         // Check sequence changes
         return this.hasSequenceChanges;
-        return false;
     }
 
     // Save all modified budget sections and proposal lines
@@ -1503,6 +1501,12 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.draggedLineId = event.currentTarget.dataset.lineId;
         event.currentTarget.classList.add('dragging');
         event.dataTransfer.effectAllowed = 'move';
+        
+        // Collapse all expanded proposal lines for better drag and drop experience
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => ({
+            ...line,
+            isExpanded: false
+        }));
     }
 
     handleDragOver(event) {
@@ -1511,6 +1515,11 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         
         const targetLineId = event.currentTarget.dataset.lineId;
         if (targetLineId && targetLineId !== this.draggedLineId) {
+            // Remove drag-over class from all rows first
+            const allRows = this.template.querySelectorAll('.proposal-line-row');
+            allRows.forEach(row => row.classList.remove('drag-over'));
+            
+            // Add drag-over class to current target
             this.draggedOverLineId = targetLineId;
             event.currentTarget.classList.add('drag-over');
         }
