@@ -1,0 +1,118 @@
+<template>
+    <lightning-card>
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <div class="slds-p-around_medium component-wrapper">
+            <!-- Bid Field - Display Only (Not part of Job object) -->
+            <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                <lightning-input
+                    label="Bid"
+                    value={bidName}
+                    disabled
+                    variant="label-stacked">
+                </lightning-input>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class={createNewTabClass} onclick={handleCreateNewTab}>Create New Job</button>
+                <button class={linkExistingTabClass} onclick={handleLinkExistingTab}>Link Existing Job</button>
+            </div>
+
+            <!-- Link Existing Job Section (Outside of form) -->
+            <template if:true={isLinkExisting}>
+                <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                    <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                        <lightning-record-picker
+                            label="Select Job"
+                            placeholder="Search Jobs..."
+                            object-api-name="wfrecon__Job__c"
+                            onchange={handleJobSelection}
+                            required>
+                        </lightning-record-picker>
+                    </div>
+                </div>
+
+                <div class="footer-div">
+                    <button 
+                        class="save-btn"
+                        onclick={handleLinkJob}
+                        disabled={isSaveDisabled}>
+                        {saveButtonLabel}
+                    </button>
+                </div>
+            </template>
+
+            <!-- Create New Job Section (Inside form) -->
+            <template if:true={isCreateNew}>
+                <lightning-record-edit-form
+                    object-api-name="wfrecon__Job__c"
+                    onsuccess={handleSuccess}
+                    onerror={handleError}
+                    onload={handleLoad}
+                    density="comfy">
+                    
+                    <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                        <!-- Job Name & Status - Side by Side -->
+                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                            <lightning-input-field
+                                field-name="wfrecon__Job_Name__c"
+                                value={defaultJobName}
+                                required>
+                            </lightning-input-field>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                            <lightning-input-field
+                                field-name="wfrecon__Status__c"
+                                value="Active"
+                                required>
+                            </lightning-input-field>
+                        </div>
+
+                        <!-- Total Contract Price & Account - Side by Side -->
+                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                            <lightning-input-field
+                                field-name="wfrecon__Total_Contract_Price__c"
+                                value={defaultAmount}>
+                            </lightning-input-field>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                            <lightning-input-field
+                                field-name="wfrecon__Account__c"
+                                value={accountId}
+                                required>
+                            </lightning-input-field>
+                        </div>
+
+                        <!-- Description - Full Width -->
+                        <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                            <lightning-input-field
+                                field-name="wfrecon__Description__c"
+                                value={defaultDescription}>
+                            </lightning-input-field>
+                        </div>
+
+                        <!-- Hidden Bid field for relationship -->
+                        <div style="display: none;">
+                            <lightning-input-field
+                                field-name="wfrecon__Bid__c"
+                                value={bidId}>
+                            </lightning-input-field>
+                        </div>
+                    </div>
+
+                    <div class="footer-div">
+                        <button 
+                            class="save-btn"
+                            onclick={handleSave}>
+                            {saveButtonLabel}
+                        </button>
+                    </div>
+
+                </lightning-record-edit-form>
+            </template>
+        </div>
+    </lightning-card>
+</template>
