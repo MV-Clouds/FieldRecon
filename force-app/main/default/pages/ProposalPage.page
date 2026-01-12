@@ -775,11 +775,11 @@
             <apex:actionFunction name="initPage" action="{!createPDF}" rerender="frmid, pageMessages" status="saveStatus" oncomplete="hideSpinner();" />
 
             <!-- Already Accepted, Rejected, Changes Requested, or Expired -->
-            <apex:outputPanel rendered="{!isAccepted || proRecRecord.wfrecon__Status__c == 'Rejected' || proRecRecord.wfrecon__Status__c == 'Changes Requested' || isExpired}">
+            <apex:outputPanel rendered="{!isAccepted || proRecRecord.Status__c == 'Rejected' || proRecRecord.Status__c == 'Changes Requested' || isExpired}">
                 <div class="container">
                     <apex:outputPanel rendered="{!!ISNULL(quoteMessage)}">
                         <div class="contract-message">
-                            <h1 style="background-color: {!IF(isAccepted, '#38a169', IF(proRecRecord.wfrecon__Status__c == 'Rejected', '#c23934', IF(proRecRecord.wfrecon__Status__c == 'Changes Requested', '#dd6b20', '#dd6b20')))};">{!quoteMessage}</h1>
+                            <h1 style="background-color: {!IF(isAccepted, '#38a169', IF(proRecRecord.Status__c == 'Rejected', '#c23934', IF(proRecRecord.Status__c == 'Changes Requested', '#dd6b20', '#dd6b20')))};">{!quoteMessage}</h1>
                         </div>
                     </apex:outputPanel>
                     <apex:outputText value="{!strBody}" escape="false"/>
@@ -790,7 +790,7 @@
             </apex:outputPanel>
 
             <!-- Contract Ready for Action -->
-            <apex:outputPanel rendered="{!(!isAccepted && !customSignature && !isExpired && proRecRecord.wfrecon__Status__c != 'Rejected' && proRecRecord.wfrecon__Status__c != 'Changes Requested' && !ISNULL(strBody))}">
+            <apex:outputPanel rendered="{!(!isAccepted && !customSignature && !isExpired && proRecRecord.Status__c != 'Rejected' && proRecRecord.Status__c != 'Changes Requested' && !ISNULL(strBody))}">
                 <div class="container">
                     <apex:outputPanel rendered="{!!ISNULL(quoteMessage)}">
                         <div class="contract-message">
@@ -828,7 +828,7 @@
             </apex:outputPanel>
 
             <!-- Error State -->
-            <apex:outputPanel rendered="{!ISNULL(strBody) && !isAccepted && !customSignature && !isExpired && proRecRecord.wfrecon__Status__c != 'Rejected'}">
+            <apex:outputPanel rendered="{!ISNULL(strBody) && !isAccepted && !customSignature && !isExpired && proRecRecord.Status__c != 'Rejected'}">
                 <div class="container">
                     <div class="contract-message">
                         <h1 style="background-color: #c23934;">
