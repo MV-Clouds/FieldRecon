@@ -2,18 +2,21 @@ import { LightningElement, api, track, wire } from 'lwc';
 import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getContactInfo from '@salesforce/apex/BidProposalController.getContactInfo';
+import getProposalConfig from '@salesforce/apex/ProposalConfigController.getProposalConfig';
 
 // Bid fields to fetch
 const BID_FIELDS = [
     'wfrecon__Bid__c.Id',
     'wfrecon__Bid__c.wfrecon__AccountId__c',
     'wfrecon__Bid__c.wfrecon__Contact__c',
-    'wfrecon__Bid__c.wfrecon__Bid_Due_Date__c'
+    'wfrecon__Bid__c.wfrecon__Bid_Due_Date__c',
+    'wfrecon__Bid__c.wfrecon__Status__c'
 ];
 
 export default class BidProposalModal extends LightningElement {
     @api recordId; // Bid Record ID from Quick Action
-    @track isLoading = false;
+    @track isLoading = true;
+    @track isBidValid = true;
 
     // Pre-populated values from Bid
     bidId;
@@ -36,6 +39,25 @@ export default class BidProposalModal extends LightningElement {
     // Track if we need to fetch contact
     currentContactId = null;
 
+       // Wire to get custom setting values
+    @wire(getProposalConfig)
+    wiredProposalConfig({ error, data }) {
+        if (data) {
+            // Set default values from custom setting
+            this.ohValue = data.wfrecon__OH__c || 0;
+            this.warrantyValue = data.wfrecon__Warranty__c || 0;
+            this.profitValue = data.wfrecon__Profit__c || 0;
+            
+            // Update display values
+            this.ohDisplay = `${this.ohValue}%`;
+            this.warrantyDisplay = `${this.warrantyValue}%`;
+            this.profitDisplay = `${this.profitValue}%`;
+        } else if (error) {
+            console.error('Error loading Proposal Configuration:', error);
+            // Keep default values (0) if error occurs
+        }
+    }
+
     @wire(getRecord, { recordId: '$recordId', fields: BID_FIELDS })
     wiredBid({ error, data }) {
         if (data) {
@@ -45,6 +67,11 @@ export default class BidProposalModal extends LightningElement {
             this.contactId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Contact__c');
             this.currentContactId = this.contactId;
             
+               // Get bid status and check eligibility in one step
+        const bidStatus = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Status__c');
+        this.isBidValid = bidStatus && bidStatus.toLowerCase() === 'bidding';
+        
+
             // Autopopulate expiration date with bid due date
             const bidDueDate = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Bid_Due_Date__c');
             if (bidDueDate) {
