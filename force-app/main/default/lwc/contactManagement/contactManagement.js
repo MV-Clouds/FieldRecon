@@ -165,7 +165,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Check if current page is last page
      */
     get isLastPage() {
-        return this.currentPage >= this.totalPages;
+        return this.currentPage === this.totalPages;
     }
 
     /**
@@ -223,8 +223,16 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                     number: 'ellipsis-start',
                     isEllipsis: true
                 });
+                if (startPage > 2) {
+                    pages.push({
+                        number: '...',
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
+                    });
+                }
             }
-
+            
+            // Add visible pages
             for (let i = startPage; i <= endPage; i++) {
                 pages.push({
                     number: i,
@@ -232,8 +240,16 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                     isEllipsis: false
                 });
             }
-
-            if (endPage < totalPages - 1) {
+            
+            // Add last page and ellipsis if needed
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pages.push({
+                        number: '...',
+                        cssClass: 'pagination-ellipsis',
+                        isEllipsis: true
+                    });
+                }
                 pages.push({
                     number: 'ellipsis-end',
                     isEllipsis: true
@@ -247,7 +263,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 isEllipsis: false
             });
         }
-
+        
         return pages;
     }
 
@@ -256,7 +272,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Check if ellipsis should be shown in pagination
      */
     get showEllipsis() {
-        return this.totalPages > this.visiblePages + 2;
+        return this.totalPages > this.visiblePages;
     }
 
     /**
@@ -871,7 +887,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             }
             
             const isDisabled = this.isPreviewMode ? true : !config.isEditable;
-            const isSystemRequired = fieldName === 'LastName' || fieldName === 'Email';
+            const isSystemRequired = ['FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'].includes(fieldName);
             const isRequired = isSystemRequired || (config.isRequired === true);
 
             return {

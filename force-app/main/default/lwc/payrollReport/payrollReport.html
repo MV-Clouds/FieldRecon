@@ -1,0 +1,141 @@
+<template>
+    <lightning-spinner alternative-text="Loading..." if:true={isLoading} variant="brand"></lightning-spinner>
+    <div class="main-card">
+        <lightning-card title="Payroll Report">
+            <div class="filter-search-container">
+                <div class="date-inputs">
+                    <div class="search-container">
+                        <lightning-input 
+                            type="search"
+                            label="Search"
+                            placeholder="Name or Employee ID"
+                            onchange={handleSearch}
+                            class="search-box">
+                        </lightning-input>
+                    </div>
+                    <div class="date-input-group">
+                        <lightning-input 
+                            type="date" 
+                            label="Start Date" 
+                            value={startDate} 
+                            onchange={handleDateChange} 
+                            name="startDate">
+                        </lightning-input>
+                        <lightning-input 
+                            type="date" 
+                            label="End Date" 
+                            value={endDate} 
+                            onchange={handleDateChange} 
+                            name="endDate">
+                        </lightning-input>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="action-button load-btn" onclick={loadData} disabled={isLoadDisabled}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 4V10H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20 20V14H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M4 20L8 16C9 15 10 14 12 14C14 14 15 15 16 16L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20 4L16 8C15 9 14 10 12 10C10 10 9 9 8 8L4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Load Data
+                    </button>
+                    
+                    <button class="action-button export-btn" onclick={exportCsv} disabled={isExportDisabled}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <template if:true={hasData}>
+                <div class="data-table-container">
+                    <table class="custom-data-table">
+                        <thead class="table-header">
+                            <tr  style="border: 1px solid rgba(94, 90, 219, 1);">
+                                <th class="header-cell"></th>
+                                <th class="header-cell">Last Name</th>
+                                <th class="header-cell">First Name</th>
+                                <th class="header-cell">Title</th>
+                                <th class="header-cell">Employee ID</th>
+                                <th class="header-cell" style="width: 300px;">Job Names</th>
+                                <th class="header-cell">Regular Hours</th>
+                                <th class="header-cell">Travel Hours</th> 
+                                <th class="header-cell">Overtime Hours</th>
+                                <th class="header-cell">Premium Hours</th>
+                                <th class="header-cell">Reimbursement</th>
+                                <th class="header-cell">Total Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-body">
+                            <template for:each={displayRows} for:item="row">
+                                <tr key={row.key} style="border: 1px solid rgba(94, 90, 219, 1);">
+                                    <template if:true={row.isFirstRow}>
+                                        <td rowspan={row.jobCount}>
+                                            <input 
+                                                type="checkbox" 
+                                                data-id={row.Employee} 
+                                                checked={row.isSelected}
+                                                onchange={handleCheckboxChange}/>
+                                        </td>
+                                    </template>
+
+                                    <template if:true={row.isFirstRow}>
+                                        <td rowspan={row.jobCount}>
+                                            {row.last_name}
+                                        </td>
+                                    </template>
+                                    <template if:true={row.isFirstRow}>
+                                        <td rowspan={row.jobCount}>
+                                            {row.first_name}
+                                        </td>
+                                    </template>
+                                    <template if:true={row.isFirstRow}>
+                                        <td rowspan={row.jobCount}>
+                                            {row.title}
+                                        </td>
+                                    </template>
+                                    <template if:true={row.isFirstRow}>
+                                        <td rowspan={row.jobCount}>
+                                            <template if:true={row.EmployeeIdURL}>
+                                                <a href={row.EmployeeIdURL} target="_blank">{row.Employee}</a>
+                                            </template>
+                                            <template if:false={row.EmployeeIdURL}>
+                                                {row.Employee}
+                                            </template>
+                                        </td>
+                                    </template>
+
+                                    <td class="wrap-cell">
+                                        <template if:true={row.job.url}>
+                                            <a href={row.job.url} target="_blank">{row.job.name}</a>
+                                        </template>
+                                        <template if:false={row.job.url}>
+                                            {row.job.name}
+                                        </template>
+                                    </td>
+
+                                    <td>{row.job.reg}</td>
+                                    <td>{row.job.travel}</td>
+                                    <td>{row.job.ot}</td>
+                                    <td>{row.job.premium}</td>
+                                    <td>{row.job.reimbursement}</td>
+                                    <template if:true={row.isFirstRow}>
+                                        <td rowspan={row.jobCount} style="font-weight: bold;">
+                                            {row.total_hours}
+                                        </td>
+                                    </template>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            </lightning-card>
+    </div>
+</template>
