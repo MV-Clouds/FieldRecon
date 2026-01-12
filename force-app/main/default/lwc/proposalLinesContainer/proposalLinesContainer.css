@@ -138,26 +138,6 @@ input[type="number"] {
     border-color: rgba(94, 90, 219, 0.9);
 }
 
-.spinner-container {
-    position: fixed;
-    height: 100%;
-    z-index: 9999;
-    width: 100%;
-    top: 0;
-    bottom: 0;
-    left: 0;
-}
-
-/* Data Table Container */
-.data-table-container {
-    overflow-x: auto;
-    overflow-y: auto;
-    border-radius: 8px;
-    margin: 8px 0;
-    background-color: white;
-    border: 1px solid #e5e5e5;
-}
-
 /* Table Styles */
 .custom-data-table {
     width: 100%;
@@ -167,15 +147,41 @@ input[type="number"] {
 }
 
 /* Main Proposal Lines Table Column Widths */
-.col-toggle { width: 3%; }
-.col-sr-no { width: 6%; }
-.col-service { width: 18%; }
-.col-description { width: 26%; }
-.col-quantity { width: 8%; }
-.col-total-cost { width: 11%; }
-.col-recommended-price { width: 11%; }
-.col-sales-price { width: 11%; }
-.col-actions { width: 6%; }
+.col-toggle {
+    width: 3%;
+}
+
+.col-sr-no {
+    width: 6%;
+}
+
+.col-service {
+    width: 18%;
+}
+
+.col-description {
+    width: 26%;
+}
+
+.col-quantity {
+    width: 8%;
+}
+
+.col-total-cost {
+    width: 11%;
+}
+
+.col-recommended-price {
+    width: 11%;
+}
+
+.col-sales-price {
+    width: 11%;
+}
+
+.col-actions {
+    width: 6%;
+}
 
 .table-header {
     position: sticky;
@@ -477,12 +483,18 @@ input[type="number"] {
 }
 
 .proposal-line-row {
-    cursor: move;
     transition: background-color 0.2s ease, transform 0.2s ease;
     background-color: #ffffff;
 }
 
-.proposal-line-row[data-is-odd="true"] {
+/* Use nth-child for proper alternating colors */
+.table-body > template:nth-child(odd) .proposal-line-row,
+.table-body .proposal-line-row:nth-of-type(odd) {
+    background-color: #ffffff;
+}
+
+.table-body > template:nth-child(even) .proposal-line-row,
+.table-body .proposal-line-row:nth-of-type(even) {
     background-color: rgb(244, 244, 255);
 }
 
@@ -507,19 +519,33 @@ input[type="number"] {
     padding: 8px 12px;
 }
 
-.drag-handle-icon {
+.toggle-only-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+}
+
+.drag-handle-wrapper {
     cursor: grab;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.drag-handle-wrapper:active {
+    cursor: grabbing;
+}
+
+.drag-handle-icon {
     flex-shrink: 0;
     opacity: 0.6;
     transition: opacity 0.2s;
+    pointer-events: none;
 }
 
-.drag-handle-icon:hover {
+.drag-handle-wrapper:hover .drag-handle-icon {
     opacity: 1;
-}
-
-.proposal-line-row:active .drag-handle-icon {
-    cursor: grabbing;
 }
 
 .nested-table-container {
@@ -893,38 +919,105 @@ input[type="number"] {
 }
 
 /* Budget Table Column Widths - Labor */
-.budget-col-sr-no { width: 6%; }
-.budget-col-crew { width: 10%; }
-.budget-col-hrs-day { width: 10%; }
-.budget-col-burden-rate { width: 15%; }
-.budget-col-days { width: 10%; }
-.budget-col-est-hours { width: 12%; }
-.budget-col-subtotal { width: 15%; }
-.budget-col-note { width: 15%; }
-.budget-col-actions { width: 7%; }
+.budget-col-sr-no {
+    width: 6%;
+}
+
+.budget-col-crew {
+    width: 10%;
+}
+
+.budget-col-hrs-day {
+    width: 10%;
+}
+
+.budget-col-burden-rate {
+    width: 15%;
+}
+
+.budget-col-days {
+    width: 10%;
+}
+
+.budget-col-est-hours {
+    width: 12%;
+}
+
+.budget-col-subtotal {
+    width: 15%;
+}
+
+.budget-col-note {
+    width: 15%;
+}
+
+.budget-col-actions {
+    width: 7%;
+}
 
 /* Budget Table Column Widths - Materials */
-.budget-col-material { width: 35%; }
-.budget-col-qty { width: 15%; }
-.budget-col-cost-each { width: 20%; }
+.budget-col-material {
+    width: 35%;
+}
+
+.budget-col-qty {
+    width: 15%;
+}
+
+.budget-col-cost-each {
+    width: 20%;
+}
 
 /* Budget Table Column Widths - Hotel */
-.budget-col-nights { width: 18%; }
-.budget-col-rooms { width: 20%; }
-.budget-col-cost-per-night { width: 20%; }
-.budget-col-total-hotel { width: 20%; }
+.budget-col-nights {
+    width: 18%;
+}
+
+.budget-col-rooms {
+    width: 20%;
+}
+
+.budget-col-cost-per-night {
+    width: 20%;
+}
+
+.budget-col-total-hotel {
+    width: 20%;
+}
 
 /* Budget Table Column Widths - Mileage */
-.budget-col-trips { width: 12%; }
-.budget-col-trucks { width: 12%; }
-.budget-col-miles { width: 18%; }
-.budget-col-dollar-mile { width: 15%; }
-.budget-col-total-mileage { width: 20%; }
+.budget-col-trips {
+    width: 12%;
+}
+
+.budget-col-trucks {
+    width: 12%;
+}
+
+.budget-col-miles {
+    width: 18%;
+}
+
+.budget-col-dollar-mile {
+    width: 15%;
+}
+
+.budget-col-total-mileage {
+    width: 20%;
+}
 
 /* Budget Table Column Widths - Perdiem */
-.budget-col-rate { width: 20%; }
-.budget-col-men { width: 18%; }
-.budget-col-total { width: 28%; }
+.budget-col-rate {
+    width: 20%;
+}
+
+.budget-col-men {
+    width: 18%;
+}
+
+.budget-col-total {
+    width: 28%;
+}
 
 .proposal-lines-table-container {
     max-height: 400px;
@@ -942,13 +1035,33 @@ input[type="number"] {
 }
 
 /* Modal Proposal Lines Table Column Widths */
-.modal-col-sr-no { width: 5%; }
-.modal-col-pricebook { width: 18%; }
-.modal-col-product { width: 18%; }
-.modal-col-description { width: 30%; }
-.modal-col-quantity { width: 10%; }
-.modal-col-profit { width: 10%; }
-.modal-col-actions { width: 9%; }
+.modal-col-sr-no {
+    width: 6%;
+}
+
+.modal-col-pricebook {
+    width: 18%;
+}
+
+.modal-col-product {
+    width: 18%;
+}
+
+.modal-col-description {
+    width: 30%;
+}
+
+.modal-col-quantity {
+    width: 10%;
+}
+
+.modal-col-profit {
+    width: 10%;
+}
+
+.modal-col-actions {
+    width: 9%;
+}
 
 .proposal-lines-table thead {
     position: sticky;
@@ -1531,8 +1644,82 @@ input[type="number"] {
         opacity: 0;
         transform: scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: scale(1);
     }
+}
+
+/* Accordion Container Styles */
+.prop-accordion-container {
+    flex: 1;
+    overflow: hidden;
+    margin-top: 12px;
+    background-color: rgb(244, 244, 255);
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    /* border-radius: 8px; */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: auto;
+    scroll-behavior: smooth;
+}
+
+/* Lightning Accordion Override Styles (similar to sovJobScope) */
+.prop-accordion-container lightning-accordion {
+    background: transparent;
+    border-radius: 8px;
+}
+
+.prop-accordion-container lightning-accordion-section {
+    border: none;
+    background: transparent;
+}
+
+.prop-accordion-container .data-table-container {
+    flex: 1;
+    overflow: auto;
+    border-radius: 8px;
+    background-color: white;
+    border: 1px solid #e5e5e5;
+}
+
+/* Action Icons Container */
+.action-icons-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Swap Button Styles */
+.swap-button {
+    background-color: transparent;
+    border: 1px solid rgba(94, 90, 219, 0.8);
+    border-radius: 4px;
+    padding: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: rgba(94, 90, 219, 0.8);
+    margin: auto;
+}
+
+.swap-button:hover {
+    background-color: rgba(94, 90, 219, 0.8);
+    border-color: rgba(94, 90, 219, 0.8);
+    color: white;
+}
+
+/* Modal Column Width for Type */
+.modal-col-type {
+    width: 12%;
 }
