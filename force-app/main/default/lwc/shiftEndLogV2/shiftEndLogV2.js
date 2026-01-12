@@ -1300,13 +1300,13 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                 sliderElement.style.width = `${sliderWidth}%`;
 
                 // Disable slider if 100% complete
-                if (processData.completionPercentage >= 100) {
-                    sliderElement.disabled = true;
-                    sliderElement.style.cursor = 'not-allowed';
-                } else {
-                    sliderElement.disabled = false;
-                    sliderElement.style.cursor = 'pointer';
-                }
+                // if (processData.completionPercentage >= 100) {
+                //     sliderElement.disabled = true;
+                //     sliderElement.style.cursor = 'not-allowed';
+                // } else {
+                //     sliderElement.disabled = false;
+                //     sliderElement.style.cursor = 'pointer';
+                // }
             }
         });
     }
