@@ -1366,52 +1366,80 @@ public with sharing class SovJobScopeController {
     }
 
     @AuraEnabled
-public static Map<String, Object> createScopeEntriesFromProposalLines(String scopeEntriesDataJson) {
-    Map<String, Object> result = new Map<String, Object>();
-    
-    try {
-        List<Map<String, Object>> scopeEntriesData = (List<Map<String, Object>>) JSON.deserializeUntyped(scopeEntriesDataJson);
-        List<wfrecon__Scope_Entry__c> scopeEntriesToCreate = new List<wfrecon__Scope_Entry__c>();
-        List<String> createdEntryIds = new List<String>();
+    public static Map<String, Object> createScopeEntriesFromProposalLines(String scopeEntriesDataJson) {
+        Map<String, Object> result = new Map<String, Object>();
         
-        for (Map<String, Object> entryData : scopeEntriesData) {
-            wfrecon__Scope_Entry__c newEntry = new wfrecon__Scope_Entry__c();
-            newEntry.Name = (String) entryData.get('name');
-            newEntry.wfrecon__Contract_Value__c = (Decimal) entryData.get('contractValue');
-            newEntry.wfrecon__Description__c = (String) entryData.get('description');
-            newEntry.wfrecon__Job__c = (Id) entryData.get('jobId');
-            newEntry.wfrecon__Type__c = (String) entryData.get('type');
-            
-            // Set default status
-            newEntry.wfrecon__Scope_Entry_Status__c = 'Draft';
-            
-            // Store source information if needed (you might want to create a custom field for this)
-            // newEntry.wfrecon__Source_Proposal_Line__c = (String) entryData.get('sourceProposalLineId');
-            
-            scopeEntriesToCreate.add(newEntry);
-        }
-        
-        if (!scopeEntriesToCreate.isEmpty()) {
-            insert scopeEntriesToCreate;
-            
-            // Collect the created entry IDs
-            for (wfrecon__Scope_Entry__c entry : scopeEntriesToCreate) {
-                createdEntryIds.add(entry.Id);
+        try {
+            if (String.isBlank(scopeEntriesDataJson)) {
+                result.put('success', false);
+                result.put('error', 'No data provided for import');
+                return result;
             }
             
-            result.put('success', true);
-            result.put('createdEntries', scopeEntriesToCreate.size());
-            result.put('createdEntryIds', createdEntryIds);
-        } else {
+            // Parse the JSON data
+            List<Object> scopeEntriesDataList = (List<Object>) JSON.deserializeUntyped(scopeEntriesDataJson);
+            
+            if (scopeEntriesDataList == null || scopeEntriesDataList.isEmpty()) {
+                result.put('success', false);
+                result.put('error', 'No proposal lines selected for import');
+                return result;
+            }
+            
+            List<wfrecon__Scope_Entry__c> scopeEntriesToCreate = new List<wfrecon__Scope_Entry__c>();
+            List<String> createdEntryIds = new List<String>();
+            
+            for (Object entryObj : scopeEntriesDataList) {
+                Map<String, Object> entryData = (Map<String, Object>) entryObj;
+                
+                wfrecon__Scope_Entry__c newEntry = new wfrecon__Scope_Entry__c();
+                
+                // Set required fields with null checks
+                String entryName = (String) entryData.get('name');
+                newEntry.Name = String.isNotBlank(entryName) ? entryName : 'Imported Proposal Line';
+                
+                Object contractValueObj = entryData.get('contractValue');
+                if (contractValueObj != null) {
+                    newEntry.wfrecon__Contract_Value__c = Decimal.valueOf(String.valueOf(contractValueObj));
+                } else {
+                    newEntry.wfrecon__Contract_Value__c = 0;
+                }
+                
+                String description = (String) entryData.get('description');
+                newEntry.wfrecon__Description__c = String.isNotBlank(description) ? description : '';
+                
+                newEntry.wfrecon__Job__c = (Id) entryData.get('jobId');
+                
+                String entryType = (String) entryData.get('type');
+                newEntry.wfrecon__Type__c = String.isNotBlank(entryType) ? entryType : 'Contract';
+                
+                // Set default status
+                newEntry.wfrecon__Scope_Entry_Status__c = 'Draft';
+                
+                scopeEntriesToCreate.add(newEntry);
+            }
+            
+            if (!scopeEntriesToCreate.isEmpty()) {
+                insert scopeEntriesToCreate;
+                
+                // Collect the created entry IDs
+                for (wfrecon__Scope_Entry__c entry : scopeEntriesToCreate) {
+                    createdEntryIds.add(entry.Id);
+                }
+                
+                result.put('success', true);
+                result.put('createdEntries', scopeEntriesToCreate.size());
+                result.put('createdEntryIds', createdEntryIds);
+            } else {
+                result.put('success', false);
+                result.put('error', 'No scope entries to create after processing data');
+            }
+            
+        } catch (Exception e) {
             result.put('success', false);
-            result.put('error', 'No scope entries to create');
+            result.put('error', 'Error: ' + e.getMessage() + ' - Line: ' + e.getLineNumber());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createScopeEntriesFromProposalLines','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error creating scope entries from proposal lines','apiResponse' => null});
         }
         
-    } catch (Exception e) {
-        result.put('success', false);
-        result.put('error', e.getMessage() + ' - ' + e.getStackTraceString());
+        return result;
     }
-    
-    return result;
-}
 }
