@@ -48,7 +48,7 @@ public without sharing class ProposalPageController {
                 return;
             }
 
-            List<wfrecon__Proposal_Recipient__c> proposalRecipients = [SELECT Id, Name, wfrecon__Accepted_Rejected_Changed_Date__c, wfrecon__Contact__c, wfrecon__Due_Date__c, wfrecon__Proposal__c, 
+            List<wfrecon__Proposal_Recipient__c> proposalRecipients = [SELECT Id, Name, wfrecon__Accepted_Rejected_Changed_Date__c, wfrecon__Contact__c, wfrecon__Proposal__r.wfrecon__Expiration_Date__c, wfrecon__Proposal__c, 
                                                                         wfrecon__Proposal__r.Name, wfrecon__Requested_Changes__c, wfrecon__Status__c
                                                                         FROM wfrecon__Proposal_Recipient__c
                                                                         WHERE wfrecon__Proposal__c = :recordId AND wfrecon__Contact__c = :contactId ORDER BY CreatedDate DESC
@@ -82,12 +82,12 @@ public without sharing class ProposalPageController {
                 proposalStatus = 'Changes Requested';
                 strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Changes Requested';
                 return;
-            } else if (proRecRecord.wfrecon__Due_Date__c != null && proRecRecord.wfrecon__Due_Date__c < Date.today()) {
-                quoteMessage = 'This Proposal has expired as the due date (' + proRecRecord.wfrecon__Due_Date__c.format() + ') has passed. Please contact your Sales Representative for further assistance.';
+            } else if (proRecRecord.wfrecon__Proposal__r.wfrecon__Expiration_Date__c != null && proRecRecord.wfrecon__Proposal__r.wfrecon__Expiration_Date__c < Date.today()) {
+                quoteMessage = 'This Proposal has expired as the due date (' + proRecRecord.wfrecon__Proposal__r.wfrecon__Expiration_Date__c.format() + ') has passed. Please contact your Sales Representative for further assistance.';
                 isExpired = true;
                 result = 'Expired';
                 proposalStatus = 'Expired';
-                strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Expired on ' + proRecRecord.wfrecon__Due_Date__c.format();
+                strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Expired on ' + proRecRecord.wfrecon__Proposal__r.wfrecon__Expiration_Date__c.format();
                 return;
             }
 
