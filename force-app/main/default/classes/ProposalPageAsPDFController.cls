@@ -27,7 +27,7 @@ public without sharing class ProposalPageAsPDFController {
             if (!results.isEmpty() && results[0].isSuccess()) {
                 strBody = email?.getHTMLBody()?.replace('{SIGNATURE_PLACEHOLDER}', imgURL);
             } else {
-                strBody = 'Error: Failed to generate template content. Errors: ' + results[0].getErrors();
+                strBody = 'Error: Failed to render template. ' + (results.isEmpty() ? '' : String.valueOf(results[0].getErrors()));
             }      
             
         } catch (Exception e) {
