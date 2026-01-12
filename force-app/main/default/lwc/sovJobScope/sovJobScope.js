@@ -17,6 +17,7 @@ import getPicklistValuesForField from '@salesforce/apex/SovJobScopeController.ge
 import deleteSelectedScopeEntryProcesses from '@salesforce/apex/SovJobScopeController.deleteSelectedScopeEntryProcesses';
 import { getPicklistValues } from "lightning/uiObjectInfoApi";
 import PROCESSTYPE_FIELD from '@salesforce/schema/Process__c.Process_Type__c'
+import getBidsWithProposals from '@salesforce/apex/SovJobScopeController.getBidsWithProposals';
 
 export default class SovJobScope extends NavigationMixin(LightningElement) {
     // Permission data received from parent component
@@ -25,6 +26,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         isFullAccess: false
     };
 
+     @track displayedBids = [];
+    @track showBidProposalModal = false;
     @track recordId;
     @track isLoading = true;
     @track scopeEntries = [];
@@ -690,6 +693,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      * @description: Load scope entries with default sorting
      */
     connectedCallback() {
+        this.loadBids();
         this.fetchScopeConfiguration();
     }
 
@@ -2563,6 +2567,82 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
      */
     handleSectionToggle(event) {
         this.activeSectionName = event.detail.openSections;
+    }
+
+    handleViewBidsProposals(){
+this.showBidProposalModal = true;
+    }
+
+    handleCloseBidProposalModal(){
+        this.showBidProposalModal = false;
+    }
+
+     async loadBids() {
+        this.isLoading = true;
+        try {
+            const result = await getBidsWithProposals({ jobId: this.recordId });
+            
+            if (result.success) {
+                this.displayedBids = result.bids.map(bid => ({
+                    Id: bid.Id,
+                    Name: bid.Name,
+                    isProposalDataAvailable: bid.proposals && bid.proposals.length > 0,
+                    proposals: (bid.proposals || []).map(proposal => ({
+                        Id: proposal.Id,
+                        Name: proposal.Name ,
+                        Type__c: proposal.Type__c,
+                        Sales_Price__c: proposal.Sales_Price__c,
+                        Margin__c: proposal.Margin__c,
+                        Status__c: proposal.Status__c,
+                        recordUrl: proposal.recordUrl,
+                        showLines: false,
+                        isLoadingLines: false,
+                        proposalLines: (proposal.proposalLines || []).map(line => ({
+                            Id: line.Id,
+                            Name: line.Name,
+                            Sales_Price__c: line.Sales_Price__c || '$0.00',
+                            Description__c: line.Description__c || '--',
+                            recordUrl: line.recordUrl
+                        }))
+                    }))
+                }));
+            } else {
+                this.error = result.error;
+            }
+        } catch (error) {
+            this.error = error.body?.message || error.message;
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    // Toggle proposal lines visibility
+    handleToggleProposalLines(event) {
+        const bidId = event.currentTarget.dataset.bidId;
+        const proposalId = event.currentTarget.dataset.proposalId;
+        
+        // Find the bid and proposal
+        this.displayedBids = this.displayedBids.map(bid => {
+            if (bid.Id === bidId) {
+                const updatedProposals = bid.proposals.map(proposal => {
+                    if (proposal.Id === proposalId) {
+                        const showLines = !proposal.showLines;
+                        return {
+                            ...proposal,
+                            showLines: showLines,
+                            isLoadingLines: showLines && !proposal.proposalLines
+                        };
+                    }
+                    return proposal;
+                });
+                
+                return {
+                    ...bid,
+                    proposals: updatedProposals
+                };
+            }
+            return bid;
+        });
     }
 
     /**
