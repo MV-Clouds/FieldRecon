@@ -189,7 +189,8 @@ public with sharing class BillingDetailsPageController {
                        wfrecon__Previous_Bill_Line_Item__c,
                        wfrecon__Remaining_Billing_Amount__c,
                        wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Retainage__c,
-                       wfrecon__Scope_Entry__r.wfrecon__Contract_Value__c
+                       wfrecon__Scope_Entry__r.wfrecon__Contract_Value__c,
+                       wfrecon__Scope_Entry_Type__c
                 FROM wfrecon__Billing_Line_Item__c
                 WHERE Id IN :recordIds
             ];
@@ -226,6 +227,7 @@ public with sharing class BillingDetailsPageController {
                 Boolean hasAmountUpdate = updates.containsKey('wfrecon__This_Billing_Value__c');
                 Boolean hasPercentUpdate = updates.containsKey('wfrecon__This_Billing_Percent__c');
                 Boolean hasRetainageUpdate = updates.containsKey('wfrecon__Retainage_Percent_on_Bill_Line_Item__c');
+                Boolean isChangeOrder = item.wfrecon__Scope_Entry_Type__c == 'Change Order';
 
                 if (!hasAmountUpdate && !hasPercentUpdate && !hasRetainageUpdate) {
                     continue;
@@ -319,6 +321,11 @@ public with sharing class BillingDetailsPageController {
                     // Min net amount = Gross × (1 - Retainage%/100)
                     minAmount = remainingGrossNeeded * (1 - retainageFactor);
 
+                    // Allow negative values for change orders
+                    if (isChangeOrder) {
+                        minAmount = (previousTotalBilled * -1).setScale(2, roundingMode);
+                    }
+
                     maxAmount = maxAmount.setScale(2, roundingMode);
                     minAmount = minAmount.setScale(2, roundingMode);
                 }
@@ -329,7 +336,7 @@ public with sharing class BillingDetailsPageController {
                 Decimal grossToDate;
 
                 if (hasAmountUpdate) {
-                    if (thisBillingAmount < 0) {
+                    if (thisBillingAmount < 0 && !isChangeOrder) {
                         result.put('status', 'ERROR');
                         result.put('message', 'This Billing Amount cannot be negative.');
                         return result;
@@ -431,7 +438,7 @@ public with sharing class BillingDetailsPageController {
                     totalBilledAmount = previousTotalBilled + thisBillingAmount;
                     grossToDate = totalBilledAmount + totalRetainageAmount;
                 } else {
-                    if (thisBillingAmount < 0) {
+                    if (thisBillingAmount < 0 && !isChangeOrder) {
                         result.put('status', 'ERROR');
                         result.put('message', 'This Billing Amount cannot be negative.');
                         return result;

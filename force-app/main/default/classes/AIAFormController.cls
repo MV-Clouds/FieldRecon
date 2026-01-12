@@ -255,9 +255,10 @@ public with sharing class AIAFormController {
     public static String formatCurrency(Decimal inputValue) {
         try {
             Decimal amount = inputValue != null ? inputValue : 0.00;
-            String s = ( amount.setScale(2) + 0.001 ).format();
+            Decimal offset = (amount >= 0) ? 0.001 : -0.001;
+            String s = ( amount.setScale(2) + offset ).format();
             String p = s.substring(0,s.length()-1);
-            return P;
+            return p;
         } catch (Exception e) {
             // Fallback if any conversion error
             return '0.00';

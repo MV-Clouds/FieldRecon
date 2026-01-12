@@ -281,6 +281,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         const thisRetainageAmountValue = item.wfrecon__This_Retainage_Amount__c || 0;
         const totalRetainageAmountValue = item.wfrecon__Total_Retainage_Amount__c || 0;
         const previousRetainageAmount = Math.max(0, totalRetainageAmountValue - thisRetainageAmountValue);
+        const isChangeOrder = item.wfrecon__Scope_Entry_Type__c === 'Change Order';
 
         const totalBilledWithRetainage = previousBilledAmount + thisBillingAmountValue + previousRetainageAmount + thisRetainageAmountValue;
         const billingPercentValue = item.wfrecon__This_Billing_Percent__c != null
@@ -327,7 +328,8 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             rawThisBillingPercent: billingPercentValue,
             rawPreviousBilledPercent: item.wfrecon__Previous_Billed_Percent__c || 0,
             rawCurrentCompletePercent: item.wfrecon__Scope_Complete__c || 0,
-            baseRetainageBeforeCurrent: previousRetainageAmount
+            baseRetainageBeforeCurrent: previousRetainageAmount,
+            isChangeOrder: isChangeOrder
         };
     }
 
@@ -629,9 +631,10 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
         const baseline = this.getItemBaseline(context.item);
         const retainagePercent = context.item.rawRetainagePercent || 0;
+        const isChangeOrder = context.item.isChangeOrder || false;
 
         let amount = newValue;
-        if (amount < 0) {
+        if (amount < 0 && !isChangeOrder) {
             amount = 0;
             inputElement.value = amount;
             this.showToast('Warning', 'This Billing Amount cannot be negative.', 'warning');
