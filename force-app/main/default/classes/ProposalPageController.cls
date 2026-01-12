@@ -144,8 +144,7 @@ public without sharing class ProposalPageController {
             proposalStatus = 'Rejected';
             result = 'Rejected';
             quoteMessage = 'You have rejected the Proposal. Please contact your Sales Representative for further assistance.';
-            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Rejected' + 
-                (String.isNotBlank(rejectionReason) ? '<br/>Reason: ' + rejectionReason : '');
+            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Rejected';
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageController', 'methodName' => 'saveRejectionReason', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             quoteMessage = 'Error saving rejection: ' + e.getMessage();
