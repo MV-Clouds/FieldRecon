@@ -6,12 +6,10 @@ public with sharing class SendProposalPageAsPDFController {
 
     public void createPDF() {
         try {
-            // Get Parameters passed from QuoteEmailController
+            // Get Parameters
             recordID = ApexPages.currentPage().getParameters().get('recordId');
             templateId = ApexPages.currentPage().getParameters().get('templateId');
             contactId = ApexPages.currentPage().getParameters().get('contactId');
-
-            System.debug('Parameters: ' + recordID + ', ' + templateId + ', ' + contactId);
 
             if(String.isBlank(templateId) || String.isBlank(recordID)) {
                 strBody = 'Error: Missing Template Id or Record Id';
@@ -20,7 +18,6 @@ public with sharing class SendProposalPageAsPDFController {
 
             // Fallback for Contact ID (Required for Email Template rendering)
             if(String.isBlank(contactId)) {
-                System.debug('Contact ID is null, trying to fetch from Proposal');
                 List<wfrecon__Proposal__c> prop = [SELECT wfrecon__Contact__c FROM wfrecon__Proposal__c WHERE Id = :recordID LIMIT 1];
                 if(!prop.isEmpty()) {
                     contactId = prop[0].wfrecon__Contact__c;
@@ -29,11 +26,10 @@ public with sharing class SendProposalPageAsPDFController {
                 if(String.isBlank(contactId)) {
                     List<Contact> dummy = [SELECT Id FROM Contact LIMIT 1];
                     if(!dummy.isEmpty()) contactId = dummy[0].Id;
-                    System.debug('Using dummy Contact ID: ' + contactId);
                 }
             }
 
-            // --- THE ROLLBACK TRICK (From your reference code) ---
+            // --- THE ROLLBACK TRICK ---
             Savepoint sp = Database.setSavepoint();
             
             Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
@@ -50,8 +46,17 @@ public with sharing class SendProposalPageAsPDFController {
             Database.rollback(sp);
 
             if (!results.isEmpty() && results[0].isSuccess()) {
-                // Get the generated HTML
-                strBody = email.getHTMLBody();
+                String rawHtml = email.getHTMLBody();
+                
+                // --- LOGIC CHANGE HERE ---
+                // Regex to find the <img src="{SIGNATURE_PLACEHOLDER}" ... /> tag and remove it entirely
+                // This matches <img followed by anything until src="{SIGNATURE_PLACEHOLDER}" followed by anything until the closing >
+                if(rawHtml != null) {
+                    strBody = rawHtml.replaceAll('<img[^>]+src=["\']\\{SIGNATURE_PLACEHOLDER\\}["\'][^>]*>', '');
+                } else {
+                    strBody = '';
+                }
+
             } else {
                 strBody = 'Error: Failed to generate template content. Errors: ' + results[0].getErrors();
             }      

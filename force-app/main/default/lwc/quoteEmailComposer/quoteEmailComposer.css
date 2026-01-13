@@ -473,6 +473,11 @@
     padding: 2rem;
     text-align: center;
     color: #6c757d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    width: 100%;
 }
 
 .data-table-container{

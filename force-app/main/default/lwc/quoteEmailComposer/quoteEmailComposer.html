@@ -6,61 +6,66 @@
             </template>
 
             <template if:true={isStepOne}>
-                <div class="step-header">
-                    <h2>Select Proposal Lines Which You Want to Add in Email:</h2>
-                </div>
+                <template if:true={proposalLines.length}>
+                    <div class="step-header">
+                        <h2>Select Proposal Lines Which You Want to Add in Email:</h2>
+                    </div>
+                </template>
                 
                 <div class="content-body step-one-body">
-                    <div class="data-table-container">
-                        <table class="custom-data-table">
-                            <thead class="table-header">
-                                <tr>
-                                    <th class="header-cell col-toggle">
-                                        <lightning-input type="checkbox" variant="label-hidden" 
-                                            onchange={handleSelectAll} checked={isAllSelected}></lightning-input>
-                                    </th>
-                                    <th class="header-cell col-sr-no">Sr No.</th>
-                                    <th class="header-cell col-service">Proposal Line</th>
-                                    <th class="header-cell col-description">Description</th>
-                                    <th class="header-cell col-quantity">Quantity</th>
-                                    <th class="header-cell col-total-cost">Total Amount</th>
-                                    <th class="header-cell col-sales-price">Sales Price</th>
-                                </tr>
-                            </thead>
-                            <tbody class="table-body">
-                                <template for:each={proposalLines} for:item="line">
-                                    <tr key={line.Id} class="proposal-line-row">
-                                        <td class="table-cell">
+                    <template if:true={proposalLines.length}>
+                        <div class="data-table-container">
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell col-toggle">
                                             <lightning-input type="checkbox" variant="label-hidden" 
-                                                checked={line.Selected__c} 
-                                                data-id={line.Id}
-                                                onchange={handleLineSelect}></lightning-input>
-                                        </td>
-                                        <td class="center-trancate-text">{line.wfrecon__Sequence__c}</td>
-                                        <td class="center-trancate-text name-link">{line.Name}</td>
-                                        <td class="center-trancate-text" title={line.wfrecon__Description__c}>
-                                            {line.wfrecon__Description__c}
-                                        </td>
-                                        <td class="center-trancate-text">
-                                            <lightning-formatted-number value={line.wfrecon__Quantity__c}></lightning-formatted-number>
-                                        </td>
-                                        <td class="center-trancate-text total-amount">
-                                            <lightning-formatted-number value={line.wfrecon__Total_Cost__c} format-style="currency" currency-code="USD"></lightning-formatted-number>
-                                        </td>
-                                        <td class="center-trancate-text">
-                                            <lightning-formatted-number value={line.wfrecon__Sales_Price__c} format-style="currency" currency-code="USD"></lightning-formatted-number>
-                                        </td>
+                                                onchange={handleSelectAll} checked={isAllSelected}></lightning-input>
+                                        </th>
+                                        <th class="header-cell col-sr-no">Sr No.</th>
+                                        <th class="header-cell col-service">Proposal Line</th>
+                                        <th class="header-cell col-description">Description</th>
+                                        <th class="header-cell col-quantity">Quantity</th>
+                                        <th class="header-cell col-total-cost">Total Amount</th>
+                                        <th class="header-cell col-sales-price">Sales Price</th>
                                     </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                        
-                        <template if:false={proposalLines.length}>
-                            <div class="no-records-message">
-                                <p>No Base Contract Lines found.</p>
-                            </div>
-                        </template>
-                    </div>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={proposalLines} for:item="line">
+                                        <tr key={line.Id} class="proposal-line-row">
+                                            <td class="table-cell">
+                                                <lightning-input type="checkbox" variant="label-hidden" 
+                                                    checked={line.Selected__c} 
+                                                    data-id={line.Id}
+                                                    onchange={handleLineSelect}></lightning-input>
+                                            </td>
+                                            <td class="center-trancate-text">{line.wfrecon__Sequence__c}</td>
+                                            <td class="center-trancate-text name-link">{line.Name}</td>
+                                            <td class="center-trancate-text" title={line.wfrecon__Description__c}>
+                                                {line.wfrecon__Description__c}
+                                            </td>
+                                            <td class="center-trancate-text">
+                                                <lightning-formatted-number value={line.wfrecon__Quantity__c}></lightning-formatted-number>
+                                            </td>
+                                            <td class="center-trancate-text total-amount">
+                                                <lightning-formatted-number value={line.wfrecon__Total_Cost__c} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                            </td>
+                                            <td class="center-trancate-text">
+                                                <lightning-formatted-number value={line.wfrecon__Sales_Price__c} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            
+                            
+                        </div>
+                    </template>
+                    <template if:false={proposalLines.length}>
+                        <div class="no-records-message">
+                            <p>No Proposal Lines found</p>
+                        </div>
+                    </template>
                 </div>
 
                 <div class="popUpFooter">
