@@ -596,7 +596,8 @@ export default class QuoteEmailComposer extends LightningElement {
                 body: this.emailBody,
                 fromId: this.selectedFromAddress,
                 relatedToId: this.recordId,
-                contentDocumentIds: fileIds
+                contentDocumentIds: fileIds,
+                templateId: this.selectedTemplateId // Ensure this is passed!
             })
             .then(() => {
                 this.showToast('Success', 'Email Sent Successfully', 'success');

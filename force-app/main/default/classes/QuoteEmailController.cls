@@ -105,29 +105,24 @@ public with sharing class QuoteEmailController {
         String fromId, 
         String relatedToId,
         List<String> contentDocumentIds,
-        String templateId // <--- NEW PARAMETER
+        String templateId
     ) {
         try {
-            // 1. Fetch the Proposal Expiration Date
-            Date expirationDate = null;
-            if(String.isNotBlank(relatedToId)) {
-                wfrecon__Proposal__c currentProposal = [
-                    SELECT wfrecon__Expiration_Date__c 
-                    FROM wfrecon__Proposal__c 
-                    WHERE Id = :relatedToId 
-                    WITH USER_MODE 
-                    LIMIT 1
-                ];
-                expirationDate = currentProposal.wfrecon__Expiration_Date__c;
-            }
 
-            // 2. Insert wfrecon__Proposal_Recipient__c
+            System.debug('sendQuoteEmail called with templateId: ' + templateId +
+                         ' toId: ' + toId +
+                         ' relatedToId: ' + relatedToId +
+                         ' fromId: ' + fromId +
+                         ' ccIds: ' + ccIds +
+                         ' bccIds: ' + bccIds +
+                         ' contentDocumentIds: ' + contentDocumentIds);
+
+            // 1. Insert Recipient Logic
             if(String.isNotBlank(toId) && String.isNotBlank(relatedToId)) {
                 wfrecon__Proposal_Recipient__c recipient = new wfrecon__Proposal_Recipient__c();
                 recipient.wfrecon__Proposal__c = relatedToId;
                 recipient.wfrecon__Contact__c = toId;
                 recipient.wfrecon__Status__c = 'Pending';
-                recipient.wfrecon__Due_Date__c = expirationDate;
                 insert as user recipient;
             }
 
@@ -158,7 +153,34 @@ public with sharing class QuoteEmailController {
             mail.setHtmlBody(body);
             mail.setSaveAsActivity(true);
 
-            // Handle Attachments
+            // 3. GENERATE PDF USING REFERENCE CODE LOGIC
+            // We call the Visualforce Page SendProposalPageAsPDF which runs the rollback logic
+            if(String.isNotBlank(relatedToId) && String.isNotBlank(templateId)) {
+                
+                PageReference pdfPage = Page.SendProposalPageAsPDF;
+                pdfPage.getParameters().put('recordId', relatedToId);
+                pdfPage.getParameters().put('templateId', templateId);
+                if(String.isNotBlank(toId)) {
+                    pdfPage.getParameters().put('contactId', toId);
+                }
+
+                Blob pdfBlob;
+                if(Test.isRunningTest()) {
+                    pdfBlob = Blob.valueOf('Test PDF Content');
+                } else {
+                    // This triggers the createPDF action in SendProposalPageAsPDFController
+                    pdfBlob = pdfPage.getContentAsPDF(); 
+                }
+
+                Messaging.EmailFileAttachment pdfAtt = new Messaging.EmailFileAttachment();
+                pdfAtt.setFileName('Proposal.pdf');
+                pdfAtt.setBody(pdfBlob);
+                pdfAtt.setContentType('application/pdf');
+                
+                mail.setFileAttachments(new Messaging.EmailFileAttachment[] { pdfAtt });
+            }
+
+            // 4. Handle Existing Files
             if (contentDocumentIds != null && !contentDocumentIds.isEmpty()) {
                 List<ContentVersion> versions = [
                     SELECT Id 
@@ -259,7 +281,6 @@ public with sharing class QuoteEmailController {
             }
             return fileList;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getRecordFiles', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return new List<FileWrapper>();
         }
     }
@@ -282,7 +303,7 @@ public with sharing class QuoteEmailController {
     public static List<wfrecon__Proposal_Line__c> getBaseContractLines(String recordId) {
         return [
             SELECT Id, Name, wfrecon__Description__c, wfrecon__Total_Cost__c, 
-                   wfrecon__Quantity__c, wfrecon__Sales_Price__c, // Added these fields
+                   wfrecon__Quantity__c, wfrecon__Sales_Price__c, 
                    wfrecon__Selected__c, wfrecon__Sequence__c
             FROM wfrecon__Proposal_Line__c
             WHERE wfrecon__Proposal__c = :recordId
