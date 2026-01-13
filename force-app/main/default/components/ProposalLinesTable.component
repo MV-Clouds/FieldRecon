@@ -31,7 +31,7 @@
                     </td>
                 </tr>
 
-                <tr>
+                <!-- <tr>
                     <td colspan="5" style="padding: 0; background-color: #ffffff;">
                         <apex:repeat var="budget" value="{!line.wfrecon__Budgets__r}"> 
                             <div style="padding: 10px 40px; background-color: #f9f9f9;">
@@ -218,8 +218,19 @@
                             </div>
                         </apex:repeat>
                     </td>
-                </tr>
+                </tr> -->
             </apex:repeat>
+            
+            <!-- Total Row -->
+            <tr style="background-color: #e8e8ff;">
+                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle;"></td>
+                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: left; vertical-align: middle; font-weight:bold;">Total</td>
+                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: left; vertical-align: middle;"></td>
+                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle;"></td>
+                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: right; vertical-align: middle; font-weight:bold;">
+                    <apex:outputText value="{0, number, currency}"><apex:param value="{!totalPrice}"/></apex:outputText>
+                </td>
+            </tr>
         </tbody>
     </table>
 </apex:component>

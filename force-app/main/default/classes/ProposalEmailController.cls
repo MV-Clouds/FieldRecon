@@ -1,6 +1,17 @@
 public class ProposalEmailController {
     public Id proposalId { get; set; }
     
+    // Calculate total price of all proposal lines
+    public Double getTotalPrice() {
+        Double total = 0;
+        for (wfrecon__Proposal_Line__c line : getSortedLines()) {
+            if (line.wfrecon__Sales_Price__c != null) {
+                total += line.wfrecon__Sales_Price__c;
+            }
+        }
+        return total;
+    }
+    
     // Fetch Proposal Lines sorted by Sequence, filtering only Selected ones
     public List<wfrecon__Proposal_Line__c> getSortedLines() {
         if (proposalId == null) return new List<wfrecon__Proposal_Line__c>();
