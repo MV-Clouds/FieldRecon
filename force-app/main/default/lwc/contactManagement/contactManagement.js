@@ -15,6 +15,8 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track showCreateModal = false;
     @track isEditMode = false;
     @track recordIdToEdit = null;
+    @track recordTypeId = '';
+
 
     // Form fields
     @track firstName = '';
@@ -303,70 +305,70 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.fetchConfiguration();
     }
 
-   /**
- * Method Name: fetchContacts
- * @description: Fetch all contacts from the server and extract record types
- */
-fetchContacts() {
-    this.isLoading = true;
+    /**
+  * Method Name: fetchContacts
+  * @description: Fetch all contacts from the server and extract record types
+  */
+    fetchContacts() {
+        this.isLoading = true;
 
-    getContacts()
-        .then(result => {
-            this.contacts = result || [];            
-            // Extract unique record types from contacts
-            this.extractRecordTypes();
-            
-            this.applyFilters();
-        })
-        .catch(error => {
-            console.error('Error fetching contacts:', error);
-            this.showToast('Error', 'Failed to load contacts', 'error');
-            this.contacts = [];
-            this.filteredContacts = [];
-        })
-        .finally(() => {
-            this.isLoading = false;
-        });
-}
+        getContacts()
+            .then(result => {
+                this.contacts = result || [];
+                // Extract unique record types from contacts
+                this.extractRecordTypes();
 
-/**
- * Method Name: extractRecordTypes
- * @description: Extract unique record types from contacts and populate options
- */
-extractRecordTypes() {
-    const recordTypesMap = new Map();
-    
-    // Extract all record types from contacts
-    this.contacts.forEach(contact => {
-        const recordTypeDevName = this.getFieldValue(contact, 'RecordType.DeveloperName');
-        const recordTypeId = this.getFieldValue(contact, 'RecordTypeId');
-        
-        if (recordTypeDevName && recordTypeId) {
-            if (!recordTypesMap.has(recordTypeDevName)) {
-                // Determine label based on DeveloperName
-                let label = '';
-                if (recordTypeDevName === 'Employee_WF_Recon') {
-                    label = 'Employee';
-                } else if (recordTypeDevName === 'Sub_Contractor_WF_Recon') {
-                    label = 'Sub Contractor';
-                } else {
-                    // Fallback: use the DeveloperName without suffix
-                    label = recordTypeDevName.replace('_WF_Recon', '').replace(/_/g, ' ');
+                this.applyFilters();
+            })
+            .catch(error => {
+                console.error('Error fetching contacts:', error);
+                this.showToast('Error', 'Failed to load contacts', 'error');
+                this.contacts = [];
+                this.filteredContacts = [];
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
+    /**
+     * Method Name: extractRecordTypes
+     * @description: Extract unique record types from contacts and populate options
+     */
+    extractRecordTypes() {
+        const recordTypesMap = new Map();
+
+        // Extract all record types from contacts
+        this.contacts.forEach(contact => {
+            const recordTypeDevName = this.getFieldValue(contact, 'RecordType.DeveloperName');
+            const recordTypeId = this.getFieldValue(contact, 'RecordTypeId');
+
+            if (recordTypeDevName && recordTypeId) {
+                if (!recordTypesMap.has(recordTypeDevName)) {
+                    // Determine label based on DeveloperName
+                    let label = '';
+                    if (recordTypeDevName === 'Employee_WF_Recon') {
+                        label = 'Employee';
+                    } else if (recordTypeDevName === 'Sub_Contractor_WF_Recon') {
+                        label = 'Sub Contractor';
+                    } else {
+                        // Fallback: use the DeveloperName without suffix
+                        label = recordTypeDevName.replace('_WF_Recon', '').replace(/_/g, ' ');
+                    }
+
+                    recordTypesMap.set(recordTypeDevName, {
+                        label: label,
+                        value: recordTypeId, // Store the ID, not DeveloperName
+                        developerName: recordTypeDevName
+                    });
                 }
-                
-                recordTypesMap.set(recordTypeDevName, {
-                    label: label,
-                    value: recordTypeId, // Store the ID, not DeveloperName
-                    developerName: recordTypeDevName
-                });
             }
-        }
-    });
-    
-    // Convert Map to array and sort alphabetically by label
-    this.recordTypeOptions = Array.from(recordTypesMap.values())
-        .sort((a, b) => a.label.localeCompare(b.label));
-}
+        });
+
+        // Convert Map to array and sort alphabetically by label
+        this.recordTypeOptions = Array.from(recordTypesMap.values())
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }
 
     /**
      * Method Name: getFieldValue
@@ -435,10 +437,11 @@ extractRecordTypes() {
      */
     handleCreateNew() {
         this.formValues = {
-            'wfrecon__Can_Clock_In_Out__c': true , // Default to checked
-            'RecordTypeId': '' 
+            'wfrecon__Can_Clock_In_Out__c': true, // Default to checked
+            'RecordTypeId': ''
         };
         this.isEditMode = false;
+        this.recordTypeId = '';
         this.isPreviewMode = false;
         this.recordIdToEdit = null;
         this.prepareDynamicFields();
@@ -676,47 +679,36 @@ extractRecordTypes() {
         this.openModalWithRecord(id, false, true);
     }
 
-    // openModalWithRecord(recordId, isEdit, isPreview) {
-    //     const contact = this.contacts.find(c => c.Id === recordId);
-    //     if (contact) {
-    //         this.isEditMode = isEdit;
-    //         this.isPreviewMode = isPreview;
-    //         this.recordIdToEdit = recordId;
+    openModalWithRecord(recordId, isEdit, isPreview) {
+        const contact = this.contacts.find(c => c.Id === recordId);
+        if (contact) {
+            this.isEditMode = isEdit;
+            this.isPreviewMode = isPreview;
+            this.recordIdToEdit = recordId;
 
-    //         // Populate formValues from Config
-    //         this.formValues = {};
-    //         this.configuredMetadata.forEach(field => {
-    //             this.formValues[field.fieldName] = this.getFieldValue(contact, field.fieldName);
-    //         });
-    //         this.formValues['Id'] = recordId;
+            // Get the RecordTypeId from the contact
+            const contactRecordTypeId = this.getFieldValue(contact, 'RecordTypeId');
 
-    //         this.prepareDynamicFields();
-    //         this.showCreateModal = true;
-    //     }
-    // }
+            // Set the recordTypeId property for the form
+            if (contactRecordTypeId) {
+                this.recordTypeId = contactRecordTypeId;
+            }
 
- openModalWithRecord(recordId, isEdit, isPreview) {
-    const contact = this.contacts.find(c => c.Id === recordId);
-    if (contact) {
-        this.isEditMode = isEdit;
-        this.isPreviewMode = isPreview;
-        this.recordIdToEdit = recordId;
+            // Populate formValues from Config
+            this.formValues = {};
+            this.configuredMetadata.forEach(field => {
+                this.formValues[field.fieldName] = this.getFieldValue(contact, field.fieldName);
+            });
 
-        // Populate formValues from Config
-        this.formValues = {};
-        this.configuredMetadata.forEach(field => {
-            this.formValues[field.fieldName] = this.getFieldValue(contact, field.fieldName);
-        });
-        
-        // Store both RecordTypeId and DeveloperName for proper mapping
-        this.formValues['RecordTypeId'] = this.getFieldValue(contact, 'RecordTypeId');
-        this.formValues['RecordType.DeveloperName'] = this.getFieldValue(contact, 'RecordType.DeveloperName');
-        this.formValues['Id'] = recordId;
+            // Store RecordTypeId for proper mapping
+            this.formValues['RecordTypeId'] = contactRecordTypeId;
+            this.formValues['RecordType.DeveloperName'] = this.getFieldValue(contact, 'RecordType.DeveloperName');
+            this.formValues['Id'] = recordId;
 
-        this.prepareDynamicFields();
-        this.showCreateModal = true;
+            this.prepareDynamicFields();
+            this.showCreateModal = true;
+        }
     }
-}
 
     /**
      * Method Name: handleDeleteContact
@@ -853,70 +845,75 @@ extractRecordTypes() {
 
     // --- Dynamic Form Logic ---
     prepareDynamicFields() {
-    // 1. Load config or default
-    let metadata = [];
-    if (this.configuredMetadata && this.configuredMetadata.length > 0) {
-        metadata = [...this.configuredMetadata];
-    } else {
-        this.setDefaultConfiguration();
-        metadata = [...this.configuredMetadata];
-    }
-
-    // 2. Filter out Record Type from metadata if it exists (to avoid duplicates)
-    const otherFields = metadata.filter(f =>
-        f.fieldName !== 'RecordType.DeveloperName' &&
-        f.fieldName !== 'RecordTypeId'
-    );
-
-    // 3. Create the Record Type Field Object (Always First)
-    const recordTypeVal = this.formValues['RecordTypeId'] || '';
-
-    const recordTypeField = {
-        fieldName: 'RecordTypeId', // Use RecordTypeId for form submission
-        label: 'Type',
-        value: recordTypeVal,
-        isDisabled: this.isPreviewMode, // Disabled in preview, enabled in create/edit
-        isRequired: true,
-        isRecordType: true,
-        isCheckbox: false,
-        isStandardInput: false,
-        options: this.recordTypeOptions // Pass the options for combobox
-    };
-
-    // 4. Map the rest of the fields
-    const dynamicOtherFields = otherFields.map(config => {
-        const fieldName = config.fieldName;
-
-        // Set default value for Can Clock In/Out checkbox on create mode
-        let currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
-
-        // Ensure checkbox field gets proper boolean value
-        if (!this.isEditMode && !this.isPreviewMode &&
-            fieldName === 'wfrecon__Can_Clock_In_Out__c' && currentVal === null) {
-            currentVal = true;
+        // 1. Load config or default
+        let metadata = [];
+        if (this.configuredMetadata && this.configuredMetadata.length > 0) {
+            metadata = [...this.configuredMetadata];
+        } else {
+            this.setDefaultConfiguration();
+            metadata = [...this.configuredMetadata];
         }
 
-        const isDisabled = this.isPreviewMode ? true : !config.isEditable;
-        const isSystemRequired = ['FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'].includes(fieldName);
-        const isRequired = isSystemRequired || (config.isRequired === true);
+        // 2. Filter out Record Type from metadata if it exists (to avoid duplicates)
+        const otherFields = metadata.filter(f =>
+            f.fieldName !== 'RecordType.DeveloperName' &&
+            f.fieldName !== 'RecordTypeId'
+        );
 
-        return {
-            fieldName: fieldName,
-            label: config.label || fieldName,
-            value: currentVal,
-            isDisabled: isDisabled,
-            isRequired: isRequired,
-            isRecordType: false,
-            isCheckbox: config.fieldType === 'BOOLEAN',
-            isStandardInput: config.fieldType !== 'BOOLEAN'
+        // 3. Get the current record type value
+        let recordTypeVal = '';
+        if (this.isEditMode && this.formValues['RecordTypeId']) {
+            recordTypeVal = this.formValues['RecordTypeId'];
+        } else if (this.recordTypeId) {
+            recordTypeVal = this.recordTypeId;
+        }
+
+        // 4. Create the Record Type Field Object (Always First)
+        const recordTypeField = {
+            fieldName: 'RecordTypeId',
+            label: 'Type',
+            value: recordTypeVal,
+            isDisabled: this.isPreviewMode,
+            isRequired: true,
+            isRecordType: true,
+            isCheckbox: false,
+            isStandardInput: false,
+            options: this.recordTypeOptions
         };
-    });
 
-    // Always show Record Type field
-    this.dynamicFields = [recordTypeField, ...dynamicOtherFields];
-    
-    console.log('Final Dynamic Fields:', JSON.stringify(this.dynamicFields));
-}
+        // 5. Map the rest of the fields
+        const dynamicOtherFields = otherFields.map(config => {
+            const fieldName = config.fieldName;
+
+            // Set default value for Can Clock In/Out checkbox on create mode
+            let currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
+
+            // Ensure checkbox field gets proper boolean value
+            if (!this.isEditMode && !this.isPreviewMode &&
+                fieldName === 'wfrecon__Can_Clock_In_Out__c' && currentVal === null) {
+                currentVal = true;
+            }
+
+            const isDisabled = this.isPreviewMode ? true : !config.isEditable;
+            const isSystemRequired = ['FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'].includes(fieldName);
+            const isRequired = isSystemRequired || (config.isRequired === true);
+
+            return {
+                fieldName: fieldName,
+                label: config.label || fieldName,
+                value: currentVal,
+                isDisabled: isDisabled,
+                isRequired: isRequired,
+                isRecordType: false,
+                isCheckbox: config.fieldType === 'BOOLEAN',
+                isStandardInput: config.fieldType !== 'BOOLEAN'
+            };
+        });
+
+        // Always show Record Type field
+        this.dynamicFields = [recordTypeField, ...dynamicOtherFields];
+    }
+
     /**
      * Method Name: handleCustomInputChange
      * @description: Handle custom input changes (Record Type combobox)
@@ -924,8 +921,14 @@ extractRecordTypes() {
     handleCustomInputChange(event) {
         const name = event.target.name;
         const value = event.detail.value;
+
         if (name && value !== undefined) {
             this.formValues[name] = value;
+
+            // If this is the RecordTypeId field, update the tracked property
+            if (name === 'RecordTypeId') {
+                this.recordTypeId = value;
+            }
         }
     }
 

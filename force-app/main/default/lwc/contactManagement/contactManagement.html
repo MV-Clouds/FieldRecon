@@ -225,6 +225,7 @@
                     record-id={recordIdToEdit}
                     onsuccess={handleSuccess}
                     onerror={handleError}
+                    record-type-id={recordTypeId} 
                     density="comfy">
                     
                     <div class="slds-grid slds-wrap slds-gutters">
@@ -235,8 +236,8 @@
                                     <!-- Record Type field -->
                                     <lightning-combobox
                                          name="RecordTypeId"
-                                        label={field.label}
-                                        value={field.value}
+                                        label="Type"
+                                        value={recordTypeId} 
                                         options={recordTypeOptions}
                                         required={field.isRequired}
                                         disabled={field.isDisabled}
