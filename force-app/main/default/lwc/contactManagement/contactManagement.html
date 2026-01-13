@@ -146,7 +146,7 @@
         </template>
     </div>
 
-    <template if:true={showCreateModal}>
+    <!-- <template if:true={showCreateModal}>
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
             <div class="slds-modal__container contact-popup">
                 <header class="slds-modal__header contact-popup-header">
@@ -205,7 +205,74 @@
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
-    </template>
+    </template> -->
+
+    <template if:true={showCreateModal}>
+    <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container contact-popup">
+            <header class="slds-modal__header contact-popup-header">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
+                        title="Close" onclick={handleCloseModal}>
+                    <lightning-icon icon-name="utility:close" size="small" alternative-text="close"></lightning-icon>
+                </button>
+                <h2 class="slds-text-heading_medium">{modalTitle}</h2>
+            </header>
+
+            <div class="slds-modal__content slds-p-around--medium contact-popup-body">
+                <!-- Add onsuccess and onerror handlers here -->
+                <lightning-record-edit-form
+                    object-api-name="Contact"
+                    record-id={recordIdToEdit}
+                    onsuccess={handleSuccess}
+                    onerror={handleError}
+                    density="comfy">
+                    
+                    <div class="slds-grid slds-wrap slds-gutters">
+                        <template for:each={dynamicFields} for:item="field">
+                            <div key={field.fieldName} class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                
+                                <template if:true={field.isRecordType}>
+                                    <!-- Record Type field -->
+                                    <lightning-combobox
+                                         name="RecordTypeId"
+                                        label={field.label}
+                                        value={field.value}
+                                        options={recordTypeOptions}
+                                        required={field.isRequired}
+                                        disabled={field.isDisabled}
+                                        class="custom-field-input"
+                                        onchange={handleCustomInputChange}>
+                                    </lightning-combobox>
+                                </template>
+
+                                <template if:false={field.isRecordType}>
+                                    <!-- Standard fields handled by lightning-input-field -->
+                                    <lightning-input-field
+                                        field-name={field.fieldName}
+                                        required={field.isRequired}
+                                        disabled={field.isDisabled}>
+                                    </lightning-input-field>
+                                </template>
+
+                            </div>
+                        </template>
+                    </div>
+
+                    <template if:false={isPreviewMode}>
+                        <div class="bottom-footer-btn">
+                            <!-- Change onclick to handleSave -->
+                            <button type="button" class="save-btn" onclick={handleSave}>
+                                {saveButtonLabel}
+                            </button>
+                        </div>
+                    </template>
+
+                </lightning-record-edit-form>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>
 
     <c-generic-confirmation-modal
         show-modal={showConfirmationModal}
