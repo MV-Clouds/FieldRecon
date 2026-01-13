@@ -32,6 +32,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track selectedProposalLines = new Map();
     @track isImportingProposalLines = false;
     @track bidActiveSectionName = [];
+    @track originalDisplayedBids = []; 
 
     @track recordId;
     @track isLoading = true;
@@ -2589,7 +2590,47 @@ handleBidSectionToggle(event) {
 }
 
 
-    handleViewBidsProposals() {
+handleViewBidsProposals() {
+    // Check if any scope entry has approved status
+    const hasApprovedEntry = this.scopeEntries && this.scopeEntries.some(entry =>
+        entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+    );
+    
+    // Filter bids based on approval status
+    if (hasApprovedEntry) {
+        // If any scope entry is approved, only show bids with Change Order proposals
+        const filteredBids = this.displayedBids.map(bid => {
+            const changeOrderProposals = bid.proposals.filter(proposal => 
+                proposal.Type__c === 'Change Order'
+            );
+            
+            return {
+                ...bid,
+                proposals: changeOrderProposals,
+                isProposalDataAvailable: changeOrderProposals.length > 0
+            };
+        }).filter(bid => bid.isProposalDataAvailable);
+        
+        // Show filtered bids
+        this.displayedBids = filteredBids;
+    } else {
+        // If no scope entry is approved, only show bids with Contract proposals
+        const filteredBids = this.displayedBids.map(bid => {
+            const contractProposals = bid.proposals.filter(proposal => 
+                proposal.Type__c === 'Contract'
+            );
+            
+            return {
+                ...bid,
+                proposals: contractProposals,
+                isProposalDataAvailable: contractProposals.length > 0
+            };
+        }).filter(bid => bid.isProposalDataAvailable);
+        
+        // Show filtered bids
+        this.displayedBids = filteredBids;
+    }
+    
     // Reset bid accordion state
     this.bidActiveSectionName = [];
     
@@ -2606,60 +2647,80 @@ handleBidSectionToggle(event) {
 }
 
 
-    handleCloseBidProposalModal() {
-        this.showBidProposalModal = false;
-    }
+  handleCloseBidProposalModal() {
+    // Restore original bids data
+    this.displayedBids = [...this.originalDisplayedBids];
+    this.showBidProposalModal = false;
+    
+    // Clear selections
+    this.selectedProposalLines.clear();
+    
+    // Clear line selections in the UI
+    this.displayedBids = this.displayedBids.map(bid => ({
+        ...bid,
+        proposals: bid.proposals.map(proposal => ({
+            ...proposal,
+            isAllLinesSelected: false,
+            proposalLines: proposal.proposalLines.map(line => ({
+                ...line,
+                isSelected: false
+            }))
+        }))
+    }));
+}
 
-    // Add this method to load bids (update the existing loadBids method)
-    async loadBids() {
-        this.isLoading = true;
-        try {
-            const result = await getBidsWithProposals({ jobId: this.recordId });
+   async loadBids() {
+    this.isLoading = true;
+    try {
+        const result = await getBidsWithProposals({ jobId: this.recordId });
 
-            if (result.success) {
-                this.displayedBids = result.bids.map(bid => ({
-                    Id: bid.Id,
-                    Name: bid.Name,
-                    isProposalDataAvailable: bid.proposals && bid.proposals.length > 0,
-                    proposals: (bid.proposals || []).map(proposal => ({
-                        Id: proposal.Id,
-                        Name: proposal.Name,
-                        Type__c: proposal.Type__c,
-                        Sales_Price__c: proposal.Sales_Price__c,
-                        Margin__c: proposal.Margin__c,
-                        Status__c: proposal.Status__c,
-                        recordUrl: proposal.recordUrl,
-                        showLines: false,
-                        isLoadingLines: false,
-                        isAllLinesSelected: false, // Add this property
-                        proposalLines: (proposal.proposalLines || []).map(line => ({
-                            Id: line.Id,
-                            Name: line.Name,
-                            Sales_Price__c: line.Sales_Price__c || 0,
-                            Description__c: line.Description__c || '--',
-                            recordUrl: line.recordUrl,
-                            isSelected: false // Add this property
-                        }))
+        if (result.success) {
+            this.originalDisplayedBids = result.bids.map(bid => ({
+                Id: bid.Id,
+                Name: bid.Name,
+                isProposalDataAvailable: bid.proposals && bid.proposals.length > 0,
+                proposals: (bid.proposals || []).map(proposal => ({
+                    Id: proposal.Id,
+                    Name: proposal.Name,
+                    Type__c: proposal.Type__c,
+                    Sales_Price__c: proposal.Sales_Price__c,
+                    Margin__c: proposal.Margin__c,
+                    Status__c: proposal.Status__c,
+                    recordUrl: proposal.recordUrl,
+                    showLines: false,
+                    isLoadingLines: false,
+                    isAllLinesSelected: false,
+                    proposalLines: (proposal.proposalLines || []).map(line => ({
+                        Id: line.Id,
+                        Name: line.Name,
+                        Sales_Price__c: line.Sales_Price__c || 0,
+                        Description__c: line.Description__c || '--',
+                        recordUrl: line.recordUrl,
+                        isSelected: false
                     }))
-                }));
+                }))
+            }));
+            
+            // Store unfiltered bids
+            this.displayedBids = [...this.originalDisplayedBids];
+            
+            // Initialize the selectedProposalLines map
+            this.selectedProposalLines.clear();
 
-                // Initialize the selectedProposalLines map
-                this.selectedProposalLines.clear();
-
-                // Set first bid to be open by default
+            // Set first bid to be open by default
             if (this.displayedBids.length > 0) {
                 this.bidActiveSectionName = [this.displayedBids[0].Id];
             }
             
-            } else {
-                this.error = result.error;
-            }
-        } catch (error) {
-            this.error = error.body?.message || error.message;
-        } finally {
-            this.isLoading = false;
+        } else {
+            this.error = result.error;
         }
+    } catch (error) {
+        this.error = error.body?.message || error.message;
+    } finally {
+        this.isLoading = false;
     }
+}
 
     // Add this method to handle individual proposal line selection
     handleProposalLineSelection(event) {
@@ -2891,76 +2952,60 @@ handleBidSectionToggle(event) {
         this.proceedWithProposalLinesImport(selectedLinesData);
     }
 
-    async proceedWithProposalLinesImport(selectedLinesData) {
-        this.isImportingProposalLines = true;
+async proceedWithProposalLinesImport(selectedLinesData) {
+    this.isImportingProposalLines = true;
 
-        try {
-            // Check if we have data
-            if (!selectedLinesData || selectedLinesData.length === 0) {
-                this.showToast('Error', 'No proposal lines selected for import', 'error');
-                this.isImportingProposalLines = false;
-                return;
-            }
-
-            // Prepare scope entry data for each selected line
-            const scopeEntriesData = selectedLinesData.map(lineData => {
-                // Determine scope entry type based on proposal type
-                const scopeEntryType = lineData.proposalType === 'Change Order' ? 'Change Order' : 'Contract';
-
-                // Ensure all required fields have values
-                const entryData = {
-                    name: lineData.lineName || `Imported from ${lineData.proposalName}`,
-                    contractValue: lineData.salesPrice || 0,
-                    description: lineData.description || '',
-                    jobId: this.recordId,
-                    type: scopeEntryType
-                };
-
-                return entryData;
-            });
-
-            // Stringify the data and log it
-            const scopeEntriesDataJson = JSON.stringify(scopeEntriesData);
-
-            // Call Apex method to create scope entries
-            const result = await createScopeEntriesFromProposalLines({
-                scopeEntriesDataJson: scopeEntriesDataJson
-            });
-
-            if (result.success) {
-                const createdCount = result.createdEntries || selectedLinesData.length;
-                this.showToast('Success', `Successfully imported ${createdCount} proposal line${createdCount > 1 ? 's' : ''} as scope entries`, 'success');
-
-                // Close the modal
-                this.handleCloseBidProposalModal();
-
-                // Clear selections
-                this.selectedProposalLines.clear();
-
-                // Also clear individual line selections in the UI
-                this.displayedBids = this.displayedBids.map(bid => ({
-                    ...bid,
-                    proposals: bid.proposals.map(proposal => ({
-                        ...proposal,
-                        isAllLinesSelected: false,
-                        proposalLines: proposal.proposalLines.map(line => ({
-                            ...line,
-                            isSelected: false
-                        }))
-                    }))
-                }));
-
-                // Refresh the main scope entries view
-                this.performCompleteRefresh();
-            } else {
-                this.showToast('Error', result.error || 'Failed to import proposal lines', 'error');
-            }
-        } catch (error) {
-            this.showToast('Error', 'Failed to import proposal lines: ' + (error.body?.message || error.message || error.toString()), 'error');
-        } finally {
+    try {
+        // Check if we have data
+        if (!selectedLinesData || selectedLinesData.length === 0) {
+            this.showToast('Error', 'No proposal lines selected for import', 'error');
             this.isImportingProposalLines = false;
+            return;
         }
+
+        // Prepare scope entry data for each selected line - use original proposal type
+        const scopeEntriesData = selectedLinesData.map(lineData => {
+            // Use the original proposal type from the line data
+            const scopeEntryType = lineData.proposalType || 'Contract';
+
+            // Ensure all required fields have values
+            const entryData = {
+                name: lineData.lineName || `Imported from ${lineData.proposalName}`,
+                contractValue: lineData.salesPrice || 0,
+                description: lineData.description || '',
+                jobId: this.recordId,
+                type: scopeEntryType
+            };
+
+            return entryData;
+        });
+
+        // Stringify the data
+        const scopeEntriesDataJson = JSON.stringify(scopeEntriesData);
+
+        // Call Apex method to create scope entries
+        const result = await createScopeEntriesFromProposalLines({
+            scopeEntriesDataJson: scopeEntriesDataJson
+        });
+
+        if (result.success) {
+            const createdCount = result.createdEntries || selectedLinesData.length;
+            this.showToast('Success', `Successfully imported ${createdCount} proposal line${createdCount > 1 ? 's' : ''} as scope entries`, 'success');
+
+            // Close the modal
+            this.handleCloseBidProposalModal();
+
+            // Refresh the main scope entries view
+            this.performCompleteRefresh();
+        } else {
+            this.showToast('Error', result.error || 'Failed to import proposal lines', 'error');
+        }
+    } catch (error) {
+        this.showToast('Error', 'Failed to import proposal lines: ' + (error.body?.message || error.message || error.toString()), 'error');
+    } finally {
+        this.isImportingProposalLines = false;
     }
+}
 
     // Toggle proposal lines visibility
     handleToggleProposalLines(event) {
