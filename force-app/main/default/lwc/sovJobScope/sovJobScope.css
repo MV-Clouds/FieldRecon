@@ -2242,3 +2242,11 @@
 .hide-contract-checkboxes .checkbox-column input[type="checkbox"] {
     display: none;
 }
+
+.bid-accordion{
+    padding: 1rem;
+}
+
+.proposal-line-checkbox, .select-all-proposal-lines{
+    transform: scale(1.2);
+}

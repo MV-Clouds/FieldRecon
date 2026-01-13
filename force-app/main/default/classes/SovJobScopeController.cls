@@ -1289,4 +1289,157 @@ public with sharing class SovJobScopeController {
         }
     }
 
+      @AuraEnabled(cacheable=true)
+    public static Map<String, Object> getBidsWithProposals(String jobId) {
+        Map<String, Object> result = new Map<String, Object>();
+        List<Map<String, Object>> bidsWithData = new List<Map<String, Object>>();
+        
+        try {
+            // Query bids with Status = 'Closed Won' related to the job
+            List<Bid__c> bids = [
+                SELECT Id, Name, Status__c, 
+                       (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c 
+                        FROM Proposals__r 
+                        WHERE Status__c = 'Approved'
+                        ORDER BY CreatedDate DESC)
+                FROM Bid__c 
+                WHERE Job__c = :jobId 
+                AND Status__c = 'Closed Won'
+                ORDER BY CreatedDate DESC
+            ];
+            
+            for (Bid__c bid : bids) {
+                Map<String, Object> bidData = new Map<String, Object>();
+                bidData.put('Id', bid.Id);
+                bidData.put('Name', bid.Name);
+                bidData.put('Status__c', bid.Status__c);
+                
+                // Process proposals for this bid
+                List<Map<String, Object>> proposals = new List<Map<String, Object>>();
+                
+                for (Proposal__c proposal : bid.Proposals__r) {
+                    Map<String, Object> proposalData = new Map<String, Object>();
+                    proposalData.put('Id', proposal.Id);
+                    proposalData.put('Name', proposal.Name);
+                    proposalData.put('Type__c', proposal.Type__c);
+                    proposalData.put('Sales_Price__c', proposal.Total_Sales_Price__c);
+                    proposalData.put('Margin__c', proposal.Margin__c);
+                    proposalData.put('Status__c', proposal.Status__c);
+                    proposalData.put('recordUrl', '/lightning/r/Proposal__c/' + proposal.Id + '/view');
+                    
+                    // Query proposal lines for this proposal
+                    List<Proposal_Line__c> lines = [
+                        SELECT Id, Name, Description__c, Sales_Price__c
+                        FROM Proposal_Line__c 
+                        WHERE Proposal__c = :proposal.Id
+                        ORDER BY CreatedDate
+                    ];
+                    
+                    List<Map<String, Object>> proposalLines = new List<Map<String, Object>>();
+                    for (Proposal_Line__c line : lines) {
+                        Map<String, Object> lineData = new Map<String, Object>();
+                        lineData.put('Id', line.Id);
+                        lineData.put('Name', line.Name);
+                        lineData.put('Description__c', line.Description__c);
+                        lineData.put('Sales_Price__c', line.Sales_Price__c);
+                        proposalLines.add(lineData);
+                    }
+                    
+                    proposalData.put('proposalLines', proposalLines);
+                    proposals.add(proposalData);
+                }
+                
+                bidData.put('proposals', proposals);
+                bidsWithData.add(bidData);
+            }
+            
+            result.put('success', true);
+            result.put('bids', bidsWithData);
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getBidsWithProposals','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching bids with proposals for job ID: ' + jobId,'apiResponse' => null});
+            result.put('success', false);
+            result.put('error', e.getMessage());
+        }
+        
+        return result;
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> createScopeEntriesFromProposalLines(String scopeEntriesDataJson) {
+        Map<String, Object> result = new Map<String, Object>();
+        
+        try {
+            if (String.isBlank(scopeEntriesDataJson)) {
+                result.put('success', false);
+                result.put('error', 'No data provided for import');
+                return result;
+            }
+            
+            // Parse the JSON data
+            List<Object> scopeEntriesDataList = (List<Object>) JSON.deserializeUntyped(scopeEntriesDataJson);
+            
+            if (scopeEntriesDataList == null || scopeEntriesDataList.isEmpty()) {
+                result.put('success', false);
+                result.put('error', 'No proposal lines selected for import');
+                return result;
+            }
+            
+            List<wfrecon__Scope_Entry__c> scopeEntriesToCreate = new List<wfrecon__Scope_Entry__c>();
+            List<String> createdEntryIds = new List<String>();
+            
+            for (Object entryObj : scopeEntriesDataList) {
+                Map<String, Object> entryData = (Map<String, Object>) entryObj;
+                
+                wfrecon__Scope_Entry__c newEntry = new wfrecon__Scope_Entry__c();
+                
+                // Set required fields with null checks
+                String entryName = (String) entryData.get('name');
+                newEntry.Name = String.isNotBlank(entryName) ? entryName : 'Imported Proposal Line';
+                
+                Object contractValueObj = entryData.get('contractValue');
+                if (contractValueObj != null) {
+                    newEntry.wfrecon__Contract_Value__c = Decimal.valueOf(String.valueOf(contractValueObj));
+                } else {
+                    newEntry.wfrecon__Contract_Value__c = 0;
+                }
+                
+                String description = (String) entryData.get('description');
+                newEntry.wfrecon__Description__c = String.isNotBlank(description) ? description : '';
+                
+                newEntry.wfrecon__Job__c = (Id) entryData.get('jobId');
+                
+                String entryType = (String) entryData.get('type');
+                newEntry.wfrecon__Type__c = String.isNotBlank(entryType) ? entryType : 'Contract';
+                
+                // Set default status
+                newEntry.wfrecon__Scope_Entry_Status__c = 'Draft';
+                
+                scopeEntriesToCreate.add(newEntry);
+            }
+            
+            if (!scopeEntriesToCreate.isEmpty()) {
+                insert scopeEntriesToCreate;
+                
+                // Collect the created entry IDs
+                for (wfrecon__Scope_Entry__c entry : scopeEntriesToCreate) {
+                    createdEntryIds.add(entry.Id);
+                }
+                
+                result.put('success', true);
+                result.put('createdEntries', scopeEntriesToCreate.size());
+                result.put('createdEntryIds', createdEntryIds);
+            } else {
+                result.put('success', false);
+                result.put('error', 'No scope entries to create after processing data');
+            }
+            
+        } catch (Exception e) {
+            result.put('success', false);
+            result.put('error', 'Error: ' + e.getMessage() + ' - Line: ' + e.getLineNumber());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'createScopeEntriesFromProposalLines','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error creating scope entries from proposal lines','apiResponse' => null});
+        }
+        
+        return result;
+    }
 }
