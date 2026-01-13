@@ -13,7 +13,7 @@
     background-image: url(/resource/wfrecon__FieldReconBG);
     background-repeat: no-repeat;
     background-size: cover;
-    min-height: 74vh;
+    min-height: 73vh;
     max-height: 45vh;
     position: relative;
     display: flex;
@@ -371,6 +371,11 @@
     transition: background-color 0.2s, color 0.2s;
 }
 
+.footer-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 /* Send Button States */
 .footer-btn.secondary.btn-disabled {
     background: #c9c7c5; /* Standard disabled gray */
@@ -397,6 +402,82 @@
 
 .footer-btn.primary-outline:hover {
     background: #f3f3f3;
+}
+
+/* Step 1 Styles */
+.step-header {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0rem;
+    font-size: 1.3em;
+}
+
+.step-one-body {
+    background-color: #ffffff;
+    overflow-y: auto;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 0rem 1rem 0.5rem 1rem;
+}
+
+/* Table Styles from ProposalLinesContainer */
+.custom-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    font-size: 14px;
+}
+
+.table-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.header-cell {
+    padding: 10px;
+    background-color: rgba(94, 90, 219, 1);
+    color: white;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    white-space: nowrap;
+}
+
+.proposal-line-row:nth-of-type(even) {
+    background-color: rgb(244, 244, 255);
+}
+
+.proposal-line-row:hover {
+    background-color: rgb(239, 239, 255) !important;
+}
+
+.table-cell, .center-trancate-text {
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #f1f1f1;
+    color: #585858;
+}
+
+.col-toggle { width: 5%; }
+.col-sr-no { width: 10%; }
+
+.total-amount {
+    font-weight: 600;
+    color: rgba(94, 90, 219, 1);
+}
+
+.no-records-message {
+    padding: 2rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+.data-table-container{
+    width: 100%;
 }
 
 /* Utilities */

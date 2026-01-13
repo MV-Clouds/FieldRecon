@@ -104,10 +104,10 @@ public with sharing class QuoteEmailController {
         String body, 
         String fromId, 
         String relatedToId,
-        List<String> contentDocumentIds 
+        List<String> contentDocumentIds,
+        String templateId // <--- NEW PARAMETER
     ) {
         try {
-
             // 1. Fetch the Proposal Expiration Date
             Date expirationDate = null;
             if(String.isNotBlank(relatedToId)) {
@@ -128,8 +128,6 @@ public with sharing class QuoteEmailController {
                 recipient.wfrecon__Contact__c = toId;
                 recipient.wfrecon__Status__c = 'Pending';
                 recipient.wfrecon__Due_Date__c = expirationDate;
-                
-                // Using User Mode to enforce permissions
                 insert as user recipient;
             }
 
@@ -167,6 +165,7 @@ public with sharing class QuoteEmailController {
                     FROM ContentVersion 
                     WHERE ContentDocumentId IN :contentDocumentIds 
                     AND IsLatest = true
+                    WITH USER_MODE
                 ];
                 List<Id> entityAttachments = new List<Id>();
                 for(ContentVersion cv : versions) {
@@ -275,6 +274,53 @@ public with sharing class QuoteEmailController {
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getEmailsFromIds', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return new List<String>();
+        }
+    }
+
+    // NEW METHOD: Get Base Contract Lines for the Wizard Step 1
+    @AuraEnabled
+    public static List<wfrecon__Proposal_Line__c> getBaseContractLines(String recordId) {
+        return [
+            SELECT Id, Name, wfrecon__Description__c, wfrecon__Total_Cost__c, 
+                   wfrecon__Quantity__c, wfrecon__Sales_Price__c, // Added these fields
+                   wfrecon__Selected__c, wfrecon__Sequence__c
+            FROM wfrecon__Proposal_Line__c
+            WHERE wfrecon__Proposal__c = :recordId
+            AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = NULL)
+            ORDER BY wfrecon__Sequence__c ASC
+        ];
+    }
+
+    // NEW METHOD: Update the checkbox on records based on user selection
+    @AuraEnabled
+    public static void updateLineSelection(List<String> selectedIds, String recordId) {
+        try {
+            // Fetch ALL Base Contract lines for this Proposal
+            List<wfrecon__Proposal_Line__c> allLines = [
+                SELECT Id, wfrecon__Selected__c 
+                FROM wfrecon__Proposal_Line__c 
+                WHERE wfrecon__Proposal__c = :recordId
+                AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = NULL)
+                WITH USER_MODE
+            ];
+
+            List<wfrecon__Proposal_Line__c> linesToUpdate = new List<wfrecon__Proposal_Line__c>();
+            Set<String> selectedSet = new Set<String>(selectedIds);
+
+            for(wfrecon__Proposal_Line__c line : allLines) {
+                Boolean shouldBeSelected = selectedSet.contains(line.Id);
+                // Only add to update list if value changes
+                if(line.wfrecon__Selected__c != shouldBeSelected) {
+                    line.wfrecon__Selected__c = shouldBeSelected;
+                    linesToUpdate.add(line);
+                }
+            }
+
+            if(!linesToUpdate.isEmpty()) {
+                update as user linesToUpdate;
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
         }
     }
 
