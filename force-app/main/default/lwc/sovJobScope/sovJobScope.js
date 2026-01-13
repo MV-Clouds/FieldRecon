@@ -31,6 +31,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     @track showBidProposalModal = false;
     @track selectedProposalLines = new Map();
     @track isImportingProposalLines = false;
+    @track bidActiveSectionName = [];
 
     @track recordId;
     @track isLoading = true;
@@ -720,7 +721,8 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             // Create style element if it doesn't exist
             const style = document.createElement('style');
             style.textContent = `
-                .accordion-container .section-control {
+                .accordion-container .section-control,
+                .bid-accordion .section-control {
                     background: rgba(94, 90, 219, 0.9) !important;
                     color: white !important;
                     margin-bottom: 4px;
@@ -729,11 +731,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                     border-radius: 4px;
                 }
 
-                .accordion-container .slds-accordion__summary {
+                .bid-accordion .slds-accordion__summary {
                     padding-bottom: 0;
                 }
 
-                .accordion-container .slds-accordion__summary-content {
+                .accordion-container .slds-accordion__summary-content,
+                .bid-accordion .slds-accordion__summary-content {
                     font-size: medium;
                 }
                 
@@ -2577,9 +2580,31 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         this.activeSectionName = event.detail.openSections;
     }
 
+    /**
+ * Method Name: handleBidSectionToggle
+ * @description: Handle bid proposal modal accordion section toggle
+ */
+handleBidSectionToggle(event) {
+    this.bidActiveSectionName = event.detail.openSections;
+}
+
+
     handleViewBidsProposals() {
-        this.showBidProposalModal = true;
-    }
+    // Reset bid accordion state
+    this.bidActiveSectionName = [];
+    
+    // Open the modal
+    this.showBidProposalModal = true;
+    
+    // After modal is rendered, expand the first bid (if any)
+    setTimeout(() => {
+        if (this.displayedBids && this.displayedBids.length > 0) {
+            // Expand the first bid by default
+            this.bidActiveSectionName = [this.displayedBids[0].Id];
+        }
+    }, 100);
+}
+
 
     handleCloseBidProposalModal() {
         this.showBidProposalModal = false;
@@ -2620,6 +2645,12 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
                 // Initialize the selectedProposalLines map
                 this.selectedProposalLines.clear();
+
+                // Set first bid to be open by default
+            if (this.displayedBids.length > 0) {
+                this.bidActiveSectionName = [this.displayedBids[0].Id];
+            }
+            
             } else {
                 this.error = result.error;
             }

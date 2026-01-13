@@ -2246,3 +2246,7 @@
 .bid-accordion{
     padding: 1rem;
 }
+
+.proposal-line-checkbox, .select-all-proposal-lines{
+    transform: scale(1.2);
+}
