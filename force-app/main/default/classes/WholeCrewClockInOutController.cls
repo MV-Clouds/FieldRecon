@@ -28,8 +28,8 @@ public with sharing class WholeCrewClockInOutController {
                        wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Mobilization_Status__c
                 FROM wfrecon__Mobilization__c 
                 WHERE wfrecon__Job__c = :jobId 
-                AND wfrecon__Start_Date__c >= :startOfDay
                 AND wfrecon__Start_Date__c <= :endOfDay
+                AND wfrecon__End_Date__c >= :startOfDay
                 WITH USER_MODE
                 ORDER BY wfrecon__Start_Date__c DESC
             ];
@@ -41,6 +41,8 @@ public with sharing class WholeCrewClockInOutController {
             }
             
             List<Map<String, String>> mobilizationOptions = new List<Map<String, String>>();
+            Map<String, String> mobilizationDates = new Map<String, String>();
+
             for (wfrecon__Mobilization__c mob : mobilizations) {
                 String statusLabel = String.isNotBlank(mob.wfrecon__Mobilization_Status__c) ? mob.wfrecon__Mobilization_Status__c : 'N/A';
                 String displayLabel = mob.wfrecon__Job__r.wfrecon__Job_Name__c + ' (Status - ' + statusLabel + ')';
@@ -48,6 +50,13 @@ public with sharing class WholeCrewClockInOutController {
                     'label' => displayLabel,
                     'value' => String.valueOf(mob.Id)
                 });
+
+                // Format the start date for display
+                String dateStr = '';
+                if(mob.wfrecon__Start_Date__c != null) {
+                    dateStr = mob.wfrecon__Start_Date__c.format('MMMM d, yyyy h:mm a'); 
+                }
+                mobilizationDates.put(String.valueOf(mob.Id), dateStr);
             }
 
             // Determine default mobilization - prioritize where user is crew leader
@@ -127,6 +136,7 @@ public with sharing class WholeCrewClockInOutController {
             
             response.put('hasMobilizations', true);
             response.put('mobilizationOptions', mobilizationOptions);
+            response.put('mobilizationDates', mobilizationDates);
             response.put('defaultMobilizationId', String.valueOf(defaultMobilizationId));
             
         } catch (Exception e) {
@@ -947,8 +957,8 @@ public with sharing class WholeCrewClockInOutController {
                     SELECT Id 
                     FROM wfrecon__Mobilization__c 
                     WHERE wfrecon__Job__c = :jobId 
-                    AND wfrecon__Start_Date__c >= :startOfDay
                     AND wfrecon__Start_Date__c <= :endOfDay
+                    AND wfrecon__End_Date__c >= :startOfDay
                     WITH USER_MODE
                 ];
                 
