@@ -532,7 +532,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
         // Get the record edit form
         const recordEditForm = this.template.querySelector('lightning-record-edit-form');
-
         // Submit the form - this will trigger validation and standard save
         if (recordEditForm) {
             // Optional: You can do pre-save validation here if needed
@@ -567,12 +566,12 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         console.error('Save Error', error);
 
         let errorMessage = 'Error saving contact';
-        if (error.detail && error.detail.output && error.detail.output.errors) {
-            errorMessage = error.detail.output.errors[0].message;
-        } else if (error.detail && error.detail.body && error.detail.body.output && error.detail.body.output.errors) {
-            errorMessage = error.detail.body.output.errors[0].message;
+        if (error.detail) {
+            if (error?.detail && error.detail.toLowerCase().includes('required')) {
+                errorMessage = 'Please fill all required fields.';
+            }
         } else if (error.message) {
-            errorMessage = error.message;
+            errorMessage = error.detail;
         }
 
         this.showToast('Error', errorMessage, 'error');
